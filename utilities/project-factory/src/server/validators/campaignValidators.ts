@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -75,7 +75,7 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
 }
 
 // Compares unique boundaries with response boundaries and throws error for missing codes.
-async function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any, localizationMap?: any) {
+async function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
     // Extracts boundary codes from response boundaries
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
 
@@ -91,22 +91,21 @@ async function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoun
             `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
         );
     }
-    await reorderBoundariesOfDataAndValidate(request, localizationMap)
 }
 
 // Validates unique boundaries against the response boundaries.
-async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any, localizationMap?: any) {
+async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
     // Fetches response boundaries in chunks
     const responseBoundaries = await fetchBoundariesInChunks(request);
 
     // Compares unique boundaries with response boundaries
-    await compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request, localizationMap);
+    await compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
 }
 
 
 
 
-async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap?: any) {
+async function validateBoundaryData(data: any[], request: any, boundaryColumn: any) {
     const boundarySet = new Set(); // Create a Set to store unique boundaries
 
     data.forEach((element, index) => {
@@ -128,7 +127,7 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
         }
     });
     const uniqueBoundaries = Array.from(boundarySet);
-    await validateUniqueBoundaries(uniqueBoundaries, request, localizationMap);
+    await validateUniqueBoundaries(uniqueBoundaries, request);
 }
 
 async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[], localizationMap?: any) {
@@ -325,7 +324,7 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
     await validateViaSchema(data, schema, request, localizationMap);
     if (boundaryValidation) {
         const localisedBoundaryCode = getLocalizedName(boundaryValidation?.column, localizationMap)
-        await validateBoundaryData(data, request, localisedBoundaryCode, localizationMap);
+        await validateBoundaryData(data, request, localisedBoundaryCode);
     }
 }
 
@@ -570,27 +569,29 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
 
         // Fetch file response
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
-        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, false, undefined, localizationMap);
+        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
 
         const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
 
         // Initialize resource boundary codes as a set for uniqueness
-        const resourceBoundaryCodes = new Set();
+        const resourceBoundaryCodesArray: any[] = [];
         datas.forEach((data: any) => {
             const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-            codes.forEach((code: string) => resourceBoundaryCodes.add(code));
+            resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
         });
 
         // Convert sets to arrays for comparison
         const boundaryCodesArray = Array.from(boundaryCodes);
-        const resourceBoundaryCodesArray = Array.from(resourceBoundaryCodes);
+        var errors = []
         // Check for missing boundary codes
-        const missingBoundaryCodes = resourceBoundaryCodesArray.filter(code => !boundaryCodesArray.includes(code));
-
-        if (missingBoundaryCodes.length > 0) {
-            const missingCodesMessage = missingBoundaryCodes.join(', ');
-            throwError("COMMON", 400, "VALIDATION_ERROR", `The following boundary codes are not present in CampaignDetails boundaries but are present for ${resource.type} : ${missingCodesMessage}`);
+        for (const rowData of resourceBoundaryCodesArray) {
+            var missingBoundaries = rowData.boundaryCodes.filter((code: any) => !boundaryCodesArray.includes(code));
+            if (missingBoundaries.length > 0) {
+                const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
+                errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
+            }
         }
+        request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
     }
 }
 

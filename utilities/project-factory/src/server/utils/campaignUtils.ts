@@ -1017,7 +1017,7 @@ async function reorderBoundariesOfDataAndValidate(request: any, localizationMap?
             await validateBoundaryOfResouces(CampaignDetails, request, localizationMap)
         }
         else {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while Validating sheet boundaries");
         }
     }
 }
@@ -1149,6 +1149,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             RequestInfo: request?.body?.RequestInfo,
             Projects
         }
+        await reorderBoundaries(request, localizationMap)
         boundaries = request?.body?.CampaignDetails?.boundaries;
         for (const boundary of boundaries) {
             Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
@@ -1175,6 +1176,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
         await updateProjectDates(request);
     }
 }
+
 
 async function processAfterPersist(request: any, actionInUrl: any) {
     try {

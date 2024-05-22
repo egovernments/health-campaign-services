@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
 import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../kafka/Listener";
@@ -398,6 +398,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await reorderBoundariesOfDataAndValidate(request, localizationMap)
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
     await handleResouceDetailsError(request, error);
@@ -581,6 +582,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     request.body.dataToCreate = typeData.createData;
     request.body.dataToSearch = typeData.searchData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await reorderBoundariesOfDataAndValidate(request, localizationMap)
     if (createAndSearchConfig?.createBulkDetails && request.body.ResourceDetails.status != "invalid") {
       _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
       const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
@@ -663,7 +665,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation response" + JSON.stringify(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info("Project created successfully with id " + JSON.stringify(projectCreateResponse?.Project[0]?.id))
-    logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}` )
+    logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`)
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
