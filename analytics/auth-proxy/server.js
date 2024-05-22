@@ -43,7 +43,7 @@ app.use((req, res, next) => {
 
     logger.info("Received request path - " + req.url);
 
-    if (typeReq === 'document') {
+    if (typeReq === 'document' || typeReq===undefined || !typeReq) {
         logger.info("Bypassing authentication for document type request");
         next(); // Bypass authentication for document type requests
     } else if (req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
