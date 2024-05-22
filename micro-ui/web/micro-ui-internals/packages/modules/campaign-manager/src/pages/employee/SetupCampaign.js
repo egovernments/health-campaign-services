@@ -731,6 +731,8 @@ const SetupCampaign = () => {
                 }
               },
             });
+          } else {
+            setCurrentKey(currentKey + 1);
           }
         };
 
