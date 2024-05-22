@@ -145,7 +145,15 @@ function AddProduct() {
         onSecondayActionClick={onSecondayActionClick}
       />
 
-      {showToast && <Toast error={showToast?.isError} label={t(showToast?.label)} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
+      {showToast && (
+        <Toast
+          type={showToast?.isError ? "error" : "success"}
+          // error={showToast?.isError}
+          label={t(showToast?.label)}
+          isDleteBtn={"true"}
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   );
 }

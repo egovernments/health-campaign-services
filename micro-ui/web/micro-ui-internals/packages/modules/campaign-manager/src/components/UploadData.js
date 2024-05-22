@@ -844,9 +844,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       />
       {showToast && (uploadedFile?.length > 0 || downloadError) && (
         <Toast
-          error={showToast.key === "error" ? true : false}
-          warning={showToast.key === "warning" ? true : false}
-          info={showToast.key === "info" ? true : false}
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // error={showToast.key === "error" ? true : false}
+          // warning={showToast.key === "warning" ? true : false}
+          // info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
           transitionTime={showToast.transitionTime}
           onClose={closeToast}
