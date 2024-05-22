@@ -36,6 +36,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [fileName, setFileName] = useState(null);
   const [downloadError, setDownloadError] = useState(false);
   const [resourceId, setResourceId] = useState(null);
+  const searchParams = new URLSearchParams(location.search);
+  const id = searchParams.get("id");
   const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
     { name: "facilitySchema" },
     { name: "userSchema" },
@@ -425,7 +427,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             if (!validateMultipleTargets(workbook)) {
               return;
             }
-          } else if(type !== "boundary"){
+          } else if (type !== "boundary") {
             for (const header of expectedHeaders) {
               if (!headersToValidate.includes(header)) {
                 const errorMessage = t("HCM_MISSING_HEADERS");
@@ -543,13 +545,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
   useEffect(() => {
     const fetchData = async () => {
-      if (!errorsType[type]) {
+      if (!errorsType[type] && uploadedFile?.length > 0) {
         setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsValidation(true);
         setIsError(true);
 
         try {
-          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
+          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId, id);
           if (temp?.isError) {
             const errorMessage = temp?.error.replaceAll(":", "-");
             setShowToast({ key: "error", label: errorMessage, transitionTime: 5000000 });
@@ -679,7 +681,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
       return;
     }
-    if(!params?.boundaryId || !params?.facilityId || !params?.userId){
+    if (!params?.boundaryId || !params?.facilityId || !params?.userId) {
       setDownloadError(true);
       setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
       return;

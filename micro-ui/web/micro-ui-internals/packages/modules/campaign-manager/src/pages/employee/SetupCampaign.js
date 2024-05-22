@@ -377,7 +377,6 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-
   useEffect(() => {
     setTimeout(() => {
       setEnabled(fetchUpload || (fetchBoundary && currentKey > 6));

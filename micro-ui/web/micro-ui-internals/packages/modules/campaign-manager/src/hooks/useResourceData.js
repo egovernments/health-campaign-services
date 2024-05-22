@@ -1,8 +1,8 @@
-export const useResourceData = async (data, hierarchyType, type, tenantId) => {
+export const useResourceData = async (data, hierarchyType, type, tenantId, id) => {
   let Type;
   let Error = {
     isError: false,
-    error: {}
+    error: {},
   };
   let response;
   if (type === "facilityWithBoundary") {
@@ -22,7 +22,9 @@ export const useResourceData = async (data, hierarchyType, type, tenantId) => {
           tenantId: Digit.ULBService.getCurrentTenantId(),
           fileStoreId: data?.[0]?.filestoreId,
           action: "validate",
-          additionalDetails: {},
+          additionalDetails: {
+            campaignId: id,
+          },
         },
       },
     });
@@ -37,7 +39,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId) => {
         return Error;
       } else {
         Error = errorMessage;
-        Error.isError = true ;
+        Error.isError = true;
         return Error;
       }
     }
