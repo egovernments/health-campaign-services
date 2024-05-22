@@ -631,7 +631,7 @@ async function validateResources(resources: any, request: any) {
                 action: "validate",
                 hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
                 additionalDetails: {},
-                campaignId: request?.body?.CampaignDetails?.campaignId
+                campaignId: request?.body?.CampaignDetails?.id
             };
             const req: any = replicateRequest(request, {
                 RequestInfo: request.body.RequestInfo,
