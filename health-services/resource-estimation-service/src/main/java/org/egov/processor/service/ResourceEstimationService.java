@@ -48,11 +48,14 @@ public class ResourceEstimationService {
 
         for(File file:planConfiguration.getFiles())
         {
-            File.InputFileTypeEnum fileType = file.getInputFileType();
-            FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
-                throw new IllegalArgumentException("Unsupported file type: " + ft);
-            });
-            parser.parseFileData(planConfigurationRequest, planConfiguration.getFiles().get(0).getFilestoreId());
+            if(file.getActive())
+            {
+                File.InputFileTypeEnum fileType = file.getInputFileType();
+                FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
+                    throw new IllegalArgumentException("Unsupported file type: " + ft);
+                });
+                parser.parseFileData(planConfigurationRequest, planConfiguration.getFiles().get(0).getFilestoreId());
+            }
         }
     }
 
