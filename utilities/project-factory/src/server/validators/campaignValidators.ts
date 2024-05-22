@@ -75,7 +75,7 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
 }
 
 // Compares unique boundaries with response boundaries and throws error for missing codes.
-async function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
+function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
     // Extracts boundary codes from response boundaries
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
 
@@ -99,7 +99,7 @@ async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
     const responseBoundaries = await fetchBoundariesInChunks(request);
 
     // Compares unique boundaries with response boundaries
-    await compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
+    compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
 }
 
 
