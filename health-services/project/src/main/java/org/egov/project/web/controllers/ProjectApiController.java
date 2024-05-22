@@ -509,21 +509,13 @@ public class ProjectApiController {
             @Valid @ModelAttribute ProjectSearchURLParams urlParams,
             @ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectSearchRequest projectSearchRequest
     ) {
-        projectSearchRequest.getProject().setURLParams(urlParams);
-        List<Project> projects = projectService.searchProject(projectSearchRequest);
+        List<Project> projects = projectService.searchProject(projectSearchRequest, urlParams);
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(projectSearchRequest.getRequestInfo(), true);
-//        Integer count = projectService.countAllProjects(
-//                project,
-//                searchCriteria.getTenantId(),
-//                searchCriteria.getLastChangedSince(),
-//                searchCriteria.getIncludeDeleted(),
-//                createdFrom,
-//                createdTo
-//        );
+        Integer count = projectService.countAllProjects(projectSearchRequest, urlParams);
         ProjectResponse projectResponse = ProjectResponse.builder()
                 .responseInfo(responseInfo)
                 .project(projects)
-//                .totalCount(count)
+                .totalCount(count)
                 .build();
         return new ResponseEntity<ProjectResponse>(projectResponse, HttpStatus.OK);
     }

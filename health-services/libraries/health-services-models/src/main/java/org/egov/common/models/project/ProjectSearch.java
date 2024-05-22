@@ -136,7 +136,6 @@ public class ProjectSearch extends EgovSearchModel {
      */
     public void setURLParams(ProjectSearchURLParams urlParams) {
         // Call the superclass method to set common URL parameters
-        super.setURLParams(urlParams);
 
         // If the URL parameter includeAncestors is not null, set it to the current object's includeAncestors field
         if (urlParams.getIncludeAncestors() != null) {

@@ -1,8 +1,10 @@
 package org.egov.project.service;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectSearchRequest;
@@ -93,9 +95,9 @@ public class ProjectService {
         return projects;
     }
 
-    public List<Project> searchProject(ProjectSearchRequest projectSearchRequest) {
-        projectValidator.validateSearchV2ProjectRequest(projectSearchRequest);
-        return new ArrayList<>();
+    public List<Project> searchProject(ProjectSearchRequest projectSearchRequest, @Valid ProjectSearchURLParams urlParams) {
+        projectValidator.validateSearchV2ProjectRequest(projectSearchRequest, urlParams);
+        return projectRepository.getProjects(projectSearchRequest.getProject(), urlParams);
     }
 
     public ProjectRequest updateProject(ProjectRequest project) {
@@ -152,4 +154,7 @@ public class ProjectService {
     }
 
 
+    public Integer countAllProjects(ProjectSearchRequest projectSearchRequest, ProjectSearchURLParams urlParams) {
+        return projectRepository.getProjectCount(projectSearchRequest.getProject(), urlParams);
+    }
 }

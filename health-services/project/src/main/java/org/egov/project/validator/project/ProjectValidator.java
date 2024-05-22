@@ -13,9 +13,11 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
@@ -23,7 +25,6 @@ import org.egov.common.models.project.ProjectSearch;
 import org.egov.common.models.project.ProjectSearchRequest;
 import org.egov.common.models.project.Target;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.util.BoundaryUtil;
 import org.egov.project.util.BoundaryV2Util;
 import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
@@ -110,7 +111,7 @@ public class ProjectValidator {
     }
 
     /* Validates Project search request body */
-    public void validateSearchV2ProjectRequest(ProjectSearchRequest projectSearchRequest) {
+    public void validateSearchV2ProjectRequest(ProjectSearchRequest projectSearchRequest, @Valid ProjectSearchURLParams urlParams) {
         Map<String, String> errorMap = new HashMap<>();
         RequestInfo requestInfo = projectSearchRequest.getRequestInfo();
         ProjectSearch projectSearch = projectSearchRequest.getProject();
@@ -120,15 +121,15 @@ public class ProjectValidator {
 
         // Verify if search project request parameters are valid
         validateSearchProjectRequestParams(
-                projectSearch.getLimit(),
-                projectSearch.getOffset(),
-                projectSearch.getTenantId(),
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
                 projectSearch.getCreatedFrom(),
                 projectSearch.getCreatedTo()
         );
 
         // Check if tenant ID is present in the request
-        if (StringUtils.isBlank(projectSearch.getTenantId())) {
+        if (StringUtils.isBlank(urlParams.getTenantId())) {
             log.error("Tenant ID is mandatory in Project request body");
             throw new CustomException("TENANT_ID", "Tenant ID is mandatory");
         }
