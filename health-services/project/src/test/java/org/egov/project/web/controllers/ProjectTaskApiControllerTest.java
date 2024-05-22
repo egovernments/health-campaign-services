@@ -81,7 +81,7 @@ class ProjectTaskApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().build()).build();
         when(projectTaskService.search(any(TaskSearch.class), anyInt(),
-                anyInt(), anyString(), any(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().build());
+                anyInt(), anyString(), any(), any())).thenReturn(SearchResponse.<Task>builder().build());
 
         mockMvc.perform(post("/task/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(taskSearchRequest)))

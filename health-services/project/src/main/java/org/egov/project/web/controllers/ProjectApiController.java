@@ -400,7 +400,7 @@ public class ProjectApiController {
 
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<TaskBulkResponse> projectTaskV2SearchPost(
+    public ResponseEntity<TaskBulkResponse> projectTaskV1SearchPost(
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest
     ) {
