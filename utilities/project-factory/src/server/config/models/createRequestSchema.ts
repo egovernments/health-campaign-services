@@ -34,6 +34,6 @@ export const createRequestSchema = {
             "type": "object"
         }
     },
-    "required": ["type", "tenantId", "fileStoreId", "action", "hierarchyType", "campaignId"],
+    "required": ["type", "tenantId", "fileStoreId", "action", "hierarchyType"],
     "additionalProperties": false
 }

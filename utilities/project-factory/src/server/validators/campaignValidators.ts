@@ -20,6 +20,8 @@ import { createDataService, searchDataService } from "../service/dataManageServi
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
+import { v4 as uuidv4 } from 'uuid';
+
 
 
 
@@ -623,22 +625,6 @@ async function validateResources(resources: any, request: any) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
             }
         }
-        else {
-            const resourceDetails = {
-                type: resource.type,
-                fileStoreId: resource.filestoreId,
-                tenantId: request?.body?.CampaignDetails?.tenantId,
-                action: "validate",
-                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-                additionalDetails: {},
-                campaignId: request?.body?.CampaignDetails?.campaignId
-            };
-            const req: any = replicateRequest(request, {
-                RequestInfo: request.body.RequestInfo,
-                ResourceDetails: resourceDetails
-            })
-            await createDataService(req);
-        }
     }
 }
 
@@ -821,6 +807,9 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 
 
 async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
+    if (actionInUrl == "create") {
+        request.body.CampaignDetails.id = uuidv4()
+    }
     const CampaignDetails = request.body.CampaignDetails;
     const { id, hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
     if (actionInUrl == "update") {
