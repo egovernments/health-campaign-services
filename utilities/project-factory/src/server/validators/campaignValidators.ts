@@ -16,10 +16,11 @@ import { createRequestSchema } from "../config/models/createRequestSchema"
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
-import { createDataService, searchDataService } from "../service/dataManageService";
+import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
+
 
 
 
@@ -622,22 +623,6 @@ async function validateResources(resources: any, request: any) {
                 logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
                 throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
             }
-        }
-        else {
-            const resourceDetails = {
-                type: resource.type,
-                fileStoreId: resource.filestoreId,
-                tenantId: request?.body?.CampaignDetails?.tenantId,
-                action: "validate",
-                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-                additionalDetails: {},
-                campaignId: request?.body?.CampaignDetails?.id
-            };
-            const req: any = replicateRequest(request, {
-                RequestInfo: request.body.RequestInfo,
-                ResourceDetails: resourceDetails
-            })
-            await createDataService(req);
         }
     }
 }
