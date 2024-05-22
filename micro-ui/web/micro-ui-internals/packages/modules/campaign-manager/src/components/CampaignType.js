@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { UploadIcon, FileIcon, DeleteIconv2, Toast, Card, Header, Dropdown } from "@egovernments/digit-ui-react-components";
+import { UploadIcon, FileIcon, DeleteIconv2, Toast, Card, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
+import { Dropdown } from "@egovernments/digit-ui-components";
 
 const CampaignSelection = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
           <span className="mandatory-span">*</span>
         </div>
         <Dropdown
-          style={{ width: "40rem" }}
+          style={{ width: "40rem" , paddingBottom: "1rem" }}
           t={t}
           option={projectType?.["HCM-PROJECT-TYPES"]?.projectTypes}
           optionKey={"code"}
