@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, reorderBoundaries } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -197,7 +197,7 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
-                    if (obj.hasOwnProperty(lowestLevelHierarchy)&&obj[lowestLevelHierarchy]) {
+                    if (obj.hasOwnProperty(lowestLevelHierarchy) && obj[lowestLevelHierarchy]) {
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
                         if (target === undefined || typeof target !== 'number' || target <= 0 || target > 100000 || !Number.isInteger(target)) {
@@ -560,35 +560,38 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
-async function validateBoundaryOfResouces(request: any, resource: any, localizationMap: any) {
-    if (resource?.type != "boundary") {
-        const { boundaries, tenantId } = request?.body?.CampaignDetails;
+async function validateBoundaryOfResouces(CampaignDetails: any, request: any, localizationMap?: any) {
+    const resource = request?.body?.ResourceDetails
+    if (resource?.type == "user" || resource?.type == "facility") {
+        const { boundaries, tenantId } = CampaignDetails;
         const localizedTab = getLocalizedName(createAndSearch?.[resource.type]?.parseArrayConfig?.sheetName, localizationMap);
         const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
 
         // Fetch file response
-        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.filestoreId }, "get");
-        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, false, undefined, localizationMap);
+        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
+        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
 
         const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
 
         // Initialize resource boundary codes as a set for uniqueness
-        const resourceBoundaryCodes = new Set();
+        const resourceBoundaryCodesArray: any[] = [];
         datas.forEach((data: any) => {
             const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-            codes.forEach((code: string) => resourceBoundaryCodes.add(code));
+            resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
         });
 
         // Convert sets to arrays for comparison
         const boundaryCodesArray = Array.from(boundaryCodes);
-        const resourceBoundaryCodesArray = Array.from(resourceBoundaryCodes);
+        var errors = []
         // Check for missing boundary codes
-        const missingBoundaryCodes = resourceBoundaryCodesArray.filter(code => !boundaryCodesArray.includes(code));
-
-        if (missingBoundaryCodes.length > 0) {
-            const missingCodesMessage = missingBoundaryCodes.join(', ');
-            throwError("COMMON", 400, "VALIDATION_ERROR", `The following boundary codes are not present in CampaignDetails boundaries but are present for ${resource.type} in filestoreId ${resource.filestoreId}: ${missingCodesMessage}`);
+        for (const rowData of resourceBoundaryCodesArray) {
+            var missingBoundaries = rowData.boundaryCodes.filter((code: any) => !boundaryCodesArray.includes(code));
+            if (missingBoundaries.length > 0) {
+                const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
+                errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
+            }
         }
+        request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
     }
 }
 
@@ -634,9 +637,6 @@ async function validateResources(resources: any, request: any) {
                 ResourceDetails: resourceDetails
             })
             await createDataService(req);
-            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
-            await reorderBoundaries(request, localizationMap)
-            await validateBoundaryOfResouces(request, resource, localizationMap)
         }
     }
 }

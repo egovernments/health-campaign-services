@@ -8,13 +8,15 @@ import { getCampaignNumber, createAndUploadFile, getSheetData, createExcelSheet,
 import { getFormattedStringForDebug, logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import * as XLSX from 'xlsx';
-import { createReadMeSheet, findMapValue, getBoundaryRelationshipData, getLocalizedHeaders, getLocalizedMessagesHandler, modifyBoundaryData, modifyDataBasedOnDifferentTab, throwError } from "./genericUtils";
+import { createReadMeSheet, findMapValue, getBoundaryRelationshipData, getLocalizedHeaders, getLocalizedMessagesHandler, modifyBoundaryData, modifyDataBasedOnDifferentTab, replicateRequest, throwError } from "./genericUtils";
 import { enrichProjectDetailsFromCampaignDetails } from "./transforms/projectTypeUtils";
 import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
 import { campaignStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 const _ = require('lodash');
 
 
@@ -908,6 +910,30 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
     }
 }
 
+async function processBoundaryForData(boundary: any, boundaryCodes: any, boundaries: any[], request: any, includeAllChildren: any = false, parent?: any) {
+    if (!boundaryCodes.has(boundary.code)) {
+        boundaries.push({ code: boundary?.code, type: boundary?.boundaryType });
+        boundaryCodes.add(boundary?.code);
+    }
+    if (boundary?.includeAllChildren || includeAllChildren) {
+        const params = {
+            tenantId: request?.body?.ResourceDetails?.tenantId,
+            codes: boundary?.code,
+            hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+            includeChildren: true
+        }
+        const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
+        if (boundaryResponse?.TenantBoundary?.[0]) {
+            logger.info("Boundary found " + JSON.stringify(boundaryResponse?.TenantBoundary?.[0]?.boundary));
+            if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.children) {
+                for (const childBoundary of boundaryResponse.TenantBoundary[0]?.boundary?.[0].children) {
+                    await processBoundaryForData(childBoundary, boundaryCodes, boundaries, request, true, boundary?.code);
+                }
+            }
+        }
+    }
+}
+
 
 async function processBoundary(boundary: any, boundaryCodes: any, boundaries: any[], request: any, includeAllChildren: any = false, parent?: any) {
     if (!boundaryCodes.has(boundary.code)) {
@@ -942,6 +968,15 @@ async function addBoundaries(request: any) {
     request.body.CampaignDetails.boundaries = boundaries
 }
 
+async function addBoundariesForData(request: any, CampaignDetails: any) {
+    var { boundaries } = CampaignDetails;
+    var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
+    for (const boundary of boundaries) {
+        await processBoundaryForData(boundary, boundaryCodes, boundaries, request, false);
+    }
+    CampaignDetails.boundaries = boundaries
+}
+
 function reorderBoundariesWithParentFirst(reorderedBoundaries: any[], boundaryProjectMapping: any) {
     // Function to get the index of a boundary in the original boundaries array
     function getIndex(code: any, boundaries: any[]) {
@@ -960,6 +995,29 @@ function reorderBoundariesWithParentFirst(reorderedBoundaries: any[], boundaryPr
                     break;
                 }
             }
+        }
+    }
+}
+
+async function reorderBoundariesOfDataAndValidate(request: any, localizationMap?: any) {
+    if (request?.body?.ResourceDetails?.additionalDetails?.campaignId) {
+        const searchBody = {
+            RequestInfo: request?.body?.RequestInfo,
+            CampaignDetails: {
+                ids: [request?.body?.ResourceDetails?.additionalDetails?.campaignId],
+                tenantId: request?.body?.ResourceDetails?.tenantId
+            }
+        }
+        const req: any = replicateRequest(request, searchBody)
+        const response = await searchProjectTypeCampaignService(req)
+        if (response?.CampaignDetails?.[0]) {
+            const CampaignDetails = response?.CampaignDetails?.[0]
+            await addBoundariesForData(request, CampaignDetails)
+            logger.debug("Boundaries after addition " + getFormattedStringForDebug(CampaignDetails?.boundaries));
+            await validateBoundaryOfResouces(CampaignDetails, request, localizationMap)
+        }
+        else {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while Validating sheet boundaries");
         }
     }
 }
@@ -1091,6 +1149,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             RequestInfo: request?.body?.RequestInfo,
             Projects
         }
+        await reorderBoundaries(request, localizationMap)
         boundaries = request?.body?.CampaignDetails?.boundaries;
         for (const boundary of boundaries) {
             Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
@@ -1117,6 +1176,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
         await updateProjectDates(request);
     }
 }
+
 
 async function processAfterPersist(request: any, actionInUrl: any) {
     try {
@@ -1501,5 +1561,6 @@ export {
     boundaryBulkUpload,
     enrichAndPersistCampaignWithError,
     getLocalizedName,
-    reorderBoundaries
+    reorderBoundaries,
+    reorderBoundariesOfDataAndValidate
 }
