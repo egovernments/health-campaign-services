@@ -7,6 +7,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationBulkResponse;
@@ -20,6 +21,7 @@ import org.egov.stock.service.StockReconciliationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -71,16 +73,17 @@ public class StockReconciliationApiController {
 
     @RequestMapping(value = "/reconciliation/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<StockReconciliationBulkResponse> stockReconciliationV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest stockReconciliationSearchRequest
     ) throws Exception {
 
         List<StockReconciliation> stock = stockReconciliationService.search(
                 stockReconciliationSearchRequest,
-                stockReconciliationSearchRequest.getStockReconciliation().getLimit(),
-                stockReconciliationSearchRequest.getStockReconciliation().getOffset(),
-                stockReconciliationSearchRequest.getStockReconciliation().getTenantId(),
-                stockReconciliationSearchRequest.getStockReconciliation().getLastChangedSince(),
-                stockReconciliationSearchRequest.getStockReconciliation().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         StockReconciliationBulkResponse response = StockReconciliationBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(stockReconciliationSearchRequest.getRequestInfo(), true)).stockReconciliation(stock).build();

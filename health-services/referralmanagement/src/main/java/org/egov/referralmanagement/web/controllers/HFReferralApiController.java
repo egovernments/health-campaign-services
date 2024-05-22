@@ -1,11 +1,12 @@
 package org.egov.referralmanagement.web.controllers;
 
 import java.util.List;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkResponse;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -100,9 +102,18 @@ public class HFReferralApiController {
      * @throws Exception
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request) throws Exception {
+    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request
+    ) throws Exception {
 
-        List<HFReferral> hfReferrals = hfReferralService.search(request, request.getHfReferral().getLimit(), request.getHfReferral().getOffset(), request.getHfReferral().getTenantId(), request.getHfReferral().getLastChangedSince(), request.getHfReferral().getIncludeDeleted());
+        List<HFReferral> hfReferrals = hfReferralService.search(
+                request,
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted());
         HFReferralBulkResponse response = HFReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).hfReferrals(hfReferrals).build();
 

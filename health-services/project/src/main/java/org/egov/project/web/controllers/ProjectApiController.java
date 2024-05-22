@@ -127,45 +127,18 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
-//    @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
-//    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(
-//            @ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest,
-//            @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-//            @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-//            @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-//            @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-//            @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
-//        SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryService.search(
-//                beneficiarySearchRequest,
-//                limit,
-//                offset,
-//                tenantId,
-//                lastChangedSince,
-//                includeDeleted
-//        );
-//        BeneficiaryBulkResponse beneficiaryResponse = BeneficiaryBulkResponse.builder()
-//                .projectBeneficiaries(searchResponse.getResponse())
-//                .totalCount(searchResponse.getTotalCount())
-//                .responseInfo(ResponseInfoFactory
-//                        .createResponseInfo(beneficiarySearchRequest.getRequestInfo(), true))
-//                .build();
-//
-//        return ResponseEntity.status(HttpStatus.OK).body(beneficiaryResponse);
-//    }
-
     @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV2SearchPost(
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest
     ) throws Exception {
-        beneficiarySearchRequest.getProjectBeneficiary().setURLParams(urlParams);
         SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryService.search(
                 beneficiarySearchRequest,
-                beneficiarySearchRequest.getProjectBeneficiary().getLimit(),
-                beneficiarySearchRequest.getProjectBeneficiary().getOffset(),
-                beneficiarySearchRequest.getProjectBeneficiary().getTenantId(),
-                beneficiarySearchRequest.getProjectBeneficiary().getLastChangedSince(),
-                beneficiarySearchRequest.getProjectBeneficiary().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         BeneficiaryBulkResponse beneficiaryResponse = BeneficiaryBulkResponse.builder()
                 .projectBeneficiaries(searchResponse.getResponse())
@@ -241,45 +214,19 @@ public class ProjectApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-//    @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
-//    public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV1SearchPost(
-//            @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest,
-//            @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-//            @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-//            @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-//            @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-//            @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted
-//    ) throws Exception {
-//        List<ProjectFacility> projectFacilities = projectFacilityService.search(
-//                projectFacilitySearchRequest,
-//                limit,
-//                offset,
-//                tenantId,
-//                lastChangedSince,
-//                includeDeleted
-//        );
-//        ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-//                .projectFacilities(projectFacilities)
-//                .responseInfo(ResponseInfoFactory
-//                        .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
-//                .build();
-//
-//        return ResponseEntity.status(HttpStatus.OK).body(response);
-//    }
 
     @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
-        projectFacilitySearchRequest.getProjectFacility().setURLParams(urlParams);
         List<ProjectFacility> projectFacilities = projectFacilityService.search(
                 projectFacilitySearchRequest,
-                projectFacilitySearchRequest.getProjectFacility().getLimit(),
-                projectFacilitySearchRequest.getProjectFacility().getOffset(),
-                projectFacilitySearchRequest.getProjectFacility().getTenantId(),
-                projectFacilitySearchRequest.getProjectFacility().getLastChangedSince(),
-                projectFacilitySearchRequest.getProjectFacility().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
                 .projectFacilities(projectFacilities)
@@ -357,44 +304,19 @@ public class ProjectApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-//    @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
-//    public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(
-//            @ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
-//            @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-//            @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-//            @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-//            @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-//            @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
-//        List<ProjectStaff> projectStaffList = projectStaffService.search(
-//                projectStaffSearchRequest,
-//                limit,
-//                offset,
-//                tenantId,
-//                lastChangedSince,
-//                includeDeleted
-//        );
-//        ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
-//                .projectStaff(projectStaffList)
-//                .responseInfo(ResponseInfoFactory
-//                        .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
-//                .build();
-//
-//        return ResponseEntity.status(HttpStatus.OK).body(response);
-//    }
 
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest
     ) throws Exception {
-        projectStaffSearchRequest.getProjectStaff().setURLParams(urlParams);
         List<ProjectStaff> projectStaffList = projectStaffService.search(
                 projectStaffSearchRequest,
-                projectStaffSearchRequest.getProjectStaff().getLimit(),
-                projectStaffSearchRequest.getProjectStaff().getOffset(),
-                projectStaffSearchRequest.getProjectStaff().getTenantId(),
-                projectStaffSearchRequest.getProjectStaff().getLastChangedSince(),
-                projectStaffSearchRequest.getProjectStaff().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
                 .projectStaff(projectStaffList)
@@ -476,35 +398,19 @@ public class ProjectApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-//    @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
-//    public ResponseEntity<TaskBulkResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest request,
-//                                                                    @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-//                                                                    @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-//                                                                    @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-//                                                                    @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-//                                                                    @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-//
-//        SearchResponse<Task> taskSearchResponse = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
-//
-//        TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory
-//                .createResponseInfo(request.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
-//
-//        return ResponseEntity.status(HttpStatus.OK).body(response);
-//    }
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<TaskBulkResponse> projectTaskV2SearchPost(
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest
     ) {
-        taskSearchRequest.getTask().setURLParams(urlParams);
         SearchResponse<Task> taskSearchResponse = projectTaskService.search(
                 taskSearchRequest.getTask(),
-                taskSearchRequest.getTask().getLimit(),
-                taskSearchRequest.getTask().getOffset(),
-                taskSearchRequest.getTask().getTenantId(),
-                taskSearchRequest.getTask().getLastChangedSince(),
-                taskSearchRequest.getTask().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
 
         TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory

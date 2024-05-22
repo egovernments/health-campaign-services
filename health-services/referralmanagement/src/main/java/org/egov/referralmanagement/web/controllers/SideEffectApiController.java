@@ -1,11 +1,11 @@
 package org.egov.referralmanagement.web.controllers;
 
+import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-
-import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkResponse;
@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -75,15 +76,18 @@ public class SideEffectApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<SideEffectBulkResponse> sideEffectV1SearchPost(@ApiParam(value = "Side Effect Search.", required = true) @Valid @RequestBody SideEffectSearchRequest request) throws Exception {
+    public ResponseEntity<SideEffectBulkResponse> sideEffectV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Side Effect Search.", required = true) @Valid @RequestBody SideEffectSearchRequest request
+    ) throws Exception {
 
         SearchResponse<SideEffect> sideEffectSearchResponse = sideEffectService.search(
                 request,
-                request.getSideEffect().getLimit(),
-                request.getSideEffect().getOffset(),
-                request.getSideEffect().getTenantId(),
-                request.getSideEffect().getLastChangedSince(),
-                request.getSideEffect().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         SideEffectBulkResponse response = SideEffectBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffectSearchResponse.getResponse())

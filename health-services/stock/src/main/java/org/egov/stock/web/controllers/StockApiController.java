@@ -8,6 +8,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockBulkResponse;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -73,15 +75,18 @@ public class StockApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<StockBulkResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stockSearchRequest) throws Exception {
+    public ResponseEntity<StockBulkResponse> stockV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stockSearchRequest
+    ) throws Exception {
 
         List<Stock> stock = stockService.search(
                 stockSearchRequest,
-                stockSearchRequest.getStock().getLimit(),
-                stockSearchRequest.getStock().getOffset(),
-                stockSearchRequest.getStock().getTenantId(),
-                stockSearchRequest.getStock().getLastChangedSince(),
-                stockSearchRequest.getStock().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         StockBulkResponse response = StockBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(stockSearchRequest.getRequestInfo(), true)).stock(stock).build();
