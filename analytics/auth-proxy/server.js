@@ -1,10 +1,10 @@
 const envVariables = require('./EnvironmentVariables');
 const logger = require('./logger');
-const express = require('express')
-const proxy = require('express-http-proxy')
+const express = require('express');
+const proxy = require('express-http-proxy');
 const axios = require('axios');
 const deasync = require('deasync');
-const app = express()
+const app = express();
 
 let serverPort = envVariables.SERVER_PORT;
 let kibanaHost = envVariables.KIBANA_HOST;
@@ -15,17 +15,6 @@ function authenticateToken(token) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
     const queryParams = { access_token: token };
     let result;
-
-    // try {
-    //     const response = axios.post(url, null, { params: queryParams });
-    //     logger.info(response);
-    //     // Assuming the authentication is successful if the request is successful
-    //     return response.status === 200;
-    // } catch (error) {
-    //     // Log and handle any errors
-    //     console.error('Error during authentication:', error.response.data);
-    //     return false; // Return false if authentication fails
-    // }
 
     logger.info("Making API call to - " + url);
 
@@ -46,15 +35,18 @@ function authenticateToken(token) {
 
 // Intercept Kibana requests, extract auth token and perform authentication
 app.use((req, res, next) => {
-
     logger.info("Received request");
 
-    // Extract auth token from params
+    // Extract auth token from headers
     const authToken = req.headers['authorization'];
+    const typeReq = req.headers['type-req'];
 
     logger.info("Received request path - " + req.url);
 
-    if(req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
+    if (typeReq === 'document') {
+        logger.info("Bypassing authentication for document type request");
+        next(); // Bypass authentication for document type requests
+    } else if (req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
         // Check if authToken is empty or null
         if (!authToken || authToken.trim() === '') {
             res.status(401).send('Unauthorized: No auth token provided');
@@ -70,7 +62,6 @@ app.use((req, res, next) => {
     } else {
         next();
     }
-
 });
 
 // Proxy request to Kibana if authentication is successful
@@ -79,4 +70,4 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath));
 // Listen on configured port
 app.listen(serverPort, () => {
     logger.info(`Server running at http:${serverPort}/`);
-})
+});
