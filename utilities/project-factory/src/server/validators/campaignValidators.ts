@@ -16,10 +16,11 @@ import { createRequestSchema } from "../config/models/createRequestSchema"
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
-import { createDataService, searchDataService } from "../service/dataManageService";
+import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
+
 
 
 
@@ -337,7 +338,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
             await validateTargetsAtLowestLevelPresentOrNot(data, request, errors, localizationMap);
         }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-        if (request.body.sheetErrorDetails.length != 0) {
+        if (request?.body?.sheetErrorDetails && Array.isArray(request?.body?.sheetErrorDetails) && request?.body?.sheetErrorDetails?.length > 0) {
             request.body.ResourceDetails.status = resourceDataStatuses.invalid;
         }
         await generateProcessedFileAndPersist(request, localizationMap);
@@ -591,6 +592,9 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
                 errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
             }
         }
+        if (errors?.length > 0) {
+            request.body.ResourceDetails.status = resourceDataStatuses.invalid
+        }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
     }
 }
@@ -622,21 +626,6 @@ async function validateResources(resources: any, request: any) {
                 logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
                 throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
             }
-        }
-        else {
-            const resourceDetails = {
-                type: resource.type,
-                fileStoreId: resource.filestoreId,
-                tenantId: request?.body?.CampaignDetails?.tenantId,
-                action: "validate",
-                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-                additionalDetails: {}
-            };
-            const req: any = replicateRequest(request, {
-                RequestInfo: request.body.RequestInfo,
-                ResourceDetails: resourceDetails
-            })
-            await createDataService(req);
         }
     }
 }

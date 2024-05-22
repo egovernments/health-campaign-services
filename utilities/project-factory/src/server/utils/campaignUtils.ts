@@ -347,8 +347,6 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             await updateStatusFile(request, localizationMap);
         }
     }
-
-
     updateActivityResourceId(request);
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
