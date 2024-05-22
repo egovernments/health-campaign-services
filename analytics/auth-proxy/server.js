@@ -40,12 +40,16 @@ app.use((req, res, next) => {
     // Extract auth token from headers
     const authToken = req.headers['authorization'];
     const typeReq = req.headers['type-req'];
+    const acceptHeader = req.headers['accept'];
 
     logger.info("Received request path - " + req.url);
 
-    if (typeReq === 'document' || typeReq===undefined || !typeReq) {
+    if (typeReq === 'document') {
         logger.info("Bypassing authentication for document type request");
         next(); // Bypass authentication for document type requests
+    } else if (acceptHeader && acceptHeader.includes('text/html')) {
+        logger.info("Bypassing authentication for requests with Accept header containing text/html");
+        next(); // Bypass authentication for requests with Accept header containing text/html
     } else if (req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
         // Check if authToken is empty or null
         if (!authToken || authToken.trim() === '') {
