@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { AddIcon, Button, Card, CardText, Header, TextInput } from "@egovernments/digit-ui-react-components";
+import { AddIcon, Button, Card, CardText, Header, TextInput, Dropdown } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import { DustbinIcon } from "./icons/DustbinIcon";
 // import { productType } from "../configs/productType";
 import { PRIMARY_COLOR } from "../utils";
-import { Dropdown } from "@egovernments/digit-ui-components";
 
 const AddProductField = ({ onSelect }) => {
   const { t } = useTranslation();

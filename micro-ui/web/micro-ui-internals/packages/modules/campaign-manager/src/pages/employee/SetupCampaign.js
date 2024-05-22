@@ -1192,8 +1192,9 @@ const SetupCampaign = () => {
       />
       {showToast && (
         <Toast
-          info={showToast?.key === "info" ? true : false}
-          error={showToast?.key === "error" ? true : false}
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // info={showToast?.key === "info" ? true : false}
+          // error={showToast?.key === "error" ? true : false}
           label={t(showToast?.label)}
           transitionTime={showToast.transitionTime}
           onClose={closeToast}

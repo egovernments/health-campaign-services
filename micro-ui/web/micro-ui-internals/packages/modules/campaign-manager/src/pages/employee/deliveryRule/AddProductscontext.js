@@ -275,7 +275,14 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
           </Link>
         </span>
       </div>
-      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
+      {showToast && (
+        <Toast
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // error={showToast.key === "error" ? true : false}
+          label={t(showToast.label)}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 }
