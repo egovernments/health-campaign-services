@@ -449,6 +449,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
         request.body.CampaignDetails.projectId = null
     }
     const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    delete request.body.CampaignDetails.codesTargetMapping
     produceModifiedMessages(request?.body, topic);
     delete request.body.CampaignDetails.campaignDetails
 }
@@ -486,6 +487,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     else {
         request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
+    delete request.body.CampaignDetails.codesTargetMapping
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
