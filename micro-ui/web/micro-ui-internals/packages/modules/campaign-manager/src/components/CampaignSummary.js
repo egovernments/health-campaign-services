@@ -422,7 +422,7 @@ const CampaignSummary = () => {
   };
   return (
     <>
-      <div style={{display: "flex", justifyContent: "space-between"}}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
         {data?.userGenerationSuccess?.length > 0 && (
           <Button

@@ -1,8 +1,8 @@
-import { AddIcon, Button, CardText, Dropdown, Label, LabelFieldPair } from "@egovernments/digit-ui-react-components";
+import { AddIcon, Button, CardText, Label, LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import React, { Fragment, useContext, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
-import { TextInput, Toast } from "@egovernments/digit-ui-components";
+import { Dropdown, TextInput, Toast } from "@egovernments/digit-ui-components";
 import { Link } from "react-router-dom";
 import { CycleContext } from ".";
 import { PRIMARY_COLOR } from "../../../utils";
@@ -177,7 +177,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
 
   const incrementC = (data, value) => {
     if (value?.target?.value.trim() === "") return;
-    if (value?.target?.value.trim() === 0 || value?.target?.value.trim() > 10 ) return;
+    if (value?.target?.value.trim() === 0 || value?.target?.value.trim() > 10) return;
     if (value === 0) return;
     if (value > 10) return;
     setProducts((prevState) => {
