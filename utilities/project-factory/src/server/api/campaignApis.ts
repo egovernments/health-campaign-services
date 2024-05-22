@@ -641,7 +641,7 @@ async function createProjectCampaignResourcData(request: any) {
           action: "create",
           hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
           additionalDetails: {},
-          campaignId: request?.body?.CampaignDetails?.campaignId
+          campaignId: request?.body?.CampaignDetails?.id
         };
         logger.info(`Creating the resources for type ${resource.type}`)
         logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
