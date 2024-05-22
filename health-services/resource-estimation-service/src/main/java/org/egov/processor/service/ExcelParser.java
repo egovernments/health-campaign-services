@@ -22,8 +22,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
+import org.egov.processor.util.PlanUtil;
 import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
@@ -41,12 +43,15 @@ public class ExcelParser implements FileParser {
     private FilestoreUtil filestoreUtil;
 
     private CalculationUtil calculationUtil;
+    
+    private PlanUtil planUtil;
 
-    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil) {
+    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
+        this.planUtil = planUtil;
     }
 
     /**
@@ -57,7 +62,8 @@ public class ExcelParser implements FileParser {
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
     @Override
-    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
 
@@ -66,7 +72,7 @@ public class ExcelParser implements FileParser {
             return null;
         }
 
-        return processExcelFile(planConfig, file, fileStoreId);
+        return processExcelFile(planConfigurationRequest, file, fileStoreId);
     }
 
     /**
@@ -76,7 +82,8 @@ public class ExcelParser implements FileParser {
      * @param file       The Excel file to be processed.
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
-    private String processExcelFile(PlanConfiguration planConfig, File file, String fileStoreId) {
+    private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId) {
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         try (Workbook workbook = new XSSFWorkbook(file)) {
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter dataFormatter = new DataFormatter();
@@ -87,7 +94,7 @@ public class ExcelParser implements FileParser {
 
             File tempFile = createTempFile("updatedExcel", ".xlsx");
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                processRows(planConfig, sheet, dataFormatter, fos);
+                processRows(planConfigurationRequest, sheet, dataFormatter, fos);
             }
 
             return uploadConvertedFile(convertWorkbookToXls(workbook), planConfig.getTenantId());
@@ -107,7 +114,8 @@ public class ExcelParser implements FileParser {
      * @param fos            The file output stream to write the updated Excel data.
      * @throws IOException If an IO error occurs during processing.
      */
-    private void processRows(PlanConfiguration planConfig, Sheet sheet, DataFormatter dataFormatter, FileOutputStream fos) throws IOException {
+    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, FileOutputStream fos) throws IOException {
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
                 continue;
@@ -135,6 +143,8 @@ public class ExcelParser implements FileParser {
                     headerCell.setCellValue(output);
                 }
             }
+            
+            planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues, assumptionValueMap);
             //TODO: remove after testing
             printRow(sheet, row);
         }

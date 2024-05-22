@@ -17,6 +17,7 @@ import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
 import org.geotools.api.data.DataStore;
@@ -54,7 +55,8 @@ public class ShapeFileParser implements FileParser {
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
     @Override
-    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         File geojsonFile = convertShapefileToGeoJson(planConfig, fileStoreId);
         String geoJSONString = parsingUtil.convertFileToJsonString(geojsonFile);
         JsonNode jsonNode = parsingUtil.parseJson(geoJSONString, objectMapper);
@@ -66,7 +68,7 @@ public class ShapeFileParser implements FileParser {
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream().collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
         Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 
-        calculationUtil.calculateResources(jsonNode, planConfig.getOperations(), resultMap, mappedValues, assumptionValueMap);
+        calculationUtil.calculateResources(jsonNode, planConfigurationRequest, resultMap, mappedValues, assumptionValueMap);
 
         File updatedGeojsonFile = parsingUtil.writeToFile(jsonNode, objectMapper);
 

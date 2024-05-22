@@ -44,4 +44,7 @@ public class Configuration {
 
     @Value("${egov.filestore.upload.endpoint}")
     private String fileStoreUploadEndpoint;
+    
+    @Value("${egov.plan.create.endpoint}")
+    private String planCreateEndPoint;
 }
