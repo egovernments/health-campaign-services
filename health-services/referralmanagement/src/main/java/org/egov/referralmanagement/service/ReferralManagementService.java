@@ -22,6 +22,7 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
+import org.egov.referralmanagement.validator.RmExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmNullIdValidator;
@@ -60,6 +61,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmExistentEntityValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
                 || validator.getClass().equals(RmSideEffectIdValidator.class);

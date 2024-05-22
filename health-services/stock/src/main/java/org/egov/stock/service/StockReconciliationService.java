@@ -10,6 +10,7 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.service.enrichment.StockReconciliationEnrichmentService;
+import org.egov.stock.validator.stockreconciliation.SrExistentEntityValidator;
 import org.egov.stock.validator.stockreconciliation.SrFacilityIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrIsDeletedValidator;
 import org.egov.stock.validator.stockreconciliation.SrNonExistentValidator;
@@ -56,6 +57,7 @@ public class StockReconciliationService {
 
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForCreate =
             validator -> validator.getClass().equals(SrProductVariantIdValidator.class)
+                    || validator.getClass().equals(SrExistentEntityValidator.class)
                     || validator.getClass().equals(SrFacilityIdValidator.class)
                     || validator.getClass().equals(SrReferenceIdValidator.class);
 

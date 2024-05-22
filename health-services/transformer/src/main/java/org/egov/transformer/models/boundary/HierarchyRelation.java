@@ -1,7 +1,7 @@
 package org.egov.transformer.models.boundary;
 
 import java.util.List;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
