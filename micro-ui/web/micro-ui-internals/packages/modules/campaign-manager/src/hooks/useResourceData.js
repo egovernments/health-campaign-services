@@ -22,9 +22,8 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
           tenantId: Digit.ULBService.getCurrentTenantId(),
           fileStoreId: data?.[0]?.filestoreId,
           action: "validate",
-          additionalDetails: {
-            campaignId: id,
-          },
+          campaignId: id,
+          additionalDetails: {},
         },
       },
     });
