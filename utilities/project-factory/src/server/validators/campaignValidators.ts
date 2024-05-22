@@ -807,9 +807,6 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 
 
 async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
-    if (actionInUrl == "create") {
-        request.body.CampaignDetails.id = uuidv4()
-    }
     const CampaignDetails = request.body.CampaignDetails;
     const { id, hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
     if (actionInUrl == "update") {
