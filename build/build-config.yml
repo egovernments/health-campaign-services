@@ -54,9 +54,30 @@ config:
     build:
       - work-dir: "health-services/household"
         image-name: "household"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/household-java-17"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/health-project-java-17"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "health-project"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "health-project-db"
+  - name: "builds/health-campaign-services/health-services/referralmanagement-java-17"
+    build:
+      - work-dir: "health-services/referralmanagement"
+        image-name: "referralmanagement"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/referralmanagement/src/main/resources/db"
+        image-name: "referralmanagement-db"
   - name: "builds/health-campaign-services/health-services/individual"
     build:
       - work-dir: "health-services/individual"
@@ -71,6 +92,20 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-individual-java-17"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "health-individual"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-attendance"
+    build:
+      - work-dir: "health-services/attendance"
+        image-name: "health-attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/attendance/src/main/resources/db"
+        image-name: "health-attendance-db"
   - name: "builds/health-campaign-services/core-services/error-handler"
     build:
       - work-dir: "core-services/error-handler"
@@ -88,6 +123,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/stock/src/main/resources/db"
         image-name: "stock-db"
+  - name: "builds/health-campaign-services/health-services/stock-java-17"
+    build:
+      - work-dir: "health-services/stock"
+        image-name: "stock"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/stock/src/main/resources/db"
+        image-name: "stock-db"
   - name: "builds/health-campaign-services/core-services/egov-survey-services"
     build:
       - work-dir: "core-services/egov-survey-services"
@@ -102,11 +144,23 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/facility/src/main/resources/db"
         image-name: "facility-db"
+  - name: "builds/health-campaign-services/health-services/facility-java-17"
+    build:
+      - work-dir: "health-services/facility"
+        image-name: "facility"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/facility/src/main/resources/db"
+        image-name: "facility-db"
   - name: "builds/health-campaign-services/health-services/transformer"
     build:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/health-services/transformer-java-17"
+    build:
+      - work-dir: "health-services/transformer"
+        image-name: "transformer"
+        dockerfile: "build/17/maven/Dockerfile"
   - name: "builds/health-campaign-services/core-services/service-request"
     build:
       - work-dir: "core-services/service-request"
@@ -154,6 +208,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "health-hrms-db"
+  - name: "builds/health-campaign-services/core-services/health-hrms-java-17"
+    build:
+      - work-dir: "core-services/egov-hrms"
+        image-name: "health-hrms"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/egov-hrms/src/main/resources/db"
+        image-name: "health-hrms-db"
   - name: "builds/health-campaign-services/core-services/egov-hrms"
     build:
       - work-dir: "core-services/egov-hrms"
@@ -168,6 +229,13 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
+  - name: "builds/health-campaign-services/health-services/resource-estimation-service"
+    build:
+      - work-dir: "health-services/resource-estimation-service"
+        image-name: "resource-estimation-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/resource-estimation-service/src/main/resources/db"
+        image-name: "resource-estimation-service-db"
   - name: "builds/health-campaign-services/analytics/auth-proxy"
     build:
       - work-dir: "analytics/auth-proxy"
