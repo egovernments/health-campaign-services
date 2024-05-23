@@ -961,6 +961,28 @@ function findMapValue(map: Map<any, any>, key: any): any | null {
   return foundValue;
 }
 
+function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
+  const uniqueDistrictsForMainSheet: string[] = [];
+  const differentDistrictTabs: any[] = [];
+  for (const data of boundaryData) {
+    const rowData = Object.values(data);
+    const districtValue = data[differentTabsBasedOnLevel];
+    const districtIndex = districtValue !== '' ? rowData.indexOf(districtValue) : -1;
+
+    if (districtIndex != -1) {
+      const districtLevelRow = rowData.slice(0, districtIndex + 1);
+      const districtKey = districtLevelRow.join('_');
+
+      if (!uniqueDistrictsForMainSheet.includes(districtKey)) {
+        uniqueDistrictsForMainSheet.push(districtKey);
+      }
+    }
+  }
+  for (const uniqueData of uniqueDistrictsForMainSheet) {
+    differentDistrictTabs.push(uniqueData.slice(uniqueData.lastIndexOf('_') + 1));
+  }
+  return differentDistrictTabs;
+}
 
 
 
@@ -1006,7 +1028,8 @@ export {
   getLocalizedHeaders,
   createReadMeSheet,
   findMapValue,
-  replicateRequest
+  replicateRequest,
+  getDifferentDistrictTabs
 };
 
 
