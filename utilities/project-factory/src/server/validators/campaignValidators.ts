@@ -561,41 +561,45 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
+async function validateBoundariesForTabs(CampaignDetails: any, resource: any, request: any, localizedTab: any, localizationMap?: any) {
+    const { boundaries, tenantId } = CampaignDetails;
+    const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
+
+    // Fetch file response
+    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
+    const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
+
+    const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
+
+    // Initialize resource boundary codes as a set for uniqueness
+    const resourceBoundaryCodesArray: any[] = [];
+    datas.forEach((data: any) => {
+        const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+        resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
+    });
+
+    // Convert sets to arrays for comparison
+    const boundaryCodesArray = Array.from(boundaryCodes);
+    var errors = []
+    // Check for missing boundary codes
+    for (const rowData of resourceBoundaryCodesArray) {
+        var missingBoundaries = rowData.boundaryCodes.filter((code: any) => !boundaryCodesArray.includes(code));
+        if (missingBoundaries.length > 0) {
+            const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
+            errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
+        }
+    }
+    if (errors?.length > 0) {
+        request.body.ResourceDetails.status = resourceDataStatuses.invalid
+    }
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+}
+
 async function validateBoundaryOfResouces(CampaignDetails: any, request: any, localizationMap?: any) {
     const resource = request?.body?.ResourceDetails
     if (resource?.type == "user" || resource?.type == "facility") {
-        const { boundaries, tenantId } = CampaignDetails;
         const localizedTab = getLocalizedName(createAndSearch?.[resource.type]?.parseArrayConfig?.sheetName, localizationMap);
-        const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
-
-        // Fetch file response
-        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
-        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
-
-        const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
-
-        // Initialize resource boundary codes as a set for uniqueness
-        const resourceBoundaryCodesArray: any[] = [];
-        datas.forEach((data: any) => {
-            const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-            resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
-        });
-
-        // Convert sets to arrays for comparison
-        const boundaryCodesArray = Array.from(boundaryCodes);
-        var errors = []
-        // Check for missing boundary codes
-        for (const rowData of resourceBoundaryCodesArray) {
-            var missingBoundaries = rowData.boundaryCodes.filter((code: any) => !boundaryCodesArray.includes(code));
-            if (missingBoundaries.length > 0) {
-                const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
-                errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
-            }
-        }
-        if (errors?.length > 0) {
-            request.body.ResourceDetails.status = resourceDataStatuses.invalid
-        }
-        request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+        await validateBoundariesForTabs(CampaignDetails, resource, request, localizedTab, localizationMap)
     }
 }
 

@@ -12,6 +12,7 @@ export const genericResourceTransformer = (dbRows: any[] = []) => {
     action: row?.action,
     fileStoreId: row?.filestoreid,
     processedFilestoreId: row?.processedfilestoreid,
+    campaignId: row?.campaignid,
     type: row?.type,
     auditDetails: {
       createdBy: row?.createdby,
