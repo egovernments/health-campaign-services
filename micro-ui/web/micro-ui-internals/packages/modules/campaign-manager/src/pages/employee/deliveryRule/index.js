@@ -24,9 +24,9 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
     [{ name: "deliveryConfig" }],
     {
       select: (data) => {
-        // return data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
         const temp = data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
         return temp?.find((i) => i?.projectType === selectedProjectType);
+        // return deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
       },
     }
   );
@@ -43,27 +43,163 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   }, [config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure]);
 
   const generateTabsData = (tabs, subTabs) => {
+    if (!saved) {
+      return [...Array(tabs)].map((_, tabIndex) => ({
+        cycleIndex: `${tabIndex + 1}`,
+        active: tabIndex === 0 ? true : false,
+        deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
+          deliveryIndex: `${subTabIndex + 1}`,
+          active: subTabIndex === 0 ? true : false,
+          deliveryRules: filteredDeliveryConfig
+            ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
+                return {
+                  ruleKey: index + 1,
+                  delivery: {},
+                  attributes: item?.attributeConfig
+                    ? item?.attributeConfig?.map((i, c) => {
+                        if (i?.operatorValue === "IN_BETWEEN") {
+                          return {
+                            key: c + 1,
+                            attribute: { code: i?.attrValue },
+                            operator: { code: i?.operatorValue },
+                            toValue: i?.toValue,
+                            fromValue: i?.fromValue,
+                          };
+                        }
+                        return {
+                          key: c + 1,
+                          attribute: { code: i?.attrValue },
+                          operator: { code: i?.operatorValue },
+                          value: i?.value,
+                        };
+                      })
+                    : [{ key: 1, attribute: null, operator: null, value: "" }],
+                  // products: [],
+                  products: item?.productConfig
+                    ? item?.productConfig?.map((i, c) => ({
+                        ...i,
+                      }))
+                    : [],
+                };
+              })
+            : [
+                {
+                  ruleKey: 1,
+                  delivery: {},
+                  attributes: filteredDeliveryConfig
+                    ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                        key: c + 1,
+                        attribute: { code: i?.attrValue },
+                        operator: { code: i?.operatorValue },
+                        value: i?.value,
+                      }))
+                    : // : filteredDeliveryConfig?.projectType === "LLIN-mz"
+                      // ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({ key: c + 1, attribute: i.attrValue, operator: null, value: "" }))
+                      [{ key: 1, attribute: null, operator: null, value: "" }],
+                  products: [],
+                },
+              ],
+        })),
+      }));
+    }
+    // if no change
     if (saved && saved?.length == tabs && saved?.[0]?.deliveries?.length === subTabs) {
       return [...saved];
     }
-    return [...Array(tabs)].map((_, tabIndex) => ({
-      cycleIndex: `${tabIndex + 1}`,
-      active: tabIndex === 0 ? true : false,
-      deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
-        deliveryIndex: `${subTabIndex + 1}`,
-        active: subTabIndex === 0 ? true : false,
-        deliveryRules: [
-          {
-            ruleKey: 1,
-            delivery: {},
-            attributes: filteredDeliveryConfig?.customAttribute
-              ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({ key: c + 1, attribute: i.attrValue, operator: null, value: "" }))
-              : [{ key: 1, attribute: null, operator: null, value: "" }],
-            products: [],
-          },
-        ],
-      })),
-    }));
+    // if cycle number decrease
+    if (saved?.length > tabs) {
+      // const temp = saved;
+      saved.splice(tabs);
+      // return temp;
+    }
+    // if cycle number increase
+    if (tabs > saved?.length) {
+      // const temp = saved;
+      for (let i = saved.length + 1; i <= tabs; i++) {
+        const newIndex = i.toString();
+        saved.push({
+          cycleIndex: newIndex,
+          active: true,
+          deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
+            deliveryIndex: `${subTabIndex + 1}`,
+            active: subTabIndex === 0 ? true : false,
+            deliveryRules: filteredDeliveryConfig
+              ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
+                  return {
+                    ruleKey: index + 1,
+                    delivery: {},
+                    attributes: item?.attributeConfig
+                      ? item?.attributeConfig?.map((i, c) => ({
+                          key: c + 1,
+                          attribute: { code: i?.attrValue },
+                          operator: { code: i?.operatorValue },
+                          value: i?.value,
+                        }))
+                      : [{ key: 1, attribute: null, operator: null, value: "" }],
+                    products: item?.productConfig
+                      ? item?.productConfig?.map((i, c) => ({
+                          ...i,
+                        }))
+                      : [],
+                  };
+                })
+              : [
+                  {
+                    ruleKey: 1,
+                    delivery: {},
+                    attributes:
+                      // filteredDeliveryConfig?.projectType === "MR-DN"
+                      //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                      //       key: c + 1,
+                      //       attribute: { code: i?.attrValue },
+                      //       operator: { code: i?.operatorValue },
+                      //       value: i?.value,
+                      //     }))
+                      //   : filteredDeliveryConfig?.projectType === "LLIN-mz"
+                      //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                      //       key: c + 1,
+                      //       attribute: i.attrValue,
+                      //       operator: null,
+                      //       value: "",
+                      //     }))
+                      // :
+                      [{ key: 1, attribute: null, operator: null, value: "" }],
+                    // products: [],
+                    products: item?.productConfig
+                      ? item?.productConfig?.map((i, c) => ({
+                          ...i,
+                        }))
+                      : [],
+                  },
+                ],
+          })),
+        });
+      }
+      // return temp;
+    }
+    // if delivery number decrease
+
+    saved.forEach((cycle) => {
+      // Remove deliveries if there are more deliveries than the specified number
+      if (cycle.deliveries.length > subTabs) {
+        cycle.deliveries.splice(subTabs);
+      }
+
+      // Add deliveries if there are fewer deliveries than the specified number
+      for (let i = cycle.deliveries.length + 1; i <= subTabs; i++) {
+        const newIndex = i.toString();
+        cycle.deliveries.push({
+          deliveryIndex: newIndex,
+          active: true,
+          deliveryRules: [],
+        });
+      }
+    });
+
+    return saved;
+    // if delivery number increase
+
+    //if no above case
   };
 
   // Reducer function
@@ -215,11 +351,12 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
       cycle: cycleData?.cycleConfgureDate?.cycle,
       deliveries: cycleData?.cycleConfgureDate?.deliveries,
     });
-  }, [cycleData, filteredDeliveryConfig, deliveryConfigLoading]);
+  }, [cycleData]);
 
   useEffect(() => {
     onSelect("deliveryRule", campaignData);
   }, [campaignData]);
+
   useEffect(() => {
     if (executionCount < 5) {
       onSelect("deliveryRule", campaignData);

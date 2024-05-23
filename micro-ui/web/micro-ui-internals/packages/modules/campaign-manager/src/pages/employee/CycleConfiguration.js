@@ -2,7 +2,7 @@ import React, { useReducer, Fragment, useEffect, useState } from "react";
 import { CardText, LabelFieldPair, Card, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
-// import { deliveryConfig } from "../../configs/deliveryConfig";
+import { deliveryConfig } from "../../configs/deliveryConfig";
 
 const initialState = (saved, filteredDeliveryConfig) => {
   const data = {
@@ -71,8 +71,8 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
     {
       select: (data) => {
         const temp = data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
-        return temp?.find((i) => i?.projectType === selectedProjectType);
-        // return deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
+        // return temp?.find((i) => i?.projectType === selectedProjectType);
+        return deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
       },
     }
   );
