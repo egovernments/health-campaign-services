@@ -307,7 +307,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
     if (!isValid) return isValid;
 
-    // Iterate over each sheet in the workbook, starting from the second sheet
     for (let i = 2; i < workbook.SheetNames.length; i++) {
       const sheetName = workbook?.SheetNames[i];
 
@@ -329,6 +328,22 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         isValid = false;
         break;
       }
+    }
+
+    if (!isValid) return isValid;
+
+    
+
+    // Iterate over each sheet in the workbook, starting from the second sheet
+    for (let i = 2; i < workbook.SheetNames.length; i++) {
+      const sheetName = workbook?.SheetNames[i];
+
+      const sheet = workbook?.Sheets[sheetName];
+
+      // Convert the sheet to JSON to extract headers
+      const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+      })[0];
 
       const jsonData = XLSX.utils.sheet_to_json(sheet, { blankrows: true });
 
@@ -486,15 +501,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     });
   };
 
-  const closeToast = () => {
-    setShowToast(null);
-  };
-  useEffect(() => {
-    if (showToast) {
-      setTimeout(closeToast, 5000000);
-    }
-  }, [showToast]);
-
   const onBulkUploadSubmit = async (file) => {
     if (file.length > 1) {
       setShowToast({ key: "error", label: t("HCM_ERROR_MORE_THAN_ONE_FILE") });
@@ -532,7 +538,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     setIsSuccess(false);
     setIsValidation(false);
     setApiError(null);
-    setShowToast(null);
+    // setShowToast(null);
   };
 
   const onFileDownload = (file) => {
@@ -850,7 +856,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           // info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
           transitionTime={showToast.transitionTime}
-          onClose={closeToast}
+          // onClose={closeToast}
         />
       )}
     </>
