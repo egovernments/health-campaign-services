@@ -67,7 +67,7 @@ public class PlanConfigurationValidator {
         for (Operation operation : operations) {
             if (!assumptionValues.contains(operation.getAssumptionValue())) {
                 log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in Assumption Key List");
-                throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE);
+                throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
             }
         }
     }
@@ -241,11 +241,13 @@ public class PlanConfigurationValidator {
      * @throws CustomException If a duplicate 'mappedTo' value is found.
      */
     public static void validateMappedToUniqueness(List<ResourceMapping> resourceMappings) {
-        Set<String> mappedToSet = new HashSet<>();
+        Set<String> uniqueMappedToSet = new HashSet<>();
         for (ResourceMapping mapping : resourceMappings) {
-            if (!mappedToSet.add(mapping.getMappedTo())) {
-                log.error("Duplicate MappedTo " + mapping.getMappedTo());
-                throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE, DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE+ " - " + mapping.getMappedTo());
+            String uniqueKey = mapping.getFilestoreId() + "-" + mapping.getMappedTo();
+            if (!uniqueMappedToSet.add(uniqueKey)) {
+                log.error("Duplicate MappedTo " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
+                throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE,
+                        DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE + " - " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
             }
         }
     }
