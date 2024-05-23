@@ -54,7 +54,6 @@ public class Referral extends EgovOfflineModel {
     @JsonProperty("sideEffect")
     private SideEffect sideEffect;
 
-    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
