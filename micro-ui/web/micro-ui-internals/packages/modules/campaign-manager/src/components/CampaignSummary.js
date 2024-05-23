@@ -142,7 +142,7 @@ const CampaignSummary = () => {
   const id = searchParams.get("id");
   const noAction = searchParams.get("action");
   const [showToast, setShowToast] = useState(null);
-
+  const [userCredential, setUserCredential] = useState(null);
   const { isLoading, data, error } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
@@ -324,28 +324,6 @@ const CampaignSummary = () => {
                 ],
               };
             }),
-            // ...data?.[0]?.campaignDetails?.deliveryRules?.map((item, index) => {
-            //   return {
-            //     sections: [
-            //       {
-            //         type: "COMPONENT",
-            //         cardHeader: { value: t("DELIVERY_CYCLE_DETAILS"), inlineStyles: { marginTop: 0 } },
-            //         cardSecondaryAction: (
-            //           <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
-            //             <span>{t(`CAMPAIGN_EDIT`)}</span>
-            //             <EditIcon />
-            //           </div>
-            //         ),
-            //         component: "CycleDetaisPreview",
-            //         props: {
-            //           data: data?.[0],
-            //           items: item,
-            //           index: index,
-            //         },
-            //       },
-            //     ],
-            //   };
-            // }),
           ],
           error: data?.[0]?.additionalDetails?.error,
           data: data?.[0],
@@ -402,29 +380,38 @@ const CampaignSummary = () => {
   }, [data]);
 
   const downloadUserCred = async () => {
-    const responseTemp = await Digit.CustomService.getResponse({
-      url: `/project-factory/v1/data/_search`,
-      body: {
-        SearchCriteria: {
-          tenantId: tenantId,
-          id: data?.userGenerationSuccess,
-        },
-      },
-    });
-
-    const response = responseTemp?.ResourceDetails?.map((i) => i?.processedFilestoreId);
-
-    const fileUrl = await Digit.UploadServices.Filefetch(response, Digit.ULBService.getCurrentTenantId()).then((res) => {
-      return res?.data?.[response];
-    });
-
-    window.location.href = fileUrl;
+    window.location.href = userCredential;
   };
+
+  useEffect(() => {
+    if (data?.userGenerationSuccess?.length > 0) {
+      const fetchUser = async () => {
+        const responseTemp = await Digit.CustomService.getResponse({
+          url: `/project-factory/v1/data/_search`,
+          body: {
+            SearchCriteria: {
+              tenantId: tenantId,
+              id: data?.userGenerationSuccess,
+            },
+          },
+        });
+
+        const response = responseTemp?.ResourceDetails?.map((i) => i?.processedFilestoreId);
+
+        const fileUrl = await Digit.UploadServices.Filefetch(response, Digit.ULBService.getCurrentTenantId()).then((res) => {
+          return res?.data?.[response];
+        });
+        setUserCredential(fileUrl);
+        return;
+      };
+      fetchUser();
+    }
+  }, [data]);
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
-        {data?.userGenerationSuccess?.length > 0 && (
+        {userCredential && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
             variation="secondary"
