@@ -1535,6 +1535,30 @@ function getLocalizedName(expectedName: string, localizationMap?: { [key: string
     return localizedName;
 }
 
+async function getTargetBoundariesRelatedToCampaignId(request: any, localizationMap?: any) {
+    let CampaignDetails: any;
+    if (request?.body?.ResourceDetails?.campaignId) {
+        const searchBody = {
+            RequestInfo: request?.body?.RequestInfo,
+            CampaignDetails: {
+                ids: [request?.body?.ResourceDetails?.campaignId],
+                tenantId: request?.body?.ResourceDetails?.tenantId
+            }
+        }
+        const req: any = replicateRequest(request, searchBody)
+        const response = await searchProjectTypeCampaignService(req)
+        if (response?.CampaignDetails?.[0]) {
+            CampaignDetails = response?.CampaignDetails?.[0]
+            await addBoundariesForData(request, CampaignDetails)
+        }
+        else {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while Validating sheet boundaries");
+        }
+    }
+    return CampaignDetails?.boundaries;
+}
+
+
 
 
 
@@ -1560,5 +1584,6 @@ export {
     enrichAndPersistCampaignWithError,
     getLocalizedName,
     reorderBoundaries,
-    reorderBoundariesOfDataAndValidate
+    reorderBoundariesOfDataAndValidate,
+    getTargetBoundariesRelatedToCampaignId
 }

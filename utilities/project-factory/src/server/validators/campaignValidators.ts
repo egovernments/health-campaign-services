@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, getTargetBoundariesRelatedToCampaignId } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -132,8 +132,9 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
 }
 
 async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[], localizationMap?: any) {
-    const responseBoundaries = await fetchBoundariesInChunks(request);
-    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
+    // const responseBoundaries = await fetchBoundariesInChunks(request);
+    const responseBoundaries = await getTargetBoundariesRelatedToCampaignId(request, localizationMap);
+    const responseBoundaryCodes = responseBoundaries.map((boundary: any) => boundary.code);
     // Iterate through each array of objects
     for (const key in data) {
         const isNotBoundaryOrReadMeTab = key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap);
@@ -162,7 +163,7 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
                                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
                                 }
                                 if (!responseBoundaryCodes.includes(boundaryCode)) {
-                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key} is not present in the selected boundaries`, sheetName: key })
                                 }
                                 boundarySet.add(boundaryCode);
                             }
@@ -201,9 +202,36 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
                     if (obj.hasOwnProperty(lowestLevelHierarchy) && obj[lowestLevelHierarchy]) {
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
-                        if (target === undefined || typeof target !== 'number' || target <= 0 || target > 100000 || !Number.isInteger(target)) {
-                            errors.push({ status: "INVALID", rowNumber: obj["!row#number!"], errorDetails: `Invalid target value at row ${obj['!row#number!'] + 1}. of sheet ${key}`, sheetName: key })
+                        if (target === undefined) {
+                            errors.push({ 
+                                status: "INVALID", 
+                                rowNumber: obj["!row#number!"], 
+                                errorDetails: `Target value is missing at row ${obj['!row#number!'] + 1} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`, 
+                                sheetName: key 
+                            });
+                        } else if (typeof target !== 'number') {
+                            errors.push({ 
+                                status: "INVALID", 
+                                rowNumber: obj["!row#number!"], 
+                                errorDetails: `Target value at row ${obj['!row#number!'] + 1} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`, 
+                                sheetName: key 
+                            });
+                        } else if (target <= 0 || target > 100000) {
+                            errors.push({ 
+                                status: "INVALID", 
+                                rowNumber: obj["!row#number!"], 
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`, 
+                                sheetName: key 
+                            });
+                        } else if (!Number.isInteger(target)) {
+                            errors.push({ 
+                                status: "INVALID", 
+                                rowNumber: obj["!row#number!"], 
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`, 
+                                sheetName: key 
+                            });
                         }
+                        
                     }
                 });
             }
@@ -425,7 +453,7 @@ function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any, 
         })[0];
         headersToValidate = headersToValidate.map((header: any) => header.trim());
         if (!_.isEqual(expectedHeadersForTargetSheet, headersToValidate)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in target sheet ${sheetName}`)
+            throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in Target sheet ${sheetName}`)
         }
     }
 
@@ -995,7 +1023,7 @@ function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: 
 
 function validateAllDistrictTabsPresentOrNot(dataFromSheet: any, localizationMap?: any) {
     let tabsIndex = 2;
-    const tabsOfDistrict = getDifferentDistrictTabs(modifyTargetData(dataFromSheet), getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap));
+    const tabsOfDistrict = getDifferentDistrictTabs(dataFromSheet[getLocalizedName(config.boundaryTab, localizationMap)], getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap));
     const tabsFromTargetSheet = Object.keys(dataFromSheet);
     for (let tab of tabsOfDistrict) {
         if (tabsIndex >= tabsFromTargetSheet.length) {

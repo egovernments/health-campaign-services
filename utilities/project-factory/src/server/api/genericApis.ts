@@ -170,7 +170,7 @@ const getTargetSheetData = async (
 
   for (const sheetName of localizedSheetNames) {
     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-      blankrows: true,
+      blankrows: true,raw:false
     });
     var jsonData = sheetData.map((row: any, index: number) => {
       const rowData: any = {};
