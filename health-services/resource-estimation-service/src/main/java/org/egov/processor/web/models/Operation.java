@@ -46,6 +46,10 @@ public class Operation {
     @Size(min = 1, max = 64)
     private String output = null;
 
+    @JsonProperty("active")
+    @NotNull
+    private Boolean active = true;
+
     /**
      * The operator used in the operation
      */

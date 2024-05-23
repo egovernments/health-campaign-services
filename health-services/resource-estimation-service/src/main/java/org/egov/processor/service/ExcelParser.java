@@ -85,16 +85,17 @@ public class ExcelParser implements FileParser {
     private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         try (Workbook workbook = new XSSFWorkbook(file)) {
-            Sheet sheet = workbook.getSheetAt(0);
             DataFormatter dataFormatter = new DataFormatter();
-            Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-            List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 
-            parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                Sheet sheet = workbook.getSheetAt(i);
+                Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+                List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 
-            File tempFile = createTempFile("updatedExcel", ".xlsx");
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                processRows(planConfigurationRequest, sheet, dataFormatter, fos);
+                parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
+
+                // Assuming processRows handles processing for each sheet
+                processRows(planConfigurationRequest, sheet, dataFormatter);
             }
 
             return uploadConvertedFile(convertWorkbookToXls(workbook), planConfig.getTenantId());
@@ -114,7 +115,7 @@ public class ExcelParser implements FileParser {
      * @param fos            The file output stream to write the updated Excel data.
      * @throws IOException If an IO error occurs during processing.
      */
-    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, FileOutputStream fos) throws IOException {
+    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter) throws IOException {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
