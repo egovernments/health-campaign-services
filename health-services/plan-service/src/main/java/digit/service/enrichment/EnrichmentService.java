@@ -50,7 +50,11 @@ public class EnrichmentService {
         UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");
 
         // Generate id for files
-        planConfiguration.getFiles().forEach(file -> UUIDEnrichmentUtil.enrichRandomUuid(file, "id"));
+        planConfiguration.getFiles().forEach(file -> {
+            UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
+            enrichActiveForResourceMapping(file, planConfiguration.getResourceMapping());
+        });
+
 
         // Generate id for assumptions
         planConfiguration.getAssumptions().forEach(assumption -> UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id"));

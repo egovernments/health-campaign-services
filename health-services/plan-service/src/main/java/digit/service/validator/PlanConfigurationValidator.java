@@ -50,7 +50,7 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
-        validateMappedToForLocality(planConfiguration);
+        validateMappedToUniqueness(planConfiguration.getResourceMapping());
     }
 
     /**
@@ -233,43 +233,22 @@ public class PlanConfigurationValidator {
     }
 
 
-
     /**
-     * Validates that the 'mappedTo' field in the list of ResourceMappings contains the value "Locality".
+     * Validates that the 'mappedTo' values in the list of 'resourceMappings' are unique.
+     * If a duplicate 'mappedTo' value is found, it logs an error and throws a CustomException.
      *
-     * @param planConfiguration The plan configuration object to validate
+     * @param resourceMappings The list of 'ResourceMapping' objects to validate.
+     * @throws CustomException If a duplicate 'mappedTo' value is found.
      */
-    public void validateMappedToForLocality(PlanConfiguration planConfiguration) {
-        boolean hasLocality = planConfiguration.getResourceMapping().stream()
-                .anyMatch(mapping -> LOCALITY_CODE.equalsIgnoreCase(mapping.getMappedTo()));
-        if (!hasLocality) {
-            throw new CustomException(LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE, LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE);
-        }
-    }
-
-
-
-    /**
-     * Validates that all mappings in the list have the expected 'mappedTo' value.
-     * If none of the mappings match the expected value, a CustomException is thrown.
-     *
-     * @param mappings        The list of ResourceMappings to validate.
-     * @param expectedMappedTo The expected value for the 'mappedTo' field.
-     */
-    private void validateMappedTo(List<ResourceMapping> mappings, String expectedMappedTo) {
-        boolean foundMatch = false;
-        for (ResourceMapping mapping : mappings) {
-            if (mapping.getMappedTo().equalsIgnoreCase(expectedMappedTo)) {
-                foundMatch = true;
-                break;
+    public static void validateMappedToUniqueness(List<ResourceMapping> resourceMappings) {
+        Set<String> mappedToSet = new HashSet<>();
+        for (ResourceMapping mapping : resourceMappings) {
+            if (!mappedToSet.add(mapping.getMappedTo())) {
+                log.error("Duplicate MappedTo " + mapping.getMappedTo());
+                throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE, DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE+ " - " + mapping.getMappedTo());
             }
         }
-        if (!foundMatch) {
-            throw new CustomException(MAPPED_TO_VALIDATION_ERROR_CODE,
-                    "Atleast one resource's 'mappedTo' must be '" + expectedMappedTo + "'");
-        }
     }
-
 
 
     /**
@@ -308,7 +287,7 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
-        validateMappedToForLocality(planConfiguration);
+        validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
     }
 

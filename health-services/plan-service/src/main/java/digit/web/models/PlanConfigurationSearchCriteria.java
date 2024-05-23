@@ -45,7 +45,7 @@ public class PlanConfigurationSearchCriteria {
 
     @JsonProperty("limit")
     @Min(1)
-    @Max(100)
+    @Max(200)
     private Integer limit;
 
 }
