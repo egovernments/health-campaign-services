@@ -50,7 +50,7 @@ app.use((req, res, next) => {
     } else if (acceptHeader && acceptHeader.includes('text/html')) {
         logger.info("Bypassing authentication for requests with Accept header containing text/html");
         next(); // Bypass authentication for requests with Accept header containing text/html
-    } else if (req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
+    } else if (req.originalUrl.includes('/app/kibana') || req.originalUrl.includes('/kibana/api') || req.originalUrl.includes('/kibana/elasticsearch') ) {
         // Check if authToken is empty or null
         if (!authToken || authToken.trim() === '') {
             res.status(401).send('Unauthorized: No auth token provided');
@@ -64,6 +64,7 @@ app.use((req, res, next) => {
             return;
         }
     } else {
+        //let all requests go without authorization
         next();
     }
 });
