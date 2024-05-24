@@ -332,8 +332,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
     if (!isValid) return isValid;
 
-    
-
     // Iterate over each sheet in the workbook, starting from the second sheet
     for (let i = 2; i < workbook.SheetNames.length; i++) {
       const sheetName = workbook?.SheetNames[i];
@@ -742,6 +740,22 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     );
   };
 
+
+  // useEffect(() => {
+  //   if (showToast) {
+  //     setTimeout(closeToast, 5000);
+  //   }
+  // }, [showToast]);
+  const closeToast = () => {
+    setShowToast(null);
+  };
+  useEffect(() => {
+    if (showToast) {
+      const t = setTimeout(closeToast, 5000);
+      return () => clearTimeout(t); 
+    }
+  }, [showToast]);
+
   return (
     <>
       <Card>
@@ -818,7 +832,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           // info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
           transitionTime={showToast.transitionTime}
-          // onClose={closeToast}
+          onClose={closeToast}
         />
       )}
     </>
