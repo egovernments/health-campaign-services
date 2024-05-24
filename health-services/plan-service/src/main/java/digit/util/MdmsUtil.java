@@ -71,7 +71,7 @@ public class MdmsUtil {
         List<MasterDetail> assumptionMasterDetails = new ArrayList<>();
 
         MasterDetail assumptionMasterDetail = MasterDetail.builder().name(MDMS_MASTER_ASSUMPTION).build();
-        MasterDetail uploadConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_UPLOAD_CONFIGURATION).filter(FILTER_ID).build();
+        MasterDetail uploadConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_UPLOAD_CONFIGURATION).build();
         MasterDetail ruleConfigureInputsMasterDetail = MasterDetail.builder().name(MDMS_MASTER_RULE_CONFIGURE_INPUTS).filter(FILTER_DATA).build();
         MasterDetail schemaDetails = MasterDetail.builder().name(MDMS_MASTER_SCHEMAS).build();
         MasterDetail metricDetails = MasterDetail.builder().name(MDMS_MASTER_METRIC).build();

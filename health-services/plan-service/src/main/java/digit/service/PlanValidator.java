@@ -142,6 +142,9 @@ public class PlanValidator {
      */
     private void validateActivities(PlanRequest request) {
         // Collect all activity codes
+        if(request.getPlan().getActivities() == null)
+            throw new CustomException("ACTIVITIES_CANNOT_BE_NULL","Activities list in Plan cannot be null");
+
         Set<String> activityCodes = request.getPlan().getActivities().stream()
                 .map(Activity::getCode)
                 .collect(Collectors.toSet());

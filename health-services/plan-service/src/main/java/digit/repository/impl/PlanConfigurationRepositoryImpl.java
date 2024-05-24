@@ -56,7 +56,6 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
      */
     @Override
     public List<PlanConfiguration> search(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
-        List<Object> preparedStmtList = new ArrayList<>();
         // Fetch plan ids from database
         List<String> planConfigIds = queryDatabaseForPlanConfigIds(planConfigurationSearchCriteria);
 

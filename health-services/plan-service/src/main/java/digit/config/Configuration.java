@@ -21,20 +21,6 @@ import java.util.TimeZone;
 @Getter
 public class Configuration {
 
-    //Workflow Config
-    @Value("${egov.workflow.host}")
-    private String wfHost;
-
-    @Value("${egov.workflow.transition.path}")
-    private String wfTransitionPath;
-
-    @Value("${egov.workflow.businessservice.search.path}")
-    private String wfBusinessServiceSearchPath;
-
-    @Value("${egov.workflow.processinstance.search.path}")
-    private String wfProcessInstanceSearchPath;
-
-
     //MDMS
     @Value("${egov.mdms.host}")
     private String mdmsHost;
@@ -49,6 +35,12 @@ public class Configuration {
 
     @Value("${plan.configuration.update.topic}")
     private String planConfigUpdateTopic;
+
+    @Value("${plan.create.topic}")
+    private String planCreateTopic;
+
+    @Value("${plan.update.topic}")
+    private String planUpdateTopic;
 
     @Value("${plan.default.offset}")
     private Integer defaultOffset;

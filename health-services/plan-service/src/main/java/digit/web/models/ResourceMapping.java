@@ -41,4 +41,8 @@ public class ResourceMapping {
     @Size(min = 2, max = 256)
     private String mappedTo = null;
 
+    @JsonProperty("active")
+    @NotNull
+    private Boolean active = true;
+
 }

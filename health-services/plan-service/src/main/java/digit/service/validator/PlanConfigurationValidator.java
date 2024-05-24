@@ -54,8 +54,8 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
-        validateMappedToForLocality(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
+        validateMappedToUniqueness(planConfiguration.getResourceMapping());
     }
 
     /**
@@ -64,6 +64,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
         Set<String> assumptionValues = planConfiguration.getAssumptions().stream()
+                .filter(Assumption::getActive)
                 .map(Assumption::getKey)
                 .collect(Collectors.toSet());
 
@@ -71,7 +72,7 @@ public class PlanConfigurationValidator {
         for (Operation operation : operations) {
             if (!assumptionValues.contains(operation.getAssumptionValue())) {
                 log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in Assumption Key List");
-                throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE);
+                throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
             }
         }
     }
@@ -131,12 +132,17 @@ public class PlanConfigurationValidator {
      */
     public void validateTemplateIdentifierAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*";
+        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
+        final String jsonPathForTemplateIdentifierIsRequired = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
 
         List<Object> templateIdentifierListFromMDMS = null;
+        List<Object> requiredTemplateIdentifierFromMDMS = null;
+        Set<String> activeRequiredTemplates = new HashSet<>();
+
         try {
             log.info(jsonPathForTemplateIdentifier);
             templateIdentifierListFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifier);
+            requiredTemplateIdentifierFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifierIsRequired);
         } catch (Exception e) {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
@@ -149,8 +155,28 @@ public class PlanConfigurationValidator {
                 log.error("Template Identifier " + file.getTemplateIdentifier() + " is not present in MDMS");
                 throw new CustomException(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE);
             }
+
+            if (file.getActive()) { // Check if the file is active
+                String templateIdentifier = file.getTemplateIdentifier();
+                if (requiredTemplateIdentifierFromMDMS.contains(templateIdentifier)) { // Check if the template identifier is required
+                    if (!activeRequiredTemplates.add(templateIdentifier)) { // Ensure only one active file per required template identifier
+                        log.error("Only one file with the required Template Identifier should be present " + file.getTemplateIdentifier());
+                        throw new CustomException(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE, ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE);
+                    }
+                }
+            }
         }
+
+        // Ensure at least one active file for each required template identifier
+        for (Object requiredTemplate : requiredTemplateIdentifierFromMDMS) {
+            if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+            }
+        }
+
     }
+
 
     /**
      * Validates the operations input against the Master Data Management System (MDMS) data.
@@ -212,43 +238,24 @@ public class PlanConfigurationValidator {
     }
 
 
-
     /**
-     * Validates that the 'mappedTo' field in the list of ResourceMappings contains the value "Locality".
+     * Validates that the 'mappedTo' values in the list of 'resourceMappings' are unique.
+     * If a duplicate 'mappedTo' value is found, it logs an error and throws a CustomException.
      *
-     * @param planConfiguration The plan configuration object to validate
+     * @param resourceMappings The list of 'ResourceMapping' objects to validate.
+     * @throws CustomException If a duplicate 'mappedTo' value is found.
      */
-    public void validateMappedToForLocality(PlanConfiguration planConfiguration) {
-        boolean hasLocality = planConfiguration.getResourceMapping().stream()
-                .anyMatch(mapping -> LOCALITY_CODE.equalsIgnoreCase(mapping.getMappedTo()));
-        if (!hasLocality) {
-            throw new CustomException(LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE, LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE);
-        }
-    }
-
-
-
-    /**
-     * Validates that all mappings in the list have the expected 'mappedTo' value.
-     * If none of the mappings match the expected value, a CustomException is thrown.
-     *
-     * @param mappings        The list of ResourceMappings to validate.
-     * @param expectedMappedTo The expected value for the 'mappedTo' field.
-     */
-    private void validateMappedTo(List<ResourceMapping> mappings, String expectedMappedTo) {
-        boolean foundMatch = false;
-        for (ResourceMapping mapping : mappings) {
-            if (mapping.getMappedTo().equalsIgnoreCase(expectedMappedTo)) {
-                foundMatch = true;
-                break;
+    public static void validateMappedToUniqueness(List<ResourceMapping> resourceMappings) {
+        Set<String> uniqueMappedToSet = new HashSet<>();
+        for (ResourceMapping mapping : resourceMappings) {
+            String uniqueKey = mapping.getFilestoreId() + "-" + mapping.getMappedTo();
+            if (!uniqueMappedToSet.add(uniqueKey)) {
+                log.error("Duplicate MappedTo " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
+                throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE,
+                        DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE + " - " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
             }
         }
-        if (!foundMatch) {
-            throw new CustomException(MAPPED_TO_VALIDATION_ERROR_CODE,
-                    "Atleast one resource's 'mappedTo' must be '" + expectedMappedTo + "'");
-        }
     }
-
 
 
     /**
@@ -287,8 +294,8 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
-        validateMappedToForLocality(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
+        validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
     }
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.apache.kafka.common.protocol.types.Field;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -42,6 +43,10 @@ public class File {
     @Size(min = 2, max = 128)
     @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Name must not contain only special characters")
     private String templateIdentifier = null;
+
+    @JsonProperty("active")
+    @NotNull
+    private Boolean active = true;
 
     /**
      * The original file type of the Input
