@@ -1,6 +1,8 @@
 package digit.service.validator;
 
 import com.jayway.jsonpath.JsonPath;
+
+import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
 import digit.web.models.Assumption;
@@ -14,6 +16,8 @@ import digit.web.models.ResourceMapping;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.tracer.model.CustomException;
@@ -50,6 +54,7 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
+        validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
     }
 
@@ -289,6 +294,7 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
+        validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
     }
@@ -304,5 +310,67 @@ public class PlanConfigurationValidator {
                 .build()))) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
+    }
+    
+	/**
+	 * Validate input (BCode) against MDMS data. 
+	 * @param request plan configauration request.
+	 * @param mdmsData MDMS data object.
+	 */
+    public void validateResourceMappingAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+        List<File> files = planConfiguration.getFiles();
+        List<String> templateIds = files.stream()
+                .map(File::getTemplateIdentifier)
+                .collect(Collectors.toList());
+        List<String> inputFileTypes = files.stream()
+                .map(File::getInputFileType)
+                .map(File.InputFileTypeEnum::toString)
+                .collect(Collectors.toList());
+
+        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
+        List<Object> ruleInputsListFromMDMS = null;
+        try {
+            log.info(jsonPathForRuleInputs);
+            ruleInputsListFromMDMS = JsonPath.read(mdmsData, jsonPathForRuleInputs);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+        List<String> allowedColumns = getIsTruePropertyFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
+        List<ResourceMapping> resourceMapping1 =  planConfiguration.getResourceMapping();  
+        if(allowedColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
+        	Stream<ResourceMapping> d = resourceMapping1.stream().filter(f-> f.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
+        if(!(d.count()>0)) {        	
+            throw new CustomException(REQUIRED_MAPPING_NOT_FOUND_CODE, REQUIRED_MAPPING_NOT_FOUND_MESSAGE);
+        }
+        }
+    }
+    
+    /**
+     * Return all properties that has isTrue flag as a true.
+     * @param schemas schema object.
+     * @param templateIds template ids list.
+     * @param inputFileTypes list of file type.
+     * @return
+     */
+    public static List<String> getIsTruePropertyFromSchema(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+        if (schemas == null) {
+            return new ArrayList<>();
+        }
+        Set<String> finalData = new HashSet<>();
+        for (Object item : schemas) {
+            LinkedHashMap<?, ?> schemaEntity = (LinkedHashMap) item;
+            if(!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE))) continue;
+            LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>)((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
+            if(columns == null) return new ArrayList<>();
+            for(Map.Entry<String, LinkedHashMap> column : columns.entrySet()){
+                LinkedHashMap<String, Boolean> data = column.getValue();
+                if(data.get(MDMS_SCHEMA_PROPERTIES_IS_REQUIRED)){
+                    finalData.add(column.getKey());
+                }
+            }
+        }
+        return new ArrayList<>(finalData);
     }
 }
