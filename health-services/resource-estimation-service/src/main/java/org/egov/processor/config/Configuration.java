@@ -47,4 +47,13 @@ public class Configuration {
     
     @Value("${egov.plan.create.endpoint}")
     private String planCreateEndPoint;
+    
+    @Value("${egov.project.factory.search.endpoint}")
+    private String campaignIntegrationSearchEndPoint;  
+    
+    @Value("${egov.project.factory.update.endpoint}")
+    private String campaignIntegrationUpdateEndPoint;
+    
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHostEndPoint;
 }

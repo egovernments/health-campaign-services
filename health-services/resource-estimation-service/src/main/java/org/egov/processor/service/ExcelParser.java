@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.CalculationUtil;
+import org.egov.processor.util.CampaignIntegrationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.util.PlanUtil;
@@ -27,6 +30,8 @@ import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
+import org.egov.processor.web.models.campaignManager.Boundary;
+import org.egov.processor.web.models.campaignManager.CampaignResources;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -45,26 +50,30 @@ public class ExcelParser implements FileParser {
     private CalculationUtil calculationUtil;
     
     private PlanUtil planUtil;
+    
+    private CampaignIntegrationUtil campaignIntegrationUtil;
 
-    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil) {
+    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
         this.planUtil = planUtil;
+        this.campaignIntegrationUtil = campaignIntegrationUtil;
     }
 
     /**
-     * Parses the file data based on the provided plan configuration and file store ID.
+     * Parses file data, extracts information from the file, and processes it.
      *
-     * @param planConfig   The plan configuration containing mapping and operation details.
-     * @param fileStoreId  The file store ID of the Excel file to be parsed.
-     * @return The file store ID of the uploaded updated file, or null if an error occurred.
+     * @param planConfigurationRequest The plan configuration request containing necessary information for parsing the file.
+     * @param fileStoreId The ID of the file in the file store.
+     * @param campaignResponse The response object to be updated with parsed data.
+     * @return The parsed and processed data.
      */
     @Override
-    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Object campaignResponse) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
 
         if (file == null || !file.exists()) {
@@ -72,33 +81,45 @@ public class ExcelParser implements FileParser {
             return null;
         }
 
-        return processExcelFile(planConfigurationRequest, file, fileStoreId);
+        return processExcelFile(planConfigurationRequest, file, fileStoreId,campaignResponse);
     }
 
     /**
-     * Processes the Excel file, updating it with the calculated results and uploading the updated file.
+     * Processes an Excel file, extracts data, and updates campaign details and resources.
      *
-     * @param planConfig The plan configuration containing mapping and operation details.
-     * @param file       The Excel file to be processed.
-     * @return The file store ID of the uploaded updated file, or null if an error occurred.
+     * @param planConfigurationRequest The plan configuration request containing necessary information for processing the file.
+     * @param file The Excel file to be processed.
+     * @param fileStoreId The ID of the file in the file store.
+     * @param campaignResponse The response object to be updated with processed data.
+     * @return The ID of the uploaded file.
      */
-    private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId) {
+    private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,Object campaignResponse) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         try (Workbook workbook = new XSSFWorkbook(file)) {
+        	List<Boundary> campaignBoundaryList = new ArrayList<>();
+			List<CampaignResources> campaignResourcesList = new ArrayList<>();
             DataFormatter dataFormatter = new DataFormatter();
 
-            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-                Sheet sheet = workbook.getSheetAt(i);
+            for (int sheetNumber = 0; sheetNumber < workbook.getNumberOfSheets(); sheetNumber++) {
+                Sheet sheet = workbook.getSheetAt(sheetNumber);
                 Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
                 List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 
                 parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 
                 // Assuming processRows handles processing for each sheet
-                processRows(planConfigurationRequest, sheet, dataFormatter);
+                processRows(planConfigurationRequest, sheet, dataFormatter,fileStoreId, campaignResponse,
+						campaignBoundaryList, campaignResourcesList);
             }
 
-            return uploadConvertedFile(convertWorkbookToXls(workbook), planConfig.getTenantId());
+            String uploadedFileId = uploadConvertedFile(
+					new File(convertWorkbookToXls(workbook).getParent(), ServiceConstants.FILE_NAME),
+					planConfig.getTenantId());
+
+			campaignIntegrationUtil.updateCampaignResources(uploadedFileId, campaignResourcesList);
+			campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
+					campaignBoundaryList, campaignResourcesList);
+			return uploadedFileId;
         } catch (IOException | InvalidFormatException e) {
             log.error("Error processing Excel file: {}", e.getMessage());
         }
@@ -107,15 +128,19 @@ public class ExcelParser implements FileParser {
     }
 
     /**
-     * Processes each row in the Excel sheet, updating it with the calculated results.
+     * Processes rows of data in an Excel sheet, performs calculations, updates campaign boundaries, and creates plans.
      *
-     * @param planConfig     The plan configuration containing mapping and operation details.
-     * @param sheet          The Excel sheet to process.
-     * @param dataFormatter  The data formatter for formatting cell values.
-     * @param fos            The file output stream to write the updated Excel data.
-     * @throws IOException If an IO error occurs during processing.
+     * @param planConfigurationRequest The plan configuration request containing necessary information for processing the rows.
+     * @param sheet The Excel sheet containing the data to be processed.
+     * @param dataFormatter The data formatter for formatting cell values.
+     * @param fileStoreId The ID of the file in the file store.
+     * @param campaignResponse The response object to be updated with processed data.
+     * @param campaignBoundaryList The list of campaign boundaries to be updated.
+     * @param campaignResourcesList The list of campaign resources to be updated.
+     * @throws IOException If an I/O error occurs.
      */
-    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter) throws IOException {
+    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId,
+			Object campaignResponse, List<Boundary> campaignBoundaryList,List<CampaignResources> campaignResourcesList) throws IOException {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
@@ -144,7 +169,7 @@ public class ExcelParser implements FileParser {
                     headerCell.setCellValue(output);
                 }
             }
-            
+            campaignIntegrationUtil.updateCampaignBoundary(planConfig,feature,assumptionValueMap,mappedValues,mapOfColumnNameAndIndex,campaignBoundaryList,resultMap);
             planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues, assumptionValueMap);
             //TODO: remove after testing
             printRow(sheet, row);

@@ -8,6 +8,6 @@ import org.egov.processor.web.models.PlanConfigurationRequest;
 
 public interface FileParser {
 
-    Object parseFileData(PlanConfigurationRequest planConfigurationRequest , String fileStoreId);
+    Object parseFileData(PlanConfigurationRequest planConfigurationRequest , String fileStoreId, Object campaignResponse);
 
    }

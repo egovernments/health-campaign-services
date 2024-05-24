@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -83,15 +85,15 @@ public class ParsingUtil {
     }
 
     /**
-     * Retrieves the column names and their corresponding indexes from the header row of an Excel sheet.
+     * Extracts attribute names and their corresponding indices from the first row of an Excel sheet.
      *
-     * @param sheet The Excel sheet from which to extract column names.
-     * @return A map containing column names as keys and their indexes as values.
+     * @param sheet The Excel sheet from which to extract attribute names and indices.
+     * @return A sorted map containing attribute names as keys and their corresponding indices as values.
      */
     public Map<String, Integer> getAttributeNameIndexFromExcel(Sheet sheet) {
         Map<String, Integer> columnIndexMap = new HashMap<>();
+        Map<String, Integer> sortedMap = new LinkedHashMap<>();
         DataFormatter dataFormatter = new DataFormatter();
-
         // Assuming the first row contains column headers
         Row headerRow = sheet.getRow(0);
         for (int i = 0; i < headerRow.getLastCellNum(); i++) {
@@ -99,8 +101,12 @@ public class ParsingUtil {
             String columnHeader = dataFormatter.formatCellValue(cell);
             columnIndexMap.put(columnHeader, i);
         }
-
-        return columnIndexMap;
+        List<Map.Entry<String, Integer>> sortedColumnList = new ArrayList<>(columnIndexMap.entrySet());
+        Collections.sort(sortedColumnList, (o1, o2) -> (o1.getValue()).compareTo(o2.getValue()));
+        for (Map.Entry<String, Integer> entry : sortedColumnList) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+        return sortedMap;
     }
 
     /**

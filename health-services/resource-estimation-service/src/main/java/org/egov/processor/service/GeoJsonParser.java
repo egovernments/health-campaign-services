@@ -52,7 +52,7 @@ public class GeoJsonParser implements FileParser {
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
     @Override
-    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Object campaignResponse) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         String geoJSON = parsingUtil.convertByteArrayToString(planConfig, fileStoreId);
 
