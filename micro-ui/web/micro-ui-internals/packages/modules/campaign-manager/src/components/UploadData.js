@@ -9,7 +9,7 @@ import { InfoCard, Toast } from "@egovernments/digit-ui-components";
 import { schemaConfig } from "../configs/schemaConfig";
 import { headerConfig } from "../configs/headerConfig";
 import { PRIMARY_COLOR } from "../utils";
-
+import { downloadExcelWithCustomName } from "../utils";
 /**
  * The `UploadData` function in JavaScript handles the uploading, validation, and management of files
  * for different types of data in a web application.
@@ -543,10 +543,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   const onFileDownload = (file) => {
     if (file && file?.url) {
-      window.location.href = file?.url;
       // Splitting filename before .xlsx or .xls
-      // const fileNameWithoutExtension = file?.filename.split(/\.(xlsx|xls)/)[0];
-      // downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
+      const fileNameWithoutExtension = file?.filename.split(/\.(xlsx|xls)/)[0];
+      downloadExcelWithCustomName({ fileStoreId: file?.filestoreId, customName: fileNameWithoutExtension });
     }
   };
   useEffect(() => {
@@ -727,13 +726,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
           if (fileData && fileData?.[0]?.url) {
             setDownloadError(false);
-            // downloadExcel(fileData[0].blob, fileData[0].fileName);
-            window.location.href = fileData?.[0]?.url;
-            // handleFileDownload(fileData?.[0]);
-            // downloadExcel(
-            // new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-            // fileData?.[0]?.filename
-            // );
+            if (fileData?.[0]?.id) {
+              downloadExcelWithCustomName({ fileStoreId: fileData?.[0]?.id, customName: fileData?.[0]?.filename });
+            }
           } else {
             setDownloadError(true);
             setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT") });
@@ -745,39 +740,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         },
       }
     );
-  };
-
-  // const downloadExcel = (blob, fileName) => {
-  //   console.log("fileName", fileName);
-  //     const link = document.createElement("a");
-  //     link.href = URL.createObjectURL(blob);
-  //     link.download = fileName + ".xlsx";
-  //     document.body.append(link);
-  //     link.click();
-  //     link.remove();
-  //     // document.body.removeChild(link);
-  //     setTimeout(() => URL.revokeObjectURL(link.href), 7000);
-  // };
-
-  const downloadExcel = (blob, fileName) => {
-    if (window.mSewaApp && window.mSewaApp.isMsewaApp() && window.mSewaApp.downloadBase64File) {
-      var reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = function () {
-        var base64data = reader.result;
-        // Adjust MIME type and file extension if necessary
-        window.mSewaApp.downloadBase64File(base64data, fileName + ".xlsx");
-      };
-    } else {
-      const link = document.createElement("a");
-      // Adjust MIME type to Excel format
-      link.href = URL.createObjectURL(blob);
-      link.download = fileName + ".xlsx"; // Adjust file extension
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(link.href), 7000);
-    }
   };
 
   return (

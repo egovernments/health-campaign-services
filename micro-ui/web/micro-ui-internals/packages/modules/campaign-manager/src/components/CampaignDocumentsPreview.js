@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DocumentIcon } from "./DocumentIcon";
 import XlsPreview from "./XlsPreview";
 import { XlsxFile } from "./icons/XlsxFile";
+import { downloadExcelWithCustomName } from "../utils";
 
 function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenerate = false }) {
   const { t } = useTranslation();
@@ -10,6 +11,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
   const [filesArray, setFilesArray] = useState(null);
   const [pdfFiles, setPdfFiles] = useState({});
   const [showPreview, setShowPreview] = useState(false);
+
   useEffect(() => {
     let acc = documents?.map((i) => (i?.id ? i?.id : i?.filestoreId));
     setFilesArray(acc);
@@ -23,8 +25,9 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
     }
   }, [filesArray]);
 
-  const handleFileDownload = (a, b) => {
-    window.open(b, "_blank");
+  const handleFileDownload = ({ id, name }) => {
+    const fileNameWithoutExtension = name?.split(/\.(xlsx|xls)/)?.[0];
+    downloadExcelWithCustomName({ fileStoreId: id, customName: fileNameWithoutExtension });
   };
   return (
     <div>
@@ -48,8 +51,16 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
                   </div>
                   {showPreview && (
                     <XlsPreview
-                      file={{ url: pdfFiles[document?.id ? document?.id : document?.filestoreId] }}
-                      onDownload={() => handleFileDownload(null, pdfFiles[document?.id ? document?.id : document?.filestoreId])}
+                      file={{
+                        url: pdfFiles[document?.id ? document?.id : document?.filestoreId],
+                        filename: isUserGenerate ? document?.type : document?.filename,
+                      }}
+                      onDownload={() =>
+                        handleFileDownload({
+                          id: document?.id ? document?.id : document?.filestoreId,
+                          name: isUserGenerate ? document?.type : document?.filename,
+                        })
+                      }
                       onBack={() => setShowPreview(false)}
                     />
                   )}

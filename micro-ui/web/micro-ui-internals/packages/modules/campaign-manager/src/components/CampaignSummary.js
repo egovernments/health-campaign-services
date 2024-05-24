@@ -4,7 +4,7 @@ import { useHistory } from "react-router-dom";
 import { Button, EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
 import { Toast } from "@egovernments/digit-ui-components";
 import { DownloadIcon } from "@egovernments/digit-ui-react-components";
-import { PRIMARY_COLOR } from "../utils";
+import { PRIMARY_COLOR, downloadExcelWithCustomName } from "../utils";
 
 function mergeObjects(item) {
   const arr = item;
@@ -380,7 +380,7 @@ const CampaignSummary = () => {
   }, [data]);
 
   const downloadUserCred = async () => {
-    window.location.href = userCredential;
+    downloadExcelWithCustomName(userCredential);
   };
 
   useEffect(() => {
@@ -398,11 +398,9 @@ const CampaignSummary = () => {
 
         const response = responseTemp?.ResourceDetails?.map((i) => i?.processedFilestoreId);
 
-        const fileUrl = await Digit.UploadServices.Filefetch(response, Digit.ULBService.getCurrentTenantId()).then((res) => {
-          return res?.data?.[response];
-        });
-        setUserCredential(fileUrl);
-        return;
+        if (response?.[0]) {
+          setUserCredential({ fileStoreId: response?.[0], customName: "userCredential" });
+        }
       };
       fetchUser();
     }

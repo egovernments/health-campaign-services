@@ -30,7 +30,7 @@ function CampaignResourceDocuments({ resources = [], svgStyles = {}, isUserGener
       const temp = resourceData.map((i) => {
         return {
           id: i?.processedFilestoreId,
-          type: i?.type,
+          type: "userCredential",
         };
       });
       setProcessData(temp);
