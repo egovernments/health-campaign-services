@@ -521,7 +521,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               setDeliveryRules={setDeliveryRules}
               attribute={item}
               setAttributes={setAttributes}
-              config={filteredDeliveryConfig?.deliveryConfig?.[index]?.attributeConfig?.[index]}
+              config={filteredDeliveryConfig?.deliveryConfig?.[delivery?.ruleKey - 1]?.attributeConfig?.[index]}
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
