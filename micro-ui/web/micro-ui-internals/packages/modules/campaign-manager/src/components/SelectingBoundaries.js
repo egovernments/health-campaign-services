@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Fragment } from "react";
-import { CardText, LabelFieldPair, Card, Header, CardLabel } from "@egovernments/digit-ui-react-components";
+import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
@@ -40,6 +40,21 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [executionCount, setExecutionCount] = useState(0);
   // State variable to store the lowest hierarchy level
   const [lowestHierarchy, setLowestHierarchy] = useState(null);
+  const [showPopUp, setShowPopUp] = useState(null);
+  const [restrictSelection, setRestrictSelection] = useState(null);
+  const [updateBoundary, setUpdateBoundary] = useState(null);
+
+  useEffect(() => {
+    if (!updateBoundary) {
+      if (
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.length > 0
+      ) {
+        setRestrictSelection(true);
+      }
+    }
+  }, [props?.props?.sessionData, updateBoundary]);
 
   useEffect(() => {
     if (props?.props?.dataParams) {
@@ -48,7 +63,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   }, [props?.props?.dataParams]);
 
   useEffect(() => {
-    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData });
+    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, updateBoundary: updateBoundary });
   }, [boundaryData, selectedData]);
 
   useEffect(() => {
@@ -61,7 +76,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   useEffect(() => {
     if (executionCount < 5) {
-      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData });
+      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, updateBoundary: updateBoundary });
       setExecutionCount((prevCount) => prevCount + 1);
     }
   });
@@ -206,7 +221,31 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     }
   }, [boundaryTypeDataresult]);
 
+  const checkDataPresent = ({ action }) => {
+    if (action === false) {
+      setShowPopUp(false);
+      setUpdateBoundary(true);
+      setRestrictSelection(false);
+      return;
+    }
+    if (action === true) {
+      setShowPopUp(false);
+      setUpdateBoundary(false);
+      return;
+    }
+  };
+
   const handleBoundaryChange = (data, boundary) => {
+    if (
+      !updateBoundary &&
+      restrictSelection &&
+      (props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.length > 0)
+    ) {
+      setShowPopUp(true);
+      return;
+    }
     if (!data || data.length === 0) {
       const check = updatedHierarchy[boundary?.boundaryType];
 
@@ -330,6 +369,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                   <MultiSelectDropdown
                     props={{ className: "selecting-boundaries-dropdown" }}
                     t={t}
+                    restrictSelection={restrictSelection}
                     options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                     optionsKey={"code"}
                     selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType) || []}
@@ -348,6 +388,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                 <div className="digit-field">
                   <MultiSelectDropdown
                     t={t}
+                    restrictSelection={restrictSelection}
                     props={{ className: "selecting-boundaries-dropdown" }}
                     options={
                       boundaryData[boundary?.boundaryType]?.map((item) => ({
@@ -391,6 +432,28 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         ]}
         label={"Info"}
       />
+      {showPopUp && (
+        <Modal
+          popupStyles={{
+            top: "5rem",
+          }}
+          popmoduleClassName="campaign-pop-module"
+          popupModuleActionBarClass="campaign-pop-action"
+          style={{ flex: 1 }}
+          popupMainModuleClass="campaign-pop-main"
+          headerBarMain={<h1 className="campaign-modal-heading">{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_HEADER")}</h1>}
+          actionCancelLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_BACK")}
+          actionCancelOnSubmit={() => checkDataPresent({ action: false })}
+          actionSaveLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_SUBMIT")}
+          actionSaveOnSubmit={() => checkDataPresent({ action: true })}
+          customTheme="v-campaign"
+          formId="modal-action"
+        >
+          <div>
+            <CardText style={{ margin: 0 }}>{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_TEXT") + " "}</CardText>
+          </div>
+        </Modal>
+      )}
       {showToast && (
         <Toast
           type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}

@@ -265,3 +265,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     min-width: fit-content;
   }
 }
+.campaign-pop-module {
+  padding: 1.5rem;
+  border-radius: 4px;
+  width: 36rem;
+}
+.campaign-modal-heading {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 !important;
+}
+.campaign-pop-main {
+  font-size: 1.25rem;
+  padding: 0 !important;
+  font-size: 400;
+  .card-text {
+    margin-bottom: 1.5rem !important;
+  }
+  .popup-module-action-bar.campaign-pop-action {
+    .selector-button-border {
+      background-color: #ffffff;
+      border: 1px solid #f47738;
+      h2 {
+        color: #f47738 !important;
+      }
+    }
+  }
+}

@@ -715,7 +715,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           const fileData = fileUrl?.map((i) => {
             const urlParts = i?.url?.split("/");
             // const fileName = urlParts[urlParts?.length - 1]?.split("?")?.[0];
-            const fileName = type === "boundary" ? "Boundary Template" : type === "facilityWithBoundary" ? "Facility Template" : "User Template";
+            const fileName = type === "boundary" ? "Target Template" : type === "facilityWithBoundary" ? "Facility Template" : "User Template";
             return {
               ...i,
               filename: fileName,
