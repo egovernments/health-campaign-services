@@ -251,7 +251,7 @@ public abstract class GenericRepository<T> {
                         String tenantId,
                         Long lastChangedSince,
                         Boolean includeDeleted) throws QueryBuilderException {
-        String query = selectQueryBuilder.build(searchObject);
+        String query = selectQueryBuilder.build(searchObject, tableName);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
