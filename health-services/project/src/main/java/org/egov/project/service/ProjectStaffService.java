@@ -22,7 +22,7 @@ import org.egov.project.validator.staff.PsRowVersionValidator;
 import org.egov.project.validator.staff.PsUniqueCombinationValidator;
 import org.egov.project.validator.staff.PsUniqueEntityValidator;
 import org.egov.project.validator.staff.PsUserIdValidator;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

@@ -12,6 +12,7 @@ import lombok.experimental.SuperBuilder;
 //TODO should we move all this to body model or should we keep this in url? same with search common models
 /**
  * Model class representing common search criteria for API search operations.
+ * @author kanishq-egov
  */
 @Data
 @NoArgsConstructor
@@ -58,5 +59,28 @@ public class URLParams {
      */
     @JsonProperty("includeDeleted")
     private Boolean includeDeleted;
+
+    /**
+     * Sets the URL parameters from the given URLParams object.
+     * This method allows updating the current URLParams instance with values from another instance.
+     *
+     * @param urlParams the URL parameters to set
+     */
+    public void setURLParams(URLParams urlParams) {
+        // Update limit if provided in the input URLParams
+        if (urlParams.getLimit() != null) this.limit = urlParams.getLimit();
+
+        // Update offset if provided in the input URLParams
+        if (urlParams.getOffset() != null) this.offset = urlParams.getOffset();
+
+        // Update tenantId if provided in the input URLParams
+        if (urlParams.getTenantId() != null) this.tenantId = urlParams.getTenantId();
+
+        // Update lastChangedSince if provided in the input URLParams
+        if (urlParams.getLastChangedSince() != null) this.lastChangedSince = urlParams.getLastChangedSince();
+
+        // Update includeDeleted if provided in the input URLParams
+        if (urlParams.getIncludeDeleted() != null) this.includeDeleted = urlParams.getIncludeDeleted();
+    }
 
 }

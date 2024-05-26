@@ -15,10 +15,8 @@ import org.springframework.validation.annotation.Validated;
 /**
 * This object defines the mapping of a facility to a project.
 */
-    @ApiModel(description = "This object defines the mapping of a facility to a project.")
+@ApiModel(description = "This object defines the mapping of a facility to a project.")
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

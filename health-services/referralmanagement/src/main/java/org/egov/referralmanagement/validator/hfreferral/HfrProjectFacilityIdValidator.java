@@ -86,7 +86,6 @@ public class HfrProjectFacilityIdValidator implements Validator<HFReferralBulkRe
         if(!projectFacilityIdList.isEmpty()) {
             ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                     .id(!projectFacilityIdList.isEmpty()? projectFacilityIdList : null)
-                    .tenantId(tenantId)
                     .build();
 
             try {

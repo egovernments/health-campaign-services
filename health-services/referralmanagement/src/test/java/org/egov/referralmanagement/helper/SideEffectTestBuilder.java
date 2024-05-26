@@ -8,10 +8,10 @@ import java.util.Arrays;
 
 public class SideEffectTestBuilder {
 
-    private SideEffect.SideEffectBuilder builder;
+    private SideEffect.SideEffectBuilder<SideEffect, ?> builder;
 
     public SideEffectTestBuilder() {
-        this.builder = SideEffect.builder();
+        this.builder = (SideEffect.SideEffectBuilder<SideEffect, ?>) SideEffect.builder();
     }
 
     public static SideEffectTestBuilder builder() {

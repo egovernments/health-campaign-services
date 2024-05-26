@@ -17,15 +17,12 @@ import org.springframework.validation.annotation.Validated;
  */
 @ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ProjectStaffSearch extends EgovSearchModel {
-
 
     @JsonProperty("staffId")
     private List<String> staffId = null;

@@ -6,7 +6,7 @@ import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;

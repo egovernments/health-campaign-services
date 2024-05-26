@@ -9,8 +9,11 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.HouseholdMemberSearch;
+import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,12 +74,35 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
         Map<String, HouseholdMember> iMap = getIdToObjMap(householdMembers
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         // Check if the map is not empty
+
+        // Lists to store IDs and client reference IDs
+        List<String> idList = new ArrayList<>();
+        List<String> clientReferenceIdList = new ArrayList<>();
+        // Extract IDs and client reference IDs from household entities
+        householdMembers.forEach(householdMember -> {
+            idList.add(householdMember.getId());
+            clientReferenceIdList.add(householdMember.getClientReferenceId());
+        });
+
         if (!iMap.isEmpty()) {
             // Extract IDs from the map
             List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
-            // Query the repository to find existing household members by IDs
-            List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                    getIdFieldName(idMethod), false).getResponse();
+            // Create a search object for querying existing entities
+            HouseholdMemberSearch householdMemberSearch = HouseholdMemberSearch.builder()
+                    .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
+                    .build();
+
+            List<HouseholdMember> existingHouseholdMembers;
+            try {
+                // Query the repository to find existing entities
+                existingHouseholdMembers = householdMemberRepository.find(householdMemberSearch, householdMembers.size(), 0,
+                        householdMembers.get(0).getTenantId(), null, false).getResponse();
+            } catch (Exception e) {
+                // Handle query builder exception
+                throw new RuntimeException(e);
+            }
+
             // Check for non-existent household members
             List<HouseholdMember> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingHouseholdMembers, idMethod);

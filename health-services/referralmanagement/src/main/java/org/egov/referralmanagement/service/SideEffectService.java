@@ -29,6 +29,7 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.SideEffectRepository;
 import org.egov.referralmanagement.service.enrichment.SideEffectEnrichmentService;
+import org.egov.referralmanagement.validator.sideeffect.SeExistentEntityValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeIsDeletedValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
@@ -59,6 +60,7 @@ public class SideEffectService {
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
             validator.getClass().equals(SeProjectTaskIdValidator.class)
+                || validator.getClass().equals(SeExistentEntityValidator.class)
                 || validator.getClass().equals(SeProjectBeneficiaryIdValidator.class);
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForUpdate = validator ->

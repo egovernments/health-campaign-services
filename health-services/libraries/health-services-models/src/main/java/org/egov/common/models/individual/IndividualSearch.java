@@ -4,14 +4,13 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,8 +25,6 @@ import org.springframework.validation.annotation.Validated;
 */
 @ApiModel(description = "A representation of an Individual.")
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

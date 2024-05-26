@@ -15,7 +15,7 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class EgovSearchModel extends URLParams {
+public class EgovSearchModel {
     @JsonProperty("id")
     @Valid
     private List<String> id = null;

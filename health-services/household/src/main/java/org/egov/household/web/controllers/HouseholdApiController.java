@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -96,14 +97,17 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @ModelAttribute HouseholdMemberSearchRequest householdMemberSearchRequest) {
+    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Details for existing household member.", required = true) @Valid @ModelAttribute HouseholdMemberSearchRequest householdMemberSearchRequest
+    ) {
         SearchResponse<HouseholdMember> searchResponse = householdMemberService.search(
                 householdMemberSearchRequest.getHouseholdMemberSearch(),
-                householdMemberSearchRequest.getHouseholdMemberSearch().getLimit(),
-                householdMemberSearchRequest.getHouseholdMemberSearch().getOffset(),
-                householdMemberSearchRequest.getHouseholdMemberSearch().getTenantId(),
-                householdMemberSearchRequest.getHouseholdMemberSearch().getLastChangedSince(),
-                householdMemberSearchRequest.getHouseholdMemberSearch().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         HouseholdMemberBulkResponse response = HouseholdMemberBulkResponse.builder().responseInfo(ResponseInfoFactory
                                                 .createResponseInfo(householdMemberSearchRequest.getRequestInfo(), true))
@@ -200,14 +204,17 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request) {
+    public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request
+    ) {
         SearchResponse<Household> searchResponse = householdService.search(
                 request.getHousehold(),
-                request.getHousehold().getLimit(),
-                request.getHousehold().getOffset(),
-                request.getHousehold().getTenantId(),
-                request.getHousehold().getLastChangedSince(),
-                request.getHousehold().getIncludeDeleted()
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
         );
         HouseholdBulkResponse response = HouseholdBulkResponse.builder()
                 .responseInfo(

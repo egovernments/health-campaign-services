@@ -24,6 +24,7 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.validator.task.PtExistentEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
 import org.egov.project.validator.task.PtIsResouceEmptyValidator;
@@ -71,6 +72,7 @@ public class ProjectTaskService {
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtExistentEntityValidator.class)
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
                     || validator.getClass().equals(PtProductVariantIdValidator.class);

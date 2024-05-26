@@ -1,6 +1,10 @@
 package org.egov.project.web.controllers;
 
+import java.util.List;
+
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.core.URLParams;
@@ -9,11 +13,11 @@ import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.models.project.ProjectResourceBulkResponse;
 import org.egov.common.models.project.ProjectResourceRequest;
 import org.egov.common.models.project.ProjectResourceResponse;
+import org.egov.common.models.project.ProjectResourceSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectResourceService;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +28,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import java.util.List;
 
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
 @Controller
 @RequestMapping("")
 @Validated
@@ -70,14 +70,21 @@ public class ProjectResourceApiController {
     }
 
     @RequestMapping(value = "/resource/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceBulkResponse> resourceV1SearchPost(@ApiParam(
-            value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody
-                                                                                ProjectResourceSearchRequest request,
-            ) throws QueryBuilderException {
+    public ResponseEntity<ProjectResourceBulkResponse> resourceV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResourceSearchRequest
+    ) throws QueryBuilderException {
 
-        List<ProjectResource> projectResource = projectResourceService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        List<ProjectResource> projectResource = projectResourceService.search(
+                projectResourceSearchRequest,
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted()
+        );
         ProjectResourceBulkResponse response = ProjectResourceBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).projectResource(projectResource).build();
+                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true)).projectResource(projectResource).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

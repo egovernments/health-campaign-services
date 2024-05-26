@@ -1,12 +1,16 @@
 package org.egov.project.repository;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.ProjectSearch;
 import org.egov.common.models.project.Target;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.querybuilder.DocumentQueryBuilder;
@@ -99,6 +103,51 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
+    }
+
+    public List<Project> getProjects(@NotNull @Valid ProjectSearch projectSearch, @Valid ProjectSearchURLParams urlParams) {
+
+        //Fetch Projects based on search criteria
+        List<Project> projects = getProjectsBasedOnV2SearchCriteria(projectSearch, urlParams);
+
+        Set<String> projectIds = projects.stream().map(Project :: getId).collect(Collectors.toSet());
+
+        List<Project> ancestors = null;
+        List<Project> descendants = null;
+        //Get Project ancestors if includeAncestors flag is true
+        if (urlParams.getIncludeAncestors()) {
+            ancestors = getProjectAncestors(projects);
+            if (ancestors != null && !ancestors.isEmpty()) {
+                List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
+                projectIds.addAll(ancestorProjectIds);
+            }
+        }
+        //Get Project descendants if includeDescendants flag is true
+        if (urlParams.getIncludeDescendants()) {
+            descendants = getProjectDescendants(projects);
+            if (descendants != null && !descendants.isEmpty()) {
+                List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
+                projectIds.addAll(descendantsProjectIds);
+            }
+        }
+
+        //Fetch targets based on Project Ids
+        List<Target> targets = getTargetsBasedOnProjectIds(projectIds);
+
+        //Fetch documents based on Project Ids
+        List<Document> documents = getDocumentsBasedOnProjectIds(projectIds);
+
+        //Construct Project Objects with fetched projects, targets and documents using Project id
+        return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
+    }
+
+    private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getProjectSearchQuery(projectSearch, urlParams, preparedStmtList, Boolean.FALSE);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
+
+        log.info("Fetched project list based on given search criteria");
+        return projects;
     }
 
     /* Fetch Projects based on search criteria */
@@ -293,6 +342,23 @@ public class ProjectRepository extends GenericRepository<Project> {
     public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
         List<Object> preparedStatement = new ArrayList<>();
         String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement);
+
+        if (query == null)
+            return 0;
+
+        Integer count = jdbcTemplate.queryForObject(query, preparedStatement.toArray(), Integer.class);
+        log.info("Total project count is : " + count);
+        return count;
+    }
+
+    /**
+     * Get the count of projects based on the given search criteria (using dynamic
+     * query build at the run time)
+     * @return
+     */
+    public Integer getProjectCount(ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
+        List<Object> preparedStatement = new ArrayList<>();
+        String query = queryBuilder.getSearchCountQueryString(projectSearch, urlParams, preparedStatement);
 
         if (query == null)
             return 0;

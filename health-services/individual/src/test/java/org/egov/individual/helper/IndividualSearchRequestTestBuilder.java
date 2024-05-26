@@ -1,18 +1,18 @@
 package org.egov.individual.helper;
 
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.IndividualSearch;
-import org.egov.common.models.individual.IndividualSearchRequest;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.Gender;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.individual.Name;
 
 public class IndividualSearchRequestTestBuilder {
     private IndividualSearchRequest.IndividualSearchRequestBuilder builder;
@@ -48,11 +48,6 @@ public class IndividualSearchRequestTestBuilder {
                         .dateOfBirth(Date.from(LocalDate.of(2023, 1, 1).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()))
                         .boundaryCode("some-boundary-code")
                         .gender(Gender.MALE)
-                        .tenantId("default")
-                        .limit(10)
-                        .offset(100)
-                        .lastChangedSince(1234322L)
-                        .includeDeleted(false)
                         .identifier(Identifier.builder()
                                 .identifierType("SYSTEM_GENERATED")
                                 .identifierId("some-identifier-id")

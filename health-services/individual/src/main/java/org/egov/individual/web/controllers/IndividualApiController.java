@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualBulkResponse;
@@ -24,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -82,14 +84,17 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<IndividualBulkResponse> individualV1SearchPost(@ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request) {
+    public ResponseEntity<IndividualBulkResponse> individualV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request
+    ) {
         SearchResponse<Individual> searchResponse  = individualService.search(
                 request.getIndividual(),
-                request.getIndividual().getLimit(),
-                request.getIndividual().getOffset(),
-                request.getIndividual().getTenantId(),
-                request.getIndividual().getLastChangedSince(),
-                request.getIndividual().getIncludeDeleted(),
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted(),
                 request.getRequestInfo()
         );
         IndividualBulkResponse response = IndividualBulkResponse.builder()

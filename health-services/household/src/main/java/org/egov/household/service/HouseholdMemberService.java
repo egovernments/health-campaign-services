@@ -1,7 +1,12 @@
 package org.egov.household.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
@@ -9,9 +14,11 @@ import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberRequest;
+import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
+import org.egov.household.household.member.validators.HmExistentEntityValidator;
 import org.egov.household.household.member.validators.HmHouseholdHeadValidator;
 import org.egov.household.household.member.validators.HmHouseholdValidator;
 import org.egov.household.household.member.validators.HmIndividualValidator;
@@ -22,17 +29,10 @@ import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.household.member.validators.HmUniqueIndividualValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -74,6 +74,7 @@ public class HouseholdMemberService {
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
+                    || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
                     || validator.getClass().equals(HmHouseholdHeadValidator.class);
 
