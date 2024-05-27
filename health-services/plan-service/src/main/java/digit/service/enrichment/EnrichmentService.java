@@ -129,6 +129,12 @@ public class EnrichmentService {
 
     }
 
+    /**
+     * Sets all corresponding resource mappings to inactive if the given file is inactive.
+     *
+     * @param file the file object which may be inactive
+     * @param resourceMappings the list of resource mappings to update
+     */
     public void enrichActiveForResourceMapping(File file, List<ResourceMapping> resourceMappings) {
         if (!file.getActive()) {
             // Set all corresponding resource mappings to inactive
@@ -138,6 +144,43 @@ public class EnrichmentService {
                 }
             }
         }
+    }
+
+    /**
+     * Enriches the plan configuration within the request before validation.
+     * For Files, Operations, Assumptions, and Resource Mappings without an ID,
+     * overrides the active status to be true.
+     *
+     * @param request the plan configuration request containing the plan configuration to be enriched
+     */
+    public void enrichPlanConfigurationBeforeValidation(PlanConfigurationRequest request)
+    {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+        // For Files, Operations, Assumptions and Resource Mappings override active to be True
+        planConfiguration.getFiles().forEach(file -> {
+            if (ObjectUtils.isEmpty(file.getId())) {
+                file.setActive(Boolean.TRUE);
+            }
+        });
+
+        planConfiguration.getOperations().forEach(operation -> {
+            if (ObjectUtils.isEmpty(operation.getId())) {
+                operation.setActive(Boolean.TRUE);
+            }
+        });
+
+        planConfiguration.getAssumptions().forEach(assumption -> {
+            if (ObjectUtils.isEmpty(assumption.getId())) {
+                assumption.setActive(Boolean.TRUE);
+            }
+        });
+
+        planConfiguration.getResourceMapping().forEach(resourceMapping -> {
+            if (ObjectUtils.isEmpty(resourceMapping.getId())) {
+                resourceMapping.setActive(Boolean.TRUE);
+            }
+        });
     }
 
 }

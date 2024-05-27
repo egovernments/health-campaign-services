@@ -1,7 +1,6 @@
 package digit.service.validator;
 
 import com.jayway.jsonpath.JsonPath;
-
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
@@ -294,6 +293,7 @@ public class PlanConfigurationValidator {
         validateFilestoreId(planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
+        validateOperationDependencies(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
@@ -311,9 +311,33 @@ public class PlanConfigurationValidator {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
     }
-    
+
+    /**
+     * Validates that if an operation is inactive, its output is not used as input in any other active operation.
+     * If the condition is violated, it logs an error and throws a CustomException.
+     *
+     * @param planConfiguration The plan configuration to validate.
+     * @throws CustomException If an inactive operation's output is used as input in any other active operation.
+     */
+    public static void validateOperationDependencies(PlanConfiguration planConfiguration) {
+        // Collect all active operations' inputs
+        Set<String> activeInputs = planConfiguration.getOperations().stream()
+                .filter(Operation::getActive)
+                .map(Operation::getInput)
+                .collect(Collectors.toSet());
+
+        // Check for each inactive operation
+        for (Operation operation : planConfiguration.getOperations()) {
+            if (!operation.getActive() && activeInputs.contains(operation.getOutput())) {
+                log.error(INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
+                throw new CustomException(INACTIVE_OPERATION_USED_AS_INPUT_CODE, INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
+            }
+        }
+    }
+
+
 	/**
-	 * Validate input (BCode) against MDMS data. 
+	 * Validate input (BCode) against MDMS data.
 	 * @param request plan configauration request.
 	 * @param mdmsData MDMS data object.
 	 */
@@ -338,15 +362,15 @@ public class PlanConfigurationValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
         List<String> allowedColumns = getIsTruePropertyFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
-        List<ResourceMapping> resourceMapping1 =  planConfiguration.getResourceMapping();  
+        List<ResourceMapping> resourceMapping1 =  planConfiguration.getResourceMapping();
         if(allowedColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
         	Stream<ResourceMapping> d = resourceMapping1.stream().filter(f-> f.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
-        if(!(d.count()>0)) {        	
+        if(!(d.count()>0)) {
             throw new CustomException(REQUIRED_MAPPING_NOT_FOUND_CODE, REQUIRED_MAPPING_NOT_FOUND_MESSAGE);
         }
         }
     }
-    
+
     /**
      * Return all properties that has isTrue flag as a true.
      * @param schemas schema object.

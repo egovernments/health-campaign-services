@@ -6,13 +6,10 @@ import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
 import digit.util.ResponseInfoFactory;
-import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
-
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
 import java.util.Collections;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
@@ -49,6 +46,7 @@ public class PlanConfigurationService {
      * @return The created plan configuration request.
      */
     public PlanConfigurationRequest create(PlanConfigurationRequest request) {
+        enrichmentService.enrichPlanConfigurationBeforeValidation(request);
         validator.validateCreate(request);
         enrichmentService.enrichCreate(request);
         repository.create(request);
