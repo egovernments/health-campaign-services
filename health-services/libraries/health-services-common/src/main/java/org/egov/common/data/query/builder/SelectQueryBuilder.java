@@ -28,7 +28,7 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
             throw new QueryBuilderException(exception.getMessage());
         }
 
-        return build(object, tableName).trim();
+        return build(object, tableName);
     }
 
     public String build(Object object, String tableName) throws QueryBuilderException {
