@@ -59,22 +59,27 @@ public class PlanConfigurationValidator {
 
     /**
      * Validates the assumption values against the assumption keys in the plan configuration.
+     * If an operation uses an inactive assumption, throws an exception.
+     *
      * @param planConfiguration The plan configuration to validate.
      */
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
-        Set<String> assumptionValues = planConfiguration.getAssumptions().stream()
+        // Collect all active assumption keys
+        Set<String> activeAssumptionKeys = planConfiguration.getAssumptions().stream()
                 .filter(Assumption::getActive)
                 .map(Assumption::getKey)
                 .collect(Collectors.toSet());
 
         List<Operation> operations = planConfiguration.getOperations();
         for (Operation operation : operations) {
-            if (!assumptionValues.contains(operation.getAssumptionValue())) {
-                log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in Assumption Key List");
+            // Check if the operation is using an assumption key that is not in the set of active assumption keys
+            if (!activeAssumptionKeys.contains(operation.getAssumptionValue())) {
+                log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in the list of active Assumption Keys");
                 throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
             }
         }
     }
+
 
     /**
      * Validates the assumption keys against MDMS data.
@@ -361,15 +366,20 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        List<String> allowedColumns = getIsTruePropertyFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
-        List<ResourceMapping> resourceMapping1 =  planConfiguration.getResourceMapping();
-        if(allowedColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
-        	Stream<ResourceMapping> d = resourceMapping1.stream().filter(f-> f.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
-        if(!(d.count()>0)) {
-            throw new CustomException(REQUIRED_MAPPING_NOT_FOUND_CODE, REQUIRED_MAPPING_NOT_FOUND_MESSAGE);
+        List<String> requiredColumns = getIsTruePropertyFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
+        List<ResourceMapping> resourceMappings =  planConfiguration.getResourceMapping();
+
+        // Throw a custom exception if no active mappings with BOUNDARY_CODE are found
+        if(requiredColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
+            boolean exists = resourceMappings.stream()
+                    .anyMatch(mapping -> mapping.getActive() && mapping.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
+
+            if (!exists) {
+                throw new CustomException(BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE, BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE);
+            }
         }
         }
-    }
+
 
     /**
      * Return all properties that has isTrue flag as a true.

@@ -20,7 +20,7 @@ public class ServiceConstants {
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 
     public static final String ASSUMPTION_VALUE_NOT_FOUND_CODE = "ASSUMPTION_VALUE_NOT_FOUND";
-    public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in assumptions list ";
+    public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in active assumptions list ";
 
     public static final String FILESTORE_ID_INVALID_CODE = "FILESTORE_ID_INVALID";
     public static final String FILESTORE_ID_INVALID_MESSAGE = "Resource mapping does not have a Valid File Store Id ";
@@ -73,6 +73,10 @@ public class ServiceConstants {
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
+    public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
+    public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
+
+    //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
@@ -80,9 +84,6 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
-
-    public static final String MDSM_MASTER_TENANTS = "tenants";
-    public static final String MDMS_TENANT_MODULE_NAME = "tenant";
 
     public static final String DOT_SEPARATOR = ".";
 
@@ -105,9 +106,7 @@ public class ServiceConstants {
     public static final String MDMS_SCHEMA_PROPERTIES = "Properties";
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
-    
-    public static final String REQUIRED_MAPPING_NOT_FOUND_CODE = "REQUIRED_MAPPING_NOT_FOUND";
-    public static final String REQUIRED_MAPPING_NOT_FOUND_MESSAGE = "Resource Mapping required coloumn is not found.";
+
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
     public static final String BOUNDARY_CODE = "boundaryCode";
 
