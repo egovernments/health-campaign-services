@@ -289,7 +289,7 @@ public class PlanConfigurationValidator {
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
         validateFilestoreId(planConfiguration);
-        validateFilesActive(planConfigurationFromDB, planConfiguration);
+//        validateFilesActive(planConfigurationFromDB, planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateOperationDependencies(planConfiguration);
