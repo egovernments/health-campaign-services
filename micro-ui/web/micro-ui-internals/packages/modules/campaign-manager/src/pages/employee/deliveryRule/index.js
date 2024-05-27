@@ -62,8 +62,8 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                             key: c + 1,
                             attribute: { code: i?.attrValue },
                             operator: { code: i?.operatorValue },
-                            toValue: i?.toValue,
-                            fromValue: i?.fromValue,
+                            toValue: i?.fromValue,
+                            fromValue: i?.toValue,
                           };
                         }
                         return {
