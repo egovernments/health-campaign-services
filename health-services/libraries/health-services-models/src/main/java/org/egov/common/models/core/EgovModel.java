@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -42,6 +43,7 @@ public class EgovModel {
     protected String applicationId;
 
     @JsonProperty("hasErrors")
+    @Builder.Default
     protected Boolean hasErrors = Boolean.FALSE; //TODO is this health specific or will this become general.
 
     @JsonProperty("additionalFields")

@@ -1,5 +1,11 @@
 package org.egov.transformer.service;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -9,14 +15,8 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.models.facility.FacilitySearchRequest;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Service;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
