@@ -20,7 +20,6 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.stock.Stock;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.web.client.RestTemplate;
 
 @Import({TracerConfiguration.class})
 @Configuration
