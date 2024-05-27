@@ -1,12 +1,12 @@
 // Importing necessary modules
 import * as express from "express";
-import { logger } from "../logger";
+import { logger } from "../utils/logger";
 import Ajv from "ajv";
-import config from "../../config/index";
-import { httpRequest } from "../request";
-import { getBoundaryRelationshipData, throwError } from "../genericUtils";
+import config from "../config/index";
+import { httpRequest } from "../utils/request";
+import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
-import { generateRequestSchema } from "../../config/models/generateRequestSchema";
+import { generateRequestSchema } from "../config/models/generateRequestSchema";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
@@ -18,17 +18,17 @@ function validateDataWithSchema(data: any, schema: any): { isValid: boolean; err
     }
     return { isValid, error: validate.errors };
 }
-
-function validateBodyViaSchema(schema: any, objectData: any) {
-    const properties: any = { jsonPointers: true, allowUnknownAttributes: true }
-    const ajv = new Ajv(properties);
+function validateCampaignBodyViaSchema(schema: any, objectData: any) {
+    const ajv = new Ajv();
     const validate = ajv.compile(schema);
     const isValid = validate(objectData);
     if (!isValid) {
         const formattedError = validate?.errors?.map((error: any) => {
             let formattedErrorMessage = "";
             if (error?.dataPath) {
-                formattedErrorMessage = `${error.dataPath}: ${error.message}`;
+                // Replace slash with dot and remove leading dot if present
+                const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
+                formattedErrorMessage = `${dataPath} ${error.message}`;
             }
             else {
                 formattedErrorMessage = `${error.message}`
@@ -39,12 +39,49 @@ function validateBodyViaSchema(schema: any, objectData: any) {
             if (error.keyword === 'additionalProperties' && error.params && error.params.additionalProperty) {
                 formattedErrorMessage += `, Additional property '${error.params.additionalProperty}' found.`;
             }
+            // Capitalize the first letter of the error message
+            formattedErrorMessage = formattedErrorMessage.charAt(0).toUpperCase() + formattedErrorMessage.slice(1);
             return formattedErrorMessage;
         }).join("; ");
         console.error(formattedError);
         throwError("COMMON", 400, "VALIDATION_ERROR", formattedError);
     }
 }
+
+function validateBodyViaSchema(schema: any, objectData: any) {
+    const properties: any = { jsonPointers: true, allowUnknownAttributes: true }
+    const ajv = new Ajv(properties);
+    const validate = ajv.compile(schema);
+    const isValid = validate(objectData);
+    if (!isValid) {
+        const formattedError = validate?.errors?.map((error: any) => {
+            let formattedErrorMessage = "";
+            if (error?.dataPath) {
+                // Replace slash with dot and remove leading dot if present
+                const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
+                formattedErrorMessage = `${dataPath} ${error.message}`;
+            }
+            else {
+                formattedErrorMessage = `${error.message}`
+            }
+            if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                formattedErrorMessage += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+            }
+            if (error.keyword === 'additionalProperties' && error.params && error.params.additionalProperty) {
+                formattedErrorMessage += `, Additional property '${error.params.additionalProperty}' found.`;
+            }
+            // Capitalize the first letter of the error message
+            formattedErrorMessage = formattedErrorMessage.charAt(0).toUpperCase() + formattedErrorMessage.slice(1);
+            return formattedErrorMessage;
+        }).join("; ");
+        console.error(formattedError);
+        throwError("COMMON", 400, "VALIDATION_ERROR", formattedError);
+    }
+}
+
+
+
+
 
 
 // Function to validate boundaries in the request body
@@ -273,7 +310,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
 
 // Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
-    const { tenantId, type, hierarchyType, forceUpdate } = request.query;
+    const { tenantId,  hierarchyType, forceUpdate } = request.query;
     validateBodyViaSchema(generateRequestSchema, request.query);
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
@@ -282,12 +319,13 @@ async function validateGenerateRequest(request: express.Request) {
         request.query.forceUpdate = "false";
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
-    if (type == 'boundary') {
-        await validateFiltersInRequestBody(request);
-    }
+    /* removed the filter validation for boundary since boundary is fetched through the campaign id */
+    // if (type == 'boundary') {
+    //     await validateFiltersInRequestBody(request);
+    // }
 }
 
-async function validateFiltersInRequestBody(request: any) {
+export async function validateFiltersInRequestBody(request: any) {
     if (request?.body?.Filters === undefined) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
     }
@@ -310,5 +348,6 @@ export {
     validateProjectFacilityResponse,
     validateProjectResourceResponse,
     validateGenerateRequest,
-    validateHierarchyType
+    validateHierarchyType,
+    validateCampaignBodyViaSchema
 };

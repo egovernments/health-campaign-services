@@ -11,11 +11,11 @@ if (!HOST) {
 }
 // Configuration object containing various environment variables
 const config = {
+  readMeTab: "Read Me",
   boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
   facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
   boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
   userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-  locale: process.env.LOCALE || "en_MZ",
   localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   //module name
   moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
@@ -26,7 +26,7 @@ const config = {
   // Default sheet name for boundary data
   // boundarySheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
-  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "Distrito",
+  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
   // default configurable number of data of boundary type on which generate different tabs
   numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
   // Authentication token
@@ -105,8 +105,9 @@ const config = {
     hrmsEmployeeCreate: process.env.EGOV_HRMS_EMPLOYEE_CREATE_PATH || "health-hrms/employees/_create",
     hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search",
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
-    localizationCreate: "localization/messages/v1/_upsert"
-
+    localizationCreate: "localization/messages/v1/_upsert",
+    projectTypeSearch: "project-factory/v1/project-type/search",
+    boundaryRelationshipCreate:"boundary-service/boundary-relationships/_create"
   },
   // Values configuration
   values: {
@@ -129,4 +130,3 @@ const config = {
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
 export default config;
-

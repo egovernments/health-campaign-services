@@ -191,7 +191,7 @@ function groupByTypeRemap(data) {
     const boundaryType = item?.type;
     const parentCode = item?.parent;
     const obj = {
-      parentCode, 
+      parentCode,
       boundaryTypeData: {
         TenantBoundary: [
           {
@@ -209,6 +209,16 @@ function groupByTypeRemap(data) {
   });
 
   return result;
+}
+
+// Example usage:
+// updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
+function updateUrlParams(params) {
+  const url = new URL(window.location.href);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  window.history.replaceState({}, "", url);
 }
 
 const SetupCampaign = () => {
@@ -240,6 +250,11 @@ const SetupCampaign = () => {
     return keyParam ? parseInt(keyParam) : 1;
   });
 
+  const [lowest, setLowest] = useState(null);
+  const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
+  const [fetchUpload, setFetchUpload] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+
   const reqCriteria = {
     url: `/boundary-service/boundary-hierarchy-definition/_search`,
     changeQueryName: `${hierarchyType}`,
@@ -255,6 +270,15 @@ const SetupCampaign = () => {
 
   const { data: hierarchyDefinition } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
+  useEffect(() => {
+    if (hierarchyDefinition) {
+      setLowest(
+        hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.filter(
+          (e) => !hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
+        )
+      );
+    }
+  }, [hierarchyDefinition]);
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
@@ -269,6 +293,15 @@ const SetupCampaign = () => {
   });
 
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
+
+  useEffect(() => {
+    if (fetchUpload) {
+      setFetchUpload(false);
+    }
+    if (fetchBoundary && currentKey > 5) {
+      setFetchBoundary(false);
+    }
+  }, [fetchUpload, fetchBoundary]);
 
   useEffect(() => {
     if (isPreview === "true") {
@@ -344,9 +377,56 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
-  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
+  useEffect(() => {
+    setTimeout(() => {
+      setEnabled(fetchUpload || (fetchBoundary && currentKey > 6));
+    }, 3000);
+
+    // return () => clearTimeout(timeoutId);
+  }, [fetchUpload, fetchBoundary, currentKey]);
+
+  const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "facilityWithBoundary",
+    hierarchyType: hierarchyType,
+    campaignId: id,
+    // config: {
+    //   enabled: setTimeout(fetchUpload || (fetchBoundary && currentKey > 6)),
+    // },
+    config: {
+      enabled: enabled,
+    },
+  });
+
+  // useEffect(() => {
+  //   if (filteredBoundaryData) {
+  //     refetchBoundary();
+  //   }
+  // }, [filteredBoundaryData]);
+
+  const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "boundary",
+    hierarchyType: hierarchyType,
+    // filters: filteredBoundaryData,
+    campaignId: id,
+    // config: {
+    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
+    // },
+    config: {
+      enabled: enabled,
+    },
+  });
+
+  const { data: userId, isLoading: isUserLoading, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "userWithBoundary",
+    hierarchyType: hierarchyType,
+    campaignId: id,
+    // config: {
+    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
+    // },
+    config: {
+      enabled: enabled,
+    },
+  });
 
   useEffect(() => {
     if (hierarchyDefinition?.BoundaryHierarchy?.[0]) {
@@ -357,26 +437,23 @@ const SetupCampaign = () => {
         userId: userId,
         hierarchyType: hierarchyType,
         hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
+        isBoundaryLoading,
+        isFacilityLoading,
+        isUserLoading,
       });
     }
-  }, [facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
-
-  // Example usage:
-  // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
-  function updateUrlParams(params) {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
-    window.history.replaceState({}, "", url);
-  }
+  }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData, dataParams));
   }, [totalFormData, dataParams]);
 
   useEffect(() => {
-    updateUrlParams({ key: currentKey });
+    if (currentKey === 10 && isPreview !== "true") {
+      updateUrlParams({ key: currentKey, preview: true });
+    } else {
+      updateUrlParams({ key: currentKey, preview: false });
+    }
   }, [currentKey]);
 
   function restructureData(data) {
@@ -520,7 +597,7 @@ const SetupCampaign = () => {
             await updateCampaign(payloadData, {
               onError: (error, variables) => {
                 console.log(error);
-                setShowToast({ key: "error", label: error });
+                setShowToast({ key: "error", label: error?.message ? error?.message : error });
               },
               onSuccess: async (data) => {
                 draftRefetch();
@@ -530,6 +607,8 @@ const SetupCampaign = () => {
                     message: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE"),
                     text: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT"),
                     info: t("ES_CAMPAIGN_SUCCESS_INFO_TEXT"),
+                    actionLabel: t("HCM_CAMPAIGN_SUCCESS_RESPONSE_ACTION"),
+                    actionLink: `/${window.contextPath}/employee/campaign/my-campaign`,
                   }
                 );
                 Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
@@ -579,7 +658,7 @@ const SetupCampaign = () => {
           await mutate(payloadData, {
             onError: (error, variables) => {
               if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.mandatoryOnAPI) {
-                setShowToast({ key: "error", label: error });
+                setShowToast({ key: "error", label: error?.message ? error?.message : error });
               }
             },
             onSuccess: async (data) => {
@@ -641,7 +720,7 @@ const SetupCampaign = () => {
               onError: (error, variables) => {
                 console.log(error);
                 if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.mandatoryOnAPI) {
-                  setShowToast({ key: "error", label: error });
+                  setShowToast({ key: "error", label: error?.message ? error?.message : error });
                 }
               },
               onSuccess: async (data) => {
@@ -652,6 +731,8 @@ const SetupCampaign = () => {
                 }
               },
             });
+          } else {
+            setCurrentKey(currentKey + 1);
           }
         };
 
@@ -765,6 +846,26 @@ const SetupCampaign = () => {
     return allBoundaryTypesPresent;
   }
 
+  function recursiveParentFind(filteredData) {
+    const parentChildrenMap = {};
+
+    // Build the parent-children map
+    filteredData?.forEach((item) => {
+      if (item?.parent) {
+        if (!parentChildrenMap[item?.parent]) {
+          parentChildrenMap[item?.parent] = [];
+        }
+        parentChildrenMap[item?.parent].push(item.code);
+      }
+    });
+
+    // Check for missing children
+    const missingParents = filteredData?.filter((item) => item?.parent && !parentChildrenMap[item.code]);
+    const extraParent = missingParents?.filter((i) => i?.type !== lowest?.[0]?.boundaryType);
+
+    return extraParent;
+  }
+
   // validating the screen data on clicking next button
   const handleValidate = (formData) => {
     const key = Object.keys(formData)?.[0];
@@ -777,6 +878,7 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: "CAMPAIGN_NAME_TOO_LONG_ERROR" });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
       case "projectType":
@@ -784,6 +886,7 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: "PROJECT_TYPE_UNDEFINED_ERROR" });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
       case "campaignDates":
@@ -799,15 +902,27 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_BEFORE_START_DATE")}` });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
       case "boundaryType":
         if (formData?.boundaryType?.selectedData) {
           const validateBoundary = validateBoundaryLevel(formData?.boundaryType?.selectedData);
+          const missedType = recursiveParentFind(formData?.boundaryType?.selectedData);
           if (!validateBoundary) {
-            setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_ALL_THE_LEVELS_ARE_MANDATORY")}` });
+            setShowToast({ key: "error", label: t("HCM_CAMPAIGN_ALL_THE_LEVELS_ARE_MANDATORY") });
+            return false;
+          } else if (recursiveParentFind(formData?.boundaryType?.selectedData).length > 0) {
+            setShowToast({
+              key: "error",
+              label: `${t(`HCM_CAMPAIGN_FOR`)} ${t(`${hierarchyType}_${missedType?.[0]?.type}`?.toUpperCase())} ${t(missedType?.[0]?.code)} ${t(
+                `HCM_CAMPAIGN_CHILD_NOT_PRESENT`
+              )}`,
+            });
             return false;
           }
+          setShowToast(null);
+          setFetchUpload(true);
           return true;
         } else {
           setShowToast({ key: "error", label: `${t("HCM_SELECT_BOUNDARY")}` });
@@ -816,34 +931,34 @@ const SetupCampaign = () => {
 
       case "uploadBoundary":
         if (formData?.uploadBoundary?.isValidation) {
-          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}`, transitionTime: 6000000000 });
           return false;
         } else if (formData?.uploadBoundary?.isError) {
           if (formData?.uploadBoundary?.apiError) {
             setShowToast({ key: "error", label: formData?.uploadBoundary?.apiError, transitionTime: 6000000000 });
-          } 
-          else setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          } else setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
 
       case "uploadFacility":
         if (formData?.uploadFacility?.isValidation) {
-          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}`, transitionTime: 6000000000 });
           return false;
         } else if (formData?.uploadFacility?.isError) {
           if (formData?.uploadFacility?.apiError) {
             setShowToast({ key: "error", label: formData?.uploadFacility?.apiError, transitionTime: 6000000000 });
-          } 
-          else setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          } else setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
       case "uploadUser":
         if (formData?.uploadUser?.isValidation) {
-          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}`, transitionTime: 6000000000 });
           return false;
         } else if (formData?.uploadUser?.isError) {
           if (formData?.uploadUser?.apiError) {
@@ -851,6 +966,7 @@ const SetupCampaign = () => {
           } else setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
 
@@ -861,6 +977,7 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: "DELIVERY_CYCLE_ERROR" });
           return false;
         } else {
+          setShowToast(null);
           return true;
         }
       case "deliveryRule":
@@ -869,6 +986,7 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: isAttributeValid });
           return false;
         }
+        setShowToast(null);
         return;
       case "summary":
         const cycleConfigureData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE;
@@ -898,6 +1016,7 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: "USER_DETAILS_ERROR" });
           return false;
         }
+        setShowToast(null);
         return true;
       default:
         break;
@@ -931,6 +1050,22 @@ const SetupCampaign = () => {
         [name]: { ...formData },
         ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
         ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
+      });
+    } else if (name === "HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA" && formData?.boundaryType?.updateBoundary === true) {
+      setTotalFormData((prevData) => ({
+        ...prevData,
+        [name]: formData,
+        ["HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA"]: {},
+        ["HCM_CAMPAIGN_UPLOAD_FACILITY_DATA"]: {},
+        ["HCM_CAMPAIGN_UPLOAD_USER_DATA"]: {},
+      }));
+      //to set the data in the local storage
+      setParams({
+        ...params,
+        [name]: { ...formData },
+        ["HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA"]: {},
+        ["HCM_CAMPAIGN_UPLOAD_FACILITY_DATA"]: {},
+        ["HCM_CAMPAIGN_UPLOAD_USER_DATA"]: {},
       });
     } else {
       setTotalFormData((prevData) => ({
@@ -1067,14 +1202,15 @@ const SetupCampaign = () => {
         actionClassName={"actionBarClass"}
         className="setup-campaign"
         cardClassName="setup-campaign-card"
-        noCardStyle={currentStep === 1 || currentStep === 6 || currentStep === 2 ? true : false}
+        noCardStyle={currentStep === 7 || currentStep === 0 ? false : true}
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
       {showToast && (
         <Toast
-          info={showToast?.key === "info" ? true : false}
-          error={showToast?.key === "error" ? true : false}
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // info={showToast?.key === "info" ? true : false}
+          // error={showToast?.key === "error" ? true : false}
           label={t(showToast?.label)}
           transitionTime={showToast.transitionTime}
           onClose={closeToast}

@@ -3,49 +3,59 @@ import Error from "./error.interface"
 export const CONSTANTS: any = {
     ERROR_CODES: {
         COMMON: {
-            UNKNOWN_ERROR: "Unknown Error. Check Logs",
+            UNKNOWN_ERROR: "Unknown error. Check logs",
             IDGEN_ERROR: "Error during generating campaign number",
-            VALIDATION_ERROR: "Validation Error",
-            INTERNAL_SERVER_ERROR: "Internal Server Error",
+            VALIDATION_ERROR: "Validation error",
+            INTERNAL_SERVER_ERROR: "Internal server error",
             INVALID_PAGINATION: "Invalid pagination",
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
-            INVALID_SHEETNAME: "Invalid Sheet Name",
-            STATUS_FILE_CREATION_ERROR: "Error in Creating Status File",
+            INVALID_SHEETNAME: "Invalid sheet name",
+            STATUS_FILE_CREATION_ERROR: "Error in creating status file",
             FETCHING_SHEET_ERROR: "Error occured while fetching sheet data",
-            INVALID_FILE_ERROR: "Invalid File",
+            INVALID_FILE_ERROR: "Invalid file",
             DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
-            INVALID_FILE_FORMAT: "The uploaded file is not a valid Excel file (xlsx or xls).",
+            INVALID_FILE_FORMAT: "The uploaded file is not a valid excel file (xlsx or xls).",
             INVALID_COLUMNS: "Columns are invalid"
         },
         FACILITY: {
-            FACILITY_SEARCH_FAILED: "Search failed for Facility. Check Logs",
+            FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
         },
         CAMPAIGN: {
-            CAMPAIGN_SEARCH_ERROR: "Error in Campaign Search",
+            CAMPAIGN_SEARCH_ERROR: "Error in campaign search",
             CAMPAIGNNAME_MISMATCH: "CampaignName is not matching",
             CAMPAIGN_NOT_FOUND: "Campaign not found",
-            GENERATION_REQUIRE: "First Generate then Download",
+            GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
             BOUNDARY_HIERARCHY_INSERT_ERROR: "Insert boundary hierarchy level wise",
-            BOUNDARY_SEARCH_ERROR: "Error in Boundary Search. Check Boundary codes",
+            BOUNDARY_SEARCH_ERROR: "Error in boundary search. Check boundary codes",
             BOUNDARY_NOT_FOUND: "Boundary not found",
-            BOUNDARY_SHEET_HEADER_ERROR: "Boundary Sheet Header Error",
+            BOUNDARY_SHEET_HEADER_ERROR: "Boundary sheet header error",
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
             BOUNDARY_TARGET_ERROR: "Target either not present or invalid value"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",
-            PROJECT_SEARCH_ERROR: "Error occured during project search , Check projectId",
-            PROJECT_UPDATE_ERROR: "Error occured during project update , Check projectId",
+            PROJECT_SEARCH_ERROR: "Error occured during project search , check projectId",
+            PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
+        },
+        MDMS: {
+            INVALID_README_CONFIG: "Invalid readme config"
         }
     }
+}
+
+export const headingMapping: any = {
+    "userWithBoundary": "USERWITHBOUNDARY_README_MAINHEADER",
+    "facilityWithBoundary": "FACILITYWITHBOUNDARY_README_MAINHEADER",
+    "boundary": "BOUNDARY_README_MAINHEADER"
 }
 
 const unknownError = "Unknown Error. Check Logs";
@@ -80,8 +90,8 @@ export const userRoles: any = {
 
 export const campaignStatuses: any = {
     drafted: "drafted",
-    started: "started",
-    inprogress: "In Progress",
+    started: "creating",
+    inprogress: "created",
     failed: "failed"
 }
 
@@ -94,9 +104,9 @@ export const resourceDataStatuses: any = {
 }
 
 export const generatedResourceStatuses: any = {
-    inprogress: "In Progress",
+    inprogress: "inprogress",
     failed: "failed",
-    completed: "Completed",
+    completed: "completed",
     expired: "expired"
 }
 

@@ -8,7 +8,7 @@ const createAndSearch: any = {
             }
         ],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -87,7 +87,7 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "F",
-                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
                 }
             ],
             tenantId: {
@@ -137,7 +137,7 @@ const createAndSearch: any = {
     },
     "user": {
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -204,7 +204,7 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "E",
-                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                     resultantPath: "jurisdictions",
                     type: "string"
                 }

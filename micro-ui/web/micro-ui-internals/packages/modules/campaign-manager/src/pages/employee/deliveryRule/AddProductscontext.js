@@ -1,8 +1,8 @@
-import { AddIcon, Button, CardText, Dropdown, Label, LabelFieldPair } from "@egovernments/digit-ui-react-components";
+import { AddIcon, Button, CardText, Label, LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import React, { Fragment, useContext, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
-import { TextInput, Toast } from "@egovernments/digit-ui-components";
+import { Dropdown, TextInput, Toast } from "@egovernments/digit-ui-components";
 import { Link } from "react-router-dom";
 import { CycleContext } from ".";
 import { PRIMARY_COLOR } from "../../../utils";
@@ -177,6 +177,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
 
   const incrementC = (data, value) => {
     if (value?.target?.value.trim() === "") return;
+    if (value?.target?.value.trim() === 0 || value?.target?.value.trim() > 10) return;
     if (value === 0) return;
     if (value > 10) return;
     setProducts((prevState) => {
@@ -222,7 +223,8 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
             <LabelFieldPair>
               <Label>{t(`CAMPAIGN_ADD_PRODUCTS_LABEL`)}</Label>
               <Dropdown
-                style={{ width: "100%", marginBottom: 0 }}
+                t={t}
+                style={{ width: "100%", minWidth: "100%", marginBottom: 0 }}
                 className="form-field"
                 selected={i?.value}
                 disable={false}
@@ -244,7 +246,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_PRODUCTS_MODAL_SECONDARY_ACTION`)}
-          className={"add-rule-btn"}
+          className={"add-rule-btn hover"}
           icon={<AddIcon fill={PRIMARY_COLOR} styles={{ height: "1.5rem", width: "1.5rem" }} />}
           onButtonClick={add}
         />
@@ -273,7 +275,14 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
           </Link>
         </span>
       </div>
-      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
+      {showToast && (
+        <Toast
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // error={showToast.key === "error" ? true : false}
+          label={t(showToast.label)}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 }

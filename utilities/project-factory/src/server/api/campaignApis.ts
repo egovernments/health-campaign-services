@@ -1,16 +1,18 @@
 import config from "../config";
 import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema } from "../utils/genericUtils";
-import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
+import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
+import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
 import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
-import { produceModifiedMessages } from "../Kafka/Listener";
+import { produceModifiedMessages } from "../kafka/Listener";
 import { userRoles } from "../config/constants";
+import { createDataService } from "../service/dataManageService";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 
 
 
@@ -396,6 +398,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await reorderBoundariesOfDataAndValidate(request, localizationMap)
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
     await handleResouceDetailsError(request, error);
@@ -492,7 +495,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
-    const creationTime = Date.now();
+    var creationTime = Date.now();
     var activities = [];
     for (let i = 0; i < chunks; i++) {
       const start = i * limit;
@@ -502,15 +505,31 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         RequestInfo: request?.body?.RequestInfo,
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
-      if (type == "facility") {
-        for (const facility of newRequestBody.Facilities) {
-          facility.address = {}
+      var gotFailed = true, retryCount = 7;
+      while (gotFailed && retryCount > 0) {
+        try {
+          creationTime = Date.now();
+          retryCount = retryCount - 1;
+          gotFailed = false;
+          if (type == "facility") {
+            for (const facility of newRequestBody.Facilities) {
+              facility.address = {}
+            }
+            logger.info("Facility create data : " + JSON.stringify(newRequestBody));
+            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+          }
+          else if (type == "user") {
+            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+          }
+        } catch (error) {
+          var e = error;
+          gotFailed = true;
         }
-        logger.info("Facility create data : " + JSON.stringify(newRequestBody));
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+        logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
+        await new Promise(resolve => setTimeout(resolve, 30000));
       }
-      else if (type == "user") {
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+      if (gotFailed) {
+        throw e;
       }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));
@@ -563,6 +582,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     request.body.dataToCreate = typeData.createData;
     request.body.dataToSearch = typeData.searchData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await reorderBoundariesOfDataAndValidate(request, localizationMap)
     if (createAndSearchConfig?.createBulkDetails && request.body.ResourceDetails.status != "invalid") {
       _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
       const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
@@ -620,15 +640,19 @@ async function createProjectCampaignResourcData(request: any) {
           tenantId: request?.body?.CampaignDetails?.tenantId,
           action: "create",
           hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-          additionalDetails: {}
+          additionalDetails: {},
+          campaignId: request?.body?.CampaignDetails?.id
         };
-        logger.info("resourceDetails " + JSON.stringify(resourceDetails))
-        const response = await httpRequest(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+        logger.info(`Creating the resources for type ${resource.type}`)
+        logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
+        const createRequestBody = {
           RequestInfo: request.body.RequestInfo,
           ResourceDetails: resourceDetails
-        });
-        if (response?.ResourceDetails?.id) {
-          resource.createResourceId = response?.ResourceDetails?.id
+        }
+        const req = replicateRequest(request, createRequestBody)
+        const res: any = await createDataService(req)
+        if (res?.id) {
+          resource.createResourceId = res?.id
         }
       }
     }
@@ -637,11 +661,12 @@ async function createProjectCampaignResourcData(request: any) {
 
 async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation url " + config.host.projectHost + config.paths.projectCreate)
-  logger.info("Project creation body " + JSON.stringify(projectCreateBody))
+  logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
   const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody);
   logger.info("Project creation response" + JSON.stringify(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info("Project created successfully with id " + JSON.stringify(projectCreateResponse?.Project[0]?.id))
+    logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`)
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
@@ -703,6 +728,21 @@ const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, get
   }
   return columnsToValidate;
 }
+async function getFiltersFromCampaignSearchResponse(request: any) {
+  logger.info(`searching for campaign details to get the filters for boundary generation`);
+  const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
+  const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId, "ids": [request?.query?.campaignId] } }
+  const requestBody = { ...requestInfo, ...campaignDetails };
+  const req: any = replicateRequest(request, requestBody)
+  const projectTypeSearchResponse: any = await searchProjectTypeCampaignService(req);
+  const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele: any) => ({ ...ele, boundaryType: ele?.type }));
+  if (!boundaries) {
+    logger.info(`no boundaries found so considering the complete hierarchy`);
+    return { Filters: null };
+  }
+  logger.info(`boundaries found for filtering`);
+  return { Filters: { boundaries: boundaries } };
+}
 
 export {
   enrichCampaign,
@@ -718,5 +758,6 @@ export {
   generateHierarchyList,
   getHierarchy,
   getHeadersOfBoundarySheet,
-  handleResouceDetailsError
+  handleResouceDetailsError,
+  getFiltersFromCampaignSearchResponse
 };

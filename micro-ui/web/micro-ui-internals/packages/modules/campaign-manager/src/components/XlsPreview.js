@@ -20,7 +20,7 @@ function XlsPreview({ file, ...props }) {
     ? [
         {
           fileType: "xlsx",
-          fileName: file?.fileName,
+          fileName: file?.filename,
           uri: file?.url,
         },
       ]

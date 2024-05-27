@@ -2,65 +2,104 @@ import * as express from "express";
 import { logger } from "../../utils/logger";
 import { httpRequest } from "../../utils/request";
 import config from "../../config/index";
-import { errorResponder } from "../../utils/genericUtils";
+import { convertLocalisationResponseToMap } from "../../utils/localisationUtils";
 
-class localisationController {
+let cachedResponse = {};
+
+class Localisation {
   public path = "/localization/messages/v1";
   public router = express.Router();
   public dayInMilliSecond = 86400000;
-  public cachedResponse: any; // Property to store the cached response
-
+  private cachedResponse: any = {}; // Property to store the cached response
+  private localizationHost;
+  // Hold the single instance of the class
+  private static instance: Localisation;
   constructor() {
-    this.intializeRoutes();
+    this.localizationHost=config.host.localizationHost
+  }
+  // Public method to provide access to the single instance
+  public static getInstance(): Localisation {
+    if (!Localisation.instance) {
+      Localisation.instance = new Localisation();
+    }
+    return Localisation.instance;
   }
 
-  public intializeRoutes = () => {
-    this.router.post(`${this.path}/_search`, this.getLocalizedMessages);
+  private getLocalisationMap = (): any => {
+    //{
+    return Object.values(this.cachedResponse).reduce((acc: any, curr: any) => {
+      acc = { ...acc, ...curr };
+      return acc;
+    }, {}); //
+  };
+  // search localization
+  public getLocalisedData: any = async (
+    module: string,
+    locale: string,
+    tenantId: string
+  ) => {
+    logger.info(
+      `Checks Localisation message is available in cache for module ${module}, locale ${locale}, tenantId ${tenantId}`
+    );
+    if (!this?.cachedResponse?.[`${module}-${locale}`]) {
+      logger.info(`Not found in cache`);
+      await this.fetchLocalisationMessage(module, locale, tenantId);
+    }
+    logger.info(`Found in cache`);
+    return this.getLocalisationMap();
+  };
+  // fetch localization messages
+  private fetchLocalisationMessage = async (
+    module: string,
+    locale: string,
+    tenantId: string
+  ) => {
+    logger.info(
+      `Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`
+    );
+    const params = {
+      tenantId,
+      locale,
+      module,
+    };
+    const url = this.localizationHost + config.paths.localizationSearch;
+    const localisationResponse = await httpRequest(url, {}, params);
+    logger.info(
+      `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
+    );
+    this.cachedResponse = {
+      ...cachedResponse,
+      ...this.cachedResponse,
+      [`${module}-${locale}`]: {
+        ...convertLocalisationResponseToMap(localisationResponse?.messages),
+      },
+    };
+    logger.info(
+      `Cached Localisation Message, now available modules in cache are :  ${JSON.stringify(
+        Object.keys(this.cachedResponse)
+      )}`
+    );
+    cachedResponse = { ...this.cachedResponse };
   };
 
-  getLocalizedMessages = async (request: any, response: any) => {
-    try {
-      // If the response is already cached, return it directly
-      if (this.cachedResponse) {
-        return this.cachedResponse;
-      }
-      const { tenantId, locale, module } = request?.query; // Extract tenantId, locale, and module from request body
-      const { RequestInfo } = request.body;
-      const requestBody = { RequestInfo };
-      const params = {
-        tenantId: tenantId,
-        locale: locale,
-        module: module,
-      };
-      const url =
-        config.host.localizationHost + config.paths.localizationSearch;
-      const localisationResponse = await httpRequest(url, requestBody, params);
-      this.cachedResponse = localisationResponse;
-      return localisationResponse;
-    } catch (e: any) {
-      console.log(e);
-      logger.error(String(e));
-      return errorResponder(
-        { message: String(e), code: e?.code, description: e?.description },
-        request,
-        response,
-        e?.status || 500
-      );
-    }
-  };
   /**
    * Create localisation entries by sending a POST request to the localization host.
    * @param messages - Array of localisation messages to be created.
    * @param request - Request object containing necessary information.
    */
-  createLocalisation = async (messages: any[] = [], tenantId:string,request: any = {}) => {
+  public createLocalisation = async (
+    messages: any[] = [],
+    tenantId: string,
+    request: any = {}
+  ) => {
     try {
       // Extract RequestInfo from request body
       const { RequestInfo } = request.body;
       // Construct request body with RequestInfo and localisation messages
-      const requestBody = { RequestInfo, messages ,tenantId };
+      const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint
-      const url = config.host.localizationHost + config.paths.localizationCreate;
+      const url =
+      this.localizationHost + config.paths.localizationCreate;
       // Log the start of the localisation messages creation process
       logger.info("Creating the localisation messages");
       // Send HTTP POST request to create localisation messages
@@ -76,4 +115,4 @@ class localisationController {
   };
 }
 
-export default localisationController;
+export default Localisation;

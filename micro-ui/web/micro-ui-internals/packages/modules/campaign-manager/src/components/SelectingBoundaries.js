@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Fragment } from "react";
-import { CardText, LabelFieldPair, Card, Header, CardLabel } from "@egovernments/digit-ui-react-components";
+import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
@@ -15,17 +15,19 @@ import { mailConfig } from "../configs/mailConfig";
 function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
-  const [params,setParams] = useState(props?.props?.dataParams);
+  const [params, setParams] = useState(props?.props?.dataParams);
   const [hierarchy, setHierarchy] = useState(params?.hierarchyType);
   // const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
   // const [showcomponent, setShowComponent] = useState(
   //   props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || false
   // );
   // const [boundaryType, setBoundaryType] = useState(null);
-  const [boundaryType, setBoundaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData  ? undefined : null);  
+  const [boundaryType, setBoundaryType] = useState(
+    props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData ? undefined : null
+  );
   const [boundaryData, setBoundaryData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || {});
   // const [parentArray, setParentArray] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData.filter(item => item.includeAllChildren).map(item => item.code) || null);
-  const [parentArray , setParentArray] = useState(null);
+  const [parentArray, setParentArray] = useState(null);
   const [boundaryTypeDataresult, setBoundaryTypeDataresult] = useState(null);
   const [selectedData, setSelectedData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData || []);
   const [parentBoundaryTypeRoot, setParentBoundaryTypeRoot] = useState(
@@ -36,30 +38,46 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [updatedHierarchy, setUpdatedHierarchy] = useState({});
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
   const [executionCount, setExecutionCount] = useState(0);
+  // State variable to store the lowest hierarchy level
+  const [lowestHierarchy, setLowestHierarchy] = useState(null);
+  const [showPopUp, setShowPopUp] = useState(null);
+  const [restrictSelection, setRestrictSelection] = useState(null);
+  const [updateBoundary, setUpdateBoundary] = useState(null);
 
   useEffect(() => {
-    if(props?.props?.dataParams){
-      setParams(props?.props?.dataParams)
+    if (!updateBoundary) {
+      if (
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.length > 0
+      ) {
+        setRestrictSelection(true);
+      }
     }
-  },[props?.props?.dataParams])
+  }, [props?.props?.sessionData, updateBoundary]);
 
   useEffect(() => {
-    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
-  }, [boundaryData, selectedData ]);
+    if (props?.props?.dataParams) {
+      setParams(props?.props?.dataParams);
+    }
+  }, [props?.props?.dataParams]);
+
+  useEffect(() => {
+    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, updateBoundary: updateBoundary });
+  }, [boundaryData, selectedData]);
 
   useEffect(() => {
     setHierarchy(params?.hierarchyType);
-  }, [params?.hierarchyType ]);
+  }, [params?.hierarchyType]);
 
-  
   useEffect(() => {
     setHierarchyTypeDataresult(params?.hierarchy);
-  }, [params?.hierarchy ]);
+  }, [params?.hierarchy]);
 
   useEffect(() => {
     if (executionCount < 5) {
-      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
-      setExecutionCount(prevCount => prevCount + 1);
+      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, updateBoundary: updateBoundary });
+      setExecutionCount((prevCount) => prevCount + 1);
     }
   });
 
@@ -94,20 +112,26 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       if (boundaryWithTypeNullParent) {
         if (!props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || Object.keys(boundaryData).length === 0) {
           setBoundaryType(boundaryWithTypeNullParent?.boundaryType);
-      } 
-          setParentBoundaryTypeRoot(boundaryWithTypeNullParent?.boundaryType);
+        }
+        setParentBoundaryTypeRoot(boundaryWithTypeNullParent?.boundaryType);
       }
       createHierarchyStructure(hierarchyTypeDataresult);
-  }
-}, [hierarchyTypeDataresult]);
 
+      setLowestHierarchy(
+        hierarchyTypeDataresult?.boundaryHierarchy?.filter(
+          (e) => !hierarchyTypeDataresult?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
+        )
+      );
+    }
+  }, [hierarchyTypeDataresult]);
 
   function createHierarchyStructure(hierarchyTypeDataresult) {
     const hierarchyStructure = {};
 
     // Recursive function to gather all descendants for a given boundary type
     function gatherDescendants(boundaryType) {
-      const descendants = [];hierarchyTypeDataresult
+      const descendants = [];
+      hierarchyTypeDataresult;
 
       // Find all children for the current boundary type
       const children = hierarchyTypeDataresult?.boundaryHierarchy?.filter((item) => item?.parentBoundaryType === boundaryType);
@@ -131,7 +155,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     });
 
     setUpdatedHierarchy(hierarchyStructure);
-
   }
 
   const newData = [];
@@ -198,7 +221,31 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     }
   }, [boundaryTypeDataresult]);
 
+  const checkDataPresent = ({ action }) => {
+    if (action === false) {
+      setShowPopUp(false);
+      setUpdateBoundary(true);
+      setRestrictSelection(false);
+      return;
+    }
+    if (action === true) {
+      setShowPopUp(false);
+      setUpdateBoundary(false);
+      return;
+    }
+  };
+
   const handleBoundaryChange = (data, boundary) => {
+    if (
+      !updateBoundary &&
+      restrictSelection &&
+      (props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.length > 0 ||
+        props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.length > 0)
+    ) {
+      setShowPopUp(true);
+      return;
+    }
     if (!data || data.length === 0) {
       const check = updatedHierarchy[boundary?.boundaryType];
 
@@ -228,33 +275,33 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       code: item.code,
       type: item.type || item.boundaryType,
       isRoot: item.boundaryType === parentBoundaryTypeRoot,
-      includeAllChildren: false,
+      includeAllChildren: item.type === lowestHierarchy?.[0]?.boundaryType,
       parent: item?.parent,
     }));
 
-    res.forEach((boundary) => {
-      const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
-      if (index !== -1) {
-        transformedRes[index].includeAllChildren = false; 
-      }
-      // Find the parent boundary type using the hierarchy data
-      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
-        ?.parentBoundaryType;
+    // res.forEach((boundary) => {
+    //   const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
+    //   if (index !== -1) {
+    //     transformedRes[index].includeAllChildren = true;
+    //   }
+    //   // Find the parent boundary type using the hierarchy data
+    //   const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
+    //     ?.parentBoundaryType;
 
-      // If the selected boundary has a parent, set includeAllChildren to false for the parent
-      if (parentBoundaryType) {
-        const parentIndexes = selectedData?.reduce((acc, item, index) => {
-          if (item?.type === parentBoundaryType) {
-            acc.push(index);
-          }
-          return acc;
-        }, []);
+    //   // If the selected boundary has a parent, set includeAllChildren to false for the parent
+    //   if (parentBoundaryType) {
+    //     const parentIndexes = selectedData?.reduce((acc, item, index) => {
+    //       if (item?.type === parentBoundaryType) {
+    //         acc.push(index);
+    //       }
+    //       return acc;
+    //     }, []);
 
-        parentIndexes?.forEach((parentIndex) => {
-          selectedData[parentIndex].includeAllChildren = true;
-        });
-      }
-    });
+    //     parentIndexes?.forEach((parentIndex) => {
+    //       selectedData[parentIndex].includeAllChildren = true;
+    //     });
+    //   }
+    // });
 
     const newBoundaryType = transformedRes?.[0]?.type;
     const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.type : null;
@@ -320,7 +367,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                 </CardLabel>
                 <div className="digit-field">
                   <MultiSelectDropdown
+                    props={{ className: "selecting-boundaries-dropdown" }}
                     t={t}
+                    restrictSelection={restrictSelection}
                     options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                     optionsKey={"code"}
                     selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType) || []}
@@ -339,6 +388,8 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                 <div className="digit-field">
                   <MultiSelectDropdown
                     t={t}
+                    restrictSelection={restrictSelection}
+                    props={{ className: "selecting-boundaries-dropdown" }}
                     options={
                       boundaryData[boundary?.boundaryType]?.map((item) => ({
                         code: item?.parentCode,
@@ -381,11 +432,34 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         ]}
         label={"Info"}
       />
+      {showPopUp && (
+        <Modal
+          popupStyles={{
+            top: "5rem",
+          }}
+          popmoduleClassName="campaign-pop-module"
+          popupModuleActionBarClass="campaign-pop-action"
+          style={{ flex: 1 }}
+          popupMainModuleClass="campaign-pop-main"
+          headerBarMain={<h1 className="campaign-modal-heading">{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_HEADER")}</h1>}
+          actionCancelLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_BACK")}
+          actionCancelOnSubmit={() => checkDataPresent({ action: false })}
+          actionSaveLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_SUBMIT")}
+          actionSaveOnSubmit={() => checkDataPresent({ action: true })}
+          customTheme="v-campaign"
+          formId="modal-action"
+        >
+          <div>
+            <CardText style={{ margin: 0 }}>{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_TEXT") + " "}</CardText>
+          </div>
+        </Modal>
+      )}
       {showToast && (
         <Toast
-          error={showToast.key === "error" ? true : false}
-          warning={showToast.key === "warning" ? true : false}
-          info={showToast.key === "info" ? true : false}
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}
+          // error={showToast.key === "error" ? true : false}
+          // warning={showToast.key === "warning" ? true : false}
+          // info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
           onClose={closeToast}
         />

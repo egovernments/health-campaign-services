@@ -1,8 +1,10 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
-import { EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
+import { Button, EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
 import { Toast } from "@egovernments/digit-ui-components";
+import { DownloadIcon } from "@egovernments/digit-ui-react-components";
+import { PRIMARY_COLOR, downloadExcelWithCustomName } from "../utils";
 
 function mergeObjects(item) {
   const arr = item;
@@ -35,7 +37,7 @@ function mergeObjects(item) {
   return mergedArr;
 }
 
-function loopAndReturn(dataa) {
+function loopAndReturn(dataa, t) {
   let newArray = [];
   const data = dataa?.map((i) => ({ ...i, operator: i?.operator, attribute: i?.attribute }));
 
@@ -54,7 +56,7 @@ function loopAndReturn(dataa) {
     } else if (item?.operator === "EQUAL_TO") {
       newArray.push({
         ...item,
-        value: item?.value ? item?.value : null,
+        value: item?.value ? t(item?.value) : null,
       });
     } else {
       newArray.push(item);
@@ -76,7 +78,7 @@ function loopAndReturn(dataa) {
   return format;
 }
 
-function reverseDeliveryRemap(data) {
+function reverseDeliveryRemap(data, t) {
   if (!data) return null;
   const reversedData = [];
   let currentCycleIndex = null;
@@ -111,13 +113,26 @@ function reverseDeliveryRemap(data) {
     delivery.deliveryRules.push({
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: loopAndReturn(item.conditions),
+      attributes: loopAndReturn(item.conditions, t),
       products: [...item.products],
     });
   });
 
   return reversedData;
 }
+
+const fetchResourceFile = async (tenantId, resourceIdArr) => {
+  const res = await Digit.CustomService.getResponse({
+    url: `/project-factory/v1/data/_search`,
+    body: {
+      SearchCriteria: {
+        tenantId: tenantId,
+        id: resourceIdArr,
+      },
+    },
+  });
+  return res?.ResourceDetails;
+};
 
 const CampaignSummary = () => {
   const { t } = useTranslation();
@@ -127,7 +142,7 @@ const CampaignSummary = () => {
   const id = searchParams.get("id");
   const noAction = searchParams.get("action");
   const [showToast, setShowToast] = useState(null);
-
+  const [userCredential, setUserCredential] = useState(null);
   const { isLoading, data, error } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
@@ -141,15 +156,23 @@ const CampaignSummary = () => {
             resourceIdArr.push(i?.createResourceId);
           }
         });
+        let processid;
+
+        const ss = async () => {
+          let temp = await fetchResourceFile(tenantId, resourceIdArr);
+          processid = temp;
+          return;
+        };
+        ss();
         const target = data?.[0]?.deliveryRules;
-        const cycleData = reverseDeliveryRemap(target);
+        const cycleData = reverseDeliveryRemap(target, t);
         return {
           cards: [
             {
               sections: [
                 {
                   type: "DATA",
-                  cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0 } },
+                  cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                   cardSecondaryAction: noAction !== "false" && (
                     <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
                       <span>{t(`CAMPAIGN_EDIT`)}</span>
@@ -186,7 +209,7 @@ const CampaignSummary = () => {
                       props: {
                         documents: data?.[0]?.resources?.filter((i) => i.type === "boundaryWithTarget"),
                       },
-                      cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                       cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(7)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
@@ -206,7 +229,7 @@ const CampaignSummary = () => {
                       props: {
                         documents: data?.[0]?.resources?.filter((i) => i.type === "facility"),
                       },
-                      cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                       cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(8)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
@@ -226,7 +249,7 @@ const CampaignSummary = () => {
                       props: {
                         documents: data?.[0]?.resources?.filter((i) => i.type === "user"),
                       },
-                      cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                       cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(9)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
@@ -245,9 +268,10 @@ const CampaignSummary = () => {
                       component: "CampaignResourceDocuments",
                       props: {
                         isUserGenerate: true,
+                        // resources: processid,
                         resources: resourceIdArr,
                       },
-                      cardHeader: { value: t("USER_GENERATE_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardHeader: { value: t("USER_GENERATE_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                     },
                   ],
                 }
@@ -256,7 +280,7 @@ const CampaignSummary = () => {
               sections: [
                 {
                   type: "DATA",
-                  cardHeader: { value: t("CAMPAIGN_DELIVERY_DETAILS"), inlineStyles: { marginTop: 0 } },
+                  cardHeader: { value: t("CAMPAIGN_DELIVERY_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                   cardSecondaryAction: noAction !== "false" && (
                     <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
                       <span>{t(`CAMPAIGN_EDIT`)}</span>
@@ -300,30 +324,11 @@ const CampaignSummary = () => {
                 ],
               };
             }),
-            // ...data?.[0]?.campaignDetails?.deliveryRules?.map((item, index) => {
-            //   return {
-            //     sections: [
-            //       {
-            //         type: "COMPONENT",
-            //         cardHeader: { value: t("DELIVERY_CYCLE_DETAILS"), inlineStyles: { marginTop: 0 } },
-            //         cardSecondaryAction: (
-            //           <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
-            //             <span>{t(`CAMPAIGN_EDIT`)}</span>
-            //             <EditIcon />
-            //           </div>
-            //         ),
-            //         component: "CycleDetaisPreview",
-            //         props: {
-            //           data: data?.[0],
-            //           items: item,
-            //           index: index,
-            //         },
-            //       },
-            //     ],
-            //   };
-            // }),
           ],
           error: data?.[0]?.additionalDetails?.error,
+          data: data?.[0],
+          status: data?.[0]?.status,
+          userGenerationSuccess: resourceIdArr,
         };
       },
       enabled: id ? true : false,
@@ -341,6 +346,7 @@ const CampaignSummary = () => {
 
     // Modify the 'key' parameter
     urlParams.set("key", step);
+    urlParams.set("preview", false);
 
     // Reconstruct the URL with the modified parameters
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
@@ -362,16 +368,69 @@ const CampaignSummary = () => {
     }
   }, [showToast]);
   useEffect(() => {
-    if (data?.error) {
+    if (data?.status === "failed" && data?.error) {
       setShowToast({ label: data?.error, key: "error" });
+    }
+    if (data?.status === "creating") {
+      setShowToast({ label: "CAMPAIGN_STATUS_CREATING_MESSAGE", key: "info" });
+    }
+    if (data?.status === "created" && data?.userGenerationSuccess?.length > 0) {
+      setShowToast({ label: "CAMPAIGN_USER_GENERATION_SUCCESS", key: "success" });
+    }
+  }, [data]);
+
+  const downloadUserCred = async () => {
+    downloadExcelWithCustomName(userCredential);
+  };
+
+  useEffect(() => {
+    if (data?.userGenerationSuccess?.length > 0) {
+      const fetchUser = async () => {
+        const responseTemp = await Digit.CustomService.getResponse({
+          url: `/project-factory/v1/data/_search`,
+          body: {
+            SearchCriteria: {
+              tenantId: tenantId,
+              id: data?.userGenerationSuccess,
+            },
+          },
+        });
+
+        const response = responseTemp?.ResourceDetails?.map((i) => i?.processedFilestoreId);
+
+        if (response?.[0]) {
+          setUserCredential({ fileStoreId: response?.[0], customName: "userCredential" });
+        }
+      };
+      fetchUser();
     }
   }, [data]);
   return (
     <>
-      <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+        {userCredential && (
+          <Button
+            label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
+            variation="secondary"
+            icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
+            type="button"
+            className="campaign-download-template-btn hover"
+            onButtonClick={downloadUserCred}
+          />
+        )}
+      </div>
       <div className="campaign-summary-container">
         <ViewComposer data={data} />
-        {showToast && <Toast error={showToast?.key === "error" ? true : false} label={showToast?.label} onClose={closeToast} />}
+        {showToast && (
+          <Toast
+            type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : "success"}
+            // error={showToast?.key === "error" ? true : false}
+            // info={showToast?.key === "info" ? true : false}
+            label={t(showToast?.label)}
+            onClose={closeToast}
+          />
+        )}
       </div>
     </>
   );

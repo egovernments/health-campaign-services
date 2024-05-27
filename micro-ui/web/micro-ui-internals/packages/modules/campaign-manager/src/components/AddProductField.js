@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AddIcon, Button, Card, CardText, Dropdown, Header, TextInput } from "@egovernments/digit-ui-react-components";
+import { AddIcon, Button, Card, CardText, Header, TextInput, Dropdown } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import { DustbinIcon } from "./icons/DustbinIcon";
@@ -133,7 +133,7 @@ const AddProductField = ({ onSelect }) => {
       <Button
         variation="secondary"
         label={t(`CAMPAIGN_ADD_MORE_PRODUCT_BUTTON`)}
-        // className={"add-rule-btn"}
+        className={"hover"}
         icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill={PRIMARY_COLOR} />}
         onButtonClick={addMoreField}
       />

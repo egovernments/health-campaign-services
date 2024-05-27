@@ -133,7 +133,7 @@ const Tabs = ({ onTabChange }) => {
         <button
           key={index}
           type="button"
-          className={`campaign-tab-head ${_.active === true ? "active" : ""}`}
+          className={`campaign-tab-head ${_.active === true ? "active" : ""} hover`}
           onClick={() => onTabChange(_.cycleIndex, index)}
         >
           <p style={{ margin: 0, position: "relative", top: "-0.1rem" }}>
@@ -173,7 +173,7 @@ const SubTabs = ({ onSubTabChange }) => {
           <button
             key={index}
             type="button"
-            className={`campaign-sub-tab-head ${_.active === true ? "active" : ""}`}
+            className={`campaign-sub-tab-head ${_.active === true ? "active" : ""} hover`}
             onClick={() => onSubTabChange(_.deliveryIndex, index)}
           >
             {t(`CAMPAIGN_DELIVERY`)} {index + 1}

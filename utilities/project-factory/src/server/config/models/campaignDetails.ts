@@ -15,7 +15,7 @@ export const campaignDetailsSchema = {
         "campaignName": {
             "type": "string",
             "maxLength": 250,
-            "minLength": 1
+            "minLength": 2
         },
         "action": {
             "type": "string",
@@ -75,9 +75,14 @@ export const campaignDetailsSchema = {
                         "maxLength": 128,
                         "minLength": 1,
                         "pattern": "^.+\\.(xlsx|xls)$"
+                    },
+                    "resourceId": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 1
                     }
                 },
-                "required": ["filestoreId", "type", "filename"]
+                "required": ["filestoreId", "type", "filename", "resourceId"]
             }
         },
         "projectType": {

@@ -1,21 +1,26 @@
-export const useGenerateIdCampaign = (type ,hierarchyType, filters) => {
+export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId, config = {} }) => {
   const updatedFilters = filters?.map(({ type, ...rest }) => ({
     ...rest,
-    boundaryType: type
-}));
+    boundaryType: type,
+  }));
   const reqCriteria = {
     url: `/project-factory/v1/data/_generate`,
-    changeQueryName :`${type}${hierarchyType}${filters}`,
+    changeQueryName: `${type}${hierarchyType}${filters}`,
     params: {
-      tenantId:  Digit.ULBService.getCurrentTenantId(),
+      tenantId: Digit.ULBService.getCurrentTenantId(),
       type: type,
       forceUpdate: true,
       hierarchyType: hierarchyType,
+      campaignId: campaignId,
     },
-    body: (type === 'boundary' ? (updatedFilters === undefined ? { "Filters": null } : { "Filters": { "boundaries": updatedFilters } }) : {}),
+    body: type === "boundary" ? (updatedFilters === undefined ? { Filters: null } : { Filters: { boundaries: updatedFilters } }) : {},
+    config: {
+      ...config,
+      cacheTime: 0,
+      staleTime: 0,
+    },
   };
+  const { data: Data, refetch, isLoading } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
-  const { data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteria);
-
-  return Data?.GeneratedResource?.[0]?.id;
+  return { isLoading: isLoading, data: Data?.GeneratedResource?.[0]?.id, refetch };
 };

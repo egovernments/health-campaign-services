@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { UploadIcon, FileIcon, DeleteIconv2, Toast, Button, DownloadIcon, PopUp, SVG } from "@egovernments/digit-ui-react-components";
+import { UploadIcon, FileIcon, DeleteIconv2, Button, DownloadIcon, PopUp, SVG } from "@egovernments/digit-ui-react-components";
 import { FileUploader } from "react-drag-drop-files";
 import { useTranslation } from "react-i18next";
 import XLSX from "xlsx";
 import XlsPreview from "./XlsPreview";
 import { PRIMARY_COLOR } from "../utils";
+import { Toast } from "@egovernments/digit-ui-components";
 
 /**
  * The BulkUpload component in JavaScript allows users to upload, validate, preview, download, and
@@ -26,18 +27,16 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    setFileUrl(fileData?.[0]);
+    const fetch = async () => {
+      const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([fileData?.[0]?.filestoreId], tenantId);
+      const temp = fileData?.map((i) => ({
+        ...i,
+        url: fileUrl?.[0]?.url,
+      }));
+      setFileUrl(temp?.[0]);
+    };
+    fetch();
   }, [fileData]);
-
-  const documents = fileUrl
-    ? [
-        {
-          fileType: "xlsx",
-          filename: "fileData?.fileName",
-          uri: fileUrl?.url,
-        },
-      ]
-    : null;
 
   const closeToast = () => {
     setTimeout(() => {
@@ -115,9 +114,13 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
       onSubmit([...newFiles]);
     } catch (error) {
       // Handle the validation error, you can display a message or take appropriate actions.
-      setShowToast({ isError: true, label: error });
+      setShowToast({ key: "error", label: error });
       closeToast();
     }
+  };
+
+  const fileTypeError = (err) => {
+    setShowToast({ key: "error", label: t("HCM_ERROR_INVALID_FILE_TYPE") });
   };
 
   const renderFileCards = useMemo(() => {
@@ -145,15 +148,18 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             variation="secondary"
             icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
             type="button"
-            className="workbench-download-template-btn"
-            onButtonClick={(e) => handleFileDownload(e, file)}
+            className="workbench-download-template-btn hover"
+            onButtonClick={(e) => {
+              e.stopPropagation();
+              handleFileDownload(e, fileUrl);
+            }}
           />
           <Button
             label={t("WBH_DELETE")}
             variation="secondary"
             icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill={PRIMARY_COLOR} />}
             type="button"
-            className="workbench-download-template-btn"
+            className="workbench-download-template-btn hover"
             onButtonClick={(e) => {
               e.stopPropagation();
               handleFileDelete(file, index);
@@ -163,16 +169,31 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
         </div>
       </div>
     ));
-  }, [fileData]);
+  }, [fileData, fileUrl]);
 
   return (
     <React.Fragment>
       {(!fileData || fileData?.length === 0) && (
-        <FileUploader multiple={multiple} handleChange={handleChange} name="file" types={fileTypes} children={dragDropJSX} />
+        <FileUploader
+          multiple={multiple}
+          handleChange={handleChange}
+          name="file"
+          types={fileTypes}
+          children={dragDropJSX}
+          onTypeError={fileTypeError}
+        />
       )}
       {fileData?.length > 0 && renderFileCards}
       {showPreview && <XlsPreview file={fileUrl} onDownload={() => handleFileDownload(null, fileUrl)} onBack={() => setShowPreview(false)} />}
-      {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
+      {showToast && (
+        <Toast
+          label={showToast?.label}
+          type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : "success"}
+          // error={showToast?.key === "error" ? true : false}
+          isDleteBtn={true}
+          onClose={() => setShowToast(null)}
+        ></Toast>
+      )}
     </React.Fragment>
   );
 };

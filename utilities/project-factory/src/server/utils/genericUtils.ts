@@ -2,18 +2,20 @@ import { NextFunction, Request, Response } from "express";
 import { httpRequest } from "./request";
 import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
-import { produceModifiedMessages } from '../Kafka/Listener'
+import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
 import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { logger } from "./logger";
-import dataManageController from "../controllers/dataManage/dataManage.controller";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
-import localisationController from "../controllers/localisationController/localisation.controller";
+import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, resourceDataStatuses } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
+import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationUtils";
+import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
+import { getBoundaryDataService } from "../service/dataManageService";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -50,14 +52,30 @@ const throwErrorViaRequest = (message: any = "Internal Server Error") => {
   }
 };
 
+function capitalizeFirstLetter(str: string | undefined) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
   const errorResult: any = getErrorCodes(module, code);
   status = errorResult?.code == "UNKNOWN_ERROR" ? 500 : status;
-  let error: any = new Error(errorResult?.message);
-  error = Object.assign(error, { status, code: errorResult?.code, description });
+  let error: any = new Error(capitalizeFirstLetter(errorResult?.message));
+  error = Object.assign(error, { status, code: errorResult?.code, description: capitalizeFirstLetter(description) });
   logger.error(error);
   throw error;
 };
+
+
+const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
+  const newRequest = {
+    ...originalRequest,
+    body: requestBody,
+    query: requestQuery || originalRequest.query
+  };
+  return newRequest;
+};
+
 
 /* 
 Error Object
@@ -243,7 +261,7 @@ async function generateActivityMessage(tenantId: any, requestBody: any, requestP
 }
 
 /* Fetches data from the database */
-async function getResponseFromDb(request: any, response: any) {
+async function getResponseFromDb(request: any) {
   try {
     const { type } = request.query;
     const { tenantId, hierarchyType } = request.query;
@@ -410,23 +428,28 @@ async function callSearchApi(request: any, response: any) {
   }
 }
 
-async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, response: any, localizationMap?: { [key: string]: string }) {
+
+async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any) {
   try {
-    const type = request?.query?.type;
-    const generatedResource: any = { generatedResource: newEntryResponse }
+    const { type, hierarchyType } = request?.query;
+    generatedResource = { generatedResource: newEntryResponse }
     // send message to create toppic
+    logger.info(`processing the generate request for type ${type}`)
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
+    hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+    const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     if (type === 'boundary') {
-      const dataManagerController = new dataManageController();
       // get boundary data from boundary relationship search api
-      const result = await dataManagerController.getBoundaryData(request, response);
+      const result = await getBoundaryDataService(request);
       let updatedResult = result;
       // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
-      const differentTabsBasedOnLevel = config.generateDifferentTabsOnBasisOf;
+      const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
+      logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
       const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
       if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
+        logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
       }
       // final upodated response to be sent to update topic 
@@ -443,54 +466,12 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else {
-      const responseDatas = await callSearchApi(request, response);
-      const modifiedDatas = await modifyData(request, response, responseDatas);
-      const result = await generateXlsxFromJson(request, response, modifiedDatas);
-      const finalResponse = await getFinalUpdatedResponse(result, newEntryResponse, request);
-      const generatedResourceNew: any = { generatedResource: finalResponse }
-      produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
-    }
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    console.log(error)
+    handleGenerateError(newEntryResponse, generatedResource, error);
   }
 }
-async function modifyData(request: any, response: any, responseDatas: any) {
-  try {
-    let result: any;
-    const hostHcmBff = config.host.projectFactoryBff.endsWith('/') ? config.host.projectFactoryBff.slice(0, -1) : config.host.projectFactoryBff;
-    const { type } = request.query;
-    result = await searchMDMS([type], config.SEARCH_TEMPLATE, request.body.RequestInfo, response);
-    const modifiedParsingTemplate = result?.mdms?.[0]?.data?.modificationParsingTemplateName;
-    if (!request.body.HCMConfig) {
-      request.body.HCMConfig = {};
-    }
-    const batchSize = 50;
-    const totalBatches = Math.ceil(responseDatas.length / batchSize);
-    const allUpdatedData = [];
 
-    for (let i = 0; i < totalBatches; i++) {
-      const batchData = responseDatas.slice(i * batchSize, (i + 1) * batchSize);
-      const batchRequestBody = { ...request.body };
-      batchRequestBody.HCMConfig.parsingTemplate = modifiedParsingTemplate;
-      batchRequestBody.HCMConfig.data = batchData;
-
-      try {
-        const processResult = await httpRequest(`${hostHcmBff}${config.app.contextPath}/bulk/_process`, batchRequestBody, undefined, undefined, undefined, undefined);
-        if (processResult.Error) {
-          throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", processResult.Error);
-        }
-        allUpdatedData.push(...processResult.updatedDatas);
-      } catch (error: any) {
-        throw error;
-      }
-    }
-    return allUpdatedData;
-  }
-  catch (e: any) {
-    throw e;
-  }
-}
 function generateAuditDetails(request: any) {
   const createdBy = request?.body?.RequestInfo?.userInfo?.uuid;
   const lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
@@ -544,8 +525,7 @@ function correctParentValues(campaignDetails: any) {
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
   const mdmsResponse = await callMdmsData(request, config.moduleName, config.facilitySchemaMasterName, tenantId);
-  const schema = mdmsResponse.MdmsRes[config?.moduleName].facilitySchema[0].properties;
-  const keys = Object.keys(schema);
+  const keys = mdmsResponse.MdmsRes[config?.moduleName].facilitySchema[0].required;
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -565,6 +545,52 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   return facilitySheetData;
 }
 
+async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap?: any) {
+  const readMeConfig = await getReadMeConfig(request);
+  const maxCharsBeforeLineBreak = 100; // Set the maximum number of characters before line break
+  const datas = readMeConfig.texts.flatMap((text: any) => {
+    let stepText = ''; // Initialize step text for each text element
+    let stepCount = 1; // Initialize the step counter
+    const descriptions = text.descriptions.map((description: any) => {
+      let textWithLineBreaks = '';
+      let remainingText = getLocalizedName(description.text, localizationMap);
+      while (remainingText.length > maxCharsBeforeLineBreak) {
+        let breakIndex = remainingText.lastIndexOf(' ', maxCharsBeforeLineBreak);
+        if (breakIndex === -1) breakIndex = maxCharsBeforeLineBreak;
+        textWithLineBreaks += remainingText.substring(0, breakIndex) + '\n';
+        remainingText = remainingText.substring(breakIndex).trim();
+      }
+      textWithLineBreaks += remainingText;
+      // If step is required, add step text before description
+      if (description.isStepRequired) {
+        stepText = `Step ${stepCount}: `;
+        stepCount++;
+        return stepText + textWithLineBreaks;
+      }
+      else {
+        return textWithLineBreaks;
+      }
+    });
+    return [getLocalizedName(text.header, localizationMap), ...descriptions, "", "", "", ""];
+  });
+
+  // Ensure mainHeader is an array
+  if (!Array.isArray(mainHeader)) {
+    mainHeader = [mainHeader];
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet([mainHeader, "", "", ...datas.map((data: any) => [data])]);
+
+  // Set the width of column A to 130
+  const wscols = [{ wch: 130 }];
+  worksheet['!cols'] = wscols;
+  const readMeSheetName = getLocalizedName("HCM_README_SHEETNAME", localizationMap);
+  XLSX.utils.book_append_sheet(workbook, worksheet, readMeSheetName);
+}
+
+
+
+
 function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: string }) {
   const messages = headers.map((header: any) => (localizationMap ? localizationMap[header] || header : header));
   return messages;
@@ -572,11 +598,11 @@ function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: st
 
 
 
-function modifyRequestForLocalisation(request: any, tenanId: string) {
+function modifyRequestForLocalisation(request: any, tenantId: string) {
   const { RequestInfo } = request?.body;
   const query = {
-    "tenantId": tenanId,
-    "locale": config.locale,
+    "tenantId": tenantId,
+    "locale": getLocaleFromRequest(request),
     "module": config.localizationModule
   };
   const updatedRequest = { ...request };
@@ -585,13 +611,35 @@ function modifyRequestForLocalisation(request: any, tenanId: string) {
   return updatedRequest;
 }
 
+async function getReadMeConfig(request: any) {
+  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
+    const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
+    for (const readMeConfig of readMeConfigsArray) {
+      if (readMeConfig?.type == request?.query?.type) {
+        return readMeConfig
+      }
+    }
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    return {}
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during readme config mdms search.`);
+    return {};
+  }
+}
+
 async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   // Add facility sheet to the workbook
   const localizedFacilityTab = getLocalizedName(config?.facilityTab, localizationMap);
+  const type = request?.query?.type;
+  const headingInSheet = headingMapping?.[type]
+  const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
+  await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
   XLSX.utils.book_append_sheet(workbook, facilitySheetData.ws, localizedFacilityTab);
   // Add boundary sheet to the workbook
-  const localizedBoundaryTab = getLocalizedName(config?.boundaryTab, localizationMap)
+  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, localizedBoundaryTab);
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -600,10 +648,14 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  const type = request?.query?.type;
+  const headingInSheet = headingMapping?.[type]
+  const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
+  await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
   // Add facility sheet to the workbook
   XLSX.utils.book_append_sheet(workbook, userSheetData.ws, localizedUserTab);
   // Add boundary sheet to the workbook
-  const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap)
+  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, localizedBoundaryTab);
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -612,23 +664,25 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
 async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }) {
   // Get facility and boundary data
+  logger.info("Generating facilities started");
   const allFacilities = await getAllFacilities(tenantId, request.body);
-  request.body.generatedResourceCount = allFacilities.length;
+  request.body.generatedResourceCount = allFacilities?.length;
+  logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   const facilitySheetData: any = await createFacilitySheet(request, allFacilities, localizationMap);
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
-  const boundarySheetData: any = await getBoundarySheetData(request);
+  const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap);
 }
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
   const mdmsResponse = await callMdmsData(request, config.moduleName, config.userSchemaMasterName, tenantId)
-  const schema = mdmsResponse.MdmsRes[config.moduleName].userSchema[0].properties;
-  const headers = Object.keys(schema);
+  const headers = mdmsResponse.MdmsRes[config.moduleName].userSchema[0].required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  logger.info("Generated an empty user template");
   const userSheetData = await createExcelSheet(userData, localizedHeaders, localizedUserTab);
-  const boundarySheetData: any = await getBoundarySheetData(request);
+  const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
   await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }) {
@@ -641,13 +695,10 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
   }
 }
 
-async function processGenerateForNew(request: any, response: any, generatedResource: any, newEntryResponse: any, localizationMap?: { [key: string]: string }) {
+async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any) {
   request.body.generatedResource = newEntryResponse;
-  try {
-    await fullProcessFlowForNewEntry(newEntryResponse, request, response, localizationMap);
-  } catch (error: any) {
-    handleGenerateError(newEntryResponse, generatedResource, error);
-  }
+  fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request);
+  return request.body.generatedResource;
 }
 
 function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
@@ -657,7 +708,7 @@ function handleGenerateError(newEntryResponse: any, generatedResource: any, erro
   produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
 }
 
-async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, response: any, localizationMap?: { [key: string]: string }) {
+async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any) {
   const { forceUpdate } = request.query;
   const forceUpdateBool: boolean = forceUpdate === 'true';
   let generatedResource: any;
@@ -668,7 +719,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
-    processGenerateForNew(request, response, generatedResource, newEntryResponse, localizationMap)
+    processGenerateForNew(request, generatedResource, newEntryResponse)
   }
   else {
     request.body.generatedResource = responseData
@@ -677,9 +728,9 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 /* 
 
 */
-async function processGenerate(request: any, response: any, localizationMap?: { [key: string]: string }) {
+async function processGenerate(request: any) {
   // fetch the data from db 
-  const responseData = await getResponseFromDb(request, response);
+  const responseData = await getResponseFromDb(request);
   // modify response from db 
   const modifiedResponse = await getModifiedResponse(responseData);
   // generate new random id and make filestore id null
@@ -687,7 +738,7 @@ async function processGenerate(request: any, response: any, localizationMap?: { 
   // make old data status as expired
   const oldEntryResponse = await getOldEntryResponse(modifiedResponse, request);
   // generate data 
-  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, response, localizationMap);
+  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request);
 }
 /*
 TODO add comments @nitish-egov
@@ -748,29 +799,33 @@ function matchData(request: any, datas: any, searchedDatas: any, createAndSearch
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
 }
 
-function modifyBoundaryData(boundaryData: unknown[]) {
-  let withBoundaryCode: string[][] = [];
-  let withoutBoundaryCode: string[][] = [];
+function modifyBoundaryData(boundaryData: unknown[], localizationMap?: any) {
+  // Initialize arrays to store data
+  const withBoundaryCode: { key: string, value: string }[][] = [];
+  const withoutBoundaryCode: { key: string, value: string }[][] = [];
+  // Process each object in boundaryData
+  boundaryData.forEach((obj: any) => {
+    // Convert object entries to an array of {key, value} objects
+    const row: any = Object.entries(obj)
+      .filter(([key, value]) => value !== null && value !== undefined)
+      .map(([key, value]) => ({ key, value }));
 
-  for (const obj of boundaryData) {
-    const row: string[] = [];
-    if (typeof obj === 'object' && obj !== null) {
-      for (const value of Object.values(obj)) {
-        if (value !== null && value !== undefined) {
-          row.push(value.toString()); // Convert value to string and push to row
-        }
-      }
+    // Determine whether the object has a boundary code property
+    const hasBoundaryCode = obj.hasOwnProperty(getLocalizedName(config.boundaryCode, localizationMap));
 
-      if (obj.hasOwnProperty('Boundary Code')) {
-        withBoundaryCode.push(row);
-      } else {
-        withoutBoundaryCode.push(row);
-      }
+    // Push the row to the appropriate array based on whether it has a boundary code property
+    if (hasBoundaryCode) {
+      withBoundaryCode.push(row);
+    } else {
+      withoutBoundaryCode.push(row);
     }
-  }
+  });
 
+  // Return the arrays
   return [withBoundaryCode, withoutBoundaryCode];
 }
+
+
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const type = request?.body?.ResourceDetails?.type;
@@ -785,8 +840,10 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
+  logger.info("Boundary relationship search initiated")
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+  logger.info("Boundary relationship search response received")
   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
 
@@ -797,27 +854,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
-  const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
 
-  // Chunk the boundary codes into groups of 20
-  const chunkSize = 20;
-  const boundaryCodeChunks = [];
-  for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
-    boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
-  }
-
-  const boundaryCodeNameMapping: { [key: string]: string } = {};
-
-  // Fetch data for each chunk of boundary codes
-  for (const chunk of boundaryCodeChunks) {
-    const string = chunk.join(', ');
-    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.query?.tenantId, codes: string });
-
-    // Populate boundaryCodeNameMapping with the retrieved data
-    boundaryEntityResponse?.Boundary?.forEach((data: any) => {
-      boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
-    });
-  }
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
@@ -825,20 +862,21 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
       ...modifiedReducedHierarchy,
-      config.boundaryCode,
+      getBoundaryColumnName(),
       "Target at the Selected Boundary level"
     ]
     : [
       ...modifiedReducedHierarchy,
-      config.boundaryCode
+      getBoundaryColumnName()
     ];
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
     const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    // localize the boundary codes
     const mappedRowData = rowData.map((cell: any, index: number) =>
-      index === reducedHierarchy.length ? '' : cell !== '' ? boundaryCodeNameMapping[cell] || cell : ''
+      index === reducedHierarchy.length ? '' : cell !== '' ? getLocalizedName(cell, localizationMap) : ''
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
@@ -848,7 +886,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type != "facilityWithBoundary") {
     request.body.generatedResourceCount = sheetRowCount;
   }
-  const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
+  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   return await createExcelSheet(data, localizedHeaders, localizedBoundaryTab);
 }
 
@@ -864,7 +902,7 @@ function modifyTargetData(data: any) {
 
 function calculateKeyIndex(obj: any, hierachy: any[], localizationMap?: any) {
   const keys = Object.keys(obj);
-  const localizedBoundaryCode = getLocalizedName(config.boundaryCode, localizationMap)
+  const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap)
   const boundaryCodeIndex = keys.indexOf(localizedBoundaryCode);
   const keyBeforeBoundaryCode = keys[boundaryCodeIndex - 1];
   return hierachy.indexOf(keyBeforeBoundaryCode);
@@ -880,7 +918,7 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
       break;
     }
   }
-  const localizedBoundaryCode = getLocalizedName(config?.boundaryCode, localizationMap);
+  const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
   boundaryCode = boundaryData[localizedBoundaryCode];
   if (boundaryCode !== undefined) {
     newData[localizedBoundaryCode] = boundaryCode;
@@ -888,16 +926,11 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any) {
-  const localisationcontroller = new localisationController();
-  const response = {};
-  const modifiedRequestForLocalization = modifyRequestForLocalisation(request, tenantId);
-  const localizationResponse = await localisationcontroller.getLocalizedMessages(modifiedRequestForLocalization, response);
-  const localizationMap: { [key: string]: string } = {};
-  localizationResponse.messages.forEach((message: any) => {
-    localizationMap[message.code] = message.message;
-  });
-  return localizationMap;
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
+  const localisationcontroller = Localisation.getInstance();
+  const locale = getLocaleFromRequest(request);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
 }
 
 
@@ -915,6 +948,40 @@ async function translateSchema(schema: any, localizationMap?: { [key: string]: s
   };
 
   return translatedSchema;
+}
+
+
+function findMapValue(map: Map<any, any>, key: any): any | null {
+  let foundValue = null;
+  map.forEach((value, mapKey) => {
+    if (mapKey.key === key.key && mapKey.value === key.value) {
+      foundValue = value;
+    }
+  });
+  return foundValue;
+}
+
+function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
+  const uniqueDistrictsForMainSheet: string[] = [];
+  const differentDistrictTabs: any[] = [];
+  for (const data of boundaryData) {
+    const rowData = Object.values(data);
+    const districtValue = data[differentTabsBasedOnLevel];
+    const districtIndex = districtValue !== '' ? rowData.indexOf(districtValue) : -1;
+
+    if (districtIndex != -1) {
+      const districtLevelRow = rowData.slice(0, districtIndex + 1);
+      const districtKey = districtLevelRow.join('_');
+
+      if (!uniqueDistrictsForMainSheet.includes(districtKey)) {
+        uniqueDistrictsForMainSheet.push(districtKey);
+      }
+    }
+  }
+  for (const uniqueData of uniqueDistrictsForMainSheet) {
+    differentDistrictTabs.push(uniqueData.slice(uniqueData.lastIndexOf('_') + 1));
+  }
+  return differentDistrictTabs;
 }
 
 
@@ -941,7 +1008,6 @@ export {
   getOldEntryResponse,
   getFinalUpdatedResponse,
   fullProcessFlowForNewEntry,
-  modifyData,
   correctParentValues,
   sortCampaignDetails,
   processGenerateRequest,
@@ -959,7 +1025,11 @@ export {
   modifyRequestForLocalisation,
   translateSchema,
   getLocalizedMessagesHandler,
-  getLocalizedHeaders
+  getLocalizedHeaders,
+  createReadMeSheet,
+  findMapValue,
+  replicateRequest,
+  getDifferentDistrictTabs
 };
 
 
