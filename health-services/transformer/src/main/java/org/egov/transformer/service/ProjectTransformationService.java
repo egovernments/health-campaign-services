@@ -6,7 +6,7 @@ import org.egov.common.models.project.Target;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

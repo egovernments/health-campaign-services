@@ -1,5 +1,10 @@
 package org.egov.transformer.config;
 
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -7,6 +12,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
@@ -14,6 +20,7 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.stock.Stock;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,13 +30,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-
-import jakarta.annotation.PostConstruct;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.stream.Collectors;
+import org.springframework.web.client.RestTemplate;
 
 @Import({TracerConfiguration.class})
 @Configuration
@@ -130,4 +133,5 @@ public class MainConfiguration {
         log.info(map.toString());
         return map;
     }
+
 }
