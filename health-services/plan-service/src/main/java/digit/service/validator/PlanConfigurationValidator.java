@@ -4,14 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
-import digit.web.models.Assumption;
-import digit.web.models.File;
-import digit.web.models.Operation;
-import digit.web.models.PlanConfiguration;
-import digit.web.models.PlanConfigurationRequest;
-import digit.web.models.PlanConfigurationSearchCriteria;
-import digit.web.models.PlanConfigurationSearchRequest;
-import digit.web.models.ResourceMapping;
+import digit.web.models.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -291,11 +284,12 @@ public class PlanConfigurationValidator {
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate plan existence
-        validatePlanConfigExistence(request);
+        PlanConfiguration planConfigurationFromDB = validatePlanConfigExistence(request);
 
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
         validateFilestoreId(planConfiguration);
+        validateFilesActive(planConfigurationFromDB, planConfiguration);
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateOperationDependencies(planConfiguration);
@@ -308,13 +302,17 @@ public class PlanConfigurationValidator {
      * Validates the existence of the plan configuration in the repository.
      * @param request The request containing the plan configuration to validate.
      */
-    public void validatePlanConfigExistence(PlanConfigurationRequest request) {
+    public PlanConfiguration validatePlanConfigExistence(PlanConfigurationRequest request) {
         // If plan id provided is invalid, throw an exception
-        if(CollectionUtils.isEmpty(planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
+        List<PlanConfiguration> planConfigurationList = planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
                 .id(request.getPlanConfiguration().getId())
-                .build()))) {
+                .build());
+
+        if(CollectionUtils.isEmpty(planConfigurationList)) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
+
+        return planConfigurationList.get(0);
     }
 
     /**
@@ -406,5 +404,21 @@ public class PlanConfigurationValidator {
             }
         }
         return new ArrayList<>(finalData);
+    }
+
+    public void validateFilesActive(PlanConfiguration planConfigurationFromDB, PlanConfiguration planConfiguration)
+    {
+        // Create a map of files from planConfigurationFromDB using the file ID as the key
+        Map<String, File> filesFromDBMap = planConfigurationFromDB.getFiles().stream()
+                .collect(Collectors.toMap(File::getId, file -> file));
+
+        // Iterate over the files in planConfiguration
+        for (File file : planConfiguration.getFiles()) {
+            File dbFile = filesFromDBMap.get(file.getId());
+            // If the file exists in planConfigurationFromDB and has been made active after being inactive
+            if (dbFile == null) {
+                throw new CustomException("FILES_ACTIVE_STATUS_CHANGE_NOT_ALLOWED", "Files cannot be made active after being inactive, please upload new file");
+            }
+        }
     }
 }
