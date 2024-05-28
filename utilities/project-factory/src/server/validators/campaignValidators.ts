@@ -411,6 +411,42 @@ function validateStorageCapacity(obj: any, index: any) {
 }
 
 
+async function validateCampaignId(request: any) {
+    const { campaignId, tenantId, type } = request?.body?.ResourceDetails;
+    if (type == "boundary") {
+        return;
+    }
+    if (!campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignId is missing");
+    }
+    else {
+        const searchBody = {
+            CampaignDetails: {
+                ids: [campaignId],
+                tenantId: tenantId
+            }
+        }
+        const req: any = replicateRequest(request, searchBody);
+        const response = await searchProjectTypeCampaignService(req);
+        if (response?.CampaignDetails?.[0]) {
+            const campaign = response?.CampaignDetails?.[0]
+            if (!campaign?.boundaries) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
+            }
+            if (!Array.isArray(campaign?.boundaries)) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Boundaries of campaign with given campaignId is not an array");
+            }
+            if (campaign?.boundaries?.length === 0) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
+            }
+        }
+        else {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while validating campaignId");
+        }
+    }
+}
+
+
 async function validateCreateRequest(request: any) {
     if (!request?.body?.ResourceDetails || Object.keys(request.body.ResourceDetails).length === 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
@@ -418,6 +454,7 @@ async function validateCreateRequest(request: any) {
     else {
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
+        await validateCampaignId(request);
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
