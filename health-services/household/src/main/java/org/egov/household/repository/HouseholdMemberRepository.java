@@ -54,7 +54,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         String query = "SELECT * FROM household_member";
 
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(householdMemberSearch, QueryFieldChecker.isNotNull, paramsMap);
-        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
+        query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
 
         query = query + " AND tenantId=:tenantId ";
 

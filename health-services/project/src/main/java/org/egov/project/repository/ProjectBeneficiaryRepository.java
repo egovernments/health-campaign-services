@@ -50,10 +50,10 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
         Map<String, Object> paramsMap = new HashMap<>();
         StringBuilder queryBuilder = new StringBuilder();
 
-        String query = "SELECT * FROM project_beneficiary";
+        String query = "SELECT * FROM project_beneficiary ";
 
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(householdMemberSearch, QueryFieldChecker.isNotNull, paramsMap);
-        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
+        query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
 
         query = query + " AND tenantId=:tenantId ";
 
