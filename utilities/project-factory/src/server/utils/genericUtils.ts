@@ -542,7 +542,7 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
   const query = {
     "tenantId": tenantId,
     "locale": getLocaleFromRequest(request),
-    "module": config.localizationModule
+    "module": config.localisation.localizationModule
   };
   const updatedRequest = { ...request };
   updatedRequest.body = { RequestInfo };
@@ -865,7 +865,7 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
