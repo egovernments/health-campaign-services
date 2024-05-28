@@ -1,94 +1,84 @@
-# Backend For Frontend service
+# ProjectFactory-Service
 
-<!--TODO TO BE UPDATED -->
-# mukta-service
+The Project Factory Service is responsible for managing project-type campaigns, including creating, updating, searching, and creating campaigns.
 
-mukta-service service work in between multiple microservices. Earlier client used to directly call multiple microservice, but with introduction of this new service one can provide just few parameters ex:- applicationnumber, tenantId to this new service to get a complete required details.
+### DB UML Diagram
 
-## Introduction
+![image](https://github.com/egovernments/DIGIT-Frontend/assets/137176738/8c43998d-742b-4629-ae90-63ab2b18772b)
+![image](https://github.com/egovernments/DIGIT-Frontend/assets/137176738/3ff9609d-771a-4c6e-a769-54766e7111f7)
 
-This repo is a **barebone minimalistic** starter-kit for TypeScript-based ExpressJS (https://expressjs.com/) app.
-
-## Simplicity
-
-In order to build and run the app, you have to execute only 2 NPM script commands.
-
-## Dependencies
-
-* ExpressJS
-* ExpressJS Middlewares
-    * Compression - https://github.com/expressjs/compression
-    * Helmet - https://helmetjs.github.io/
-* TypeScript
-* NPM (or) Yarn
 
 ### Service Dependencies
 
-- egov-mdms-service
-- contract
-- estimate
-- measurement
-- muster-roll-service
-- User-service
-- Workflow-service
+#### Core services
+
+- egov-localization
+- egov-filestore
+- egov-persister
+- egov-mdms
+- egov-idgen
+- egov-boundaryservice-v2
+
+#### Health services
+- health-project
+- health-hrms
+- health-facility
+
+### Swagger API Contract
+Please refer to the below Swagger API contract, for ProjectFactory service to understand the structure of APIs and to have visualization of all internal APIs [Swagger API contract](https://editor.swagger.io/?url=https://raw.githubusercontent.com/jagankumar-egov/DIGIT-Specs/hcm-workbench/Domain%20Services/Health/project-factory.yaml)
 
 
 ## Service Details
 
-project-factory-service service is new service being added which can work in between existing microservices.  With this service the existing API endpoints need not be exposed to frontend.
+### Funcatinality
+1. ProjectFactory Service manages campaigns: creation, updating, searching, and data generation.
+2. Project Mapping : In campaign creation full project mapping is done with staff, facility and resources along with proper target values.
+3. Create Data: Validates and creates resource details of type facility,user and boundary.
+4. Generate Data: Generates sheet data of type facility,user and boundary.
+5. Boundary and Resource Validation: Validates boundaries and resources during campaign creation and updating.
 
-For any new requirement one new endpoint with validations and logic for getting data from multiple microservice has to be added in the code. With separate endpoint for each pdf we can define access rules per pdf basis. Currently project-factory-service service has endpoint for following pdfs used in our system:-
+### Feature
+1. Functionality to create campaigns easily.
+2. Uploading generated datas sheets to filestore and return filestore id for easy access.
+3. Supports localisation.
+4. Customizable Delivery Rules: Allows defining delivery rules for projects based on specific criteria.
+5. Search and Filtering: Enables searching and filtering campaigns based on various parameters like status, date, and creator.
+6. Batch Processing: Supports batch processing for creating and updating multiple campaigns simultaneously.
 
-#### Configurations
+### External Libraries Used
+[xlsx](https://github.com/SheetJS/sheetjs):- For reading and writing Excel files.
 
-**Steps/guidelines for adding support for new API's:**
+[ajv](https://github.com/ajv-validator/ajv):- For JSON schema validation.
 
-
-- Follow code of [existing supported PDFs](https://github.com/egovernments/utilities/tree/master/egov-pdf/src/routes) and create new endpoint with suitable search parameters for each api
-
-- Put parameters validations, module level validations ex:- application status,applicationtype and api error responses with proper error messages and error codes
-
-- Add access to endpoint in MDMS for suitable roles
-
-### API Details
-Currently below endpoints are in use for 'EMPLOYEE’ roles
-
-###Flow Diagram
-![Flow](https://github.com/egovernments/DIGIT-Works/blob/04689228d238592a34e832be2997a0f05ac956f8/utilities/project-factory/docs/flowdiagram.png?raw=true)
+[lodash](https://github.com/lodash/lodash):- For utility functions like data manipulation and object iteration.
 
 
+### Configuration
 
-## Install, Build, Run
+-   Persister config: [here](https://github.com/egovernments/configs/blob/UNIFIED-UAT/health/egov-persister/project-factory-persister.yml)
+-   Helm chart details: [here](https://github.com/egovernments/DIGIT-DevOps/blob/unified-env/deploy-as-code/helm/charts/health-services/project-factory/values.yaml)
+  
+### API Endpoints
 
-Install node package dependencies:
-
-`$ npm install`
-
-Build:
-
-`$ npm run build`
-
-Run ExpressJS server:
-
-`$ npm start`
-
-## Recommendation
-
-Keep all TypeScript source files in the `src` folder.
-
-## Future Goals
-
-* Add more sample code like Routes, Controllers, and Views
-* Add Webpack
-* Add unit-test sample code for Jest
+-   `/project-factory/v1/project-type/create`: Creates a new project type campaign.
+-   `/project-factory/v1/project-type/update`: Updates an existing project type campaign.
+-   `/project-factory/v1/project-type/search`: Searches for project type campaigns based on specified criteria.
+-   `/project-factory/v1/data/_create`: Creates or validates resource data (e.g., facility, user, boundary).
+-   `/project-factory/v1/data/_search`: Searches for resource data based on specified criteria.
+-   `/project-factory/v1/data/_generate`: Initiates the generation of new data based on provided parameters.
+-   `/project-factory/v1/data/_download`: Downloads resource data based on specified criteria.
 
 
 ### Kafka Consumers
-NA
+
+-   start-campaign-mapping: This topic is used by the service to initiate the mapping process for campaigns.
 
 ### Kafka Producers
-NA
 
-## License
-
-MIT © [jagankumar-egov](https://github.com/jagankumar-egov)
+-   save-project-campaign-details: This topic is used to save project campaign details after creation.
+-   update-project-campaign-details: This topic is used to update project campaign details.
+-   create-resource-details: This topic is used to create resource details.
+-   update-resource-details: This topic is used to update resource details.
+-   create-resource-activity: This topic is used to create resource activity creation.
+-   create-generated-resource-details: This topic is used to save details for generated resources.
+-   update-generated-resource-details: This topic is used to update details for generated resources.
