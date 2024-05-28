@@ -5,7 +5,7 @@ import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
-import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
+import { callMdmsSchema, getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
@@ -416,13 +416,10 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   }
 
   else {
-    const schemaMasterName: string = type === 'facility' ? config?.facility?.facilitySchemaMasterName : type === 'user' ? config?.user?.userSchemaMasterName : "";
-    const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, schemaMasterName, tenantId);
     let schema: any;
-    if (type === 'facility') {
-      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].facilitySchema[0];
-    } if (type === 'user') {
-      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].userSchema[0];
+    if (type == "facility" || type == "user") {
+      const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
+      schema = mdmsResponse
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
@@ -611,13 +608,10 @@ async function processCreate(request: any, localizationMap?: any) {
   else {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
-    const schemaMasterName: string = type === 'facility' ? config?.facility?.facilitySchemaMasterName : type === 'user' ? config?.user?.userSchemaMasterName : "";
-    const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, schemaMasterName, tenantId);
     let schema: any;
-    if (type === 'facility') {
-      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].facilitySchema[0];
-    } if (type === 'user') {
-      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].userSchema[0];
+    if (type == "facility" || type == "user") {
+      const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
+      schema = mdmsResponse
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)

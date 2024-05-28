@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { logger } from "./logger";
@@ -463,8 +463,8 @@ function correctParentValues(campaignDetails: any) {
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
-  const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, config?.facility?.facilitySchemaMasterName, tenantId);
-  const keys = mdmsResponse.MdmsRes[config?.values?.moduleName].facilitySchema[0].required;
+  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
+  const keys = schema?.required;
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -615,8 +615,8 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
-  const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, config?.user?.userSchemaMasterName, tenantId)
-  const headers = mdmsResponse.MdmsRes[config?.values?.moduleName].userSchema[0].required;
+  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
+  const headers = schema?.required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");
