@@ -147,7 +147,7 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     if (projectMappingResponse) {
         logger.info("Campaign Mapping done")
         messageObject.CampaignDetails.status = campaignStatuses.inprogress
-        produceModifiedMessages(messageObject, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
+        produceModifiedMessages(messageObject, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
     }
 }
 

@@ -4,7 +4,7 @@ import { logger } from "../utils/logger";
 
 // Creating a new Kafka client instance using the configured Kafka broker host
 const kafkaClient = new KafkaClient({
-    kafkaHost: config.KAFKA_BROKER_HOST, // Configuring Kafka broker host
+    kafkaHost: config?.host?.KAFKA_BROKER_HOST, // Configuring Kafka broker host
     connectRetryOptions: { retries: 1 }, // Configuring connection retry options
 });
 

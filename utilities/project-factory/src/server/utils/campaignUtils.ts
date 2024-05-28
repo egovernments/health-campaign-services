@@ -229,7 +229,7 @@ async function updateStatusFileForTargets(request: any, localizationMap?: { [key
     const sheetNames = workbook.SheetNames;
     const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap)
     localizedSheetNames.forEach((sheetName: any) => {
-        if (sheetName != getLocalizedName(config.boundaryTab, localizationMap) && sheetName != getLocalizedName(config.readMeTab, localizationMap)) {
+        if (sheetName != getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && sheetName != getLocalizedName(config.values.readMeTab, localizationMap)) {
             processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
         }
     });
@@ -358,12 +358,12 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         },
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors } || {}
     };
-    produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
     if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
         logger.info("Activities to persist : " + JSON.stringify(request?.body?.Activities));
         await new Promise(resolve => setTimeout(resolve, 2000));
-        produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
 
@@ -418,7 +418,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
         ...requestBody?.CampaignDetails?.additionalDetails,
         error: String((error?.message + " : " + error?.description) || error)
     }
-    const topic = config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(requestBody, topic);
     delete requestBody.CampaignDetails.campaignDetails
 }
@@ -448,7 +448,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     else {
         request.body.CampaignDetails.projectId = null
     }
-    const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    const topic = firstPersist ? config?.kafka?.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     delete request.body.CampaignDetails.codesTargetMapping
     produceModifiedMessages(request?.body, topic);
     delete request.body.CampaignDetails.campaignDetails
@@ -488,7 +488,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
         request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
     delete request.body.CampaignDetails.codesTargetMapping
-    produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
 }
@@ -527,7 +527,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
         requestBody.localizationMap = localizationMap
         logger.info("Persisting CampaignProjectMapping : " + JSON.stringify(requestBody));
-        produceModifiedMessages(requestBody, config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
+        produceModifiedMessages(requestBody, config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
     }
 }
 
@@ -1424,7 +1424,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     logger.info("Initiated the localisation message creation for the uploaded boundary");
     transformAndCreateLocalisation(boundaryMap, request);
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
-    const headers = [...modifiedHierarchy, config.boundaryCode];
+    const headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
     const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
     const boundarySheetData = await createExcelSheet(data, localizedHeaders, localizedBoundaryTab);
@@ -1474,7 +1474,7 @@ function modifyBoundaryDataHeaders(boundaryData: any[], hierarchy: any[], locali
         let hierarchyIndex = 0; // Track the index of the hierarchy array
 
         for (const key in obj) {
-            if (key != getLocalizedName(config.boundaryCode, localizationMap)) {
+            if (key != getLocalizedName(config?.boundary?.boundaryCode, localizationMap)) {
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
                     const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
                     updatedObj[hierarchyKey] = obj[key]; // Map the key to the updated object

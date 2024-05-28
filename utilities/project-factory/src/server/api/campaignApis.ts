@@ -416,13 +416,13 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   }
 
   else {
-    const schemaMasterName: string = type === 'facility' ? config.facilitySchemaMasterName : type === 'user' ? config.userSchemaMasterName : "";
-    const mdmsResponse = await callMdmsData(request, config.moduleName, schemaMasterName, tenantId);
+    const schemaMasterName: string = type === 'facility' ? config?.facility?.facilitySchemaMasterName : type === 'user' ? config?.user?.userSchemaMasterName : "";
+    const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, schemaMasterName, tenantId);
     let schema: any;
     if (type === 'facility') {
-      schema = mdmsResponse.MdmsRes[config.moduleName].facilitySchema[0];
+      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].facilitySchema[0];
     } if (type === 'user') {
-      schema = mdmsResponse.MdmsRes[config.moduleName].userSchema[0];
+      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].userSchema[0];
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
@@ -568,11 +568,11 @@ async function handleResouceDetailsError(request: any, error: any) {
         message: error.message || ''
       })
     };
-    produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
 }
 
@@ -611,13 +611,13 @@ async function processCreate(request: any, localizationMap?: any) {
   else {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
-    const schemaMasterName: string = type === 'facility' ? config.facilitySchemaMasterName : type === 'user' ? config.userSchemaMasterName : "";
-    const mdmsResponse = await callMdmsData(request, config.moduleName, schemaMasterName, tenantId);
+    const schemaMasterName: string = type === 'facility' ? config?.facility?.facilitySchemaMasterName : type === 'user' ? config?.user?.userSchemaMasterName : "";
+    const mdmsResponse = await callMdmsData(request, config?.values?.moduleName, schemaMasterName, tenantId);
     let schema: any;
     if (type === 'facility') {
-      schema = mdmsResponse.MdmsRes[config.moduleName].facilitySchema[0];
+      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].facilitySchema[0];
     } if (type === 'user') {
-      schema = mdmsResponse.MdmsRes[config.moduleName].userSchema[0];
+      schema = mdmsResponse.MdmsRes[config?.values?.moduleName].userSchema[0];
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
