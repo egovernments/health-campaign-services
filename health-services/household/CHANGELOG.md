@@ -2,7 +2,7 @@ All notable changes to this module will be documented in this file.
 
 ## 1.1.2 - 2024-05-10
 - Integrated Boundary v2 functionality
-- 
+  
 ## 1.1.1 - 2023-11-15
 
 - Added total count for household
