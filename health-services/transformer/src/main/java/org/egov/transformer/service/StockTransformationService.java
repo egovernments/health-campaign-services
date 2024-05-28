@@ -163,7 +163,6 @@ public abstract class StockTransformationService implements TransformationServic
         private void getBailsAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
             int manualScans = 0;
             int actualBailScans = 0;
-            List<String> actualBailsStringTempList = new ArrayList<>();
 
             for (Field field : additionalFields.getFields()) {
                 String key = field.getKey();
@@ -176,8 +175,7 @@ public abstract class StockTransformationService implements TransformationServic
                         additionalDetails.put(key, value);
                     } else if (BALES_QUANTITY.equalsIgnoreCase(key)) {
                         additionalDetails.put(BALES_QUANTITY_INDEX_KEY, Integer.parseInt(value));
-                    } else if (!actualBailsStringTempList.contains(key)) {
-                        actualBailsStringTempList.add(key);
+                    } else {
                         actualBailScans++;
                     }
                 }
