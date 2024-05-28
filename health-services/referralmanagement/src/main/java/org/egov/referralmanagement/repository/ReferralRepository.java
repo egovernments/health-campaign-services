@@ -60,14 +60,13 @@ public class ReferralRepository extends GenericRepository<Referral> {
         if (lastChangedSince != null) {
             query = query + "and r.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY r.createdtime DESC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        query = query + "ORDER BY r.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY r.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         List<Referral> referralList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);

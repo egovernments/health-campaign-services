@@ -51,7 +51,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         Map<String, Object> paramsMap = new HashMap<>();
         StringBuilder queryBuilder = new StringBuilder();
 
-        String query = "SELECT * FROM household_member ";
+        String query = "SELECT * FROM household_member";
 
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(householdMemberSearch, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
