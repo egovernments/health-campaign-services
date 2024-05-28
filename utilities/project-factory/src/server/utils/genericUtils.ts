@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { logger } from "./logger";
@@ -17,7 +17,6 @@ import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationU
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 const NodeCache = require("node-cache");
-const _ = require('lodash');
 
 const updateGeneratedResourceTopic = config.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
 const createGeneratedResourceTopic = config.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -366,67 +365,6 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
   });
 }
 
-async function callSearchApi(request: any, response: any) {
-  try {
-    let result: any;
-    const { type } = request.query;
-    result = await searchMDMS([type], config.SEARCH_TEMPLATE, request.body.RequestInfo, response);
-    const filter = request?.body?.Filters;
-    const requestBody = { "RequestInfo": request?.body?.RequestInfo, filter };
-    const responseData = result?.mdms?.[0]?.data;
-    if (!responseData || responseData.length === 0) {
-      return errorResponder({ message: "Invalid ApiResource Type. Check Logs" }, request, response);
-    }
-    const host = responseData?.host;
-    const url = responseData?.searchConfig?.url;
-    var queryParams: any = {};
-    for (const searchItem of responseData?.searchConfig?.searchBody) {
-      if (searchItem.isInParams) {
-        queryParams[searchItem.path] = searchItem.value;
-      }
-      else if (searchItem.isInBody) {
-        _.set(requestBody, `${searchItem.path}`, searchItem.value);
-      }
-    }
-    const countknown = responseData?.searchConfig?.isCountGiven === true;
-    let responseDatas: any[] = [];
-    const searchPath = responseData?.searchConfig?.keyName;
-    let fetchedData: any;
-    let responseObject: any;
-
-    if (countknown) {
-      const count = await getCount(responseData, request, response);
-      let noOfTimesToFetchApi = Math.ceil(count / queryParams.limit);
-      for (let i = 0; i < noOfTimesToFetchApi; i++) {
-        responseObject = await httpRequest(host + url, requestBody, queryParams, undefined, undefined, undefined);
-        fetchedData = _.get(responseObject, searchPath);
-        fetchedData.forEach((item: any) => {
-          responseDatas.push(item);
-        });
-        queryParams.offset = (parseInt(queryParams.offset) + parseInt(queryParams.limit)).toString();
-      }
-    }
-
-    else {
-      while (true) {
-        responseObject = await httpRequest(host + url, requestBody, queryParams, undefined, undefined, undefined);
-        fetchedData = _.get(responseObject, searchPath);
-        fetchedData.forEach((item: any) => {
-          responseDatas.push(item);
-        });
-        queryParams.offset = (parseInt(queryParams.offset) + parseInt(queryParams.limit)).toString();
-        if (fetchedData.length < parseInt(queryParams.limit)) {
-          break;
-        }
-      }
-    }
-    return responseDatas;
-  }
-  catch (e: any) {
-    logger.error(String(e))
-    return errorResponder({ message: String(e) + "    Check Logs" }, request, response);
-  }
-}
 
 
 async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any) {
@@ -1003,7 +941,6 @@ export {
   generateAuditDetails,
   generateActivityMessage,
   getResponseFromDb,
-  callSearchApi,
   getModifiedResponse,
   getNewEntryResponse,
   getOldEntryResponse,

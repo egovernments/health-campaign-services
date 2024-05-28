@@ -45,14 +45,15 @@ const config = {
   KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC: process.env.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC || "create-resource-activity",
   KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC || "update-generated-resource-details",
   KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
-  // Default hierarchy type
-  hierarchyType: "NITISH",
+
   // Database configuration
-  DB_USER: process.env.DB_USER || "postgres",
-  DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
-  DB_NAME: process.env.DB_NAME || "postgres",
-  DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
-  DB_PORT: process.env.DB_PORT || "5432",
+  DB_CONFIG: {
+    DB_USER: process.env.DB_USER || "postgres",
+    DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
+    DB_NAME: process.env.DB_NAME || "postgres",
+    DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
+    DB_PORT: process.env.DB_PORT || "5432",
+  },
   // Application configuration
   app: {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
@@ -107,25 +108,19 @@ const config = {
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
     localizationCreate: "localization/messages/v1/_upsert",
     projectTypeSearch: "project-factory/v1/project-type/search",
-    boundaryRelationshipCreate:"boundary-service/boundary-relationships/_create"
+    boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create"
   },
   // Values configuration
   values: {
     userMainBoundary: "mz",
     userMainBoundaryType: "Country",
-    parsingTemplate: "HCM.ParsingTemplate",
-    transfromTemplate: "HCM.TransformTemplate",
-    campaignType: "HCM.HCMTemplate",
-    APIResource: "HCM.APIResourceTemplate3",
     idgen: {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
       idName: process.env.CMP_IDGEN_IDNAME || "campaign.number"
     },
     matchFacilityData: false,
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3"
-  },
-  // Default search template
-  SEARCH_TEMPLATE: "HCM.APIResourceTemplate3"
+  }
 };
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
