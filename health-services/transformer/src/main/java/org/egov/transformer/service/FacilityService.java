@@ -87,4 +87,15 @@ public class FacilityService {
         }
         return null;
     }
+    public String getType(String transactingFacilityType, Facility transactingFacility) {
+        AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
+        if (transactingFacilityAdditionalFields != null) {
+            List<Field> fields = transactingFacilityAdditionalFields.getFields();
+            Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+            if (field.isPresent() && field.get().getValue() != null) {
+                transactingFacilityType = field.get().getValue();
+            }
+        }
+        return transactingFacilityType;
+    }
 }
