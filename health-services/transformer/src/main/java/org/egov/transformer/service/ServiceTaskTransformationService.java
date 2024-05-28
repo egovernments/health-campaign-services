@@ -77,7 +77,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             String projectName = parts[0];
             String supervisorLevel = parts[2];
             String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
-            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
             return Collections.singletonList(ServiceIndexV1.builder()

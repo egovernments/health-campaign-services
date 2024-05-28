@@ -134,4 +134,10 @@ public class PropertiesManager {
 
 	@Value("${egov.hrms.auto.generate.password}")
 	private boolean autoGeneratePassword;
+
+	@Value("${egov.boundary.host}")
+	private String boundaryServiceHost;
+
+	@Value("${egov.boundary.search.url}")
+	private String boundarySearchUrl;
 }

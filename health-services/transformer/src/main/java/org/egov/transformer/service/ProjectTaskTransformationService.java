@@ -68,10 +68,10 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Map<String, String> boundaryLabelToNameMap = null;
             if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
+                        .getBoundaryCodeToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
             } else {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), task.getTenantId());
+                        .getBoundaryCodeToNameMapByProjectId(task.getProjectId(), task.getTenantId());
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;

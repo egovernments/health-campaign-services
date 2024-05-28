@@ -11,6 +11,7 @@ import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
 import org.egov.facility.service.enrichment.FacilityEnrichmentService;
+import org.egov.facility.validator.FBoundaryValidator;
 import org.egov.facility.validator.FIsDeletedValidator;
 import org.egov.facility.validator.FNonExistentValidator;
 import org.egov.facility.validator.FNullIdValidator;
@@ -52,12 +53,16 @@ public class FacilityService {
 
     private final FacilityEnrichmentService enrichmentService;
 
+    private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForCreate =
+            validator -> validator.getClass().equals(FBoundaryValidator.class);
+
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForUpdate =
             validator -> validator.getClass().equals(FIsDeletedValidator.class)
-            || validator.getClass().equals(FNonExistentValidator.class)
-            || validator.getClass().equals(FNullIdValidator.class)
-            || validator.getClass().equals(FRowVersionValidator.class)
-            || validator.getClass().equals(FUniqueEntityValidator.class);
+                    || validator.getClass().equals(FBoundaryValidator.class)
+                    || validator.getClass().equals(FNonExistentValidator.class)
+                    || validator.getClass().equals(FNullIdValidator.class)
+                    || validator.getClass().equals(FRowVersionValidator.class)
+                    || validator.getClass().equals(FUniqueEntityValidator.class);
 
     private final Predicate<Validator<FacilityBulkRequest, Facility>> isApplicableForDelete =
             validator -> validator.getClass().equals(FNonExistentValidator.class)
@@ -83,9 +88,12 @@ public class FacilityService {
 
     public List<Facility> create(FacilityBulkRequest request, boolean isBulk) {
         log.info("starting create method for facility");
-        Map<Facility, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Facility> validEntities = request.getFacilities();
 
+        Tuple<List<Facility>, Map<Facility, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request, SET_FACILITIES, GET_FACILITIES, VALIDATION_ERROR,
+                isBulk);
+        Map<Facility, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Facility> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
