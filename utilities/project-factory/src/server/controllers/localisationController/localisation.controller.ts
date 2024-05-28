@@ -15,7 +15,7 @@ class Localisation {
   // Hold the single instance of the class
   private static instance: Localisation;
   constructor() {
-    this.localizationHost=config.host.localizationHost
+    this.localizationHost = config.host.localizationHost
   }
   // Public method to provide access to the single instance
   public static getInstance(): Localisation {
@@ -25,13 +25,13 @@ class Localisation {
     return Localisation.instance;
   }
 
-  private getLocalisationMap = (): any => {
-    //{
-    return Object.values(this.cachedResponse).reduce((acc: any, curr: any) => {
-      acc = { ...acc, ...curr };
-      return acc;
-    }, {}); //
-  };
+  // private getLocalisationMap = (): any => {
+  //   //{
+  //   return Object.values(this.cachedResponse).reduce((acc: any, curr: any) => {
+  //     acc = { ...acc, ...curr };
+  //     return acc;
+  //   }, {}); //
+  // };
   // search localization
   public getLocalisedData: any = async (
     module: string,
@@ -46,7 +46,7 @@ class Localisation {
       await this.fetchLocalisationMessage(module, locale, tenantId);
     }
     logger.info(`Found in cache`);
-    return this.getLocalisationMap();
+    return this?.cachedResponse?.[`${module}-${locale}`];
   };
   // fetch localization messages
   private fetchLocalisationMessage = async (
@@ -99,7 +99,7 @@ class Localisation {
       const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint
       const url =
-      this.localizationHost + config.paths.localizationCreate;
+        this.localizationHost + config.paths.localizationCreate;
       // Log the start of the localisation messages creation process
       logger.info("Creating the localisation messages");
       // Send HTTP POST request to create localisation messages

@@ -6,6 +6,7 @@ import { enrichResourceDetails, getLocalizedMessagesHandler, getResponseFromDb, 
 import { logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
+import { getLocalisationModuleName } from "../utils/localisationUtils";
 
 const generateDataService = async (request: express.Request) => {
     // Validate the generate request
@@ -36,7 +37,11 @@ const downloadDataService = async (request: express.Request) => {
 const getBoundaryDataService = async (
     request: express.Request
 ) => {
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId || 'mz');
+    const { hierarchyType } = request?.query;
+    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+    // const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId || 'mz');
     // Retrieve boundary sheet data
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
     // Create and upload file

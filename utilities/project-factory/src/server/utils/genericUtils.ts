@@ -436,8 +436,9 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     // send message to create toppic
     logger.info(`processing the generate request for type ${type}`)
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
-    hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       const result = await getBoundaryDataService(request);
