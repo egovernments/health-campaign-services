@@ -16,8 +16,6 @@ const requestSchema = object({
 const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
     logger.info(`RECEIVED A HTTP REQUEST :: URI :: ${req.url}`);
-    logger.info(`RECEIVED A HTTP REQUEST ::  ${JSON.stringify(req)}`);
-
     // Check if the content type is 'application/json'
     const contentType = req.headers['content-type'];
     if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json')) {
