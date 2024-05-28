@@ -16,8 +16,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.models.core.EgovOfflineSearchModel;
+import org.egov.common.models.core.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 /**
