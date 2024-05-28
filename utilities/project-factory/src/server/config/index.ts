@@ -18,6 +18,7 @@ const config = {
     generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
     // default configurable number of data of boundary type on which generate different tabs
     numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
+    boundaryRelationShipDelay: 3500
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
