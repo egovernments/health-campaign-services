@@ -2,6 +2,7 @@ package org.egov.hrms.service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.Address;
@@ -23,8 +25,6 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearch;
-import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.models.individual.Name;
 import org.egov.common.models.individual.UserDetails;
 import org.egov.hrms.config.PropertiesManager;
@@ -33,6 +33,8 @@ import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
+import org.egov.hrms.web.models.IndividualSearch;
+import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
@@ -86,13 +88,25 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse getUser(RequestInfo requestInfo, Map<String, Object> userSearchCriteria ) {
+        String mobileNumber = (String) userSearchCriteria.get("mobileNumber");
+        String username = (String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME);
+        List<String> mobileNumberList = null;
+        List<String> usernameList = null;
+        if(!StringUtils.isEmpty(mobileNumber)) {
+            mobileNumberList = Collections.singletonList(mobileNumber);
+        }
+        if(!StringUtils.isEmpty(username)) {
+            usernameList = Collections.singletonList(username);
+        }
         IndividualSearchRequest request = IndividualSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .individual(IndividualSearch.builder()
-                        .mobileNumber((String) userSearchCriteria.get("mobileNumber"))
+                        .mobileNumber(
+                                mobileNumberList
+                        )
                         .id((List<String>) userSearchCriteria.get("uuid"))
                         .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
-                        .username((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME))
+                        .username(usernameList)
                         // given name
                         .individualName((String) userSearchCriteria
                                 .get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME))

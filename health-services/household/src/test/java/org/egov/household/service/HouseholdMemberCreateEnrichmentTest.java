@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import org.egov.common.ds.Tuple;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.household.helper.HouseholdMemberBulkRequestTestBuilder;
@@ -45,11 +46,10 @@ class HouseholdMemberCreateEnrichmentTest {
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
-        )).thenReturn(new Tuple(1L,
-                Collections.singletonList(
-                        Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build())
-            )
-        );
+        )).thenReturn(SearchResponse.<Household>builder()
+                .response(Collections.singletonList(
+                Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build()))
+                .build());
     }
 
     @Test

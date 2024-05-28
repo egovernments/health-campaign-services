@@ -675,6 +675,24 @@ definitions:
         type: array
         items:
           type: string
+      sideEffectId:
+        type: array
+        items:
+          type: string
+      sideEffectClientReferenceId:
+        type: array
+        items:
+          type: string
+      referrerId:
+        type: array
+        items:
+          type: string
+      recipientId:
+        type: array
+        items:
+          type: string
+
+
   ReferralSearchRequest:
     type: object
     properties:

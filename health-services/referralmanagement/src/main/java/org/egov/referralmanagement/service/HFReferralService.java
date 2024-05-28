@@ -20,6 +20,7 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HFReferralRepository;
 import org.egov.referralmanagement.service.enrichment.HFReferralEnrichmentService;
+import org.egov.referralmanagement.validator.hfreferral.HfrExistentEntityValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrIsDeletedValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrNullIdValidator;
@@ -60,6 +61,7 @@ public class HFReferralService {
     // Predicates to determine which validators are applicable for create, update, and delete operations
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForCreate = validator ->
             validator.getClass().equals(HfrProjectIdValidator.class)
+                    || validator.getClass().equals(HfrExistentEntityValidator.class)
                     || validator.getClass().equals(HfrProjectFacilityIdValidator.class);
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForUpdate = validator ->

@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.repository;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
@@ -16,6 +17,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
@@ -67,7 +69,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         return idToObjMap;
     }
 
-    public List<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
+    public SearchResponse<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) {
     	
         String query = "SELECT * FROM side_effect ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
@@ -86,14 +88,18 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         if (lastChangedSince != null) {
             query = query + "and as.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY ae.createdtime DESC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+
+        query = query + "ORDER BY ae.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
+
         List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        return sideEffectList;
+        return SearchResponse.<SideEffect>builder().response(sideEffectList).totalCount(totalCount).build();
     }
 
     public List<SideEffect> findById(List<String> ids, String columnName, Boolean includeDeleted) {

@@ -26,6 +26,11 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 
+/**
+ * Generic Repository Class for common data operations.
+ *
+ * @param <T> The type of entity this repository deals with.
+ */
 @Slf4j
 public abstract class GenericRepository<T> {
 
@@ -56,10 +61,23 @@ public abstract class GenericRepository<T> {
         tableName.ifPresent(tb -> this.tableName = tb);
     }
 
+    /**
+     * Finds entities by their IDs.
+     *
+     * @param ids The list of IDs to search for.
+     * @return A list of entities found by the given IDs.
+     */
     public List<T> findById(List<String> ids) {
         return findById(ids, false);
     }
 
+    /**
+     * Finds entities by their IDs with an option to include deleted entities.
+     *
+     * @param ids            The list of IDs to search for.
+     * @param includeDeleted Flag to include deleted entities in the search result.
+     * @return A list of entities found by the given IDs.
+     */
     protected List<T> findInCache(List<String> ids) {
         ArrayList<T> objFound = new ArrayList<>();
         Collection<Object> collection = ids.stream().filter(Objects::nonNull)
@@ -81,10 +99,27 @@ public abstract class GenericRepository<T> {
         return objFound;
     }
 
+    /**
+     * Finds entities by their IDs with an option to include deleted entities,
+     * using the default column name "id" for ID search.
+     *
+     * @param ids            The list of IDs to search for.
+     * @param includeDeleted Flag to include deleted entities in the search result.
+     * @return A list of entities found by the given IDs.
+     */
     public List<T> findById(List<String> ids, Boolean includeDeleted) {
+        // Delegates to the main findById method with the default column name "id"
         return findById(ids, includeDeleted, "id");
     }
 
+    /**
+     * Finds entities by their IDs with options to include deleted entities and specify a column name.
+     *
+     * @param ids            The list of IDs to search for.
+     * @param includeDeleted Flag to include deleted entities in the search result.
+     * @param columnName     The name of the column to search IDs in.
+     * @return A list of entities found by the given IDs.
+     */
     public List<T> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         List<T> objFound = findInCache(ids);
 
@@ -115,6 +150,13 @@ public abstract class GenericRepository<T> {
         return objFound;
     }
 
+    /**
+     * Saves entities to Kafka and caches them.
+     *
+     * @param objects The list of entities to save.
+     * @param topic   The Kafka topic to push the entities to.
+     * @return The list of saved entities.
+     */
     public List<T> save(List<T> objects, String topic) {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
@@ -123,6 +165,14 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    /**
+     * Saves entities to Kafka, caches them with specified cache key.
+     *
+     * @param objects  The list of entities to save.
+     * @param topic    The Kafka topic to push the entities to.
+     * @param cacheKey The cache key to use for caching the entities.
+     * @return The list of saved entities.
+     */
     public List<T> save(List<T> objects, String topic, String cacheKey) {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
@@ -131,6 +181,7 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    // Cache objects by key
     protected void cacheByKey(List<T> objects, String fieldName) {
         try{
             Method getIdMethod = getIdMethod(objects, fieldName);
@@ -154,6 +205,11 @@ public abstract class GenericRepository<T> {
         }
     }
 
+    /**
+     * Puts objects in cache.
+     *
+     * @param objects The list of objects to put in cache.
+     */
     public void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
@@ -163,6 +219,12 @@ public abstract class GenericRepository<T> {
         // cacheByKey(objects, "id");
     }
 
+    /**
+     * Puts objects in cache with specified cache key.
+     *
+     * @param objects The list of objects to put in cache.
+     * @param key     The cache key to use for caching the objects.
+     */
     public void putInCache(List<T> objects, String key) {
         if(objects == null || objects.isEmpty()) {
             return;
@@ -171,15 +233,27 @@ public abstract class GenericRepository<T> {
         cacheByKey(objects, key);
     }
 
+    /**
+     * Finds entities based on search criteria.
+     *
+     * @param searchObject     The object containing search criteria.
+     * @param limit            The maximum number of entities to return.
+     * @param offset           The offset for pagination.
+     * @param tenantId         The tenant ID to filter entities.
+     * @param lastChangedSince The timestamp for last modified entities.
+     * @param includeDeleted   Flag to include deleted entities in the search result.
+     * @return A list of entities found based on the search criteria.
+     * @throws QueryBuilderException If an error occurs while building the query.
+     */
     public List<T> find(Object searchObject,
-                              Integer limit,
-                              Integer offset,
-                              String tenantId,
-                              Long lastChangedSince,
-                              Boolean includeDeleted) throws QueryBuilderException {
-        String query = selectQueryBuilder.build(searchObject);
+                        Integer limit,
+                        Integer offset,
+                        String tenantId,
+                        Long lastChangedSince,
+                        Boolean includeDeleted) throws QueryBuilderException {
+        String query = selectQueryBuilder.build(searchObject, tableName);
         query += " AND tenantId=:tenantId ";
-        if (query.contains(tableName + " AND")) {
+        if (query.contains(tableName + "  AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
         }
         if (Boolean.FALSE.equals(includeDeleted)) {
@@ -198,6 +272,13 @@ public abstract class GenericRepository<T> {
         return namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
     }
 
+    /**
+     * Validates IDs against existing entities.
+     *
+     * @param idsToValidate The list of IDs to validate.
+     * @param columnName    The name of the column containing IDs.
+     * @return A list of valid IDs.
+     */
     public List<String> validateIds(List<String> idsToValidate, String columnName){
         List<T> validIds = findById(idsToValidate, false, columnName);
         if (validIds.isEmpty()) {

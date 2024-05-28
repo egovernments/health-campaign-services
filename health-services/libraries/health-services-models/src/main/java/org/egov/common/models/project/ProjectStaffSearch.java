@@ -1,15 +1,15 @@
 package org.egov.common.models.project;
 
 import java.util.List;
-import javax.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -17,22 +17,12 @@ import org.springframework.validation.annotation.Validated;
  */
 @ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectStaffSearch {
-
-
-    @JsonProperty("id")
-    private List<String> id = null;
-
-    @JsonProperty("tenantId")
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
+public class ProjectStaffSearch extends EgovSearchModel {
 
     @JsonProperty("staffId")
     private List<String> staffId = null;

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdRequest;
@@ -12,12 +13,14 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
+import org.egov.household.validators.household.HExistentEntityValidator;
+import org.egov.household.validators.household.HBoundaryValidator;
 import org.egov.household.validators.household.HIsDeletedValidator;
-import org.egov.household.validators.household.HNonExsistentEntityValidator;
+import org.egov.household.validators.household.HNonExistentEntityValidator;
 import org.egov.household.validators.household.HNullIdValidator;
 import org.egov.household.validators.household.HRowVersionValidator;
 import org.egov.household.validators.household.HUniqueEntityValidator;
-import org.egov.household.web.models.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -56,16 +59,21 @@ public class HouseholdService {
 
     private final HouseholdEnrichmentService enrichmentService;
 
+    private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
+            validator.getClass().equals(HBoundaryValidator.class)
+                || validator.getClass().equals(HExistentEntityValidator.class);
+
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
+                    || validator.getClass().equals(HBoundaryValidator.class)
                     || validator.getClass().equals(HIsDeletedValidator.class)
                     || validator.getClass().equals(HUniqueEntityValidator.class)
-                    || validator.getClass().equals(HNonExsistentEntityValidator.class)
+                    || validator.getClass().equals(HNonExistentEntityValidator.class)
                     || validator.getClass().equals(HRowVersionValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
-                    || validator.getClass().equals(HNonExsistentEntityValidator.class)
+                    || validator.getClass().equals(HNonExistentEntityValidator.class)
                     || validator.getClass().equals(HRowVersionValidator.class);
 
     @Autowired
@@ -91,8 +99,11 @@ public class HouseholdService {
 
     public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
         log.info("received request to create households");
-        Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Household> validEntities = request.getHouseholds();
+        Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request,
+                isBulk);
+        Map<Household, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Household> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
@@ -108,34 +119,33 @@ public class HouseholdService {
         return request.getHouseholds();
     }
 
-    public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<Household> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
+                                            Long lastChangedSince, Boolean includeDeleted) {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdSearch)),
                     householdSearch);
-            Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(ids,
+            SearchResponse<Household> householdsTuple = householdRepository.findById(ids,
                     idFieldName, includeDeleted);
-            List<Household> households = householdsTuple.getY().stream()
+            List<Household> households = householdsTuple.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             log.info("households found for search by id, size: {}", households.size());
-            return new Tuple<>(householdsTuple.getX(), households);
+            return SearchResponse.<Household>builder().totalCount(Long.valueOf(households.size())).response(households).build();
         }
         try {
-            new Tuple<>(null, Collections.emptyList());
-            Tuple<Long, List<Household>> householdsTuple;
+            SearchResponse<Household> searchResponse;
             if(Boolean.TRUE.equals(isProximityBasedSearch(householdSearch))) {
-                householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
+                searchResponse = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
             } else {
-                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
+                searchResponse = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
             }
-            log.info("households found for search, size: {}", householdsTuple.getY().size());
-            return householdsTuple;
+            log.info("households found for search, size: {}", searchResponse.getResponse().size());
+            return searchResponse;
         } catch (QueryBuilderException e) {
             log.error("error occurred while searching households", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
@@ -205,13 +215,13 @@ public class HouseholdService {
         return request.getHouseholds();
     }
 
-    public Tuple<Long, List<Household>> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+    public SearchResponse<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
         log.info("finding Households by Ids: {} with columnName: {} and includeDeleted: {}",
                 houseHoldIds, columnName, includeDeleted);
         log.info("started finding Households by Ids");
-        Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
-        log.info("finished finding Households by Ids. Found {} Households", householdsTuple.getY().size());
-        return householdsTuple;
+        SearchResponse<Household> searchResponse = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+        log.info("finished finding Households by Ids. Found {} Households", searchResponse.getResponse().size());
+        return searchResponse;
     }
 
     public void putInCache(List<Household> households) {

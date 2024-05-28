@@ -16,8 +16,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.ProjectStaffSearch;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,6 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
