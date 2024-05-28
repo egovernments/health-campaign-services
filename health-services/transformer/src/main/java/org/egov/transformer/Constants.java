@@ -18,7 +18,7 @@ public interface Constants {
             "comments", "baleMismtachComments", "manualScanComments"
     ));
     String BALES_QUANTITY = "bales_quantity";
-    String MANUAL_SCAN = "manualScan";
+    String MANUAL_SCAN = "manualScan-";
     String MANUAL_SCANS_INDEX_KEY = "manualScans";
     String ACTUAL_BALE_SCANS_INDEX_KEY = "actualBaleScans";
     String  BALES_QUANTITY_INDEX_KEY = "balesQuantity";
