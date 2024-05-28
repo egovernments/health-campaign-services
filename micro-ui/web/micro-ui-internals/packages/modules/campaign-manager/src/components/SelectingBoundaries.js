@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Fragment } from "react";
+import React, { useEffect, useState, Fragment ,useMemo} from "react";
 import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
@@ -39,10 +39,17 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
   const [executionCount, setExecutionCount] = useState(0);
   // State variable to store the lowest hierarchy level
-  const [lowestHierarchy, setLowestHierarchy] = useState(null);
+  // const [lowestHierarchy, setLowestHierarchy] = useState(null);
   const [showPopUp, setShowPopUp] = useState(null);
   const [restrictSelection, setRestrictSelection] = useState(null);
   const [updateBoundary, setUpdateBoundary] = useState(null);
+  const { isLoading, data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
+
+  // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
+  const lowestHierarchy = useMemo(() => hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy, [hierarchyConfig]);
+  const lowestChild = hierarchyTypeDataresult?.boundaryHierarchy.filter((item => item.parentBoundaryType === lowestHierarchy))?.[0]?.boundaryType;
+  const searchParams = new URLSearchParams(location.search);
+  const isDraft = searchParams.get("draft");
 
   useEffect(() => {
     if (!updateBoundary) {
@@ -117,11 +124,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       }
       createHierarchyStructure(hierarchyTypeDataresult);
 
-      setLowestHierarchy(
-        hierarchyTypeDataresult?.boundaryHierarchy?.filter(
-          (e) => !hierarchyTypeDataresult?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
-        )
-      );
     }
   }, [hierarchyTypeDataresult]);
 
@@ -159,7 +161,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   const newData = [];
   const fetchBoundaryTypeData = async () => {
-    if (boundaryType === undefined) {
+    if (boundaryType === undefined || boundaryType === lowestChild) {
       // Do nothing if boundaryType is undefined
       return;
     }
@@ -271,37 +273,40 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         res.push(ob?.[1]);
       });
 
-    const transformedRes = res?.map((item) => ({
+    // const transformedRes = res?.map((item) => ({
+    //   code: item.code,
+    //   type: item.type || item.boundaryType,
+    //   isRoot: item.boundaryType === parentBoundaryTypeRoot,
+    //   includeAllChildren:  item.type === lowestHierarchy || item.boundaryType === lowestHierarchy,
+    //   parent: item?.parent,
+    // }));
+
+    let transformedRes =[];
+    if(!isDraft){
+    transformedRes = res?.map((item) => ({
       code: item.code,
       type: item.type || item.boundaryType,
       isRoot: item.boundaryType === parentBoundaryTypeRoot,
-      includeAllChildren: item.type === lowestHierarchy?.[0]?.boundaryType,
+      includeAllChildren: item.type === lowestHierarchy || item.boundaryType === lowestHierarchy,
       parent: item?.parent,
     }));
-
-    // res.forEach((boundary) => {
-    //   const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
-    //   if (index !== -1) {
-    //     transformedRes[index].includeAllChildren = true;
-    //   }
-    //   // Find the parent boundary type using the hierarchy data
-    //   const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
-    //     ?.parentBoundaryType;
-
-    //   // If the selected boundary has a parent, set includeAllChildren to false for the parent
-    //   if (parentBoundaryType) {
-    //     const parentIndexes = selectedData?.reduce((acc, item, index) => {
-    //       if (item?.type === parentBoundaryType) {
-    //         acc.push(index);
-    //       }
-    //       return acc;
-    //     }, []);
-
-    //     parentIndexes?.forEach((parentIndex) => {
-    //       selectedData[parentIndex].includeAllChildren = true;
-    //     });
-    //   }
-    // });
+  }
+  else{
+    // transformedRes = selectedData.filter((item) => item?.type === boundary?.boundaryType)
+    const filteredData = selectedData.filter((item) => item?.type === boundary?.boundaryType);
+    if (filteredData.length === 0) {
+      // If no selected data for the particular boundary type, run the transformation logic
+      transformedRes = res?.map((item) => ({
+        code: item.code,
+        type: item.type || item.boundaryType,
+        isRoot: item.boundaryType === parentBoundaryTypeRoot,
+        includeAllChildren: item.type === lowestHierarchy || item.boundaryType === lowestHierarchy,
+        parent: item?.parent,
+      }));
+    } else {
+      transformedRes = filteredData;
+    }
+  }
 
     const newBoundaryType = transformedRes?.[0]?.type;
     const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.type : null;
@@ -358,11 +363,20 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         <div className="selecting-boundary-div">
           <Header>{t(`CAMPAIGN_SELECT_BOUNDARY`)}</Header>
           <CardText>{t(`CAMPAIGN_SELECT_BOUNDARIES_DESCRIPTION`)}</CardText>
-          {hierarchyTypeDataresult?.boundaryHierarchy.map((boundary, index) =>
+          {hierarchyTypeDataresult?.boundaryHierarchy
+            .filter((boundary, index, array) => {
+              // Find the index of the lowest hierarchy
+              const lowestIndex = array.findIndex((b) => b.boundaryType === lowestHierarchy);
+              // Include only those boundaries that are above or equal to the lowest hierarchy
+              return index <= lowestIndex;
+            })
+          .map((boundary, index) =>
             boundary?.parentBoundaryType == null ? (
               <LabelFieldPair key={index}>
                 <CardLabel>
-                  {t(`${hierarchy}_${boundary?.boundaryType}`?.toUpperCase())}
+                  {/* {t(`${hierarchy}_${boundary?.boundaryType}`?.toUpperCase())} */}
+                  {t((hierarchy + "_" + boundary?.boundaryType).toUpperCase())}
+
                   <span className="mandatory-span">*</span>
                 </CardLabel>
                 <div className="digit-field">
@@ -382,7 +396,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             ) : (
               <LabelFieldPair key={index}>
                 <CardLabel>
-                  {t(`${hierarchy}_${boundary?.boundaryType}`?.toUpperCase())}
+                {t((hierarchy + "_" + boundary?.boundaryType).toUpperCase())}
                   <span className="mandatory-span">*</span>
                 </CardLabel>
                 <div className="digit-field">

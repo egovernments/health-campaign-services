@@ -1,5 +1,5 @@
 import { Loader, FormComposerV2, Header, MultiUploadWrapper, Button, Close, LogoutIcon } from "@egovernments/digit-ui-react-components";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect , useMemo} from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useParams } from "react-router-dom";
 import { CampaignConfig } from "../../configs/CampaignConfig";
@@ -250,10 +250,16 @@ const SetupCampaign = () => {
     return keyParam ? parseInt(keyParam) : 1;
   });
 
-  const [lowest, setLowest] = useState(null);
+  // const [lowest, setLowest] = useState(null);
   const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const { data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
+    { name: "hierarchyConfig" },
+  ]);
+
+  // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
+  const lowestHierarchy = useMemo(() => hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy, [hierarchyConfig]);
 
   const reqCriteria = {
     url: `/boundary-service/boundary-hierarchy-definition/_search`,
@@ -270,15 +276,15 @@ const SetupCampaign = () => {
 
   const { data: hierarchyDefinition } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
-  useEffect(() => {
-    if (hierarchyDefinition) {
-      setLowest(
-        hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.filter(
-          (e) => !hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
-        )
-      );
-    }
-  }, [hierarchyDefinition]);
+  // useEffect(() => {
+  //   if (hierarchyDefinition) {
+  //     setLowest(
+  //       hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.filter(
+  //         (e) => !hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
+  //       )
+  //     );
+  //   }
+  // }, [hierarchyDefinition]);
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
@@ -833,18 +839,63 @@ const SetupCampaign = () => {
     return false;
   }
 
+  // function validateBoundaryLevel(data) {
+  //   // Extracting boundary types from hierarchy response
+  //   const boundaryTypes = new Set(hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy.map((item) => item?.boundaryType));
+
+  //   // Extracting unique boundary types from data
+  //   const uniqueDataBoundaryTypes = new Set(data?.map((item) => item.type));
+
+  //   // Checking if all unique boundary types from hierarchy response are present in data
+  //   const allBoundaryTypesPresent = [...boundaryTypes].every((type) => uniqueDataBoundaryTypes.has(type));
+
+  //   return allBoundaryTypesPresent;
+  // }
+
   function validateBoundaryLevel(data) {
-    // Extracting boundary types from hierarchy response
-    const boundaryTypes = new Set(hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy.map((item) => item?.boundaryType));
+
+    // Extracting boundary hierarchy from hierarchy definition
+    const boundaryHierarchy = hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy || [];
+
+    // Find the index of the lowest hierarchy
+    const lowestIndex = boundaryHierarchy.findIndex((item) => item?.boundaryType === lowestHierarchy);
+
+    // Create a set of boundary types including only up to the lowest hierarchy
+    const boundaryTypes = new Set(
+      boundaryHierarchy
+        .filter((_, index) => index <= lowestIndex)
+        .map((item) => item?.boundaryType)
+    );
 
     // Extracting unique boundary types from data
     const uniqueDataBoundaryTypes = new Set(data?.map((item) => item.type));
 
-    // Checking if all unique boundary types from hierarchy response are present in data
+    // Checking if all boundary types from the filtered hierarchy are present in data
     const allBoundaryTypesPresent = [...boundaryTypes].every((type) => uniqueDataBoundaryTypes.has(type));
 
     return allBoundaryTypesPresent;
-  }
+}
+
+
+  // function recursiveParentFind(filteredData) {
+  //   const parentChildrenMap = {};
+
+  //   // Build the parent-children map
+  //   filteredData?.forEach((item) => {
+  //     if (item?.parent) {
+  //       if (!parentChildrenMap[item?.parent]) {
+  //         parentChildrenMap[item?.parent] = [];
+  //       }
+  //       parentChildrenMap[item?.parent].push(item.code);
+  //     }
+  //   });
+
+  //   // Check for missing children
+  //   const missingParents = filteredData?.filter((item) => item?.parent && !parentChildrenMap[item.code]);
+  //   const extraParent = missingParents?.filter((i) => i?.type !== lowest?.[0]?.boundaryType);
+
+  //   return extraParent;
+  // }
 
   function recursiveParentFind(filteredData) {
     const parentChildrenMap = {};
@@ -861,10 +912,11 @@ const SetupCampaign = () => {
 
     // Check for missing children
     const missingParents = filteredData?.filter((item) => item?.parent && !parentChildrenMap[item.code]);
-    const extraParent = missingParents?.filter((i) => i?.type !== lowest?.[0]?.boundaryType);
+    const extraParent = missingParents?.filter((i) => i?.type !== lowestHierarchy);
 
     return extraParent;
   }
+
 
   // validating the screen data on clicking next button
   const handleValidate = (formData) => {
