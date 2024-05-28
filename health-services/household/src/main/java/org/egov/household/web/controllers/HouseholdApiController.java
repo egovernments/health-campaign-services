@@ -99,7 +99,7 @@ public class HouseholdApiController {
     @RequestMapping(value = "/member/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
-            @ApiParam(value = "Details for existing household member.", required = true) @Valid @ModelAttribute HouseholdMemberSearchRequest householdMemberSearchRequest
+            @ApiParam(value = "Details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberSearchRequest householdMemberSearchRequest
     ) {
         SearchResponse<HouseholdMember> searchResponse = householdMemberService.search(
                 householdMemberSearchRequest.getHouseholdMemberSearch(),
