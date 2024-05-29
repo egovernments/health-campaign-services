@@ -4,9 +4,14 @@ import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./generi
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
+const axiosInstance = Axios.create({
+  timeout: 10000,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+});
 
 // Axios interceptor to handle response errors
-Axios.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (res: Response) => {
     return res;
   },
