@@ -663,10 +663,15 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
       }
     ]
   }
+  const params = {
+    tenantId: request.body.CampaignDetails.tenantId,
+    offset: 0,
+    limit: 5
+  }
   var projectFound = false;
   var retry = 6;
   while (!projectFound && retry >= 0) {
-    const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, searchBody);
+    const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, searchBody, params);
     if (response?.Project?.[0]) {
       projectFound = true;
     }
