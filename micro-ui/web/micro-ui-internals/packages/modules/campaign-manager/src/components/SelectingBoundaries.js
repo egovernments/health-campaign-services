@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Fragment ,useMemo} from "react";
-import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal } from "@egovernments/digit-ui-react-components";
+import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal, LoaderWithGap } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
@@ -38,6 +38,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [showPopUp, setShowPopUp] = useState(null);
   const [restrictSelection, setRestrictSelection] = useState(null);
   const [updateBoundary, setUpdateBoundary] = useState(null);
+  const [loaderEnabled, setLoaderEnabled] = useState(false);
   const { isLoading, data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
 
   // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
@@ -187,12 +188,14 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           },
           body: {},
         });
-        setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_LOADING_BOUNDARY") });
+        // setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_LOADING_BOUNDARY") });
+        setLoaderEnabled(true);
         const boundaryTypeData = await reqCriteriaBoundaryTypeSearch;
         newData.push({ parentCode, boundaryTypeData });
       }
       setBoundaryTypeDataresult(newData);
-      closeToast();
+      setLoaderEnabled(false);
+      // closeToast();
     }
   };
 
@@ -354,6 +357,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   return (
     <>
+    {loaderEnabled && <LoaderWithGap text={"CAMPAIGN_BOUNDARY_PLEASE_WAIT"}></LoaderWithGap>}
       <Card>
         <div className="selecting-boundary-div">
           <Header>{t(`CAMPAIGN_SELECT_BOUNDARY`)}</Header>
