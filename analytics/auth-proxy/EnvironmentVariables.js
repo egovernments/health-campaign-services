@@ -8,7 +8,14 @@ const envVariables = {
     KIBANA_HOST:
       process.env.KIBANA_HOST || "http://localhost:30001/",
     KIBANA_BASE_PATH:
-      process.env.KIBANA_BASE_PATH || "kibana"
+      process.env.KIBANA_BASE_PATH || "kibana",
+    KIBANA_ACCEPTED_CONTEXT_UI_PATHS:
+      process.env.KIBANA_ACCEPTED_CONTEXT_UI_PATHS || "workbench-ui,sanitation-ui,works-ui,digit-ui",
+    KIBANA_ACCEPTED_DOMAIN_NAME:
+      process.env.KIBANA_ACCEPTED_DOMAIN_NAME || "unified-qa.digit.org",
+    KIBANA_EXCLUDE_URL_PATTERNS:
+    process.env.KIBANA_EXCLUDE_URL_PATTERNS || ".js,.css,.html,fonts,favicons,telemetry"
+
   };
   
   module.exports = envVariables;
