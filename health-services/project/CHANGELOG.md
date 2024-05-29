@@ -7,6 +7,7 @@ All notable changes to this module will be documented in this file.
 - Upgraded to health models 1.0.20 and health common 1.0.16
 - Boundary v2 Integration
 - MDMS v2 integration
+- Beneficiary Tag null check in update
 
 ## 1.1.2 - 2024-02-26
 - Implemented validation for updating project start date and end date.
