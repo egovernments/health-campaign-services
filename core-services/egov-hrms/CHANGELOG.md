@@ -3,6 +3,10 @@ All notable changes to this module will be documented in this file.
 
 ## 1.2.7 - 2024-05-29
 - Integrated Boundary v2 functionality
+- Individual model copied and replicated to the 2.9 version
+
+## 1.2.6 - 2024-03-06
+- Added client Referenceid to Individual to avoid errors during down sync in APK
 
 ## 1.2.5 - 2023-02-02
 
