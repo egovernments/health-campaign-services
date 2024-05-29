@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -279,7 +280,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND userUuid in (:userUuid) ";
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
-      
+
+        if(!StringUtils.isEmpty(searchObject.getType())){
+            query = query + "AND type = :type ";
+            paramsMap.put("type", searchObject.getType());
+        }
+
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
       
         paramsMap.put("tenantId", tenantId);

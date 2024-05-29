@@ -104,5 +104,8 @@ public class IndividualSearch extends EgovOfflineSearchModel {
     @DecimalMin("0")
     private Double searchRadius;
 
+
+    @JsonProperty("type")
+    private String type;
 }
 
