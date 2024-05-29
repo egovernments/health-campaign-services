@@ -1,7 +1,7 @@
 package org.egov.common.models.project;
 
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 * Field
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+
 
 @Data
 @NoArgsConstructor

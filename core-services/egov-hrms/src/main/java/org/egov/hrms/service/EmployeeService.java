@@ -146,6 +146,7 @@ public class EmployeeService {
 				|| !CollectionUtils.isEmpty(criteria.getRoles())
 				|| !CollectionUtils.isEmpty(criteria.getCodes())) {
             Map<String, Object> userSearchCriteria = new HashMap<>();
+			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
             userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,criteria.getTenantId());
             if(!StringUtils.isEmpty(criteria.getPhone()))
                 userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,criteria.getPhone());
@@ -173,6 +174,7 @@ public class EmployeeService {
 				List<String> userUUIDs = new ArrayList<>();
 				for(String name: criteria.getNames()) {
 					Map<String, Object> userSearchCriteria = new HashMap<>();
+					userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,criteria.getTenantId());
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME,name);
 					UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
@@ -198,6 +200,7 @@ public class EmployeeService {
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
+			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
             userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_UUID,uuids);
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, criteria.getTenantId());
 			log.info("uuid is available {}", userSearchCriteria);

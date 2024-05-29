@@ -59,7 +59,7 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
         if (!iMap.isEmpty()) {
             List<String> individualIds = new ArrayList<>(iMap.keySet());
             List<Individual> existingIndividuals = individualRepository.findById(individualIds,
-                    getIdFieldName(idMethod), false);
+                    getIdFieldName(idMethod), false).getResponse();
             List<Individual> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingIndividuals, idMethod);
             nonExistentIndividuals.forEach(individual -> {

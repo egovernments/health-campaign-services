@@ -58,7 +58,7 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<Task> existingEntities = projectTaskRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false);
+                    getIdFieldName(idMethod), false).getResponse();
             List<Task> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
             nonExistentEntities.forEach(task -> {

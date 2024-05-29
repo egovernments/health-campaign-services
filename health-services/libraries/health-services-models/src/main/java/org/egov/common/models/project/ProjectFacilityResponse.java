@@ -8,14 +8,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 /**
 * ProjectFacilityResponse
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
+
 
 @Data
 @NoArgsConstructor

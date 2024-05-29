@@ -1,22 +1,22 @@
 package org.egov.project.validator.beneficiary;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
@@ -53,7 +53,7 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
 
         // Filter valid project beneficiaries (those without errors)
         List<ProjectBeneficiary> validProjectBeneficiaries = beneficiaryBulkRequest.getProjectBeneficiaries()
-                .stream().filter(notHavingErrors()).collect(Collectors.toList());
+                .stream().filter(notHavingErrors()).filter(projectBeneficiary -> projectBeneficiary.getTag() != null).collect(Collectors.toList());
 
         if(!validProjectBeneficiaries.isEmpty()) {
             // Get a list of existing ProjectBeneficiaries based on IDs
@@ -86,7 +86,7 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
             existingProjectBeneficiaries = projectBeneficiaryRepository.find(
                     projectBeneficiarySearch,
                     validProjectBeneficiaries.size(), 0, validProjectBeneficiaries.get(0).getTenantId(), null, false
-            );
+            ).getResponse();
         } catch (Exception e) {
             log.error("Exception while fetching project beneficiary service : ", e);
             throw new CustomException("PROJECT_BENEFICIARY_SEARCH_FAILED","Error occurred while fetching project beneficiary based on ids. "+e);
@@ -104,7 +104,8 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
     private void validateAndPopulateErrors(List<ProjectBeneficiary> validProjectBeneficiaries, List<ProjectBeneficiary> existingProjectBeneficiaries, Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
         Map<String, ProjectBeneficiary> existingProjectBeneficiaryMap = existingProjectBeneficiaries.stream().collect(Collectors.toMap(ProjectBeneficiary::getId, projectBeneficiary -> projectBeneficiary));
         // Filter project beneficiaries that are valid and have invalid voucher tags
-        List<ProjectBeneficiary> invalidEntities = validProjectBeneficiaries.stream().filter(notHavingErrors())
+        List<ProjectBeneficiary> invalidEntities = validProjectBeneficiaries.stream()
+                .filter(notHavingErrors())
                 .filter(entity -> !existingProjectBeneficiaryMap.containsKey(entity.getId()))
                 .collect(Collectors.toList());
 

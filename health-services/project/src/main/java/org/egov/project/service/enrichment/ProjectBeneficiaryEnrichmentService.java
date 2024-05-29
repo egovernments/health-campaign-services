@@ -68,9 +68,9 @@ public class ProjectBeneficiaryEnrichmentService {
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
         List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository.findById(
                 projectBeneficiaryIds,
-                false,
-                getIdFieldName(idMethod)
-        );
+                getIdFieldName(idMethod),
+                false
+        ).getResponse();
 
         log.info("updating Ids from existing entities");
         enrichIdsFromExistingEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);
