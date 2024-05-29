@@ -653,6 +653,34 @@ async function createProjectCampaignResourcData(request: any) {
   }
 }
 
+async function confirmProjectParentCreation(request: any, projectId: any) {
+  const searchBody = {
+    RequestInfo: request.body.RequestInfo,
+    Projects: [
+      {
+        id: projectId,
+        tenantId: request.body.CampaignDetails.tenantId
+      }
+    ]
+  }
+  var projectFound = false;
+  var retry = 6;
+  while (!projectFound && retry >= 0) {
+    const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, searchBody);
+    if (response?.Project?.[0]) {
+      projectFound = true;
+    }
+    else {
+      logger.info("Project not found. Waiting for 1 seconds");
+      retry = retry - 1
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  if (!projectFound) {
+    throwError("PROJECT", 500, "PROJECT_CONFIRMATION_FAILED", "Project confirmation failed, for the project with id " + projectId);
+  }
+}
+
 async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation url " + config.host.projectHost + config.paths.projectCreate)
   logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
@@ -753,5 +781,6 @@ export {
   getHierarchy,
   getHeadersOfBoundarySheet,
   handleResouceDetailsError,
-  getFiltersFromCampaignSearchResponse
+  getFiltersFromCampaignSearchResponse,
+  confirmProjectParentCreation
 };
