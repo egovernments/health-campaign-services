@@ -83,8 +83,8 @@ app.use((req, res, next) => {
 
     //first check for calls where authentication is not required
     if(bypassAuthBasedOnUrl(req.originalUrl)){
-        console.log("bypassed");
         next()
+        return
     }
 
     //now checking for document 
@@ -94,6 +94,7 @@ app.use((req, res, next) => {
         
         if(validateReferer(referer)){
             next()
+            return;
         }else{
             res.status(403).send('Access denied');
             return
@@ -109,6 +110,7 @@ app.use((req, res, next) => {
 
         if (authenticateToken(authToken)) {
             next(); // Proceed to the proxy if authenticated
+            return;
         } else {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
             return;

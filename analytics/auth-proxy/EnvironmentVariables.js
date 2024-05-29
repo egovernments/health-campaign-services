@@ -14,7 +14,7 @@ const envVariables = {
     KIBANA_ACCEPTED_DOMAIN_NAME:
       process.env.KIBANA_ACCEPTED_DOMAIN_NAME || "unified-qa.digit.org",
     KIBANA_EXCLUDE_URL_PATTERNS:
-    process.env.KIBANA_EXCLUDE_URL_PATTERNS || ".js,.css,.html,fonts,favicons,telemetry"
+    process.env.KIBANA_EXCLUDE_URL_PATTERNS || ".js,.css,.html,fonts,favicons,telemetry,.json"
 
   };
   
