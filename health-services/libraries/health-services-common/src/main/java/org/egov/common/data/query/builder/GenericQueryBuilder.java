@@ -4,6 +4,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.utils.ObjectUtils;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -90,12 +91,17 @@ public interface GenericQueryBuilder {
         // Iterate through all declared fields of the object
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             // Check if the field is of type LocalDate or enum
-            if (field.getType().equals(LocalDate.class) || field.getType().isEnum() || field.getName().equals("serialVersionUID")) {
+            if (field.getType().equals(LocalDate.class) || field.getType().isEnum() || Modifier.isStatic(field.getModifiers())) {
                 // Skip processing for LocalDate and enum fields
                 // No condition applied
             } else {
-                // Make the field accessible for manipulation
-                field.setAccessible(true);
+                try {
+                    // Make the field accessible for manipulation
+                    field.setAccessible(true);
+                } catch (Exception exception) {
+                    return;
+                }
+
                 try {
                     // Check if the field meets the condition and is not annotated with exclude
                     if (!field.getType().isPrimitive() && checkCondition.check(field, object)
