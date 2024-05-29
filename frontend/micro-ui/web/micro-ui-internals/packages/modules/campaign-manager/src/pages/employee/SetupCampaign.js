@@ -386,8 +386,6 @@ const SetupCampaign = ({ hierarchyType }) => {
     setTimeout(() => {
       setEnabled(fetchUpload || (fetchBoundary && currentKey > 6));
     }, 3000);
-
-    // return () => clearTimeout(timeoutId);
   }, [fetchUpload, fetchBoundary, currentKey]);
 
   const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
@@ -402,16 +400,9 @@ const SetupCampaign = ({ hierarchyType }) => {
     },
   });
 
-  // useEffect(() => {
-  //   if (filteredBoundaryData) {
-  //     refetchBoundary();
-  //   }
-  // }, [filteredBoundaryData]);
-
   const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "boundary",
     hierarchyType: hierarchyType,
-    // filters: filteredBoundaryData,
     campaignId: id,
     // config: {
     //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
