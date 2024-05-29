@@ -96,7 +96,7 @@ public interface GenericQueryBuilder {
                 // No condition applied
             } else {
                 try {
-                    // Make the field accessible for manipulation
+                    // Make the field accessible for manipulation FIXME TODO
                     field.setAccessible(true);
                 } catch (Exception exception) {
                     return;
