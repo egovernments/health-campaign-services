@@ -56,4 +56,10 @@ public class Configuration {
     
     @Value("${egov.project.factory.host}")
     private String projectFactoryHostEndPoint;
+    
+    @Value("${resource.microplan.create.topic}")
+    private String resourceMicroplanCreateTopic;
+    
+    @Value("${integrate.with.admin.console}")
+    private boolean isIntegrateWithAdminConsole;
 }

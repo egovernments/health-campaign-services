@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
+import org.egov.processor.kafka.Producer;
 import org.egov.processor.web.models.Activity;
 import org.egov.processor.web.models.Plan;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -34,10 +35,13 @@ public class PlanUtil {
 	private ServiceRequestRepository serviceRequestRepository;
 
 	private Configuration config;
+	
+	private Producer producer;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper) {
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
+		this.producer = producer;
 	}
 
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
@@ -45,10 +49,8 @@ public class PlanUtil {
 			Map<String, BigDecimal> assumptionValueMap) {
 		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues,
 				assumptionValueMap);
-		StringBuilder uri = new StringBuilder();
-		uri.append(config.getPlanConfigHost()).append(config.getPlanCreateEndPoint());
-		try {
-			serviceRequestRepository.fetchResult(uri, planRequest);
+		try {			
+			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
 			log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + planRequest.getPlan().getLocality(), e); 
 		}

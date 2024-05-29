@@ -20,6 +20,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.CampaignIntegrationUtil;
@@ -52,14 +53,17 @@ public class ExcelParser implements FileParser {
     private PlanUtil planUtil;
     
     private CampaignIntegrationUtil campaignIntegrationUtil;
+    
+    private Configuration config;
 
-    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil) {
+    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil, Configuration config) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
         this.planUtil = planUtil;
         this.campaignIntegrationUtil = campaignIntegrationUtil;
+        this.config = config;
     }
 
     /**
@@ -116,9 +120,11 @@ public class ExcelParser implements FileParser {
 					new File(convertWorkbookToXls(workbook).getParent(), ServiceConstants.FILE_NAME),
 					planConfig.getTenantId());
 
+            if(config.isIntegrateWithAdminConsole()) {
 			campaignIntegrationUtil.updateCampaignResources(uploadedFileId, campaignResourcesList);
 			campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 					campaignBoundaryList, campaignResourcesList);
+            }
 			return uploadedFileId;
         } catch (IOException | InvalidFormatException e) {
             log.error("Error processing Excel file: {}", e.getMessage());
@@ -169,6 +175,7 @@ public class ExcelParser implements FileParser {
                     headerCell.setCellValue(output);
                 }
             }
+            if(config.isIntegrateWithAdminConsole()) 
             campaignIntegrationUtil.updateCampaignBoundary(planConfig,feature,assumptionValueMap,mappedValues,mapOfColumnNameAndIndex,campaignBoundaryList,resultMap);
             planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues, assumptionValueMap);
             //TODO: remove after testing
