@@ -1,23 +1,19 @@
 package org.egov.common.models.referralmanagement;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineSearchModel;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class ReferralSearch {
-    @JsonProperty("id")
-    private List<String> id;
-
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId;
+@SuperBuilder
+public class ReferralSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("projectBeneficiaryId")
     private List<String> projectBeneficiaryId;

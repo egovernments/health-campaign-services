@@ -1,6 +1,6 @@
 package org.egov.referralmanagement.web.controllers;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;

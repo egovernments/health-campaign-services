@@ -4,6 +4,9 @@ All notable changes to this module will be documented in this file.
 - The following field were updated to accept list of search entities instead of single entity in HouseholdMemberSearch:
     - householdId, householdClientReferenceId, individualId, and individualClientReferenceId
 
+## 1.1.2 - 2024-05-10
+- Integrated Boundary v2 functionality
+- 
 ## 1.1.1 - 2023-11-15
 
 - Added total count for household

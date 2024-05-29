@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 * Target
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+
 
 @Getter
 @Setter

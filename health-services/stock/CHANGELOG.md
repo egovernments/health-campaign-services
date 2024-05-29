@@ -1,9 +1,5 @@
 All notable changes to this module will be documented in this file.
 
-## To be released
-- In StockSearch, productVariantId, waybillNumber updated to accept list of search entities instead of single entity 
-- In StockReconciliationSearch, facilityId, productVariantId updated to accept list of search entities instead of single entity
-
 ## 1.1.2 - 2024-02-26
 - Enhance inventory flow with sender id and receiver id added.
 

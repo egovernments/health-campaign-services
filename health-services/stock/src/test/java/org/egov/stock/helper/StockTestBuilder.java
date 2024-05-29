@@ -10,10 +10,10 @@ import org.egov.common.models.stock.TransactionType;
 
 public class StockTestBuilder {
 
-    private final Stock.StockBuilder builder;
+    private final Stock.StockBuilder<Stock, ?> builder;
 
     public StockTestBuilder() {
-        this.builder = Stock.builder();
+        this.builder = (Stock.StockBuilder<Stock, ?>) Stock.builder();
     }
 
     public static StockTestBuilder builder() {
