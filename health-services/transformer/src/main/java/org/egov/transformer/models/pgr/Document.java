@@ -1,7 +1,6 @@
 package org.egov.transformer.models.pgr;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
 import lombok.*;
 import org.hibernate.validator.constraints.SafeHtml;
 import org.springframework.validation.annotation.Validated;
@@ -9,7 +8,6 @@ import org.springframework.validation.annotation.Validated;
 /**
  * This object holds list of documents attached during the transaciton for a property
  */
-@ApiModel(description = "This object holds list of documents attached during the transaciton for a property")
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 

@@ -1,12 +1,11 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.facility.AdditionalFields;
+import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.facility.Facility;
-import org.egov.common.models.facility.Field;
+import org.egov.common.models.stock.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
@@ -110,8 +109,8 @@ public abstract class StockTransformationService implements TransformationServic
             String facilityType = WAREHOUSE;
             String transactingFacilityType = WAREHOUSE;
 
-            facilityType = facility != null ? getType(facilityType, facility) : facilityType;
-            transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+            facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+            transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
             List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
@@ -120,6 +119,7 @@ public abstract class StockTransformationService implements TransformationServic
             Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
             ObjectNode additionalDetails = objectMapper.createObjectNode();
             additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            getBailsAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
 
             StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                     .id(stock.getId())
@@ -160,17 +160,29 @@ public abstract class StockTransformationService implements TransformationServic
                     .build();
             return Collections.singletonList(stockIndexV1);
         }
+        private void getBailsAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+            int manualScans = 0;
+            int actualBailScans = 0;
 
-        private String getType(String transactingFacilityType, Facility transactingFacility) {
-            AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
-            if (transactingFacilityAdditionalFields != null) {
-                List<Field> fields = transactingFacilityAdditionalFields.getFields();
-                Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-                if (field.isPresent() && field.get().getValue() != null) {
-                    transactingFacilityType = field.get().getValue();
+            for (Field field : additionalFields.getFields()) {
+                String key = field.getKey();
+                String value = field.getValue();
+
+                if (!NON_BALES_ADDITIONAL_FIELDS_KEYS.contains(key)) {
+                    if (key.startsWith(MANUAL_SCAN)) {
+                        manualScans++;
+                    } else if (BALES_COMMENTS_KEYS.contains(key)) {
+                        additionalDetails.put(key, value);
+                    } else if (BALES_QUANTITY.equalsIgnoreCase(key)) {
+                        additionalDetails.put(BALES_QUANTITY_INDEX_KEY, Integer.parseInt(value));
+                    } else {
+                        actualBailScans++;
+                    }
                 }
             }
-            return transactingFacilityType;
+
+            additionalDetails.put(MANUAL_SCANS_INDEX_KEY, manualScans);
+            additionalDetails.put(ACTUAL_BALE_SCANS_INDEX_KEY, actualBailScans);
         }
 
     }

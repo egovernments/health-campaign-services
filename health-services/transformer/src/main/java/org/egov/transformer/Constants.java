@@ -1,6 +1,9 @@
 package org.egov.transformer;
 
-import org.apache.kafka.common.protocol.types.Field;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
@@ -8,6 +11,17 @@ public interface Constants {
     String HOUSEHOLD = "HOUSEHOLD";
     String CYCLE_NUMBER = "cycleIndex";
     String DOSE_NUMBER = "doseIndex";
+    List<String> NON_BALES_ADDITIONAL_FIELDS_KEYS = new ArrayList<>(Arrays.asList(
+            "vehicle_number", "waybill_quantity", "transport_type", "lat", "lng"
+    ));
+    List<String> BALES_COMMENTS_KEYS = new ArrayList<>(Arrays.asList(
+            "comments", "baleMismtachComments", "manualScanComments"
+    ));
+    String BALES_QUANTITY = "bales_quantity";
+    String MANUAL_SCAN = "manualScan-";
+    String MANUAL_SCANS_INDEX_KEY = "manualScans";
+    String ACTUAL_BALE_SCANS_INDEX_KEY = "actualBaleScans";
+    String  BALES_QUANTITY_INDEX_KEY = "balesQuantity";
     String DELIVERY_STRATEGY = "deliveryStrategy";
 
     String QUANTITY_WASTED = "quantityWasted";
