@@ -879,16 +879,15 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; va
     };
 }
 
-function mapBoundariesParent(boundaryResponses: any, request: any, parent: any) {
-    if (!boundaryResponses) return;
-
-    for (const boundaryResponse of boundaryResponses) {
-        request.body.boundaryProjectMapping[boundaryResponse.code] = {
-            parent: parent || null,
-            projectId: null
-        }
-        if (boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
-            mapBoundariesParent(boundaryResponse.children, request, boundaryResponse.code);
+function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
+    if (!boundaryResponse) return;
+    request.body.boundaryProjectMapping[boundaryResponse.code] = {
+        parent: parent || null,
+        projectId: null
+    }
+    if (boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
+        for (const child of boundaryResponse.children) {
+            mapBoundariesParent(child, request, boundaryResponse.code);
         }
     }
 }
@@ -1188,6 +1187,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
     } catch (error: any) {
+        console.log(error)
         logger.error(error)
         enrichAndPersistCampaignWithError(request?.body, error)
     }
