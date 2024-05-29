@@ -1,5 +1,4 @@
 .DS_Store
-accelerators/frontend/micro-ui-internals/node_modules/*
 .idea
 index.lock
 /health-services/stock/stock.iml
@@ -86,4 +85,4 @@ Thumbs.db
 Thumbs.db
 
 utilities/project-factory/node_modules/*
-frontend/*/node_modules/*
+frontend/micro-ui/web/micro-ui-internals/node_modules/*
