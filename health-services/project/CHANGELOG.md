@@ -4,6 +4,9 @@ All notable changes to this module will be documented in this file.
 ## 1.1.4 - 2024-05-29
 - Integrated Core 2.9LTS
 - Integrated Boundary v2 functionality
+- Upgraded to health models 1.0.20 and health common 1.0.16
+- Boundary v2 Integration
+- MDMS v2 integration
 
 ## 1.1.2 - 2024-02-26
 - Implemented validation for updating project start date and end date.
