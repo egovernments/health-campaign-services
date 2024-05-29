@@ -2,9 +2,9 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { UploadIcon, FileIcon, DeleteIconv2, Toast, Card, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
-import { Dropdown } from "@egovernments/digit-ui-components";
+import { Dropdown, ErrorMessage } from "@egovernments/digit-ui-components";
 
-const CampaignSelection = ({ onSelect, formData, ...props }) => {
+const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getStateId();
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
@@ -12,7 +12,14 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
   const [beneficiaryType, setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
   const [showBeneficiary, setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
   const [executionCount, setExecutionCount] = useState(0);
+  const [error, setError] = useState(null);
+  const [startValidation, setStartValidation] = useState(null);
 
+  useEffect(() => {
+    if (props?.props?.isSubmitting && !type) {
+      setError({ message: "CAMPAIGN_FIELD_MANDATORY" });
+    }
+  }, [props?.props?.isSubmitting]);
   useEffect(() => {
     setType(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType);
     setBeneficiaryType(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType);
@@ -26,7 +33,12 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
   };
 
   useEffect(() => {
-    onSelect("projectType", type);
+    if (!type && startValidation) {
+      setError({ message: "CAMPAIGN_FIELD_MANDATORY" });
+    } else {
+      setError(null);
+      onSelect("projectType", type);
+    }
   }, [type]);
 
   useEffect(() => {
@@ -44,16 +56,21 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
           <span>{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
           <span className="mandatory-span">*</span>
         </div>
-        <Dropdown
-          style={{ width: "40rem" , paddingBottom: "1rem" }}
-          t={t}
-          option={projectType?.["HCM-PROJECT-TYPES"]?.projectTypes}
-          optionKey={"code"}
-          selected={type}
-          select={(value) => {
-            handleChange(value);
-          }}
-        />
+        <div className="campaign-type-wrapper">
+          <Dropdown
+            style={{ width: "40rem", paddingBottom: "1rem" }}
+            variant={error ? "error" : ""}
+            t={t}
+            option={projectType?.["HCM-PROJECT-TYPES"]?.projectTypes}
+            optionKey={"code"}
+            selected={type}
+            select={(value) => {
+              setStartValidation(true);
+              handleChange(value);
+            }}
+          />
+          {error?.message && <ErrorMessage wrapperStyles={{ marginTop: "-10px" }} message={t(error?.message)} showIcon={true} />}
+        </div>
       </LabelFieldPair>
       {showBeneficiary && (
         <LabelFieldPair>

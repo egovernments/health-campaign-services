@@ -1,11 +1,10 @@
 import { Loader, FormComposerV2, Header, MultiUploadWrapper, Button, Close, LogoutIcon } from "@egovernments/digit-ui-react-components";
-import React, { useState, useEffect , useMemo} from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useParams } from "react-router-dom";
 import { CampaignConfig } from "../../configs/CampaignConfig";
 import { QueryClient, useQueryClient } from "react-query";
 import { Stepper, Toast } from "@egovernments/digit-ui-components";
-import { BOUNDARY_HIERARCHY_TYPE } from "../../Module";
 import _ from "lodash";
 
 /**
@@ -221,13 +220,14 @@ function updateUrlParams(params) {
   window.history.replaceState({}, "", url);
 }
 
-const SetupCampaign = () => {
+const SetupCampaign = ({ hierarchyType }) => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { t } = useTranslation();
   const history = useHistory();
   const [currentStep, setCurrentStep] = useState(0);
   const [totalFormData, setTotalFormData] = useState({});
-  const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData, null, isSubmitting));
   const [shouldUpdate, setShouldUpdate] = useState(false);
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
   const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
@@ -237,13 +237,13 @@ const SetupCampaign = () => {
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const isPreview = searchParams.get("preview");
+  const isSummary = searchParams.get("summary");
   const noAction = searchParams.get("action");
   const isDraft = searchParams.get("draft");
   const isSkip = searchParams.get("skip");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
-  const hierarchyType = BOUNDARY_HIERARCHY_TYPE;
   // const hierarchyType2 = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy?.hierarchyType
   const [currentKey, setCurrentKey] = useState(() => {
     const keyParam = searchParams.get("key");
@@ -254,9 +254,8 @@ const SetupCampaign = () => {
   const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  const { data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
-    { name: "hierarchyConfig" },
-  ]);
+  const { data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
+  // const hierarchyType = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.hierarchy;
 
   // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
   const lowestHierarchy = useMemo(() => hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy, [hierarchyConfig]);
@@ -451,14 +450,15 @@ const SetupCampaign = () => {
   }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   useEffect(() => {
-    setCampaignConfig(CampaignConfig(totalFormData, dataParams));
-  }, [totalFormData, dataParams]);
+    setCampaignConfig(CampaignConfig(totalFormData, dataParams, isSubmitting));
+  }, [totalFormData, dataParams, isSubmitting]);
 
   useEffect(() => {
-    if (currentKey === 10 && isPreview !== "true") {
-      updateUrlParams({ key: currentKey, preview: true });
+    setIsSubmitting(false);
+    if (currentKey === 10 && isSummary !== "true") {
+      updateUrlParams({ key: currentKey, summary: true });
     } else {
-      updateUrlParams({ key: currentKey, preview: false });
+      updateUrlParams({ key: currentKey, summary: false });
     }
   }, [currentKey]);
 
@@ -853,7 +853,6 @@ const SetupCampaign = () => {
   // }
 
   function validateBoundaryLevel(data) {
-
     // Extracting boundary hierarchy from hierarchy definition
     const boundaryHierarchy = hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy || [];
 
@@ -861,11 +860,7 @@ const SetupCampaign = () => {
     const lowestIndex = boundaryHierarchy.findIndex((item) => item?.boundaryType === lowestHierarchy);
 
     // Create a set of boundary types including only up to the lowest hierarchy
-    const boundaryTypes = new Set(
-      boundaryHierarchy
-        .filter((_, index) => index <= lowestIndex)
-        .map((item) => item?.boundaryType)
-    );
+    const boundaryTypes = new Set(boundaryHierarchy.filter((_, index) => index <= lowestIndex).map((item) => item?.boundaryType));
 
     // Extracting unique boundary types from data
     const uniqueDataBoundaryTypes = new Set(data?.map((item) => item.type));
@@ -874,8 +869,7 @@ const SetupCampaign = () => {
     const allBoundaryTypesPresent = [...boundaryTypes].every((type) => uniqueDataBoundaryTypes.has(type));
 
     return allBoundaryTypesPresent;
-}
-
+  }
 
   // function recursiveParentFind(filteredData) {
   //   const parentChildrenMap = {};
@@ -916,7 +910,6 @@ const SetupCampaign = () => {
 
     return extraParent;
   }
-
 
   // validating the screen data on clicking next button
   const handleValidate = (formData) => {
@@ -1082,6 +1075,7 @@ const SetupCampaign = () => {
   }, [showToast]);
 
   const onSubmit = (formData, cc) => {
+    setIsSubmitting(true);
     const checkValid = handleValidate(formData);
     if (checkValid === false) {
       return;
@@ -1145,6 +1139,7 @@ const SetupCampaign = () => {
     if (isDraft === "true" && isSkip !== "false") {
       updateUrlParams({ skip: "false" });
     }
+    return;
   };
 
   const onStepClick = (step) => {
