@@ -746,10 +746,10 @@ function modifyBoundaryData(boundaryData: unknown[], localizationMap?: any) {
   boundaryData.forEach((obj: any) => {
     // Convert object entries to an array of {key, value} objects
     const row: any = Object.entries(obj)
-      .filter(([key, value]) => value !== null && value !== undefined)
-      .map(([key, value]) => ({ key, value }));
+      .filter(([key, value]) =>  key !== getLocalizedName(config?.boundary?.boundaryCode,localizationMap) && value !== null && value !== undefined)
+      .map(([key, value]: [string, any]) => ({ key, value: value.toString().replace(/_/g, ' ').trim() }));
 
-    // Determine whether the object has a boundary code property
+      // Determine whether the object has a boundary code property
     const hasBoundaryCode = obj.hasOwnProperty(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
 
     // Push the row to the appropriate array based on whether it has a boundary code property
