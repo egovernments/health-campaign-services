@@ -17,11 +17,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [params, setParams] = useState(props?.props?.dataParams);
   const [hierarchy, setHierarchy] = useState(params?.hierarchyType);
-  // const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
-  // const [showcomponent, setShowComponent] = useState(
-  //   props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || false
-  // );
-  // const [boundaryType, setBoundaryType] = useState(null);
   const [boundaryType, setBoundaryType] = useState(
     props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData ? undefined : null
   );
@@ -203,7 +198,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   useEffect(() => {
     fetchBoundaryTypeData();
-  }, [boundaryType, parentArray]);
+  }, [boundaryType, parentArray ,selectedData]);
 
   useEffect(() => {
     if (boundaryTypeDataresult) {
