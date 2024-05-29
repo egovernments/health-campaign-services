@@ -39,14 +39,19 @@ const MyCampaign = () => {
     switch (currentTab) {
       case "CAMPAIGN_ONGOING":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
       case "CAMPAIGN_COMPLETED":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
       case "CAMPAIGN_UPCOMING":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
       case "CAMPAIGN_DRAFTS":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}&fetchBoundary=${true}`);
+        break;
       case "CAMPAIGN_FAILED":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
       default:
         break;
     }
