@@ -657,7 +657,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation url " + config.host.projectHost + config.paths.projectCreate)
   logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
   const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody);
-  logger.info("Project creation response" + JSON.stringify(projectCreateResponse))
+  logger.debug("Project creation response" + getFormattedStringForDebug(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info("Project created successfully with id " + JSON.stringify(projectCreateResponse?.Project[0]?.id))
     logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`)

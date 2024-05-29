@@ -922,7 +922,9 @@ async function processBoundaryForData(boundary: any, boundaryCodes: any, boundar
         }
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
         if (boundaryResponse?.TenantBoundary?.[0]) {
-            logger.info("Boundary found " + JSON.stringify(boundaryResponse?.TenantBoundary?.[0]?.boundary));
+            // TODO @nitish add more info in the logger about validation
+            logger.info(`boundary found for the code ${boundary?.code}`)
+            logger.debug("Boundary found " +getFormattedStringForDebug(boundaryResponse?.TenantBoundary?.[0]?.boundary));
             if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.children) {
                 for (const childBoundary of boundaryResponse.TenantBoundary[0]?.boundary?.[0].children) {
                     await processBoundaryForData(childBoundary, boundaryCodes, boundaries, request, true, boundary?.code);
@@ -947,7 +949,9 @@ async function processBoundary(boundary: any, boundaryCodes: any, boundaries: an
         }
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
         if (boundaryResponse?.TenantBoundary?.[0]) {
-            logger.info("Boundary found " + JSON.stringify(boundaryResponse?.TenantBoundary?.[0]?.boundary));
+                        // TODO @nitish add more info in the logger about validation
+            logger.info(`boundary found for the code ${boundary?.code}`)
+            logger.debug("Boundary found " +getFormattedStringForDebug(boundaryResponse?.TenantBoundary?.[0]?.boundary));
             if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.children) {
                 for (const childBoundary of boundaryResponse.TenantBoundary[0]?.boundary?.[0].children) {
                     await processBoundary(childBoundary, boundaryCodes, boundaries, request, true, boundary?.code);
