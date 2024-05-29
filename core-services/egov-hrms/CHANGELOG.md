@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.2.7 - 2024-05-29
+- Integrated Boundary v2 functionality
+
 ## 1.2.5 - 2023-02-02
 
 - Transition from 1.2.5-beta version to 1.2.5 version

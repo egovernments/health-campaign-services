@@ -1,11 +1,8 @@
 All notable changes to this module will be documented in this file.
 
 
-## To be released
-- In ProjectStaffSearch, staffId and projectId updated to accept list of search entities instead of single entity
-- In ProjectTaskSearch, projectId, projectBeneficiaryId, projectBeneficiaryClientReferenceId updated to accept list of search entities instead of single entity
-- In ProjectBeneficiarySearch, projectId, beneficiaryId updated to accept list of search entities instead of single entity 
-- In ProjectResourceSearch,  projectId updated to accept list of search entities instead of single entity
+## 1.1.4 - 2024-05-29
+- Integrated Core 2.9LTS
 
 ## 1.1.3 - 2024-05-10
 - Integrated Boundary v2 functionality

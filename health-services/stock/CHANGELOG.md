@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.3 - 2024-05-29
+- Integrated Core 2.9LTS
+
 ## 1.1.2 - 2024-02-26
 - Enhance inventory flow with sender id and receiver id added.
 
