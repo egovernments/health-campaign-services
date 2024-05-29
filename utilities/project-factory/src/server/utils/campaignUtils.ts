@@ -915,7 +915,7 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
 }
 
 
-async function processBoundary(boundaryResponse: any, boundaries: any, includeAllChildren: any, boundaryCodes: any) {
+async function processBoundary(boundaryResponse: any, boundaries: any, includeAllChildren: any, boundaryCodes: any, boundaryChildren: any) {
     if (!boundaryResponse) return;
     if (!boundaryCodes.has(boundaryResponse.code)) {
         boundaries.push({ code: boundaryResponse?.code, type: boundaryResponse?.boundaryType, insertedAfter: true });
@@ -923,7 +923,17 @@ async function processBoundary(boundaryResponse: any, boundaries: any, includeAl
     }
     if (includeAllChildren && boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
         for (const child of boundaryResponse.children) {
-            processBoundary(child, boundaries, true, boundaryCodes);
+            processBoundary(child, boundaries, true, boundaryCodes, boundaryChildren);
+        }
+    }
+    else if (boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
+        for (const child of boundaryResponse.children) {
+            if (boundaryCodes.has(child.code) && boundaryChildren[child.code]) {
+                processBoundary(child, boundaries, true, boundaryCodes, boundaryChildren);
+            }
+            else if (boundaryCodes.has(child.code)) {
+                processBoundary(child, boundaries, false, boundaryCodes, boundaryChildren);
+            }
         }
     }
 }
