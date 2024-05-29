@@ -90,7 +90,7 @@ public interface GenericQueryBuilder {
         // Iterate through all declared fields of the object
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             // Check if the field is of type LocalDate or enum
-            if (field.getType().equals(LocalDate.class) || field.getType().isEnum()) {
+            if (field.getType().equals(LocalDate.class) || field.getType().isEnum() || field.getName().equals("serialVersionUID")) {
                 // Skip processing for LocalDate and enum fields
                 // No condition applied
             } else {
