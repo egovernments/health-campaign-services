@@ -242,45 +242,16 @@ config:
         image-name: "auth-proxy"
 
 # frontend
-  - name: builds/Digit-Frontend/workbench-ui
+  - name: builds/health-campaign-services/frontend/workbench-ui
     build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/workbench/Dockerfile
+      - work-dir: frontend/micro-ui/
+        dockerfile: frontend/micro-ui/web/workbench/Dockerfile
         image-name: workbench-ui
 
-  - name: builds/Digit-Frontend/microplan-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/microplan/Dockerfile
-        image-name: microplan-ui
-        
-  - name: builds/Digit-Frontend/storybook-svg
-    build:
-    - work-dir: micro-ui/web/micro-ui-internals/packages/svg-components/
-      dockerfile: micro-ui/web/micro-ui-internals/packages/svg-components/docker/Dockerfile
-      image-name: storybook-svg
-      
-  - name: builds/Digit-Frontend/storybook
-    build:
-    - work-dir: micro-ui/web/micro-ui-internals/packages/components-core/
-      dockerfile: micro-ui/web/micro-ui-internals/packages/components-core/docker/Dockerfile
-      image-name: storybook
-
-  - name: builds/Digit-Frontend/digit-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/docker/Dockerfile
-        image-name: digit-ui
-
-  - name: builds/Digit-Frontend/core-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/core/Dockerfile
-        image-name: core-ui
 #Utilities
-  - name: "builds/Digit-Frontend/utilities/project-factory"
+  - name: "builds/health-campaign-services/health-services/project-factory"
     build:
-      - work-dir: "utilities/project-factory"
+      - work-dir: "health-services/project-factory"
         image-name: "project-factory"
-      - work-dir: "utilities/project-factory/migration"
+      - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
