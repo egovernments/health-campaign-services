@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { logger } from "./logger";
@@ -17,10 +17,9 @@ import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationU
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 const NodeCache = require("node-cache");
-const _ = require('lodash');
 
-const updateGeneratedResourceTopic = config.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
-const createGeneratedResourceTopic = config.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
+const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
+const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
 
 /*
   stdTTL: (default: 0) the standard ttl as number in seconds for every generated
@@ -366,67 +365,6 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
   });
 }
 
-async function callSearchApi(request: any, response: any) {
-  try {
-    let result: any;
-    const { type } = request.query;
-    result = await searchMDMS([type], config.SEARCH_TEMPLATE, request.body.RequestInfo, response);
-    const filter = request?.body?.Filters;
-    const requestBody = { "RequestInfo": request?.body?.RequestInfo, filter };
-    const responseData = result?.mdms?.[0]?.data;
-    if (!responseData || responseData.length === 0) {
-      return errorResponder({ message: "Invalid ApiResource Type. Check Logs" }, request, response);
-    }
-    const host = responseData?.host;
-    const url = responseData?.searchConfig?.url;
-    var queryParams: any = {};
-    for (const searchItem of responseData?.searchConfig?.searchBody) {
-      if (searchItem.isInParams) {
-        queryParams[searchItem.path] = searchItem.value;
-      }
-      else if (searchItem.isInBody) {
-        _.set(requestBody, `${searchItem.path}`, searchItem.value);
-      }
-    }
-    const countknown = responseData?.searchConfig?.isCountGiven === true;
-    let responseDatas: any[] = [];
-    const searchPath = responseData?.searchConfig?.keyName;
-    let fetchedData: any;
-    let responseObject: any;
-
-    if (countknown) {
-      const count = await getCount(responseData, request, response);
-      let noOfTimesToFetchApi = Math.ceil(count / queryParams.limit);
-      for (let i = 0; i < noOfTimesToFetchApi; i++) {
-        responseObject = await httpRequest(host + url, requestBody, queryParams, undefined, undefined, undefined);
-        fetchedData = _.get(responseObject, searchPath);
-        fetchedData.forEach((item: any) => {
-          responseDatas.push(item);
-        });
-        queryParams.offset = (parseInt(queryParams.offset) + parseInt(queryParams.limit)).toString();
-      }
-    }
-
-    else {
-      while (true) {
-        responseObject = await httpRequest(host + url, requestBody, queryParams, undefined, undefined, undefined);
-        fetchedData = _.get(responseObject, searchPath);
-        fetchedData.forEach((item: any) => {
-          responseDatas.push(item);
-        });
-        queryParams.offset = (parseInt(queryParams.offset) + parseInt(queryParams.limit)).toString();
-        if (fetchedData.length < parseInt(queryParams.limit)) {
-          break;
-        }
-      }
-    }
-    return responseDatas;
-  }
-  catch (e: any) {
-    logger.error(String(e))
-    return errorResponder({ message: String(e) + "    Check Logs" }, request, response);
-  }
-}
 
 
 async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any) {
@@ -436,19 +374,20 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     // send message to create toppic
     logger.info(`processing the generate request for type ${type}`)
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
-    hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       const result = await getBoundaryDataService(request);
       let updatedResult = result;
       // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
-      const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
+      const differentTabsBasedOnLevel = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
       logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
       const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
-      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
+      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)) {
         logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
       }
@@ -524,8 +463,8 @@ function correctParentValues(campaignDetails: any) {
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
-  const mdmsResponse = await callMdmsData(request, config.moduleName, config.facilitySchemaMasterName, tenantId);
-  const keys = mdmsResponse.MdmsRes[config?.moduleName].facilitySchema[0].required;
+  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
+  const keys = schema?.required;
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -540,7 +479,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
     ]
   })
   logger.info("facilities : " + JSON.stringify(facilities));
-  const localizedFacilityTab = getLocalizedName(config.facilityTab, localizationMap);
+  const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders, localizedFacilityTab);
   return facilitySheetData;
 }
@@ -603,7 +542,7 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
   const query = {
     "tenantId": tenantId,
     "locale": getLocaleFromRequest(request),
-    "module": config.localizationModule
+    "module": config.localisation.localizationModule
   };
   const updatedRequest = { ...request };
   updatedRequest.body = { RequestInfo };
@@ -632,7 +571,7 @@ async function getReadMeConfig(request: any) {
 async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   // Add facility sheet to the workbook
-  const localizedFacilityTab = getLocalizedName(config?.facilityTab, localizationMap);
+  const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   const type = request?.query?.type;
   const headingInSheet = headingMapping?.[type]
   const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
@@ -647,7 +586,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
-  const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   const type = request?.query?.type;
   const headingInSheet = headingMapping?.[type]
   const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
@@ -676,10 +615,10 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
-  const mdmsResponse = await callMdmsData(request, config.moduleName, config.userSchemaMasterName, tenantId)
-  const headers = mdmsResponse.MdmsRes[config.moduleName].userSchema[0].required;
+  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
+  const headers = schema?.required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");
   const userSheetData = await createExcelSheet(userData, localizedHeaders, localizedUserTab);
   const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
@@ -759,7 +698,7 @@ async function enrichResourceDetails(request: any) {
     lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now()
   }
-  produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
+  produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
 }
 
 function getFacilityIds(data: any) {
@@ -811,7 +750,7 @@ function modifyBoundaryData(boundaryData: unknown[], localizationMap?: any) {
       .map(([key, value]) => ({ key, value }));
 
     // Determine whether the object has a boundary code property
-    const hasBoundaryCode = obj.hasOwnProperty(getLocalizedName(config.boundaryCode, localizationMap));
+    const hasBoundaryCode = obj.hasOwnProperty(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
 
     // Push the row to the appropriate array based on whether it has a boundary code property
     if (hasBoundaryCode) {
@@ -926,7 +865,7 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
@@ -1002,7 +941,6 @@ export {
   generateAuditDetails,
   generateActivityMessage,
   getResponseFromDb,
-  callSearchApi,
   getModifiedResponse,
   getNewEntryResponse,
   getOldEntryResponse,

@@ -5,20 +5,6 @@ export const deliveryConfig = [
     attrAddDisable: true,
     deliveryAddDisable: true,
     customAttribute: true,
-    // attributeConfig: [
-    //   {
-    //     key: 1,
-    //     label: "Custom",
-    //     attrType: "text",
-    //     attrValue: "CAMPAIGN_BEDNET_INDIVIDUAL_LABEL",
-    //   },
-    //   {
-    //     key: 2,
-    //     label: "Custom",
-    //     attrType: "text",
-    //     attrValue: "CAMPAIGN_BEDNET_HOUSEHOLD_LABEL",
-    //   },
-    // ],
     cycleConfig: {
       cycle: 1,
       deliveries: 1,
@@ -31,24 +17,20 @@ export const deliveryConfig = [
             label: "Custom",
             attrType: "text",
             attrValue: "CAMPAIGN_BEDNET_INDIVIDUAL_LABEL",
-            // operatorValue: "GREATER_THAN",
-            // value: 2,
           },
           {
             key: 2,
             label: "Custom",
             attrType: "text",
             attrValue: "CAMPAIGN_BEDNET_HOUSEHOLD_LABEL",
-            // operatorValue: "LESS_THAN",
-            // value: 3,
           },
         ],
         productConfig: [
           {
             key: 1,
             count: 1,
-            value: "PVAR-2024-02-09-000150",
-            name: "Bednet - 500mg",
+            value: "PVAR-2024-05-03-000305",
+            name: "SP - 250mg",
           },
         ],
       },
@@ -61,55 +43,153 @@ export const deliveryConfig = [
     customAttribute: true,
     cycleConfig: {
       cycle: 3,
-      deliveries: 2,
+      deliveries: 3,
     },
     deliveryConfig: [
       {
-        attributeConfig: [
+        delivery: 1,
+        conditionConfig: [
           {
-            key: 1,
-            label: "Custom",
-            attrType: "dropdown",
-            attrValue: "Age",
-            operatorValue: "GREATER_THAN",
-            value: 10,
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 3,
+                toValue: 11,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000079",
+                name: "AQ - 75mg",
+              },
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-05-03-000305",
+                name: "SP - 250mg",
+              },
+            ],
           },
           {
-            key: 2,
-            label: "Custom",
-            attrType: "dropdown",
-            attrValue: "Height",
-            operatorValue: "LESS_THAN",
-            value: 50,
-          },
-        ],
-        productConfig: [
-          {
-            key: 1,
-            count: 1,
-            value: "PVAR-2024-02-19-000224",
-            name: "paracetamol - 250mg",
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 12,
+                toValue: 59,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000078",
+                name: "AQ - 150mg",
+              },
+            ],
           },
         ],
       },
       {
-        attributeConfig: [
+        delivery: 2,
+        conditionConfig: [
           {
-            key: 1,
-            label: "Custom",
-            attrType: "dropdown",
-            attrValue: "Age",
-            operatorValue: "IN_BETWEEN",
-            toValue: 10,
-            fromValue: 20,
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 3,
+                toValue: 11,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000079",
+                name: "AQ - 75mg",
+              },
+            ],
+          },
+          {
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 12,
+                toValue: 59,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000078",
+                name: "AQ - 150mg",
+              },
+            ],
           },
         ],
-        productConfig: [
+      },
+      {
+        delivery: 3,
+        conditionConfig: [
           {
-            key: 1,
-            count: 1,
-            value: "PVAR-2024-02-19-000224",
-            name: "paracetamol - 250mg",
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 3,
+                toValue: 11,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000079",
+                name: "AQ - 75mg",
+              },
+            ],
+          },
+          {
+            attributeConfig: [
+              {
+                key: 1,
+                label: "Custom",
+                attrType: "dropdown",
+                attrValue: "Age",
+                operatorValue: "IN_BETWEEN",
+                fromValue: 12,
+                toValue: 59,
+              },
+            ],
+            productConfig: [
+              {
+                key: 1,
+                count: 1,
+                value: "PVAR-2024-01-24-000078",
+                name: "AQ - 150mg",
+              },
+            ],
           },
         ],
       },

@@ -38,13 +38,15 @@ export const CONSTANTS: any = {
             BOUNDARY_SHEET_HEADER_ERROR: "Boundary sheet header error",
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
-            BOUNDARY_TARGET_ERROR: "Target either not present or invalid value"
+            BOUNDARY_TARGET_ERROR: "Target either not present or invalid value",
+            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",
             PROJECT_SEARCH_ERROR: "Error occured during project search , check projectId",
             PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
+            PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
         },
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config"

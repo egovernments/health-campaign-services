@@ -47,7 +47,7 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
  * the `Switch` component, there are several `PrivateRoute` components with different paths and
  * corresponding components such as `UploadBoundaryData`, `CycleConfiguration`, `DeliveryRule`, `
  */
-const App = ({ path }) => {
+const App = ({ path, BOUNDARY_HIERARCHY_TYPE }) => {
   const location = useLocation();
   const UploadBoundaryData = Digit?.ComponentRegistryService?.getComponent("UploadBoundaryData");
   const CycleConfiguration = Digit?.ComponentRegistryService?.getComponent("CycleConfiguration");
@@ -87,7 +87,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/create-campaign/upload-boundary-data`} component={() => <UploadBoundaryData />} />
           <PrivateRoute path={`${path}/create-campaign/cycle-configure`} component={() => <CycleConfiguration />} />
           <PrivateRoute path={`${path}/create-campaign/delivery-details`} component={() => <DeliveryRule />} />
-          <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
+          <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign hierarchyType={BOUNDARY_HIERARCHY_TYPE} />} />
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />
           <PrivateRoute path={`${path}/response`} component={() => <Response />} />

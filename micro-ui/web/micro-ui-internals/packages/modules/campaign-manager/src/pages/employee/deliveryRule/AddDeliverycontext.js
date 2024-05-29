@@ -359,7 +359,7 @@ const AddCustomAttributeField = ({
           {t(`CAMPAIGN_ATTRIBUTE_LABEL`)}
         </CardLabel>
         <div className="field" style={{ display: "flex", width: "100%", marginBottom: "24px" }}>
-          <TextInput type="text" textInputStyle={{ width: "100%" }} value={t(config?.attrValue)} disabled={true} />
+          <TextInput type="text" textInputStyle={{ width: "100%" }} value={t(attribute?.attribute?.code)} disabled={true} />
         </div>
         {/* <Dropdown
           className="form-field"
@@ -443,7 +443,7 @@ const AddCustomAttributeField = ({
   );
 };
 
-const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDeliveryRules, index, key }) => {
+const AddAttributeWrapper = ({ targetedData, deliveryRuleIndex, delivery, deliveryRules, setDeliveryRules, index, key }) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -521,7 +521,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               setDeliveryRules={setDeliveryRules}
               attribute={item}
               setAttributes={setAttributes}
-              config={filteredDeliveryConfig?.deliveryConfig?.[delivery?.ruleKey - 1]?.attributeConfig?.[index]}
+              config={filteredDeliveryConfig?.deliveryConfig?.[targetedData?.deliveryIndex - 1]?.conditionConfig?.[delivery?.ruleKey - 1]?.attributeConfig?.[index]}
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
@@ -630,6 +630,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           )}
         </CardHeader>
         <AddAttributeWrapper
+          targetedData={targetedData}
           deliveryRuleIndex={delivery.ruleKey}
           delivery={delivery}
           deliveryRules={deliveryRules}

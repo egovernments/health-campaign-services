@@ -25,7 +25,6 @@ import CycleDataPreview from "./components/CycleDataPreview";
 import { ErrorBoundary } from "@egovernments/digit-ui-components";
 import CampaignResourceDocuments from "./components/CampaignResourceDocuments";
 
-export const BOUNDARY_HIERARCHY_TYPE="ADMIN";
 /**
  * The CampaignModule function fetches store data based on state code, module code, and language, and
  * renders the EmployeeApp component within a TourProvider component if the data is not loading.
@@ -33,8 +32,14 @@ export const BOUNDARY_HIERARCHY_TYPE="ADMIN";
  * a TourProvider component wrapping an EmployeeApp component with specific props passed to it.
  */
 const CampaignModule = ({ stateCode, userType, tenants }) => {
+  const tenantId = Digit.ULBService.getCurrentTenantId();
+  const { data: BOUNDARY_HIERARCHY_TYPE } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }], {
+    select: (data) => {
+      return data?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.hierarchy;
+    },
+  });
 
-  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema","hcm-admin-schemas",`boundary-${BOUNDARY_HIERARCHY_TYPE}`];
+  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema", "hcm-admin-schemas", `boundary-${BOUNDARY_HIERARCHY_TYPE}`];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
   const { isLoading, data: store } = Digit.Services.useStore({
@@ -50,7 +55,7 @@ const CampaignModule = ({ stateCode, userType, tenants }) => {
   return (
     <ErrorBoundary moduleName="CAMPAIGN">
       <TourProvider>
-        <EmployeeApp path={path} stateCode={stateCode} url={url} userType={userType} />
+        <EmployeeApp BOUNDARY_HIERARCHY_TYPE={BOUNDARY_HIERARCHY_TYPE} path={path} stateCode={stateCode} url={url} userType={userType} />
       </TourProvider>
     </ErrorBoundary>
   );
@@ -76,7 +81,7 @@ const componentsToRegister = {
   AddProduct,
   AddProductField,
   CycleDataPreview,
-  CampaignResourceDocuments
+  CampaignResourceDocuments,
 };
 
 const overrideHooks = () => {

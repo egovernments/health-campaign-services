@@ -9,14 +9,14 @@ import { enrichAndPersistCampaignWithError } from '../utils/campaignUtils';
 
 // Replace with the correct Kafka broker(s) and topic name
 const kafkaConfig = {
-    kafkaHost: config.KAFKA_BROKER_HOST, // Use the correct broker address and port
+    kafkaHost: config?.host?.KAFKA_BROKER_HOST, // Use the correct broker address and port
     groupId: 'project-factory',
     autoCommit: true,
     autoCommitIntervalMs: 5000,
     fromOffset: 'latest',
 };
 
-const topicName = config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC;
+const topicName = config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC;
 
 // Create a Kafka client
 const kafkaClient = new KafkaClient(kafkaConfig);

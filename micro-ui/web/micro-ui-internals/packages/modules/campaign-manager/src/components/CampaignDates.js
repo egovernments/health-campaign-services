@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { DatePicker, LabelFieldPair, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
-import { TextInput } from "@egovernments/digit-ui-components";
+import { ErrorMessage, FieldV1, TextInput } from "@egovernments/digit-ui-components";
 
 const CampaignDates = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
@@ -14,6 +14,8 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
   const [startDate, setStartDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate); // Set default start date to today
   const [endDate, setEndDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate); // Default end date
   const [executionCount, setExecutionCount] = useState(0);
+  const [error, setError] = useState(null);
+  const [startValidation, setStartValidation] = useState(null);
 
   useEffect(() => {
     setDates({
@@ -23,18 +25,39 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
     setStartDate(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate);
     setEndDate(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate);
   }, [props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates]);
-  
+
   useEffect(() => {
-    onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+    if (props?.props?.isSubmitting && !endDate && !startDate) {
+      setError({ startDate: "CAMPAIGN_FIELD_MANDATORY", endDate: "CAMPAIGN_FIELD_MANDATORY" });
+    } else if (props?.props?.isSubmitting && !startDate) {
+      setError({ startDate: "CAMPAIGN_FIELD_MANDATORY" });
+    } else if (props?.props?.isSubmitting && !endDate) {
+      setError({ endDate: "CAMPAIGN_FIELD_MANDATORY" });
+    } else if (!props?.props?.isSubmitting) {
+      setError(null);
+    }
+  }, [props?.props?.isSubmitting]);
+  useEffect(() => {
+    if (!startDate && startValidation) {
+      setError({ startDate: "CAMPAIGN_START_DATE_ERROR" });
+    } else if (!endDate && startValidation) {
+      setError({ endDate: "CAMPAIGN_END_DATE_ERROR" });
+    } else if (new Date(endDate).getTime() < new Date(startDate).getTime() && startValidation) {
+      setError({ endDate: "CAMPAIGN_END_DATE_BEFORE_ERROR" });
+      onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+    } else if (startDate || endDate) {
+      setError(null);
+      onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+    }
   }, [startDate, endDate]);
 
   useEffect(() => {
     if (executionCount < 5) {
       onSelect("campaignDates", { startDate: startDate, endDate: endDate });
-      setExecutionCount(prevCount => prevCount + 1);
+      setExecutionCount((prevCount) => prevCount + 1);
     }
   });
-  
+
   function setStart(value) {
     setStartDate(value);
   }
@@ -53,19 +76,39 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
           <span className="mandatory-date">*</span>
         </div>
         <div className="date-field-container">
-          <TextInput
+          <FieldV1
+            error={error?.startDate ? t(error?.startDate) : ""}
+            withoutLabel={true}
             type="date"
             value={startDate}
             placeholder={t("HCM_START_DATE")}
+            populators={{
+              validation: {
+                min: Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS),
+              },
+            }}
             min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
-            onChange={(d) => setStart(d)}
+            onChange={(d) => {
+              setStartValidation(true);
+              setStart(d);
+            }}
           />
-          <TextInput
+          <FieldV1
+            error={error?.endDate ? t(error?.endDate) : ""}
+            withoutLabel={true}
             type="date"
             value={endDate}
             placeholder={t("HCM_END_DATE")}
+            populators={{
+              validation: {
+                min: Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS),
+              },
+            }}
             min={Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS)}
-            onChange={(d) => setEnd(d)}
+            onChange={(d) => {
+              setStartValidation(true);
+              setEnd(d);
+            }}
           />
         </div>
       </LabelFieldPair>

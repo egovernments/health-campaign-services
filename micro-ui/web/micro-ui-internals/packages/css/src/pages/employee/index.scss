@@ -292,3 +292,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
   }
 }
+
+.digit-toast-success {
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+  height: auto;
+  .toast-label {
+    line-height: 1.5;
+    word-break: break-word;
+    height: auto;
+    white-space: unset;
+  }
+}
+
+.digit-dropdown-select.error {
+  border: 1px solid #d4351c;
+}
+.campaign-type-wrapper {
+  .digit-error-icon-message-wrap {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+}

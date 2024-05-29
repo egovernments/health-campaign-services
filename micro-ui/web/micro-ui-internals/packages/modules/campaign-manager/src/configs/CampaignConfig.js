@@ -1,4 +1,4 @@
-export const CampaignConfig = (totalFormData, dataParams) => {
+export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
   return [
     {
       form: [
@@ -18,6 +18,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
+                isSubmitting: isSubmitting
               },
               populators: {
                 name: "projectType",
@@ -41,6 +42,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
+                isSubmitting: isSubmitting
               },
               populators: {
                 name: "campaignName",
@@ -64,6 +66,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
+                isSubmitting: isSubmitting
               },
               populators: {
                 name: "campaignDates",

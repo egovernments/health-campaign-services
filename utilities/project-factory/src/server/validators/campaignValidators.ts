@@ -1,6 +1,6 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
 import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../api/campaignApis";
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
@@ -137,7 +137,7 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
     const responseBoundaryCodes = responseBoundaries.map((boundary: any) => boundary.code);
     // Iterate through each array of objects
     for (const key in data) {
-        const isNotBoundaryOrReadMeTab = key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap);
+        const isNotBoundaryOrReadMeTab = key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap);
         if (isNotBoundaryOrReadMeTab) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
@@ -195,7 +195,7 @@ async function validateTargetsAtLowestLevelPresentOrNot(data: any[], request: an
 //
 function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], localizationMap?: any) {
     for (const key in data) {
-        if (key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap)) {
+        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
@@ -203,35 +203,35 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
                         if (target === undefined) {
-                            errors.push({ 
-                                status: "INVALID", 
-                                rowNumber: obj["!row#number!"], 
-                                errorDetails: `Target value is missing at row ${obj['!row#number!'] + 1} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`, 
-                                sheetName: key 
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Target value is missing at row ${obj['!row#number!'] + 1} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`,
+                                sheetName: key
                             });
                         } else if (typeof target !== 'number') {
-                            errors.push({ 
-                                status: "INVALID", 
-                                rowNumber: obj["!row#number!"], 
-                                errorDetails: `Target value at row ${obj['!row#number!'] + 1} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`, 
-                                sheetName: key 
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Target value at row ${obj['!row#number!'] + 1} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`,
+                                sheetName: key
                             });
                         } else if (target <= 0 || target > 100000) {
-                            errors.push({ 
-                                status: "INVALID", 
-                                rowNumber: obj["!row#number!"], 
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`, 
-                                sheetName: key 
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`,
+                                sheetName: key
                             });
                         } else if (!Number.isInteger(target)) {
-                            errors.push({ 
-                                status: "INVALID", 
-                                rowNumber: obj["!row#number!"], 
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`, 
-                                sheetName: key 
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`,
+                                sheetName: key
                             });
                         }
-                        
+
                     }
                 });
             }
@@ -411,6 +411,42 @@ function validateStorageCapacity(obj: any, index: any) {
 }
 
 
+async function validateCampaignId(request: any) {
+    const { campaignId, tenantId, type } = request?.body?.ResourceDetails;
+    if (type == "boundary") {
+        return;
+    }
+    if (!campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignId is missing");
+    }
+    else {
+        const searchBody = {
+            CampaignDetails: {
+                ids: [campaignId],
+                tenantId: tenantId
+            }
+        }
+        const req: any = replicateRequest(request, searchBody);
+        const response = await searchProjectTypeCampaignService(req);
+        if (response?.CampaignDetails?.[0]) {
+            const campaign = response?.CampaignDetails?.[0]
+            if (!campaign?.boundaries) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
+            }
+            if (!Array.isArray(campaign?.boundaries)) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Boundaries of campaign with given campaignId is not an array");
+            }
+            if (campaign?.boundaries?.length === 0) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
+            }
+        }
+        else {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while validating campaignId");
+        }
+    }
+}
+
+
 async function validateCreateRequest(request: any) {
     if (!request?.body?.ResourceDetails || Object.keys(request.body.ResourceDetails).length === 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
@@ -418,6 +454,7 @@ async function validateCreateRequest(request: any) {
     else {
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
+        await validateCampaignId(request);
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
@@ -434,9 +471,9 @@ async function validateCreateRequest(request: any) {
             const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
             const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase());
             const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
-            const index = localizedHierarchy.indexOf(getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap));
-            let expectedHeadersForTargetSheet = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
-            expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheet, getLocalizedName(config.boundaryCode, localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap)]
+            const index = localizedHierarchy.indexOf(getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap));
+            let expectedHeadersForTargetSheet = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
+            expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheet, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap)]
             // validateForRootElementExists(sheetData, hierachy, mainSheetName);
             validateTabsWithTargetInTargetSheet(request, targetWorkbook, expectedHeadersForTargetSheet);
         }
@@ -545,8 +582,10 @@ async function validateCampaignBoundary(boundaries: any[], hierarchyType: any, t
         code: boundary.code.trim(),
         type: boundary.boundaryType.trim()
     }));
-    logger.info("responseBoundaryCodes " + JSON.stringify(responseBoundaryCodes))
-    logger.info("boundaryCodesToMatch " + JSON.stringify(boundaryCodesToMatch))
+    logger.info("received boundary hiearchy response, checking for valid")
+
+    logger.debug("responseBoundaryCodes " + getFormattedStringForDebug(responseBoundaryCodes))
+    logger.debug("boundaryCodesToMatch " + getFormattedStringForDebug(boundaryCodesToMatch))
     function isEqual(obj1: any, obj2: any) {
         return obj1.code === obj2.code && obj1.type === obj2.type;
     }
@@ -998,13 +1037,13 @@ async function validateDownloadRequest(request: any) {
 function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: any) {
     validateAllDistrictTabsPresentOrNot(dataFromSheet, localizationMap);
     for (const key in dataFromSheet) {
-        if (key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap)) {
+        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Object.prototype.hasOwnProperty.call(dataFromSheet, key)) {
                 const dataArray = (dataFromSheet as { [key: string]: any[] })[key];
                 if (dataArray.length === 0) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", `The Target Sheet ${key} you have uploaded is empty`)
                 }
-                const root = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
+                const root = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
                 for (const boundaryRow of dataArray) {
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
@@ -1023,7 +1062,7 @@ function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: 
 
 function validateAllDistrictTabsPresentOrNot(dataFromSheet: any, localizationMap?: any) {
     let tabsIndex = 2;
-    const tabsOfDistrict = getDifferentDistrictTabs(dataFromSheet[getLocalizedName(config.boundaryTab, localizationMap)], getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap));
+    const tabsOfDistrict = getDifferentDistrictTabs(dataFromSheet[getLocalizedName(config?.boundary?.boundaryTab, localizationMap)], getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap));
     const tabsFromTargetSheet = Object.keys(dataFromSheet);
     for (let tab of tabsOfDistrict) {
         if (tabsIndex >= tabsFromTargetSheet.length) {

@@ -11,48 +11,44 @@ if (!HOST) {
 }
 // Configuration object containing various environment variables
 const config = {
-  readMeTab: "Read Me",
-  boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
-  facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-  boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-  userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-  localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
-  //module name
-  moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
-  // facility master
-  facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
-  // user master
-  userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
-  // Default sheet name for boundary data
-  // boundarySheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
-  // Default criteria for generating different tabs
-  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
-  // default configurable number of data of boundary type on which generate different tabs
-  numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
-  // Authentication token
-  auth_token: process.env.AUTH_TOKEN,
-  // Wait time for generic create
-  waitTime: process.env.WAIT_FOR_GENERIC_CREATE || "30000",
-  // Kafka broker host
-  KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
-  // Kafka topics
-  KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "save-project-campaign-details",
-  KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "update-project-campaign-details",
-  KAFKA_START_CAMPAIGN_MAPPING_TOPIC: process.env.KAFKA_START_CAMPAIGN_MAPPING_TOPIC || "start-campaign-mapping",
-  KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC || "update-campaign-details",
-  KAFKA_CREATE_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC || "create-resource-details",
-  KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC || "update-resource-details",
-  KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC: process.env.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC || "create-resource-activity",
-  KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC || "update-generated-resource-details",
-  KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
-  // Default hierarchy type
-  hierarchyType: "NITISH",
+  boundary: {
+    boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+    boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+    // Default criteria for generating different tabs
+    generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
+    // default configurable number of data of boundary type on which generate different tabs
+    numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
+    boundaryRelationShipDelay: 3500
+  },
+  facility: {
+    facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
+    facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
+  },
+  user: {
+    userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
+    userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
+  },
+  kafka: {
+    // Kafka topics
+    KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "save-project-campaign-details",
+    KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "update-project-campaign-details",
+    KAFKA_START_CAMPAIGN_MAPPING_TOPIC: process.env.KAFKA_START_CAMPAIGN_MAPPING_TOPIC || "start-campaign-mapping",
+    KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC || "update-campaign-details",
+    KAFKA_CREATE_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC || "create-resource-details",
+    KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC || "update-resource-details",
+    KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC: process.env.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC || "create-resource-activity",
+    KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC || "update-generated-resource-details",
+    KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
+  },
+
   // Database configuration
-  DB_USER: process.env.DB_USER || "postgres",
-  DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
-  DB_NAME: process.env.DB_NAME || "postgres",
-  DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
-  DB_PORT: process.env.DB_PORT || "5432",
+  DB_CONFIG: {
+    DB_USER: process.env.DB_USER || "postgres",
+    DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
+    DB_NAME: process.env.DB_NAME || "postgres",
+    DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
+    DB_PORT: process.env.DB_PORT || "5432",
+  },
   // Application configuration
   app: {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
@@ -63,13 +59,16 @@ const config = {
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
-    boundaryPrefix: "rainmaker-boundary"
+    boundaryPrefix: "rainmaker-boundary",
+    localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   },
   // Host configuration
   host: {
     serverHost: HOST,
-    // URLs for various services
+    // Kafka broker host
+    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
+    mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
     filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-dev.digit.org/",
     projectFactoryBff: "http://localhost:8080/",
     idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
@@ -107,25 +106,23 @@ const config = {
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
     localizationCreate: "localization/messages/v1/_upsert",
     projectTypeSearch: "project-factory/v1/project-type/search",
-    boundaryRelationshipCreate:"boundary-service/boundary-relationships/_create"
+    boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
+    mdmsV2SchemaSearch: "mdms-v2/schema/v1/_search"
   },
   // Values configuration
   values: {
+    //module name
+    moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
+    readMeTab: "Read Me",
     userMainBoundary: "mz",
     userMainBoundaryType: "Country",
-    parsingTemplate: "HCM.ParsingTemplate",
-    transfromTemplate: "HCM.TransformTemplate",
-    campaignType: "HCM.HCMTemplate",
-    APIResource: "HCM.APIResourceTemplate3",
     idgen: {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
       idName: process.env.CMP_IDGEN_IDNAME || "campaign.number"
     },
     matchFacilityData: false,
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3"
-  },
-  // Default search template
-  SEARCH_TEMPLATE: "HCM.APIResourceTemplate3"
+  }
 };
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
