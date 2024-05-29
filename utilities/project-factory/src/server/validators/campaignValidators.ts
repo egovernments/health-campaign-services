@@ -1,6 +1,6 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { httpRequest } from "../utils/request";
 import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../api/campaignApis";
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
@@ -582,8 +582,10 @@ async function validateCampaignBoundary(boundaries: any[], hierarchyType: any, t
         code: boundary.code.trim(),
         type: boundary.boundaryType.trim()
     }));
-    logger.info("responseBoundaryCodes " + JSON.stringify(responseBoundaryCodes))
-    logger.info("boundaryCodesToMatch " + JSON.stringify(boundaryCodesToMatch))
+    logger.info("received boundary hiearchy response, checking for valid")
+
+    logger.debug("responseBoundaryCodes " + getFormattedStringForDebug(responseBoundaryCodes))
+    logger.debug("boundaryCodesToMatch " + getFormattedStringForDebug(boundaryCodesToMatch))
     function isEqual(obj1: any, obj2: any) {
         return obj1.code === obj2.code && obj1.type === obj2.type;
     }
