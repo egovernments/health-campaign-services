@@ -50,95 +50,98 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
         deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
           deliveryIndex: `${subTabIndex + 1}`,
           active: subTabIndex === 0 ? true : false,
-          deliveryRules: filteredDeliveryConfig?.projectType === "LLIN-mz" ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
-            return {
-              ruleKey: index + 1,
-              delivery: {},
-              attributes: item?.attributeConfig
-                ? item?.attributeConfig?.map((i, c) => {
-                  if (i?.operatorValue === "IN_BETWEEN") {
-                    return {
-                      key: c + 1,
-                      attribute: { code: i?.attrValue },
-                      operator: { code: i?.operatorValue },
-                      toValue: i?.fromValue,
-                      fromValue: i?.toValue,
-                    };
-                  }
-                  return {
-                    key: c + 1,
-                    attribute: { code: i?.attrValue },
-                    operator: { code: i?.operatorValue },
-                    value: i?.value,
-                  };
-                })
-                : [{ key: 1, attribute: null, operator: null, value: "" }],
-              // products: [],
-              products: item?.productConfig
-                ? item?.productConfig?.map((i, c) => ({
-                  ...i,
-                }))
-                : [],
-            };
-          }) :
-            filteredDeliveryConfig && filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]
-              ? filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]?.conditionConfig?.map((item, index) => {
-                if (item) {
+          deliveryRules:
+            filteredDeliveryConfig?.projectType === "LLIN-mz"
+              ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
                   return {
                     ruleKey: index + 1,
                     delivery: {},
                     attributes: item?.attributeConfig
                       ? item?.attributeConfig?.map((i, c) => {
-                        if (i?.operatorValue === "IN_BETWEEN") {
+                          if (i?.operatorValue === "IN_BETWEEN") {
+                            return {
+                              key: c + 1,
+                              attribute: { code: i?.attrValue },
+                              operator: { code: i?.operatorValue },
+                              toValue: i?.fromValue,
+                              fromValue: i?.toValue,
+                            };
+                          }
                           return {
                             key: c + 1,
                             attribute: { code: i?.attrValue },
                             operator: { code: i?.operatorValue },
-                            toValue: i?.fromValue,
-                            fromValue: i?.toValue,
+                            value: i?.value,
                           };
-                        }
-                        return {
-                          key: c + 1,
-                          attribute: { code: i?.attrValue },
-                          operator: { code: i?.operatorValue },
-                          value: i?.value,
-                        };
-                      })
+                        })
                       : [{ key: 1, attribute: null, operator: null, value: "" }],
                     // products: [],
                     products: item?.productConfig
                       ? item?.productConfig?.map((i, c) => ({
-                        ...i,
-                      }))
+                          ...i,
+                        }))
                       : [],
                   };
-                } else {
-                  return {
-                    ruleKey: index + 1,
-                    delivery: {},
-                    attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
-                    products: [],
-                  };
-                }
-              })
+                })
+              : filteredDeliveryConfig && filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]
+              ? filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]?.conditionConfig?.map((item, index) => {
+                  if (item) {
+                    return {
+                      ruleKey: index + 1,
+                      delivery: {},
+                      attributes: item?.attributeConfig
+                        ? item?.attributeConfig?.map((i, c) => {
+                            if (i?.operatorValue === "IN_BETWEEN") {
+                              return {
+                                key: c + 1,
+                                attribute: { code: i?.attrValue },
+                                operator: { code: i?.operatorValue },
+                                toValue: i?.fromValue,
+                                fromValue: i?.toValue,
+                              };
+                            }
+                            return {
+                              key: c + 1,
+                              attribute: { code: i?.attrValue },
+                              operator: { code: i?.operatorValue },
+                              value: i?.value,
+                            };
+                          })
+                        : [{ key: 1, attribute: null, operator: null, value: "" }],
+                      // products: [],
+                      products: item?.productConfig
+                        ? item?.productConfig?.map((i, c) => ({
+                            ...i,
+                          }))
+                        : [],
+                    };
+                  } else {
+                    return {
+                      ruleKey: index + 1,
+                      delivery: {},
+                      attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
+                      products: [],
+                    };
+                  }
+                })
               : [
-                {
-                  ruleKey: 1,
-                  delivery: {},
-                  attributes: filteredDeliveryConfig && filteredDeliveryConfig?.attributeConfig
-                    ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
-                      key: c + 1,
-                      attribute: { code: i?.attrValue },
-                      operator: { code: i?.operatorValue },
-                      value: i?.value,
-                    }))
-                    : // : filteredDeliveryConfig?.projectType === "LLIN-mz"
-                    // ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({ key: c + 1, attribute: i.attrValue, operator: null, value: "" }))
-                    [{ key: 1, attribute: null, operator: null, value: "" }],
-                  products: [],
-                },
-              ],
+                  {
+                    ruleKey: 1,
+                    delivery: {},
+                    attributes:
+                      filteredDeliveryConfig && filteredDeliveryConfig?.attributeConfig
+                        ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                            key: c + 1,
+                            attribute: { code: i?.attrValue },
+                            operator: { code: i?.operatorValue },
+                            value: i?.value,
+                          }))
+                        : // : filteredDeliveryConfig?.projectType === "LLIN-mz"
+                          // ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({ key: c + 1, attribute: i.attrValue, operator: null, value: "" }))
+                          [{ key: 1, attribute: null, operator: null, value: "" }],
+                    products: [],
+                  },
+                ],
         })),
       }));
     }
@@ -159,59 +162,109 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
         const newIndex = i.toString();
         saved.push({
           cycleIndex: newIndex,
-          active: true,
+          active: false,
           deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
             deliveryIndex: `${subTabIndex + 1}`,
-            active: subTabIndex === 0 ? true : false,
-            deliveryRules: filteredDeliveryConfig
-              ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
-                return {
-                  ruleKey: index + 1,
-                  delivery: {},
-                  attributes: item?.attributeConfig
-                    ? item?.attributeConfig?.map((i, c) => ({
-                      key: c + 1,
-                      attribute: { code: i?.attrValue },
-                      operator: { code: i?.operatorValue },
-                      value: i?.value,
-                    }))
-                    : [{ key: 1, attribute: null, operator: null, value: "" }],
-                  products: item?.productConfig
-                    ? item?.productConfig?.map((i, c) => ({
-                      ...i,
-                    }))
-                    : [],
-                };
-              })
-              : [
-                {
-                  ruleKey: 1,
-                  delivery: {},
-                  attributes:
-                    // filteredDeliveryConfig?.projectType === "MR-DN"
-                    //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
-                    //       key: c + 1,
-                    //       attribute: { code: i?.attrValue },
-                    //       operator: { code: i?.operatorValue },
-                    //       value: i?.value,
-                    //     }))
-                    //   : filteredDeliveryConfig?.projectType === "LLIN-mz"
-                    //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
-                    //       key: c + 1,
-                    //       attribute: i.attrValue,
-                    //       operator: null,
-                    //       value: "",
-                    //     }))
-                    // :
-                    [{ key: 1, attribute: null, operator: null, value: "" }],
-                  // products: [],
-                  products: item?.productConfig
-                    ? item?.productConfig?.map((i, c) => ({
-                      ...i,
-                    }))
-                    : [],
-                },
-              ],
+            active: subTabIndex === 0,
+            deliveryRules:
+              filteredDeliveryConfig?.projectType === "LLIN-mz"
+                ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
+                    return {
+                      ruleKey: index + 1,
+                      delivery: {},
+                      attributes: item?.attributeConfig
+                        ? item?.attributeConfig?.map((i, c) => {
+                            if (i?.operatorValue === "IN_BETWEEN") {
+                              return {
+                                key: c + 1,
+                                attribute: { code: i?.attrValue },
+                                operator: { code: i?.operatorValue },
+                                toValue: i?.fromValue,
+                                fromValue: i?.toValue,
+                              };
+                            }
+                            return {
+                              key: c + 1,
+                              attribute: { code: i?.attrValue },
+                              operator: { code: i?.operatorValue },
+                              value: i?.value,
+                            };
+                          })
+                        : [{ key: 1, attribute: null, operator: null, value: "" }],
+                      // products: [],
+                      products: item?.productConfig
+                        ? item?.productConfig?.map((i, c) => ({
+                            ...i,
+                          }))
+                        : [],
+                    };
+                  })
+                : filteredDeliveryConfig && filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]?.conditionConfig
+                ? filteredDeliveryConfig?.deliveryConfig?.[subTabIndex]?.conditionConfig?.map((item, index) => {
+                    if (item) {
+                      return {
+                        ruleKey: index + 1,
+                        delivery: {},
+                        attributes: item?.attributeConfig
+                          ? item?.attributeConfig?.map((i, c) => {
+                              if (i?.operatorValue === "IN_BETWEEN") {
+                                return {
+                                  key: c + 1,
+                                  attribute: { code: i?.attrValue },
+                                  operator: { code: i?.operatorValue },
+                                  toValue: i?.fromValue,
+                                  fromValue: i?.toValue,
+                                };
+                              }
+                              return {
+                                key: c + 1,
+                                attribute: { code: i?.attrValue },
+                                operator: { code: i?.operatorValue },
+                                value: i?.value,
+                              };
+                            })
+                          : [{ key: 1, attribute: null, operator: null, value: "" }],
+                        // products: [],
+                        products: item?.productConfig
+                          ? item?.productConfig?.map((i, c) => ({
+                              ...i,
+                            }))
+                          : [],
+                      };
+                    } else {
+                      return {
+                        ruleKey: index + 1,
+                        delivery: {},
+                        attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
+                        products: [],
+                      };
+                    }
+                  })
+                : [
+                    {
+                      ruleKey: 1,
+                      delivery: {},
+                      attributes:
+                        // filteredDeliveryConfig?.projectType === "MR-DN"
+                        //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                        //       key: c + 1,
+                        //       attribute: { code: i?.attrValue },
+                        //       operator: { code: i?.operatorValue },
+                        //       value: i?.value,
+                        //     }))
+                        //   : filteredDeliveryConfig?.projectType === "LLIN-mz"
+                        //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({
+                        //       key: c + 1,
+                        //       attribute: i.attrValue,
+                        //       operator: null,
+                        //       value: "",
+                        //     }))
+                        // :
+                        [{ key: 1, attribute: null, operator: null, value: "" }],
+                      // products: [],
+                      products: [],
+                    },
+                  ],
           })),
         });
       }
@@ -226,13 +279,55 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
       }
 
       // Add deliveries if there are fewer deliveries than the specified number
-      for (let i = cycle.deliveries.length + 1; i <= subTabs; i++) {
-        const newIndex = i.toString();
-        cycle.deliveries.push({
-          deliveryIndex: newIndex,
-          active: true,
-          deliveryRules: [],
-        });
+      if (subTabs > cycle.deliveries.length) {
+        for (let i = cycle.deliveries.length + 1; i <= subTabs; i++) {
+          const newIndex = i.toString();
+          cycle.deliveries.push({
+            deliveryIndex: newIndex,
+            active: false,
+            deliveryRules:
+              filteredDeliveryConfig?.projectType === "LLIN-mz"
+                ? filteredDeliveryConfig?.deliveryConfig?.map((item, index) => {
+                    return {
+                      ruleKey: index + 1,
+                      delivery: {},
+                      attributes: item?.attributeConfig
+                        ? item?.attributeConfig?.map((i, c) => {
+                            if (i?.operatorValue === "IN_BETWEEN") {
+                              return {
+                                key: c + 1,
+                                attribute: { code: i?.attrValue },
+                                operator: { code: i?.operatorValue },
+                                toValue: i?.fromValue,
+                                fromValue: i?.toValue,
+                              };
+                            }
+                            return {
+                              key: c + 1,
+                              attribute: { code: i?.attrValue },
+                              operator: { code: i?.operatorValue },
+                              value: i?.value,
+                            };
+                          })
+                        : [{ key: 1, attribute: null, operator: null, value: "" }],
+                      // products: [],
+                      products: item?.productConfig
+                        ? item?.productConfig?.map((i, c) => ({
+                            ...i,
+                          }))
+                        : [],
+                    };
+                  })
+                : [
+                    {
+                      ruleKey: 1,
+                      delivery: {},
+                      attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
+                      products: [],
+                    },
+                  ],
+          });
+        }
       }
     });
 
