@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, Fragment } from "react";
 import { Link, useHistory, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Banner, Card, LinkLabel, ArrowLeftWhite, ActionBar, SubmitBar } from "@egovernments/digit-ui-react-components";
+import { ActionBar, SubmitBar } from "@egovernments/digit-ui-react-components";
+import { PanelCard } from "@egovernments/digit-ui-components";
 
 const Response = () => {
   const { t } = useTranslation();
@@ -22,40 +23,42 @@ const Response = () => {
     }
   };
 
+  const children = [
+    <div style={{ display: "flex" }} key="response-text">
+      {state?.boldText ? (
+        <p style={{ margin: "0rem" }}>
+          {t(state?.preText)}
+          <b> {t(state?.boldText)} </b>
+          {t(state?.postText)}
+        </p>
+      ) : (
+        t(state?.text, { CAMPAIGN_ID: campaignId })
+      )}
+    </div>,
+  ];
+
   return (
-    <Card>
-      <Banner
-        successful={isResponseSuccess}
+    <>
+      <PanelCard
+        type={isResponseSuccess ? "success" : "error"}
         message={t(state?.message)}
-        multipleResponseIDs={[campaignId]}
+        response={campaignId}
         info={t(state?.info)}
-        whichSvg={`${isResponseSuccess ? "tick" : null}`}
+        footerChildren={[]}
+        children={children}
       />
-      <Card style={{ border: "none", boxShadow: "none", padding: "0", paddingBottom: "1rem" }}>
-        <div style={{ display: "flex", marginBottom: "0.75rem" }}>
-          {state?.boldText ? (
-            <p>
-              {t(state?.preText)}
-              <b> {t(state?.boldText)} </b>
-              {t(state?.postText)}
-            </p>
-          ) : (
-            t(state?.text, { CAMPAIGN_ID: campaignId })
-          )}
-        </div>
-        {isMobile ? (
+      {isMobile ? (
+        <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
+          <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
+        </Link>
+      ) : (
+        <ActionBar>
           <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
             <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
           </Link>
-        ) : (
-          <ActionBar>
-            <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
-              <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
-            </Link>
-          </ActionBar>
-        )}
-      </Card>
-    </Card>
+        </ActionBar>
+      )}
+    </>
   );
 };
 

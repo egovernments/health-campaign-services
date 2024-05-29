@@ -2,6 +2,28 @@
 @import "./coreOverride.scss";
 @import "../../typography.scss";
 
+.wbh-header-container {
+  margin-top: 1.5rem;
+}
+.main.digit-home-main {
+  margin-left: 92px;
+  .employee-app-wrapper.digit-home-app-wrapper {
+    margin-left: 0;
+    .ground-container.digit-home-ground {
+      padding: 0;
+      .employee-app-container.digit-home-employee-app {
+        .ground-container.moduleCardWrapper.gridModuleWrapper.digit-home-moduleCardWrapper {
+          gap: 2.5rem;
+          margin-top: 2rem;
+          padding: 0;
+          .employeeCard.customEmployeeCard.card-home.home-action-cards {
+            margin: 0 !important;
+          }
+        }
+      }
+    }
+  }
+}
 .campaign-cycle-container {
   .popup-header-fix {
     margin-top: 1.5rem !important;
@@ -124,7 +146,6 @@
   font-size: 24px;
   color: #505a5f;
   margin-top: 0.5rem;
-  font-style: italic;
 }
 .header-end {
   margin-right: 1rem;
@@ -193,11 +214,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 .campaign-summary-container {
+  .setup-campaign-card {
+    .employeeCard.employeeCard-override {
+      padding: 1.5rem;
+      margin-bottom: 1.5rem !important;
+    }
+  }
   .row {
+    justify-content: flex-start;
+    gap: 5rem;
     h2 {
       margin: 0;
+      width: 272px;
     }
     .value {
+      width: unset;
       p {
         margin: 0;
       }
@@ -206,6 +237,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .view-composer-header-section {
   .employee-card-sub-header {
+    @extend .typography.text-heading-m;
     margin-bottom: 1.5rem;
   }
 }

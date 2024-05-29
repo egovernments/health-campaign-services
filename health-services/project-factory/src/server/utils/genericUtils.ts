@@ -615,7 +615,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
-  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
+  const schema = await callMdmsSchema(request, config?.values?.moduleName, "user", tenantId);
   const headers = schema?.required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);

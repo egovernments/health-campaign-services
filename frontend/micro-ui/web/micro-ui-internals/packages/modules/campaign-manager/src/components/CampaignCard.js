@@ -20,28 +20,28 @@ const CampaignCard = () => {
 
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
-  const reqCriteria = {
-    url: "/project-factory/v1/project-type/search",
-    params: {},
-    body: { CampaignDetails:{
-      tenantId,
-      createdBy: Digit.UserService.getUser().info.uuid,
-      pagination: {
-        "sortBy": "createdTime",
-        "sortOrder": "desc",
-        "limit": 1,
-        "offset": 0
-      }
-    } },
-    config: {
-      select: (data) => {
-        return data?.totalCount;
-      },
-    },
-  };
-  const { isLoading, data } = Digit.Hooks.useCustomAPIHook(
-    reqCriteria
-  );
+  // const reqCriteria = {
+  //   url: "/project-factory/v1/project-type/search",
+  //   params: {},
+  //   body: { CampaignDetails:{
+  //     tenantId,
+  //     createdBy: Digit.UserService.getUser().info.uuid,
+  //     pagination: {
+  //       "sortBy": "createdTime",
+  //       "sortOrder": "desc",
+  //       "limit": 1,
+  //       "offset": 0
+  //     }
+  //   } },
+  //   config: {
+  //     select: (data) => {
+  //       return data?.totalCount;
+  //     },
+  //   },
+  // };
+  // const { isLoading, data } = Digit.Hooks.useCustomAPIHook(
+  //   reqCriteria
+  // );
   let links = [
 
     {
@@ -53,7 +53,7 @@ const CampaignCard = () => {
       label: t("ACTION_TEST_MY_CAMPAIGN"),
       link: `/${window?.contextPath}/employee/campaign/my-campaign`,
       roles: ROLES.CAMPAIGN_MANAGER,
-      count: isLoading?"-":data
+      // count: isLoading?"-":data
     },
   ];
 

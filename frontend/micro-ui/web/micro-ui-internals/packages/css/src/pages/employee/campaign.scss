@@ -1,10 +1,14 @@
 @import url("../../index.scss");
 @import "../../typography.scss";
 
+.summary-header{
+  @extend .typography.text-heading-l;
+  font-size: 2.25rem;
+}
 .date-field-container {
   display: grid;
   grid-template-columns: 20rem 20rem;
-  grid-gap: 2rem;
+  grid-gap: 1.5rem;
   width: 70%;
   padding-top: 0.3rem;
   margin-top: 0rem;

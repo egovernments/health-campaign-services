@@ -408,7 +408,7 @@ const CampaignSummary = () => {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+        <Header className="summary-header">{t("ES_TQM_SUMMARY_HEADING")}</Header>
         {userCredential && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
