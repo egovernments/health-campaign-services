@@ -146,7 +146,12 @@ app.use((req, res, next) => {
 });
 
 // Proxy request to Kibana if authentication is successful
-app.use('/', proxy(kibanaHost + kibanaServerBasePath));
+app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
+    proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
+        proxyReqOpts.headers['kbn-xsrf'] = 'true';
+        return proxyReqOpts;
+    },
+}));
 
 // Listen on configured port
 app.listen(serverPort, () => {
