@@ -211,7 +211,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                                          Boolean includeDeleted, Map<String, Object> paramsMap) {
         String query = "SELECT * FROM individual";
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
-        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
+        query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
 
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
