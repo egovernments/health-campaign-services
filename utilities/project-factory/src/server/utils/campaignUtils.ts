@@ -915,7 +915,7 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
 }
 
 
-async function processBoundary(boundaryResponse: any, boundaries: any, includeAllChildren: any, boundaryCodes: any) {
+async function processBoundary(boundaryResponse: any, boundaries: any, includeAllChildren: any, boundaryCodes: any, boundaryChildren: any) {
     if (!boundaryResponse) return;
     if (!boundaryCodes.has(boundaryResponse.code)) {
         boundaries.push({ code: boundaryResponse?.code, type: boundaryResponse?.boundaryType, insertedAfter: true });
@@ -923,7 +923,17 @@ async function processBoundary(boundaryResponse: any, boundaries: any, includeAl
     }
     if (includeAllChildren && boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
         for (const child of boundaryResponse.children) {
-            processBoundary(child, boundaries, true, boundaryCodes);
+            processBoundary(child, boundaries, true, boundaryCodes, boundaryChildren);
+        }
+    }
+    else if (boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
+        for (const child of boundaryResponse.children) {
+            if (boundaryCodes.has(child.code) && boundaryChildren[child.code]) {
+                processBoundary(child, boundaries, true, boundaryCodes, boundaryChildren);
+            }
+            else if (boundaryCodes.has(child.code)) {
+                processBoundary(child, boundaries, false, boundaryCodes, boundaryChildren);
+            }
         }
     }
 }
@@ -931,7 +941,7 @@ async function processBoundary(boundaryResponse: any, boundaries: any, includeAl
 async function addBoundaries(request: any, boundaryResponse: any, boundaryChildren: any) {
     var { boundaries } = request?.body?.CampaignDetails;
     var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
-    await processBoundary(boundaryResponse, boundaries, boundaryChildren[boundaryResponse?.code], boundaryCodes);
+    await processBoundary(boundaryResponse, boundaries, boundaryChildren[boundaryResponse?.code], boundaryCodes, boundaryChildren);
     request.body.CampaignDetails.boundaries = boundaries
 }
 
@@ -952,7 +962,7 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
                 return acc;
             }, {});
             var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
-            await processBoundary(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], boundaries, boundaryChildren[boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code], boundaryCodes);
+            await processBoundary(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], boundaries, boundaryChildren[boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code], boundaryCodes, boundaryChildren);
             CampaignDetails.boundaries = boundaries
         }
         else {
