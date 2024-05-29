@@ -941,7 +941,7 @@ async function processBoundary(boundaryResponse: any, boundaries: any, includeAl
 async function addBoundaries(request: any, boundaryResponse: any, boundaryChildren: any) {
     var { boundaries } = request?.body?.CampaignDetails;
     var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
-    await processBoundary(boundaryResponse, boundaries, boundaryChildren[boundaryResponse?.code], boundaryCodes);
+    await processBoundary(boundaryResponse, boundaries, boundaryChildren[boundaryResponse?.code], boundaryCodes, boundaryChildren);
     request.body.CampaignDetails.boundaries = boundaries
 }
 
@@ -962,7 +962,7 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
                 return acc;
             }, {});
             var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
-            await processBoundary(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], boundaries, boundaryChildren[boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code], boundaryCodes);
+            await processBoundary(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], boundaries, boundaryChildren[boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code], boundaryCodes, boundaryChildren);
             CampaignDetails.boundaries = boundaries
         }
         else {
