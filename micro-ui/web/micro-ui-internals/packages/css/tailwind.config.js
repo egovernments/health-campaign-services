@@ -114,9 +114,10 @@ module.exports = {
         "header-sidenav": "#0B4B66",
         "input-border": "#505A5F",
         "primary-bg": "#FEEFE7",
+        "text-primary": "#363636",
       },
       alert: {
-        error: "#b91900", 
+        error: "#b91900",
         "error-bg": "#EFC7C1",
         success: "#00703C",
         "success-bg": "#BAD6C9",

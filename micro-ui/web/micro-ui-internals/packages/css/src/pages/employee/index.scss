@@ -347,3 +347,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-size: 14px;
   }
 }
+.individualElement {
+  h2 {
+    color: theme(digitv2.lightTheme.text-primary);
+  }
+}
+.link {
+  color: #c84c0e !important;
+}
