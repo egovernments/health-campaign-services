@@ -448,7 +448,10 @@ definitions:
     type: object
     properties:
       individualId:
-        $ref: '#/definitions/individualId'
+#        $ref: '#/definitions/individualId'
+        type: array
+        items:
+          type: string
       id:
         $ref: '#/definitions/idForSearch'
       clientReferenceId:
@@ -460,9 +463,12 @@ definitions:
       gender:
         $ref: '#/definitions/gender'
       mobileNumber:
-        type: string
+        type: array
+        items:
+          type: string
+          maxLength: 20
         description: Mobile number of the user
-        maxLength: 20
+
       socialCategory:
         type: string
         description: Social category of the user

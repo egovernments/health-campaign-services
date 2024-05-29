@@ -50,7 +50,7 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
             if (!iMap.isEmpty()) {
                 List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
                 List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                        getIdFieldName(idMethod), false);
+                        getIdFieldName(idMethod), false).getResponse();
                 List<HouseholdMember> entitiesWithMismatchedRowVersion =
                         getEntitiesWithMismatchedRowVersion(iMap, existingHouseholdMembers, idMethod);
                 entitiesWithMismatchedRowVersion.forEach(householdMember -> {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import org.apache.commons.io.IOUtils;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdSearchRequest;
@@ -158,9 +159,9 @@ class ProjectBeneficiaryServiceUpdateTest {
     private void mockFindById() {
         lenient().when(projectBeneficiaryRepository.findById(
                 eq(projectBeneficiaryIds),
-                eq(false),
-                anyString())
-        ).thenReturn(request.getProjectBeneficiaries());
+                anyString(),
+                eq(false))
+        ).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(request.getProjectBeneficiaries()).build());
     }
 
     private void mockMdms(String responseFileName) throws Exception {
@@ -208,7 +209,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockServiceRequestClient();
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        when(projectBeneficiaryRepository.findById(anyList(), eq(false), anyString())).thenReturn(Collections.emptyList());
+        when(projectBeneficiaryRepository.findById(anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().build());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }

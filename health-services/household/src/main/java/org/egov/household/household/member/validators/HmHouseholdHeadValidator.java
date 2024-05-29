@@ -70,7 +70,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
             log.info("validating if household already has a head");
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
                     .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(idMethod, householdMember),
-                            columnName).stream().filter(HouseholdMember::getIsHeadOfHousehold)
+                            columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
                     .collect(Collectors.toList());
 
             if(!householdMembersHeadCheck.isEmpty()){
