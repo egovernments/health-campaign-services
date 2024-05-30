@@ -4,6 +4,7 @@ const express = require('express');
 const proxy = require('express-http-proxy');
 const axios = require('axios');
 const deasync = require('deasync');
+const querystring = require('querystring');
 const app = express();
 
 let serverPort = envVariables.SERVER_PORT;
@@ -149,8 +150,32 @@ app.use((req, res, next) => {
 app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
     proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
         proxyReqOpts.headers['kbn-xsrf'] = 'true';
+        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' && srcReq.url.toString().includes("capabilities")) {
+            const formBody = querystring.parse(srcReq.body);
+            proxyReqOpts.headers['content-type'] = 'application/json';
+            proxyReqOpts.bodyContent = JSON.stringify(formBody);
+        }
         return proxyReqOpts;
     },
+    proxyReqBodyDecorator: function(bodyContent, srcReq) {
+        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' && srcReq.url.toString().includes("capabilities")) {
+            
+            const parsedBody = querystring.parse(bodyContent.toString());
+
+            // Convert the parsed object to a JSON string
+            const jsonBody = JSON.stringify(parsedBody, null, 2);
+
+            const jsonObject = JSON.parse(jsonBody);
+
+            for (let key in jsonObject) {
+                if (jsonObject.hasOwnProperty(key)) {
+                    return JSON.stringify(key);
+                }
+            }
+        }
+        return bodyContent;
+    }
+
 }));
 
 // Listen on configured port
