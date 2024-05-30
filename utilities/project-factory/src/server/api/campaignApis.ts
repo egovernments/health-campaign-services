@@ -521,9 +521,9 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         } catch (error) {
           var e = error;
           gotFailed = true;
+          logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
+          await new Promise(resolve => setTimeout(resolve, 30000));
         }
-        logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
-        await new Promise(resolve => setTimeout(resolve, 30000));
       }
       if (gotFailed) {
         throw e;
