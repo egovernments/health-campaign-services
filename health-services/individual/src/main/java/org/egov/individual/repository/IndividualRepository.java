@@ -267,13 +267,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         if (searchObject.getUsername() != null) {
-            query = query + "AND username=:username ";
+            query = query + "AND username in (:username) ";
             paramsMap.put("username", searchObject.getUsername());
         }
 
         if (searchObject.getUserId() != null) {
-            query = query + "AND userId=:userId ";
-            paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
+            query = query + "AND userId in (:userId) ";
+            paramsMap.put("userId", searchObject.getUserId().stream()
+                    .map(Object::toString)
+                    .collect(Collectors.toList()));
         }
       
         if (searchObject.getUserUuid() != null) {
