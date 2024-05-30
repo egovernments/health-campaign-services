@@ -168,8 +168,8 @@ const SubTabs = ({ onSubTabChange }) => {
   return (
     <div>
       {campaignData
-        .find((i) => i.active === true)
-        .deliveries.map((_, index) => (
+        ?.find((i) => i?.active === true)
+        ?.deliveries.map((_, index) => (
           <button
             key={index}
             type="button"

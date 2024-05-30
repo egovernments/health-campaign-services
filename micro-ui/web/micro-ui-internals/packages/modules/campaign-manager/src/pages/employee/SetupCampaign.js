@@ -355,6 +355,7 @@ const SetupCampaign = ({ hierarchyType }) => {
             : {
                 cycle: delivery?.map((obj) => obj?.cycleNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.cycleNumber)) : 1,
                 deliveries: delivery?.map((obj) => obj?.deliveryNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.deliveryNumber)) : 1,
+                refetch: true,
               },
           cycleData: draftData?.additionalDetails?.cycleData?.cycleData
             ? draftData?.additionalDetails?.cycleData?.cycleData

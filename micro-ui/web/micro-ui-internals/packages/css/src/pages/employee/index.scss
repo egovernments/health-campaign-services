@@ -17,8 +17,12 @@
           gap: 2.5rem;
           margin-top: 2rem;
           padding: 0;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fill, minmax(263px, 1fr));
           .employeeCard.customEmployeeCard.card-home.home-action-cards {
             margin: 0 !important;
+            min-width: 263px !important;
+            width: auto !important;
           }
         }
       }
@@ -116,12 +120,24 @@
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
       border-radius: 1rem;
+      tbody {
+        tr:nth-child(odd) {
+          background-color: white;
+        }
+      }
       th {
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      th:last-child {
+        border-right: none;
       }
       td {
         padding: 1rem;
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      td:last-child {
+        padding: 1rem;
+        border-right: none;
       }
     }
   }
@@ -137,13 +153,22 @@
       border-radius: 1rem;
       tbody {
         background-color: #fff;
+        tr:nth-child(odd) {
+          background-color: white;
+        }
       }
       th {
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      th:last-child {
+        border-right: none;
       }
       td {
         padding: 1rem;
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      td:last-child {
+        border-right: none;
       }
     }
   }
@@ -186,7 +211,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
   }
 }
-
+tbody {
+  tr:nth-child(odd) {
+    background-color: white;
+  }
+}
 .popup-wrap.campaign-data-preview {
   flex-direction: column;
 }
@@ -221,6 +250,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   .digit-dropdown-options-card {
     max-height: 10rem !important;
+  }
+  .digit-field {
+    margin-bottom: 0 !important;
   }
 }
 .campaign-summary-container {

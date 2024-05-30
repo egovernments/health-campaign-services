@@ -699,12 +699,12 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 
 const AddDeliveryRuleWrapper = ({}) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
-  const [targetedData, setTargetedData] = useState(campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true));
+  const [targetedData, setTargetedData] = useState(campaignData?.find((i) => i?.active === true)?.deliveries?.find((d) => d?.active === true));
   const [deliveryRules, setDeliveryRules] = useState(targetedData?.deliveryRules);
   const { t } = useTranslation();
 
   useEffect(() => {
-    const dd = campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true);
+    const dd = campaignData?.find((i) => i?.active === true)?.deliveries?.find((d) => d?.active === true);
     setTargetedData(dd);
   }, [campaignData]);
 

@@ -2,17 +2,17 @@ import React, { useReducer, Fragment, useEffect, useState } from "react";
 import { CardText, LabelFieldPair, Card, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
-import { deliveryConfig } from "../../configs/deliveryConfig";
+// import { deliveryConfig } from "../../configs/deliveryConfig";
 
-const initialState = (saved, filteredDeliveryConfig) => {
+const initialState = (saved, filteredDeliveryConfig, refetch) => {
   const data = {
     cycleConfgureDate: {
-      cycle: saved?.cycleConfgureDate?.cycle
+      cycle: saved?.cycleConfgureDate?.cycle && !refetch
         ? saved?.cycleConfgureDate?.cycle
         : filteredDeliveryConfig?.cycleConfig
         ? filteredDeliveryConfig?.cycleConfig?.cycle
         : 1,
-      deliveries: saved?.cycleConfgureDate?.deliveries
+      deliveries: saved?.cycleConfgureDate?.deliveries && !refetch
         ? saved?.cycleConfgureDate?.deliveries
         : filteredDeliveryConfig?.cycleConfig
         ? filteredDeliveryConfig?.cycleConfig?.deliveries
@@ -27,7 +27,7 @@ const initialState = (saved, filteredDeliveryConfig) => {
 const reducer = (state, action) => {
   switch (action.type) {
     case "RELOAD":
-      return initialState(action.saved, action.filteredDeliveryConfig);
+      return initialState(action.saved, action.filteredDeliveryConfig, action.refetch);
     case "UPDATE_CYCLE":
       return { ...state, cycleConfgureDate: { ...state.cycleConfgureDate, cycle: action.payload } };
     case "UPDATE_DELIVERY":
@@ -71,14 +71,15 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
     {
       select: (data) => {
         const temp = data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
-        // return temp?.find((i) => i?.projectType === selectedProjectType);
-        return deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
+        return temp?.find((i) => i?.projectType === selectedProjectType);
+        // return deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
       },
     }
   );
   const saved = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+  const refetch = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleConfgureDate?.refetch;
   const tempSession = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
-  const [state, dispatch] = useReducer(reducer, initialState(saved, filteredDeliveryConfig));
+  const [state, dispatch] = useReducer(reducer, initialState(saved, filteredDeliveryConfig, refetch));
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
   const [dateRange, setDateRange] = useState({
@@ -93,6 +94,7 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
         type: "RELOAD",
         saved: saved,
         filteredDeliveryConfig: filteredDeliveryConfig,
+        refetch: refetch,
       });
     }
   }, [filteredDeliveryConfig, deliveryConfigLoading]);
