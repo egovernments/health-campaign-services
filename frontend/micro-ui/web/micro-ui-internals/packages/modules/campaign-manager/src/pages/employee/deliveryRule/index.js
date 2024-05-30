@@ -43,7 +43,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   }, [config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure]);
 
   const generateTabsData = (tabs, subTabs) => {
-    if (!saved) {
+    if (!saved || saved?.length === 0) {
       return [...Array(tabs)].map((_, tabIndex) => ({
         cycleIndex: `${tabIndex + 1}`,
         active: tabIndex === 0 ? true : false,

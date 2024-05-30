@@ -763,13 +763,15 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
 
 function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
     validateCampaignBodyViaSchema(campaignDetailsDraftSchema, CampaignDetails)
-    const { startDate, endDate } = CampaignDetails;
-    if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
-    }
-    const today: any = Date.now();
-    if (startDate <= today) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
+    const { startDate, endDate, action } = CampaignDetails;
+    if (action != "changeDates") {
+        if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
+        }
+        const today: any = Date.now();
+        if (startDate <= today) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
+        }
     }
 }
 
@@ -812,7 +814,7 @@ async function validateCampaignName(request: any, actionInUrl: any) {
 }
 
 async function validateById(request: any) {
-    const { id, tenantId } = request?.body?.CampaignDetails
+    const { id, tenantId, action } = request?.body?.CampaignDetails
     if (!id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
     }
@@ -829,8 +831,10 @@ async function validateById(request: any) {
         if (searchResponse?.CampaignDetails?.length > 0) {
             logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.CampaignDetails));
             request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
-            if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName && request.body.ExistingCampaignDetails?.status != campaignStatuses?.drafted) {
-                throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName can only be updated in ${campaignStatuses?.drafted} state. CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
+            if (action != "changeDates") {
+                if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.drafted) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be updated in drafted state. Change action to changeDates if you want to just update date.`);
+                }
             }
         }
         else {
@@ -878,27 +882,50 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
     }
 }
 
+function isObjectOrArray(value: any) {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
+async function validateChangeDatesRequest(request: any) {
+    var ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const { startDate: exsistingStartDate, endDate: exsistingEndDate } = ExistingCampaignDetails;
+    var newCampaignDetails = request?.body?.CampaignDetails;
+    const { startDate: newStartDate, endDate: newEndDate } = newCampaignDetails;
 
-
-async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
-    const CampaignDetails = request.body.CampaignDetails;
-    const { id, hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
-    if (actionInUrl == "update") {
-        if (!id) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "id is required for update");
+    for (const key in newCampaignDetails) {
+        if (!isObjectOrArray(newCampaignDetails[key])) {
+            // If the value is not an object or array, compare it with the corresponding value in ExistingCampaignDetails
+            if (!(key == "startDate" || key == "endDate") && newCampaignDetails[key] !== ExistingCampaignDetails[key]) {
+                // Handle the validation failure (for example, throw an error or log a message)
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${key} value in request campaign is not matching with existing campaign`);
+            }
         }
     }
-    if (!CampaignDetails) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
+    const today: any = Date.now();
+    if (exsistingStartDate >= today) {
+        logger.info("Existing start date is greater than or equal to current date");
+        logger.info("Now only endDate can be updated")
+        if (exsistingStartDate != newStartDate) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "StartDate cannot be updated as campaign is started or completed.");
+        }
     }
-    if (!action) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.action is required and must be either 'create' or 'draft'")
+    if (exsistingEndDate > today) {
+        logger.info("Existing end date is greater than or equal to current date");
+        if (exsistingEndDate != newEndDate) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "EndDate cannot be updated as campaign is completed.");
+        }
     }
-    if (!(action == "create" || action == "draft")) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create or draft");
+    request.body.CampaignDetails = ExistingCampaignDetails;
+    request.body.CampaignDetails.startDate = newStartDate;
+    request.body.CampaignDetails.endDate = newEndDate;
+}
+
+async function validateCampaignBody(request: any, CampaignDetails: any, actionInUrl: any) {
+    const { hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
+    if (action == "changeDates") {
+        await validateChangeDatesRequest(request);
     }
-    if (action == "create") {
+    else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -915,9 +942,32 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
+}
+
+async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
+    const CampaignDetails = request.body.CampaignDetails;
+    const { id, action } = CampaignDetails;
+    if (actionInUrl == "update") {
+        if (!id) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "id is required for update");
+        }
+    }
+    if (!CampaignDetails) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
+    }
+    if (!action) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.action is required and must be either 'create' or 'draft'")
+    }
+    if (!(action == "create" || action == "draft" || action == "changeDates")) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create, draft or changeDates");
+    }
     if (actionInUrl == "update") {
         await validateById(request);
     }
+    if (action == "changeDates" && actionInUrl == "create") {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "changeDates is not allowed during create");
+    }
+    await validateCampaignBody(request, CampaignDetails, actionInUrl);
 }
 
 async function validateSearchProjectCampaignRequest(request: any) {

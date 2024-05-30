@@ -78,7 +78,8 @@ const config = {
     userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
     productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
     hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
-    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/"
+    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
+    healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
   },
   // Paths for different services
   paths: {

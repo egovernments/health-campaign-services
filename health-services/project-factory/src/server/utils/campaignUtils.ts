@@ -1099,25 +1099,27 @@ async function getRelatedProjects(request: any) {
     }
 }
 
-async function updateProjectDates(request: any) {
-    const projects = await getRelatedProjects(request);
-    const { startDate, endDate } = request?.body?.CampaignDetails;
-    for (const project of projects) {
-        project.startDate = startDate || project.startDate;
-        project.endDate = endDate || project.endDate;
-        delete project?.address;
-    }
-    logger.info("Projects related to current Campaign : " + JSON.stringify(projects));
-    const projectUpdateBody = {
-        RequestInfo: request?.body?.RequestInfo,
-        Projects: projects
-    }
-    const projectUpdateResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectUpdate, projectUpdateBody);
-    if (projectUpdateResponse?.Project && Array.isArray(projectUpdateResponse?.Project) && projectUpdateResponse?.Project?.length == projects?.length) {
-        logger.info("Project dates updated successfully")
-    }
-    else {
-        throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR")
+async function updateProjectDates(request: any, actionInUrl: any) {
+    const { startDate, endDate, projectId } = request?.body?.CampaignDetails
+    if ((startDate || endDate) && projectId && actionInUrl == "update") {
+        const projects = await getRelatedProjects(request);
+        for (const project of projects) {
+            project.startDate = startDate || project.startDate;
+            project.endDate = endDate || project.endDate;
+            delete project?.address;
+        }
+        logger.info("Projects related to current Campaign : " + JSON.stringify(projects));
+        const projectUpdateBody = {
+            RequestInfo: request?.body?.RequestInfo,
+            Projects: projects
+        }
+        const projectUpdateResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectUpdate, projectUpdateBody);
+        if (projectUpdateResponse?.Project && Array.isArray(projectUpdateResponse?.Project) && projectUpdateResponse?.Project?.length == projects?.length) {
+            logger.info("Project dates updated successfully")
+        }
+        else {
+            throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR")
+        }
     }
 }
 
@@ -1148,7 +1150,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
 
 async function createProject(request: any, actionUrl: any, localizationMap?: any) {
     logger.info("Create Projects started for the given Campaign")
-    var { tenantId, boundaries, projectType, projectId, startDate, endDate } = request?.body?.CampaignDetails;
+    var { tenantId, boundaries, projectType, projectId } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
         const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
         var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse);
@@ -1179,9 +1181,6 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             await projectCreate(projectCreateBody, request)
         }
     }
-    else if ((startDate || endDate) && projectId && actionUrl == "update") {
-        await updateProjectDates(request);
-    }
 }
 
 
@@ -1194,6 +1193,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
         else {
+            await updateProjectDates(request, actionInUrl);
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
     } catch (error: any) {

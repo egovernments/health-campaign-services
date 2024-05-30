@@ -58,7 +58,7 @@ const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
         </div>
         <div className="campaign-type-wrapper">
           <Dropdown
-            style={{ width: "40rem", paddingBottom: "1rem" }}
+            style={!showBeneficiary ? { width: "40rem", paddingBottom: 0, marginBottom: 0 } : { width: "40rem", paddingBottom: "1rem" }}
             variant={error ? "error" : ""}
             t={t}
             option={projectType?.["HCM-PROJECT-TYPES"]?.projectTypes}
