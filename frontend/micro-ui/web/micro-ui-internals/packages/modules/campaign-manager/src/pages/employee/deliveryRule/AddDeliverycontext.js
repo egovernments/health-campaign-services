@@ -521,7 +521,10 @@ const AddAttributeWrapper = ({ targetedData, deliveryRuleIndex, delivery, delive
               setDeliveryRules={setDeliveryRules}
               attribute={item}
               setAttributes={setAttributes}
-              config={filteredDeliveryConfig?.deliveryConfig?.[targetedData?.deliveryIndex - 1]?.conditionConfig?.[delivery?.ruleKey - 1]?.attributeConfig?.[index]}
+              config={
+                filteredDeliveryConfig?.deliveryConfig?.[targetedData?.deliveryIndex - 1]?.conditionConfig?.[delivery?.ruleKey - 1]
+                  ?.attributeConfig?.[index]
+              }
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
@@ -658,7 +661,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           variation="secondary"
           className={"add-product-btn hover"}
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}
-          icon={<SVG.AppRegistration />}
+          icon={<SVG.AppRegistration fill="#c84c0e" />}
           onButtonClick={() => setShowModal(true)}
         />
       </Card>
@@ -696,12 +699,12 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 
 const AddDeliveryRuleWrapper = ({}) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
-  const [targetedData, setTargetedData] = useState(campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true));
+  const [targetedData, setTargetedData] = useState(campaignData?.find((i) => i?.active === true)?.deliveries?.find((d) => d?.active === true));
   const [deliveryRules, setDeliveryRules] = useState(targetedData?.deliveryRules);
   const { t } = useTranslation();
 
   useEffect(() => {
-    const dd = campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true);
+    const dd = campaignData?.find((i) => i?.active === true)?.deliveries?.find((d) => d?.active === true);
     setTargetedData(dd);
   }, [campaignData]);
 

@@ -32,7 +32,6 @@ async function enrichCampaign(requestBody: any) {
 }
 
 async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchParams: any, facilitySearchBody: any) {
-  await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for 3 seconds
   const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
 
   if (Array.isArray(response?.Facilities)) {
@@ -251,22 +250,57 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   request.body.Activities = activities
 }
 
-function matchUserValidation(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any) {
+async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
+  logger.info("mobileNumbers to search: " + JSON.stringify(mobileNumbers));
+  const BATCH_SIZE = 50;
+  let allResults: any[] = [];
+
+  for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
+    const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
+    const searchBody = {
+      RequestInfo: request?.body?.RequestInfo,
+      Individual: {
+        mobileNumber: batch
+      }
+    };
+    const params = {
+      limit: 55,
+      offset: 0,
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+      includeDeleted: true
+    };
+
+    const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
+
+    if (!response) {
+      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
+    }
+
+    if (response?.Individual?.length > 0) {
+      const resultMobileNumbers = response.Individual.map((item: any) => item?.mobileNumber);
+      allResults = allResults.concat(resultMobileNumbers);
+    }
+  }
+
+  // Convert the results array to a Set to eliminate duplicates
+  const resultSet = new Set(allResults);
+  logger.info("Already Exsisted mobile numbers : " + JSON.stringify(resultSet));
+  return resultSet;
+}
+
+async function matchUserValidation(createdData: any[], request: any) {
   var count = 0;
   const errors = []
-  const codeSet = new Set(searchedData.map(item => item?.code));
-  const numberSet = new Set(searchedData.map(item => item?.user?.mobileNumber));
-  for (const data of createdData) {
-    if (codeSet.has(data.code) && numberSet.has(data?.user?.mobileNumber)) {
-      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with mobileNumber ${data?.user?.mobileNumber} and userName ${data.code} already exists` })
-      count++;
-    }
-    else if (codeSet.has(data.code)) {
-      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with userName ${data.code} already exists` })
-      count++;
-    }
-    else if (numberSet.has(data?.user?.mobileNumber)) {
-      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with mobileNumber ${data?.user?.mobileNumber} already exists` })
+  const mobileNumbers = createdData.filter(item => item?.user?.mobileNumber).map(item => (item?.user?.mobileNumber));
+  const mobileNumberRowNumberMapping = createdData.reduce((acc, curr) => {
+    acc[curr.user.mobileNumber] = curr["!row#number!"];
+    return acc;
+  }, {});
+  logger.info("mobileNumberRowNumberMapping : " + JSON.stringify(mobileNumberRowNumberMapping));
+  const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers);
+  for (const key in mobileNumberRowNumberMapping) {
+    if (mobileNumberResponse.has(key)) {
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with mobileNumber ${key} already exists` })
       count++;
     }
   }
@@ -307,7 +341,6 @@ function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], 
 async function processSearch(createAndSearchConfig: any, request: any, params: any) {
   setSearchLimits(createAndSearchConfig, request, params);
   const arraysToMatch = await performSearch(createAndSearchConfig, request, params);
-
   return arraysToMatch;
 }
 
@@ -330,7 +363,6 @@ function setLimitOrOffset(limitOrOffsetConfig: any, params: any, requestBody: an
 async function performSearch(createAndSearchConfig: any, request: any, params: any) {
   const arraysToMatch: any[] = [];
   let searchAgain = true;
-
   while (searchAgain) {
     const searcRequestBody = {
       RequestInfo: request?.body?.RequestInfo
@@ -347,7 +379,6 @@ async function performSearch(createAndSearchConfig: any, request: any, params: a
       searchAgain = false;
     }
     updateOffset(createAndSearchConfig, params, request.body);
-    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   return arraysToMatch;
 }
@@ -376,9 +407,7 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
   }
   if (request?.body?.ResourceDetails?.type == "user") {
     await enrichEmployees(request?.body?.dataToCreate, request)
-    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-    matchUserValidation(request.body.dataToCreate, arraysToMatch, request, createAndSearchConfig)
+    await matchUserValidation(request.body.dataToCreate, request)
   }
 }
 
@@ -521,9 +550,9 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         } catch (error) {
           var e = error;
           gotFailed = true;
+          logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
+          await new Promise(resolve => setTimeout(resolve, 30000));
         }
-        logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
-        await new Promise(resolve => setTimeout(resolve, 30000));
       }
       if (gotFailed) {
         throw e;
@@ -531,8 +560,8 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));
       activities.push(activity);
-      await new Promise(resolve => setTimeout(resolve, 10000));
     }
+    await new Promise(resolve => setTimeout(resolve, 5000));
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
   await generateProcessedFileAndPersist(request, localizationMap);

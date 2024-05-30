@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Header, InboxSearchComposer, Loader } from "@egovernments/digit-ui-react-components";
-import { useLocation } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import { myCampaignConfig } from "../../configs/myCampaignConfig";
 
 /**
@@ -15,6 +15,7 @@ import { myCampaignConfig } from "../../configs/myCampaignConfig";
 const MyCampaign = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  const history = useHistory();
   const moduleName = Digit?.Utils?.getConfigModuleName() || "commonCampaignUiConfig";
   const tenant = Digit.ULBService.getStateId();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -33,11 +34,44 @@ const MyCampaign = () => {
     window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
   }, []);
 
+  const onClickRow = ({ original: row }) => {
+    const currentTab = tabData?.find((i) => i?.active === true)?.label;
+    switch (currentTab) {
+      case "CAMPAIGN_ONGOING":
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
+      case "CAMPAIGN_COMPLETED":
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
+      case "CAMPAIGN_UPCOMING":
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
+      case "CAMPAIGN_DRAFTS":
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}&fetchBoundary=${true}`);
+        break;
+      case "CAMPAIGN_FAILED":
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <React.Fragment>
       <Header styles={{ fontSize: "32px" }}>{t("CAMPAIGN_SEARCH_TITLE")}</Header>
       <div className="inbox-search-wrapper">
-        <InboxSearchComposer configs={config} showTab={true} tabData={tabData} onTabChange={onTabChange}></InboxSearchComposer>
+        <InboxSearchComposer
+          configs={config}
+          showTab={true}
+          tabData={tabData}
+          onTabChange={onTabChange}
+          additionalConfig={{
+            resultsTable: {
+              onClickRow,
+            },
+          }}
+        ></InboxSearchComposer>
       </div>
     </React.Fragment>
   );

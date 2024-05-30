@@ -50,6 +50,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [translatedSchema, setTranslatedSchema] = useState({});
   const [readMeInfo, setReadMeInfo] = useState({});
   const [enabled, setEnabled] = useState(false);
+  const currentKey = searchParams.get("key");
+  
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
@@ -794,6 +796,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       return () => clearTimeout(t);
     }
   }, [showToast]);
+
+  useEffect(() => {
+    setShowToast(null);
+  }, [currentKey]);
 
   return (
     <>

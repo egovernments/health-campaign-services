@@ -45,6 +45,9 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
     } else if (new Date(endDate).getTime() < new Date(startDate).getTime() && startValidation) {
       setError({ endDate: "CAMPAIGN_END_DATE_BEFORE_ERROR" });
       onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+    } else if (startValidation && new Date(endDate).getTime() === new Date(startDate).getTime()) {
+      setError({ endDate: "CAMPAIGN_END_DATE_SAME_ERROR" });
+      onSelect("campaignDates", { startDate: startDate, endDate: endDate });
     } else if (startDate || endDate) {
       setError(null);
       onSelect("campaignDates", { startDate: startDate, endDate: endDate });
@@ -89,7 +92,7 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
             }}
             min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
             onChange={(d) => {
-              setStartValidation(true);
+              // setStartValidation(true);
               setStart(d);
             }}
           />

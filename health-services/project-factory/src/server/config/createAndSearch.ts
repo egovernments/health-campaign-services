@@ -233,7 +233,7 @@ const createAndSearch: any = {
             ],
             searchLimit: {
                 keyPath: "limit",
-                value: "200",
+                value: "50",
                 isInParams: true,
                 isInBody: false,
             },

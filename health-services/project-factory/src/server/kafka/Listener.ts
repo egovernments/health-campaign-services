@@ -69,6 +69,7 @@ export function listener() {
  * @returns A promise that resolves when the messages are successfully produced.
  */
 async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
+
     logger.info(`KAFKA :: PRODUCER :: a message sent to topic ${topic}`);
     logger.debug(`KAFKA :: PRODUCER :: message ${getFormattedStringForDebug(modifiedMessages)}`);
     return new Promise<void>((resolve, reject) => {

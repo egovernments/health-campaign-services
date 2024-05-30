@@ -9,6 +9,7 @@
   margin-left: 92px;
   .employee-app-wrapper.digit-home-app-wrapper {
     margin-left: 0;
+    margin-right: 2rem;
     .ground-container.digit-home-ground {
       padding: 0;
       .employee-app-container.digit-home-employee-app {
@@ -16,8 +17,12 @@
           gap: 2.5rem;
           margin-top: 2rem;
           padding: 0;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fill, minmax(263px, 1fr));
           .employeeCard.customEmployeeCard.card-home.home-action-cards {
             margin: 0 !important;
+            min-width: 263px !important;
+            width: auto !important;
           }
         }
       }
@@ -107,22 +112,40 @@
   }
   .campaign-attribute-table {
     margin-bottom: 1rem;
+    border: 1px solid #d6d5d4;
+    overflow: hidden;
+    border-radius: 4px;
     table {
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
       border-radius: 1rem;
+      tbody {
+        tr:nth-child(odd) {
+          background-color: white;
+        }
+      }
       th {
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      th:last-child {
+        border-right: none;
       }
       td {
         padding: 1rem;
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      td:last-child {
+        padding: 1rem;
+        border-right: none;
       }
     }
   }
   .campaign-product-table {
     margin-bottom: 1rem;
+    border: 1px solid #d6d5d4;
+    overflow: hidden;
+    border-radius: 4px;
     table {
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
@@ -130,13 +153,22 @@
       border-radius: 1rem;
       tbody {
         background-color: #fff;
+        tr:nth-child(odd) {
+          background-color: white;
+        }
       }
       th {
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      th:last-child {
+        border-right: none;
       }
       td {
         padding: 1rem;
-        border: 1px solid #d6d5d4;
+        border-right: 1px solid #d6d5d4;
+      }
+      td:last-child {
+        border-right: none;
       }
     }
   }
@@ -170,13 +202,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 .campaign-attribute-table {
+  border: 1px solid #d6d5d4;
+  overflow: hidden;
+  border-radius: 4px;
   tbody {
     tr:nth-child(odd) {
       background-color: white;
     }
   }
 }
-
+tbody {
+  tr:nth-child(odd) {
+    background-color: white;
+  }
+}
 .popup-wrap.campaign-data-preview {
   flex-direction: column;
 }
@@ -211,6 +250,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   .digit-dropdown-options-card {
     max-height: 10rem !important;
+  }
+  .digit-field {
+    margin-bottom: 0 !important;
   }
 }
 .campaign-summary-container {
@@ -317,9 +359,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .popup-module-action-bar.campaign-pop-action {
     .selector-button-border {
       background-color: #ffffff;
-      border: 1px solid #f47738;
+      border: 1px solid #c84c0e;
       h2 {
-        color: #f47738 !important;
+        color: #c84c0e !important;
       }
     }
   }
@@ -346,4 +388,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin-top: 4px;
     font-size: 14px;
   }
+}
+.individualElement {
+  h2 {
+    color: theme(digitv2.lightTheme.text-primary);
+  }
+}
+.link {
+  color: #c84c0e !important;
 }
