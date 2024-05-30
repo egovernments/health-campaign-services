@@ -521,7 +521,10 @@ const AddAttributeWrapper = ({ targetedData, deliveryRuleIndex, delivery, delive
               setDeliveryRules={setDeliveryRules}
               attribute={item}
               setAttributes={setAttributes}
-              config={filteredDeliveryConfig?.deliveryConfig?.[targetedData?.deliveryIndex - 1]?.conditionConfig?.[delivery?.ruleKey - 1]?.attributeConfig?.[index]}
+              config={
+                filteredDeliveryConfig?.deliveryConfig?.[targetedData?.deliveryIndex - 1]?.conditionConfig?.[delivery?.ruleKey - 1]
+                  ?.attributeConfig?.[index]
+              }
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
@@ -658,7 +661,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           variation="secondary"
           className={"add-product-btn hover"}
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}
-          icon={<SVG.AppRegistration />}
+          icon={<SVG.AppRegistration fill="#c84c0e" />}
           onButtonClick={() => setShowModal(true)}
         />
       </Card>

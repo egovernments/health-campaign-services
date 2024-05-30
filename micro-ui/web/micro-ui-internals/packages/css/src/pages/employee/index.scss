@@ -9,6 +9,7 @@
   margin-left: 92px;
   .employee-app-wrapper.digit-home-app-wrapper {
     margin-left: 0;
+    margin-right: 2rem;
     .ground-container.digit-home-ground {
       padding: 0;
       .employee-app-container.digit-home-employee-app {
@@ -107,6 +108,9 @@
   }
   .campaign-attribute-table {
     margin-bottom: 1rem;
+    border: 1px solid #d6d5d4;
+    overflow: hidden;
+    border-radius: 4px;
     table {
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
@@ -123,6 +127,9 @@
   }
   .campaign-product-table {
     margin-bottom: 1rem;
+    border: 1px solid #d6d5d4;
+    overflow: hidden;
+    border-radius: 4px;
     table {
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
@@ -170,6 +177,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 .campaign-attribute-table {
+  border: 1px solid #d6d5d4;
+  overflow: hidden;
+  border-radius: 4px;
   tbody {
     tr:nth-child(odd) {
       background-color: white;
@@ -317,9 +327,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .popup-module-action-bar.campaign-pop-action {
     .selector-button-border {
       background-color: #ffffff;
-      border: 1px solid #f47738;
+      border: 1px solid #c84c0e;
       h2 {
-        color: #f47738 !important;
+        color: #c84c0e !important;
       }
     }
   }
