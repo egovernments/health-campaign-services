@@ -150,7 +150,8 @@ app.use((req, res, next) => {
 app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
     proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
         proxyReqOpts.headers['kbn-xsrf'] = 'true';
-        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' && srcReq.url.toString().includes("capabilities")) {
+        proxyReqOpts.headers['elastic-api-version'] = 1;
+        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' ) {
             const formBody = querystring.parse(srcReq.body);
             proxyReqOpts.headers['content-type'] = 'application/json';
             proxyReqOpts.bodyContent = JSON.stringify(formBody);
@@ -158,7 +159,7 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
         return proxyReqOpts;
     },
     proxyReqBodyDecorator: function(bodyContent, srcReq) {
-        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' && srcReq.url.toString().includes("capabilities")) {
+        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             
             const parsedBody = querystring.parse(bodyContent.toString());
 
