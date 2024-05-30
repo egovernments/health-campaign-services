@@ -154,7 +154,7 @@ export const projectTypeConversion = (
       productVariantId: ele.value,
     }))
   );
-  const minAndMaxAge = getMinAndMaxAge();
+  const minAndMaxAge = getMinAndMaxAge(deliveryRules);
   var newProjectType = {
     ...projectType,
     validMinAge: minAndMaxAge?.min,
