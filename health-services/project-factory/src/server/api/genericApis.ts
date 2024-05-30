@@ -984,8 +984,6 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
 
         flag = 0;
         requestBody.BoundaryRelationship = boundary;
-        // Introducing a delay of 1 second
-        // await new Promise(resolve => setTimeout(resolve, config.boundary.boundaryRelationShipDelay));
         await confirmBoundaryParentCreation(request, modifiedChildParentMap.get(boundaryCode) || null);
         try {
           const response = await httpRequest(`${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, requestBody, {}, 'POST', undefined, undefined, true);

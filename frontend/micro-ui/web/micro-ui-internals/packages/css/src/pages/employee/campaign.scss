@@ -1,7 +1,7 @@
 @import url("../../index.scss");
 @import "../../typography.scss";
 
-.summary-header{
+.summary-header {
   @extend .typography.text-heading-l;
   font-size: 2.25rem;
 }
@@ -58,6 +58,9 @@
 }
 .selecting-boundary-div {
   padding-top: 0.5rem;
+  .label-field-pair {
+    margin-bottom: 1.5rem;
+  }
 }
 .campaign-table {
   border-collapse: collapse;

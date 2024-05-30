@@ -19,7 +19,7 @@ export const campaignDetailsSchema = {
         },
         "action": {
             "type": "string",
-            "enum": ["create", "draft"],
+            "enum": ["create", "draft", "changeDates"],
             "maxLength": 64,
             "minLength": 1
         },

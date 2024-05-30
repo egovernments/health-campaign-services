@@ -106,14 +106,14 @@ const deliveriesConv = (deliveryObj: any = {}) => {
         configObject.mandatoryWaitSinceLastDeliveryInDays?.["default"],
       doseCriteria: deliveryObj?.[key]?.map((e: any) => {
         return {
-          ProductVariants: deliveryObj?.[key].flatMap(
+          ProductVariants:getUniqueArrayByProductVariantId( deliveryObj?.[key].flatMap(
             (elem: { products: any }) =>
               [...elem.products].map((ele, index) => ({
                 isBaseUnitVariant: index == 0,
                 productVariantId: ele?.value,
                 quantity: ele?.count,
               }))
-          ),
+          )),
           // cylce conditions hardcoded TODO update logic
           condition: getRequiredCondition(e?.conditions),
         };
@@ -154,7 +154,7 @@ export const projectTypeConversion = (
       productVariantId: ele.value,
     }))
   );
-  const minAndMaxAge = getMinAndMaxAge();
+  const minAndMaxAge = getMinAndMaxAge(deliveryRules);
   var newProjectType = {
     ...projectType,
     validMinAge: minAndMaxAge?.min,
@@ -257,6 +257,13 @@ const getRequiredCondition = (conditions: any = []) => {
   return getCondition(formattedCondition[sortedKeys[0]], sortedKeys[0]);
 };
 
+const getUniqueArrayByProductVariantId=(array:any)=> {
+  return array.filter((value:any, index:any, self:any) =>
+    index === self.findIndex((t:any) => (
+      t.productVariantId === value.productVariantId
+    ))
+  );
+}
 /* construct max and min age */
 const getMinAndMaxAge = (deliveries = []) => {
   // Flatten the conditions arrays from all delivery objects and filter to keep only 'Age' attributes
