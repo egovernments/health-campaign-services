@@ -92,7 +92,7 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
             }}
             min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
             onChange={(d) => {
-              setStartValidation(true);
+              // setStartValidation(true);
               setStart(d);
             }}
           />

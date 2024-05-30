@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Fragment ,useMemo} from "react";
+import React, { useEffect, useState, Fragment, useMemo } from "react";
 import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal, LoaderWithGap } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
@@ -194,7 +194,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         newData.push({ parentCode, boundaryTypeData });
       }
       setBoundaryTypeDataresult(newData);
-      setLoaderEnabled(false);
+      setTimeout(() => {
+        setLoaderEnabled(false);
+      }, 1000);
       // closeToast();
     }
   };
@@ -259,7 +261,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             updatedBoundaryData[type] = [];
           }
         });
-        setSelectedData(updatedSelectedData);
+        if (!_.isEqual(selectedData, updatedSelectedData)) {
+          setSelectedData(updatedSelectedData);
+        }
         setBoundaryData(updatedBoundaryData);
       }
       return;
@@ -320,8 +324,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           }
         })
         .flat();
-
-      setSelectedData(updatedSelectedData);
+      if (!_.isEqual(selectedData, updatedSelectedData)) {
+        setSelectedData(updatedSelectedData);
+      }
     } else {
       // Update only the data for the new boundaryType
       const mergedData = [...selectedData?.filter((item) => item?.type !== newBoundaryType), ...transformedRes];
@@ -340,8 +345,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         children.forEach((child) => addChildren(child));
       };
       filteredData.filter((item) => item.isRoot).forEach((rootItem) => addChildren(rootItem));
-
-      setSelectedData(updatedSelectedData);
+      if (!_.isEqual(selectedData, updatedSelectedData)) {
+        setSelectedData(updatedSelectedData);
+      }
     }
     const parentBoundaryEntry = hierarchyTypeDataresult
       ? hierarchyTypeDataresult?.boundaryHierarchy?.find(
