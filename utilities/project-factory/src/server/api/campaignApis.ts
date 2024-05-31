@@ -248,36 +248,50 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   request.body.Activities = activities
 }
 
+const createBatchRequest = async (request: any, batch: any[]) => {
+  const searchBody = {
+    RequestInfo: request?.body?.RequestInfo,
+    Individual: {
+      mobileNumber: batch
+    }
+  };
+  const params = {
+    limit: 55,
+    offset: 0,
+    tenantId: request?.body?.ResourceDetails?.tenantId,
+    includeDeleted: true
+  };
+  logger.info("Individual search to validate the mobile no initiated");
+  const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
+
+  if (!response) {
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
+  }
+
+  if (response?.Individual?.length > 0) {
+    return response.Individual.map((item: any) => item?.mobileNumber);
+  }
+  return [];
+};
+
 async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
   logger.info("mobileNumbers to search: " + JSON.stringify(mobileNumbers));
   const BATCH_SIZE = 50;
   let allResults: any[] = [];
 
+  // Create an array of batch promises
+  const batchPromises = [];
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
-    const searchBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      Individual: {
-        mobileNumber: batch
-      }
-    };
-    const params = {
-      limit: 55,
-      offset: 0,
-      tenantId: request?.body?.ResourceDetails?.tenantId,
-      includeDeleted: true
-    };
-    logger.info("Individual search to validate the mobile no initiated");
-    const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
+    batchPromises.push(createBatchRequest(request, batch));
+  }
 
-    if (!response) {
-      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
-    }
+  // Wait for all batch requests to complete
+  const batchResults = await Promise.all(batchPromises);
 
-    if (response?.Individual?.length > 0) {
-      const resultMobileNumbers = response.Individual.map((item: any) => item?.mobileNumber);
-      allResults = allResults.concat(resultMobileNumbers);
-    }
+  // Aggregate all results
+  for (const result of batchResults) {
+    allResults = allResults.concat(result);
   }
 
   // Convert the results array to a Set to eliminate duplicates
@@ -285,6 +299,7 @@ async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
   logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
   return resultSet;
 }
+
 
 async function matchUserValidation(createdData: any[], request: any) {
   var count = 0;
@@ -549,7 +564,7 @@ async function enrichEmployees(employees: any[], request: any) {
 }
 
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
-  logger.info(type + " create data  " );
+  logger.info(type + " create data  ");
   if (createAndSearchConfig?.createBulkDetails?.limit) {
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
@@ -590,7 +605,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         throw e;
       }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
-      logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}` );
+      logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
       activities.push(activity);
     }
     await new Promise(resolve => setTimeout(resolve, 5000));

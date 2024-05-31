@@ -757,6 +757,48 @@ async function createProjectFacility(resouceBody: any) {
   validateProjectFacilityResponse(projectFacilityResponse);
 }
 
+// Helper function to create staff
+const createStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  const ProjectStaff = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    userId: resourceId,
+    startDate,
+    endDate,
+  };
+  const newResourceBody = { ...resouceBody, ProjectStaff };
+  return createStaff(newResourceBody);
+};
+
+// Helper function to create project resource
+const createProjectResourceHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  const ProjectResource = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    resource: {
+      productVariantId: resourceId,
+      type: "DRUG",
+      isBaseUnitVariant: false,
+    },
+    startDate,
+    endDate,
+  };
+  const newResourceBody = { ...resouceBody, ProjectResource };
+  return createProjectResource(newResourceBody);
+};
+
+// Helper function to create project facility
+const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any) => {
+  const ProjectFacility = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    facilityId: resourceId,
+  };
+  const newResourceBody = { ...resouceBody, ProjectFacility };
+  return createProjectFacility(newResourceBody);
+};
+
+
 /**
  * Asynchronously creates related entities such as staff, resources, and facilities based on the provided resources, tenant ID, project ID, start date, end date, and resource body.
  * @param resources List of resources.
@@ -774,48 +816,26 @@ async function createRelatedEntity(
   endDate: any,
   resouceBody: any
 ) {
+  // Array to hold all promises
+  const promises = [];
+
   // Create related entities
   for (const resource of resources) {
     const type = resource?.type;
     for (const resourceId of resource?.resourceIds) {
-      if (type == "staff") {
-        const ProjectStaff = {
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          userId: resourceId,
-          startDate,
-          endDate,
-        };
-        resouceBody.ProjectStaff = ProjectStaff;
-        await createStaff(resouceBody);
-      } else if (type == "resource") {
-        const ProjectResource = {
-          // FIXME : Tenant Id should not be splitted
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          resource: {
-            productVariantId: resourceId,
-            type: "DRUG",
-            isBaseUnitVariant: false,
-          },
-          startDate,
-          endDate,
-        };
-        resouceBody.ProjectResource = ProjectResource;
-        await createProjectResource(resouceBody);
-      } else if (type == "facility") {
-        const ProjectFacility = {
-          // FIXME : Tenant Id should not be splitted
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          facilityId: resourceId,
-        };
-        resouceBody.ProjectFacility = ProjectFacility;
-        await createProjectFacility(resouceBody);
+      if (type === "staff") {
+        promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+      } else if (type === "resource") {
+        promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+      } else if (type === "facility") {
+        promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
       }
     }
   }
+  // Wait for all promises to complete
+  await Promise.all(promises);
 }
+
 
 /**
  * Asynchronously creates related resources based on the provided request body.

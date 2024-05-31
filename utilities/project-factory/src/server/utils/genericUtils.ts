@@ -743,7 +743,7 @@ function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
   // Initialize arrays to store data
   const withBoundaryCode: { key: string, value: string }[][] = [];
   const withoutBoundaryCode: { key: string, value: string }[][] = [];
-  
+
   // Get the key for the boundary code
   const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
 
