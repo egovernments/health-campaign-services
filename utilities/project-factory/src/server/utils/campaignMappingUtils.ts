@@ -1,7 +1,7 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
 import { getDataFromSheet, throwError } from "./genericUtils";
-import { logger } from "./logger";
+import { getFormattedStringForDebug, logger } from "./logger";
 import { httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Listener";
 import { getLocalizedName } from "./campaignUtils";
@@ -83,12 +83,11 @@ async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject
         limit: 100,
         includeDescendants: true
     }
-    logger.info("projectSearchBody : " + JSON.stringify(projectSearchBody));
     logger.info("params : " + JSON.stringify(params));
     logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
     const response = await httpRequest(config.host.projectHost + "health-project/v1/_search", projectSearchBody, params);
     await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
-    logger.info("boundaryWithProject mapping : " + JSON.stringify(boundaryWithProject));
+    logger.debug(`boundaryWise Project mapping : ${getFormattedStringForDebug(boundaryWithProject)}`);
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
 }
 
@@ -141,9 +140,9 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     var boundaryWithProject: any = {};
     await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
     const projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
-    logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
+    logger.info("projectMapping started ");
     const projectMappingResponse: any = await createCampaignService(projectMappingBody);
-    logger.info("Project Mapping Response : " + JSON.stringify(projectMappingResponse));
+    logger.info("Project Mapping Response received");
     if (projectMappingResponse) {
         logger.info("Campaign Mapping done")
         messageObject.CampaignDetails.status = campaignStatuses.inprogress
@@ -172,7 +171,6 @@ async function validateMappingId(messageObject: any, id: string) {
         }
     }
     const response: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
-    logger.info("searchBody for campaign search : " + JSON.stringify(searchBody));
     if (!response?.CampaignDetails?.[0]) {
         throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign with id " + id + " does not exist");
     }
@@ -196,7 +194,8 @@ async function processCampaignMapping(messageObject: any) {
             var retry = 30;
             while (retry--) {
                 const response = await searchResourceDetailsById(resourceDetailId, messageObject);
-                logger.info(`response for resourceDetailId ${resourceDetailId} : ` + JSON.stringify(response));
+                logger.info(`response for resourceDetailId: ${resourceDetailId}`);
+                logger.debug(` response : ${getFormattedStringForDebug(response)}`)
                 if (response?.status == "invalid") {
                     logger.error(`resource with id ${resourceDetailId} is invalid`);
                     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
