@@ -108,7 +108,7 @@ async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
 
 async function validateBoundaryData(data: any[], request: any, boundaryColumn: any) {
     const boundarySet = new Set(); // Create a Set to store unique boundaries
-
+logger.info("validating for the boundary data")
     data.forEach((element, index) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
@@ -829,7 +829,7 @@ async function validateById(request: any) {
     const searchResponse: any = await searchProjectTypeCampaignService(req)
     if (Array.isArray(searchResponse?.CampaignDetails)) {
         if (searchResponse?.CampaignDetails?.length > 0) {
-            logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.CampaignDetails));
+            logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
             request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
             if (action != "changeDates") {
                 if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.drafted) {

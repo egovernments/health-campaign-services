@@ -478,7 +478,8 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
       ""
     ]
   })
-  logger.info("facilities : " + JSON.stringify(facilities));
+  logger.info("facilities generation done ");
+  logger.debug(`facility response ${JSON.stringify(facilities)}`)
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders, localizedFacilityTab);
   return facilitySheetData;
