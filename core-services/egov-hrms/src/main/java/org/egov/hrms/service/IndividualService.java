@@ -129,7 +129,7 @@ public class IndividualService implements UserService {
                                 .tenantId(userRequest.getUser().getTenantId())
                                 .description(role.getDescription())
                                 .build()).collect(Collectors.toList()))
-                        .userType(UserType.fromValue(userRequest.getUser().getType()))
+                        .userType(individual.getUserDetails().getUserType())
                         .build())
                 .isDeleted(Boolean.FALSE)
                 .clientAuditDetails(AuditDetails.builder()
