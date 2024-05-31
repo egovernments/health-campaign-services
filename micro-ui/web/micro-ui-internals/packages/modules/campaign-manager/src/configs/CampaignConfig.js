@@ -52,8 +52,35 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
           ],
         },
         {
-          stepCount: "1",
+          stepCount: "2",
           key: "3",
+          name: "HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA",
+          body: [
+            {
+              isMandatory: false,
+              key: "boundaryType",
+              type: "component",
+              component: "SelectingBoundaries",
+              withoutLabelFieldPair: true,
+              withoutLabel: true,
+              disable: false,
+              customProps: {
+                module: "HCM",
+                sessionData: totalFormData,
+                dataParams: dataParams,
+              },
+              populators: {
+                name: "boundaryType",
+                // optionsKey: "code",
+                error: "ES__REQUIRED",
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          stepCount: "3",
+          key: "4",
           name: "HCM_CAMPAIGN_DATE",
           body: [
             {
@@ -78,8 +105,8 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
           ],
         },
         {
-          stepCount: "2",
-          key: "4",
+          stepCount: "3",
+          key: "5",
           name: "HCM_CAMPAIGN_CYCLE_CONFIGURE",
           body: [
             {
@@ -104,8 +131,8 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
           ],
         },
         {
-          stepCount: "2",
-          key: "5",
+          stepCount: "3",
+          key: "6",
           name: "HCM_CAMPAIGN_DELIVERY_DATA",
           body: [
             {
@@ -122,33 +149,6 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               },
               populators: {
                 name: "deliveryRule",
-                // optionsKey: "code",
-                error: "ES__REQUIRED",
-                required: true,
-              },
-            },
-          ],
-        },
-        {
-          stepCount: "3",
-          key: "6",
-          name: "HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA",
-          body: [
-            {
-              isMandatory: false,
-              key: "boundaryType",
-              type: "component",
-              component: "SelectingBoundaries",
-              withoutLabelFieldPair: true,
-              withoutLabel: true,
-              disable: false,
-              customProps: {
-                module: "HCM",
-                sessionData: totalFormData,
-                dataParams: dataParams,
-              },
-              populators: {
-                name: "boundaryType",
                 // optionsKey: "code",
                 error: "ES__REQUIRED",
                 required: true,
