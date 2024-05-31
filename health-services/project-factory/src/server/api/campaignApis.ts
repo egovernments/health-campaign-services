@@ -180,7 +180,7 @@ function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], erro
         errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
         userNameAndPassword.push({
           userName: searchedElement?.user?.userName,
-          password: "eGov@123",
+          password: createdElement?.user?.password,
           rowNumber: createdElement["!row#number!"]
         })
         break;
@@ -476,14 +476,50 @@ function generateHash(input: string): string {
   return hash.toString().padStart(6, '0');
 }
 
+function generateUserPassword() {
+  // Function to generate a random lowercase letter
+  function getRandomLowercaseLetter() {
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    return letters.charAt(Math.floor(Math.random() * letters.length));
+  }
+
+  // Function to generate a random uppercase letter
+  function getRandomUppercaseLetter() {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return letters.charAt(Math.floor(Math.random() * letters.length));
+  }
+
+  // Generate a random 4-letter sequence where the second letter is uppercase
+  function generate4LetterSequence() {
+    const firstLetter = getRandomLowercaseLetter();
+    const secondLetter = getRandomUppercaseLetter();
+    const thirdLetter = getRandomLowercaseLetter();
+    const fourthLetter = getRandomLowercaseLetter();
+    return firstLetter + secondLetter + thirdLetter + fourthLetter;
+  }
+
+  // Generate a random 3-digit number
+  function getRandom3DigitNumber() {
+    return Math.floor(100 + Math.random() * 900); // Ensures the number is 3 digits
+  }
+
+  // Combine parts to form the password
+  const firstSequence = generate4LetterSequence();
+  const randomNumber = getRandom3DigitNumber();
+
+  return `${firstSequence}@${randomNumber}`;
+}
+
+
 function enrichUserNameAndPassword(employees: any[]) {
   const epochTime = Date.now();
   employees.forEach((employee) => {
     const { user, "!row#number!": rowNumber } = employee;
     const nameInitials = user.name.split(' ').map((name: any) => name.charAt(0)).join('');
     const generatedCode = `${nameInitials}${generateHash(`${epochTime}`)}${rowNumber}`;
+    const generatedPassword = config?.user?.userPasswordAutoGenerate == "true" ? generateUserPassword() : config?.user?.userDefaultPassword
     user.userName = generatedCode;
-    user.password = "eGov@123";
+    user.password = generatedPassword;
     employee.code = generatedCode
   });
 }
