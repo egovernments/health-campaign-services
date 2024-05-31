@@ -27,6 +27,8 @@ const config = {
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
     userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
+    userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
+    userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
   },
   kafka: {
     // Kafka topics
