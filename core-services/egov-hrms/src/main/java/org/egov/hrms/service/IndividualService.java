@@ -310,6 +310,7 @@ public class IndividualService implements UserService {
                 .userServiceUuid(individual.getUserUuid())
                 .active(individual.getIsSystemUserActive())
                 .gender(individual.getGender() != null ? individual.getGender().name() : null)
+                .type(individual.getUserDetails().getUserType().toString())
                 .userName(individual.getUserDetails().getUsername())
                 .emailId(individual.getEmail())
                 .correspondenceAddress(individual.getAddress() != null && !individual.getAddress().isEmpty()
