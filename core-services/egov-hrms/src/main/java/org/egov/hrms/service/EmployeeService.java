@@ -343,11 +343,18 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse update(EmployeeRequest employeeRequest) {
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
+
+		String tenantId = null;
+		if (!CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
+			tenantId = employeeRequest.getEmployees().get(0).getTenantId();
+		}
+
 		List <String> uuidList= new ArrayList<>();
 		for(Employee employee: employeeRequest.getEmployees()) {
 			uuidList.add(employee.getUuid());
 		}
-		EmployeeResponse existingEmployeeResponse = search(EmployeeSearchCriteria.builder().uuids(uuidList).build(),requestInfo);
+
+		EmployeeResponse existingEmployeeResponse = search(EmployeeSearchCriteria.builder().uuids(uuidList).tenantId(tenantId).build(),requestInfo);
 		List <Employee> existingEmployees = existingEmployeeResponse.getEmployees();
 		employeeRequest.getEmployees().stream().forEach(employee -> {
 			enrichUpdateRequest(employee, requestInfo, existingEmployees);
