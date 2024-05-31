@@ -99,7 +99,6 @@ async function getFacilitiesViaIds(tenantId: string, ids: any[], requestBody: an
   for (let i = 0; i < ids.length; i += 50) {
     const chunkIds = ids.slice(i, i + 50);
     facilitySearchBody.Facility.id = chunkIds;
-    logger.info("facilitySearchBody : " + JSON.stringify(facilitySearchBody));
     await getAllFacilitiesInLoop(searchedFacilities, facilitySearchParams, facilitySearchBody);
   }
 
@@ -200,7 +199,6 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     for (const searchedElement of newSearchedData) {
       let match = true;
       for (const key in createdElement) {
-        // console.log(key, createdElement[key], searchedElement[key], " ssssssssssssssssssssssssssssssssss");
         if (createdElement.hasOwnProperty(key) && !searchedElement.hasOwnProperty(key) && key != '!row#number!') {
           match = false;
           break;
@@ -269,7 +267,7 @@ async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
       tenantId: request?.body?.ResourceDetails?.tenantId,
       includeDeleted: true
     };
-
+    logger.info("Individual search to validate the mobile no initiated");
     const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
 
     if (!response) {
@@ -284,7 +282,7 @@ async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
 
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
-  logger.info("Already Exsisted mobile numbers : " + JSON.stringify(resultSet));
+  logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
   return resultSet;
 }
 
@@ -515,8 +513,7 @@ async function enrichEmployees(employees: any[], request: any) {
 }
 
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
-  logger.info(type + " create data : " + JSON.stringify(request?.body?.dataToCreate));
-  logger.info(type + " bulk create url : " + createAndSearchConfig?.createBulkDetails?.url, params);
+  logger.info(type + " create data  " );
   if (createAndSearchConfig?.createBulkDetails?.limit) {
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
@@ -541,7 +538,6 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
             for (const facility of newRequestBody.Facilities) {
               facility.address = {}
             }
-            logger.info("Facility create data : " + JSON.stringify(newRequestBody));
             var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
           }
           else if (type == "user") {
@@ -558,7 +554,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         throw e;
       }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
-      logger.info("Activity : " + JSON.stringify(activity));
+      logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}` );
       activities.push(activity);
     }
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -639,11 +635,14 @@ async function processCreate(request: any, localizationMap?: any) {
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
     if (type == "facility" || type == "user") {
+      logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
       schema = mdmsResponse
     }
+    logger.info("translating schema")
     const translatedSchema = await translateSchema(schema, localizationMap);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
+    logger.info("validation done sucessfully")
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
   }
 }
