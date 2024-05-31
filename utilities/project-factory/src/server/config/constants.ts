@@ -8,6 +8,7 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",
             INVALID_PAGINATION: "Invalid pagination",
+            KAFKA_ERROR: "Some error occured in kafka"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
