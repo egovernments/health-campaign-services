@@ -254,7 +254,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  // const [active, setActive] = useState(0);
+  const [active, setActive] = useState(0);
   const { data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
   // const hierarchyType = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.hierarchy;
 
@@ -1136,7 +1136,6 @@ const SetupCampaign = ({ hierarchyType }) => {
   };
 
   const onStepClick = (step) => {
-    console.log("step", step);
     if ((currentKey === 4 || currentKey === 5) && step > 1) {
       return;
     }
@@ -1160,19 +1159,51 @@ const SetupCampaign = ({ hierarchyType }) => {
     }
   };
 
-  // const findHighestStepCount = () => {
-  //   const totalFormDataKeys = Object.keys(totalFormData);
+  const filterNonEmptyValues = (obj) => {
+    const keys = [];
+    for (const key in obj) {
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        // Check if any nested value is non-null and non-empty
+        if (hasNonEmptyValue(obj[key])) {
+          keys.push(key);
+        }
+      } else if (obj[key] !== null && obj[key] !== "") {
+        keys.push(key);
+      }
+    }
+    return keys;
+  };
 
-  //   const relatedSteps = campaignConfig?.[0]?.form.filter((step) => totalFormDataKeys.includes(step.name));
+  const hasNonEmptyValue = (obj) => {
+    for (const key in obj) {
+      if (obj[key] !== null && obj[key] !== "") {
+        if (typeof obj[key] === "object") {
+          if (hasNonEmptyValue(obj[key])) {
+            return true;
+          }
+        } else {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
 
-  //   const highestStep = relatedSteps.reduce((max, step) => Math.max(max, parseInt(step.stepCount)), 0);
+  const findHighestStepCount = () => {
+    const totalFormDataKeys = Object.keys(totalFormData);
 
-  //   setActive(highestStep);
-  // };
+    const nonNullFormDataKeys = filterNonEmptyValues(totalFormData);
 
-  // useEffect(() => {
-  //   findHighestStepCount();
-  // }, [totalFormData, campaignConfig]);
+    const relatedSteps = campaignConfig?.[0]?.form.filter((step) => nonNullFormDataKeys.includes(step.name));
+
+    const highestStep = relatedSteps.reduce((max, step) => Math.max(max, parseInt(step.stepCount)), 0);
+
+    setActive(highestStep);
+  };
+
+  useEffect(() => {
+    findHighestStepCount();
+  }, [totalFormData, campaignConfig]);
 
   const onSecondayActionClick = () => {
     if (currentKey > 1) {
@@ -1242,7 +1273,7 @@ const SetupCampaign = ({ hierarchyType }) => {
           ]}
           currentStep={currentStep + 1}
           onStepClick={onStepClick}
-          // activeSteps={active}
+          activeSteps={active}
         />
       )}
       <FormComposerV2
