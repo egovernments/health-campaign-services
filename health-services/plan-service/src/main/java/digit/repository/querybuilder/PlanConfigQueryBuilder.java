@@ -123,10 +123,8 @@ public class PlanConfigQueryBuilder {
 
         StringBuilder countQuery = new StringBuilder();
         if (isCount) {
-            countQuery.append(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER);
 
-            String baseQueryString = getPaginatedQuery(builder.toString(), criteria, preparedStmtList);
-            countQuery.append(baseQueryString);
+            countQuery.append(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
 
             countQuery.append(") AS subquery");
 
