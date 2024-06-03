@@ -342,26 +342,48 @@ public class EmployeeService {
 	 * @return
 	 */
 	public EmployeeResponse update(EmployeeRequest employeeRequest) {
+		// Extracting request information from the employee request
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
 
+		// Initialize tenantId to null
 		String tenantId = null;
+
+		// If employeeRequest is not null and contains employees, extract the tenantId from the first employee
 		if (employeeRequest != null && !CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
 			tenantId = employeeRequest.getEmployees().get(0).getTenantId();
 		}
 
-		List <String> uuidList= new ArrayList<>();
-		for(Employee employee: employeeRequest.getEmployees()) {
+		// List to store the UUIDs of the employees to be updated
+		List<String> uuidList = new ArrayList<>();
+
+		// Iterate over the employees in the request and collect their UUIDs
+		for (Employee employee : employeeRequest.getEmployees()) {
 			uuidList.add(employee.getUuid());
 		}
 
-		EmployeeResponse existingEmployeeResponse = search(EmployeeSearchCriteria.builder().uuids(uuidList).tenantId(tenantId).build(),requestInfo);
-		List <Employee> existingEmployees = existingEmployeeResponse.getEmployees();
+		// Search for existing employees based on the collected UUIDs and tenantId
+		EmployeeResponse existingEmployeeResponse = search(
+				EmployeeSearchCriteria.builder().uuids(uuidList).tenantId(tenantId).build(), requestInfo
+		);
+
+		// Extract the list of existing employees from the search response
+		List<Employee> existingEmployees = existingEmployeeResponse.getEmployees();
+
+		// Iterate over each employee in the request
 		employeeRequest.getEmployees().stream().forEach(employee -> {
+			// Enrich the update request with additional information using the existing employee details
 			enrichUpdateRequest(employee, requestInfo, existingEmployees);
+			// Update the user information for the employee
 			updateUser(employee, requestInfo);
 		});
+
+		// Push the updated employee request to the HRMS topic for further processing
 		hrmsProducer.push(propertiesManager.getUpdateTopic(), employeeRequest);
-		//notificationService.sendReactivationNotification(employeeRequest);
+
+		// (Optional) Send reactivation notifications if needed
+		// notificationService.sendReactivationNotification(employeeRequest);
+
+		// Generate and return the response containing the updated employee information
 		return generateResponse(employeeRequest);
 	}
 	
@@ -395,9 +417,16 @@ public class EmployeeService {
 				.createdBy(requestInfo.getUserInfo().getUserName())
 				.createdDate(new Date().getTime())
 				.build();
-		Employee existingEmpData = existingEmployeesData.stream().filter(existingEmployee -> existingEmployee.getUuid().equals(employee.getUuid())).findFirst().get();
+		// Find the existing employee data matching the current employee's UUID
+		Employee existingEmpData = existingEmployeesData.stream()
+				.filter(existingEmployee -> existingEmployee.getUuid().equals(employee.getUuid()))
+				.findFirst()
+				.get();
 
+		// Set the user's username to the employee's code
 		employee.getUser().setUserName(employee.getCode());
+
+		// Set the user's active status based on the employee's isActive status
 		if(!employee.getIsActive())
 			employee.getUser().setActive(false);
 		else
