@@ -1,12 +1,15 @@
 import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
-import { processDataSearchRequest } from "../utils/campaignUtils";
-import { enrichResourceDetails, getLocalizedMessagesHandler, getResponseFromDb, processGenerate, throwError } from "../utils/genericUtils";
+import { getLocalizedName, processDataSearchRequest } from "../utils/campaignUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, getResponseFromDb, processGenerate, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
 import { getLocalisationModuleName } from "../utils/localisationUtils";
+import { getBoundaryTabName } from "../utils/boundaryUtils";
+const ExcelJS = require('exceljs');
+
 
 const generateDataService = async (request: express.Request) => {
     // Validate the generate request
@@ -37,15 +40,18 @@ const downloadDataService = async (request: express.Request) => {
 const getBoundaryDataService = async (
     request: express.Request
 ) => {
+    const workbook = new ExcelJS.Workbook();
     const { hierarchyType } = request?.query;
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
-    // const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId || 'mz');
     // Retrieve boundary sheet data
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-    // Create and upload file
-    const BoundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
+
+    const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
+    const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+    addDataToSheet(boundarySheet, boundarySheetData);
+    const BoundaryFileDetails: any = await createAndUploadFile(workbook, request);
     // Return boundary file details
     logger.info("RETURNS THE BOUNDARY RESPONSE");
     return BoundaryFileDetails;

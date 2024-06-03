@@ -5,8 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema } from "../api/genericApis";
-import * as XLSX from 'xlsx';
-import FormData from 'form-data';
 import { logger } from "./logger";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -17,6 +15,7 @@ import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationU
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 const NodeCache = require("node-cache");
+const ExcelJS = require('exceljs');
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
 const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -214,28 +213,6 @@ const trimError = (e: any) => {
   return e;
 }
 
-async function generateXlsxFromJson(request: any, response: any, simplifiedData: any) {
-  const ws = XLSX.utils.json_to_sheet(simplifiedData);
-
-  // Create a new workbook
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Sheet 1');
-  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-  const formData = new FormData();
-  formData.append('file', buffer, 'filename.xlsx');
-  formData.append('tenantId', request?.body?.RequestInfo?.userInfo?.tenantId);
-  formData.append('module', 'HCM-ADMIN-CONSOLE-PROCESS');
-
-  var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
-    {
-      'Content-Type': 'multipart/form-data',
-      'auth-token': request?.body?.RequestInfo?.authToken
-    }
-  );
-  const responseData = fileCreationResult?.files;
-  logger.info("Response data after File Creation : " + JSON.stringify(responseData));
-  return responseData;
-}
 
 async function generateActivityMessage(tenantId: any, requestBody: any, requestPayload: any, responsePayload: any, type: any, url: any, status: any) {
   const activityMessage = {
@@ -480,53 +457,86 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   })
   logger.info("facilities generation done ");
   logger.debug(`facility response ${JSON.stringify(facilities)}`)
-  const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
-  const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders, localizedFacilityTab);
+  const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders);
   return facilitySheetData;
 }
 
-async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap?: any) {
-  const readMeConfig = await getReadMeConfig(request);
-  const maxCharsBeforeLineBreak = 100; // Set the maximum number of characters before line break
-  const datas = readMeConfig.texts.flatMap((text: any) => {
-    let stepText = ''; // Initialize step text for each text element
-    let stepCount = 1; // Initialize the step counter
-    const descriptions = text.descriptions.map((description: any) => {
-      let textWithLineBreaks = '';
-      let remainingText = getLocalizedName(description.text, localizationMap);
-      while (remainingText.length > maxCharsBeforeLineBreak) {
-        let breakIndex = remainingText.lastIndexOf(' ', maxCharsBeforeLineBreak);
-        if (breakIndex === -1) breakIndex = maxCharsBeforeLineBreak;
-        textWithLineBreaks += remainingText.substring(0, breakIndex) + '\n';
-        remainingText = remainingText.substring(breakIndex).trim();
-      }
-      textWithLineBreaks += remainingText;
-      // If step is required, add step text before description
-      if (description.isStepRequired) {
-        stepText = `Step ${stepCount}: `;
-        stepCount++;
-        return stepText + textWithLineBreaks;
-      }
-      else {
-        return textWithLineBreaks;
+function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
+  // Add empty rows after the main header
+  worksheet.addRow([]);
+  worksheet.addRow([]);
+  worksheet.addRow([]);
+
+  // Add the data rows with text wrapping
+  const lineHeight = 15; // Set an approximate line height
+  const maxCharactersPerLine = 100; // Set a maximum number of characters per line for wrapping
+
+  datas.forEach((data: any) => {
+    const row = worksheet.addRow([data]);
+    row.eachCell({ includeEmpty: true }, (cell: any) => {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }; // Apply text wrapping
+      // Calculate the required row height based on content length
+      const numberOfLines = Math.ceil(data.length / maxCharactersPerLine);
+      row.height = numberOfLines * lineHeight;
+
+      // Make the header text bold
+      if (headerSet.has(cell.value)) {
+        cell.font = { bold: true };
       }
     });
-    return [getLocalizedName(text.header, localizationMap), ...descriptions, "", "", "", ""];
   });
+
+  worksheet.getColumn(1).width = 130;
+}
+
+function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
 
   // Ensure mainHeader is an array
   if (!Array.isArray(mainHeader)) {
     mainHeader = [mainHeader];
   }
+  // headerSet.add(mainHeader)
+  const headerRow = worksheet.addRow(mainHeader);
 
-  const worksheet = XLSX.utils.aoa_to_sheet([mainHeader, "", "", ...datas.map((data: any) => [data])]);
-
-  // Set the width of column A to 130
-  const wscols = [{ wch: 130 }];
-  worksheet['!cols'] = wscols;
-  const readMeSheetName = getLocalizedName("HCM_README_SHEETNAME", localizationMap);
-  XLSX.utils.book_append_sheet(workbook, worksheet, readMeSheetName);
+  // Color the header cell
+  headerRow.eachCell((cell: any) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'f25449' } // Header cell color
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; // Center align and wrap text
+    cell.font = { bold: true };
+  });
 }
+
+async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap = {}) {
+  const readMeConfig = await getReadMeConfig(request);
+  const headerSet = new Set();
+
+
+  const datas = readMeConfig.texts.flatMap((text: any) => {
+    const descriptions = text.descriptions.map((description: any) => {
+      return getLocalizedName(description.text, localizationMap);
+    });
+    headerSet.add(getLocalizedName(text.header, localizationMap));
+    return [getLocalizedName(text.header, localizationMap), ...descriptions, "", "", "", ""];
+  });
+
+  // Create the worksheet and add the main header
+  const worksheet = workbook.addWorksheet(getLocalizedName("HCM_README_SHEETNAME", localizationMap));
+
+  setAndFormatHeaders(worksheet, mainHeader, headerSet);
+
+  formatWorksheet(worksheet, datas, headerSet);
+
+  return worksheet;
+}
+
+
+
+
+
 
 
 
@@ -569,34 +579,88 @@ async function getReadMeConfig(request: any) {
   }
 }
 
-async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
-  const workbook = XLSX.utils.book_new();
+function changeFirstRowColumnColour(facilitySheet: any, color: any, columnNumber = 1) {
+  // Color the first column header of the facility sheet orange
+  const headerRow = facilitySheet.getRow(1); // Assuming the first row is the header
+  const firstHeaderCell = headerRow.getCell(columnNumber);
+  firstHeaderCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: color } // Orange color
+  };
+}
+
+
+async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: any) {
+  const workbook = new ExcelJS.Workbook();
+
   // Add facility sheet to the workbook
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   const type = request?.query?.type;
-  const headingInSheet = headingMapping?.[type]
-  const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
-  await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
-  XLSX.utils.book_append_sheet(workbook, facilitySheetData.ws, localizedFacilityTab);
+  const headingInSheet = headingMapping?.[type];
+  const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
+
+  // Create and add ReadMe sheet
+  await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
+
+  // Add facility sheet data
+  const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
+  addDataToSheet(facilitySheet, facilitySheetData);
+  changeFirstRowColumnColour(facilitySheet, 'E06666');
+
   // Add boundary sheet to the workbook
-  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
-  XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, localizedBoundaryTab);
-  const fileDetails = await createAndUploadFile(workbook, request)
+  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
+  const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30);
+
+  // Create and upload the file
+  const fileDetails = await createAndUploadFile(workbook, request);
   request.body.fileDetails = fileDetails;
 }
 
+
+// Helper function to add data to a sheet
+function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D', columnWidth = 40) {
+  sheetData?.forEach((row: any, index: number) => {
+    const worksheetRow = sheet.addRow(row);
+
+    // Check if it's the first row
+    if (index === 0) {
+      // Apply fill color to each cell in the first row
+      worksheetRow.eachCell((cell: any) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: firstRowColor } // Green color
+        };
+        cell.font = { bold: true }
+      });
+    }
+  });
+
+  // Set column widths to 30
+  sheet.columns.forEach((column: any) => {
+    column.width = columnWidth;
+  });
+}
+
+
+
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   const type = request?.query?.type;
   const headingInSheet = headingMapping?.[type]
   const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
   await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
-  // Add facility sheet to the workbook
-  XLSX.utils.book_append_sheet(workbook, userSheetData.ws, localizedUserTab);
+
+  const userSheet = workbook.addWorksheet(localizedUserTab);
+  addDataToSheet(userSheet, userSheetData);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
-  XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, localizedBoundaryTab);
+  const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30);
+
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
 }
@@ -619,9 +683,9 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const schema = await callMdmsSchema(request, config?.values?.moduleName, "user", tenantId);
   const headers = schema?.required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
+  // const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");
-  const userSheetData = await createExcelSheet(userData, localizedHeaders, localizedUserTab);
+  const userSheetData = await createExcelSheet(userData, localizedHeaders);
   const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
   await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
 }
@@ -838,8 +902,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type != "facilityWithBoundary") {
     request.body.generatedResourceCount = sheetRowCount;
   }
-  const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-  return await createExcelSheet(data, localizedHeaders, localizedBoundaryTab);
+  return await createExcelSheet(data, localizedHeaders);
 }
 
 function modifyTargetData(data: any) {
@@ -950,7 +1013,6 @@ export {
   appCache,
   cacheResponse,
   getCachedResponse,
-  generateXlsxFromJson,
   generateAuditDetails,
   generateActivityMessage,
   getResponseFromDb,
@@ -980,7 +1042,9 @@ export {
   createReadMeSheet,
   findMapValue,
   replicateRequest,
-  getDifferentDistrictTabs
+  getDifferentDistrictTabs,
+  addDataToSheet,
+  changeFirstRowColumnColour
 };
 
 

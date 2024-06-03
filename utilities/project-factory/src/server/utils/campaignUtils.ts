@@ -8,7 +8,7 @@ import { getCampaignNumber, createAndUploadFile, getSheetData, createExcelSheet,
 import { getFormattedStringForDebug, logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import * as XLSX from 'xlsx';
-import { createReadMeSheet, findMapValue, getBoundaryRelationshipData, getLocalizedHeaders, getLocalizedMessagesHandler, modifyBoundaryData, modifyDataBasedOnDifferentTab, replicateRequest, throwError } from "./genericUtils";
+import { addDataToSheet, changeFirstRowColumnColour, createReadMeSheet, findMapValue, getBoundaryRelationshipData, getLocalizedHeaders, getLocalizedMessagesHandler, modifyBoundaryData, modifyDataBasedOnDifferentTab, replicateRequest, throwError } from "./genericUtils";
 import { enrichProjectDetailsFromCampaignDetails } from "./transforms/projectTypeUtils";
 import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
@@ -18,6 +18,8 @@ import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 const _ = require('lodash');
+const ExcelJS = require('exceljs');
+
 
 
 function updateRange(range: any, desiredSheet: any) {
@@ -361,7 +363,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
     if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
-        logger.info("Activities to persist : " )
+        logger.info("Activities to persist : ")
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         await new Promise(resolve => setTimeout(resolve, 2000));
         produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
@@ -1210,14 +1212,79 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     await enrichAndPersistProjectCampaignRequest(request, actionInUrl, true)
     processAfterPersist(request, actionInUrl)
 }
+
+function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeColumnIndex: any) {
+    // Make every cell locked by default
+    newSheet.eachRow((row: any) => {
+        row.eachCell((cell: any) => {
+            cell.protection = { locked: true };
+        });
+    });
+
+    // Unlock cells in the target column
+    if (targetColumnNumber > -1) {
+        newSheet.eachRow((row: any) => {
+            const cell = row.getCell(targetColumnNumber + 1); // Excel columns are 1-based
+            cell.protection = { locked: false };
+        });
+    }
+
+    // Hide the boundary code column
+    if (boundaryCodeColumnIndex !== -1) {
+        newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true;
+    }
+
+    // Protect the sheet with a password (optional)
+    newSheet.protect('passwordhere', {
+        selectLockedCells: true,
+        selectUnlockedCells: true
+    });
+}
+
+function createNewSheet(workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any) {
+    const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
+    addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
+
+    const targetColumnNumber = localizedHeaders.findIndex((header: any) => header == getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap));
+    const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap));
+    if (targetColumnNumber > -1) {
+        // Change the target column background color
+        changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber + 1);
+    }
+    lockTargetFields(newSheet, targetColumnNumber, boundaryCodeColumnIndex);
+}
+
+
+
+function appendDistricts(workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any) {
+    for (const uniqueData of uniqueDistrictsForMainSheet) {
+        const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
+        const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs);
+        const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
+        if (modifiedFilteredData?.[0]) {
+            const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
+            const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
+            const modifiedHeaders = [...headers, "HCM_ADMIN_CONSOLE_TARGET"];
+            const localizedHeaders = getLocalizedHeaders(modifiedHeaders, localizationMap);
+            const newSheetData = [localizedHeaders];
+
+            for (const data of modifiedFilteredData) {
+                const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
+                newSheetData.push(rowData);
+            }
+            createNewSheet(workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, localizedHeaders);
+        }
+    }
+}
+
 async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any) {
     try {
-        logger.info("Received Boundary data for Processing file")
+        logger.info("Received Boundary data for Processing file");
         const uniqueDistrictsForMainSheet: string[] = [];
-        const workbook = XLSX.utils.book_new();
-        const type = request?.query?.type
-        const headingInSheet = headingMapping?.[type]
-        const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
+        const workbook = new ExcelJS.Workbook();
+        const type = request?.query?.type;
+        const headingInSheet = headingMapping?.[type];
+        const localisedHeading = getLocalizedName(headingInSheet, localizationMap);
         await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
         const mainSheetData: any[] = [];
         const headersForMainSheet = differentTabsBasedOnLevel ? Object.keys(boundaryData[0]).slice(0, Object.keys(boundaryData[0]).indexOf(differentTabsBasedOnLevel) + 1) : [];
@@ -1232,8 +1299,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             const districtIndex = modifiedData[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
             if (districtIndex == -1) {
                 mainSheetData.push(rowData);
-            }
-            else {
+            } else {
                 const districtLevelRow = rowData.slice(0, districtIndex + 1);
                 if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('_'))) {
                     uniqueDistrictsForMainSheet.push(districtLevelRow.join('_'));
@@ -1242,39 +1308,22 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
                 }
             }
         }
-        const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
-        const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-        const columnWidths = Array(12).fill({ width: 30 });
-        mainSheet['!cols'] = columnWidths;
-        XLSX.utils.book_append_sheet(workbook, mainSheet, localizedBoundaryTab);
-        for (const uniqueData of uniqueDistrictsForMainSheet) {
-            const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
-            const districtDataFiltered = boundaryData.filter(boundary => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs);
-            const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
-            if (modifiedFilteredData?.[0]) {
-                const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
-                const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
-                const modifiedHeaders = [...headers, "HCM_ADMIN_CONSOLE_TARGET"];
-                const localizedHeaders = getLocalizedHeaders(modifiedHeaders, localizationMap);
-                const newSheetData = [localizedHeaders];
+        const mainSheet = workbook.addWorksheet(getLocalizedName(getBoundaryTabName(), localizationMap));
+        const columnWidths = Array(12).fill(30);
+        mainSheet.columns = columnWidths.map(width => ({ width }));
+        // mainSheetData.forEach(row => mainSheet.addRow(row));
+        addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30);
 
-                for (const data of modifiedFilteredData) {
-                    const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
-                    newSheetData.push(rowData);
-                }
-                const ws = XLSX.utils.aoa_to_sheet(newSheetData);
-                const localizedDifferentTabsName = getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
-                ws['!cols'] = columnWidths;
-                XLSX.utils.book_append_sheet(workbook, ws, localizedDifferentTabsName);
-            }
-        }
-        logger.info("File processed successfully")
 
+        appendDistricts(workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap);
+        logger.info("File processed successfully");
         return workbook;
     } catch (error) {
+        console.log(error);
         throw Error("An error occurred while creating tabs based on district:");
     }
 }
+
 function modifyFilteredData(districtDataFiltered: any, targetBoundaryCode: any, localizationMap?: any): any {
 
     // Step 2: Slice the boundary code up to the last underscore
@@ -1437,7 +1486,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
     const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-    const boundarySheetData = await createExcelSheet(data, localizedHeaders, localizedBoundaryTab);
+    const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }

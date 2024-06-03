@@ -10,7 +10,6 @@ import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryD
 import { getFiltersFromCampaignSearchResponse, getHierarchy } from './campaignApis';
 import { validateMappingId } from '../utils/campaignMappingUtils';
 import { campaignStatuses } from '../config/constants';
-import { getBoundaryTabName } from '../utils/boundaryUtils';
 const _ = require('lodash'); // Import lodash library
 
 // Function to retrieve workbook from Excel file URL and sheet name
@@ -391,15 +390,12 @@ const getCount: any = async (
 
 // Function to create Excel sheet and upload it
 async function createAndUploadFile(
-  updatedWorkbook: XLSX.WorkBook,
+  updatedWorkbook: any,
   request: any,
   tenantId?: any
 ) {
   // Write the updated workbook to a buffer
-  const buffer = XLSX.write(updatedWorkbook, {
-    bookType: "xlsx",
-    type: "buffer",
-  });
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
 
   // Create form data for file upload
   const formData = new FormData();
@@ -426,11 +422,8 @@ async function createAndUploadFile(
   // Extract response data
   const responseData = fileCreationResult?.files;
   if (!responseData) {
-    throwError(
-      "COMMON",
-      500,
-      "INTERNAL_SERVER_ERROR",
-      "Error while uploading excel file"
+    throw new Error(
+      "Error while uploading excel file: INTERNAL_SERVER_ERROR"
     );
   }
 
@@ -499,28 +492,9 @@ function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
 }
 
 // Function to create an Excel sheet
-async function createExcelSheet(
-  data: any,
-  headers: any,
-  sheetName: string = "Sheet1"
-) {
-  // Create a new Excel workbook
-  const workbook = XLSX.utils.book_new();
-
-  // Combine headers and data into sheet data
-  const sheetData = [headers, ...data];
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // Define column widths (in pixels)
-  const columnWidths = headers.map(() => ({ width: 30 }));
-
-  // Apply column widths to the sheet
-  ws["!cols"] = columnWidths;
-
-  // Append sheet to the workbook
-  XLSX.utils.book_append_sheet(workbook, ws, sheetName);
-
-  return { wb: workbook, ws: ws, sheetName: sheetName }; // Return the workbook, worksheet, and sheet name
+async function createExcelSheet(data: any, headers: any) {
+  var rows = [headers, ...data];
+  return rows;
 }
 
 // Function to handle getting boundary codes
@@ -648,15 +622,14 @@ async function getBoundarySheetData(
       localizationMap
     );
     // create empty sheet if no boundary present in system
-    const localizedBoundaryTab = getLocalizedName(
-      getBoundaryTabName(),
-      localizationMap
-    );
+    // const localizedBoundaryTab = getLocalizedName(
+    //   getBoundaryTabName(),
+    //   localizationMap
+    // );
     logger.info(`generated a empty template for boundary`);
     return await createExcelSheet(
       boundaryData,
-      localizedHeaders,
-      localizedBoundaryTab
+      localizedHeaders
     );
   } else {
     // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
