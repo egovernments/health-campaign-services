@@ -345,7 +345,7 @@ public class EmployeeService {
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
 
 		String tenantId = null;
-		if (!CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
+		if (employeeRequest != null && !CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
 			tenantId = employeeRequest.getEmployees().get(0).getTenantId();
 		}
 
