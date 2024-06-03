@@ -1153,7 +1153,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
     var { tenantId, boundaries, projectType, projectId } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
         const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
-        var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse);
+        var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse?.filter((types:any)=>types?.code==projectType)?.[0]);
         const projectCreateBody = {
             RequestInfo: request?.body?.RequestInfo,
             Projects

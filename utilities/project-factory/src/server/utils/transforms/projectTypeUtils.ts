@@ -180,9 +180,9 @@ export const enrichProjectDetailsFromCampaignDetails = (
 ) => {
   var { tenantId, projectType, startDate, endDate, campaignName } =
     CampaignDetails;
-  logger.info("projectTypeResponse" + JSON.stringify(projectTypeObject));
-  const defaultProject =
-    defaultProjectType?.[projectType] || defaultProjectType?.["MR-DN"];
+  logger.info("campaign transformation for project type : " + projectType);
+  logger.debug("project type : " + getFormattedStringForDebug(projectTypeObject));
+  const defaultProject =projectTypeObject || defaultProjectType?.[projectType] || defaultProjectType?.["MR-DN"];
   return [
     {
       tenantId,
@@ -225,6 +225,7 @@ const getConditionsKey = (condition: any, key: string) => {
 // Function to get the condition based on attribute
 const getCondition = (condition: any = {}, attribute: string) => {
   if (attribute == "gender") {
+    // since hcm app can understand 0 or 1 for gender
     return `${attribute}==${condition?.["EQUAL_TO"]=="MALE"?0:1}`;
   }
   // Call getConditionsKey function to get the condition for LESS_THAN and GREATER_THAN
