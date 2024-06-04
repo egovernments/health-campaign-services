@@ -80,6 +80,7 @@ public class CampaignIntegrationUtil {
 			serviceRequestRepository.fetchResult(
 					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationUpdateEndPoint()),
 					buildCampaignRequestForUpdate(planConfigurationRequest, campaignResponse));
+			log.info("Campaign Integration successful.");
 		} catch (Exception e) {
 			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_CAMPAIGN
 					+ planConfigurationRequest.getPlanConfiguration().getExecutionPlanId(), e);
@@ -258,9 +259,9 @@ public class CampaignIntegrationUtil {
 	 * @param fileStoreId The file store ID.
 	 * @param campaignResourcesList The list of campaign resources to update.
 	 */
-	public void updateCampaignResources(String fileStoreId,List<CampaignResources> campaignResourcesList) {
+	public void updateCampaignResources(String fileStoreId,List<CampaignResources> campaignResourcesList,String fileName) {
 			CampaignResources campaignResource = new CampaignResources();
-			campaignResource.setFilename(ServiceConstants.FILE_NAME);
+			campaignResource.setFilename(fileName);
 			campaignResource.setFilestoreId(fileStoreId);
 			campaignResource.setType(ServiceConstants.FILE_TYPE);
 			campaignResourcesList.add(campaignResource);

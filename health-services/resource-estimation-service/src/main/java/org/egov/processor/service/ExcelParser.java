@@ -116,12 +116,11 @@ public class ExcelParser implements FileParser {
 						campaignBoundaryList, campaignResourcesList);
             }
 
-            String uploadedFileId = uploadConvertedFile(
-					new File(convertWorkbookToXls(workbook).getParent(), ServiceConstants.FILE_NAME),
-					planConfig.getTenantId());
+            File fileToUpload = convertWorkbookToXls(workbook);
+            String uploadedFileId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
             if(config.isIntegrateWithAdminConsole()) {
-			campaignIntegrationUtil.updateCampaignResources(uploadedFileId, campaignResourcesList);
+			campaignIntegrationUtil.updateCampaignResources(uploadedFileId, campaignResourcesList,fileToUpload.getName());
 			campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 					campaignBoundaryList, campaignResourcesList);
             }
