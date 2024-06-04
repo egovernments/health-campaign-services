@@ -50,6 +50,7 @@ export const deliveryConfig = [
         delivery: 1,
         conditionConfig: [
           {
+            deliveryType: "DIRECT",
             attributeConfig: [
               {
                 key: 1,
@@ -77,6 +78,7 @@ export const deliveryConfig = [
             ],
           },
           {
+            deliveryType: "DIRECT",
             attributeConfig: [
               {
                 key: 1,
@@ -103,6 +105,7 @@ export const deliveryConfig = [
         delivery: 2,
         conditionConfig: [
           {
+            deliveryType: "INDIRECT",
             attributeConfig: [
               {
                 key: 1,
@@ -124,6 +127,7 @@ export const deliveryConfig = [
             ],
           },
           {
+            deliveryType: "INDIRECT",
             attributeConfig: [
               {
                 key: 1,
@@ -150,6 +154,7 @@ export const deliveryConfig = [
         delivery: 3,
         conditionConfig: [
           {
+            deliveryType: "INDIRECT",
             attributeConfig: [
               {
                 key: 1,
@@ -171,6 +176,7 @@ export const deliveryConfig = [
             ],
           },
           {
+            deliveryType: "INDIRECT",
             attributeConfig: [
               {
                 key: 1,

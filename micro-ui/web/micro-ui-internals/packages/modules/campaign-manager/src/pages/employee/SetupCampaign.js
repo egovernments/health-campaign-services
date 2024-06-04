@@ -153,6 +153,7 @@ function reverseDeliveryRemap(data) {
     delivery.deliveryRules.push({
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
+      deliveryType: item?.deliveryType,
       attributes: loopAndReturn(item.conditions),
       products: [...item.products],
     });
@@ -467,6 +468,7 @@ const SetupCampaign = ({ hierarchyType }) => {
             endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key == cycle?.cycleIndex)?.toDate), // Hardcoded for now
             cycleNumber: parseInt(cycle.cycleIndex),
             deliveryNumber: parseInt(delivery.deliveryIndex),
+            deliveryType: rule?.deliveryType,
             deliveryRuleNumber: parseInt(rule.ruleKey), // New key added
             products: [],
             conditions: [],
@@ -1289,7 +1291,7 @@ const SetupCampaign = ({ hierarchyType }) => {
         actionClassName={"actionBarClass"}
         className="setup-campaign"
         cardClassName="setup-campaign-card"
-        noCardStyle={currentKey ===4 || currentStep === 7 || currentStep === 0  ? false : true}
+        noCardStyle={currentKey === 4 || currentStep === 7 || currentStep === 0 ? false : true}
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />

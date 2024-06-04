@@ -89,6 +89,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     return {
                       ruleKey: index + 1,
                       delivery: {},
+                      deliveryType: item?.deliveryType,
                       attributes: item?.attributeConfig
                         ? item?.attributeConfig?.map((i, c) => {
                             if (i?.operatorValue === "IN_BETWEEN") {
@@ -119,6 +120,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     return {
                       ruleKey: index + 1,
                       delivery: {},
+                      deliveryType: null,
                       attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
                       products: [],
                     };
@@ -205,6 +207,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                       return {
                         ruleKey: index + 1,
                         delivery: {},
+                        deliveryType: item?.deliveryType,
                         attributes: item?.attributeConfig
                           ? item?.attributeConfig?.map((i, c) => {
                               if (i?.operatorValue === "IN_BETWEEN") {
@@ -235,6 +238,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                       return {
                         ruleKey: index + 1,
                         delivery: {},
+                        deliveryType: null,
                         attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
                         products: [],
                       };
@@ -244,6 +248,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     {
                       ruleKey: 1,
                       delivery: {},
+                      deliveryType: null,
                       attributes:
                         // filteredDeliveryConfig?.projectType === "MR-DN"
                         //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({

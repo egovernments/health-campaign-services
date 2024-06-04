@@ -276,6 +276,22 @@ tbody {
       }
     }
   }
+  .digit-infobanner-wrap.error {
+    margin-left: 0;
+    margin-bottom: 1.5rem;
+    min-width: 100%;
+    .digit-button-primary {
+      height: 1.5rem;
+      background-color: #d4351c;
+      .icon-label-container.primary.large {
+        font-size: 14px;
+        .digit-button-label {
+          font-size: 14px;
+          color: #ffffff;
+        }
+      }
+    }
+  }
 }
 .view-composer-header-section {
   .employee-card-sub-header {
@@ -396,4 +412,21 @@ tbody {
 }
 .link {
   color: #c84c0e !important;
+}
+.employeeCard.employeeCard-override.error {
+  border: 1px solid #d4351c;
+}
+.label-field-pair.delivery-type-radio {
+  gap: 5rem;
+  .digit-radio-options-wrap {
+    gap: 2rem;
+    margin-bottom: 0 !important;
+    .radio-option-container {
+      margin-bottom: 0;
+      align-items: center;
+    }
+  }
+}
+.bold{
+  font-weight: 700;
 }
