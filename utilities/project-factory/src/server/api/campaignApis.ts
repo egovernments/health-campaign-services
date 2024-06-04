@@ -8,7 +8,6 @@ import { immediateValidationForTargetSheet, validateSheetData, validateTargetShe
 import { callMdmsSchema, getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
-import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { userRoles } from "../config/constants";
 import { createDataService } from "../service/dataManageService";
@@ -443,6 +442,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     await reorderBoundariesOfDataAndValidate(request, localizationMap)
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
+    console.log(error)
     await handleResouceDetailsError(request, error);
   }
 }
@@ -666,6 +666,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
       await generateProcessedFileAndPersist(request, localizationMap);
     }
   } catch (error: any) {
+    console.log(error)
     await handleResouceDetailsError(request, error)
   }
 }
@@ -820,20 +821,17 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 };
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false, localizationMap?: any) => {
-  const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap)
+  const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap);
   const workbook: any = await getWorkbook(fileUrl, localizedBoundarySheetName);
-  const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-    header: 1,
-  })[0] as (any)[];
+
+  const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
+  const columnsToValidate = worksheet.getRow(1).values.map((header: any) => header ? header.toString().trim() : undefined);
 
   // Filter out empty items and return the result
-  for (let i = 0; i < columnsToValidate.length; i++) {
-    if (typeof columnsToValidate[i] !== 'string') {
-      columnsToValidate[i] = undefined;
-    }
-  }
-  return columnsToValidate;
+  return columnsToValidate.filter((header: any) => typeof header === 'string');
 }
+
+
 async function getFiltersFromCampaignSearchResponse(request: any) {
   logger.info(`searching for campaign details to get the filters for boundary generation`);
   const requestInfo = { "RequestInfo": request?.body?.RequestInfo };

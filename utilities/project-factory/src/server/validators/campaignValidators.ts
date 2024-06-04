@@ -15,7 +15,6 @@ import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../config/models/createRequestSchema"
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
-import * as XLSX from 'xlsx';
 import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
@@ -112,17 +111,17 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     data.forEach((element, index) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!'] + 1}`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!']}`);
         }
 
         const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
         if (boundaryList.length === 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!'] + 1}`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!']}`);
         }
 
         for (const boundary of boundaryList) {
             if (!boundary) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!'] + 1}. Put it with one comma between boundary codes`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!']}. Put it with one comma between boundary codes`);
             }
             boundarySet.add(boundary); // Add boundary to the set
         }
@@ -145,25 +144,25 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
                 boundaryData.forEach((element: any, index: number) => {
                     const boundaries = element?.[boundaryColumn]; // Access "Boundary Code" property directly
                     if (!boundaries) {
-                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"]} for sheet ${key}`, sheetName: key })
                     } else {
                         if (typeof boundaries !== 'string') {
-                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key });
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row ${element["!row#number!"]} in boundary sheet ${key}`, sheetName: key });
                         } else {
                             const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
                             if (boundaryList.length === 0 || boundaryList.includes('')) {
-                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"]} in boundary sheet ${key}`, sheetName: key })
                             }
                             if (boundaryList.length > 1) {
-                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"]} of sheet ${key}`, sheetName: key })
                             }
                             if (boundaryList.length === 1) {
                                 const boundaryCode = boundaryList[0];
                                 if (boundarySet.has(boundaryCode)) {
-                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"]} of sheet ${key}`, sheetName: key })
                                 }
                                 if (!responseBoundaryCodes.includes(boundaryCode)) {
-                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key} is not present in the selected boundaries`, sheetName: key })
+                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"]}  of sheet ${key} is not present in the selected boundaries`, sheetName: key })
                                 }
                                 boundarySet.add(boundaryCode);
                             }
@@ -202,32 +201,32 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
                     if (obj.hasOwnProperty(lowestLevelHierarchy) && obj[lowestLevelHierarchy]) {
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
-                        if (target === undefined) {
+                        if (!target) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value is missing at row ${obj['!row#number!'] + 1} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`,
+                                errorDetails: `Target value is missing at row ${obj['!row#number!']} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`,
                                 sheetName: key
                             });
                         } else if (typeof target !== 'number') {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!'] + 1} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`,
+                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`,
                                 sheetName: key
                             });
                         } else if (target <= 0 || target > 100000) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`,
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!']} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`,
                                 sheetName: key
                             });
                         } else if (!Number.isInteger(target)) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!'] + 1} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`,
+                                errorDetails: `Target value ${target} at row ${obj['!row#number!']} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`,
                                 sheetName: key
                             });
                         }
@@ -253,7 +252,7 @@ async function validateUnique(schema: any, data: any[], request: any) {
                 const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
                 const localizedUniqueIdentifierColumnName = await getLocalizedName(uniqueIdentifierColumnName, localizationMap);
                 const value = item[element];
-                const rowNum = item['!row#number!'] + 1;
+                const rowNum = item['!row#number!'];
                 if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
                     // Check if the value is already in the map
                     if (uniqueMap.has(value)) {
@@ -280,11 +279,11 @@ function validatePhoneNumber(datas: any[]) {
             var phoneNumber = data["Phone Number (Mandatory)"];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
             if (phoneNumber.length != 10) {
-                digitErrorRows.push(data["!row#number!"] + 1);
+                digitErrorRows.push(data["!row#number!"]);
             }
         }
         else {
-            missingNumberRows.push(data["!row#number!"] + 1);
+            missingNumberRows.push(data["!row#number!"]);
         }
     }
     var isError = false;
@@ -318,7 +317,7 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
             data.forEach((item: any) => {
                 if (!item?.[uniqueIdentifierColumnName])
                     if (!validate(item)) {
-                        validationErrors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
+                        validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
                     }
             });
             await validateUnique(schema, data, request)
@@ -372,6 +371,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
         await generateProcessedFileAndPersist(request, localizationMap);
     }
     catch (error) {
+        console.log(error)
         await handleResouceDetailsError(request, error);
     }
 }
@@ -480,20 +480,18 @@ async function validateCreateRequest(request: any) {
     }
 }
 
-function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any, expectedHeadersForTargetSheet: any) {
-    for (let i = 2; i < targetWorkbook.SheetNames.length; i++) {
-        const sheetName = targetWorkbook?.SheetNames[i];
-        const sheet = targetWorkbook?.Sheets[sheetName];
-        // Convert the sheet to JSON to extract headers
-        let headersToValidate: any = XLSX.utils.sheet_to_json(sheet, {
-            header: 1,
-        })[0];
-        headersToValidate = headersToValidate.map((header: any) => header.trim());
-        if (!_.isEqual(expectedHeadersForTargetSheet, headersToValidate)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in Target sheet ${sheetName}`)
-        }
-    }
+async function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any, expectedHeadersForTargetSheet: any) {
 
+    targetWorkbook.eachSheet((worksheet: any, sheetId: any) => {
+        if (sheetId >= 2) { // Starting from the second sheet
+            // Convert the sheet to an array of headers
+            const headersToValidate = worksheet.getRow(1).values.map((header: any) => header.toString().trim());
+
+            if (!_.isEqual(expectedHeadersForTargetSheet, headersToValidate)) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in Target sheet ${worksheet.name}`);
+            }
+        }
+    });
 }
 
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
@@ -524,7 +522,7 @@ function validateForDupicateRows(boundaryData: any[]) {
         return _.isEqual(filteredObj1, filteredObj2);
     });
     const duplicateBoundaryRows = boundaryData.filter(e => !uniqueRows.includes(e));
-    const duplicateRowNumbers = duplicateBoundaryRows.map(obj => obj['!row#number!'] + 1);
+    const duplicateRowNumbers = duplicateBoundaryRows.map(obj => obj['!row#number!']);
     const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
     if (duplicateRowNumbers.length > 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
@@ -1075,6 +1073,8 @@ function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: 
 }
 
 
+
+
 async function validateDownloadRequest(request: any) {
     const { tenantId, hierarchyType } = request.query;
     validateBodyViaSchema(downloadRequestSchema, request.query);
@@ -1097,11 +1097,11 @@ function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: 
                 for (const boundaryRow of dataArray) {
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
-                            throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!'] + 1}`);
+                            throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
                         }
                     }
                     if (!boundaryRow[root]) {
-                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!'] + 1}`);
+                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
                     }
                 }
             }

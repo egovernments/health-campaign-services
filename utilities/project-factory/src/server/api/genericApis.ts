@@ -1,5 +1,4 @@
 // Import necessary modules and libraries
-import * as XLSX from "xlsx"; // Import XLSX library for Excel file processing
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
@@ -11,6 +10,7 @@ import { getFiltersFromCampaignSearchResponse, getHierarchy } from './campaignAp
 import { validateMappingId } from '../utils/campaignMappingUtils';
 import { campaignStatuses } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
+import ExcelJS from 'exceljs';
 
 // Function to retrieve workbook from Excel file URL and sheet name
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
@@ -30,10 +30,13 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
     headers
   );
 
-  // Read Excel file into workbook
-  const workbook = XLSX.read(responseFile, { type: "buffer" });
+  // Create a new workbook instance
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(responseFile);
+
   // Check if the specified sheet exists in the workbook
-  if (!workbook.Sheets.hasOwnProperty(sheetName)) {
+  const worksheet = workbook.getWorksheet(sheetName);
+  if (!worksheet) {
     throwError(
       "FILE",
       400,
@@ -64,11 +67,16 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
     headers
   );
 
-  // Read Excel file into workbook
-  const workbook = XLSX.read(responseFile, { type: "buffer" });
-  const mainSheet = workbook.SheetNames[1];
-  const localizedMainSheet = getLocalizedName(mainSheet, localizationMap);
-  if (!workbook.Sheets.hasOwnProperty(mainSheet)) {
+  // Create a new workbook instance
+  const workbook: any = new ExcelJS.Workbook();
+  await workbook.xlsx.load(responseFile);
+
+  // Get the main sheet name (assuming it's the second sheet)
+  const mainSheetName = workbook.getWorksheet(1).name;
+  const localizedMainSheet = getLocalizedName(mainSheetName, localizationMap);
+
+  // Check if the main sheet exists in the workbook
+  if (!workbook.getWorksheet(localizedMainSheet)) {
     throwError(
       "FILE",
       400,
@@ -81,23 +89,32 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   return workbook;
 };
 
-function isNumeric(value: any) {
-  return /^-?\d+(\.\d+)?$/.test(value);
+function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+  const jsonData: any[] = [];
+  const headers = sheetData[1]; // Extract the headers from the first row
+
+  for (let i = 2; i < sheetData.length; i++) {
+    const rowData: any = {};
+    const row = sheetData[i];
+    if (row) {
+      for (let j = 0; j < headers.length; j++) {
+        const key = headers[j];
+        const value = row[j] === undefined || row[j] === "" ? "" : row[j];
+        if (value) {
+          rowData[key] = value;
+        }
+      }
+      if (Object.keys(rowData).length > 0) {
+        if (getRow) rowData["!row#number!"] = i;
+        if (getSheetName) rowData["!sheet#name!"] = sheetName;
+        jsonData.push(rowData);
+      }
+    }
+  };
+  return jsonData;
 }
 
-// Function to retrieve data from a specific sheet in an Excel file
-const getSheetData = async (
-  fileUrl: string,
-  sheetName: string,
-  getRow = false,
-  createAndSearchConfig?: any,
-  localizationMap?: { [key: string]: string }
-) => {
-  // Retrieve workbook using the getWorkbook function
-  const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook: any = await getWorkbook(fileUrl, localizedSheetName);
-
-  // If parsing array configuration is provided, validate first row of each column
+function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
   if (
     createAndSearchConfig &&
     createAndSearchConfig.parseArrayConfig &&
@@ -106,17 +123,13 @@ const getSheetData = async (
     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
     // Iterate over each column configuration
     for (const columnConfig of parseLogic) {
-      const { sheetColumn } = columnConfig;
-      const expectedColumnName = columnConfig.sheetColumnName;
-      var localizedColumnName;
-      localizedColumnName = getLocalizedName(
-        expectedColumnName,
-        localizationMap
-      );
+      const { sheetColumn, sheetColumnName } = columnConfig;
+      const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+
       // Get the value of the first row in the current column
       if (sheetColumn && localizedColumnName) {
-        const firstRowValue =
-          workbook.Sheets[localizedSheetName][`${sheetColumn}1`]?.v;
+        const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
+
         // Validate the first row of the current column
         if (firstRowValue !== localizedColumnName) {
           throwError(
@@ -129,31 +142,29 @@ const getSheetData = async (
       }
     }
   }
+}
 
-  // Convert sheet data to JSON format
-  const sheetData = XLSX.utils.sheet_to_json(
-    workbook.Sheets[localizedSheetName],
-    { blankrows: true, raw: false }
-  );
-  var jsonData = sheetData.map((row: any, index: number) => {
-    const rowData: any = {};
-    if (Object.keys(row).length > 0) {
-      Object.keys(row).forEach((key) => {
-        // Check if the value is a numerical string
-        rowData[key] = isNumeric(row[key])
-          ? Number(row[key])
-          : row[key] === undefined || row[key] === ""
-            ? ""
-            : row[key];
-      });
-      if (getRow) rowData["!row#number!"] = index + 1;
-      return rowData;
-    }
-  });
+// Function to retrieve data from a specific sheet in an Excel file
+const getSheetData = async (
+  fileUrl: string,
+  sheetName: string,
+  getRow = false,
+  createAndSearchConfig?: any,
+  localizationMap?: { [key: string]: string }
+) => {
+  // Retrieve workbook using the getTargetWorkbook function
+  const localizedSheetName = getLocalizedName(sheetName, localizationMap);
+  const workbook = await getWorkbook(fileUrl, localizedSheetName);
+  const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
-  jsonData = jsonData.filter((element) => element !== undefined);
+
+  // If parsing array configuration is provided, validate first row of each column
+  validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
+
+  const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+  const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
-};
+}
 
 const getTargetSheetData = async (
   fileUrl: string,
@@ -161,37 +172,20 @@ const getTargetSheetData = async (
   getSheetName = false,
   localizationMap?: any
 ) => {
-  const workbook: any = await getTargetWorkbook(fileUrl, localizationMap);
-  const sheetNames = workbook.SheetNames;
+  const workbook = await getTargetWorkbook(fileUrl, localizationMap);
+  const sheetNames: string[] = [];
+  workbook.eachSheet((worksheet: any) => {
+    sheetNames.push(worksheet.name);
+  });
   const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
 
   const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
 
   for (const sheetName of localizedSheetNames) {
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-      blankrows: true, raw: false
-    });
-    var jsonData = sheetData.map((row: any, index: number) => {
-      const rowData: any = {};
-      if (Object.keys(row).length > 0) {
-        Object.keys(row).forEach((key) => {
-          // Check if the value is a numerical string
-          rowData[key] = isNumeric(row[key])
-            ? Number(row[key])
-            : row[key] === undefined || row[key] === ""
-              ? ""
-              : row[key];
-        });
-        if (getRow) rowData["!row#number!"] = index + 1;
-        if (getSheetName) rowData["!sheet#name!"] = sheetName;
-        return rowData;
-      }
-    });
-    jsonData = jsonData.filter((element) => element !== undefined);
-    workbookData[sheetName] = jsonData; // Store sheet data in the object
-    // logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
+    const worksheet = workbook.getWorksheet(sheetName);
+    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
-  // Return data from all sheets
   return workbookData;
 };
 
@@ -199,8 +193,7 @@ const getTargetSheetData = async (
 const searchMDMS: any = async (
   uniqueIdentifiers: any[],
   schemaCode: string,
-  requestinfo: any,
-  response: any
+  requestinfo: any
 ) => {
   // Check if unique identifiers are provided
   if (!uniqueIdentifiers) {
@@ -654,8 +647,8 @@ async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
     `${config.host.projectHost}` + `${config.paths.staffCreate}`;
-    logger.info("Project staff Creation : API :"+ config.paths.staffCreate);
-  
+  logger.info("Project staff Creation : API :" + config.paths.staffCreate);
+
   const staffResponse = await httpRequest(
     staffCreateUrl,
     resouceBody,
@@ -680,8 +673,8 @@ async function createProjectResource(resouceBody: any) {
   // Create project resources
   const projectResourceCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectResourceCreate}`;
-  logger.info("Project Resource Creation : API : "+ config.paths.projectResourceCreate);
-  
+  logger.info("Project Resource Creation : API : " + config.paths.projectResourceCreate);
+
   const projectResourceResponse = await httpRequest(
     projectResourceCreateUrl,
     resouceBody,
@@ -706,7 +699,7 @@ async function createProjectFacility(resouceBody: any) {
   // Create project facilities
   const projectFacilityCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectFacilityCreate}`;
-  logger.info("Project Facility Creation  : API :"+ config.paths.projectFacilityCreate);
+  logger.info("Project Facility Creation  : API :" + config.paths.projectFacilityCreate);
 
   const projectFacilityResponse = await httpRequest(
     projectFacilityCreateUrl,
@@ -1061,7 +1054,7 @@ async function callMdmsSchema(
 }
 
 async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
-  const resp:any = await callMdmsData(request, moduleName, masterName, tenantId);
+  const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
   return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
 }
 
