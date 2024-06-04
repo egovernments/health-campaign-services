@@ -65,7 +65,6 @@ public class PlanUtil {
 				.requestInfo(planConfigurationRequest.getRequestInfo())
 				.plan(Plan.builder()
 						.tenantId(planConfig.getTenantId())
-						.planConfigurationId(planConfig.getId())
 						.executionPlanId(planConfig.getExecutionPlanId())
 						.locality(getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE,
 								feature, mappedValues))
