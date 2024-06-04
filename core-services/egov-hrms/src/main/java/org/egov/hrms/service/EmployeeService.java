@@ -372,7 +372,7 @@ public class EmployeeService {
 		String tenantId = null;
 
 		// If employeeRequest is not null and contains employees, extract the tenantId from the first employee
-		if (employeeRequest != null && !CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
+		if (employeeRequest != null && !CollectionUtils.isEmpty(employeeRequest.getEmployees()) && !employeeRequest.getEmployees().isEmpty()) {
 			tenantId = employeeRequest.getEmployees().get(0).getTenantId();
 		}
 
@@ -444,7 +444,7 @@ public class EmployeeService {
 		Employee existingEmpData = existingEmployeesData.stream()
 				.filter(existingEmployee -> existingEmployee.getUuid().equals(employee.getUuid()))
 				.findFirst()
-				.get();
+				.orElseThrow(() -> new CustomException("EMPLOYEE_NOT_FOUND", "Employee not found with UUID: " + employee.getUuid()));
 
 		// Set the user's username to the employee's code
 		employee.getUser().setUserName(employee.getCode());
