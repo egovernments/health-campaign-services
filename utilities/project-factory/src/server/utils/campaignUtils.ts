@@ -1295,32 +1295,47 @@ function createNewSheet(workbook: any, newSheetData: any, uniqueData: any, local
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap));
     if (targetColumnNumber > -1) {
         // Change the target column background color
-        changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
+        changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber + 1);
     }
-    lockTargetFields(newSheet, targetColumnNumber, boundaryCodeColumnIndex);
+    lockTargetFields(newSheet, targetColumnNumber + 1, boundaryCodeColumnIndex);
 }
 
 
 
-function appendDistricts(workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any) {
+function appendDistricts(workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any) {
     for (const uniqueData of uniqueDistrictsForMainSheet) {
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
         const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs);
         const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
         if (modifiedFilteredData?.[0]) {
-            const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
-            const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
-            const modifiedHeaders = [...headers, "HCM_ADMIN_CONSOLE_TARGET"];
+            const districtIndex = hierarchy.indexOf(differentTabsBasedOnLevel);
+            const headers = hierarchy.slice(districtIndex);
+            const modifiedHeaders = [...headers, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_TARGET"];
             const localizedHeaders = getLocalizedHeaders(modifiedHeaders, localizationMap);
             const newSheetData = [localizedHeaders];
 
             for (const data of modifiedFilteredData) {
-                const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
+                var rowData: any[] = [];
+                for (const header of localizedHeaders) {
+                    rowData.push(data[header] || '');
+                }
                 newSheetData.push(rowData);
             }
             createNewSheet(workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, localizedHeaders);
         }
     }
+}
+
+async function getLocalizedHierarchy(request: any, localizationMap: any) {
+    var hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+    var modifiedHierarchy = hierarchy.map((ele) =>
+        `${request?.query?.hierarchyType}_${ele}`.toUpperCase()
+    );
+    var resultHierarchy = getLocalizedHeaders(
+        modifiedHierarchy,
+        localizationMap
+    );
+    return resultHierarchy;
 }
 
 async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any) {
@@ -1333,7 +1348,8 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         const localisedHeading = getLocalizedName(headingInSheet, localizationMap);
         await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
         const mainSheetData: any[] = [];
-        const headersForMainSheet = differentTabsBasedOnLevel ? Object.keys(boundaryData[0]).slice(0, Object.keys(boundaryData[0]).indexOf(differentTabsBasedOnLevel) + 1) : [];
+        const hierarchy: any[] = await getLocalizedHierarchy(request, localizationMap);
+        const headersForMainSheet = differentTabsBasedOnLevel ? hierarchy.slice(0, hierarchy.indexOf(differentTabsBasedOnLevel) + 1) : [];
         const localizedHeadersForMainSheet = getLocalizedHeaders(headersForMainSheet, localizationMap);
         const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
         localizedHeadersForMainSheet.push(localizedBoundaryCode);
@@ -1361,7 +1377,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30);
 
 
-        appendDistricts(workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap);
+        appendDistricts(workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy);
         logger.info("File processed successfully");
         return workbook;
     } catch (error) {
