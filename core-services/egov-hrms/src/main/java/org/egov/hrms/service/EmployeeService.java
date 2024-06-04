@@ -334,10 +334,33 @@ public class EmployeeService {
 	}
 
 	/**
+	 * Updates the details of employees provided in the EmployeeRequest.
+	 *
+	 * The method performs the following steps:
+	 * 1. Extracts request information from the EmployeeRequest.
+	 * 2. Retrieves tenantId from the first employee if available.
+	 * 3. Collects UUIDs of the employees to be updated.
+	 * 4. Searches for existing employee records based on the collected UUIDs and tenantId.
+	 * 5. Iterates over each employee in the request to:
+	 *    a. Enrich the update request with additional information using existing employee details.
+	 *    b. Update user information for the employee.
+	 * 6. Pushes the updated employee request to the HRMS topic for further processing.
+	 * 7. Optionally sends reactivation notifications if needed.
+	 * 8. Generates and returns the response containing the updated employee information.
+	 *
+	 * updateUser -
+	 * 1. Fetches Individual record, it has user response as well
+	 * 2. create individual update request and update the record
+	 * 3. construct the userResponse from individual update responss
+	 */
+
+
+	/**
 	 * Service method to update user. Performs the following:
 	 * 1. Enriches the employee object with required parameters.
 	 * 2. Updates user by making call to the user service.
-	 * 
+	 *
+	 *
 	 * @param employeeRequest
 	 * @return
 	 */
