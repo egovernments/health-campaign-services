@@ -38,6 +38,7 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               component: "CampaignName",
               mandatoryOnAPI: true,
               withoutLabel: true,
+              withoutLabelFieldPair: true,
               disable: false,
               customProps: {
                 module: "HCM",
