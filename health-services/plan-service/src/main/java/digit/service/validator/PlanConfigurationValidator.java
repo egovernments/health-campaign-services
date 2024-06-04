@@ -66,7 +66,7 @@ public class PlanConfigurationValidator {
         List<Operation> operations = planConfiguration.getOperations();
         for (Operation operation : operations) {
             // Check if the operation is using an assumption key that is not in the set of active assumption keys
-            if (!activeAssumptionKeys.contains(operation.getAssumptionValue())) {
+            if (operation.getActive() && !activeAssumptionKeys.contains(operation.getAssumptionValue())) {
                 log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in the list of active Assumption Keys");
                 throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
             }
