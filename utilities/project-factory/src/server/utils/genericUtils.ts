@@ -888,7 +888,10 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
   // get Campaign Details from Campaign Search Api
-  const configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+   var configurableColumnHeadersBasedOnCampaignType: any[] = []
+  if (type == "boundary") {
+    configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+  }
 
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
