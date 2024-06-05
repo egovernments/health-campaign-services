@@ -50,7 +50,7 @@ public class ShapeFileParser implements FileParser {
      * Converts a Shapefile to GeoJSON format, calculates resources based on the operations
      * defined in the plan configuration, and uploads the updated GeoJSON file to the file store.
      *
-     * @param planConfig  The plan configuration containing mapping and operation details.
+     * @param planConfigurationRequest  The plan configuration request containing mapping and operation details.
      * @param fileStoreId The file store ID of the Shapefile to be converted and parsed.
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */

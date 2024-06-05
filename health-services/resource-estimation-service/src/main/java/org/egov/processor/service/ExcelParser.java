@@ -46,6 +46,8 @@ public class ExcelParser implements FileParser {
     
     private PlanUtil planUtil;
 
+    private MdmsUtil mdmsUtil;
+
     public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
@@ -78,13 +80,13 @@ public class ExcelParser implements FileParser {
     /**
      * Processes the Excel file, updating it with the calculated results and uploading the updated file.
      *
-     * @param planConfig The plan configuration containing mapping and operation details.
-     * @param file       The Excel file to be processed.
+     * @param planConfigurationRequest The plan configuration request containing mapping and operation details.
+     * @param convertedFile       The Excel file to be processed.
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
-    private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId) {
+    private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File convertedFile, org.egov.processor.web.models.File file) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-        try (Workbook workbook = new XSSFWorkbook(file)) {
+        try (Workbook workbook = new XSSFWorkbook(convertedFile)) {
             DataFormatter dataFormatter = new DataFormatter();
 
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -92,10 +94,10 @@ public class ExcelParser implements FileParser {
                 Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
                 List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 
-                parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
+                parsingUtil.validateColumnNames(columnNamesList, planConfig, file.getFilestoreId());
 
                 // Assuming processRows handles processing for each sheet
-                processRows(planConfigurationRequest, sheet, dataFormatter);
+                processRows(planConfigurationRequest, sheet, dataFormatter, file);
             }
 
             return uploadConvertedFile(convertWorkbookToXls(workbook), planConfig.getTenantId());
@@ -115,8 +117,12 @@ public class ExcelParser implements FileParser {
      * @param fos            The file output stream to write the updated Excel data.
      * @throws IOException If an IO error occurs during processing.
      */
-    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter) throws IOException {
+    private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, org.egov.processor.web.models.File file) throws IOException {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        Object mdmsData = mdmsUtil.fetchMdmsData(planConfigurationRequest.getRequestInfo(), planConfigurationRequest.getPlanConfiguration().getTenantId());
+        List<Map<String, Object>> list = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(), file.getTemplateIdentifier());
+        log.info(list.toString());
+
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
                 continue;
@@ -263,5 +269,50 @@ public class ExcelParser implements FileParser {
             }
         }
         System.out.println(); // Move to the next line after printing the row
+    }
+
+    public void validateRows(Row row, Sheet sheet, Map<String, Integer> columnIndexMap, Map<String, String> mappedValues)
+    {
+
+        for (Cell cell : row) {
+            // Get the column name from the sheet data
+            String sheetColumnName = sheet.getRow(0).getCell(cell.getColumnIndex()).getStringCellValue();
+
+            // Check if the column name exists in the mapping
+            if (mappedValues.containsKey(sheetColumnName)) {
+                // Get the corresponding master data column name
+                String masterDataColumnName = mappedValues.get(sheetColumnName);
+
+                // Validate the data type of the cell against the master data
+                validateCellType(cell, masterDataColumnName, masterData);
+            }
+        }
+    }
+
+    private static void validateCellType(Cell cell, String masterDataColumnName, Map<String, Map<String, Object>> masterData) {
+        Map<String, Object> columnProperties = masterData.get(masterDataColumnName);
+        String expectedType = (String) columnProperties.get("type");
+
+        // Check the data type of the cell against the expected type
+        switch (expectedType) {
+            case "string":
+                if (cell.getCellType() != Cell.CELL_TYPE_STRING) {
+                    throw new IllegalArgumentException(
+                            String.format("Invalid data type for column '%s'. Expected 'string' but got '%s'.",
+                                    cell.getAddress(), cell.getCellType()));
+                }
+                break;
+            case "number":
+                if (cell.getCellType() != Cell.CELL_TYPE_NUMERIC) {
+                    throw new IllegalArgumentException(
+                            String.format("Invalid data type for column '%s'. Expected 'number' but got '%s'.",
+                                    cell.getAddress(), cell.getCellType()));
+                }
+                break;
+            // Add more cases for other data types as needed
+            default:
+                throw new IllegalArgumentException(
+                        String.format("Unsupported data type '%s' in master data.", expectedType));
+        }
     }
 }
