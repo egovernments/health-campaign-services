@@ -568,6 +568,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
   const [showToast, setShowToast] = useState(null);
   const { t } = useTranslation();
   const prodRef = useRef();
+  const tenantId = Digit.ULBService.getCurrentTenantId();
   const closeToast = () => setShowToast(null);
   const { isLoading: deliveryTypeConfigLoading, data: deliveryTypeConfig } = Digit.Hooks.useCustomMDMS(
     tenantId,
