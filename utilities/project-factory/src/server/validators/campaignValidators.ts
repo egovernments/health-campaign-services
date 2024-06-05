@@ -466,8 +466,6 @@ async function validateCreateRequest(request: any) {
         }
         if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
             const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-            // const mainSheetName = targetWorkbook.SheetNames[1];
-            // const sheetData = await getSheetData(fileUrl, mainSheetName, true, undefined, localizationMap);
             const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
             const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase());
             const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
@@ -475,17 +473,18 @@ async function validateCreateRequest(request: any) {
             let expectedHeadersForTargetSheet = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
             expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheet, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap)]
             // validateForRootElementExists(sheetData, hierachy, mainSheetName);
-            validateTabsWithTargetInTargetSheet(request, targetWorkbook, expectedHeadersForTargetSheet);
+            validateTabsWithTargetInTargetSheet(targetWorkbook, expectedHeadersForTargetSheet);
         }
     }
 }
 
-async function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any, expectedHeadersForTargetSheet: any) {
-
+function validateTabsWithTargetInTargetSheet(targetWorkbook: any, expectedHeadersForTargetSheet: any) {
     targetWorkbook.eachSheet((worksheet: any, sheetId: any) => {
-        if (sheetId >= 2) { // Starting from the second sheet
+        if (sheetId > 2) { // Starting from the second sheet
             // Convert the sheet to an array of headers
-            const headersToValidate = worksheet.getRow(1).values.map((header: any) => header.toString().trim());
+            const headersToValidate = worksheet.getRow(1).values
+                .filter((header: any) => header !== undefined && header !== null && header.toString().trim() !== '')
+                .map((header: any) => header.toString().trim());
 
             if (!_.isEqual(expectedHeadersForTargetSheet, headersToValidate)) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in Target sheet ${worksheet.name}`);
