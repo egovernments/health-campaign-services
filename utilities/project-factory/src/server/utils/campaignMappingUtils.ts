@@ -191,7 +191,7 @@ async function processCampaignMapping(messageObject: any) {
         var completedResources: any = []
         var resources = [];
         for (const resourceDetailId of resourceDetailsIds) {
-            var retry = 30;
+            var retry = 75;
             while (retry--) {
                 const response = await searchResourceDetailsById(resourceDetailId, messageObject);
                 logger.info(`response for resourceDetailId: ${resourceDetailId}`);
@@ -213,6 +213,7 @@ async function processCampaignMapping(messageObject: any) {
                 }
                 else {
                     await new Promise(resolve => setTimeout(resolve, 20000));
+                    logger.info(`Waiting for 20 seconds for resource with id ${resourceDetailId} on retry ${retry}`);
                 }
             }
         }

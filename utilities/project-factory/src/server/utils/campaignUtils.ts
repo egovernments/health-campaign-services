@@ -38,22 +38,17 @@ function updateRange(range: any, worksheet: any) {
     range.e.c = maxColumnIndex;
 }
 
-
-function findColumns(worksheet: any): { statusColumn: string, errorDetailsColumn: string } {
-    const range = {
-        s: { r: 0, c: 0 },
-        e: { r: worksheet.rowCount - 1, c: worksheet.columnCount - 1 }
-    };
-
-    // Check if the status column already exists in the first row
-    let statusColumn: string | undefined;
-    let errorDetailsColumn: string | undefined;
-
+function findAndChangeColumns(worksheet: any, columns: any) {
     const firstRow = worksheet.getRow(1); // First row (ExcelJS is 1-based)
-
     firstRow.eachCell((cell: any, colNumber: number) => {
         if (cell.value === '#status#') {
-            statusColumn = cell.address.replace(/\d+/g, '');
+            columns.statusColumn = cell.address.replace(/\d+/g, '');
+            // Set the cell color to green
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'CCCC00' }
+            };
             // Delete status column cells in subsequent rows
             worksheet.eachRow((row: any, rowIndex: number) => {
                 if (rowIndex > 1) {
@@ -63,7 +58,13 @@ function findColumns(worksheet: any): { statusColumn: string, errorDetailsColumn
             });
         }
         if (cell.value === '#errorDetails#') {
-            errorDetailsColumn = cell.address.replace(/\d+/g, '');
+            columns.errorDetailsColumn = cell.address.replace(/\d+/g, '');
+            // Set the cell color to green
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'CCCC00' }
+            };
             // Delete error details column cells in subsequent rows
             worksheet.eachRow((row: any, rowIndex: number) => {
                 if (rowIndex > 1) {
@@ -73,35 +74,57 @@ function findColumns(worksheet: any): { statusColumn: string, errorDetailsColumn
             });
         }
     });
+}
 
-    updateRange(range, worksheet);
-
+function makeColumns(worksheet: any, range: any, columns: any) {
     // If the status column doesn't exist, calculate the next available column
-    if (!statusColumn) {
+    if (!columns?.statusColumn) {
         const emptyColumnIndex = range.e.c;
-        statusColumn = String.fromCharCode(65 + emptyColumnIndex);
-        worksheet.getCell(`${statusColumn}1`).value = '#status#';
+        columns.statusColumn = String.fromCharCode(65 + (emptyColumnIndex + 1));
+        const statusCell = worksheet.getCell(`${columns.statusColumn}1`);
+        statusCell.value = '#status#';
+        statusCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'CCCC00' }
+        };
+        statusCell.font = { bold: true };
     }
 
     // Calculate errorDetails column one column to the right of status column
-    if (!errorDetailsColumn) {
-        errorDetailsColumn = String.fromCharCode(statusColumn.charCodeAt(0) + 1);
-        worksheet.getCell(`${errorDetailsColumn}1`).value = '#errorDetails#';
+    if (!columns?.errorDetailsColumn) {
+        columns.errorDetailsColumn = String.fromCharCode(columns?.statusColumn.charCodeAt(0) + 1);
+        const errorDetailsCell = worksheet.getCell(`${columns.errorDetailsColumn}1`);
+        errorDetailsCell.value = '#errorDetails#';
+        errorDetailsCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'CCCC00' }
+        };
+        errorDetailsCell.font = { bold: true };
     }
-
-    return { statusColumn, errorDetailsColumn };
 }
 
 
-async function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
-    const worksheet = workbook.getWorksheet(sheetName);
-    const errorData = request.body.sheetErrorDetails;
-    const userNameAndPassword = request.body.userNameAndPassword;
-    const columns = findColumns(worksheet);
-    const statusColumn = columns.statusColumn;
-    const errorDetailsColumn = columns.errorDetailsColumn;
-    const additionalDetailsErrors: any[] = [];
+function findColumns(worksheet: any) {
+    const range = {
+        s: { r: 0, c: 0 },
+        e: { r: worksheet.rowCount - 1, c: worksheet.columnCount - 1 }
+    };
 
+    // Check if the status column already exists in the first row
+    var columns = {}
+
+    findAndChangeColumns(worksheet, columns);
+
+    makeColumns(worksheet, range, columns);
+
+    updateRange(range, worksheet);
+
+    return columns;
+}
+
+function enrichErrors(errorData: any, worksheet: any, statusColumn: any, errorDetailsColumn: any, additionalDetailsErrors: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
     if (errorData) {
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber; // ExcelJS rows are 1-based
@@ -114,13 +137,22 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
                 additionalDetailsErrors.push(error);
             }
         });
-    }
+        if (errorData.some((error: any) => error?.status === "CREATED")) {
+            const uniqueIdentifierFirstRowCell = `${createAndSearchConfig?.uniqueIdentifierColumn}1`;
+            const columnName = getLocalizedName(createAndSearchConfig?.uniqueIdentifierColumnName, localizationMap);
+            const uniqueIdentifierCell = worksheet.getCell(uniqueIdentifierFirstRowCell);
+            uniqueIdentifierCell.value = columnName;
 
-    if (errorData) {
-        const uniqueIdentifierFirstRowCell = `${createAndSearchConfig?.uniqueIdentifierColumn}1`;
-        const columnName = getLocalizedName(createAndSearchConfig?.uniqueIdentifierColumnName, localizationMap);
-        worksheet.getCell(uniqueIdentifierFirstRowCell).value = columnName;
-
+            // Set the cell color to green
+            uniqueIdentifierCell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'ff9248' } // Green color
+            };
+            uniqueIdentifierCell.font = { bold: true };
+            // Hide the unique identifier column
+            worksheet.getColumn(createAndSearchConfig?.uniqueIdentifierColumn).hidden = true;
+        }
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber;
             if (error.isUniqueIdentifier) {
@@ -129,10 +161,9 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
             }
         });
     }
+}
 
-    request.body.additionalDetailsErrors = additionalDetailsErrors;
-
-    // Determine the last column to set the worksheet ref
+function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
     let lastColumn = errorDetailsColumn;
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
         lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
@@ -144,6 +175,22 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
         worksheet.getCell("I1").value = "UserName";
         worksheet.getCell("J1").value = "Password";
 
+        // Set the fill color to green for cell I1
+        worksheet.getCell("I1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("I1").font = { bold: true };
+
+        // Set the fill color to green for cell J1
+        worksheet.getCell("J1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("J1").font = { bold: true };
+
         userNameAndPassword.forEach((data: any) => {
             const rowIndex = data.rowNumber;
             worksheet.getCell(`I${rowIndex}`).value = data?.userName;
@@ -151,10 +198,13 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
         });
 
         lastColumn = "J";
-        delete request.body.userNameAndPassword;
+        request.body.userNameAndPassword = undefined;
     }
 
-    // Adjust the worksheet ref to include the last column
+    return lastColumn;
+}
+
+function adjustRef(worksheet: any, lastColumn: any) {
     const range = worksheet.getSheetValues().filter((row: any) => row).length; // Get the number of used rows
     worksheet.views = [
         { state: 'frozen', ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }
@@ -169,6 +219,26 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
             column: worksheet.getColumn(lastColumn).number
         }
     };
+}
+
+function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
+    const worksheet = workbook.getWorksheet(sheetName);
+    const errorData = request.body.sheetErrorDetails;
+    const userNameAndPassword = request.body.userNameAndPassword;
+    const columns: any = findColumns(worksheet);
+    const statusColumn = columns.statusColumn;
+    const errorDetailsColumn = columns.errorDetailsColumn;
+    const additionalDetailsErrors: any[] = [];
+
+    enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
+
+    request.body.additionalDetailsErrors = additionalDetailsErrors;
+
+    // Determine the last column to set the worksheet ref
+    const lastColumn = deterMineLastColumnAndEnrichUserDetails(worksheet, errorDetailsColumn, userNameAndPassword, request, createAndSearchConfig);
+
+    // Adjust the worksheet ref to include the last column
+    adjustRef(worksheet, lastColumn);
 
     workbook.xlsx.writeBuffer();
 }
@@ -176,7 +246,7 @@ async function processErrorData(request: any, createAndSearchConfig: any, workbo
 
 function processErrorDataForTargets(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
     const desiredSheet = workbook.getWorksheet(sheetName);
-    const columns = findColumns(desiredSheet);
+    const columns: any = findColumns(desiredSheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
 
@@ -389,6 +459,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         logger.info("Activities to persist : ")
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         await new Promise(resolve => setTimeout(resolve, 2000));
+        logger.info(`Waiting for 2 seconds`);
         produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }

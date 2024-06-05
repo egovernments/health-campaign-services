@@ -336,13 +336,8 @@ function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], 
     }
   }
   else {
-    const codeSet = new Set(createdData.map(item => item.code));
-    for (const data of searchedData) {
-      if (codeSet.has(data.code)) {
-        matchingSearchData.push(data);
-        count++;
-      }
-    }
+    count = searchedData.length;
+    matchingSearchData = searchedData;
   }
   if (count < createdData.length) {
     request.body.ResourceDetails.status = "PERSISTER_ERROR"
@@ -424,14 +419,62 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
   }
 }
 
+async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
+  const searchBody = {
+    RequestInfo: request?.body?.RequestInfo
+  };
+
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
+  await new Promise(resolve => setTimeout(resolve, 10000));
+  logger.info(`Waiting for 10 seconds`);
+  const chunkSize = 50;
+  let employeesSearched: any[] = [];
+
+  for (let i = 0; i < dataToCreate.length; i += chunkSize) {
+    const chunk = dataToCreate.slice(i, i + chunkSize);
+    const uuids = chunk.map((data: any) => data.uuid).join(',');
+
+    const params = {
+      tenantId: tenantId,
+      uuids: uuids,
+      limit: 51,
+      offset: 0
+    };
+
+    try {
+      const response = await httpRequest(searchUrl, searchBody, params);
+      if (response && response.Employees) {
+        employeesSearched = employeesSearched.concat(response.Employees);
+      } else {
+        throw new Error("Unable to fetch employees based on UUIDs");
+      }
+    } catch (error: any) {
+      console.log(error);
+      throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error.message || "Some internal error occurred while searching employees");
+    }
+  }
+
+  return employeesSearched;
+}
+
+
+
+
 
 
 // Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(createAndSearchConfig: any, request: any, dataToCreate: any[], creationTime: any, activities: any) {
   // Confirm creation of resources by matching data  // wait for 5 seconds
-  const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  if (request?.body?.ResourceDetails?.type != "user") {
+    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+    matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  }
+  else {
+    const arraysToMatch = await getEmployeesBasedOnUuids(dataToCreate, request)
+    matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  }
 }
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
@@ -564,6 +607,20 @@ async function enrichEmployees(employees: any[], request: any) {
   }
 }
 
+function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any) {
+  const createdEmployees = responsePayload?.Employees;
+  // create an object which have keys as employee.code and values as employee.uuid  
+  const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
+    map[employee.code] = employee.uuid;
+    return map;
+  }, {});
+  for (const employee of dataToCreate) {
+    if (!employee?.uuid && employeeMap[employee?.code]) {
+      employee.uuid = employeeMap[employee?.code];
+    }
+  }
+}
+
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
   logger.info(type + " create data  ");
   if (createAndSearchConfig?.createBulkDetails?.limit) {
@@ -594,6 +651,12 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
           }
           else if (type == "user") {
             var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+            if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
+              enrichDataToCreateForUser(dataToCreate, responsePayload);
+            }
+            else {
+              throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Some internal server error occured during user creation.");
+            }
           }
         } catch (error) {
           var e = error;
@@ -609,7 +672,8 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
       activities.push(activity);
     }
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    logger.info(`Waiting for 10 seconds`);
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
   await generateProcessedFileAndPersist(request, localizationMap);
@@ -646,6 +710,7 @@ async function handleResouceDetailsError(request: any, error: any) {
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
     await new Promise(resolve => setTimeout(resolve, 2000));
+    logger.info("Waiting for 2 seconds");
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
 }
@@ -760,6 +825,7 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
       logger.info("Project not found. Waiting for 1 seconds");
       retry = retry - 1
       await new Promise(resolve => setTimeout(resolve, 1000));
+      logger.info(`Waiting for ${retry} for 1 more second`);
     }
   }
   if (!projectFound) {
@@ -823,7 +889,7 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false, localizationMap?: any) => {
   const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,localizedBoundarySheetName);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedBoundarySheetName);
 
   const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
   const columnsToValidate = worksheet.getRow(1).values.map((header: any) => header ? header.toString().trim() : undefined);
