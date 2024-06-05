@@ -8,7 +8,9 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",
             INVALID_PAGINATION: "Invalid pagination",
-            KAFKA_ERROR: "Some error occured in kafka"
+            KAFKA_ERROR: "Some error occured in kafka",
+            SCHEMA_ERROR : " Schema related error",
+            RESPONSE_NOT_FOUND_ERROR: "Response not found"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
@@ -18,7 +20,8 @@ export const CONSTANTS: any = {
             INVALID_FILE_ERROR: "Invalid file",
             DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
             INVALID_FILE_FORMAT: "The uploaded file is not a valid excel file (xlsx or xls).",
-            INVALID_COLUMNS: "Columns are invalid"
+            INVALID_COLUMNS: "Columns are invalid",
+            FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema"
         },
         FACILITY: {
             FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
@@ -50,7 +53,8 @@ export const CONSTANTS: any = {
             PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
         },
         MDMS: {
-            INVALID_README_CONFIG: "Invalid readme config"
+            INVALID_README_CONFIG: "Invalid readme config",
+            MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
         }
     }
 }

@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, getTargetBoundariesRelatedToCampaignId } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, getTargetBoundariesRelatedToCampaignId } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -447,7 +447,7 @@ async function validateCampaignId(request: any) {
 }
 
 
-async function validateCreateRequest(request: any) {
+async function validateCreateRequest(request: any, localizationMap?: any) {
     if (!request?.body?.ResourceDetails || Object.keys(request.body.ResourceDetails).length === 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
     }
@@ -467,13 +467,8 @@ async function validateCreateRequest(request: any) {
         if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
             const targetWorkbook: any = await getTargetWorkbook(fileUrl);
             const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-            const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase());
-            const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
-            const index = localizedHierarchy.indexOf(getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap));
-            let expectedHeadersForTargetSheet = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
-            expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheet, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap)]
-            // validateForRootElementExists(sheetData, hierachy, mainSheetName);
-            validateTabsWithTargetInTargetSheet(targetWorkbook, expectedHeadersForTargetSheet);
+            const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, localizationMap);
+            validateTabsWithTargetInTargetSheet(targetWorkbook, finalValidHeadersForTargetSheetAsPerCampaignType);
         }
     }
 }

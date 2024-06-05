@@ -6,7 +6,7 @@ import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema } from "../api/genericApis";
 import { logger } from "./logger";
-import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
+import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
@@ -358,14 +358,16 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
+      logger.info("Generating Boundary Data")
       const result = await getBoundaryDataService(request);
+      logger.info(`Boundary data generated successfully: ${JSON.stringify(result)}`);
       let updatedResult = result;
       // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
       const differentTabsBasedOnLevel = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
       logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
-      const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
+      const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel]);
       if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)) {
         logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
@@ -385,7 +387,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       request.body.generatedResource = finalResponse;
     }
   } catch (error: any) {
-    console.log(error)
     handleGenerateError(newEntryResponse, generatedResource, error);
   }
 }
@@ -708,7 +709,16 @@ async function processGenerateForNew(request: any, generatedResource: any, newEn
 }
 
 function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
-  newEntryResponse.map((item: any) => { item.status = generatedResourceStatuses.failed, item.additionalDetails = { ...item.additionalDetails, error: error.message || String(error) } })
+  newEntryResponse.map((item: any) => {
+    item.status = generatedResourceStatuses.failed, item.additionalDetails = {
+      ...item.additionalDetails, error: {
+        status: error.status,
+        code: error.code,
+        description: error.description,
+        message: error.message
+      } || String(error)
+    }
+  })
   generatedResource = { generatedResource: newEntryResponse };
   logger.error(String(error));
   produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
@@ -877,11 +887,13 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
+  // get Campaign Details from Campaign Search Api
+  const configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
       ...modifiedReducedHierarchy,
-      getBoundaryColumnName(),
-      "Target at the Selected Boundary level"
+      ...configurableColumnHeadersBasedOnCampaignType
     ]
     : [
       ...modifiedReducedHierarchy,
@@ -925,16 +937,20 @@ function calculateKeyIndex(obj: any, hierachy: any[], localizationMap?: any) {
   return hierachy.indexOf(keyBeforeBoundaryCode);
 }
 
-function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any, localizedHeadersForMainSheet: any, localizationMap: any) {
+function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any, localizedHeadersForMainSheet: any, localizationMap?: any) {
   const newData: any = {};
+
   for (const key of localizedHeadersForMainSheet) {
     newData[key] = boundaryData[key] || '';
     if (key === differentTabsBasedOnLevel) break;
   }
+
   const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
   newData[localizedBoundaryCode] = boundaryData[localizedBoundaryCode] || '';
+
   return newData;
 }
+
 
 async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
@@ -995,6 +1011,17 @@ function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: 
 }
 
 
+async function getConfigurableColumnHeadersFromSchemaForTargetSheet(request: any, hierarchy: any, boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
+  const districtIndex = hierarchy.indexOf(differentTabsBasedOnLevel);
+  var headers = getLocalizedHeaders(hierarchy.slice(districtIndex),localizationMap);
+
+  const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request);
+  const localizedHeadersAfterHierarchy = getLocalizedHeaders(headerColumnsAfterHierarchy, localizationMap);
+  headers = [...headers,...localizedHeadersAfterHierarchy]
+  return getLocalizedHeaders(headers, localizationMap);
+}
+
+
 
 
 export {
@@ -1039,7 +1066,8 @@ export {
   replicateRequest,
   getDifferentDistrictTabs,
   addDataToSheet,
-  changeFirstRowColumnColour
+  changeFirstRowColumnColour,
+  getConfigurableColumnHeadersFromSchemaForTargetSheet
 };
 
 

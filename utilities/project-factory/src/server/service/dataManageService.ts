@@ -38,33 +38,38 @@ const downloadDataService = async (request: express.Request) => {
 }
 
 const getBoundaryDataService = async (
-    request: express.Request
-) => {
-    const workbook=getNewExcelWorkbook();
-    const { hierarchyType } = request?.query;
-    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
-    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
-    // Retrieve boundary sheet data
-    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+    request: express.Request) => {
+    try {
+        const workbook = getNewExcelWorkbook();
+        const { hierarchyType } = request?.query;
+        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+        const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+        const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+        // Retrieve boundary sheet data
+        const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
 
-    const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-    const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(boundarySheet, boundarySheetData);
-    const BoundaryFileDetails: any = await createAndUploadFile(workbook, request);
-    // Return boundary file details
-    logger.info("RETURNS THE BOUNDARY RESPONSE");
-    return BoundaryFileDetails;
+        const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
+        const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+        addDataToSheet(boundarySheet, boundarySheetData);
+        const BoundaryFileDetails: any = await createAndUploadFile(workbook, request);
+        // Return boundary file details
+        logger.info("RETURNS THE BOUNDARY RESPONSE");
+        return BoundaryFileDetails;
+    } catch (e: any) {
+        logger.error(String(e))
+        // Handle errors and send error response
+        throw (e);
+    }
 };
 
 
 const createDataService = async (request: any) => {
-    // Validate the create request
-    await validateCreateRequest(request);
-    logger.info("VALIDATED THE DATA CREATE REQUEST");
-
 
     const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+    // Validate the create request
+    logger.info("Validating data create request")
+    await validateCreateRequest(request, localizationMap);
+    logger.info("VALIDATED THE DATA CREATE REQUEST");
 
     // Enrich resource details
     await enrichResourceDetails(request);
