@@ -8,7 +8,7 @@ import { validateCreateRequest, validateDownloadRequest, validateSearchRequest }
 import { validateGenerateRequest } from "../validators/genericValidator";
 import { getLocalisationModuleName } from "../utils/localisationUtils";
 import { getBoundaryTabName } from "../utils/boundaryUtils";
-const ExcelJS = require('exceljs');
+import { getNewExcelWorkbook } from "../utils/excelUtils";
 
 
 const generateDataService = async (request: express.Request) => {
@@ -40,7 +40,7 @@ const downloadDataService = async (request: express.Request) => {
 const getBoundaryDataService = async (
     request: express.Request
 ) => {
-    const workbook = new ExcelJS.Workbook();
+    const workbook=getNewExcelWorkbook();
     const { hierarchyType } = request?.query;
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);

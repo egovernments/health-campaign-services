@@ -5,13 +5,14 @@ import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
-import { callMdmsSchema, getCampaignNumber, getWorkbook } from "./genericApis";
+import { callMdmsSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import { produceModifiedMessages } from "../kafka/Listener";
 import { userRoles } from "../config/constants";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 
 
 
@@ -822,7 +823,7 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false, localizationMap?: any) => {
   const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook: any = await getWorkbook(fileUrl, localizedBoundarySheetName);
+  const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,localizedBoundarySheetName);
 
   const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
   const columnsToValidate = worksheet.getRow(1).values.map((header: any) => header ? header.toString().trim() : undefined);

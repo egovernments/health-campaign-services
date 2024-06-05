@@ -16,8 +16,8 @@ import { campaignStatuses, headingMapping, resourceDataStatuses } from "../confi
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
+import { getExcelWorkbookFromFileURL, getNewExcelWorkbook } from "./excelUtils";
 const _ = require('lodash');
-const ExcelJS = require('exceljs');
 
 
 
@@ -215,27 +215,11 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");
     }
-
-    const headers = {
-        'Content-Type': 'application/json',
-        Accept: 'application/pdf',
-    };
-
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
     const sheetName = createAndSearchConfig?.parseArrayConfig?.sheetName;
     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-    const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
-
-    // Create a workbook from the arraybuffer
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(responseFile);
-
-    // Check if the specified sheet exists in the workbook
-    const worksheet = workbook.getWorksheet(localizedSheetName);
-    if (!worksheet) {
-        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedSheetName}" is not present in the file.`);
-    }
-
+    const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,localizedSheetName);
+    const worksheet:any = workbook.getWorksheet(localizedSheetName);
     processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
 
     // Set column widths
@@ -265,17 +249,10 @@ async function updateStatusFileForTargets(request: any, localizationMap?: { [key
         throwError("FILE", 500, "INVALID_FILE");
     }
 
-    const headers = {
-        'Content-Type': 'application/json',
-        Accept: 'application/pdf',
-    };
 
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
-    const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
-
-    // Create a workbook from the arraybuffer
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(responseFile);
+ 
+    const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,"");
 
     const sheetNames = workbook.worksheets.map((worksheet: any) => worksheet.name);
     const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
@@ -1342,7 +1319,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
     try {
         logger.info("Received Boundary data for Processing file");
         const uniqueDistrictsForMainSheet: string[] = [];
-        const workbook = new ExcelJS.Workbook();
+        const workbook=getNewExcelWorkbook();
         const type = request?.query?.type;
         const headingInSheet = headingMapping?.[type];
         const localisedHeading = getLocalizedName(headingInSheet, localizationMap);
@@ -1550,7 +1527,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
     const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
-    const workbook = new ExcelJS.Workbook();
+    const workbook=getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
     addDataToSheet(boundarySheet, boundarySheetData);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
