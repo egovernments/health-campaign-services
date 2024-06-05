@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ResourceEstimationConsumer {
 
-private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
     
     private PlanService planService;
     
