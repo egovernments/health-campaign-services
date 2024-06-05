@@ -261,6 +261,9 @@ public class PlanValidator {
         // Validate plan existence
         validatePlanExistence(request);
 
+        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+
         // Validate activities
         validateActivities(request);
 
@@ -287,6 +290,12 @@ public class PlanValidator {
 
         // Validate dependencies
         validateActivityDependencies(request);
+
+        // Validate Target's Metrics against MDMS
+        validateTargetMetrics(request, mdmsData);
+
+        // Validate Metric Detail's Unit against MDMS
+        validateMetricDetailUnit(request, mdmsData);
 
     }
 
