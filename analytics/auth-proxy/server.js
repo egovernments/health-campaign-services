@@ -10,9 +10,10 @@ const app = express();
 let serverPort = envVariables.SERVER_PORT;
 let kibanaHost = envVariables.KIBANA_HOST;
 let kibanaServerBasePath = envVariables.KIBANA_BASE_PATH;
-let allowedContextPaths = envVariables.KIBANA_ACCEPTED_CONTEXT_UI_PATHS
-let acceptedDomain = envVariables.KIBANA_ACCEPTED_DOMAIN_NAME
-let excludeUrls = envVariables.KIBANA_EXCLUDE_URL_PATTERNS
+let allowedContextPaths = envVariables.KIBANA_ACCEPTED_CONTEXT_UI_PATHS;
+let acceptedDomain = envVariables.KIBANA_ACCEPTED_DOMAIN_NAME;
+let excludeUrls = envVariables.KIBANA_EXCLUDE_URL_PATTERNS;
+
 // Authenticate token
 function authenticateToken(token) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
@@ -37,7 +38,7 @@ function authenticateToken(token) {
 }
 
 function bypassAuthBasedOnUrl(url) {
-    const excluded = excludeUrls.split(",")
+    const excluded = excludeUrls.split(",");
     return excluded.some(substring => url.includes(substring));
 }
 
@@ -45,7 +46,7 @@ function validateReferer(url) {
     try {
         // Create a URL object from the input string
         const urlObj = new URL(url);
-        
+
         // Extract the hostname (domain) from the URL object
         const domain = urlObj.hostname;
 
@@ -56,10 +57,10 @@ function validateReferer(url) {
         const contextPath = pathParts.length > 0 ? pathParts[0] : '';
 
         //based on domain and contextPath return true or false
-        if(domain === acceptedDomain && allowedContextPaths.split(",").some(path=> path ===contextPath )){
-            return true
-        }else{
-            return false
+        if (domain === acceptedDomain && allowedContextPaths.split(",").some(path => path === contextPath)) {
+            return true;
+        } else {
+            return false;
         }
 
     } catch (error) {
@@ -70,40 +71,58 @@ function validateReferer(url) {
 }
 
 // Intercept Kibana requests, extract auth token and perform authentication
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
     logger.info("Received request");
+
+    // Check if "replace-url" header is present
+    const replaceUrl = req.headers['replace-url'];
+    if (replaceUrl) {
+        logger.info("Replace URL header found, fetching from URL - " + replaceUrl);
+        try {
+            const fetchResponse = await axios.get(replaceUrl);
+
+            res.status(fetchResponse.status);
+            for (const [name, value] of Object.entries(fetchResponse.headers)) {
+                res.setHeader(name, value);
+            }
+            res.send(fetchResponse.data);
+            return; // Exit the middleware chain
+        } catch (error) {
+            console.error('Error fetching replace-url:', error);
+            res.status(500).send('Internal Server Error');
+            return; // Exit the middleware chain
+        }
+    }
 
     // Extract auth token from headers
     const authToken = req.headers['authorization'];
     const typeReq = req.headers['type-req'];
     const acceptHeader = req.headers['accept'];
-    const referer = req.headers['referer']
+    const referer = req.headers['referer'];
     logger.info("Received request path - " + req.url);
 
     //---------new code -----------
 
     //first check for calls where authentication is not required
-    if(bypassAuthBasedOnUrl(req.originalUrl)){
-        next()
-        return
+    if (bypassAuthBasedOnUrl(req.originalUrl)) {
+        next();
+        return;
     }
 
     //now checking for document 
-    if(acceptHeader && acceptHeader.includes('text/html')){
-
+    if (acceptHeader && acceptHeader.includes('text/html')) {
         //if referer is digit ui then bypass
-        
-        if(validateReferer(referer)){
-            next()
+        if (validateReferer(referer)) {
+            next();
             return;
-        }else{
+        } else {
             res.status(403).send('Access denied');
-            return
+            return;
         }
     }
 
     //this means either fetch or xhr -> proceed to authenticate this request
-    if(typeReq){
+    if (typeReq) {
         if (!authToken || authToken.trim() === '') {
             res.status(401).send('Unauthorized: No auth token provided');
             return;
@@ -117,50 +136,22 @@ app.use((req, res, next) => {
             return;
         }
     }
-
-
-    // ------- new code ----------
-
-    // if (typeReq === 'document') {
-    //     logger.info("Bypassing authentication for document type request");
-    //     next(); // Bypass authentication for document type requests
-    // } else if (acceptHeader && acceptHeader.includes('text/html')) {
-    //     logger.info("Bypassing authentication for requests with Accept header containing text/html");
-    //     next(); // Bypass authentication for requests with Accept header containing text/html
-    // } else if ((req.originalUrl.includes('/app/kibana') || req.originalUrl.includes('/kibana/api') || req.originalUrl.includes('/kibana/elasticsearch')) && !req.originalUrl.includes('/bundles/')) {
-    //     // Check if authToken is empty or null
-    //     if (!authToken || authToken.trim() === '') {
-    //         res.status(401).send('Unauthorized: No auth token provided');
-    //         return;
-    //     }
-
-    //     if (authenticateToken(authToken)) {
-    //         next(); // Proceed to the proxy if authenticated
-    //     } else {
-    //         res.status(403).send('Access denied'); // Send a 403 error if not authenticated
-    //         return;
-    //     }
-    // } else {
-    //     //let all requests go without authorization
-    //     next();
-    // }
 });
 
 // Proxy request to Kibana if authentication is successful
-app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
-    proxyReqOptDecorator: function(proxyReqOpts, srcReq) {
+app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
+    proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
         proxyReqOpts.headers['kbn-xsrf'] = 'true';
         proxyReqOpts.headers['elastic-api-version'] = 1;
-        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded' ) {
+        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const formBody = querystring.parse(srcReq.body);
             proxyReqOpts.headers['content-type'] = 'application/json';
             proxyReqOpts.bodyContent = JSON.stringify(formBody);
         }
         return proxyReqOpts;
     },
-    proxyReqBodyDecorator: function(bodyContent, srcReq) {
+    proxyReqBodyDecorator: function (bodyContent, srcReq) {
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
-            
             const parsedBody = querystring.parse(bodyContent.toString());
 
             // Convert the parsed object to a JSON string
@@ -176,7 +167,6 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath,{
         }
         return bodyContent;
     }
-
 }));
 
 // Listen on configured port
