@@ -181,8 +181,9 @@ public class PlanValidator {
      */
     private void validatePlanConfigurationExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if(CollectionUtils.isEmpty(planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
+        if(!request.getPlan().getPlanConfigurationId().isEmpty() && CollectionUtils.isEmpty(planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
                 .id(request.getPlan().getPlanConfigurationId())
+                .tenantId(request.getPlan().getTenantId())
                 .build()))) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }

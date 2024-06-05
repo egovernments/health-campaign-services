@@ -3,6 +3,7 @@ package digit.web.models;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.validation.annotation.Validated;
@@ -20,8 +21,10 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class PlanConfigurationSearchCriteria {
+
     @JsonProperty("tenantId")
     @Size(min = 1, max = 100)
+    @NotNull
     private String tenantId = null;
 
     @JsonProperty("id")
@@ -45,7 +48,7 @@ public class PlanConfigurationSearchCriteria {
 
     @JsonProperty("limit")
     @Min(1)
-    @Max(200)
+    @Max(50)
     private Integer limit;
 
 }
