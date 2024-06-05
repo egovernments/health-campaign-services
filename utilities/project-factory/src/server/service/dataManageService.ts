@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, getResponseFromDb, processGenerate, throwError } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -27,7 +27,7 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = request.query.type;
     // Get response data from the database
-    const responseData = await getResponseFromDb(request);
+    const responseData = await searchGeneratedResources(request);
     // Check if response data is available
     if (!responseData || responseData.length === 0 && !request?.query?.id) {
         logger.error("No data of type  " + type + " with status Completed or with given id presnt in db ")
