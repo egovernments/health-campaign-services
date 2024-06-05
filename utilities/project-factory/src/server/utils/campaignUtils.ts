@@ -1356,7 +1356,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         mainSheetData.push([...localizedHeadersForMainSheet]);
         const districtLevelRowBoundaryCodeMap = new Map();
         for (const data of boundaryData) {
-            const modifiedData = modifyDataBasedOnDifferentTab(data, differentTabsBasedOnLevel, localizationMap);
+            const modifiedData = modifyDataBasedOnDifferentTab(data, differentTabsBasedOnLevel, localizedHeadersForMainSheet, localizationMap);
             const rowData = Object.values(modifiedData);
             const districtIndex = modifiedData[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
             if (districtIndex == -1) {

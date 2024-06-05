@@ -253,20 +253,22 @@ async function getResponseFromDb(request: any) {
       queryValues = [request.query.id, type, hierarchyType, tenantId];
     }
     else {
-      if (type == 'boundary' && request?.body?.Filters !== undefined) {
-        queryString += "type = $1 AND hierarchytype = $2 AND  tenantid = $3  AND status =$4 ";
-        if (request.body.Filters === null) {
-          queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
-          queryValues = [type, hierarchyType, tenantId, status];
-        } else {
-          queryString += " AND additionaldetails->'Filters' @> $5::jsonb";
-          queryValues = [type, hierarchyType, tenantId, status, request.body.Filters];
-        }
-      }
-      else {
-        queryString += " type = $1 AND hierarchytype = $2 AND tenantid = $3 AND status = $4";
-        queryValues = [type, hierarchyType, tenantId, status];
-      }
+      // if (type == 'boundary') {
+
+      //   // if (request.body.Filters === null) {
+      //   //   queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
+      //   //   queryValues = [type, hierarchyType, tenantId, status];
+      //   // } else {
+      //   //   queryString += " AND additionaldetails->'Filters' @> $5::jsonb";
+      //   //   queryValues = [type, hierarchyType, tenantId, status, request.body.Filters];
+      //   // }
+      // }
+      // else {
+      //   queryString += " type = $1 AND hierarchytype = $2 AND tenantid = $3 AND status = $4";
+      //   queryValues = [type, hierarchyType, tenantId, status];
+      // }
+      queryString += "type = $1 AND hierarchytype = $2 AND  tenantid = $3  AND status =$4 ";
+      queryValues = [type, hierarchyType, tenantId, status];
     }
     queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
@@ -923,21 +925,14 @@ function calculateKeyIndex(obj: any, hierachy: any[], localizationMap?: any) {
   return hierachy.indexOf(keyBeforeBoundaryCode);
 }
 
-function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
+function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any, localizedHeadersForMainSheet: any, localizationMap: any) {
   const newData: any = {};
-  let boundaryCode: string | undefined;
-
-  for (const key in boundaryData) {
-    newData[key] = boundaryData[key];
-    if (key === differentTabsBasedOnLevel) {
-      break;
-    }
+  for (const key of localizedHeadersForMainSheet) {
+    newData[key] = boundaryData[key] || '';
+    if (key === differentTabsBasedOnLevel) break;
   }
   const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
-  boundaryCode = boundaryData[localizedBoundaryCode];
-  if (boundaryCode !== undefined) {
-    newData[localizedBoundaryCode] = boundaryCode;
-  }
+  newData[localizedBoundaryCode] = boundaryData[localizedBoundaryCode] || '';
   return newData;
 }
 
