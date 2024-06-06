@@ -233,6 +233,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
   const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   const [showToast, setShowToast] = useState(null);
+  const [summaryErrors, setSummaryErrors] = useState({});
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
   const { mutate: updateCampaign } = Digit.Hooks.campaign.useUpdateCampaign(tenantId);
   const searchParams = new URLSearchParams(location.search);
@@ -444,8 +445,8 @@ const SetupCampaign = ({ hierarchyType }) => {
   }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   useEffect(() => {
-    setCampaignConfig(CampaignConfig(totalFormData, dataParams, isSubmitting));
-  }, [totalFormData, dataParams, isSubmitting]);
+    setCampaignConfig(CampaignConfig(totalFormData, dataParams, isSubmitting, summaryErrors));
+  }, [totalFormData, dataParams, isSubmitting, summaryErrors]);
 
   useEffect(() => {
     setIsSubmitting(false);
@@ -453,6 +454,7 @@ const SetupCampaign = ({ hierarchyType }) => {
       updateUrlParams({ key: currentKey, summary: true });
     } else {
       updateUrlParams({ key: currentKey, summary: false });
+      setSummaryErrors(null);
     }
   }, [currentKey]);
 
@@ -746,12 +748,31 @@ const SetupCampaign = ({ hierarchyType }) => {
   function validateCycleData(data) {
     const { cycle, deliveries } = data?.cycleConfigure?.cycleConfgureDate;
     const cycleData = data.cycleConfigure.cycleData;
-
+    let dateError = [];
     // Validate cycle and deliveries
     if (cycle <= 0 || deliveries <= 0) {
       return { error: true, message: "DELIVERY_CYCLE_EMPTY_ERROR" };
     }
 
+    [...Array(cycle)].forEach((item, index) => {
+      const check = cycleData?.find((i) => i?.key === index + 1);
+      if (!check?.fromDate || !check?.toDate) {
+        dateError.push({
+          name: `CYCLE_${index + 1}`,
+          cycle: index + 1,
+          dateError: true,
+          // error: `Dates are missing in Cycle {CYCLE_NO}${index + 1}`,
+          error: t(`CAMPAIGN_SUMMARY_DATE_MISSING_ERROR`, { CYCLE_NO: index + 1 }),
+          button: t(`CAMPAIGN_SUMMARY_ADD_DATE_ACTION`),
+        });
+      }
+    });
+    setSummaryErrors((prev) => {
+      return {
+        ...prev,
+        deliveryErrors: prev?.deliveryErrors ? [...prev.deliveryErrors, ...dateError] : [...dateError],
+      };
+    });
     // Validate cycleData length
     if (cycleData.length !== cycle) {
       return { error: true, message: "DELIVERY_CYCLE_MISMATCH_LENGTH_ERROR" };
@@ -767,17 +788,59 @@ const SetupCampaign = ({ hierarchyType }) => {
     return false;
   }
 
-  function validateDeliveryRules(data) {
+  function validateDeliveryRules(data, projectType) {
     let isValid = true;
+    let deliveryRulesError = [];
 
     // Iterate over deliveryRule array
     data.deliveryRule.forEach((cycle) => {
       cycle.deliveries.forEach((delivery) => {
         delivery.deliveryRules.forEach((rule) => {
           // Validate attributes and products length
-          if (rule.attributes.length === 0 || rule.products.length === 0) {
+          if (projectType !== "LLIN-MZ" && !rule?.deliveryType) {
             isValid = false;
-            return;
+            deliveryRulesError?.push({
+              name: `CYCLE_${cycle?.cycleIndex}`,
+              cycle: cycle?.cycleIndex,
+              // error: `Delivery Type missing in delivery condition ${rule?.ruleKey} delivery ${delivery?.deliveryIndex}`,
+              error: t(`CAMPAIGN_SUMMARY_DELIVERY_TYPE_MISSING_ERROR`, {
+                CONDITION_NO: rule?.ruleKey,
+                DELIVERY_NO: delivery?.deliveryIndex,
+                CYCLE_NO: cycle?.cycleIndex,
+              }),
+              button: t(`CAMPAIGN_SUMMARY_ADD_DELIVERY_TYPE_ACTION`),
+            });
+            // return;
+          }
+          if (rule.attributes.length === 0) {
+            isValid = false;
+            deliveryRulesError?.push({
+              name: `CYCLE_${cycle?.cycleIndex}`,
+              cycle: cycle?.cycleIndex,
+              // error: `Values missing in delivery condition ${rule?.ruleKey} delivery ${delivery?.deliveryIndex}`,
+              error: t(`CAMPAIGN_SUMMARY_VALUES_MISSING_ERROR`, {
+                CONDITION_NO: rule?.ruleKey,
+                DELIVERY_NO: delivery?.deliveryIndex,
+                CYCLE_NO: cycle?.cycleIndex,
+              }),
+              button: t(`CAMPAIGN_SUMMARY_ADD_VALUES_ACTION`),
+            });
+            // return;
+          }
+          if (rule.products.length === 0) {
+            isValid = false;
+            deliveryRulesError?.push({
+              name: `CYCLE_${cycle?.cycleIndex}`,
+              cycle: cycle?.cycleIndex,
+              // error: `Product missing in delivery condition ${rule?.ruleKey} delivery ${delivery?.deliveryIndex}`,
+              error: t(`CAMPAIGN_SUMMARY_PRODUCT_MISSING_ERROR`, {
+                CONDITION_NO: rule?.ruleKey,
+                DELIVERY_NO: delivery?.deliveryIndex,
+                CYCLE_NO: cycle?.cycleIndex,
+              }),
+              button: t(`CAMPAIGN_SUMMARY_ADD_PRODUCT_ACTION`),
+            });
+            // return;
           }
 
           rule.attributes.forEach((attribute) => {
@@ -786,6 +849,17 @@ const SetupCampaign = ({ hierarchyType }) => {
               if (attribute?.operator?.code === "IN_BETWEEN" && attribute?.toValue !== "" && attribute?.fromValue !== "") {
                 isValid = true;
               } else {
+                deliveryRulesError?.push({
+                  name: `CYCLE_${cycle?.cycleIndex}`,
+                  cycle: cycle?.cycleIndex,
+                  error: t(`CAMPAIGN_SUMMARY_ATTRIBUTES_MISSING_ERROR`, {
+                    CONDITION_NO: rule?.ruleKey,
+                    DELIVERY_NO: delivery?.deliveryIndex,
+                    CYCLE_NO: cycle?.cycleIndex,
+                  }),
+                  // error: `Attributes missing in delivery condition ${rule?.ruleKey} delivery ${delivery?.deliveryIndex}`,
+                  button: t(`CAMPAIGN_SUMMARY_ADD_ATTRIBUTES_ACTION`),
+                });
                 isValid = false;
               }
             }
@@ -801,6 +875,12 @@ const SetupCampaign = ({ hierarchyType }) => {
       });
     });
 
+    setSummaryErrors((prev) => {
+      return {
+        ...prev,
+        deliveryErrors: prev?.deliveryErrors ? [...prev.deliveryErrors, ...deliveryRulesError] : deliveryRulesError,
+      };
+    });
     return isValid;
     // ? "Delivery rules are valid"
     // : "Attributes, operators, values, count, or value are not empty in delivery rules or attributes/products length is 0";
@@ -1031,15 +1111,54 @@ const SetupCampaign = ({ hierarchyType }) => {
       case "summary":
         const cycleConfigureData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE;
         const isCycleError = validateCycleData(cycleConfigureData);
+        const deliveryCycleData = totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA;
+        const isDeliveryError = validateDeliveryRules(deliveryCycleData, totalFormData?.["HCM_CAMPAIGN_TYPE"]?.projectType?.code?.toUpperCase());
+        const isTargetError = totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0]?.filestoreId
+          ? false
+          : (setSummaryErrors((prev) => {
+              return {
+                ...prev,
+                target: [
+                  {
+                    name: `target`,
+                    error: t(`TARGET_FILE_MISSING`),
+                  },
+                ],
+              };
+            }),
+            true);
+        const isFacilityError = totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0]?.filestoreId
+          ? false
+          : (setSummaryErrors((prev) => {
+              return {
+                ...prev,
+                facility: [
+                  {
+                    name: `facility`,
+                    error: t(`FACILITY_FILE_MISSING`),
+                  },
+                ],
+              };
+            }),
+            true);
+        const isUserError = totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]?.filestoreId
+          ? false
+          : (setSummaryErrors((prev) => {
+              return {
+                ...prev,
+                user: [
+                  {
+                    name: `user`,
+                    error: t(`USER_FILE_MISSING`),
+                  },
+                ],
+              };
+            }),
+            true);
         if (isCycleError?.error === true) {
           setShowToast({ key: "error", label: isCycleError?.message });
           return false;
         }
-        const deliveryCycleData = totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA;
-        const isDeliveryError = validateDeliveryRules(deliveryCycleData);
-        const isTargetError = totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0]?.filestoreId ? false : true;
-        const isFacilityError = totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0]?.filestoreId ? false : true;
-        const isUserError = totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]?.filestoreId ? false : true;
         if (isDeliveryError === false) {
           setShowToast({ key: "error", label: "DELIVERY_RULES_ERROR" });
           return false;

@@ -298,6 +298,12 @@ tbody {
     @extend .typography.text-heading-m;
     margin-bottom: 1.5rem;
   }
+  .employee-card-sub-header.error {
+    color: #d4351c;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 }
 .add-new-product-container {
   border: 1px solid #d6d5d4;
@@ -413,7 +419,7 @@ tbody {
 .link {
   color: #c84c0e !important;
 }
-.employeeCard.employeeCard-override.error {
+.employeeCard.employeeCard-override.card-error {
   border: 1px solid #d4351c;
 }
 .label-field-pair.delivery-type-radio {
@@ -427,6 +433,16 @@ tbody {
     }
   }
 }
-.bold{
+.bold {
   font-weight: 700;
+}
+.summary-doc-error {
+  p {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .digit-infobanner-wrap.error{
+    margin-bottom: 0.5rem;
+    margin-top: 1.5rem;
+  } 
 }

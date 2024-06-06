@@ -69,7 +69,7 @@ const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
               handleChange(value);
             }}
           />
-          {error?.message && <ErrorMessage wrapperStyles={{ marginTop: "-10px" }} message={t(error?.message)} showIcon={true} />}
+          {error?.message && <ErrorMessage message={t(error?.message)} showIcon={true} />}
         </div>
       </LabelFieldPair>
       {showBeneficiary && (

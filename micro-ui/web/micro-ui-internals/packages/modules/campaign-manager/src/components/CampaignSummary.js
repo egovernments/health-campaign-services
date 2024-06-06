@@ -1,8 +1,8 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
 import { Button, EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
-import { Toast } from "@egovernments/digit-ui-components";
+import { InfoBannerIcon, Toast } from "@egovernments/digit-ui-components";
 import { DownloadIcon } from "@egovernments/digit-ui-react-components";
 import { PRIMARY_COLOR, downloadExcelWithCustomName } from "../utils";
 
@@ -68,7 +68,7 @@ function loopAndReturn(dataa, t) {
     if (i.operator === "IN_BETWEEN") {
       return {
         ...i,
-        value: `${i?.toValue} to ${i?.fromValue}`,
+        value: `${i?.toValue ? i?.toValue : "N/A"}  to ${i?.fromValue ? i?.fromValue : "N/A"}`,
       };
     }
     return {
@@ -134,7 +134,7 @@ const fetchResourceFile = async (tenantId, resourceIdArr) => {
   return res?.ResourceDetails;
 };
 
-const CampaignSummary = () => {
+const CampaignSummary = (props) => {
   const { t } = useTranslation();
   const history = useHistory();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -143,7 +143,59 @@ const CampaignSummary = () => {
   const noAction = searchParams.get("action");
   const [showToast, setShowToast] = useState(null);
   const [userCredential, setUserCredential] = useState(null);
-  const { isLoading, data, error } = Digit.Hooks.campaign.useSearchCampaign({
+  const [deliveryErrors, setDeliveryErrors] = useState(null);
+  const [targetErrors, setTargetErrors] = useState(null);
+  const [facilityErrors, setFacilityErrors] = useState(null);
+  const [userErrors, setUserErrors] = useState(null);
+  const [cycleDatesError, setCycleDatesError] = useState(null);
+  const [summaryErrors, setSummaryErrors] = useState(null);
+  const handleRedirect = (step, activeCycle) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get("id");
+    urlParams.set("key", step);
+    urlParams.set("preview", false);
+    if (activeCycle) {
+      urlParams.set("activeCycle", activeCycle);
+    }
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    history.push(newUrl);
+  };
+
+  useEffect(() => {
+    if (props?.props?.summaryErrors) {
+      if (props?.props?.summaryErrors?.deliveryErrors) {
+        const temp = props?.props?.summaryErrors?.deliveryErrors?.map((i) => {
+          return {
+            ...i,
+            onClick: i?.dateError ? () => handleRedirect(5) : () => handleRedirect(6, i?.cycle),
+          };
+        });
+        setSummaryErrors({ ...props?.props?.summaryErrors, deliveryErrors: temp });
+      } else {
+        setSummaryErrors(props?.props?.summaryErrors);
+      }
+    }
+    // if (props?.props?.summaryErrors?.deliveryErrors) {
+    //   const temp = props?.props?.summaryErrors?.deliveryErrors?.map((i) => {
+    //     return {
+    //       ...i,
+    //       onClick: () => handleRedirect(6, i?.cycle),
+    //     };
+    //   });
+    //   setDeliveryErrors(temp);
+    // }
+    // if (props?.props?.summaryErrors?.targetErrors) {
+    //   setTargetErrors(props?.props?.summaryErrors?.targetErrors);
+    // }
+    // if (props?.props?.summaryErrors?.facilityErrors) {
+    //   setFacilityErrors(props?.props?.summaryErrors?.facilityErrors);
+    // }
+    // if (props?.props?.summaryErrors?.userErrors) {
+    //   setUserErrors(props?.props?.summaryErrors?.userErrors);
+    // }
+  }, [props?.props?.summaryErrors]);
+
+  const { isLoading, data, error, refetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
       ids: [id],
@@ -200,66 +252,72 @@ const CampaignSummary = () => {
                 },
               ],
             },
-            data?.[0]?.resources?.find((i) => i?.type === "boundaryWithTarget")
-              ? {
-                  sections: [
-                    {
-                      type: "COMPONENT",
-                      component: "CampaignDocumentsPreview",
-                      props: {
-                        documents: data?.[0]?.resources?.filter((i) => i.type === "boundaryWithTarget"),
-                      },
-                      cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                      cardSecondaryAction: noAction !== "false" && (
-                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(7)}>
-                          <span>{t(`CAMPAIGN_EDIT`)}</span>
-                          <EditIcon />
-                        </div>
-                      ),
-                    },
-                  ],
-                }
-              : {},
-            data?.[0]?.resources?.find((i) => i?.type === "facility")
-              ? {
-                  sections: [
-                    {
-                      type: "COMPONENT",
-                      component: "CampaignDocumentsPreview",
-                      props: {
-                        documents: data?.[0]?.resources?.filter((i) => i.type === "facility"),
-                      },
-                      cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                      cardSecondaryAction: noAction !== "false" && (
-                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(8)}>
-                          <span>{t(`CAMPAIGN_EDIT`)}</span>
-                          <EditIcon />
-                        </div>
-                      ),
-                    },
-                  ],
-                }
-              : {},
-            data?.[0]?.resources?.find((i) => i?.type === "user")
-              ? {
-                  sections: [
-                    {
-                      type: "COMPONENT",
-                      component: "CampaignDocumentsPreview",
-                      props: {
-                        documents: data?.[0]?.resources?.filter((i) => i.type === "user"),
-                      },
-                      cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                      cardSecondaryAction: noAction !== "false" && (
-                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(9)}>
-                          <span>{t(`CAMPAIGN_EDIT`)}</span>
-                          <EditIcon />
-                        </div>
-                      ),
-                    },
-                  ],
-                }
-              : {},
+            // data?.[0]?.resources?.find((i) => i?.type === "boundaryWithTarget") ?
+            {
+              name: "target",
+              sections: [
+                {
+                  name: "target",
+                  type: "COMPONENT",
+                  component: "CampaignDocumentsPreview",
+                  props: {
+                    documents: data?.[0]?.resources?.filter((i) => i?.type === "boundaryWithTarget"),
+                  },
+                  cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                  cardSecondaryAction: noAction !== "false" && (
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(7)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
+                      <EditIcon />
+                    </div>
+                  ),
+                },
+              ],
+            },
+            // : {}
+            // data?.[0]?.resources?.find((i) => i?.type === "facility") ?
+            {
+              name: "facility",
+              sections: [
+                {
+                  name: "facility",
+                  type: "COMPONENT",
+                  component: "CampaignDocumentsPreview",
+                  props: {
+                    documents: data?.[0]?.resources?.filter((i) => i.type === "facility"),
+                  },
+                  cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                  cardSecondaryAction: noAction !== "false" && (
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(8)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
+                      <EditIcon />
+                    </div>
+                  ),
+                },
+              ],
+            },
+            // : {}
+            // data?.[0]?.resources?.find((i) => i?.type === "user") ?
+            {
+              name: "user",
+              sections: [
+                {
+                  name: "user",
+                  type: "COMPONENT",
+                  component: "CampaignDocumentsPreview",
+                  props: {
+                    documents: data?.[0]?.resources?.filter((i) => i.type === "user"),
+                  },
+                  cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                  cardSecondaryAction: noAction !== "false" && (
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(9)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
+                      <EditIcon />
+                    </div>
+                  ),
+                },
+              ],
+            },
+            // : {}
             resourceIdArr?.length > 0
               ? {
                   sections: [
@@ -282,7 +340,7 @@ const CampaignSummary = () => {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DELIVERY_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                   cardSecondaryAction: noAction !== "false" && (
-                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(5)}>
                       <span>{t(`CAMPAIGN_EDIT`)}</span>
                       <EditIcon />
                     </div>
@@ -306,8 +364,11 @@ const CampaignSummary = () => {
             },
             ...cycleData?.map((item, index) => {
               return {
+                name: `CYCLE_${index + 1}`,
+                errorName: "deliveryErrors",
                 sections: [
                   {
+                    name: `CYCLE_${index + 1}`,
                     type: "COMPONENT",
                     cardHeader: { value: `${t("CYCLE")} ${item?.cycleIndex}`, inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                     cardSecondaryAction: noAction !== "false" && (
@@ -336,25 +397,6 @@ const CampaignSummary = () => {
       cacheTime: 0,
     },
   });
-
-  const handleRedirect = (step) => {
-    const urlParams = new URLSearchParams(window.location.search);
-
-    // Get the values of other parameters
-    const id = urlParams.get("id");
-    // If there are more parameters, you can get them similarly
-
-    // Modify the 'key' parameter
-    urlParams.set("key", step);
-    urlParams.set("preview", false);
-
-    // Reconstruct the URL with the modified parameters
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-
-    // Push the new URL to history
-    history.push(newUrl);
-    // history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?key=${step}`);
-  };
 
   if (isLoading) {
     return <Loader />;
@@ -421,12 +463,10 @@ const CampaignSummary = () => {
         )}
       </div>
       <div className="campaign-summary-container">
-        <ViewComposer data={data} />
+        <ViewComposer data={data} cardErrors={summaryErrors} />
         {showToast && (
           <Toast
             type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : "success"}
-            // error={showToast?.key === "error" ? true : false}
-            // info={showToast?.key === "info" ? true : false}
             label={t(showToast?.label)}
             onClose={closeToast}
           />

@@ -2,13 +2,14 @@ import { Card, LabelFieldPair, Row } from "@egovernments/digit-ui-react-componen
 import React, { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import DetailsTable from "./DetailsTable";
+import { Button, InfoCard } from "@egovernments/digit-ui-components";
 
 const Tabs = ({ deliveryData, onTabChange }) => {
   // const { campaignData, dispatchCampaignData } = useContext(CycleContext);
   const { t } = useTranslation();
 
   return (
-    <div style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}>
+    <div style={{ marginTop: "1.5rem", marginBottom: "1.5rem", display: "flex" }}>
       {deliveryData?.map((_, index) => (
         <button
           key={index}
@@ -23,7 +24,7 @@ const Tabs = ({ deliveryData, onTabChange }) => {
   );
 };
 
-const CycleDataPreview = ({ data, items, index }) => {
+const CycleDataPreview = ({ data, items, index, errors, onErrorClick, cardErrors }) => {
   const { t } = useTranslation();
   const [deliveryData, setDeliveryData] = useState(data?.deliveries);
   const [activeTab, setActiveTab] = useState(1);
@@ -52,6 +53,18 @@ const CycleDataPreview = ({ data, items, index }) => {
   // return null;
   return (
     <>
+      {cardErrors?.map((i) => (
+        <InfoCard
+          populators={{
+            name: "infocard",
+          }}
+          variant="error"
+          text={t(i?.error ? i?.error : i?.message)}
+          hasAdditionalElements={true}
+          additionalElements={[<Button label={i?.button} onClick={i.onClick} />]}
+        />
+      ))}
+      {/* {i.error ? i.error : i.message)}</div> */}
       <div className="employee-data-table ">
         {data?.startDate && (
           <Row

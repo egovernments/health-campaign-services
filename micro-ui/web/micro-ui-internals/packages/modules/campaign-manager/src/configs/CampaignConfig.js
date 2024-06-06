@@ -1,4 +1,4 @@
-export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
+export const CampaignConfig = (totalFormData, dataParams, isSubmitting, summaryErrors) => {
   return [
     {
       form: [
@@ -18,7 +18,7 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                isSubmitting: isSubmitting
+                isSubmitting: isSubmitting,
               },
               populators: {
                 name: "projectType",
@@ -43,7 +43,7 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                isSubmitting: isSubmitting
+                isSubmitting: isSubmitting,
               },
               populators: {
                 name: "campaignName",
@@ -94,7 +94,7 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                isSubmitting: isSubmitting
+                isSubmitting: isSubmitting,
               },
               populators: {
                 name: "campaignDates",
@@ -249,6 +249,8 @@ export const CampaignConfig = (totalFormData, dataParams, isSubmitting) => {
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData,
+                summaryErrors: summaryErrors
               },
               populators: {
                 name: "summary",
