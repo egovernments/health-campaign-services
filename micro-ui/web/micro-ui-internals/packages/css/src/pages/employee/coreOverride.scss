@@ -161,3 +161,11 @@ header {
 .digit-popup-close-icon {
   @apply flex justify-end;
 }*/
+
+.employee{
+  .digit-employeeSidebar{
+    .sidebar{
+      z-index:999
+    }
+  }
+}

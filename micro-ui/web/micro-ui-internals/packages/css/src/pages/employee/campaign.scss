@@ -90,3 +90,20 @@
   margin-top: -1rem;
   margin-bottom: -1rem;
 }
+
+.digit-popup-wrapper{
+  &.popUpClass{
+    width:45rem;
+
+    .popUpFooter{
+      .digit-popup-footer-buttons{
+        margin-left: 0px;
+        width: 100%;
+
+        button{
+          flex:1;
+        }
+      }
+    }
+  }
+}

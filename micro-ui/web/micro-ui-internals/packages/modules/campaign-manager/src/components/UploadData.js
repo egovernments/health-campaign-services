@@ -877,6 +877,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       {showPopUp && (
         <PopUp
           type={"default"}
+          className={"popUpClass"}
+          footerclassName={"popUpFooter"}
           heading = {type === "boundary"
           ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER")
           : type === "facilityWithBoundary"
@@ -900,6 +902,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               type={"button"}
               size={"large"}
               variation={"secondary"}
+
               label={t("HCM_CAMPAIGN_UPLOAD_CANCEL")}
               onClick={() => {
                 setShowPopUp(false);
@@ -917,6 +920,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             />,
           ]}
           sortFooterChildren={true}
+          onClose ={
+            () => {
+              setShowPopUp(false);
+            }
+          }
         ></PopUp>
       )}
       {showToast && (uploadedFile?.length > 0 || downloadError) && (
