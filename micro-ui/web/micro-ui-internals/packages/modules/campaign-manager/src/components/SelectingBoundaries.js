@@ -1,7 +1,7 @@
 import React, { useEffect, useState, Fragment, useMemo } from "react";
-import { CardText, LabelFieldPair, Card, Header, CardLabel, Modal, LoaderWithGap } from "@egovernments/digit-ui-react-components";
+import { CardText, LabelFieldPair, Card, Header, CardLabel, LoaderWithGap } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
-import { Dropdown, InfoCard, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
+import { InfoCard, MultiSelectDropdown, PopUp, Button, Toast } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
 /**
  * The function `SelectingBoundaries` in JavaScript handles the selection of boundaries based on
@@ -463,26 +463,40 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         label={"Info"}
       />
       {showPopUp && (
-        <Modal
-          popupStyles={{
-            top: "5rem",
+        <PopUp
+          className={"boundaries-pop-module"}
+          type={"default"}
+          heading={t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_HEADER")}
+          children={[
+            <div>
+              <CardText style={{ margin: 0 }}>{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_TEXT") + " "}</CardText>
+            </div>,
+          ]}
+          onOverlayClick={() => {
+            setShowPopUp(false);
           }}
-          popmoduleClassName="campaign-pop-module"
-          popupModuleActionBarClass="campaign-pop-action"
-          style={{ flex: 1 }}
-          popupMainModuleClass="campaign-pop-main"
-          headerBarMain={<h1 className="campaign-modal-heading">{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_HEADER")}</h1>}
-          actionCancelLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_BACK")}
-          actionCancelOnSubmit={() => checkDataPresent({ action: false })}
-          actionSaveLabel={t("ES_CAMPAIGN_BOUNDARY_MODAL_SUBMIT")}
-          actionSaveOnSubmit={() => checkDataPresent({ action: true })}
-          customTheme="v-campaign"
-          formId="modal-action"
-        >
-          <div>
-            <CardText style={{ margin: 0 }}>{t("ES_CAMPAIGN_UPDATE_BOUNDARY_MODAL_TEXT") + " "}</CardText>
-          </div>
-        </Modal>
+          footerChildren={[
+            <Button
+              type={"button"}
+              size={"large"}
+              variation={"secondary"}
+              label={t("ES_CAMPAIGN_BOUNDARY_MODAL_BACK")}
+              onClick={() => {
+                checkDataPresent({ action: false });
+              }}
+            />,
+            <Button
+              type={"button"}
+              size={"large"}
+              variation={"primary"}
+              label={t("ES_CAMPAIGN_BOUNDARY_MODAL_SUBMIT")}
+              onClick={() => {
+                checkDataPresent({ action: true });
+              }}
+            />,
+          ]}
+          sortFooterChildren={true}
+        ></PopUp>
       )}
       {showToast && (
         <Toast

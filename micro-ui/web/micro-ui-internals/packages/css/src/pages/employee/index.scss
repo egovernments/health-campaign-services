@@ -361,6 +361,22 @@ tbody {
     min-width: fit-content;
   }
 }
+.digit-popup-wrapper.boundaries-pop-module.default {
+  width: 36rem;
+  .digit-popup-footer {
+    .digit-popup-footer-buttons {
+      width: 100% !important;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      .digit-button-secondary {
+        width: 100%;
+      }
+      .digit-button-primary {
+        width: 100%;
+      }
+    }
+  }
+}
 .campaign-pop-module {
   padding: 1.5rem;
   border-radius: 4px;
@@ -441,8 +457,8 @@ tbody {
     margin-top: 0;
     margin-bottom: 0;
   }
-  .digit-infobanner-wrap.error{
+  .digit-infobanner-wrap.error {
     margin-bottom: 0.5rem;
     margin-top: 1.5rem;
-  } 
+  }
 }
