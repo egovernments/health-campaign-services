@@ -134,7 +134,14 @@
 header {
   @extend .typography.text-heading-xl;
 }
-
+.digit-button-primary{
+  background-color: theme(digitv2.lightTheme.primary) !important;
+}
+.digit-button-secondary{
+  .h2{
+    color: theme(digitv2.lightTheme.primary) !important;
+  }
+}
 
 /*.digit-popup-wrap {
   background: rgba(0, 0, 0, 0.7);

@@ -51,7 +51,7 @@ const CampaignName = ({ onSelect, formData, control, formState, ...props }) => {
           error={error?.message ? t(error?.message) : ""}
           style={{ width: "40rem", marginBottom: "0" }}
           populators={{ name: "campaignName" }}
-          placeholder={"HCM_CAMPAIGN_NAME_EXAMPLE"}
+          placeholder={t("HCM_CAMPAIGN_NAME_EXAMPLE")}
           value={name}
           onChange={(event) => {
             setStartValidation(true);

@@ -1,11 +1,11 @@
 import { Header, LoaderWithGap } from "@egovernments/digit-ui-react-components";
 import React, { useRef, useState, useEffect, Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { DownloadIcon, Card, Modal, CardText } from "@egovernments/digit-ui-react-components";
+import { Card, Modal, CardText } from "@egovernments/digit-ui-react-components";
 import BulkUpload from "./BulkUpload";
 import Ajv from "ajv";
 import XLSX from "xlsx";
-import { InfoCard, PopUp, Toast ,Button } from "@egovernments/digit-ui-components";
+import { InfoCard, PopUp, Toast ,Button ,DownloadIcon } from "@egovernments/digit-ui-components";
 import { schemaConfig } from "../configs/schemaConfig";
 import { headerConfig } from "../configs/headerConfig";
 import { PRIMARY_COLOR } from "../utils";
@@ -816,7 +816,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           <Button
             label={t("WBH_DOWNLOAD_TEMPLATE")}
             variation="secondary"
-            icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
+            icon ={"FileDownload"}
             type="button"
             className="campaign-download-template-btn"
             onButtonClick={downloadTemplate}
@@ -875,29 +875,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         label={"Info"}
       />
       {showPopUp && (
-        // <Modal
-        //   popupStyles={{
-        //     top: "5rem",
-        //   }}
-        //   popmoduleClassName="campaign-pop-module"
-        //   popupModuleActionBarClass="campaign-pop-action"
-        //   style={{ flex: 1 }}
-        //   popupMainModuleClass="campaign-pop-main"
-        //   headerBarMain={<h1 className="campaign-modal-heading">{type === "boundary" ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER") : type === "facilityWithBoundary" ? t("ES_CAMPAIGN_UPLOAD_FACILITY_DATA_MODAL_HEADER") : t("ES_CAMPAIGN_UPLOAD_USER_DATA_MODAL_HEADER")}</h1>}
-
-        //   // {type === "boundary" ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER") : type === "facilityWithBoundary" ? t("ES_CAMPAIGN_UPLOAD_FACILITY_DATA_MODAL_HEADER") : t("ES_CAMPAIGN_UPLOAD_USER_DATA_MODAL_HEADER")}
-        //   actionCancelLabel={t("HCM_CAMPAIGN_UPLOAD_CANCEL")}
-        //   actionCancelOnSubmit={() => { setShowPopUp(false); }}
-        //   actionSaveLabel={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
-        //   actionSaveOnSubmit={() =>{downloadTemplate() ,setShowPopUp(false); }}
-        //   customTheme="v-campaign"
-        //   formId="modal-action"
-        // >
-        //   <div>
-        //     <CardText style={{ margin: 0 }}>{type === "boundary" ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER") : type === "facilityWithBoundary" ? t("ES_CAMPAIGN_UPLOAD_FACILITY_DATA_MODAL_HEADER") : t("ES_CAMPAIGN_UPLOAD_USER_DATA_MODAL_HEADER")}</CardText>
-        //   </div>
-        // </Modal>
-
         <PopUp
           type={"default"}
           heading = {type === "boundary"
@@ -924,7 +901,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               size={"large"}
               variation={"secondary"}
               label={t("HCM_CAMPAIGN_UPLOAD_CANCEL")}
-              // label={t("DOWNLOAD")}
               onClick={() => {
                 setShowPopUp(false);
               }}
@@ -933,9 +909,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               type={"button"}
               size={"large"}
               variation={"primary"}
-              icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={"white"} />}
+              icon={"FileDownload"}
               label={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
-              // label={t("TEMPLATE")}
               onClick={() => {
                 downloadTemplate(), setShowPopUp(false);
               }}
