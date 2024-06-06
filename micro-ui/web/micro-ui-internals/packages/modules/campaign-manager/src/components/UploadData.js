@@ -819,7 +819,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             icon ={"FileDownload"}
             type="button"
             className="campaign-download-template-btn"
-            onButtonClick={downloadTemplate}
+            onClick={downloadTemplate}
           />
         </div>
         {uploadedFile.length === 0 && (
