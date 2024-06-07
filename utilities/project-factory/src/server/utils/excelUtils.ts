@@ -2,7 +2,7 @@ import * as ExcelJS from "exceljs";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
-
+import config from "../config";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -22,7 +22,7 @@ const getExcelWorkbookFromFileURL = async (
     "Content-Type": "application/json",
     Accept: "application/pdf",
   };
-logger.info("loading for the file based on fileurl");
+  logger.info("loading for the file based on fileurl");
   // Make HTTP request to retrieve Excel file as arraybuffer
   const responseFile = await httpRequest(
     fileUrl,
@@ -41,7 +41,7 @@ logger.info("loading for the file based on fileurl");
 
   // Check if the specified sheet exists in the workbook
   const worksheet = workbook.getWorksheet(sheetName);
-  if (sheetName&&!worksheet) {
+  if (sheetName && !worksheet) {
     throwError(
       "FILE",
       400,
@@ -54,4 +54,137 @@ logger.info("loading for the file based on fileurl");
   return workbook;
 };
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL };
+function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
+  // Add empty rows after the main header
+  worksheet.addRow([]);
+  worksheet.addRow([]);
+  worksheet.addRow([]);
+
+  // Add the data rows with text wrapping
+  const lineHeight = 15; // Set an approximate line height
+  const maxCharactersPerLine = 100; // Set a maximum number of characters per line for wrapping
+
+  datas.forEach((data: any) => {
+    const row = worksheet.addRow([data]);
+    row.eachCell({ includeEmpty: true }, (cell: any) => {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }; // Apply text wrapping
+      // Calculate the required row height based on content length
+      const numberOfLines = Math.ceil(data.length / maxCharactersPerLine);
+      row.height = numberOfLines * lineHeight;
+
+      // Make the header text bold
+      if (headerSet.has(cell.value)) {
+        cell.font = { bold: true };
+      }
+    });
+  });
+
+  worksheet.getColumn(1).width = 130;
+  logger.info(`Freezing the whole sheet ${worksheet.name}`);
+  worksheet.eachRow((row: any) => {
+    row.eachCell((cell: any) => {
+      cell.protection = { locked: true };
+    });
+  });
+  worksheet.protect('passwordhere', { selectLockedCells: true });
+}
+
+function performUnfreezeCells(sheet: any) {
+  logger.info(`Unfreezing the sheet ${sheet.name}`);
+
+  let lastFilledColumn = 1;
+  sheet.getRow(1).eachCell((cell: any, colNumber: number) => {
+    if (cell.value !== undefined && cell.value !== null && cell.value !== '') {
+      lastFilledColumn = colNumber;
+    }
+  });
+
+  for (let row = 1; row <= parseInt(config.values.unfrozeTillRow); row++) {
+    for (let col = 1; col <= lastFilledColumn; col++) {
+      const cell = sheet.getCell(row, col);
+      if (!cell.value) {
+        cell.protection = { locked: false };
+      }
+    }
+  }
+  sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
+}
+
+
+function performFreezeWholeSheet(sheet: any) {
+  logger.info(`Freezing the whole sheet ${sheet.name}`);
+  sheet.eachRow((row: any) => {
+    row.eachCell((cell: any) => {
+      cell.protection = { locked: true };
+    });
+  });
+  sheet.protect('passwordhere', { selectLockedCells: true });
+}
+
+function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D', columnWidth = 40, frozeCells = false, frozeWholeSheet = false) {
+  sheetData?.forEach((row: any, index: number) => {
+    const worksheetRow = sheet.addRow(row);
+
+    // Apply fill color to each cell in the first row and make cells bold
+    if (index === 0) {
+      worksheetRow.eachCell((cell: any) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: firstRowColor } // Green color
+        };
+        cell.font = { bold: true };
+        if (frozeCells) {
+          cell.protection = { locked: true };
+        }
+      });
+    }
+    worksheetRow.eachCell((cell: any) => {
+      if (frozeCells) {
+        cell.protection = { locked: true };
+      }
+    });
+  });
+
+  // Set column widths
+  sheet.columns.forEach((column: any) => {
+    column.width = columnWidth;
+  });
+
+  // Protect the entire sheet to enable cell protection settings
+  if (frozeCells) {
+    performUnfreezeCells(sheet);
+  }
+  if (frozeWholeSheet) {
+    performFreezeWholeSheet(sheet);
+  }
+}
+
+function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeColumnIndex: any) {
+  // Make every cell locked by default
+  newSheet.eachRow((row: any) => {
+    row.eachCell((cell: any) => {
+      cell.protection = { locked: true };
+    });
+  });
+  // Unlock cells in the target column
+  if (targetColumnNumber > -1) {
+    newSheet.eachRow((row: any) => {
+      const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
+      cell.protection = { locked: false };
+    });
+  }
+
+  // Hide the boundary code column
+  if (boundaryCodeColumnIndex !== -1) {
+    newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true;
+  }
+
+  // Protect the sheet with a password (optional)
+  newSheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true
+  });
+}
+
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields };

@@ -16,7 +16,7 @@ import { campaignStatuses, headingMapping, resourceDataStatuses } from "../confi
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
-import { getExcelWorkbookFromFileURL, getNewExcelWorkbook } from "./excelUtils";
+import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields } from "./excelUtils";
 const _ = require('lodash');
 
 
@@ -158,6 +158,10 @@ function enrichErrors(errorData: any, worksheet: any, statusColumn: any, errorDe
             if (error.isUniqueIdentifier) {
                 const uniqueIdentifierCell = worksheet.getCell(`${createAndSearchConfig.uniqueIdentifierColumn}${rowIndex}`);
                 uniqueIdentifierCell.value = error.uniqueIdentifier;
+                if (createAndSearchConfig?.activeColumn) {
+                    const activeCell = worksheet.getCell(`${createAndSearchConfig.activeColumn}${rowIndex}`);
+                    activeCell.value = "Active";
+                }
             }
         });
     }
@@ -458,8 +462,8 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
         logger.info("Activities to persist : ")
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
-        await new Promise(resolve => setTimeout(resolve, 2000));
         logger.info(`Waiting for 2 seconds`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
@@ -1307,33 +1311,6 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     processAfterPersist(request, actionInUrl)
 }
 
-function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeColumnIndex: any) {
-    // Make every cell locked by default
-    newSheet.eachRow((row: any) => {
-        row.eachCell((cell: any) => {
-            cell.protection = { locked: true };
-        });
-    });
-    // Unlock cells in the target column
-    if (targetColumnNumber > -1) {
-        newSheet.eachRow((row: any) => {
-            const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
-            cell.protection = { locked: false };
-        });
-    }
-
-    // Hide the boundary code column
-    if (boundaryCodeColumnIndex !== -1) {
-        newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true;
-    }
-
-    // Protect the sheet with a password (optional)
-    newSheet.protect('passwordhere', {
-        selectLockedCells: true,
-        selectUnlockedCells: true
-    });
-}
-
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
     var hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
@@ -1362,7 +1339,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         const columnWidths = Array(12).fill(30);
         mainSheet.columns = columnWidths.map(width => ({ width }));
         // mainSheetData.forEach(row => mainSheet.addRow(row));
-        addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30);
+        addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30, false, true);
         logger.info("appending different districts tab in the sheet started")
         await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy);
         logger.info("Sheet with different tabs generated successfully");
@@ -1379,7 +1356,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
     for (const uniqueData of uniqueDistrictsForMainSheet) {
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
         logger.info(`generating the boundary data for ${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel}`)
-        const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs && boundary[hierarchy[hierarchy.length-1]]);
+        const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs && boundary[hierarchy[hierarchy.length - 1]]);
         const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
         if (modifiedFilteredData?.[0]) {
             const newSheetData = [configurableColumnHeadersFromSchemaForTargetSheet];

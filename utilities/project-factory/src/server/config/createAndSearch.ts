@@ -46,6 +46,7 @@ const createAndSearch: any = {
         },
         uniqueIdentifier: "id",
         uniqueIdentifierColumn: "A",
+        activeColumn: "G",
         uniqueIdentifierColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
         matchEachKey: true,
         parseArrayConfig: {

@@ -117,6 +117,8 @@ const config = {
   // Values configuration
   values: {
     //module name
+    unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "10000",
+    unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     readMeTab: "Read Me",
     userMainBoundary: "mz",

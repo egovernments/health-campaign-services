@@ -16,8 +16,8 @@ import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   // Define headers for HTTP request
- 
-  const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,"");
+
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, "");
 
   // Get the main sheet name (assuming it's the second sheet)
   const mainSheetName = workbook.getWorksheet(1).name;
@@ -102,7 +102,7 @@ const getSheetData = async (
 ) => {
   // Retrieve workbook using the getTargetWorkbook function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook:any =await getExcelWorkbookFromFileURL(fileUrl,localizedSheetName);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
@@ -563,8 +563,8 @@ async function getBoundarySheetData(
       modifiedHierarchy,
       localizationMap
     );
-    const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request,localizationMap);
-    const headers = [...localizedHeadersUptoHierarchy,...headerColumnsAfterHierarchy];
+    const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
     // const localizedBoundaryTab = getLocalizedName(
     //   getBoundaryTabName(),
@@ -1033,6 +1033,77 @@ async function callMdmsSchema(
   return response?.SchemaDefinitions?.[0]?.definition;
 }
 
+function enrichSchema(data: any, properties: any, required: any, columns: any) {
+
+  // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
+  columns.sort((a: any, b: any) => {
+    if (a.orderNumber === b.orderNumber) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.orderNumber - b.orderNumber;
+  });
+
+  // Extract sorted property names
+  const sortedPropertyNames = columns.map((column: any) => column.name);
+
+  // Update data with new properties and required fields
+  data.properties = properties;
+  data.required = required;
+  data.columns = sortedPropertyNames;
+}
+
+function convertIntoSchema(data: any) {
+  const properties: any = {};
+  const required: any[] = [];
+  const columns: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push(property?.name);
+        }
+
+        // If orderNumber is missing, default to a very high number
+        columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+      }
+    }
+  }
+  enrichSchema(data, properties, required, columns);
+  return data;
+}
+
+
+
+async function callMdmsTypeSchema(
+  request: any,
+  tenantId: string,
+  type: any
+) {
+  const { RequestInfo = {} } = request?.body || {};
+  const requestBody = {
+    RequestInfo,
+    MdmsCriteria: {
+      tenantId: tenantId,
+      uniqueIdentifiers: [
+        type
+      ],
+      schemaCode: "HCM-ADMIN-CONSOLE.typeSchemas"
+    }
+  };
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const response = await httpRequest(url, requestBody);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
+  }
+  return convertIntoSchema(response?.mdms?.[0]?.data);
+}
+
 async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
   const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
   return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
@@ -1060,5 +1131,6 @@ export {
   callMdmsData,
   getMDMSV1Data,
   callMdmsSchema,
-  callMdmsV2Data
+  callMdmsV2Data,
+  callMdmsTypeSchema
 }

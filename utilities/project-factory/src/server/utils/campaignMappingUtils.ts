@@ -47,7 +47,12 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                 const code = data[uniqueCodeColumn];
                 // Extract boundary codes
                 const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
-                if (boundaryCode) {
+                var active: any = "Active";
+                if (createAndSearch?.[resource?.type]?.activeColumn) {
+                    var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumn, localizationMap);
+                    active = data[activeColumn];
+                }
+                if (boundaryCode && active == "Active") {
                     // Split boundary codes if they have comma separated values
                     const boundaryCodesArray = boundaryCode.split(',');
                     boundaryCodesArray.forEach((bc: string) => {
@@ -60,6 +65,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                             boundaryCodes[resource?.type][trimmedBC] = [];
                         }
                         boundaryCodes[resource?.type][trimmedBC].push(code);
+                        logger.info(`Boundary code ${trimmedBC} mapped to resource ${resource?.type} with code ${code}`)
                     });
                 }
             }
@@ -212,8 +218,8 @@ async function processCampaignMapping(messageObject: any) {
                     break;
                 }
                 else {
-                    await new Promise(resolve => setTimeout(resolve, 20000));
                     logger.info(`Waiting for 20 seconds for resource with id ${resourceDetailId} on retry ${retry}`);
+                    await new Promise(resolve => setTimeout(resolve, 20000));
                 }
             }
         }

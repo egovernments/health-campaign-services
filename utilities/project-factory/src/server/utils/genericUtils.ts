@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
 import { getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -14,7 +14,7 @@ import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from 
 import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
-import { getNewExcelWorkbook } from "./excelUtils";
+import { addDataToSheet, formatWorksheet, getNewExcelWorkbook } from "./excelUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -421,8 +421,8 @@ function correctParentValues(campaignDetails: any) {
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
-  const schema = await callMdmsSchema(request, config?.values?.moduleName, "facility", tenantId);
-  const keys = schema?.required;
+  const schema = await callMdmsTypeSchema(request, tenantId, "facility");
+  const keys = schema?.columns;
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -442,33 +442,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   return facilitySheetData;
 }
 
-function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
-  // Add empty rows after the main header
-  worksheet.addRow([]);
-  worksheet.addRow([]);
-  worksheet.addRow([]);
 
-  // Add the data rows with text wrapping
-  const lineHeight = 15; // Set an approximate line height
-  const maxCharactersPerLine = 100; // Set a maximum number of characters per line for wrapping
-
-  datas.forEach((data: any) => {
-    const row = worksheet.addRow([data]);
-    row.eachCell({ includeEmpty: true }, (cell: any) => {
-      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }; // Apply text wrapping
-      // Calculate the required row height based on content length
-      const numberOfLines = Math.ceil(data.length / maxCharactersPerLine);
-      row.height = numberOfLines * lineHeight;
-
-      // Make the header text bold
-      if (headerSet.has(cell.value)) {
-        cell.font = { bold: true };
-      }
-    });
-  });
-
-  worksheet.getColumn(1).width = 130;
-}
 
 function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
 
@@ -607,13 +581,13 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
-  addDataToSheet(facilitySheet, facilitySheetData);
+  addDataToSheet(facilitySheet, facilitySheetData, undefined, undefined, true);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30);
+  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
   const fileDetails = await createAndUploadFile(workbook, request);
@@ -622,29 +596,9 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
 
 // Helper function to add data to a sheet
-function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D', columnWidth = 40) {
-  sheetData?.forEach((row: any, index: number) => {
-    const worksheetRow = sheet.addRow(row);
 
-    // Check if it's the first row
-    if (index === 0) {
-      // Apply fill color to each cell in the first row
-      worksheetRow.eachCell((cell: any) => {
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: firstRowColor } // Green color
-        };
-        cell.font = { bold: true }
-      });
-    }
-  });
 
-  // Set column widths to 30
-  sheet.columns.forEach((column: any) => {
-    column.width = columnWidth;
-  });
-}
+
 
 
 
@@ -657,11 +611,11 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
-  addDataToSheet(userSheet, userSheetData);
+  addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30);
+  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -887,7 +841,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
   // get Campaign Details from Campaign Search Api
-   var configurableColumnHeadersBasedOnCampaignType: any[] = []
+  var configurableColumnHeadersBasedOnCampaignType: any[] = []
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }

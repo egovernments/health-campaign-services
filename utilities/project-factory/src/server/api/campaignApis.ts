@@ -3,9 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
+import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
-import { callMdmsSchema, getCampaignNumber } from "./genericApis";
+import { callMdmsSchema, callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import { produceModifiedMessages } from "../kafka/Listener";
@@ -155,20 +155,20 @@ function changeBodyViaElements(elements: any, requestBody: any) {
   }
 }
 
-function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
-  if (!elements) {
-    return;
-  }
-  for (const element of elements) {
-    const arrayToSearch = []
-    for (const data of dataFromSheet) {
-      if (data[element.sheetColumnName]) {
-        arrayToSearch.push(data[element.sheetColumnName]);
-      }
-    }
-    _.set(request.body, element?.searchPath, arrayToSearch);
-  }
-}
+// function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
+//   if (!elements) {
+//     return;
+//   }
+//   for (const element of elements) {
+//     const arrayToSearch = []
+//     for (const data of dataFromSheet) {
+//       if (data[element.sheetColumnName]) {
+//         arrayToSearch.push(data[element.sheetColumnName]);
+//       }
+//     }
+//     _.set(request.body, element?.searchPath, arrayToSearch);
+//   }
+// }
 
 function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
   newCreatedData.forEach((createdElement: any) => {
@@ -199,10 +199,6 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     for (const searchedElement of newSearchedData) {
       let match = true;
       for (const key in createdElement) {
-        if (createdElement.hasOwnProperty(key) && !searchedElement.hasOwnProperty(key) && key != '!row#number!') {
-          match = false;
-          break;
-        }
         if (createdElement[key] !== searchedElement[key] && key != '!row#number!') {
           match = false;
           break;
@@ -406,13 +402,13 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
 
 
 async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
-  if (request?.body?.dataToSearch?.length > 0) {
-    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-    changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-    matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
-  }
+  // if (request?.body?.dataToSearch?.length > 0) {
+  //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+  //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
+  //   changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
+  //   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+  //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  // }
   if (request?.body?.ResourceDetails?.type == "user") {
     await enrichEmployees(request?.body?.dataToCreate, request)
     await matchUserValidation(request.body.dataToCreate, request)
@@ -426,8 +422,8 @@ async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
 
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
-  await new Promise(resolve => setTimeout(resolve, 10000));
   logger.info(`Waiting for 10 seconds`);
+  await new Promise(resolve => setTimeout(resolve, 10000));
   const chunkSize = 50;
   let employeesSearched: any[] = [];
 
@@ -508,7 +504,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
-      const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
@@ -676,8 +672,8 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
       activities.push(activity);
     }
-    await new Promise(resolve => setTimeout(resolve, 10000));
     logger.info(`Waiting for 10 seconds`);
+    await new Promise(resolve => setTimeout(resolve, 10000));
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
   await generateProcessedFileAndPersist(request, localizationMap);
@@ -713,8 +709,8 @@ async function handleResouceDetailsError(request: any, error: any) {
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
     logger.info("Waiting for 2 seconds");
+    await new Promise(resolve => setTimeout(resolve, 2000));
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
 }
@@ -756,7 +752,12 @@ async function processCreate(request: any, localizationMap?: any) {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
-    if (type == "facility" || type == "user") {
+    if (type == "facility") {
+      logger.info("Fetching schema to validate the created data for type: " + type);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse
+    }
+    else if (type == "user") {
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
       schema = mdmsResponse
@@ -828,8 +829,8 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
     else {
       logger.info("Project not found. Waiting for 1 seconds");
       retry = retry - 1
-      await new Promise(resolve => setTimeout(resolve, 1000));
       logger.info(`Waiting for ${retry} for 1 more second`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
   if (!projectFound) {
