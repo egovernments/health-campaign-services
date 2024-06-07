@@ -48,8 +48,8 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                 // Extract boundary codes
                 const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
                 var active: any = "Active";
-                if (createAndSearch?.[resource?.type]?.activeColumn) {
-                    var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumn, localizationMap);
+                if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
+                    var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
                     active = data[activeColumn];
                 }
                 if (boundaryCode && active == "Active") {
