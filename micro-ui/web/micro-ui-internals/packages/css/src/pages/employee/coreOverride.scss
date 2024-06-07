@@ -138,8 +138,10 @@ header {
   background-color: theme(digitv2.lightTheme.primary) !important;
 }
 .digit-button-secondary{
-  .h2{
-    color: theme(digitv2.lightTheme.primary) !important;
+  .icon-label-container{
+    h2{
+      color: theme(digitv2.lightTheme.primary) !important;
+    }
   }
 }
 
