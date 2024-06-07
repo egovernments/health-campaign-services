@@ -1707,7 +1707,7 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
 
         const filters = {
-            "type": request?.query?.type || request?.body?.ResourceDetails?.type,
+            "title": request?.query?.type || request?.body?.ResourceDetails?.type,
             "campaignType": campaignType
         }
         // Call the MDMSV2 API to get data
@@ -1717,10 +1717,10 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
             throwError("COMMON", 400, "SCHEMA_ERROR", `Campaign Type ${campaignType} has not any columns configured in schema`);
         }
         // Extract columns from the response
-        const columnsForGivenCampaignId = mdmsResponse.mdms[0].data.fields;
+        const columnsForGivenCampaignId = mdmsResponse?.mdms[0]?.data?.properties?.stringProperties;
 
         // Sort the columns array based on the order number
-        columnsForGivenCampaignId?.sort((columnA: any, columnB: any) => columnA.orderNo - columnB.orderNo);
+        columnsForGivenCampaignId?.sort((columnA:any, columnB:any) => columnA.orderNumber - columnB.orderNumber);
 
         // Extract the names of columns and insert them into an array
         const sortedColumnNames = columnsForGivenCampaignId?.map((column: any) => column.name);
