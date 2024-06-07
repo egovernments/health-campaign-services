@@ -1,7 +1,7 @@
 import { getFormattedStringForDebug, logger } from "../logger";
 
-const MAX_AGE=100;
-const MAX_AGE_IN_MONTHS=MAX_AGE*12;
+const MAX_AGE = 100;
+const MAX_AGE_IN_MONTHS = MAX_AGE * 12;
 /* 
 TODO: Update configObject with appropriate values.
 This object contains configuration settings for delivery strategies and wait times.
@@ -65,6 +65,27 @@ const defaultProjectType: any = {
 
 /* 
 Map delivery rules to cycles based on delivery and cycle numbers.
+
+sample delivery array =[{
+    "cycleNumber": 1,
+    "deliveryNumber": 1,
+    "deliveryType": "DIRECT",
+    "deliveryRuleNumber": 1,
+    "products": [
+        {
+            "value": "PVAR-2024-05-29-000068",
+            "name": "SP  - 250mg",
+            "count": 1
+        }
+    ],
+    "conditions": [
+        {
+            "attribute": "Age",
+            "operator": "LESS_THAN",
+            "value": 11
+        }
+    ]
+}]
 */
 const deliveryRulesToCyles = (delivery = []) => {
   return delivery.reduce((acc: any, curr: any) => {
@@ -94,26 +115,50 @@ const deliveryRulesToCyles = (delivery = []) => {
 };
 /* 
 Convert delivery rules to a format suitable for processing.
+sample deliveryobj
+{
+    "1": [
+        {
+            "cycleNumber": 1,
+            "deliveryNumber": 1,
+            "deliveryType": "DIRECT",
+            "deliveryRuleNumber": 1,
+            "products": [
+                {
+                    "value": "PVAR-2024-05-29-000068",
+                    "name": "SP  - 250mg",
+                    "count": 1
+                }
+            ],
+            "conditions": [
+                {
+                    "attribute": "Age",
+                    "operator": "LESS_THAN",
+                    "value": 11
+                }
+            ]
+        }
+    ]
+}
 */
 const deliveriesConv = (deliveryObj: any = {}) => {
   return Object.keys(deliveryObj).map((key, ind) => {
     return {
       id: key,
-      deliveryStrategy:
-        configObject.deliveryStrategy?.[ind == 0 ? "default" : "other"],
-
+      deliveryStrategy: deliveryObj?.[key]?.[0]?.deliveryType,
       mandatoryWaitSinceLastDeliveryInDays:
         configObject.mandatoryWaitSinceLastDeliveryInDays?.["default"],
       doseCriteria: deliveryObj?.[key]?.map((e: any) => {
         return {
-          ProductVariants:getUniqueArrayByProductVariantId( deliveryObj?.[key].flatMap(
-            (elem: { products: any }) =>
+          ProductVariants: getUniqueArrayByProductVariantId(
+            deliveryObj?.[key].flatMap((elem: { products: any }) =>
               [...elem.products].map((ele, index) => ({
                 isBaseUnitVariant: index == 0,
                 productVariantId: ele?.value,
                 quantity: ele?.count,
               }))
-          )),
+            )
+          ),
           // cylce conditions hardcoded TODO update logic
           condition: getRequiredCondition(e?.conditions),
         };
@@ -123,6 +168,31 @@ const deliveriesConv = (deliveryObj: any = {}) => {
 };
 /* 
 Transform cycle conditions and delivery rules into a standardized format.
+sample cyclesObj ={
+    1: {
+    "delivery": {
+        "1": [
+            {
+                "cycleNumber": 1,
+                "deliveryNumber": 1,
+                "deliveryType": "DIRECT",
+                "deliveryRuleNumber": 1,
+                "products": [
+                    {
+                        "value": "PVAR-2024-05-29-000068",
+                        "name": "SP  - 250mg",
+                        "count": 1
+                    }
+                ],
+                "conditions": [
+                    {
+                        "attribute": "Age",
+                        "operator": "LESS_THAN",
+                        "value": 11
+                    }
+                ]
+    }
+}
 */
 const transformDeliveryConditions = (cyclesObj: any = {}) => {
   return Object.keys(cyclesObj).map((cycleKey, ind) => {
@@ -168,7 +238,9 @@ export const projectTypeConversion = (
     const cycles = transformDeliveryConditions(cyclesObj);
     newProjectType["cycles"] = cycles;
   }
-  logger.debug("transformed projectType : " + getFormattedStringForDebug(newProjectType));
+  logger.debug(
+    "transformed projectType : " + getFormattedStringForDebug(newProjectType)
+  );
   return newProjectType;
 };
 /* 
@@ -181,8 +253,13 @@ export const enrichProjectDetailsFromCampaignDetails = (
   var { tenantId, projectType, startDate, endDate, campaignName } =
     CampaignDetails;
   logger.info("campaign transformation for project type : " + projectType);
-  logger.debug("project type : " + getFormattedStringForDebug(projectTypeObject));
-  const defaultProject =projectTypeObject || defaultProjectType?.[projectType] || defaultProjectType?.["MR-DN"];
+  logger.debug(
+    "project type : " + getFormattedStringForDebug(projectTypeObject)
+  );
+  const defaultProject =
+    projectTypeObject ||
+    defaultProjectType?.[projectType] ||
+    defaultProjectType?.["MR-DN"];
   return [
     {
       tenantId,
@@ -226,7 +303,7 @@ const getConditionsKey = (condition: any, key: string) => {
 const getCondition = (condition: any = {}, attribute: string) => {
   if (attribute == "gender") {
     // since hcm app can understand 0 or 1 for gender
-    return `${attribute}==${condition?.["EQUAL_TO"]=="MALE"?0:1}`;
+    return `${attribute}==${condition?.["EQUAL_TO"] == "MALE" ? 0 : 1}`;
   }
   // Call getConditionsKey function to get the condition for LESS_THAN and GREATER_THAN
   return `${getConditionsKey(
@@ -235,6 +312,13 @@ const getCondition = (condition: any = {}, attribute: string) => {
   )}${attribute}and${attribute}${getConditionsKey(condition, "LESS_THAN")}`;
 };
 
+/* 
+sample conditions array =[{
+    "attribute": "Age",
+    "operator": "LESS_THAN",
+    "value": 11
+}]
+*/
 // Function to get the required condition
 const getRequiredCondition = (conditions: any = []) => {
   // Format the conditions into an object with attribute keys
@@ -258,13 +342,13 @@ const getRequiredCondition = (conditions: any = []) => {
   return getCondition(formattedCondition[sortedKeys[0]], sortedKeys[0]);
 };
 
-const getUniqueArrayByProductVariantId=(array:any)=> {
-  return array.filter((value:any, index:any, self:any) =>
-    index === self.findIndex((t:any) => (
-      t.productVariantId === value.productVariantId
-    ))
+const getUniqueArrayByProductVariantId = (array: any) => {
+  return array.filter(
+    (value: any, index: any, self: any) =>
+      index ===
+      self.findIndex((t: any) => t.productVariantId === value.productVariantId)
   );
-}
+};
 /* construct max and min age */
 const getMinAndMaxAge = (deliveries = []) => {
   // Flatten the conditions arrays from all delivery objects and filter to keep only 'Age' attributes
