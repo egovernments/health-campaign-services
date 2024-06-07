@@ -5,7 +5,7 @@ import { Card, Modal, CardText } from "@egovernments/digit-ui-react-components";
 import BulkUpload from "./BulkUpload";
 import Ajv from "ajv";
 import XLSX from "xlsx";
-import { InfoCard, PopUp, Toast ,Button ,DownloadIcon } from "@egovernments/digit-ui-components";
+import { InfoCard, PopUp, Toast, Button, DownloadIcon } from "@egovernments/digit-ui-components";
 import { schemaConfig } from "../configs/schemaConfig";
 import { headerConfig } from "../configs/headerConfig";
 import { PRIMARY_COLOR } from "../utils";
@@ -39,11 +39,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [resourceId, setResourceId] = useState(null);
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
-  const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
-    { name: "facilitySchema" },
-    { name: "userSchema" },
-    { name: "Boundary" },
-  ]);
+  // const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
+  //   { name: "facilitySchema" },
+  //   { name: "userSchema" },
+  //   { name: "Boundary" },
+  // ]);
+
+  const { data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }]);
 
   const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "ReadMeConfig" }]);
   const [sheetHeaders, setSheetHeaders] = useState({});
@@ -108,11 +110,60 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     return translatedSchema;
   };
 
+  function enrichSchema(data, properties, required, columns) {
+
+    // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
+    columns.sort((a, b) => {
+      if (a?.orderNumber === b?.orderNumber) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.orderNumber - b.orderNumber;
+    });
+
+    // Extract sorted property names
+    const sortedPropertyNames = columns.map((column) => column.name);
+
+    // Update data with new properties and required fields
+    data.properties = properties;
+    data.required = required;
+    delete data.campaignType;
+    // data.columns = sortedPropertyNames;
+  }
+
+  function convertIntoSchema(data) {
+    const properties = {};
+    const required = [];
+    const columns = [];
+
+    for (const propType of ["enumProperties", "numberProperties", "stringProperties"]) {
+      if (data?.properties[propType] && Array.isArray(data?.properties[propType]) && data?.properties[propType]?.length > 0) {
+        for (const property of data?.properties[propType]) {
+          properties[property?.name] = {
+            ...property,
+            type: propType === "stringProperties" ? "string" : propType === "numberProperties" ? "number" : undefined,
+          };
+
+          if (property?.isRequired && required.indexOf(property?.name) === -1) {
+            required.push(property?.name);
+          }
+
+          // If orderNumber is missing, default to a very high number
+          columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        }
+      }
+    }
+    enrichSchema(data, properties, required, columns);
+    return data;
+  }
+
   useEffect(async () => {
-    if (Schemas?.["HCM-ADMIN-CONSOLE"]) {
-      const newFacilitySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.facilitySchema?.[0]);
-      const newBoundarySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.Boundary?.[0]);
-      const newUserSchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.userSchema?.[0]);
+    if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
+      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
+      const boundary = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "boundaryWithTarget")?.[0]);
+      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
+      const newFacilitySchema = await translateSchema(facility);
+      const newBoundarySchema = await translateSchema(boundary);
+      const newUserSchema = await translateSchema(user);
       const headers = {
         boundary: Object?.keys(newBoundarySchema?.properties),
         facilityWithBoundary: Object?.keys(newFacilitySchema?.properties),
@@ -128,7 +179,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setSheetHeaders(headers);
       setTranslatedSchema(schema);
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"], type]);
+  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema, type]);
+
 
   useEffect(async () => {
     if (readMe?.["HCM-ADMIN-CONSOLE"]) {
@@ -204,7 +256,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   }, [type, errorsType]);
 
   const validateData = (data) => {
-    const ajv = new Ajv(); // Initialize Ajv
+    const ajv = new Ajv({ strict: false }); // Initialize Ajv
     let validate = ajv.compile(translatedSchema[type]);
     const errors = []; // Array to hold validation errors
 
@@ -816,7 +868,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           <Button
             label={t("WBH_DOWNLOAD_TEMPLATE")}
             variation="secondary"
-            icon ={"FileDownload"}
+            icon={"FileDownload"}
             type="button"
             className="campaign-download-template-btn"
             onClick={downloadTemplate}
@@ -879,11 +931,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           type={"default"}
           className={"popUpClass"}
           footerclassName={"popUpFooter"}
-          heading = {type === "boundary"
-          ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER")
-          : type === "facilityWithBoundary"
-          ? t("ES_CAMPAIGN_UPLOAD_FACILITY_DATA_MODAL_HEADER")
-          : t("ES_CAMPAIGN_UPLOAD_USER_DATA_MODAL_HEADER")}
+          heading={
+            type === "boundary"
+              ? t("ES_CAMPAIGN_UPLOAD_BOUNDARY_DATA_MODAL_HEADER")
+              : type === "facilityWithBoundary"
+              ? t("ES_CAMPAIGN_UPLOAD_FACILITY_DATA_MODAL_HEADER")
+              : t("ES_CAMPAIGN_UPLOAD_USER_DATA_MODAL_HEADER")
+          }
           children={[
             <div>
               {type === "boundary"
@@ -896,13 +950,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           onOverlayClick={() => {
             setShowPopUp(false);
           }}
-
           footerChildren={[
             <Button
               type={"button"}
               size={"large"}
               variation={"secondary"}
-
               label={t("HCM_CAMPAIGN_UPLOAD_CANCEL")}
               onClick={() => {
                 setShowPopUp(false);
@@ -920,11 +972,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             />,
           ]}
           sortFooterChildren={true}
-          onClose ={
-            () => {
-              setShowPopUp(false);
-            }
-          }
+          onClose={() => {
+            setShowPopUp(false);
+          }}
         ></PopUp>
       )}
       {showToast && (uploadedFile?.length > 0 || downloadError) && (
