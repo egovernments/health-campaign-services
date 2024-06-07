@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsSchema, callMdmsTypeSchema } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
 import { getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -636,8 +636,8 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
-  const schema = await callMdmsSchema(request, config?.values?.moduleName, "user", tenantId);
-  const headers = schema?.required;
+  const schema = await callMdmsTypeSchema(request, tenantId, "user");
+  const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   // const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");

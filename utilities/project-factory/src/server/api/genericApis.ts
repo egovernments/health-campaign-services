@@ -1010,30 +1010,7 @@ async function callMdmsV2Data(
   }
 }
 
-async function callMdmsSchema(
-  request: any,
-  moduleName: string,
-  masterName: string,
-  tenantId: string
-) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
-    SchemaDefCriteria: {
-      tenantId: tenantId,
-      limit: 5,
-      codes: [`${moduleName}.${masterName}`]
-    }
-  };
-  const url = config.host.mdmsV2 + config.paths.mdmsV2SchemaSearch;
-  const response = await httpRequest(url, requestBody);
-  if (!response?.SchemaDefinitions?.[0]?.definition) {
-    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
-  }
-  return response?.SchemaDefinitions?.[0]?.definition;
-}
-
-function enrichSchema(data: any, properties: any, required: any, columns: any) {
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any) {
 
   // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
   columns.sort((a: any, b: any) => {
@@ -1050,12 +1027,14 @@ function enrichSchema(data: any, properties: any, required: any, columns: any) {
   data.properties = properties;
   data.required = required;
   data.columns = sortedPropertyNames;
+  data.unique = unique;
 }
 
 function convertIntoSchema(data: any) {
   const properties: any = {};
   const required: any[] = [];
   const columns: any[] = [];
+  const unique: any[] = [];
 
   for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
     if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
@@ -1068,13 +1047,16 @@ function convertIntoSchema(data: any) {
         if (property?.isRequired && required.indexOf(property?.name) === -1) {
           required.push(property?.name);
         }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
 
         // If orderNumber is missing, default to a very high number
         columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
       }
     }
   }
-  enrichSchema(data, properties, required, columns);
+  enrichSchema(data, properties, required, columns, unique);
   return data;
 }
 
@@ -1083,7 +1065,8 @@ function convertIntoSchema(data: any) {
 async function callMdmsTypeSchema(
   request: any,
   tenantId: string,
-  type: any
+  type: any,
+  campaignType = "all"
 ) {
   const { RequestInfo = {} } = request?.body || {};
   const requestBody = {
@@ -1091,9 +1074,9 @@ async function callMdmsTypeSchema(
     MdmsCriteria: {
       tenantId: tenantId,
       uniqueIdentifiers: [
-        type
+        `${type}.${campaignType}`
       ],
-      schemaCode: "HCM-ADMIN-CONSOLE.typeSchemas"
+      schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"
     }
   };
   const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
@@ -1130,7 +1113,6 @@ export {
   getTargetSheetData,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsSchema,
   callMdmsV2Data,
   callMdmsTypeSchema
 }
