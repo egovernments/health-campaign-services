@@ -47,7 +47,7 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-mdms-service/v1/_search",
+        url: "/mdms-v2/v1/_search",
         params: { tenantId },
         body: {
           MdmsCriteria: {
@@ -138,7 +138,7 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-mdms-service/v1/_search",
+        url: "/mdms-v2/v1/_search",
         params: { tenantId },
         body: {
           MdmsCriteria: {
@@ -230,7 +230,7 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-mdms-service/v1/_search",
+        url: "/egov-/v1/_search",
         params: { tenantId },
         body: {
           MdmsCriteria: {
@@ -321,7 +321,7 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-mdms-service/v1/_search",
+        url: "/mdms-v2/v1/_search",
         params: { tenantId },
         body: {
           MdmsCriteria: {
@@ -411,7 +411,7 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-mdms-service/v1/_search",
+        url: "/mdms-v2/v1/_search",
         params: { tenantId },
         body: {
           MdmsCriteria: {

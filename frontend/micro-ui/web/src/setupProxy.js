@@ -6,6 +6,7 @@ const createProxy = createProxyMiddleware({
 module.exports = function (app) {
   [
     "/egov-mdms-service",
+    "/mdms-v2",
     "/egov-location",
     "/localization",
     "/egov-workflow-v2",
