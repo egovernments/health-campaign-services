@@ -61,7 +61,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
     });
     status = searchResponse?.ResourceDetails?.[0]?.status;
     if (status !== "failed" && status !== "invalid" && status !== "completed") {
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
   if (Error.isError) {
