@@ -114,6 +114,14 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
         data = data.filter((item: any) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
         data.forEach((item: any) => item[activeColumnName] = "Active");
     }
+    if (data.length == 0) {
+        if (request?.body?.ResourceDetails?.type == "facility") {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "All facilities are set to Inactive for this campaign. Please set at least one facility to Active for this campaign or add a new facility for this campaign");
+        }
+        else {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "Data is empty for this campaign, add atleast one data row");
+        }
+    }
     data.forEach((element) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
