@@ -175,10 +175,9 @@ const getTargetSheetDataAfterCode = async (
 
     // Process data from sheet
     const processedData = sheetData.map((row: any, rowIndex: any) => {
-      if (rowIndex === 0) return null; // Skip header row
+      if (rowIndex <= 1) return null; // Skip header row
 
-      let rowData = getJsonData([row], getRow, getSheetName, sheetName)[0];
-      if (!rowData) return null;
+      let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
 
       // Add integer values in the target column for the current row
       let sum = 0;
