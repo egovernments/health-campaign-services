@@ -1,16 +1,15 @@
 package org.egov.processor.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.*;
 import org.egov.tracer.config.TracerConfiguration;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 
-import java.util.TimeZone;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Component
 @Data
@@ -62,4 +61,8 @@ public class Configuration {
     
     @Value("${integrate.with.admin.console}")
     private boolean isIntegrateWithAdminConsole;
+    
+    @Value("${resource.update.plan.config.consumer.topic}")
+    private String resourceUpdatePlanConfigConsumerTopic;
+    
 }

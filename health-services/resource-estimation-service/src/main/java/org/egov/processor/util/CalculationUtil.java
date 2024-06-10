@@ -3,7 +3,7 @@ package org.egov.processor.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
-
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class CalculationUtil {
         return switch (operator) {
             case PLUS -> input.add(assumptionValue);
             case MINUS -> input.subtract(assumptionValue);
-            case SLASH -> input.divide(assumptionValue);
+            case SLASH -> input.divide(assumptionValue,2,RoundingMode.DOWN).setScale(2);
             case STAR -> input.multiply(assumptionValue);
             case PERCENT -> input.remainder(assumptionValue);
             case _U -> input.pow(assumptionValue.intValue());

@@ -1,8 +1,5 @@
 package org.egov.processor.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,10 +9,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -25,17 +23,29 @@ import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.CampaignIntegrationUtil;
 import org.egov.processor.util.FilestoreUtil;
+import org.egov.processor.util.MdmsUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.util.PlanUtil;
 import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfiguration.StatusEnum;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.processor.web.models.campaignManager.Boundary;
 import org.egov.processor.web.models.campaignManager.CampaignResources;
+import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.tracer.model.CustomException;
+import org.flywaydb.core.internal.util.JsonUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.apache.poi.ss.usermodel.DateUtil;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
@@ -55,8 +65,10 @@ public class ExcelParser implements FileParser {
     private CampaignIntegrationUtil campaignIntegrationUtil;
     
     private Configuration config;
+    
+    private MdmsUtil mdmsUtil;
 
-    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil, Configuration config) {
+    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil,PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil, Configuration config , MdmsUtil mdmsUtil) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
         this.filestoreUtil = filestoreUtil;
@@ -64,6 +76,7 @@ public class ExcelParser implements FileParser {
         this.planUtil = planUtil;
         this.campaignIntegrationUtil = campaignIntegrationUtil;
         this.config = config;
+        this.mdmsUtil = mdmsUtil;
     }
 
     /**
@@ -146,9 +159,17 @@ public class ExcelParser implements FileParser {
      */
     private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId,
 			Object campaignResponse, List<Boundary> campaignBoundaryList,List<CampaignResources> campaignResourcesList) throws IOException {
+    	CampaignResponse campaign = null;
+    	campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+    	Object mdmsData = mdmsUtil.fetchMdmsData(planConfigurationRequest.getRequestInfo(), planConfigurationRequest.getPlanConfiguration().getTenantId());
+    	org.egov.processor.web.models.File file  = planConfig.getFiles().stream().filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
+        Map<String, Object> mdmsDataType = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(), file.getTemplateIdentifier(),campaign.getCampaign().get(0).getProjectType());
+        //log.info(list.toString());
+    	Row firstRow = null;
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
+            	firstRow = row;
                 continue;
             }
 
@@ -158,6 +179,9 @@ public class ExcelParser implements FileParser {
             Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
             Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 
+            Integer indexOfBCode = campaignIntegrationUtil.getIndexOfBCode(0,
+                    campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+            validateRows(indexOfBCode, row, firstRow , mdmsDataType , mappedValues, mapOfColumnNameAndIndex,planConfigurationRequest);
             JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
             int columnIndex = row.getLastCellNum(); // Get the index of the last cell in the row
 
@@ -266,8 +290,8 @@ public class ExcelParser implements FileParser {
         System.out.print("Row -> ");
         for (Cell cell : row) {
             int columnIndex = cell.getColumnIndex();
-            String columnName = sheet.getRow(0).getCell(columnIndex).getStringCellValue();
-            System.out.print("Column " + columnName + " - ");
+         //   String columnName = sheet.getRow(0).getCell(columnIndex).toString();
+        //    System.out.print("Column " + columnName + " - ");
             switch (cell.getCellType()) {
                 case STRING:
                     System.out.print(cell.getStringCellValue() + "\t");
@@ -294,5 +318,141 @@ public class ExcelParser implements FileParser {
             }
         }
         System.out.println(); // Move to the next line after printing the row
+    }
+    
+	
+
+	 
+    /** Validates the data in a row.
+    * 
+    * @param indexOfBCode The index of the "BCode" column in the row.
+    * @param row The row containing the data to be validated.
+    * @param columnHeaderRow The row containing the column headers.
+    * @param mdmsDataType Map containing data types from external source (MDMS).
+    * @param mappedValues Map containing mapped values.
+    * @param mapOfColumnNameAndIndex Map containing column names and their corresponding indices.
+    * @param planConfigurationRequest Object representing the plan configuration request.
+    * @throws CustomException if the input data is not valid or if a custom exception occurs.
+    */
+    public void validateRows(Integer indexOfBCode ,Row row, Row columnHeaderRow, Map<String, Object> mdmsDataType ,Map<String, String> mappedValues ,Map<String, Integer> mapOfColumnNameAndIndex,PlanConfigurationRequest planConfigurationRequest){
+        
+        try {
+            validateTillBCode(indexOfBCode, row, columnHeaderRow);
+            validateOtherColumn(mdmsDataType,mappedValues, mapOfColumnNameAndIndex,row ,columnHeaderRow,indexOfBCode);
+        }  catch (JsonProcessingException e) {
+        	log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1));
+            throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+                    ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum());			
+		} catch(CustomException customException) {
+			log.info(customException.toString());
+			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
+			planUtil.update(planConfigurationRequest);
+			 throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+	                    customException.getMessage());
+		}
+    }
+
+    /**
+     * Validates the data in columns from "BCode" column.
+     * 
+     * @param mdmsDataType Map containing data types from an external source (MDMS).
+     * @param mappedValues Map containing mapped values.
+     * @param mapOfColumnNameAndIndex Map containing column names and their corresponding indices.
+     * @param row The row containing the data to be validated.
+     * @param columnHeaderRow The row containing the column headers.
+     * @param indexOfBCode The index of the "BCode" column in the row.
+     * @throws JsonMappingException if there's an issue mapping JSON.
+     * @throws JsonProcessingException if there's an issue processing JSON.
+     */
+	private void validateOtherColumn(Map<String, Object> mdmsDataType, Map<String, String> mappedValues,
+			Map<String, Integer> mapOfColumnNameAndIndex, Row row, Row columnHeaderRow, Integer indexOfBCode)
+			throws JsonMappingException, JsonProcessingException {
+		for (int j = indexOfBCode; j < mapOfColumnNameAndIndex.size(); j++) {
+			Cell cell = row.getCell(j);
+			Cell columnName = columnHeaderRow.getCell(j);
+			String name = findByValue(mappedValues, columnName.getStringCellValue());
+			log.info("Row number : "+row.getRowNum()+" Name: "+name);
+			String value;
+			if(mdmsDataType.containsKey(name)) {
+			value= mdmsDataType.get(name).toString();
+			Map<String, Object> masterData = JsonUtils.parseJson(value, Map.class);
+			switch (cell.getCellType()) {
+			case STRING:
+				String cellValue = cell.getStringCellValue();
+				if (cellValue != null && !cellValue.isEmpty() && cellValue.matches("^[a-zA-Z0-9 .,()-]+$")) {					
+					continue;
+				} else {
+					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+							+ columnName);
+					throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+							ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+				}
+			case NUMERIC:
+				String numricValue = Double.toString(cell.getNumericCellValue());
+				if (numricValue != null && !numricValue.isEmpty() && numricValue.matches("^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$")) {
+					continue;
+				} else {
+					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+							+ columnName);
+					throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+							ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+				}
+			case BOOLEAN:
+				Boolean booleanvalue = cell.getBooleanCellValue();
+				if (booleanvalue != null && !booleanvalue.toString().isEmpty() && booleanvalue.toString().matches("^(?i)(true|false)$")) {
+					continue;
+				} else {
+					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+							+ columnName);
+					throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+							ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell number " + (j + 1));
+				}
+			default:
+				throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+						ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell " + columnName);
+			}
+		}
+		}
+	}
+
+	/**
+	 * Validates the data in columns up to the specified index of the "BCode" column.
+	 * 
+	 * @param indexOfBCode The index of the "BCode" column in the row.
+	 * @param row The row containing the data to be validated.
+	 * @param columnHeaderRow The row containing the column headers.
+	 */
+	private void validateTillBCode(Integer indexOfBCode, Row row,Row columnHeaderRow) {
+		for (int j = 0; j <= indexOfBCode-1; j++) {               
+		    Cell cell = row.getCell(j);
+		    if (cell != null && !cell.getCellType().name().equals("BLANK")) {                  
+		        String cellValue = cell.getStringCellValue();
+		        log.info("cell Value"+ cellValue);
+		        if (cellValue != null && !cellValue.isEmpty() && cellValue.matches("^[a-zA-Z0-9 .,()-]+$")) {
+		            continue;
+		        } else {
+		            log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1)
+		                    + " and cell/column number " + (j + 1));
+		            throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+		                    ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnHeaderRow.getCell(j));
+		        }
+		    }
+		}
+	}
+
+	/**
+	 * Finds the key associated with a given value in a map.
+	 * 
+	 * @param map The map to search.
+	 * @param value The value to search for.
+	 * @return The key associated with the specified value, or {@code null} if not found.
+	 */
+    public String findByValue(Map<String, String> map, String value) {
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getValue().equals(value)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

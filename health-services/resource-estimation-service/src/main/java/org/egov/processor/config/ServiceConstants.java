@@ -43,5 +43,12 @@ public class ServiceConstants {
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER = "Population";
+    public static final String INPUT_IS_NOT_VALID = "File does not contain valid input for row ";
+    public static final String MDMS_SCHEMA_TYPE =  "type";
+    public static final String MDMS_SCHEMA_SECTION =  "section";
+    public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
+    public static final String MDMS_MASTER_SCHEMAS = "Schemas";
+    public static final String MDMS_CAMPAIGN_TYPE = "campaignType";
+    public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
 
 }

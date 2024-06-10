@@ -44,6 +44,15 @@ public class PlanUtil {
 		this.producer = producer;
 	}
 
+	/**
+	 * Creates a plan configuration request, builds a plan request from it, and pushes it to the messaging system for further processing.
+	 * 
+	 * @param planConfigurationRequest The plan configuration request.
+	 * @param feature The feature JSON node.
+	 * @param resultMap The result map.
+	 * @param mappedValues The mapped values.
+	 * @param assumptionValueMap The assumption value map.
+	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
 			Map<String, BigDecimal> assumptionValueMap) {
@@ -56,6 +65,17 @@ public class PlanUtil {
 		}
 	}
 
+	/**
+	 * Builds a PlanRequest object using the provided plan configuration request, feature JSON node,
+	 * result map, mapped values, and assumption value map.
+	 * 
+	 * @param planConfigurationRequest The plan configuration request.
+	 * @param feature The feature JSON node.
+	 * @param resultMap The result map.
+	 * @param mappedValues The mapped values.
+	 * @param assumptionValueMap The assumption value map.
+	 * @return The constructed PlanRequest object.
+	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
 			Map<String, BigDecimal> assumptionValueMap) {
@@ -81,6 +101,15 @@ public class PlanUtil {
 
 	}
 	
+	/**
+	 * Retrieves the boundary code value from the feature JSON node using the mapped value for the given input.
+	 * 
+	 * @param input The input value.
+	 * @param feature The feature JSON node.
+	 * @param mappedValues The mapped values.
+	 * @return The boundary code value.
+	 * @throws CustomException if the input value is not found in the feature JSON node.
+	 */
 	private String getBoundaryCodeValue(String input, JsonNode feature, Map<String, String> mappedValues) {
 		if (feature.get(PROPERTIES).get(mappedValues.get(input)) != null) {
 			String value = String.valueOf(feature.get(PROPERTIES).get(mappedValues.get(input)));
@@ -88,6 +117,21 @@ public class PlanUtil {
 		}
 		else {
 			throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
+		}
+	}
+	
+	/**
+	 * Updates the plan configuration request by pushing it to the messaging system for further processing.
+	 * 
+	 * @param planConfigurationRequest The plan configuration request to be updated.
+	 */
+	public void update(PlanConfigurationRequest planConfigurationRequest) {
+		
+		try {			
+			producer.push(config.getResourceUpdatePlanConfigConsumerTopic(), planConfigurationRequest);
+			log.info("Plan Config updated because of Invalid data.");
+		} catch (Exception e) {
+			log.error(ServiceConstants.ERROR_WHILE_UPDATING_PLAN_CONFIG); 
 		}
 	}
 }
