@@ -169,9 +169,12 @@ function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeCo
   });
   // Unlock cells in the target column
   if (targetColumnNumber > -1) {
-    newSheet.eachRow((row: any) => {
-      const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
-      cell.protection = { locked: false };
+    newSheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: number) => {
+      // Skip the first row
+      if (rowNumber > 1) {
+        const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
+        cell.protection = { locked: false };
+      }
     });
   }
 

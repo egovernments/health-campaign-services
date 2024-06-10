@@ -105,10 +105,16 @@ async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
 
 
 
-async function validateBoundaryData(data: any[], request: any, boundaryColumn: any) {
+async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap: any) {
     const boundarySet = new Set(); // Create a Set to store unique boundaries
     logger.info("validating for the boundary data")
-    data.forEach((element, index) => {
+    const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+    const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap) : null;
+    if (activeColumnName && uniqueIdentifierColumnName) {
+        data = data.filter((item: any) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
+        data.forEach((item: any) => item[activeColumnName] = "Active");
+    }
+    data.forEach((element) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
             throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!']}`);
@@ -310,12 +316,14 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
         const validate = ajv.compile(schema);
         const validationErrors: any[] = [];
         const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap)
+        const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
         if (request?.body?.ResourceDetails?.type == "user") {
             validatePhoneNumber(data)
         }
         if (data?.length > 0) {
             data.forEach((item: any) => {
-                if (!item?.[uniqueIdentifierColumnName])
+                const active = activeColumnName ? item[activeColumnName] : "Active";
+                if (active == "Active" || !item?.[uniqueIdentifierColumnName])
                     if (!validate(item)) {
                         validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
                     }
@@ -352,7 +360,7 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
     await validateViaSchema(data, schema, request, localizationMap);
     if (boundaryValidation) {
         const localisedBoundaryCode = getLocalizedName(boundaryValidation?.column, localizationMap)
-        await validateBoundaryData(data, request, localisedBoundaryCode);
+        await validateBoundaryData(data, request, localisedBoundaryCode, localizationMap);
     }
 }
 
@@ -633,9 +641,16 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
 
     // Initialize resource boundary codes as a set for uniqueness
     const resourceBoundaryCodesArray: any[] = [];
+    var activeColumnName: any = null;
+    if (createAndSearch?.[resource.type]?.activeColumn && createAndSearch?.[resource.type]?.activeColumnName) {
+        activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumn, localizationMap);
+    }
     datas.forEach((data: any) => {
         const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-        resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
+        var active = activeColumnName ? data?.[activeColumnName] : "Active";
+        if (active == "Active") {
+            resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
+        }
     });
 
     // Convert sets to arrays for comparison

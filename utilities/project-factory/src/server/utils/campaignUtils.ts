@@ -1720,7 +1720,7 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         const columnsForGivenCampaignId = mdmsResponse?.mdms[0]?.data?.properties?.stringProperties;
 
         // Sort the columns array based on the order number
-        columnsForGivenCampaignId?.sort((columnA:any, columnB:any) => columnA.orderNumber - columnB.orderNumber);
+        columnsForGivenCampaignId?.sort((columnA: any, columnB: any) => columnA.orderNumber - columnB.orderNumber);
 
         // Extract the names of columns and insert them into an array
         const sortedColumnNames = columnsForGivenCampaignId?.map((column: any) => column.name);
@@ -1733,6 +1733,7 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         }
         return headerColumnsAfterHierarchy;
     } catch (error: any) {
+        console.log(error)
         throwError("FILE", 400, "FETCHING_COLUMN_ERROR", "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs")
     }
 
