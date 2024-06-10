@@ -130,6 +130,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     // data.columns = sortedPropertyNames;
   }
 
+
   function convertIntoSchema(data) {
     const properties = {};
     const required = [];
@@ -159,7 +160,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
       const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
-      const boundary = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "boundaryWithTarget")?.[0]);
+      const boundary = await convertIntoSchema(
+        Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "boundaryWithTarget")?.[0]
+      );
       const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
       const newFacilitySchema = await translateSchema(facility);
       const newBoundarySchema = await translateSchema(boundary);
@@ -180,7 +183,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setTranslatedSchema(schema);
     }
   }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema, type]);
-
 
   useEffect(async () => {
     if (readMe?.["HCM-ADMIN-CONSOLE"]) {
@@ -464,6 +466,20 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
           const SheetNames = workbook.SheetNames[1];
           const expectedHeaders = sheetHeaders[type];
+
+          const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[1]], { blankrows: true });
+          var jsonData = sheetData.map((row, index) => {
+            const rowData = {};
+            if (Object.keys(row).length > 0) {
+              Object.keys(row).forEach((key) => {
+                rowData[key] = row[key] === undefined || row[key] === "" ? "" : row[key];
+              });
+              rowData["!row#number!"] = index + 1; // Adding row number
+              return rowData;
+            }
+          });
+
+          jsonData = jsonData.filter((element) => element !== undefined);
           if (type === "boundary") {
             if (SheetNames !== t("HCM_ADMIN_CONSOLE_BOUNDARY_DATA")) {
               const errorMessage = t("HCM_INVALID_BOUNDARY_SHEET");
@@ -475,6 +491,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               return;
             }
           } else if (type === "facilityWithBoundary") {
+            if (type === "facilityWithBoundary") {
+              const activeColumnName = t("HCM_ADMIN_CONSOLE_FACILITY_USAGE");
+              const uniqueIdentifierColumnName = t("HCM_ADMIN_CONSOLE_FACILITY_CODE");
+                if (activeColumnName && uniqueIdentifierColumnName) {
+                  jsonData = jsonData.filter((item) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
+              }
+            }
             if (SheetNames !== t("HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES")) {
               const errorMessage = t("HCM_INVALID_FACILITY_SHEET");
               setErrorsType((prevErrors) => ({
@@ -513,19 +536,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             }
           }
 
-          const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[1]], { blankrows: true });
-          var jsonData = sheetData.map((row, index) => {
-            const rowData = {};
-            if (Object.keys(row).length > 0) {
-              Object.keys(row).forEach((key) => {
-                rowData[key] = row[key] === undefined || row[key] === "" ? "" : row[key];
-              });
-              rowData["!row#number!"] = index + 1; // Adding row number
-              return rowData;
-            }
-          });
-
-          jsonData = jsonData.filter((element) => element !== undefined);
 
           if (type === "boundary" && workbook?.SheetNames.length == 1) {
             if (!validateTarget(jsonData, headersToValidate)) {
