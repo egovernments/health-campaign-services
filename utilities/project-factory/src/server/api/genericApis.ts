@@ -138,6 +138,69 @@ const getTargetSheetData = async (
   return workbookData;
 };
 
+const getTargetSheetDataAfterCode = async (
+  fileUrl: string,
+  getRow = false,
+  getSheetName = false,
+  codeColumnName = "Boundary Code",
+  localizationMap?: any
+) => {
+  const workbook = await getTargetWorkbook(fileUrl, localizationMap);
+  const sheetNames: string[] = [];
+  workbook.eachSheet((worksheet: any) => {
+    sheetNames.push(worksheet.name);
+  });
+  const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
+
+  const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
+
+  for (const sheetName of localizedSheetNames) {
+    const worksheet = workbook.getWorksheet(sheetName);
+    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+
+    // Find the target column index where the first row value matches codeColumnName
+    const firstRow = sheetData[1];
+    let targetColumnIndex = -1;
+    for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
+      if (firstRow[colIndex] === codeColumnName) {
+        targetColumnIndex = colIndex;
+        break;
+      }
+    }
+
+    if (targetColumnIndex === -1) {
+      console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
+      continue;
+    }
+
+    // Process data from sheet
+    const processedData = sheetData.map((row: any, rowIndex: any) => {
+      if (rowIndex === 0) return null; // Skip header row
+
+      let rowData = getJsonData([row], getRow, getSheetName, sheetName)[0];
+      if (!rowData) return null;
+
+      // Add integer values in the target column for the current row
+      let sum = 0;
+      for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
+        const value = row[colIndex];
+        if (typeof value === 'number' && Number.isInteger(value)) {
+          sum += value;
+        }
+      }
+
+      // Add the sum to the row data
+      rowData['Target at the Selected Boundary level'] = sum;
+      return rowData;
+    }).filter(Boolean); // Remove null entries
+
+    workbookData[sheetName] = processedData;
+  }
+
+  return workbookData;
+};
+
+
 // Function to search MDMS for specific unique identifiers
 const searchMDMS: any = async (
   uniqueIdentifiers: any[],
@@ -1111,6 +1174,7 @@ export {
   generateHierarchyList,
   getTargetWorkbook,
   getTargetSheetData,
+  getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
   callMdmsV2Data,

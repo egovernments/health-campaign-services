@@ -330,6 +330,16 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
         }
         if (data?.length > 0) {
             data.forEach((item: any) => {
+                if (activeColumnName) {
+                    if (!item?.[activeColumnName]) {
+                        throwError("COMMON", 400, "VALIDATION_ERROR", `Data at row ${item?.["!row#number!"]} have missing value in ${activeColumnName}`);
+                    }
+                    if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
+                        {
+                            throwError("COMMON", 400, "VALIDATION_ERROR", `Data at row ${item?.["!row#number!"]} have invalid value in ${activeColumnName}, Allowed values are Active or Inactive`);
+                        }
+                    }
+                }
                 const active = activeColumnName ? item[activeColumnName] : "Active";
                 if (active == "Active" || !item?.[uniqueIdentifierColumnName])
                     if (!validate(item)) {

@@ -15,6 +15,7 @@ import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationU
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 import { addDataToSheet, formatWorksheet, getNewExcelWorkbook } from "./excelUtils";
+import createAndSearch from "../config/createAndSearch";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -562,8 +563,14 @@ function changeFirstRowColumnColour(facilitySheet: any, color: any, columnNumber
   firstHeaderCell.fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: color } // Orange color
+    fgColor: { argb: color }
   };
+}
+
+function hideUniqueIdentifierColumn(sheet: any, column: any) {
+  if (column) {
+    sheet.getColumn(column).hidden = true
+  }
 }
 
 
@@ -582,6 +589,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
   addDataToSheet(facilitySheet, facilitySheetData, undefined, undefined, true);
+  hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
   // Add boundary sheet to the workbook
