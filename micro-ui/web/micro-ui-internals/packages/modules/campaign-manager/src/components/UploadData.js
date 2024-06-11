@@ -45,8 +45,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   //   { name: "Boundary" },
   // ]);
 
-  const { data: Schemas,isLoading:isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }]);
-
+  const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }]);
 
   const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "ReadMeConfig" }]);
   const [sheetHeaders, setSheetHeaders] = useState({});
@@ -56,8 +55,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [showPopUp, setShowPopUp] = useState(true);
   const currentKey = searchParams.get("key");
   const totalData = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
-  const [convertedSchema , setConvertedSchema] = useState({});
-
+  const [convertedSchema, setConvertedSchema] = useState({});
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
@@ -171,13 +169,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
       const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
       const boundary = await convertIntoSchema(
-        Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "boundaryWithTarget"  && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code)?.[0] );
+        Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
+          (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
+        )?.[0]
+      );
       const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
       const schema = {
-          boundary: boundary,
-          facilityWithBoundary: facility,
-          userWithBoundary: user,
-        };
+        boundary: boundary,
+        facilityWithBoundary: facility,
+        userWithBoundary: user,
+      };
 
       setConvertedSchema(schema);
     }
@@ -357,6 +358,39 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     return true;
   };
 
+  const validateTargetData = (data, sheetName, targetError) => {
+    const ajv = new Ajv({ strict: false }); // Initialize Ajv
+    let validate = ajv.compile(translatedSchema[type]);
+    const errors = []; // Array to hold validation errors
+
+    data.forEach((item, index) => {
+      if (!validate(item)) {
+        errors.push({ index: (item?.["!row#number!"] || item?.["__rowNum__"]) + 1, errors: validate.errors });
+      }
+    });
+
+    if (errors.length > 0) {
+      const errorMessage = errors
+        .map(({ index, errors }) => {
+          const formattedErrors = errors
+            .map((error) => {
+              let formattedError = `${error.instancePath}: ${error.message}`;
+              if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+                formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+              }
+              return formattedError;
+            })
+            .join(", ");
+          return `Data at row ${index}: ${formattedErrors} at ${sheetName}`;
+        })
+        .join(" , ");
+      setIsError(true);
+      targetError.push(errorMessage);
+      return false;
+    } else {
+      return true;
+    }
+  };
   // Function to compare arrays for equality
   const arraysEqual = (arr1, arr2) => {
     if (arr1.length !== arr2.length) return false;
@@ -394,7 +428,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       const sheet = workbook?.Sheets[sheetName];
 
-      // Convert the sheet to JSON to extract headers 
+      // Convert the sheet to JSON to extract headers
       const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
       })[0];
@@ -413,6 +447,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     }
 
     if (!isValid) return isValid;
+    const targetError = [];
 
     // Iterate over each sheet in the workbook, starting from the second sheet
     for (let i = 2; i < workbook.SheetNames.length; i++) {
@@ -427,50 +462,29 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       const jsonData = XLSX.utils.sheet_to_json(sheet, { blankrows: true });
 
-
-      // const boundaryCodeIndex = headersToValidate.indexOf(t("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
-      // const headersBeforeBoundaryCode = headersToValidate.slice(0, boundaryCodeIndex);
-
-      // const columnBeforeBoundaryCode = jsonData.map((row) => row[headersBeforeBoundaryCode[headersBeforeBoundaryCode.length - 1]]);
-
-      // // Getting the length of data in the column before the boundary code
-      // const lengthOfColumnBeforeBoundaryCode = columnBeforeBoundaryCode.filter((value) => value !== undefined && value !== "").length;
-
-      // const filteredData = jsonData
-      //   .filter((e) => e[headersBeforeBoundaryCode[headersBeforeBoundaryCode?.length - 1]])
-      //   .filter((e) => e[t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")]);
-      // if (filteredData?.length == 0 || filteredData?.length != lengthOfColumnBeforeBoundaryCode) {
-      //   const errorMessage = t("HCM_MISSING_TARGET");
-      //   setErrorsType((prevErrors) => ({
-      //     ...prevErrors,
-      //     [type]: errorMessage,
-      //   }));
-      //   setIsError(true);
-      //   isValid = false;
-      //   break;
-      // }
-
-    //   const targetValue = filteredData?.[0][t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")];
-
-    //   if (targetValue <= 0 || targetValue >= 100000000) {
-    //     console.log("validation");
-    //     const errorMessage = t("HCM_TARGET_VALIDATION_ERROR");
-    //     setErrorsType((prevErrors) => ({
-    //       ...prevErrors,
-    //       [type]: errorMessage,
-    //     }));
-    //     setIsError(true);
-    //     isValid = false;
-    //     break;
-    //   }
-      if (!validateData(jsonData, sheetName)) {
-        setShowInfoCard(true);
-        isValid = false;
-        break;
+      if (!validateTargetData(jsonData, sheetName, targetError)) {
+        // setShowInfoCard(true);
+        // isValid = false;
+        // break;
       }
     }
-
-
+    if(targetError.length >0){
+      const errorMessage = targetError.join(", ");
+      setErrorsType((prevErrors) => ({
+          ...prevErrors,
+          [type]: errorMessage,
+        }));
+      setShowInfoCard(true);
+      isValid =false;
+    }
+    else{
+      setErrorsType((prevErrors) => ({
+        ...prevErrors,
+        [type]: "", // Clear the error message
+      }));
+      setShowInfoCard(false);
+      isValid = true;
+    }
     return isValid;
   };
 
@@ -526,14 +540,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               if (activeColumnName && uniqueIdentifierColumnName) {
                 jsonData = jsonData.filter((item) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
               }
-              if(jsonData.length == 0){
+              if (jsonData.length == 0) {
                 const errorMessage = t("HCM_FACILITY_USAGE_VALIDATION");
-              setErrorsType((prevErrors) => ({
-                ...prevErrors,
-                [type]: errorMessage,
-              }));
-              setIsError(true);
-              return;
+                setErrorsType((prevErrors) => ({
+                  ...prevErrors,
+                  [type]: errorMessage,
+                }));
+                setIsError(true);
+                return;
               }
             }
             if (SheetNames !== t("HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES")) {
@@ -589,12 +603,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             setIsError(true);
             return;
           }
-          if(type!=="boundary"){
-          if (validateData(jsonData, SheetNames)) {
-            resolve(true);
-          } else {
-            setShowInfoCard(true);
-          }}
+          if (type !== "boundary") {
+            if (validateData(jsonData, SheetNames)) {
+              resolve(true);
+            } else {
+              setShowInfoCard(true);
+            }
+          }
         } catch (error) {
           console.log("error", error);
           reject("HCM_FILE_UNAVAILABLE");
@@ -655,7 +670,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
   useEffect(() => {
     const fetchData = async () => {
-      if (!errorsType[type] && uploadedFile?.length > 0) {
+      if (!errorsType[type] && uploadedFile?.length > 0 && !isSuccess) {
         // setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsValidation(true);
         setIsError(true);
