@@ -3,7 +3,7 @@ import { httpRequest } from "./request";
 import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
-import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
+import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
 import { getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
@@ -989,6 +989,14 @@ async function getConfigurableColumnHeadersFromSchemaForTargetSheet(request: any
 }
 
 
+async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: any) {
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
+  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+  return mdmsResponse;
+}
+
+
 
 
 export {
@@ -1035,7 +1043,7 @@ export {
   changeFirstRowColumnColour,
   getConfigurableColumnHeadersFromSchemaForTargetSheet,
   createBoundaryDataMainSheet,
-
+  getMdmsDataBasedOnCampaignType
 };
 
 
