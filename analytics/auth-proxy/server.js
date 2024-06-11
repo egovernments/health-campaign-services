@@ -75,24 +75,24 @@ app.use(async (req, res, next) => {
     logger.info("Received request");
 
     // Check if "replace-url" header is present
-    const replaceUrl = req.headers['replace-url'];
-    if (replaceUrl) {
-        logger.info("Replace URL header found, fetching from URL - " + replaceUrl);
-        try {
-            const fetchResponse = await axios.get(replaceUrl);
+    // const replaceUrl = req.headers['replace-url'];
+    // if (replaceUrl) {
+    //     logger.info("Replace URL header found, fetching from URL - " + replaceUrl);
+    //     try {
+    //         const fetchResponse = await axios.get(replaceUrl);
 
-            res.status(fetchResponse.status);
-            for (const [name, value] of Object.entries(fetchResponse.headers)) {
-                res.setHeader(name, value);
-            }
-            res.send(fetchResponse.data);
-            return; // Exit the middleware chain
-        } catch (error) {
-            console.error('Error fetching replace-url:', error);
-            res.status(500).send('Internal Server Error');
-            return; // Exit the middleware chain
-        }
-    }
+    //         res.status(fetchResponse.status);
+    //         for (const [name, value] of Object.entries(fetchResponse.headers)) {
+    //             res.setHeader(name, value);
+    //         }
+    //         res.send(fetchResponse.data);
+    //         return; // Exit the middleware chain
+    //     } catch (error) {
+    //         console.error('Error fetching replace-url:', error);
+    //         res.status(500).send('Internal Server Error');
+    //         return; // Exit the middleware chain
+    //     }
+    // }
 
     // Extract auth token from headers
     const authToken = req.headers['authorization'];
