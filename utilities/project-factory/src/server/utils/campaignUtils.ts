@@ -1367,7 +1367,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
                 }
                 newSheetData.push(rowData);
             }
-            createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet);
+            await createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet);
             logger.info(`${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel} boundary data generation completed`)
         }
     }
