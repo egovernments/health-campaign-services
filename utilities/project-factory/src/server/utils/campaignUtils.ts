@@ -16,7 +16,7 @@ import { campaignStatuses, headingMapping, resourceDataStatuses } from "../confi
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
-import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields } from "./excelUtils";
+import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
 const _ = require('lodash');
 
 
@@ -243,6 +243,7 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
 
     // Adjust the worksheet ref to include the last column
     adjustRef(worksheet, lastColumn);
+    updateFontNameToRoboto(worksheet)
 
     workbook.xlsx.writeBuffer();
 }
@@ -277,6 +278,7 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
     }
 
     request.body.additionalDetailsErrors = additionalDetailsErrors;
+    updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
 }
 
@@ -1245,6 +1247,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
             }
         });
     }
+    logger.info("Boundary target mapping " + JSON.stringify(boundaryTargetMapping));
     return boundaryTargetMapping;
 }
 
@@ -1380,10 +1383,6 @@ async function createNewSheet(request: any, workbook: any, newSheetData: any, un
 
     // const targetColumnNumber = localizedHeaders.findIndex((header: any) => header == getLocalizedHeaders(config?.targetColumnsForSpecificCampaigns?.smcCampaignColumns, localizationMap));
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap));
-    // if (targetColumnNumber > -1) {
-    //     // Change the target column background color
-    //     changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber + 1);
-    // }
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
     const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId, request?.query?.type, campaignType)
@@ -1711,11 +1710,6 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         const responseFromCampaignSearch = await getCampaignSearchResponse(request);
         const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
 
-        // const filters = {
-        //     "title": request?.query?.type || request?.body?.ResourceDetails?.type,
-        //     "campaignType": campaignType
-        // }
-        // Call the MDMSV2 API to get data
         const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
         // const mdmsResponse = await callMdmsV2Data(request, config?.values?.moduleName, request?.query?.type || request?.body?.ResourceDetails?.type, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, filters);
         if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
@@ -1724,9 +1718,6 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         }
         // Extract columns from the response
         const columnsForGivenCampaignId = mdmsResponse?.columns;
-
-        // // Extract the names of columns and insert them into an array
-        // const sortedColumnNames = columnsForGivenCampaignId?.map((column: any) => column.name);
 
         // Get localized headers based on the column names
         const headerColumnsAfterHierarchy = getLocalizedHeaders(columnsForGivenCampaignId, localizationMap);

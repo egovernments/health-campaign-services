@@ -54,6 +54,21 @@ const getExcelWorkbookFromFileURL = async (
   return workbook;
 };
 
+function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
+  worksheet.eachRow({ includeEmpty: true }, (row) => {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      // Preserve existing font properties
+      const existingFont = cell.font || {};
+
+      // Update only the font name to Roboto
+      cell.font = {
+        ...existingFont, // Spread existing properties
+        name: 'Roboto'   // Update the font name
+      };
+    });
+  });
+}
+
 function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
   // Add empty rows after the main header
   worksheet.addRow([]);
@@ -158,6 +173,7 @@ function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D
   if (frozeWholeSheet) {
     performFreezeWholeSheet(sheet);
   }
+  updateFontNameToRoboto(sheet);
 }
 
 
@@ -171,11 +187,13 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
 
   // // Get headers in the first row and filter out empty items
   const headers = newSheet.getRow(1).values.filter((header: any) => header);
+  logger.info(`Filtered Headers in the first row : ${headers}`);
 
   // Unlock cells in the target columns
   if (Array.isArray(columnsNotToBeFreezed) && columnsNotToBeFreezed.length > 0) {
     columnsNotToBeFreezed.forEach((header) => {
       const targetColumnNumber = headers.indexOf(header) + 1; // Excel columns are 1-based
+      logger.info(`Header: ${header}, Target Column Index: ${targetColumnNumber}`);
       if (targetColumnNumber > -1) {
         newSheet.eachRow((row: any, rowNumber: number) => {
           changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
@@ -209,4 +227,4 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
 
 
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields };
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto };

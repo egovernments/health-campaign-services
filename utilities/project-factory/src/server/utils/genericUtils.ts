@@ -14,7 +14,7 @@ import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from 
 import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
-import { addDataToSheet, formatWorksheet, getNewExcelWorkbook } from "./excelUtils";
+import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 const NodeCache = require("node-cache");
 
@@ -486,6 +486,8 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
 
   formatWorksheet(worksheet, datas, headerSet);
 
+  updateFontNameToRoboto(worksheet);
+
   return worksheet;
 }
 
@@ -555,6 +557,7 @@ async function getReadMeConfig(request: any) {
     return {};
   }
 }
+
 
 function changeFirstRowColumnColour(facilitySheet: any, color: any, columnNumber = 1) {
   // Color the first column header of the facility sheet orange
