@@ -139,7 +139,7 @@ function AddProduct() {
         noBreakLine={true}
         cardClassName={"page-padding-fix"}
         onFormValueChange={onFormValueChange}
-        actionClassName={"actionBarClass"}
+        actionClassName={"addProductActionClass"}
         showSecondaryLabel={true}
         secondaryLabel={t("HCM_BACK")}
         onSecondayActionClick={onSecondayActionClick}

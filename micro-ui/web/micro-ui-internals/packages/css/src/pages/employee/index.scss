@@ -116,6 +116,7 @@
     overflow: hidden;
     border-radius: 4px;
     table {
+      border-width: 0px !important;
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
@@ -151,6 +152,7 @@
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
       border-radius: 1rem;
+      border-width: 0px !important;
       tbody {
         background-color: #fff;
         tr:nth-child(odd) {
@@ -332,6 +334,16 @@ tbody {
 }
 .page-padding-fix {
   margin-top: 1.5rem;
+}
+.addProductActionClass {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  .submit-bar {
+    width: max-content;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 .loginFormStyleEmployee {
   .loginCardClassName {
