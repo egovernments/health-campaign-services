@@ -379,7 +379,9 @@ public class ExcelParser implements FileParser {
 			switch (cell.getCellType()) {
 			case STRING:
 				String cellValue = cell.getStringCellValue();
-				if (cellValue != null && !cellValue.isEmpty() && cellValue.matches("^[a-zA-Z0-9 .,()-]+$")) {					
+				
+				//"^[a-zA-Z0-9 .,()-]+$"
+				if (cellValue != null && !cellValue.isEmpty() && cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {					
 					continue;
 				} else {
 					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
@@ -389,7 +391,8 @@ public class ExcelParser implements FileParser {
 				}
 			case NUMERIC:
 				String numricValue = Double.toString(cell.getNumericCellValue());
-				if (numricValue != null && !numricValue.isEmpty() && numricValue.matches("^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$")) {
+				//"^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$"
+				if (numricValue != null && !numricValue.isEmpty() && numricValue.matches(ServiceConstants.VALIDATE_NUMBER_REGX)) {
 					continue;
 				} else {
 					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
@@ -399,7 +402,8 @@ public class ExcelParser implements FileParser {
 				}
 			case BOOLEAN:
 				Boolean booleanvalue = cell.getBooleanCellValue();
-				if (booleanvalue != null && !booleanvalue.toString().isEmpty() && booleanvalue.toString().matches("^(?i)(true|false)$")) {
+				//"^(?i)(true|false)$"
+				if (booleanvalue != null && !booleanvalue.toString().isEmpty() && booleanvalue.toString().matches(ServiceConstants.VALIDATE_BOOLEAN_REGX)) {
 					continue;
 				} else {
 					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
