@@ -465,6 +465,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     //   }
       if (!validateData(jsonData, sheetName)) {
         setShowInfoCard(true);
+        isValid = false;
+        break;
       }
     }
 
