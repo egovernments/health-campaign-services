@@ -171,13 +171,11 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
 
   // // Get headers in the first row and filter out empty items
   const headers = newSheet.getRow(1).values.filter((header: any) => header);
-  console.log(headers, "Filtered Headers in the first row");
 
   // Unlock cells in the target columns
   if (Array.isArray(columnsNotToBeFreezed) && columnsNotToBeFreezed.length > 0) {
     columnsNotToBeFreezed.forEach((header) => {
       const targetColumnNumber = headers.indexOf(header) + 1; // Excel columns are 1-based
-      console.log(`Header: ${header}, Target Column Index: ${targetColumnNumber}`);
       if (targetColumnNumber > -1) {
         newSheet.eachRow((row: any, rowNumber: number) => {
           changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
@@ -203,7 +201,6 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
     selectLockedCells: true,
     selectUnlockedCells: true,
   });
-  console.log('Sheet protection applied:', newSheet.sheetProtection);
 }
 
 
