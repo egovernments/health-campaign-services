@@ -65,6 +65,10 @@ const config = {
     boundaryPrefix: "rainmaker-boundary",
     localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   },
+  // targetColumnsForSpecificCampaigns: {
+  //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
+  //   smcCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET_SMC_AGE_3_TO_11", "HCM_ADMIN_CONSOLE_TARGET_SMC_AGE_12_TO_59"]
+  // },
   // Host configuration
   host: {
     serverHost: HOST,

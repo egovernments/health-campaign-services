@@ -160,34 +160,81 @@ function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D
   }
 }
 
-function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeColumnIndex: any) {
+// function lockTargetFields(newSheet: any, targetColumnNumber: any, boundaryCodeColumnIndex: any) {
+//   // Make every cell locked by default
+//   newSheet.eachRow((row: any) => {
+//     row.eachCell((cell: any) => {
+//       cell.protection = { locked: true };
+//     });
+//   });
+
+//   // Unlock cells in the target column
+//   if (targetColumnNumber > -1) {
+//     newSheet.eachRow((row: any) => {
+//       const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
+//       cell.protection = { locked: false };
+//     });
+//   }
+
+//   // Hide the boundary code column
+//   if (boundaryCodeColumnIndex !== -1) {
+//     newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true;
+//   }
+
+//   // Protect the sheet with a password (optional)
+//   newSheet.protect('passwordhere', {
+//     selectLockedCells: true,
+//     selectUnlockedCells: true
+//   });
+// }
+
+
+function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
   // Make every cell locked by default
   newSheet.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
   });
-  // Unlock cells in the target column
-  if (targetColumnNumber > -1) {
-    newSheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: number) => {
-      // Skip the first row
-      if (rowNumber > 1) {
-        const cell = row.getCell(targetColumnNumber); // Excel columns are 1-based
-        cell.protection = { locked: false };
-      }
-    });
-  }
 
-  // Hide the boundary code column
-  if (boundaryCodeColumnIndex !== -1) {
-    newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true;
-  }
+  // // Get headers in the first row and filter out empty items
+  // const headers = newSheet.getRow(1).values.filter((header:any) => header);
+  // console.log(headers, "Filtered Headers in the first row");
+
+  // // Unlock cells in the target columns
+  // if (Array.isArray(columnsNotToBeFreezed) && columnsNotToBeFreezed.length > 0) {
+  //   columnsNotToBeFreezed.forEach((header) => {
+  //     const targetColumnNumber = headers.indexOf(header) + 1; // Excel columns are 1-based
+  //     console.log(`Header: ${header}, Target Column Index: ${targetColumnNumber}`);
+  //     if (targetColumnNumber > -1) {
+  //       newSheet.eachRow((row:any) => {
+  //         const cell = row.getCell(targetColumnNumber);
+  //         changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
+  //         cell.protection = { locked: false };
+  //       });
+  //     } else {
+  //       console.error(`Header "${header}" not found in the first row`);
+  //     }
+  //   });
+  // }
+
+  // // Hide the boundary code column
+  // if (boundaryCodeColumnIndex !== -1) {
+  //   newSheet.getColumn(boundaryCodeColumnIndex + 1).hidden = true; // Excel columns are 1-based
+  // }
 
   // Protect the sheet with a password (optional)
   newSheet.protect('passwordhere', {
     selectLockedCells: true,
-    selectUnlockedCells: true
+    selectUnlockedCells: true,
   });
+  console.log('Sheet protection applied:', newSheet.sheetProtection);
 }
+
+
+
+
+
+
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields };

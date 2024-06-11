@@ -1072,7 +1072,7 @@ async function callMdmsV2Data(
   }
 }
 
-function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any) {
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed:any) {
 
   // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
   columns.sort((a: any, b: any) => {
@@ -1090,6 +1090,7 @@ function enrichSchema(data: any, properties: any, required: any, columns: any, u
   data.required = required;
   data.columns = sortedPropertyNames;
   data.unique = unique;
+  data.columnsNotToBeFreezed = columnsNotToBeFreezed;
 }
 
 function convertIntoSchema(data: any) {
@@ -1097,6 +1098,7 @@ function convertIntoSchema(data: any) {
   const required: any[] = [];
   const columns: any[] = [];
   const unique: any[] = [];
+  const columnsNotToBeFreezed : any[] = [];
 
   for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
     if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
@@ -1112,13 +1114,16 @@ function convertIntoSchema(data: any) {
         if (property?.isUnique && unique.indexOf(property?.name) === -1) {
           unique.push(property?.name);
         }
+        if(!property?.freezeColumn || property?.freezeColumn == false){
+          columnsNotToBeFreezed.push(property?.name);
+        }
 
         // If orderNumber is missing, default to a very high number
         columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
       }
     }
   }
-  enrichSchema(data, properties, required, columns, unique);
+  enrichSchema(data, properties, required, columns, unique,columnsNotToBeFreezed);
   return data;
 }
 

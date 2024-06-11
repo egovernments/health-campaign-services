@@ -351,6 +351,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       // get boundary sheet data after being generated
       logger.info("generating different tabs logic ")
       const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap)
+      console.log(boundaryDataSheetGeneratedAfterDifferentTabSeparation,"afffffffffffff")
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
