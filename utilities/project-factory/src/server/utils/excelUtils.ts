@@ -102,7 +102,7 @@ function performUnfreezeCells(sheet: any) {
   for (let row = 1; row <= parseInt(config.values.unfrozeTillRow); row++) {
     for (let col = 1; col <= lastFilledColumn; col++) {
       const cell = sheet.getCell(row, col);
-      if (!cell.value) {
+      if (!cell.value && cell.value !== 0) {
         cell.protection = { locked: false };
       }
     }
