@@ -9,7 +9,7 @@ import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 
 // Function to validate data against a JSON schema
-function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
+function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
     const ajv = new Ajv();
     const validate = ajv.compile(schema);
     const isValid: any = validate(data);
@@ -240,11 +240,6 @@ async function validateCampaignRequest(requestBody: any) {
         if (!requestBody?.Campaign?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "Enter TenantId");
         }
-        // validateBoundaries(requestBody);
-        // const { projectType } = requestBody?.Campaign;
-        // if (!projectType) {
-        //     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ProjectType");
-        // }
         await validateCampaign(requestBody);
     }
     else {
@@ -310,7 +305,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
 
 // Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
-    const { tenantId,  hierarchyType, forceUpdate } = request.query;
+    const { tenantId, hierarchyType, forceUpdate } = request.query;
     validateBodyViaSchema(generateRequestSchema, request.query);
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
