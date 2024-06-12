@@ -935,7 +935,7 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 }
 
 function isObjectOrArray(value: any) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+    return typeof value === 'object' || Array.isArray(value);
 }
 
 async function validateChangeDatesRequest(request: any) {
