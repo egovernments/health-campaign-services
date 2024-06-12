@@ -154,16 +154,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       }
     }
     enrichSchema(data, properties, required, columns);
-    const newData=JSON.parse(JSON.stringify(data))
+    const newData = JSON.parse(JSON.stringify(data));
     delete newData.campaignType;
     return newData;
   }
 
-  useEffect(()=>{
-    if(uploadedFile.length == 0){
+  useEffect(() => {
+    if (uploadedFile.length == 0) {
       setErrorsType({});
     }
-  },[uploadedFile])
+  }, [uploadedFile]);
 
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
@@ -184,9 +184,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     }
   }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema]);
 
-  useEffect(async() =>{
-    if(convertedSchema && Object.keys(convertedSchema).length > 0){
-       const newFacilitySchema = await translateSchema(convertedSchema?.facilityWithBoundary);
+  useEffect(async () => {
+    if (convertedSchema && Object.keys(convertedSchema).length > 0) {
+      const newFacilitySchema = await translateSchema(convertedSchema?.facilityWithBoundary);
       const newBoundarySchema = await translateSchema(convertedSchema?.boundary);
       const newUserSchema = await translateSchema(convertedSchema?.userWithBoundary);
       const headers = {
@@ -204,7 +204,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setSheetHeaders(headers);
       setTranslatedSchema(schema);
     }
-  }, [convertedSchema])
+  }, [convertedSchema]);
 
   useEffect(async () => {
     if (readMe?.["HCM-ADMIN-CONSOLE"]) {
@@ -234,7 +234,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       } else if (type === "facilityWithBoundary") {
         uploadType = "uploadFacility";
       }
-      onSelect(uploadType, { uploadedFile });
+      onSelect(uploadType, { uploadedFile, isError, isValidation: false, apiError: false, isSuccess: uploadedFile?.length > 0 });
       setExecutionCount((prevCount) => prevCount + 1);
     }
   });
@@ -462,22 +462,57 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       const jsonData = XLSX.utils.sheet_to_json(sheet, { blankrows: true });
 
+      //   const boundaryCodeIndex = headersToValidate.indexOf(t("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+      //   const headersBeforeBoundaryCode = headersToValidate.slice(0, boundaryCodeIndex);
+
+      //   const columnBeforeBoundaryCode = jsonData.map((row) => row[headersBeforeBoundaryCode[headersBeforeBoundaryCode.length - 1]]);
+
+      //   // Getting the length of data in the column before the boundary code
+      //   const lengthOfColumnBeforeBoundaryCode = columnBeforeBoundaryCode.filter((value) => value !== undefined && value !== "").length;
+
+      //   const filteredData = jsonData
+      //     .filter((e) => e[headersBeforeBoundaryCode[headersBeforeBoundaryCode?.length - 1]])
+      //     .filter((e) => e[t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")]);
+      //   if (filteredData?.length == 0 || filteredData?.length != lengthOfColumnBeforeBoundaryCode) {
+      //     const errorMessage = t("HCM_MISSING_TARGET");
+      //     setErrorsType((prevErrors) => ({
+      //       ...prevErrors,
+      //       [type]: errorMessage,
+      //     }));
+      //     setIsError(true);
+      //     isValid = false;
+      //     break;
+      //   }
+
+      //   const targetValue = filteredData?.[0][t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")];
+
+      //   if (targetValue <= 0 || targetValue >= 100000000) {
+      //     const errorMessage = t("HCM_TARGET_VALIDATION_ERROR");
+      //     setErrorsType((prevErrors) => ({
+      //       ...prevErrors,
+      //       [type]: errorMessage,
+      //     }));
+      //     setIsError(true);
+      //     isValid = false;
+      //     break;
+      //   }
+      // }
+
       if (!validateTargetData(jsonData, sheetName, targetError)) {
         // setShowInfoCard(true);
         // isValid = false;
         // break;
       }
     }
-    if(targetError.length >0){
+    if (targetError.length > 0) {
       const errorMessage = targetError.join(", ");
       setErrorsType((prevErrors) => ({
-          ...prevErrors,
-          [type]: errorMessage,
-        }));
+        ...prevErrors,
+        [type]: errorMessage,
+      }));
       setShowInfoCard(true);
-      isValid =false;
-    }
-    else{
+      isValid = false;
+    } else {
       setErrorsType((prevErrors) => ({
         ...prevErrors,
         [type]: "", // Clear the error message
