@@ -10,7 +10,7 @@ import { generateRequestSchema } from "../config/models/generateRequestSchema";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
-    const ajv = new Ajv();
+    const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(schema);
     const isValid: any = validate(data);
     if (!isValid) {
@@ -19,7 +19,7 @@ function validateDataWithSchema(data: any, schema: any): { isValid: boolean; err
     return { isValid, error: validate.errors };
 }
 function validateCampaignBodyViaSchema(schema: any, objectData: any) {
-    const ajv = new Ajv();
+    const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(schema);
     const isValid = validate(objectData);
     if (!isValid) {
@@ -49,7 +49,7 @@ function validateCampaignBodyViaSchema(schema: any, objectData: any) {
 }
 
 function validateBodyViaSchema(schema: any, objectData: any) {
-    const properties: any = { jsonPointers: true, allowUnknownAttributes: true }
+    const properties: any = { jsonPointers: true, allowUnknownAttributes: true, strict: false }
     const ajv = new Ajv(properties);
     const validate = ajv.compile(schema);
     const isValid = validate(objectData);
@@ -79,12 +79,6 @@ function validateBodyViaSchema(schema: any, objectData: any) {
     }
 }
 
-
-
-
-
-
-// Function to validate boundaries in the request body
 // function validateBoundaries(requestBody: any) {
 //     const { boundaryCode } = requestBody?.Campaign;
 //     if (!boundaryCode) {
@@ -225,11 +219,6 @@ async function validateCampaign(requestBody: any) {
         var { startDate, endDate } = campaignDetails;
         startDate = parseInt(startDate);
         endDate = parseInt(endDate);
-
-        // Check if startDate and endDate are valid integers
-        // if (isNaN(startDate) || isNaN(endDate)) {
-        //     throwError("COMMON", 400, "VALIDATION_ERROR", "Start date or end date is not a valid epoch timestamp");
-        // }
     }
     await validateProjectResource(requestBody)
 }
@@ -314,10 +303,6 @@ async function validateGenerateRequest(request: express.Request) {
         request.query.forceUpdate = "false";
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
-    /* removed the filter validation for boundary since boundary is fetched through the campaign id */
-    // if (type == 'boundary') {
-    //     await validateFiltersInRequestBody(request);
-    // }
 }
 
 export async function validateFiltersInRequestBody(request: any) {
