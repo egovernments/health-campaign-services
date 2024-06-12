@@ -654,7 +654,6 @@ const SetupCampaign = ({ hierarchyType }) => {
           };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
-
             payloadData.deliveryRules = temp;
           }
 
@@ -709,10 +708,14 @@ const SetupCampaign = ({ hierarchyType }) => {
           };
           if (totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure) {
             payloadData.additionalDetails.cycleData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+          } else {
+            payloadData.additionalDetails.cycleData = {};
           }
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
+          } else {
+            payloadData.deliveryRules = [];
           }
           if (!payloadData?.startDate && !payloadData?.endDate) {
             delete payloadData?.startDate;
@@ -750,9 +753,9 @@ const SetupCampaign = ({ hierarchyType }) => {
     const cycleData = data.cycleConfigure.cycleData;
     let dateError = [];
     // Validate cycle and deliveries
-    if (cycle <= 0 || deliveries <= 0) {
-      return { error: true, message: "DELIVERY_CYCLE_EMPTY_ERROR" };
-    }
+    // if (cycle <= 0 || deliveries <= 0) {
+    //   return { error: true, message: "DELIVERY_CYCLE_EMPTY_ERROR" };
+    // }
 
     [...Array(cycle)].forEach((item, index) => {
       const check = cycleData?.find((i) => i?.key === index + 1);
@@ -767,30 +770,31 @@ const SetupCampaign = ({ hierarchyType }) => {
         });
       }
     });
-    setSummaryErrors((prev) => {
-      return {
-        ...prev,
-        deliveryErrors: prev?.deliveryErrors ? [...prev.deliveryErrors, ...dateError] : [...dateError],
-      };
-    });
+    // setSummaryErrors((prev) => {
+    //   return {
+    //     ...prev,
+    //     deliveryErrors: prev?.deliveryErrors ? [...prev.deliveryErrors, ...dateError] : [...dateError],
+    //   };
+    // });
     // Validate cycleData length
-    if (cycleData.length !== cycle) {
-      return { error: true, message: "DELIVERY_CYCLE_MISMATCH_LENGTH_ERROR" };
-    }
+    // if (cycleData.length !== cycle) {
+    // return { error: true, message: "DELIVERY_CYCLE_MISMATCH_LENGTH_ERROR" };
+    // }
 
     // Validate fromDate and startDate in cycleData
-    for (const item of cycleData) {
-      if (!item.fromDate || !item.toDate) {
-        return { error: true, message: "DELIVERY_CYCLE_DATE_ERROR" };
-      }
-    }
+    // for (const item of cycleData) {
+    // if (!item.fromDate || !item.toDate) {
+    // return { error: true, message: "DELIVERY_CYCLE_DATE_ERROR" };
+    // }
+    // }
 
-    return false;
+    return dateError;
   }
 
-  function validateDeliveryRules(data, projectType) {
+  function validateDeliveryRules(data, projectType, cycleConfigureData) {
     let isValid = true;
     let deliveryRulesError = [];
+    let dateError = validateCycleData(cycleConfigureData);
 
     // Iterate over deliveryRule array
     data.deliveryRule.forEach((cycle) => {
@@ -878,7 +882,7 @@ const SetupCampaign = ({ hierarchyType }) => {
     setSummaryErrors((prev) => {
       return {
         ...prev,
-        deliveryErrors: prev?.deliveryErrors ? [...prev.deliveryErrors, ...deliveryRulesError] : deliveryRulesError,
+        deliveryErrors: [...deliveryRulesError, ...dateError],
       };
     });
     return isValid;
@@ -1112,7 +1116,11 @@ const SetupCampaign = ({ hierarchyType }) => {
         const cycleConfigureData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE;
         const isCycleError = validateCycleData(cycleConfigureData);
         const deliveryCycleData = totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA;
-        const isDeliveryError = validateDeliveryRules(deliveryCycleData, totalFormData?.["HCM_CAMPAIGN_TYPE"]?.projectType?.code?.toUpperCase());
+        const isDeliveryError = validateDeliveryRules(
+          deliveryCycleData,
+          totalFormData?.["HCM_CAMPAIGN_TYPE"]?.projectType?.code?.toUpperCase(),
+          cycleConfigureData
+        );
         const isTargetError = totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0]?.filestoreId
           ? false
           : (setSummaryErrors((prev) => {

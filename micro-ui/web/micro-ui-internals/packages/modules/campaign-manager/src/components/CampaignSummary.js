@@ -255,6 +255,7 @@ const CampaignSummary = (props) => {
             // data?.[0]?.resources?.find((i) => i?.type === "boundaryWithTarget") ?
             {
               name: "target",
+              errorName: "target",
               sections: [
                 {
                   name: "target",
@@ -277,6 +278,7 @@ const CampaignSummary = (props) => {
             // data?.[0]?.resources?.find((i) => i?.type === "facility") ?
             {
               name: "facility",
+              errorName: "facility",
               sections: [
                 {
                   name: "facility",
@@ -299,6 +301,7 @@ const CampaignSummary = (props) => {
             // data?.[0]?.resources?.find((i) => i?.type === "user") ?
             {
               name: "user",
+              errorName: "user",
               sections: [
                 {
                   name: "user",
@@ -348,13 +351,15 @@ const CampaignSummary = (props) => {
                   values: [
                     {
                       key: "CAMPAIGN_NO_OF_CYCLES",
-                      value: data?.[0]?.deliveryRules
+                      value:
+                        data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.cycleNumber)?.length > 0
                         ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.cycleNumber))
                         : t("CAMPAIGN_SUMMARY_NA"),
                     },
                     {
                       key: "CAMPAIGN_NO_OF_DELIVERIES",
-                      value: data?.[0]?.deliveryRules
+                      value:
+                        data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.deliveryNumber)?.length > 0
                         ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.deliveryNumber))
                         : t("CAMPAIGN_SUMMARY_NA"),
                     },
