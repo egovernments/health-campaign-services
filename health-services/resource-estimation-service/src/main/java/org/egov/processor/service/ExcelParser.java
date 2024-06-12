@@ -175,6 +175,7 @@ public class ExcelParser implements FileParser {
 
             Map<String, BigDecimal> resultMap = new HashMap<>();
             Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
+            		.filter(f-> f.getFilestoreId().equals(fileStoreId))
                     .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
             Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
             Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
@@ -432,13 +433,15 @@ public class ExcelParser implements FileParser {
 		    if (cell != null && !cell.getCellType().name().equals("BLANK")) {                  
 		        String cellValue = cell.getStringCellValue();
 		        log.info("cell Value"+ cellValue);
-		        if (cellValue != null && !cellValue.isEmpty() && cellValue.matches("^[a-zA-Z0-9 .,()-]+$")) {
+		        if(!cellValue.isBlank()){
+		        if (cellValue != null && !cellValue.isEmpty() && cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {
 		            continue;
 		        } else {
 		            log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1)
 		                    + " and cell/column number " + (j + 1));
 		            throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 		                    ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnHeaderRow.getCell(j));
+		        }
 		        }
 		    }
 		}
