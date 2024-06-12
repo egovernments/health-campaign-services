@@ -85,7 +85,7 @@ public abstract class ProjectTransformationService implements TransformationServ
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), tenantId);
+                    .getBoundaryCodeToNameMap(project.getAddress().getBoundary(), tenantId);
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
             Set<String> fieldsToCheck = new HashSet<>(Arrays.asList(

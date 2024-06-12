@@ -101,9 +101,9 @@ public abstract class ServiceTaskTransformationService implements Transformation
             String projectTypeId = project.getProjectTypeId();
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
+                        .getBoundaryCodeToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
             } else {
-                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+                boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);

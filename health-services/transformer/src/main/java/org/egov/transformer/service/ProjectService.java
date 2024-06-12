@@ -1,23 +1,27 @@
 package org.egov.transformer.service;
 
-import static org.egov.transformer.Constants.CYCLES;
-import static org.egov.transformer.Constants.CYCLE_NUMBER;
-import static org.egov.transformer.Constants.DELIVERIES;
-import static org.egov.transformer.Constants.DOSE_NUMBER;
-import static org.egov.transformer.Constants.ID;
-import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
-import static org.egov.transformer.Constants.MDMS_RESPONSE;
-import static org.egov.transformer.Constants.PROJECT_TYPES;
-
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import digit.models.coremodels.mdms.MasterDetail;
+import digit.models.coremodels.mdms.MdmsCriteria;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import digit.models.coremodels.mdms.ModuleDetail;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -34,25 +38,21 @@ import org.egov.common.models.project.ProjectStaffSearch;
 import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
-import org.egov.transformer.boundary.BoundaryNode;
-import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.boundary.BoundarySearchResponse;
+import org.egov.transformer.models.boundary.EnrichedBoundary;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.transformer.Constants.CYCLES;
+import static org.egov.transformer.Constants.CYCLE_NUMBER;
+import static org.egov.transformer.Constants.DELIVERIES;
+import static org.egov.transformer.Constants.DOSE_NUMBER;
+import static org.egov.transformer.Constants.ID;
+import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
+import static org.egov.transformer.Constants.MDMS_RESPONSE;
+import static org.egov.transformer.Constants.PROJECT_TYPES;
 
 @Component
 @Slf4j
@@ -64,18 +64,15 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-    private final BoundaryService boundaryService;
-
     private final MdmsService mdmsService;
 
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
+                          ObjectMapper objectMapper, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
-        this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
     }
 
@@ -97,24 +94,69 @@ public class ProjectService {
         return project;
     }
 
-    public Map<String, String> getBoundaryLabelToNameMapByProjectId(String projectId, String tenantId) {
+    public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryLabelToNameMap(locationCode, tenantId);
+        return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
 
-    public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
-        BoundaryTree locationTree = boundaryService.getBoundary(locationCode, "ADMIN",
-                tenantId);
-        if (locationTree == null) {
-            log.info("could not fetch location tree for code {}", locationCode);
-            return new HashMap<>();
+    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+        List<EnrichedBoundary> boundaries = new ArrayList<>();
+        try {
+            // Fetch boundary details from the service
+            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
+            BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+                    new StringBuilder(transformerProperties.getBoundaryServiceHost()
+                            + transformerProperties.getBoundaryRelationshipSearchUrl()
+                            +"?includeParents=true&tenantId=" + tenantId
+                            + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                            + "&codes=" + locationCode),
+                    RequestInfo.builder().build(),
+                    BoundarySearchResponse.class
+            );
+            log.debug("Boundary Relationship details fetched successfully for tenantId: {}", tenantId);
+
+            List<EnrichedBoundary> enrichedBoundaries = boundarySearchResponse.getTenantBoundary().stream()
+                    .filter(hierarchyRelation -> !CollectionUtils.isEmpty(hierarchyRelation.getBoundary()))
+                    .flatMap(hierarchyRelation -> hierarchyRelation.getBoundary().stream())
+                    .collect(Collectors.toList());
+
+            getAllBoundaryCodes(enrichedBoundaries, boundaries);
+
+        } catch (Exception e) {
+            log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+            // Throw a custom exception if an error occurs during boundary search
+            throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
-        List<BoundaryNode> parentNodes = locationTree.getParentNodes();
-        Map<String, String> resultMap = parentNodes.stream().collect(Collectors
-                .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
-        resultMap.put(locationTree.getBoundaryNode().getLabel(), locationTree.getBoundaryNode().getName());
-        return resultMap;
+
+        return boundaries.stream()
+                .collect(Collectors.toMap(
+                        EnrichedBoundary::getBoundaryType,
+                        boundary -> boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1)
+                ));
+    }
+
+    private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {
+        if (enrichedBoundaries == null || enrichedBoundaries.isEmpty()) {
+            return;
+        }
+
+        for (EnrichedBoundary root : enrichedBoundaries) {
+            if (root != null) {
+                Deque<EnrichedBoundary> stack = new ArrayDeque<>();
+                stack.push(root);
+
+                while (!stack.isEmpty()) {
+                    EnrichedBoundary current = stack.pop();
+                    if (current != null) {
+                        boundaries.add(current);
+                        if (current.getChildren() != null) {
+                            stack.addAll(current.getChildren());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private List<Project> searchProjectByName(String projectName, String tenantId) {

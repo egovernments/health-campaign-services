@@ -76,9 +76,9 @@ public class ReferralService {
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
-                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMap((String) individualDetails.get(ADDRESS_CODE), tenantId);
             } else {
-                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
+                boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, referral.getTenantId());
             }
         }
         String facilityName = Optional.of(referral)

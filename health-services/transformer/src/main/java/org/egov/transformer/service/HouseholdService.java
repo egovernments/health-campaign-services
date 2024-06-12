@@ -101,7 +101,7 @@ public class HouseholdService {
         }
         if (household.getAddress().getLocality() != null && household.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(household.getAddress().getLocality().getCode(), household.getTenantId());
+                    .getBoundaryCodeToNameMap(household.getAddress().getLocality().getCode(), household.getTenantId());
         } else {
             boundaryLabelToNameMap = null;
         }

@@ -66,11 +66,11 @@ public class StockReconciliationService {
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stockReconciliation.getTenantId());
+                    .getBoundaryCodeToNameMap(facility.getAddress().getLocality().getCode(), stockReconciliation.getTenantId());
         } else {
             if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(stockReconciliation.getReferenceId(), stockReconciliation.getTenantId());
+                        .getBoundaryCodeToNameMapByProjectId(stockReconciliation.getReferenceId(), stockReconciliation.getTenantId());
             }
         }
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);

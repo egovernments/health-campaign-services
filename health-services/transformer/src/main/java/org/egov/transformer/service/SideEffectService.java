@@ -69,10 +69,10 @@ public class SideEffectService {
         Map<String, String> boundaryLabelToNameMap = null;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
+                    .getBoundaryCodeToNameMap(task.getAddress().getLocality().getCode(), tenantId);
         } else {
             boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
+                    .getBoundaryCodeToNameMapByProjectId(task.getProjectId(), tenantId);
         }
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();

@@ -1,5 +1,6 @@
 package org.egov.transformer.boundary;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,9 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class BoundaryNode {
+    private String id;
+    private String tenantId;
     private String code;
-    private String name;
-    private String label;
-    private String latitude;
-    private String longitude;
+    private JsonNode geometry;
 }

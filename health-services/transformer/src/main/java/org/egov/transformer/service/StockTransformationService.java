@@ -123,11 +123,11 @@ public abstract class StockTransformationService implements TransformationServic
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
+                        .getBoundaryCodeToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
             } else {
                 if (stock.getReferenceIdType().equals(PROJECT)) {
                     boundaryLabelToNameMap = projectService
-                            .getBoundaryLabelToNameMapByProjectId(stock.getReferenceId(), stock.getTenantId());
+                            .getBoundaryCodeToNameMapByProjectId(stock.getReferenceId(), stock.getTenantId());
                 }
             }
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);

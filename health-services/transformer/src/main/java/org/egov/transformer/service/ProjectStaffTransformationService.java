@@ -79,7 +79,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
+                    .getBoundaryCodeToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
             JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
