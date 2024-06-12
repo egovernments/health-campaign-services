@@ -167,6 +167,17 @@ function enrichErrors(errorData: any, worksheet: any, statusColumn: any, errorDe
     }
 }
 
+function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request: any) {
+    if (createAndSearchConfig?.activeColumn && request?.body?.dataToCreate) {
+        const dataToCreate = request.body.dataToCreate;
+        for (const data of dataToCreate) {
+            const rowNumber = data['!row#number!'];
+            const activeCell = worksheet.getCell(`${createAndSearchConfig?.activeColumn}${rowNumber}`);
+            activeCell.value = "Active";
+        }
+    }
+}
+
 function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
     let lastColumn = errorDetailsColumn;
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
@@ -235,6 +246,7 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     const additionalDetailsErrors: any[] = [];
 
     enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
+    enrichActiveColumn(worksheet, createAndSearchConfig, request);
 
     request.body.additionalDetailsErrors = additionalDetailsErrors;
 
