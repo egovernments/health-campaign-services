@@ -142,7 +142,7 @@ public class ParsingUtil {
      * @return The File object representing the byte array.
      */
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
         return convertByteArrayToFile(byteArray, "geojson");
     }
 
@@ -154,7 +154,7 @@ public class ParsingUtil {
      * @return The String representation of the byte array.
      */
     public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
         return new String(byteArray, StandardCharsets.UTF_8);
     }
 
@@ -223,7 +223,7 @@ public class ParsingUtil {
      */
     public File extractShapeFilesFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
         File shpFile = null;
-        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(zipFileBytes); ZipInputStream zis = new ZipInputStream(bais)) {
             ZipEntry entry;
