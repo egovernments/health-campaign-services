@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { UploadIcon, FileIcon, DeleteIconv2, Toast, Card, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
-import { Dropdown, ErrorMessage } from "@egovernments/digit-ui-components";
+import { Button, CardText, Dropdown, ErrorMessage, PopUp } from "@egovernments/digit-ui-components";
 
 const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
   const { t } = useTranslation();
@@ -14,6 +14,8 @@ const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
   const [executionCount, setExecutionCount] = useState(0);
   const [error, setError] = useState(null);
   const [startValidation, setStartValidation] = useState(null);
+  const [showPopUp, setShowPopUp] = useState(null);
+  const [canUpdate, setCanUpdate] = useState(null);
 
   useEffect(() => {
     if (props?.props?.isSubmitting && !type) {
@@ -56,7 +58,23 @@ const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
           <span>{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
           <span className="mandatory-span">*</span>
         </div>
-        <div className="campaign-type-wrapper">
+        <div
+          className="campaign-type-wrapper"
+          onClick={(e) => {
+            if (props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType && !canUpdate) {
+              setShowPopUp(true);
+              return;
+            }
+            return;
+          }}
+          onFocus={(e) => {
+            if (props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType && !canUpdate) {
+              setShowPopUp(true);
+              return;
+            }
+            return;
+          }}
+        >
           <Dropdown
             style={!showBeneficiary ? { width: "40rem", paddingBottom: 0, marginBottom: 0 } : { width: "40rem", paddingBottom: "1rem" }}
             variant={error ? "error" : ""}
@@ -77,6 +95,46 @@ const CampaignSelection = ({ onSelect, formData, formState, ...props }) => {
           <div className="beneficiary-type">{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
           <div>{t(`CAMPAIGN_TYPE_${beneficiaryType}`)}</div>
         </LabelFieldPair>
+      )}
+      {showPopUp && (
+        <PopUp
+          className={"boundaries-pop-module"}
+          type={"default"}
+          heading={t("ES_CAMPAIGN_UPDATE_TYPE_MODAL_HEADER")}
+          children={[
+            <div>
+              <CardText style={{ margin: 0 }}>{t("ES_CAMPAIGN_UPDATE_TYPE_MODAL_TEXT") + " "}</CardText>
+            </div>,
+          ]}
+          onOverlayClick={() => {
+            setShowPopUp(false);
+          }}
+          footerChildren={[
+            <Button
+              className={"campaign-type-alert-button"}
+              type={"button"}
+              size={"large"}
+              variation={"secondary"}
+              label={t("ES_CAMPAIGN_BOUNDARY_MODAL_BACK")}
+              onClick={() => {
+                setShowPopUp(false);
+                setCanUpdate(true);
+              }}
+            />,
+            <Button
+              className={"campaign-type-alert-button"}
+              type={"button"}
+              size={"large"}
+              variation={"primary"}
+              label={t("ES_CAMPAIGN_BOUNDARY_MODAL_SUBMIT")}
+              onClick={() => {
+                setShowPopUp(false);
+                setCanUpdate(false);
+              }}
+            />,
+          ]}
+          sortFooterChildren={true}
+        ></PopUp>
       )}
     </React.Fragment>
   );

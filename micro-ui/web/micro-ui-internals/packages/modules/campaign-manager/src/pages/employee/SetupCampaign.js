@@ -1207,17 +1207,11 @@ const SetupCampaign = ({ hierarchyType }) => {
 
     if (name === "HCM_CAMPAIGN_TYPE" && totalFormData?.["HCM_CAMPAIGN_TYPE"]?.projectType?.code !== formData?.projectType?.code) {
       setTotalFormData((prevData) => ({
-        ...prevData,
         [name]: formData,
-        ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
-        ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
       }));
       //to set the data in the local storage
       setParams({
-        ...params,
         [name]: { ...formData },
-        ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
-        ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
       });
     } else if (name === "HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA" && formData?.boundaryType?.updateBoundary === true) {
       setTotalFormData((prevData) => ({
