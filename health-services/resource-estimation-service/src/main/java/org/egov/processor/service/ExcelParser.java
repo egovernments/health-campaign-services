@@ -371,12 +371,10 @@ public class ExcelParser implements FileParser {
 		for (int j = indexOfBCode; j < mapOfColumnNameAndIndex.size(); j++) {
 			Cell cell = row.getCell(j);
 			Cell columnName = columnHeaderRow.getCell(j);
-			String name = findByValue(mappedValues, columnName.getStringCellValue());
-			log.info("Row number : "+row.getRowNum()+" Name: "+name);
+			String name = findByValue(mappedValues, columnName.getStringCellValue());			
 			String value;
 			if(mdmsDataType.containsKey(name)) {
 			value= mdmsDataType.get(name).toString();
-			Map<String, Object> masterData = JsonUtils.parseJson(value, Map.class);
 			switch (cell.getCellType()) {
 			case STRING:
 				String cellValue = cell.getStringCellValue();
@@ -410,7 +408,7 @@ public class ExcelParser implements FileParser {
 					log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
 							+ columnName);
 					throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-							ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell number " + (j + 1));
+							ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell "+columnName);
 				}
 			default:
 				throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
@@ -431,8 +429,7 @@ public class ExcelParser implements FileParser {
 		for (int j = 0; j <= indexOfBCode-1; j++) {               
 		    Cell cell = row.getCell(j);
 		    if (cell != null && !cell.getCellType().name().equals("BLANK")) {                  
-		        String cellValue = cell.getStringCellValue();
-		        log.info("cell Value"+ cellValue);
+		        String cellValue = cell.getStringCellValue();		     
 		        if(!cellValue.isBlank()){
 		        if (cellValue != null && !cellValue.isEmpty() && cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {
 		            continue;
