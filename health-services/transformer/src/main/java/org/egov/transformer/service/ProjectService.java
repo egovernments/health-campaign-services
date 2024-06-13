@@ -18,18 +18,14 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.project.*;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
-import org.egov.transformer.boundary.BoundaryNode;
-import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
+import org.egov.transformer.models.boundary.*;
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -44,8 +40,6 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-    private final BoundaryService boundaryService;
-
     private final MdmsService mdmsService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
@@ -53,11 +47,10 @@ public class ProjectService {
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
+                          ObjectMapper objectMapper, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
-        this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
     }
 
@@ -79,24 +72,69 @@ public class ProjectService {
         return project;
     }
 
-    public Map<String, String> getBoundaryLabelToNameMapByProjectId(String projectId, String tenantId) {
+    public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryLabelToNameMap(locationCode, tenantId);
+        return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
 
-    public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
-        BoundaryTree locationTree = boundaryService.getBoundary(locationCode, "ADMIN",
-                tenantId);
-        if (locationTree == null) {
-            log.info("could not fetch location tree for code {}", locationCode);
-            return new HashMap<>();
+    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+        List<EnrichedBoundary> boundaries = new ArrayList<>();
+        try {
+            // Fetch boundary details from the service
+            log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
+            BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+                    new StringBuilder(transformerProperties.getBoundaryServiceHost()
+                            + transformerProperties.getBoundaryRelationshipSearchUrl()
+                            + "?includeParents=true&tenantId=" + tenantId
+                            + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                            + "&codes=" + locationCode),
+                    RequestInfo.builder().build(),
+                    BoundarySearchResponse.class
+            );
+            log.debug("Boundary Relationship details fetched successfully for tenantId: {}", tenantId);
+
+            List<EnrichedBoundary> enrichedBoundaries = boundarySearchResponse.getTenantBoundary().stream()
+                    .filter(hierarchyRelation -> !CollectionUtils.isEmpty(hierarchyRelation.getBoundary()))
+                    .flatMap(hierarchyRelation -> hierarchyRelation.getBoundary().stream())
+                    .collect(Collectors.toList());
+
+            getAllBoundaryCodes(enrichedBoundaries, boundaries);
+
+        } catch (Exception e) {
+            log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+            // Throw a custom exception if an error occurs during boundary search
+            throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
-        List<BoundaryNode> parentNodes = locationTree.getParentNodes();
-        Map<String, String> resultMap = parentNodes.stream().collect(Collectors
-                .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
-        resultMap.put(locationTree.getBoundaryNode().getLabel(), locationTree.getBoundaryNode().getName());
-        return resultMap;
+
+        return boundaries.stream()
+                .collect(Collectors.toMap(
+                        EnrichedBoundary::getBoundaryType,
+                        boundary -> boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1)
+                ));
+    }
+
+    private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {
+        if (enrichedBoundaries == null || enrichedBoundaries.isEmpty()) {
+            return;
+        }
+
+        for (EnrichedBoundary root : enrichedBoundaries) {
+            if (root != null) {
+                Deque<EnrichedBoundary> stack = new ArrayDeque<>();
+                stack.push(root);
+
+                while (!stack.isEmpty()) {
+                    EnrichedBoundary current = stack.pop();
+                    if (current != null) {
+                        boundaries.add(current);
+                        if (current.getChildren() != null) {
+                            stack.addAll(current.getChildren());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private List<Project> searchProjectByName(String projectName, String tenantId) {
@@ -293,8 +331,7 @@ public class ProjectService {
             projectTypes = convertToProjectTypeJsonNodeList(response);
             JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType;
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -402,7 +439,7 @@ public class ProjectService {
         if (localityCode == null) {
             return null;
         }
-        Map<String, String> boundaryLabelToNameMap = getBoundaryLabelToNameMap(localityCode, tenantId);
+        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {
@@ -410,8 +447,9 @@ public class ProjectService {
         });
         return boundaryHierarchy;
     }
+
     public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
-        Map<String, String> boundaryLabelToNameMap = getBoundaryLabelToNameMapByProjectId(projectId, tenantId);
+        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMapByProjectId(projectId, tenantId);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {

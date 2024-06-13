@@ -170,5 +170,17 @@ public class TransformerProperties {
     @Value("${hfreferral.fever.service.checklist.name}")
     private String hfReferralFeverCheckListName;
 
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
+
+    @Value("${egov.boundary.relationship.search.url}")
+    private String boundaryRelationshipSearchUrl;
+
+    @Value("${egov.boundary.hierarchy.name}")
+    private String boundaryHierarchyName;
+
 
 }
