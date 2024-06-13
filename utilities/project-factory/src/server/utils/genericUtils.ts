@@ -509,9 +509,9 @@ function createBoundaryDataMainSheet(request: any, boundaryData: any, differentT
       mainSheetData.push(rowData);
     } else {
       const districtLevelRow = rowData.slice(0, districtIndex + 1);
-      if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('_'))) {
-        uniqueDistrictsForMainSheet.push(districtLevelRow.join('_'));
-        districtLevelRowBoundaryCodeMap.set(districtLevelRow.join('_'), data[getLocalizedName(getBoundaryColumnName(), localizationMap)]);
+      if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('#'))) {
+        uniqueDistrictsForMainSheet.push(districtLevelRow.join('#'));
+        districtLevelRowBoundaryCodeMap.set(districtLevelRow.join('#'), data[getLocalizedName(getBoundaryColumnName(), localizationMap)]);
         mainSheetData.push(rowData);
       }
     }

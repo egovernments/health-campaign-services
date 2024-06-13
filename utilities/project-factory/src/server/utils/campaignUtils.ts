@@ -1369,7 +1369,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
 async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any) {
     const configurableColumnHeadersFromSchemaForTargetSheet = await getConfigurableColumnHeadersFromSchemaForTargetSheet(request, hierarchy, boundaryData, differentTabsBasedOnLevel, localizationMap);
     for (const uniqueData of uniqueDistrictsForMainSheet) {
-        const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
+        const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
         logger.info(`generating the boundary data for ${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel}`)
         const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs && boundary[hierarchy[hierarchy.length - 1]]);
         const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
