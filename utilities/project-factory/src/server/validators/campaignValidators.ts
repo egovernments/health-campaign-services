@@ -290,12 +290,13 @@ async function validateUnique(schema: any, data: any[], request: any) {
     }
 }
 
-function validatePhoneNumber(datas: any[]) {
+function validatePhoneNumber(datas: any[], localizationMap: any) {
     var digitErrorRows = [];
     var missingNumberRows = [];
     for (const data of datas) {
-        if (data["Phone Number (Mandatory)"]) {
-            var phoneNumber = data["Phone Number (Mandatory)"];
+        const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        if (data[phoneColumn]) {
+            var phoneNumber = data[phoneColumn];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
             if (phoneNumber.length != 10) {
                 digitErrorRows.push(data["!row#number!"]);
@@ -346,7 +347,7 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
         const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
         const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
         if (request?.body?.ResourceDetails?.type == "user") {
-            validatePhoneNumber(data);
+            validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0) {
             data.forEach((item: any) => {
