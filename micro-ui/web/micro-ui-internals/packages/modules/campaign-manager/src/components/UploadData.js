@@ -57,6 +57,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const currentKey = searchParams.get("key");
   const totalData = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
   const [convertedSchema, setConvertedSchema] = useState({});
+  const [loader, setLoader] = useState(false);
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
@@ -133,13 +134,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   }
 
   function convertIntoSchema(data) {
-    const properties = {};
-    const required = [];
-    const columns = [];
+    var convertData = {...data};
+    var properties = {};
+    var required = [];
+    var columns = [];
 
     for (const propType of ["enumProperties", "numberProperties", "stringProperties"]) {
-      if (data?.properties[propType] && Array.isArray(data?.properties[propType]) && data?.properties[propType]?.length > 0) {
-        for (const property of data?.properties[propType]) {
+      if (convertData?.properties[propType] && Array.isArray(convertData?.properties[propType]) && convertData?.properties[propType]?.length > 0) {
+        for (const property of convertData?.properties[propType]) {
           properties[property?.name] = {
             ...property,
             type: propType === "stringProperties" ? "string" : propType === "numberProperties" ? "number" : undefined,
@@ -154,8 +156,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         }
       }
     }
-    enrichSchema(data, properties, required, columns);
-    const newData = JSON.parse(JSON.stringify(data));
+    enrichSchema(convertData, properties, required, columns);
+    const newData = JSON.parse(JSON.stringify(convertData));
     delete newData.campaignType;
     return newData;
   }
@@ -168,13 +170,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
-      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
+      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title ===  "facility")?.[0]);
       const boundary = await convertIntoSchema(
         Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
-          (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
+          (item) => item.title ==="boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
         )?.[0]
       );
-      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
+      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title ==="user")?.[0]);
       const schema = {
         boundary: boundary,
         facilityWithBoundary: facility,
@@ -182,8 +184,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       };
 
       setConvertedSchema(schema);
+
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema]);
+  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema , type]);
 
   useEffect(async () => {
     if (convertedSchema && Object.keys(convertedSchema).length > 0) {
@@ -694,7 +697,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     setIsValidation(false);
     setApiError(null);
     setErrorsType({});
-    // setShowToast(null);
+    setShowToast(null);
   };
 
   const onFileDownload = (file) => {
@@ -710,19 +713,29 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         // setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsValidation(true);
         setIsError(true);
+        setLoader(true);
 
         try {
-          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId, id , baseTimeOut?.["HCM-ADMIN-CONSOLE"]?.baseTimeOut?.[0]?.baseTimeOut);
+          const temp = await Digit.Hooks.campaign.useResourceData(
+            uploadedFile,
+            params?.hierarchyType,
+            type,
+            tenantId,
+            id,
+            baseTimeOut?.["HCM-ADMIN-CONSOLE"]?.baseTimeOut?.[0]?.baseTimeOut
+          );
           if (temp?.isError) {
+            setLoader(false);
             setIsValidation(false);
             const errorMessage = temp?.error.replaceAll(":", "-");
             setShowToast({ key: "error", label: errorMessage, transitionTime: 5000000 });
             setIsError(true);
             setApiError(errorMessage);
-            
+
             return;
           }
           if (temp?.status === "completed") {
+            setLoader(false);
             setIsValidation(false);
             if (temp?.additionalDetails?.sheetErrors.length === 0) {
               setShowToast({ key: "success", label: t("HCM_VALIDATION_COMPLETED") });
@@ -743,7 +756,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 // setIsValidation(true);
                 return;
               } else {
-                setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN") });
                 const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
                 const fileData = fileUrl
                   .map((i) => {
@@ -769,18 +781,19 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                   .map(({ id, ...rest }) => rest);
                 onFileDelete(uploadedFile);
                 setUploadedFile(fileData);
+                setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN") });
                 setIsError(true);
               }
             }
           } else {
+            setLoader(false);
             setIsValidation(false);
-            setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED"), transitionTime: 5000000 });
+            // setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED"), transitionTime: 5000000 });
             const processedFileStore = temp?.processedFilestoreId;
             if (!processedFileStore) {
               setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED"), transitionTime: 5000000 });
               return;
             } else {
-              setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN"), transitionTime: 5000000 });
               setIsError(true);
               const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
               const fileData = fileUrl
@@ -806,6 +819,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 .map(({ id, ...rest }) => rest);
               onFileDelete(uploadedFile);
               setUploadedFile(fileData);
+              setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN"), transitionTime: 5000000 });
               setIsError(true);
             }
           }
@@ -958,7 +972,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   return (
     <>
-      {isValidation && <LoaderWithGap text={"CAMPAIGN_VALIDATION_INPROGRESS"} />}
+      {loader && <LoaderWithGap text={"CAMPAIGN_VALIDATION_INPROGRESS"} />}
       <Card>
         <div className="campaign-bulk-upload">
           <Header className="digit-form-composer-sub-header">
