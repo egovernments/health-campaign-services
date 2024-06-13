@@ -954,15 +954,12 @@ async function validateChangeDatesRequest(request: any) {
         }
     }
     const today: any = Date.now();
-    if (exsistingStartDate >= today) {
-        logger.info("Existing start date is greater than or equal to current date");
-        logger.info("Now only endDate can be updated")
+    if (exsistingStartDate <= today) {
         if (exsistingStartDate != newStartDate) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "StartDate cannot be updated as campaign is started or completed.");
+            throwError("COMMON", 400, "VALIDATION_ERROR", "StartDate cannot be updated for ongoing or completed campaign.");
         }
     }
-    if (exsistingEndDate > today) {
-        logger.info("Existing end date is greater than or equal to current date");
+    if (exsistingEndDate < today) {
         if (exsistingEndDate != newEndDate) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "EndDate cannot be updated as campaign is completed.");
         }
