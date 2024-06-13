@@ -980,6 +980,7 @@ async function validateChangeDatesRequest(request: any) {
         }
     }
     request.body.CampaignDetails = ExistingCampaignDetails;
+    request.body.CampaignDetails.action = "changeDates";
     request.body.CampaignDetails.startDate = newStartDate;
     request.body.CampaignDetails.endDate = newEndDate;
 }
