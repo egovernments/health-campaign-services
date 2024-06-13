@@ -142,28 +142,37 @@ function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D
 
     // Apply fill color to each cell in the first row and make cells bold
     if (index === 0) {
-      worksheetRow.eachCell((cell: any) => {
+      worksheetRow.eachCell((cell: any, colNumber: number) => {
+        // Set cell fill color
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: firstRowColor } // Green color
         };
+
+        // Set font to bold
         cell.font = { bold: true };
+
+        // Enable text wrapping
+        cell.alignment = { wrapText: true };
+
+        // Optionally lock the cell
         if (frozeCells) {
           cell.protection = { locked: true };
         }
+
+        // Update column width based on the length of the cell's text
+        const currentWidth = sheet.getColumn(colNumber).width || columnWidth; // Default width or current width
+        const newWidth = Math.max(currentWidth, cell.value.toString().length + 2); // Add padding
+        sheet.getColumn(colNumber).width = newWidth;
       });
+
     }
     worksheetRow.eachCell((cell: any) => {
       if (frozeCells) {
         cell.protection = { locked: true };
       }
     });
-  });
-
-  // Set column widths
-  sheet.columns.forEach((column: any) => {
-    column.width = columnWidth;
   });
 
   // Protect the entire sheet to enable cell protection settings
@@ -220,11 +229,6 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
     selectUnlockedCells: true,
   });
 }
-
-
-
-
-
 
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto };
