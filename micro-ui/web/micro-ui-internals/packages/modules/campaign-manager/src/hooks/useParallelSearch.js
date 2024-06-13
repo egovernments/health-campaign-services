@@ -27,11 +27,15 @@ const useParallelSearch = async ({ parentArray, tenantId, boundaryType, hierarch
 
     return cacheData?.filter((obj) => validParentCodes?.has(obj?.parentCode));
   }
+
   function checkremoveMissingParentCodes(cacheData, parentArray) {
     const validParentCodes = new Set(parentArray);
     return cacheData?.filter((obj) => !validParentCodes?.has(obj?.parentCode));
   }
 
+  function checkParentCodePresence(data, array) {
+    return array.every((item) => data.some((entry) => entry.parentCode === item));
+  }
   if (parentArray?.length > cacheData?.[targetedData]?.length) {
     missingParent = findMissingCodes(parentArray, cacheData?.[targetedData]);
     const requests = missingParent.map((parentCode) => {
@@ -50,7 +54,7 @@ const useParallelSearch = async ({ parentArray, tenantId, boundaryType, hierarch
     const setcacheData = { ...cacheData, [targetedData]: cacheData?.[targetedData] ? [...cacheData?.[targetedData], ...newData] : [...newData] };
     window.Digit.SessionStorage.set("HCM_CAMPAIGN_BOUNDARY_DATA", setcacheData);
     return setcacheData?.[targetedData];
-  } else if (cacheData?.[targetedData]?.length > parentArray?.length) {
+  } else if (cacheData?.[targetedData]?.length > parentArray?.length && checkParentCodePresence(cacheData?.[targetedData], parentArray)) {
     removeData = removeMissingParentCodes(cacheData?.[targetedData], parentArray);
     const setcacheData = { ...cacheData, [targetedData]: [...removeData] };
     // window.Digit.SessionStorage.set("HCM_CAMPAIGN_BOUNDARY_DATA", setcacheData);
