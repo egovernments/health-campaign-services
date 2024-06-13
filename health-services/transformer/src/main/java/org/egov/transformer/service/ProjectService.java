@@ -80,16 +80,22 @@ public class ProjectService {
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .authToken(transformerProperties.getBoundaryV2AuthToken())
+                .build();
+        BoundaryRequestCopy  boundaryRequest = BoundaryRequestCopy.builder()
+                .requestInfo(requestInfo).build();
         try {
             // Fetch boundary details from the service
             log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
             BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
                     new StringBuilder(transformerProperties.getBoundaryServiceHost()
                             + transformerProperties.getBoundaryRelationshipSearchUrl()
-                            + "?includeParents=true&tenantId=" + tenantId
+                            + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
                             + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
-                            + "&codes=" + locationCode),
-                    RequestInfo.builder().build(),
+                            + "&boundaryType=" + transformerProperties.getBoundaryType()
+                            + "&codes=" + transformerProperties.getBoundaryCodeTemp()),
+                    boundaryRequest,
                     BoundarySearchResponse.class
             );
             log.debug("Boundary Relationship details fetched successfully for tenantId: {}", tenantId);
@@ -102,7 +108,7 @@ public class ProjectService {
             getAllBoundaryCodes(enrichedBoundaries, boundaries);
 
         } catch (Exception e) {
-            log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+            log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
             // Throw a custom exception if an error occurs during boundary search
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }

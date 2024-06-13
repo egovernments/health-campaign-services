@@ -182,5 +182,13 @@ public class TransformerProperties {
     @Value("${egov.boundary.hierarchy.name}")
     private String boundaryHierarchyName;
 
+    @Value("${egov.boundary.v2.auth.token}")
+    private String boundaryV2AuthToken;
+
+    @Value("${egov.boundary.type}")
+    private String boundaryType;
+
+    @Value("${egov.boundary.temp.code}")
+    private String boundaryCodeTemp;
 
 }
