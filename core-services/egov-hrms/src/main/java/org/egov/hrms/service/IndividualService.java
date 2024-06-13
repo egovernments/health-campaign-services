@@ -70,28 +70,63 @@ public class IndividualService implements UserService {
         return userResponse;
     }
 
+    /**
+     * Updates a user by searching for the corresponding individual and updating their details.
+     *
+     * Steps:
+     * 1. Map UserRequest to IndividualSearchRequest.
+     * 2. Fetch individual data using tenant ID and search request.
+     * 3. Return null if no individual is found.
+     * 4. Prepare an IndividualRequest for update.
+     * 5. Construct the update endpoint URI.
+     * 6. Perform REST call to update individual.
+     * 7. Map response to UserResponse if successful.
+     * 8. Return UserResponse.
+     * TODO FIXME
+     * @param userRequest The request object containing user details to be updated.
+     * @return UserResponse containing updated user information, or null if no individual was found.
+     */
     @Override
     public UserResponse updateUser(UserRequest userRequest) {
+        // Map the UserRequest to an IndividualSearchRequest
         IndividualSearchRequest individualSearchRequest = mapToIndividualSearchRequest(userRequest);
+
+        // Fetch the individual response from the individual service
         IndividualBulkResponse individualSearchResponse =
                 getIndividualResponse(userRequest.getUser().getTenantId(), individualSearchRequest);
+
         UserResponse userResponse = null;
-        if (individualSearchResponse == null || individualSearchResponse.getIndividual() == null || individualSearchResponse.getIndividual().size() == 0) {
-            return userResponse;
+
+        // Check if the individual search response is null or contains no individuals
+        if (individualSearchResponse == null || individualSearchResponse.getIndividual() == null || individualSearchResponse.getIndividual().isEmpty()) {
+            return userResponse;  // Return null if no individual is found
         }
+
+        // Get the first individual from the search response
         Individual individual = individualSearchResponse.getIndividual().get(0);
+
+        // Map the found individual and the user request to an IndividualRequest for update
         IndividualRequest updateRequest = mapToIndividualUpdateRequest(individual, userRequest);
+
+        // Build the URI for the update endpoint
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualUpdateEndpoint());
+
+        // Make a REST call to update the individual
         IndividualResponse response = restCallRepository
                 .fetchResult(uri, updateRequest, IndividualResponse.class);
+
+        // If the response is not null and contains an updated individual, map it to UserResponse
         if (response != null && response.getIndividual() != null) {
-            log.info("response received from individual service");
+            log.info("Response received from individual service");
             userResponse = mapToUserResponse(response);
         }
+
+        // Return the UserResponse
         return userResponse;
     }
+
 
     private IndividualRequest mapToIndividualUpdateRequest(Individual individual, UserRequest userRequest) {
         Individual updatedIndividual = Individual.builder()
@@ -129,7 +164,7 @@ public class IndividualService implements UserService {
                                 .tenantId(userRequest.getUser().getTenantId())
                                 .description(role.getDescription())
                                 .build()).collect(Collectors.toList()))
-                        .userType(UserType.fromValue(userRequest.getUser().getType()))
+                        .userType(individual.getUserDetails().getUserType())
                         .build())
                 .isDeleted(Boolean.FALSE)
                 .clientAuditDetails(AuditDetails.builder()
@@ -310,6 +345,7 @@ public class IndividualService implements UserService {
                 .userServiceUuid(individual.getUserUuid())
                 .active(individual.getIsSystemUserActive())
                 .gender(individual.getGender() != null ? individual.getGender().name() : null)
+                .type(individual.getUserDetails().getUserType().toString())
                 .userName(individual.getUserDetails().getUsername())
                 .emailId(individual.getEmail())
                 .correspondenceAddress(individual.getAddress() != null && !individual.getAddress().isEmpty()

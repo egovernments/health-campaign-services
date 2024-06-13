@@ -92,7 +92,6 @@ public class EmployeeController {
 	 * EmployeeResponse type or ErrorResponse type
 	 *
 	 * @param employeeRequest
-	 * @param bindingResult
 	 * @return ResponseEntity<?>
 	 */
 	@PostMapping(value = "/_update")
