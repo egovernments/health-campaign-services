@@ -71,10 +71,10 @@ public class ParsingUtil {
                 .map(ResourceMapping::getMappedFrom)
                 .collect(Collectors.toSet());
 
-        for (String attributeName : columnNamesList) {
+        for (String attributeName : mappedFromSet) {
             if (attributeName.equalsIgnoreCase("the_geom"))
                 continue;
-            if (!mappedFromSet.contains(attributeName)) {
+            if (!columnNamesList.contains(attributeName)) {
                 log.error("Attribute mapping is invalid.");
                 log.info("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
                 throw new CustomException("Attribute mapping is invalid.", "Attribute mapping is invalid.");
