@@ -657,6 +657,16 @@ function removeBoundariesFromRequest(request: any) {
     }
 }
 
+async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
+    removeBoundariesFromRequest(request);
+    if (actionInUrl == "create") {
+        await enrichAndPersistCampaignForCreate(request, firstPersist)
+    }
+    else if (actionInUrl == "update") {
+        await enrichAndPersistCampaignForUpdate(request, firstPersist)
+    }
+}
+
 
 async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
     var createResourceDetailsIds: any[] = []
@@ -1326,7 +1336,7 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     if (actionInUrl == "create") {
         request.body.CampaignDetails.id = uuidv4()
     }
-    await enrichAndPersistProjectCampaignRequest(request, actionInUrl, true)
+    await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true)
     processAfterPersist(request, actionInUrl)
 }
 
