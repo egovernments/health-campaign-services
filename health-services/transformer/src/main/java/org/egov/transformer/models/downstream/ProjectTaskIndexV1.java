@@ -59,6 +59,4 @@ public class ProjectTaskIndexV1 {
     private Long lastModifiedTime;
     @JsonProperty("isDeleted")
     private boolean isDeleted;
-    @JsonProperty("status")
-    private String status;
 }
