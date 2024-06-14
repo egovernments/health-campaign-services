@@ -5,7 +5,7 @@
     <artifactId>transformer</artifactId>
     <packaging>jar</packaging>
     <name>transformer</name>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <properties>
         <java.version>1.8</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -57,7 +57,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.12-SNAPSHOT</version>
+            <version>1.0.19-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

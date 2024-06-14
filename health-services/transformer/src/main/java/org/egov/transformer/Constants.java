@@ -13,7 +13,7 @@ public interface Constants {
 
     String QUANTITY_WASTED = "quantityWasted";
 
-    Double RE_ADMINISTERED_DOSES = 2.0;
+    Long RE_ADMINISTERED_DOSES = 2L;
 
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
     String TASK_STATUS = "taskStatus";

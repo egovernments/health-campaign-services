@@ -15,6 +15,7 @@ import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.egov.common.models.stock.TransactionType;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,8 +64,13 @@ public class StockTransformationService {
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-        Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
-        Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
+
+        String facilityId = fetchFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
+        String transactingFacilityId = fetchTransactingFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
+
+
+        Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
+        Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
             boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
@@ -96,13 +102,13 @@ public class StockTransformationService {
                 .tenantId(tenantId)
                 .productVariant(stock.getProductVariantId())
                 .productName(productName)
-                .facilityId(stock.getFacilityId())
-                .facilityName(facility != null ? facility.getName() : stock.getFacilityId())
+                .facilityId(facilityId)
+                .facilityName(facility != null ? facility.getName() : facilityId)
                 .facilityType(facilityType)
                 .facilityLevel(facilityLevel)
                 .facilityTarget(facilityTarget)
-                .transactingFacilityId(stock.getTransactingPartyId())
-                .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getTransactingPartyId())
+                .transactingFacilityId(transactingFacilityId)
+                .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : transactingFacilityId)
                 .transactingFacilityType(transactingFacilityType)
                 .transactingFacilityLevel(transactingFacilityLevel)
                 .userName(userInfoMap.get(USERNAME))
@@ -128,5 +134,16 @@ public class StockTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         return stockIndexV1;
+    }
+
+    private String fetchFacilityId(String receiverId, String senderId, TransactionType transactionType) {
+        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
+            return receiverId;
+        } else return senderId;
+    }
+    private String fetchTransactingFacilityId(String receiverId, String senderId, TransactionType transactionType) {
+        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
+            return senderId;
+        } else return receiverId;
     }
 }

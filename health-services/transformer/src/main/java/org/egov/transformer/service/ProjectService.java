@@ -23,6 +23,7 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.IOException;
 import java.util.*;
@@ -83,18 +84,20 @@ public class ProjectService {
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
-        BoundaryRequestCopy  boundaryRequest = BoundaryRequestCopy.builder()
+        BoundaryRelationshipRequest  boundaryRequest = BoundaryRelationshipRequest.builder()
                 .requestInfo(requestInfo).build();
+        StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
+                + transformerProperties.getBoundaryRelationshipSearchUrl()
+                + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
+                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&boundaryType=" + transformerProperties.getBoundaryType()
+                + "&codes=" + transformerProperties.getBoundaryCodeTemp());
+        log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
         try {
             // Fetch boundary details from the service
             log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
             BoundarySearchResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-                    new StringBuilder(transformerProperties.getBoundaryServiceHost()
-                            + transformerProperties.getBoundaryRelationshipSearchUrl()
-                            + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
-                            + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
-                            + "&boundaryType=" + transformerProperties.getBoundaryType()
-                            + "&codes=" + transformerProperties.getBoundaryCodeTemp()),
+                    uri,
                     boundaryRequest,
                     BoundarySearchResponse.class
             );
@@ -410,36 +413,36 @@ public class ProjectService {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
-
-    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
-
-        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
-                .requestInfo(RequestInfo.builder()
-                        .userInfo(User.builder()
-                                .uuid("transformer-uuid")
-                                .build())
-                        .build())
-                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
-                .build();
-
-        ProjectStaffBulkResponse response;
-        try {
-            StringBuilder uri = new StringBuilder();
-            uri.append(transformerProperties.getProjectHost())
-                    .append(transformerProperties.getProjectStaffSearchUrl())
-                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
-                    .append("&offset=0")
-                    .append("&tenantId=").append(tenantId);
-            response = serviceRequestClient.fetchResult(uri,
-                    request,
-                    ProjectStaffBulkResponse.class);
-        } catch (Exception e) {
-            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
-
-            return null;
-        }
-        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
-    }
+    // TODO commented below code as staff model is changed and this search call is not being used as of now
+//    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
+//
+//        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
+//                .requestInfo(RequestInfo.builder()
+//                        .userInfo(User.builder()
+//                                .uuid("transformer-uuid")
+//                                .build())
+//                        .build())
+//                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+//                .build();
+//
+//        ProjectStaffBulkResponse response;
+//        try {
+//            StringBuilder uri = new StringBuilder();
+//            uri.append(transformerProperties.getProjectHost())
+//                    .append(transformerProperties.getProjectStaffSearchUrl())
+//                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+//                    .append("&offset=0")
+//                    .append("&tenantId=").append(tenantId);
+//            response = serviceRequestClient.fetchResult(uri,
+//                    request,
+//                    ProjectStaffBulkResponse.class);
+//        } catch (Exception e) {
+//            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+//
+//            return null;
+//        }
+//        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
+//    }
 
     public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
         if (localityCode == null) {

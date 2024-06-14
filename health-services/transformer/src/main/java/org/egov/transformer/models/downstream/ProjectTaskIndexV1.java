@@ -37,7 +37,7 @@ public class ProjectTaskIndexV1 {
     @JsonProperty("productName")
     private String productName;
     @JsonProperty("quantity")
-    private Double quantity;
+    private Long quantity;
     @JsonProperty("deliveredTo")
     private String deliveredTo;
     @JsonProperty("isDelivered")
