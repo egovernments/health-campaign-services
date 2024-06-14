@@ -261,6 +261,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const [userEnabled, setUserEnabled] = useState(false);
   const [active, setActive] = useState(0);
   const { data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
+  const [refetchGenerate, setRefetchGenerate] = useState(null);
   // const hierarchyType = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.hierarchy;
 
   // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
@@ -398,11 +399,14 @@ const SetupCampaign = ({ hierarchyType }) => {
   useEffect(() => {
     setTimeout(() => {
       setEnabled(fetchUpload || (fetchBoundary && currentKey > 3));
-      setFacilityEnabled(!dataParams?.boundaryId && (fetchUpload || (fetchBoundary && currentKey > 3)));
-      setTargetEnabled(!dataParams?.facilityId && (fetchUpload || (fetchBoundary && currentKey > 3)));
-      setUserEnabled(!dataParams?.userId && (fetchUpload || (fetchBoundary && currentKey > 3)));
+      setFacilityEnabled(refetchGenerate || (!dataParams?.boundaryId && (fetchUpload || (fetchBoundary && currentKey > 3))));
+      setTargetEnabled(refetchGenerate || (!dataParams?.facilityId && (fetchUpload || (fetchBoundary && currentKey > 3))));
+      setUserEnabled(refetchGenerate || (!dataParams?.userId && (fetchUpload || (fetchBoundary && currentKey > 3))));
     }, 3000);
-  }, [fetchUpload, fetchBoundary, currentKey, dataParams]);
+    if (refetchGenerate === true) {
+      setRefetchGenerate(false);
+    }
+  }, [fetchUpload, fetchBoundary, currentKey, dataParams, refetchGenerate]);
 
   const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "facilityWithBoundary",
@@ -1076,7 +1080,13 @@ const SetupCampaign = ({ hierarchyType }) => {
             return false;
           }
           setShowToast(null);
+          const checkEqual = _.isEqual(
+            formData?.boundaryType?.selectedData,
+            totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData
+          );
+          console.log("HSHSHS", checkEqual);
           setFetchUpload(true);
+          setRefetchGenerate(checkEqual === false ? true : false);
           return true;
         } else {
           setShowToast({ key: "error", label: `${t("HCM_SELECT_BOUNDARY")}` });
