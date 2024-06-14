@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
-
+import org.egov.common.models.core.AdditionalFields;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -64,6 +64,10 @@ public class TaskResource   {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
 
 }
 
