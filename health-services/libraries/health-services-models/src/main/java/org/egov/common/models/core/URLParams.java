@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -57,8 +58,9 @@ public class URLParams {
      * Flag indicating whether soft deleted records should be included in search results.
      * This flag is used in search APIs to specify if deleted records should be included.
      */
+    @Builder.Default
     @JsonProperty("includeDeleted")
-    private Boolean includeDeleted;
+    private Boolean includeDeleted = Boolean.FALSE;
 
     /**
      * Sets the URL parameters from the given URLParams object.
