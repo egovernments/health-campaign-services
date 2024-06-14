@@ -1,8 +1,10 @@
 import express from 'express';
 import * as bodyParser from 'body-parser';
 import config from './config';
-import {  requestMiddleware } from './utils/middlewares';
+import { requestMiddleware } from './utils/middlewares';
 import { errorLogger, errorResponder, invalidPathHandler } from './utils/genericUtils';
+import { tracingMiddleware } from './tracing';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 class App {
   public app: express.Application;
@@ -19,19 +21,17 @@ class App {
 
   private initializeMiddlewares() {
     this.app.use(bodyParser.json());
+    this.app.use(tracingMiddleware);
     this.app.use(requestMiddleware);
-
-    // this.app.use(cacheMiddleware);
-    // Attach the first Error handling Middleware
-    // function defined above (which logs the error)
     this.app.use(errorLogger);
-
-    // Attach the second Error handling Middleware
-    // function defined above (which sends back the response)
     this.app.use(errorResponder);
-
-    // Attach the fallback Middleware
-    // function which sends back the response for invalid paths)
+    this.app.use('/tracing', createProxyMiddleware({
+      target: 'http://localhost:16686',
+      changeOrigin: true,
+      pathRewrite: {
+        '^/tracing': '/',
+      },
+    }));
   }
 
   private initializeControllers(controllers: any) {
@@ -48,4 +48,3 @@ class App {
 }
 
 export default App;
-
