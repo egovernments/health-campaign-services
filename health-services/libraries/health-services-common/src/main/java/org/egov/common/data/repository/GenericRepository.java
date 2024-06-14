@@ -253,7 +253,7 @@ public abstract class GenericRepository<T> {
                         Boolean includeDeleted) throws QueryBuilderException {
         String query = selectQueryBuilder.build(searchObject, tableName);
         query += " AND tenantId=:tenantId ";
-        if (query.contains(tableName + "  AND")) {
+        if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
         }
         if (Boolean.FALSE.equals(includeDeleted)) {

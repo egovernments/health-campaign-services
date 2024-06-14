@@ -44,7 +44,7 @@ public interface GenericQueryBuilder {
 
         // If there are no query parameters, return an empty string
         if (queryParameters.isEmpty()) {
-            return " ";
+            return "";
         }
 
         // Append the clause name to the clauseBuilder
