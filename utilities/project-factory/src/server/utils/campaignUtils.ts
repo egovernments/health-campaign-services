@@ -471,7 +471,11 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         },
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors } || {}
     };
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
+    if (request?.body?.ResourceDetails?.action == "create") {
+        persistMessage.ResourceDetails.additionalDetails = {}
+    }
+    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
     if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
         logger.info("Activities to persist : ")

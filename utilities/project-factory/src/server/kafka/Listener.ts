@@ -86,10 +86,10 @@ async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
                 if (err) {
                     logger.info('KAFKA :: PRODUCER :: Some Error Occurred ');
                     logger.error(`KAFKA :: PRODUCER :: Error :  ${JSON.stringify(err)}`);
-                    reject(err); // Reject promise if there's an error
+                    // reject(err); // Reject promise if there's an error
                 } else {
                     logger.info('KAFKA :: PRODUCER :: message sent successfully ');
-                    resolve(); // Resolve promise if messages are successfully produced
+                    // resolve(); // Resolve promise if messages are successfully produced
                 }
             });
         });

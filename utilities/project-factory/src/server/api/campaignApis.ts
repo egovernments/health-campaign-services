@@ -689,7 +689,11 @@ async function handleResouceDetailsError(request: any, error: any) {
         message: error.message || ''
       })
     };
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
+    if (request?.body?.ResourceDetails?.action == "create") {
+      persistMessage.ResourceDetails.additionalDetails = {}
+    }
+    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
     logger.info("Waiting for 2 seconds");

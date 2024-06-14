@@ -739,7 +739,8 @@ async function enrichResourceDetails(request: any) {
     lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now()
   }
-  produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
+  const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
+  produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
 }
 
 function getFacilityIds(data: any) {
