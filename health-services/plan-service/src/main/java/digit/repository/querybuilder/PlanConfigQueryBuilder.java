@@ -48,10 +48,9 @@ public class PlanConfigQueryBuilder {
             builder.append(" pc.id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
             QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
         }
-
+        
         addActiveWhereClause(builder, preparedStmtList);
-
-        return builder.toString();
+        return QueryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     /**
