@@ -22,6 +22,8 @@ public class ProjectTaskIndexV1 {
     private String taskId;
     @JsonProperty("taskType")
     private String taskType;
+    @JsonProperty("status")
+    private String status;
     @JsonProperty("projectId")
     private String projectId;
     @JsonProperty("userName")

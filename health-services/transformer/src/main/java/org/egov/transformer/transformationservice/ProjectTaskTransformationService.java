@@ -102,6 +102,7 @@ public class ProjectTaskTransformationService {
                 .clientReferenceId(taskResource.getClientReferenceId())
                 .tenantId(tenantId)
                 .taskType("DELIVERY")
+                .status(task.getStatus())
                 .localityCode(localityCode)
                 .projectId(task.getProjectId())
                 .userName(userInfoMap.get(USERNAME))

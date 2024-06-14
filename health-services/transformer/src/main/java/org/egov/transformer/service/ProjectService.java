@@ -88,10 +88,10 @@ public class ProjectService {
                 .requestInfo(requestInfo).build();
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
-                + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
+                + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
                 + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
-                + "&boundaryType=" + transformerProperties.getBoundaryType()
-                + "&codes=" + transformerProperties.getBoundaryCodeTemp());
+//                + "&boundaryType=" + transformerProperties.getBoundaryType()
+                + "&codes=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
         try {
             // Fetch boundary details from the service
@@ -116,11 +116,14 @@ public class ProjectService {
             throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
         }
 
-        return boundaries.stream()
+        Map<String, String> boundaryMap = new HashMap<>();
+
+        boundaryMap =  boundaries.stream()
                 .collect(Collectors.toMap(
                         EnrichedBoundary::getBoundaryType,
                         boundary -> boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1)
                 ));
+        return boundaryMap;
     }
 
     private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {
