@@ -247,7 +247,7 @@ async function searchGeneratedResources(request: any) {
     let queryString: string;
     let queryValues: any[] = [];
 
-    queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE ";
+    queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     // query for download with id
     if (request?.query?.id) {
       queryString += "id = $1 AND type = $2 AND hierarchytype = $3 AND tenantid = $4 ";

@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
 
 async function getProcessDetails(id: any): Promise<any> {
-    const query = 'SELECT * FROM health.eg_cm_campaign_process WHERE id = $1';
+    const query = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME} WHERE id = $1`;
     const values = [id];
     const queryResponse = await executeQuery(query, values);
     return queryResponse.rows[0]; // Assuming only one row is expected

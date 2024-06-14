@@ -809,7 +809,7 @@ async function getTotalCount(request: any) {
 
     let query = `
         SELECT count(*)
-        FROM health.eg_cm_campaign_details
+        FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME}
         WHERE tenantId = $1
     `;
 
@@ -898,7 +898,7 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
 
     let query = `
         SELECT *
-        FROM health.eg_cm_campaign_details
+        FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME}
         WHERE tenantId = $1
     `;
 
@@ -990,7 +990,7 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; va
     return {
         query: `
     SELECT *
-    FROM health.eg_cm_resource_details
+    FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
     ${whereClause};`, values
     };
 }
