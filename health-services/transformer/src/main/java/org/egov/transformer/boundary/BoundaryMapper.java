@@ -1,7 +1,7 @@
 package org.egov.transformer.boundary;
 
 
-import org.egov.common.models.core.Boundary;
+import org.egov.transformer.models.boundary.Boundary;
 
 public class BoundaryMapper {
 
