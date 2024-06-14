@@ -77,8 +77,9 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id , 
 
   let searchResponse;
   let status = "validation-started";
-  const baseDelay = baseTimeOut;
-  let retryInterval = baseDelay * jsonDataLength;
+  const baseDelay = baseTimeOut?.baseTimeout?.[0]?.baseTimeOut;
+  const maxTime = baseTimeOut?.baseTimeout?.[0]?.maxTime;
+  let retryInterval = Math.min(baseDelay * jsonDataLength , maxTime);
 
   await new Promise((resolve) => setTimeout(resolve, retryInterval));
 
@@ -96,7 +97,6 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id , 
     });
     status = searchResponse?.ResourceDetails?.[0]?.status;
     if (status !== "failed" && status !== "invalid" && status !== "completed") {
-      retryInterval *= 2;
       await new Promise((resolve) => setTimeout(resolve, retryInterval));
     }
   }

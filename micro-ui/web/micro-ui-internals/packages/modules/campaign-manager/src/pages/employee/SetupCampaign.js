@@ -377,13 +377,19 @@ const SetupCampaign = ({ hierarchyType }) => {
         },
       },
       HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
-        uploadBoundary: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget") },
+        uploadBoundary: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget"), 
+          isSuccess : draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget").length>0
+        },
       },
       HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
-        uploadFacility: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "facility") },
+        uploadFacility: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "facility") ,
+        isSuccess : draftData?.resources?.filter((i) => i?.type === "facility").length>0
+        }
       },
       HCM_CAMPAIGN_UPLOAD_USER_DATA: {
-        uploadUser: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "user") },
+        uploadUser: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "user") , 
+          isSuccess : draftData?.resources?.filter((i) => i?.type === "user").length>0
+         },
       },
     };
     setParams({ ...restructureFormData });

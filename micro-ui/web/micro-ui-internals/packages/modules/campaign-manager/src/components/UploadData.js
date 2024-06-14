@@ -48,7 +48,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }]);
 
   const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "ReadMeConfig" }]);
-  const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeOut" }]);
+  const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeout" }]);
   const [sheetHeaders, setSheetHeaders] = useState({});
   const [translatedSchema, setTranslatedSchema] = useState({});
   const [readMeInfo, setReadMeInfo] = useState({});
@@ -306,16 +306,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         .map(({ index, errors }) => {
           const formattedErrors = errors
             .map((error) => {
-              //       let formattedError = `${error.instancePath}: ${error.message}`;
-              //       if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-              //         formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
-              //       }
-              //       return formattedError;
-              //     })
-              //     .join(", ");
-              //   return `Data at row ${index}: ${formattedErrors}`;
-              // })
-              // .join(" , ");
               let instancePath = error.instancePath || ""; // Assign an empty string if dataPath is not available
               if (instancePath.startsWith("/")) {
                 instancePath = instancePath.slice(1);
@@ -395,6 +385,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     let validate = ajv.compile(translatedSchema[type]);
     const errors = []; // Array to hold validation errors
 
+
     data.forEach((item, index) => {
       if (!validate(item)) {
         errors.push({ index: (item?.["!row#number!"] || item?.["__rowNum__"]) + 1, errors: validate.errors });
@@ -428,16 +419,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         .map(({ index, errors }) => {
           const formattedErrors = errors
             .map((error) => {
-              //       let formattedError = `${error.instancePath}: ${error.message}`;
-              //       if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-              //         formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
-              //       }
-              //       return formattedError;
-              //     })
-              //     .join(", ");
-              //   return `Data at row ${index}: ${formattedErrors}`;
-              // })
-              // .join(" , ");
               let instancePath = error.instancePath || ""; // Assign an empty string if dataPath is not available
               if (instancePath.startsWith("/")) {
                 instancePath = instancePath.slice(1);
@@ -459,6 +440,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           return formattedErrors;
         })
         .join(", ");
+
 
         setIsError(true);
           targetError.push(errorMessage);
@@ -795,7 +777,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             type,
             tenantId,
             id,
-            baseTimeOut?.["HCM-ADMIN-CONSOLE"]?.baseTimeOut?.[0]?.baseTimeOut
+            baseTimeOut?.["HCM-ADMIN-CONSOLE"]
           );
           if (temp?.isError) {
             setLoader(false);
