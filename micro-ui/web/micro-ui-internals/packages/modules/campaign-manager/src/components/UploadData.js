@@ -423,7 +423,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     //   return true;
     // }
 
-    console.log("error" , errors);
     if (errors.length > 0) {
       const errorMessage = errors
         .map(({ index, errors }) => {
@@ -853,7 +852,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                     };
                   })
                   .map(({ id, ...rest }) => rest);
-                onFileDelete(uploadedFile);
+                // onFileDelete(uploadedFile);
                 setUploadedFile(fileData);
                 setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN") });
                 setIsError(true);
@@ -891,7 +890,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                   };
                 })
                 .map(({ id, ...rest }) => rest);
-              onFileDelete(uploadedFile);
+              // onFileDelete(uploadedFile);
               setUploadedFile(fileData);
               setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN"), transitionTime: 5000000 });
               setIsError(true);
