@@ -59,6 +59,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [convertedSchema, setConvertedSchema] = useState({});
   const [loader, setLoader] = useState(false);
 
+
   useEffect(() => {
     if (type === "facilityWithBoundary") {
       onSelect("uploadFacility", { uploadedFile, isError, isValidation, apiError, isSuccess });
@@ -83,11 +84,18 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     var newSchema = { ...schema };
     var newProp = {};
 
-    Object.keys(schema?.properties)
-      .map((e) => ({ key: e, value: t(e) }))
-      .map((e) => {
-        newProp[e.value] = schema?.properties[e.key];
-      });
+    // Object.keys(schema?.properties)
+    //   .map((e) => ({ key: e, value: t(e) }))
+    //   .map((e) => {
+    //     newProp[e.value] = schema?.properties[e.key];
+    //   });
+
+    // Translate properties keys and their 'name' fields
+    Object.keys(schema?.properties).forEach((key) => {
+      const translatedKey = t(key);
+      const translatedProperty = { ...schema.properties[key], name: t(schema.properties[key].name) };
+      newProp[translatedKey] = translatedProperty;
+    });
     const newRequired = schema?.required.map((e) => t(e));
 
     newSchema.properties = newProp;
@@ -134,7 +142,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   }
 
   function convertIntoSchema(data) {
-    var convertData = {...data};
+    var convertData = { ...data };
     var properties = {};
     var required = [];
     var columns = [];
@@ -170,13 +178,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
-      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title ===  "facility")?.[0]);
+      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
       const boundary = await convertIntoSchema(
         Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
-          (item) => item.title ==="boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
+          (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
         )?.[0]
       );
-      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title ==="user")?.[0]);
+      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
       const schema = {
         boundary: boundary,
         facilityWithBoundary: facility,
@@ -184,9 +192,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       };
 
       setConvertedSchema(schema);
-
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema , type]);
+  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema, type]);
 
   useEffect(async () => {
     if (convertedSchema && Object.keys(convertedSchema).length > 0) {
@@ -299,16 +306,37 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         .map(({ index, errors }) => {
           const formattedErrors = errors
             .map((error) => {
-              let formattedError = `${error.instancePath}: ${error.message}`;
-              if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-                formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+              //       let formattedError = `${error.instancePath}: ${error.message}`;
+              //       if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+              //         formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+              //       }
+              //       return formattedError;
+              //     })
+              //     .join(", ");
+              //   return `Data at row ${index}: ${formattedErrors}`;
+              // })
+              // .join(" , ");
+              let instancePath = error.instancePath || ""; // Assign an empty string if dataPath is not available
+              if (instancePath.startsWith("/")) {
+                instancePath = instancePath.slice(1);
               }
-              return formattedError;
+              if (error.keyword === "required") {
+                const missingProperty = error.params?.missingProperty || "";
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} '${missingProperty}' ${t("HCM_DATA_SHOULD_NOT_BE_EMPTY")}`;
+              }
+              if(error.keyword === "type" && error.message === "must be string"){
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")}` 
+              }
+              let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
+              if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join(", ")}`;
+              }
+              return `${t("HCM_DATA_AT_ROW")} ${index} ${formattedError}`;
             })
             .join(", ");
-          return `Data at row ${index}: ${formattedErrors}`;
+          return formattedErrors;
         })
-        .join(" , ");
+        .join(", ");
 
       setErrorsType((prevErrors) => ({
         ...prevErrors,
@@ -373,25 +401,70 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       }
     });
 
+    // if (errors.length > 0) {
+    //   const errorMessage = errors
+    //     .map(({ index, errors }) => {
+    //       const formattedErrors = errors.map((error) => {
+            
+    //           let formattedError = `${error.instancePath}: ${error.message}`;
+    //           if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+    //             formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+    //           }
+    //           return formattedError;
+    //         })
+    //         .join(", ");
+    //       return `Data at row ${index}: ${formattedErrors} at ${sheetName}`;
+    //     })
+    //     .join(" , ");
+    //   setIsError(true);
+    //   targetError.push(errorMessage);
+    //   return false;
+    // } else {
+    //   return true;
+    // }
+
+    console.log("error" , errors);
     if (errors.length > 0) {
       const errorMessage = errors
         .map(({ index, errors }) => {
           const formattedErrors = errors
             .map((error) => {
-              let formattedError = `${error.instancePath}: ${error.message}`;
-              if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-                formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+              //       let formattedError = `${error.instancePath}: ${error.message}`;
+              //       if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+              //         formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
+              //       }
+              //       return formattedError;
+              //     })
+              //     .join(", ");
+              //   return `Data at row ${index}: ${formattedErrors}`;
+              // })
+              // .join(" , ");
+              let instancePath = error.instancePath || ""; // Assign an empty string if dataPath is not available
+              if (instancePath.startsWith("/")) {
+                instancePath = instancePath.slice(1);
               }
-              return formattedError;
+              if (error.keyword === "required") {
+                const missingProperty = error.params?.missingProperty || "";
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} '${missingProperty}' ${t("HCM_DATA_SHOULD_NOT_BE_EMPTY")} at ${sheetName}`;
+              }
+              if(error.keyword === "type" && error.message === "must be string"){
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")} at ${sheetName}` 
+              }
+              let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
+              if (error.keyword === "enum" && error.params && error.params.allowedValues) {
+                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join(", ")}`;
+              }
+              return `${t("HCM_DATA_AT_ROW")} ${index} ${formattedError} at ${sheetName}`;
             })
             .join(", ");
-          return `Data at row ${index}: ${formattedErrors} at ${sheetName}`;
+          return formattedErrors;
         })
-        .join(" , ");
-      setIsError(true);
-      targetError.push(errorMessage);
-      return false;
-    } else {
+        .join(", ");
+
+        setIsError(true);
+          targetError.push(errorMessage);
+          return false;
+    }else{
       return true;
     }
   };
@@ -411,6 +484,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     const expectedHeaders = XLSX.utils.sheet_to_json(sheet, {
       header: 1,
     })[0];
+
 
     for (const header of mdmsHeaders) {
       if (!expectedHeaders.includes(t(header))) {
