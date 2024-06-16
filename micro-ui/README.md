@@ -1,5 +1,5 @@
 
-# workbench ui 
+# DIGIT ui 
 
 A React App built on top of DIGIT UI Core.
 
