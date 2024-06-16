@@ -45,7 +45,7 @@ jobs:
 
 
 
-      - name: Login to Azure Container Registry
+      - name: Login to egovio docker Container Registry
         env:
             DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
             DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -56,7 +56,7 @@ jobs:
       - name: Build and Push Docker image for digit-ui
         if: ${{ steps.check_files.outputs.run_job_digit_ui == 'true' }}
         run: |
-          docker build -t workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }} -f web/workbench/docker/Dockerfile .
+          docker build -t workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }} -f web/workbench/Dockerfile .
           docker tag workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }} egovio/workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
           docker push egovio/workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
         working-directory: micro-ui
