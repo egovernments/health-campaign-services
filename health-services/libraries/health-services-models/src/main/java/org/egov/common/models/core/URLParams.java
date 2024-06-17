@@ -10,7 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-//TODO should we move all this to body model or should we keep this in url? same with search common models
 /**
  * Model class representing common search criteria for API search operations.
  * @author kanishq-egov
