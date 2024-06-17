@@ -123,7 +123,7 @@ public class ProjectService {
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
             // Throw a custom exception if an error occurs during boundary search
-            throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+            throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
         }
 
         return boundaries.stream()
