@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 
 const CustomScaleControl = ({ map }) => {
-  if (!map) return <div></div>;
-  const [scaleText, setScaleText] = useState("")
+  if (!map) return null;
+  const [scaleText, setScaleText] = useState("");
   // Function to calculate and update the scale text
   const updateScale = () => {
     // Calculate the scale based on the map's current zoom level
@@ -13,7 +13,7 @@ const CustomScaleControl = ({ map }) => {
     const scaleTextData = scale < 1 ? `${Math.round(scale * 1000)} m` : `${Math.round(Math.round(scale.toFixed(0) / 10) * 10)} km`;
 
     // Update the scale text in the container element
-    setScaleText(scaleTextData)
+    setScaleText(scaleTextData);
   };
 
   // Effect to update the scale text when the map component mounts and on map zoom change
@@ -32,8 +32,8 @@ const CustomScaleControl = ({ map }) => {
 
   return (
     <div className="custom-scale" aria-live="polite">
-        {scaleText}
-      <div className="border-spikes" aria-hidden="true"/>
+      {scaleText}
+      <div className="border-spikes" aria-hidden="true" />
     </div>
   );
 };

@@ -25,11 +25,11 @@ export const geojsonValidations = (data, schemaData, t) => {
   let valid = geojsonStructureValidation(data);
   if (valid.valid) {
     return { valid: true };
-  } else if (valid.message) {
-    return { valid: false, message: valid.message };
-  } else {
-    return { valid: false, message: ["ERROR_INVALID_GEOJSON"] };
   }
+  if (valid.message) {
+    return { valid: false, message: valid.message };
+  }
+  return { valid: false, message: ["ERROR_INVALID_GEOJSON"] };
 };
 
 // Funciton responsible for structural verification of geojson data

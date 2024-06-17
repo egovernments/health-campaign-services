@@ -15,11 +15,10 @@ export const convertJsonToXlsx = async (jsonData, columnWithStyle) => {
       // Apply red font color to the errorColumn if it exists
       let errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
       if (columnWithStyle?.errorColumn && errorColumnIndex !== -1) {
-        const columnIndex = errorColumnIndex + 1; 
+        const columnIndex = errorColumnIndex + 1;
         if (columnIndex > 0) {
           const newCell = newRow.getCell(columnIndex);
-          if (columnWithStyle.style && newCell)
-            for (const key in columnWithStyle.style) newCell[key] = columnWithStyle.style[key];
+          if (columnWithStyle.style && newCell) for (const key in columnWithStyle.style) newCell[key] = columnWithStyle.style[key];
         }
       }
     }

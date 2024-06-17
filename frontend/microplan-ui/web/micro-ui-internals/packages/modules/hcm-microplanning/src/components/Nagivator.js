@@ -75,17 +75,6 @@ const Navigator = memo((props) => {
   }, [navigationEvent, checkDataCompletion, props.nextEventAddon]);
 
   useEffect(() => {
-    // if (checkDataCompletion === "perform-action") {
-    //   if (navigationEvent && navigationEvent.name === "next") {
-    //     if (currentPage?.id >= props.config.length - 1 && typeof props?.completeNavigation == "function") {
-    //       return props?.completeNavigation();
-    //     }
-    //     nextStep();
-    //   } else if (navigationEvent && navigationEvent.name === "step" && navigationEvent.step != undefined) onStepClick(navigationEvent.step);
-    //   else if (navigationEvent && navigationEvent.name === "previousStep") previousStep();
-    //   setCheckDataCompletion("false");
-    //   setNavigationEvent(undefined);
-    // }
     handleNavigationEvent(
       checkDataCompletion,
       navigationEvent,
@@ -209,7 +198,7 @@ const Navigator = memo((props) => {
             }
           />
         ) : (
-          <div className="navigator-componet-not-found">{t("COMMON_DATA_NOT_PRESENT")}</div>
+          <div className="navigator-component-not-found">{t("COMMON_DATA_NOT_PRESENT")}</div>
         )
       ) : (
         ""
@@ -241,9 +230,6 @@ const Navigator = memo((props) => {
           <ArrowForward className={"icon"} width={"1.5rem"} height={"1.5rem"} fill={"rgb(255,255,255)"} />
         </Button>
       </ActionBar>
-
-      {/* Toast notification */}
-      {/* {toast && <Toast label={toast} type="error" transitionTime={10000} onClose={() => setToast(undefined)} />} */}
     </div>
   );
 });

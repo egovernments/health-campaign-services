@@ -1,4 +1,4 @@
-import { Loader,TourProvider } from "@egovernments/digit-ui-react-components";
+import { Loader, TourProvider } from "@egovernments/digit-ui-react-components";
 import React from "react";
 import { useRouteMatch } from "react-router-dom";
 import EmployeeApp from "./pages/employee";
@@ -9,7 +9,6 @@ import MicroplanningCard from "./components/MicroplanningCard";
 import MicroplanDetails from "./components/MicroplanDetails";
 import { ProviderContext } from "./utils/context";
 
-
 const MicroplanningModule = ({ stateCode, userType, tenants }) => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { data: BOUNDARY_HIERARCHY_TYPE } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }], {
@@ -17,7 +16,7 @@ const MicroplanningModule = ({ stateCode, userType, tenants }) => {
       return data?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.hierarchy;
     },
   });
-  const moduleCode = ["Microplanning", `boundary-${BOUNDARY_HIERARCHY_TYPE}`];
+  const moduleCode = ["Microplanning", `boundary-${BOUNDARY_HIERARCHY_TYPE}`, "hcm-admin-schemas"];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
   const { isLoading, data: store } = Digit.Services.useStore({
@@ -25,7 +24,6 @@ const MicroplanningModule = ({ stateCode, userType, tenants }) => {
     moduleCode,
     language,
   });
-
 
   if (isLoading) {
     return <Loader />;
@@ -37,13 +35,13 @@ const MicroplanningModule = ({ stateCode, userType, tenants }) => {
         <EmployeeApp path={path} stateCode={stateCode} />
       </TourProvider>
     </ProviderContext>
-  )
+  );
 };
 
 const componentsToRegister = {
   MicroplanningModule,
   MicroplanningCard,
-  MicroplanDetails
+  MicroplanDetails,
   // DigitJSONForm,
   // DSSCard: null, // TO HIDE THE DSS CARD IN HOME SCREEN as per workbench
   // HRMSCard // Overridden the HRMS card as per workbench
@@ -90,8 +88,7 @@ const updateCustomConfigs = () => {
   setupLibraries("Customizations", "commonUiConfig", { ...window?.Digit?.Customizations?.commonUiConfig, ...UICustomizations });
 };
 
-
- const initMicroplanningComponents = () => {
+const initMicroplanningComponents = () => {
   overrideHooks();
   updateCustomConfigs();
   Object.entries(componentsToRegister).forEach(([key, value]) => {
@@ -99,5 +96,4 @@ const updateCustomConfigs = () => {
   });
 };
 
-export {initMicroplanningComponents};
-
+export { initMicroplanningComponents };

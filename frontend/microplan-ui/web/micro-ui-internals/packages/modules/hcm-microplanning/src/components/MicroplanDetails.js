@@ -104,18 +104,8 @@ const MicroplanDetails = ({
 
   useEffect(() => {
     if (checkDataCompletion !== "true" || !setCheckDataCompletion) return;
-    // uncomment to activate data change save check
-    // if (
-    //   !microplanData?.microplanDetails ||
-    //   !_.isEqual(
-    //     {
-    //       name: microplan,
-    //     },
-    //     microplanData.microplanDetails
-    //   )
-    // )
-    //   setModal("data-change-check");
-    else updateData(true);
+
+    updateData(true);
   }, [checkDataCompletion]);
 
   // UseEffect to add a event listener for keyboard
@@ -146,7 +136,8 @@ const MicroplanDetails = ({
       const response = await SearchPlanConfig(body);
       if (response?.PlanConfiguration?.length === 0) {
         return true;
-      } else if (response?.PlanConfiguration?.length === 1) {
+      }
+      if (response?.PlanConfiguration?.length === 1) {
         if (response?.PlanConfiguration[0].id === microplanData?.planConfigurationId) {
           setLoader();
           return true;
@@ -273,12 +264,6 @@ const MicroplanDetails = ({
               value={microplan}
               onChange={onChangeMicroplanName}
               placeholder={t("MICROPLAN_NAME_INPUT_PLACEHOLDER")}
-              // {...(validation = {
-              //   isRequired: true,
-              //   pattern: "^[a-zA-Z-.`' ]*$",
-              //   type: "tel",
-              //   title: t("CORE_COMMON_PROFILE_NAME_ERROR_MESSAGE"),
-              // })}
               disable={false}
             />
           </div>
@@ -302,40 +287,6 @@ const MicroplanDetails = ({
           </div>,
         ]}
       />
-      {/* {toast && toast.state === "error" && (
-        <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type="error" />
-      )} */}
-      {/* // uncomment to activate data change save check
-      {modal === "data-change-check" && (
-        <Modal
-          popupStyles={{ borderRadius: "0.25rem", width: "31.188rem" }}
-          popupModuleActionBarStyles={{
-            display: "flex",
-            flex: 1,
-            justifyContent: "space-between",
-            padding: 0,
-            width: "100%",
-            padding: "0 0 1rem 1.3rem",
-          }}
-          popupModuleMianStyles={{ padding: 0, margin: 0 }}
-          style={{
-            flex: 1,
-            backgroundColor: "white",
-            border: `0.063rem solid ${PRIMARY_THEME_COLOR}`,
-          }}
-          headerBarMainStyle={{ padding: 0, margin: 0 }}
-          headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_DATA_WAS_UPDATED_WANT_TO_SAVE")} />}
-          headerBarEnd={<CloseButton clickHandler={cancelUpdateData} style={{ padding: "0.4rem 0.8rem 0 0" }} />}
-          actionCancelLabel={t("YES")}
-          actionCancelOnSubmit={updateData.bind(null, true)}
-          actionSaveLabel={t("NO")}
-          actionSaveOnSubmit={() => updateData(false)}
-        >
-          <div className="modal-body">
-            <p className="modal-main-body-p">{t("INSTRUCTION_DATA_WAS_UPDATED_WANT_TO_SAVE")}</p>
-          </div>
-        </Modal>
-      )} */}
     </>
   );
 };

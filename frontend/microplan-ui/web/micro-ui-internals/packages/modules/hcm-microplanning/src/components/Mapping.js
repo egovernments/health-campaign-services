@@ -35,7 +35,7 @@ const page = "mapping";
 
 function checkTruthyKeys(obj) {
   for (let key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.hasOwn(obj, key)) {
       if (obj[key] && !(Array.isArray(obj[key]) && obj[key].length === 0)) {
         return true;
       }
@@ -84,7 +84,13 @@ const Mapping = ({
     config: {
       enabled: !!campaignData?.hierarchyType,
       select: (data) => {
-        return data?.BoundaryHierarchy?.[0]?.boundaryHierarchy || [];
+        return (
+          data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => ({
+            ...item,
+            parentBoundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.parentBoundaryType)}`,
+            boundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`,
+          })) || {}
+        );
       },
     },
   };
@@ -296,6 +302,7 @@ const Mapping = ({
             message: t("DISPLAYING_DATA_ONLY_FOR_UPLOADED_BOUNDARIES"),
           });
         }
+
         let choroplethGeojson = prepareGeojson(boundaryData, "ALL", { ...addOn, child: true, fillColor: "rgb(0,0,0,0)" }) || [];
         if (choroplethGeojson && choroplethGeojson.length !== 0)
           choroplethGeojson = addChoroplethProperties(choroplethGeojson, choroplethProperty, filteredSelection);
@@ -362,7 +369,7 @@ const Mapping = ({
   useEffect(() => {
     if (isboundarySelectionSelected || showBaseMapSelector || showFilterOptions || showChoroplethOptions) handleMouseDownAndScroll();
     else handleMouseUpAndScroll();
-  }, [isboundarySelectionSelected, showBaseMapSelector, showFilterOptions, showChoroplethOptions]);
+  }, [isboundarySelectionSelected, showBaseMapSelector, showFilterOptions, showChoroplethOptions, choroplethProperty, filterPropertyNames]);
 
   // Rendering component
   return (
@@ -426,7 +433,7 @@ const Mapping = ({
               <div className="north-arrow">
                 {DigitSvgs.NorthArrow && <DigitSvgs.NorthArrow width={"1.667rem"} height={"1.667rem"} fill={"rgba(255, 255, 255, 1)"} />}
               </div>
-              <CustomScaleControl map={map} />
+              <CustomScaleControl map={map} t={t} />
             </div>
 
             <div className="bottom-right-map-subcomponents" onMouseDown={handleMouseDownAndScroll} onMouseUp={handleMouseUpAndScroll}>
@@ -438,12 +445,6 @@ const Mapping = ({
           </div>
         </Card>
       </Card>
-      {/* {toast && toast.state === "error" && (
-        <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type={"error"} />
-      )}
-      {toast && toast.state === "warning" && (
-        <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type={"warning"} />
-      )} */}
       {loader && <LoaderWithGap text={t(loader)} />}
     </div>
   );
@@ -526,14 +527,14 @@ const ChoroplethSelection = memo(
 
     return (
       <div className="choropleth-section" ref={showChoroplethOptionRef}>
-        <div className="icon-rest virtualization-icon">
-          <p onClick={() => setShowChoroplethOptions((previous) => !previous)}>{t("VISUALIZATIONS")}</p>
-          <div
-            className="icon"
-            onClick={() => setShowChoroplethOptions((previous) => !previous)}
-            onKeyUp={() => setShowChoroplethOptions((previous) => !previous)}
-            tabIndex={0}
-          >
+        <div
+          className="icon-rest virtualization-icon"
+          onClick={() => setShowChoroplethOptions((previous) => !previous)}
+          onKeyUp={() => setShowChoroplethOptions((previous) => !previous)}
+          tabIndex={0}
+        >
+          <p>{t("VISUALIZATIONS")}</p>
+          <div className="icon">
             {DigitSvgs.FilterAlt && <DigitSvgs.FilterAlt width={"1.667rem"} height={"1.667rem"} fill={"rgba(255, 255, 255, 1)"} />}
           </div>
         </div>
@@ -542,6 +543,7 @@ const ChoroplethSelection = memo(
             <div className="custom-box-wrapper">
               <RadioButtons
                 additionalWrapperClass="custom-box"
+                innerStyles={{ borderBottom: "0.063rem solid rgba(214, 213, 212, 1)" }}
                 options={choroplethProperties.map((item) => ({ name: item, id: item, code: item }))}
                 optionsKey="name"
                 onSelect={handleChange}
@@ -550,9 +552,19 @@ const ChoroplethSelection = memo(
             </div>
             <Button
               variation="secondary"
-              textStyles={{ width: "fit-content", fontSize: "0.875rem", fontWeight: "400" }}
+              textStyles={{ width: "fit-content", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center" }}
               className="button-primary"
-              style={{ width: "100%", display: "flex", alignItem: "center", justifyContent: "flex-start", border: 0, padding: "0 0.7rem 0 0.7rem" }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                border: 0,
+                padding: "0 0.7rem 0 0.7rem",
+                height: "2.5rem",
+                maxHeight: "2.5rem",
+                backgroundColor: "rgba(250, 250, 250, 1)",
+              }}
               icon={"AutoRenew"}
               label={t("CLEAR_FILTER")}
               onClick={() => setChoroplethProperty()}
@@ -569,9 +581,11 @@ const FilterSection = memo(
     const handleChange = useCallback(
       (e, item) => {
         let tempFilterSelections = [...filterSelections]; // Clone the array to avoid mutating state directly
-        filterSelections.includes(item)
-          ? (tempFilterSelections = tempFilterSelections.filter((element) => element !== item))
-          : tempFilterSelections.push(item);
+        if (filterSelections.includes(item)) {
+          tempFilterSelections = tempFilterSelections.filter((element) => element !== item);
+        } else {
+          tempFilterSelections.push(item);
+        }
         setFilterSelections(tempFilterSelections);
       },
       [filterSelections]
@@ -579,9 +593,14 @@ const FilterSection = memo(
 
     return (
       <div className="filter-section" ref={showFilterOptionRef}>
-        <div className="icon-rest filter-icon">
-          <p onClick={() => setShowFilterOptions((previous) => !previous)}>{t("FILTERS")}</p>
-          <div className="icon" onClick={() => setShowFilterOptions((previous) => !previous)}>
+        <div
+          className="icon-rest filter-icon"
+          onClick={() => setShowFilterOptions((previous) => !previous)}
+          onKeyUp={() => setShowFilterOptions((previous) => !previous)}
+          tabIndex={0}
+        >
+          <p>{t("FILTERS")}</p>
+          <div className="icon">
             {DigitSvgs.FilterAlt && <DigitSvgs.FilterAlt width={"1.667rem"} height={"1.667rem"} fill={"rgba(255, 255, 255, 1)"} />}
           </div>
         </div>
@@ -607,9 +626,18 @@ const FilterSection = memo(
             </div>
             <Button
               variation="secondary"
-              textStyles={{ width: "fit-content", fontSize: "0.875rem", fontWeight: "400" }}
+              textStyles={{ width: "fit-content", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center" }}
               className="button-primary"
-              style={{ width: "100%", display: "flex", alignItem: "center", justifyContent: "flex-start", border: 0, padding: "0 0.7rem 0 0.7rem" }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                border: 0,
+                padding: "0 0.7rem 0 0.7rem",
+                height: "2rem",
+                maxHeight: "2rem",
+              }}
               icon={"AutoRenew"}
               label={t("CLEAR_ALL_FILTERS")}
               onClick={() => setFilterSelections([])}
@@ -704,7 +732,8 @@ const BoundarySelection = memo(
           icon="FilterAlt"
           variation="secondary"
           className="button-primary"
-          textStyles={{ width: "fit-content" }}
+          style={{ height: "2.5rem", maxHeight: "2.5rem" }}
+          textStyles={{ width: "fit-content", display: "flex", alignItems: "center", fontWeight: "600" }}
           label={t("BUTTON_FILTER_BY_BOUNDARY")}
           onClick={() => setIsboundarySelectionSelected((previous) => !previous)}
         />
@@ -730,7 +759,7 @@ const BoundarySelection = memo(
                 <CardLabel style={{ padding: 0, margin: 0 }}>{t(item?.boundaryType)}</CardLabel>
                 {item?.parentBoundaryType === null ? (
                   <MultiSelectDropdown
-                    defaultLabel={t("SELECT_HIERARCHY", { heirarchy: item?.boundaryType })}
+                    defaultLabel={t("SELECT_HIERARCHY", { heirarchy: t(item?.boundaryType) })}
                     selected={boundarySelections?.[item?.boundaryType]}
                     style={{ maxWidth: "23.75rem", margin: 0 }}
                     ServerStyle={(item?.dropDownOptions || []).length > 5 ? { height: "13.75rem" } : {}}
@@ -754,7 +783,7 @@ const BoundarySelection = memo(
                   />
                 ) : (
                   <MultiSelectDropdown
-                    defaultLabel={t("SELECT_HIERARCHY", { heirarchy: item?.boundaryType })}
+                    defaultLabel={t("SELECT_HIERARCHY", { heirarchy: t(item?.boundaryType) })}
                     selected={boundarySelections?.[item?.boundaryType]}
                     style={{ maxWidth: "23.75rem", margin: 0 }}
                     ServerStyle={(item?.dropDownOptions || []).length > 5 ? { height: "13.75rem" } : {}}
@@ -786,8 +815,8 @@ const BoundarySelection = memo(
               <Button
                 variation="secondary"
                 className="button-primary"
-                textStyles={{ width: "fit-content" }}
-                style={{ marginTop: "0.7rem", width: "14rem", display: "flex", alignItem: "start" }}
+                textStyles={{ width: "fit-content", display: "flex", alignItems: "center" }}
+                style={{ marginTop: "0.7rem", width: "14rem", display: "flex", alignItems: "center", height: "2rem", maxHeight: "2rem" }}
                 icon={"AutoRenew"}
                 label={t("CLEAR_ALL_FILTERS")}
                 onClick={handleClearAll}
@@ -834,7 +863,12 @@ const BaseMapSwitcher = ({ baseMaps, showBaseMapSelector, setShowBaseMapSelector
   if (!baseMaps) return null;
   return (
     <div className="base-map-selector">
-      <div className="icon-first" onClick={() => setShowBaseMapSelector((previous) => !previous)}>
+      <div
+        className="icon-first"
+        onClick={() => setShowBaseMapSelector((previous) => !previous)}
+        onKeyUp={() => setShowBaseMapSelector((previous) => !previous)}
+        tabIndex={0}
+      >
         <p>{t("LAYERS")}</p>
         <div className="icon">{DigitSvgs.Layers && <DigitSvgs.Layers width={"1.667rem"} height={"1.667rem"} fill={"rgba(255, 255, 255, 1)"} />}</div>
       </div>
@@ -925,7 +959,7 @@ const extractGeoData = (
   let formulaConfiguration = microplanData?.ruleEngine;
   // Check if microplanData and its upload property exist
   let dataAvailabilityCheck; // Initialize data availability check
-  if (microplanData && microplanData?.upload) {
+  if (microplanData?.upload) {
     let files = _.cloneDeep(microplanData?.upload);
     dataAvailabilityCheck = "initialStage"; // Initialize data availability check
     // Loop through each file in the microplan upload
@@ -933,10 +967,7 @@ const extractGeoData = (
       if (!fileData.active) continue; // if file is inactive skip it
 
       // Check if the file is not part of boundary or layer data origins
-      if (
-        !(filterDataOrigin?.boundriesDataOrigin && filterDataOrigin?.boundriesDataOrigin.includes(fileData?.section)) &&
-        !(filterDataOrigin?.layerDataOrigin && filterDataOrigin?.layerDataOrigin.includes(fileData?.section))
-      ) {
+      if (!filterDataOrigin?.boundriesDataOrigin?.includes(fileData?.section) && !filterDataOrigin?.layerDataOrigin?.includes(fileData?.section)) {
         dataAvailabilityCheck = "false"; // Set data availability to false if file not found in data origins
       }
 
@@ -970,7 +1001,7 @@ const extractGeoData = (
           ) {
             filterProperty.push(key);
           }
-          if (value?.isVisualizationPropertyOfMapSection) {
+          if (value?.isVisualizationPropertyOfMapSection && filterDataOrigin?.boundriesDataOrigin?.includes(fileData?.section)) {
             virtualizationPropertiesCollector.add(key);
           }
         }
@@ -1066,14 +1097,14 @@ const extractGeoData = (
               }
               // extract dada
               var { hierarchyLists, hierarchicalData } = processHierarchyAndData(hierarchy, convertedData);
-              if (filterDataOrigin?.boundriesDataOrigin && filterDataOrigin?.boundriesDataOrigin.includes(fileData?.section))
+              if (filterDataOrigin?.boundriesDataOrigin?.includes(fileData?.section))
                 setBoundary = { ...setBoundary, [fileData.section]: { hierarchyLists, hierarchicalData } };
-              else if (filterDataOrigin?.layerDataOrigin && filterDataOrigin?.layerDataOrigin.includes(fileData?.section))
+              else if (filterDataOrigin?.layerDataOrigin?.includes(fileData?.section))
                 setFilter = { ...setFilter, [fileData.section]: { hierarchyLists, hierarchicalData } };
               break;
             }
             case GEOJSON:
-            case SHAPEFILE:
+            case SHAPEFILE: {
               dataAvailabilityCheck = dataAvailabilityCheck === "partial" ? "partial" : dataAvailabilityCheck === "false" ? "partial" : "true"; // Update data availability for GeoJSON or Shapefile
               // Extract keys from the first feature's properties
               var keys = Object.keys(fileData?.data.features[0].properties);
@@ -1103,7 +1134,6 @@ const extractGeoData = (
               }
 
               // Group keys and values into the desired format
-              // let data = { [files[fileData]?.fileName]: [keys, ...values] };
               // Adding resource data
               let dataWithResources = [keys, ...values];
               if (resources && formulaConfiguration && hypothesisAssumptionsList) {
@@ -1116,14 +1146,15 @@ const extractGeoData = (
                   t
                 );
                 let indexOfFeatureInDataWithResources = dataWithResources?.[0]?.indexOf("feature");
+                keys.push(...resources);
                 dataWithResources = dataWithResources.map((item, index) => {
                   if (index === 0) return item;
                   let newProperties = {};
-                  keys.forEach((e) => {
-                    if (e === "feature") return;
+                  for (const e of keys) {
+                    if (e === "feature") continue;
                     let index = dataWithResources?.[0]?.indexOf(e);
                     newProperties[e] = item[index];
-                  });
+                  }
                   let newRow = _.cloneDeep(item);
                   newRow[indexOfFeatureInDataWithResources] = { ...item[indexOfFeatureInDataWithResources], properties: newProperties };
                   return newRow;
@@ -1132,10 +1163,11 @@ const extractGeoData = (
 
               // extract dada
               var { hierarchyLists, hierarchicalData } = processHierarchyAndData(hierarchy, [dataWithResources]);
-              if (filterDataOrigin?.boundriesDataOrigin && filterDataOrigin?.boundriesDataOrigin.includes(fileData?.section))
+              if (filterDataOrigin?.boundriesDataOrigin?.includes(fileData?.section))
                 setBoundary = { ...setBoundary, [fileData.section]: { hierarchyLists, hierarchicalData } };
-              else if (filterDataOrigin?.layerDataOrigin && filterDataOrigin?.layerDataOrigin.includes(fileData?.section))
+              else if (filterDataOrigin?.layerDataOrigin?.includes(fileData?.section))
                 setFilter = { ...setFilter, [fileData.section]: { hierarchyLists, hierarchicalData } };
+            }
           }
         }
       }
@@ -1150,7 +1182,9 @@ const extractGeoData = (
     // Section wise check
     if (dataAvailabilityCheck == "true") {
       let sectionWiseCheck = true;
-      combineList.forEach((item) => (sectionWiseCheck = Object.keys(files).includes(item) && sectionWiseCheck));
+      combineList.forEach((item) => {
+        sectionWiseCheck = Object.keys(files).includes(item) && sectionWiseCheck;
+      });
       if (!sectionWiseCheck) dataAvailabilityCheck = "partial"; // Update data availability if section-wise check fails
     }
 
@@ -1234,9 +1268,8 @@ const fetchFeatures = (data, parameter = "ALL", outputList = [], addOn = {}) => 
         feature.properties["addOn"] = addOn;
         if (entityValue?.children) tempStorage = [...tempStorage, feature, ...fetchFeatures(entityValue?.children, parameter, outputList, addOn)];
         else tempStorage = [...tempStorage, feature];
-      } else {
-        if (entityValue?.children) tempStorage = [...tempStorage, ...fetchFeatures(entityValue?.children, parameter, outputList, addOn)];
       }
+      if (entityValue?.children) tempStorage = [...tempStorage, ...fetchFeatures(entityValue?.children, parameter, outputList, addOn)];
     }
     return tempStorage;
   }
@@ -1244,10 +1277,11 @@ const fetchFeatures = (data, parameter = "ALL", outputList = [], addOn = {}) => 
 
 const addChoroplethProperties = (geojson, choroplethProperty, filteredSelection) => {
   // Calculate min and max values of the property
-  const values = geojson.map((feature) => feature.properties[choroplethProperty]).filter(Boolean) || [];
+  const values = geojson.map((feature) => feature.properties[choroplethProperty]).filter((item) => !!item || item === 0) || [];
   if (!values || values.length === 0) return [];
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
+  const convertedValues = values.map((item) => (!isNaN(item) ? item : 0));
+  const minValue = Math.min(...convertedValues);
+  const maxValue = Math.max(...convertedValues);
 
   // Create a new geojson object
   const newGeojson = geojson.map((feature) => {
@@ -1428,7 +1462,7 @@ function interpolateColor(value, minValue, maxValue, colors) {
   }
 
   // Normalize the value to a percentage between 0 and 100
-  const percent = ((value - minValue) / (maxValue - minValue)) * 100;
+  const percent = !isNaN(value) ? ((value - minValue) / (maxValue - minValue)) * 100 : 0;
   // Find the two colors to interpolate between
   let lowerColor, upperColor;
   for (let i = 0; i < colors.length - 1; i++) {

@@ -1,4 +1,4 @@
-import { BOUNDARY_DATA_SHEET, FACILITY_DATA_SHEET, commonColumn } from "../configs/constants";
+import { BOUNDARY_DATA_SHEET, FACILITY_DATA_SHEET, SCHEMA_PROPERTIES_PREFIX, commonColumn } from "../configs/constants";
 
 export const fetchBoundaryData = async (tenantId, hierarchyType, codes) => {
   // request for boundary relation api
@@ -50,7 +50,7 @@ export const getFacilities = async (params, body) => {
  * @param {*} boundaryData
  * @returns xlsxData with boundary data added
  */
-export const addBoundaryData = (xlsxData, boundaryData) => {
+export const addBoundaryData = (xlsxData, boundaryData, hierarchyType) => {
   // Return the original data if there is no boundary data to add
   if (!boundaryData) return xlsxData;
 
@@ -98,6 +98,7 @@ export const addBoundaryData = (xlsxData, boundaryData) => {
   let { tempDataAccumulator: sortedBoundaryDataForXlsxSheet, tempHierarchyAccumulator: hierarchy } = convertBoundaryDataToSheets(boundaryData);
 
   // Add the hierarchy as the first row of the sheet
+  hierarchy = [...hierarchy].map((item) => `${hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item)}`);
   sortedBoundaryDataForXlsxSheet = [[...hierarchy], ...sortedBoundaryDataForXlsxSheet];
 
   // Determine the maximum row length to ensure all rows have the same length
@@ -136,7 +137,10 @@ const fillDataWithBlanks = (data, tillRow) => {
   const maxLength = Math.max(...data.map((row) => row.length));
   return data.map((row) => [...row, ...new Array(maxLength - row.length).fill("")]);
 };
-
+const generateLocalisationKeyForSchemaProperties = (code) => {
+  if (!code) return code;
+  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+};
 /**
  *
  * @param {array} xlsxData , xlsx data
@@ -153,7 +157,8 @@ const addSchemaData = (xlsxData, schema, extraColumnsToAdd) => {
 
   for (const [key, value] of Object.entries(columnSchema)) {
     if (key === commonColumn) continue;
-    columnList[0].push(key); // Add key to the first array
+
+    columnList[0].push(generateLocalisationKeyForSchemaProperties(key)); // Add key to the first array
 
     //   columnList[1].push(value.type || ""); // Add type to the second array
 
@@ -383,7 +388,7 @@ const addFacilitySheet = (xlsxData, mapping, facilities, schema, t) => {
   }
   headers.push(...additionalCols);
   // Combine headers and data rows
-  const arrayOfArrays = [headers, ...dataRow];
+  const arrayOfArrays = [headers.map((item) => generateLocalisationKeyForSchemaProperties(item)), ...dataRow];
 
   let facilitySheet = {
     sheetName: FACILITY_DATA_SHEET,
@@ -433,7 +438,7 @@ export const createTemplate = async ({
   // const filteredBoundaryData = boundaryData;
   let xlsxData = [];
   // adding boundary data to xlsxData
-  xlsxData = addBoundaryData(xlsxData, filteredBoundaries);
+  xlsxData = addBoundaryData(xlsxData, filteredBoundaries, hierarchyType);
 
   if (hierarchyLevelWiseSheets) {
     // district wise boundary Data sheets

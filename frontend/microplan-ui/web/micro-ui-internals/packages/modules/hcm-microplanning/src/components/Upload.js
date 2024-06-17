@@ -18,11 +18,15 @@ import {
   ACCEPT_HEADERS,
   BOUNDARY_DATA_SHEET,
   EXCEL,
+  FACILITY_DATA_SHEET,
   FILE_STORE,
   GEOJSON,
   LOCALITY,
   PRIMARY_THEME_COLOR,
+  SCHEMA_PROPERTIES_PREFIX,
   SHAPEFILE,
+  SHEET_COLUMN_WIDTH,
+  SHEET_PASSWORD,
   commonColumn,
 } from "../configs/constants";
 import { tourSteps } from "../configs/tourSteps";
@@ -31,6 +35,7 @@ import { v4 as uuidv4 } from "uuid";
 import { addBoundaryData, createTemplate, fetchBoundaryData, filterBoundaries } from "../utils/createTemplate";
 import XLSX from "xlsx";
 import ExcelJS from "exceljs";
+import { freezeSheetValues, freezeWorkbookValues, performUnfreezeCells, unfreezeColumnsByHeader, updateFontNameToRoboto } from "../utils/excelUtils";
 const page = "upload";
 
 const Upload = ({
@@ -95,12 +100,15 @@ const Upload = ({
     config: {
       enabled: !!campaignData?.hierarchyType,
       select: (data) => {
-        return data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => item?.boundaryType) || {};
+        return (
+          data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map(
+            (item) => `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`
+          ) || {}
+        );
       },
     },
   };
   const { isLoading: ishierarchyLoading, data: hierarchy } = Digit.Hooks.useCustomAPIHook(reqCriteria);
-
   // Set TourSteps
   useEffect(() => {
     const tourData = tourSteps(t)?.[page] || {};
@@ -209,14 +217,9 @@ const Upload = ({
     [fileDataList, setMicroplanData, microplanData, setCheckDataCompletion, dataPresent, dataUpload, navigationEvent]
   );
 
-  // const cancelUpdateData = useCallback(() => {
-  //   setCheckDataCompletion(false);
-  //   setModal("none");
-  // }, [setCheckDataCompletion, setModal]);
-
   // UseEffect to extract data on first render
   useEffect(() => {
-    if (microplanData && microplanData.upload) {
+    if (microplanData?.upload) {
       setFileDataList(microplanData.upload);
     }
 
@@ -279,7 +282,7 @@ const Upload = ({
 
   // Handler for when a file type is selected for uplaod
   const selectFileTypeHandler = (e) => {
-    if (selectedSection && selectedSection.UploadFileTypes) {
+    if (selectedSection?.UploadFileTypes) {
       setSelectedFileType(selectedSection.UploadFileTypes.find((item) => item.id === e.target.name));
       setModal("upload-modal");
       return;
@@ -333,6 +336,7 @@ const Upload = ({
       Schemas: validationSchemas,
       HierarchyConfigurations: state?.HierarchyConfigurations,
       setLoader,
+      hierarchy,
       t,
     };
     downloadTemplate(downloadParams);
@@ -481,7 +485,7 @@ const Upload = ({
             setUploadedFileError(errorMsg);
           }
         } catch (errorData) {
-          console.log(errorData.message);
+          console.error(errorData.message);
           errorMsg = t("ERROR_UPLOADING_FILE");
           setToast({ state: "error", message: t("ERROR_UPLOADING_FILE") });
           setUploadedFileError(errorMsg);
@@ -524,7 +528,7 @@ const Upload = ({
       setDataPresent(true);
       setLoader(false);
     } catch (error) {
-      console.log(error.message);
+      console.error(error.message);
       console.error("File Upload error", error?.message);
       setUploadedFileError("ERROR_UPLOADING_FILE");
       setLoader(false);
@@ -554,7 +558,7 @@ const Upload = ({
           break;
         case SHAPEFILE:
         case GEOJSON:
-          if (fileData && fileData.data) {
+          if (fileData?.data) {
             const result = Digit.Utils.microplan.convertGeojsonToExcelSingleSheet(fileData?.data?.features, fileData?.section);
             if (fileData?.errorLocationObject?.length !== 0) blob = await prepareExcelFileBlobWithErrors(result, fileData.errorLocationObject, t);
           }
@@ -655,7 +659,7 @@ const Upload = ({
 
       let boundaryDataAgainstBoundaryCode = (await boundaryDataGeneration(schemaData, campaignData, t)) || {};
       const mappedToList = resourceMappingData.map((item) => item.mappedTo);
-      if (hierarchy.every((item) => !mappedToList.includes(item))) {
+      if (hierarchy.every((item) => !mappedToList.includes(t(item)))) {
         data.features.forEach((feature) => {
           const boundaryCode = feature.properties.boundaryCode;
           let additionalDetails = {};
@@ -685,7 +689,7 @@ const Upload = ({
       setToast({ state: "success", message: t("FILE_UPLOADED_SUCCESSFULLY") });
       setLoader(false);
     } catch (error) {
-      console.log(error.message);
+      console.error(error.message);
       setUploadedFileError(t("ERROR_UPLOADING_FILE"));
       setToast({ state: "error", message: t("ERROR_UPLOADING_FILE") });
       setLoader(false);
@@ -697,15 +701,14 @@ const Upload = ({
       const filestoreResponse = await Digit.UploadServices.Filestorage(FILE_STORE, fileData.file, Digit.ULBService.getCurrentTenantId());
       if (filestoreResponse?.data?.files?.length > 0) {
         return filestoreResponse?.data?.files[0]?.fileStoreId;
-      } else {
-        error = t("ERROR_UPLOADING_FILE");
-        setToast({ state: "error", message: t("ERROR_UPLOADING_FILE") });
-        setResourceMapping([]);
-        setUploadedFileError(error);
       }
-    } catch (error) {
-      console.log(error.message);
       error = t("ERROR_UPLOADING_FILE");
+      setToast({ state: "error", message: t("ERROR_UPLOADING_FILE") });
+      setResourceMapping([]);
+      setUploadedFileError(error);
+    } catch (errorData) {
+      console.error("Error while uploading file to filestore: ", errorData?.message);
+      let error = t("ERROR_UPLOADING_FILE");
       handleValidationErrorResponse(error);
       setResourceMapping([]);
       return;
@@ -799,10 +802,6 @@ const Upload = ({
 
   // Handler for checing file extension and showing errors in case it is wrong
   const onTypeErrorWhileFileUpload = () => {
-    // if (selectedFileType.id === EXCEL) setToast({ state: "error", message: t("ERROR_EXCEL_EXTENSION") });
-    // if (selectedFileType.id === GEOJSON) setToast({ state: "error", message: t("ERROR_GEOJSON_EXTENSION") });
-    // if (selectedFileType.id === SHAPEFILE) setToast({ state: "error", message: t("ERROR_SHAPE_FILE_EXTENSION") });
-
     switch (selectedFileType.id) {
       case EXCEL:
         setToast({ state: "error", message: t("ERROR_EXCEL_EXTENSION") });
@@ -1069,13 +1068,7 @@ const Upload = ({
             </Modal>
           )}
           {loader && <LoaderWithGap text={t(loader)} />}
-          {/* {toast && toast.state === "success" && <Toast style={{ zIndex: "9999999" }} label={toast.message} onClose={() => setToast(null)} />}
-          {toast && toast.state === "error" && (
-            <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type="error" />
-          )}
-          {toast && toast.state === "warning" && (
-            <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type="warning" />
-          )} */}
+
           {previewUploadedData && (
             <div className="popup-wrap">
               <JsonPreviewInExcelForm
@@ -1087,37 +1080,6 @@ const Upload = ({
             </div>
           )}
         </div>
-        {/* // uncomment to activate data change save check
-      {modal === "data-change-check" && (
-        <Modal
-          popupStyles={{ borderRadius: "0.25rem", width: "31.188rem" }}
-          popupModuleActionBarStyles={{
-            display: "flex",
-            flex: 1,
-            justifyContent: "space-between",
-            padding: 0,
-            width: "100%",
-            padding: "0 1rem 1rem 1.3rem",
-          }}
-          popupModuleMianStyles={{ padding: 0, margin: 0 }}
-          style={{
-            flex: 1,
-            backgroundColor: "white",
-            border: `0.063rem solid ${PRIMARY_THEME_COLOR}`,
-          }}
-          headerBarMainStyle={{ padding: 0, margin: 0 }}
-          headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_DATA_WAS_UPDATED_WANT_TO_SAVE")} />}
-          actionCancelLabel={t("YES")}
-          actionCancelOnSubmit={updateData.bind(null, true)}
-          actionSaveLabel={t("NO")}
-          headerBarEnd={<CloseButton clickHandler={cancelUpdateData} style={{ padding: "0.4rem 0.8rem 0 0" }} />}
-          actionSaveOnSubmit={() => updateData(false)}
-        >
-          <div className="modal-body">
-            <p className="modal-main-body-p">{t("INSTRUCTION_DATA_WAS_UPDATED_WANT_TO_SAVE")}</p>
-          </div>
-        </Modal>
-      )} */}
       </div>
     </>
   );
@@ -1245,7 +1207,7 @@ const FileUploadComponent = ({ selectedSection, selectedFileType, UploadFileToFi
       <div>
         <div className="heading">
           <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          <button className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
+          <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
             <div className="icon">
               <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
             </div>
@@ -1316,7 +1278,7 @@ const UploadedFile = ({
       <div>
         <div className="heading">
           <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          <button className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
+          <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
             <div className="icon">
               <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
             </div>
@@ -1333,15 +1295,15 @@ const UploadedFile = ({
             <p>{file.fileName}</p>
           </div>
           <div className="uploaded-file-operations">
-            <button className="button" onClick={ReuplaodFile} tabIndex="0">
+            <button className="button" onClick={ReuplaodFile} tabIndex="0" type="button">
               <CustomIcon Icon={Icons.FileUpload} width={"1.5rem"} height={"1.5rem"} color={PRIMARY_THEME_COLOR} />
               <p>{t("Reupload")}</p>
             </button>
-            <button className="button" onClick={DownloadFile} tabIndex="0">
+            <button className="button" onClick={DownloadFile} tabIndex="0" type="button">
               <CustomIcon Icon={Icons.FileDownload} width={"1.5rem"} height={"1.5rem"} color={PRIMARY_THEME_COLOR} />
               <p>{t("Download")}</p>
             </button>
-            <button className="delete-button" onClick={DeleteFile} tabIndex="0">
+            <button className="delete-button" onClick={DeleteFile} tabIndex="0" type="button">
               <CustomIcon Icon={Icons.Trash} width={"0.8rem"} height={"1rem"} color={PRIMARY_THEME_COLOR} />
               <p>{t("DELETE")}</p>
             </button>
@@ -1354,7 +1316,7 @@ const UploadedFile = ({
           style={{ margin: "0" }}
           label={t("ERROR_UPLOADED_FILE")}
           additionalElements={[
-            <InfoButton infobuttontype="error" label={"ERROR_VIEW_DETAIL_ERRORS"} onClick={openDataPreview} />,
+            <InfoButton infobuttontype="error" label={t("ERROR_VIEW_DETAIL_ERRORS")} onClick={openDataPreview} />,
             <div className="file-upload-error-container">
               {error?.map((item) => {
                 if (item !== "ERROR_REFER_UPLOAD_PREVIEW_TO_SEE_THE_ERRORS") {
@@ -1409,7 +1371,7 @@ const readGeojson = async (file, t) => {
         resolve({ valid: false, toast: { state: "error", message: t("ERROR_INCORRECT_FORMAT") } });
       }
     };
-    reader.onerror = function (error) {
+    reader.onerror = (error) => {
       resolve({ valid: false, toast: { state: "error", message: t("ERROR_CORRUPTED_FILE") } });
     };
 
@@ -1429,7 +1391,7 @@ const trimJSON = (jsonObject) => {
 
   const trimmedObject = {};
   for (const key in jsonObject) {
-    if (jsonObject.hasOwnProperty(key)) {
+    if (Object.hasOwn(jsonObject, key)) {
       const value = jsonObject[key];
       // Trim string values, recursively trim objects
       trimmedObject[key.trim()] = typeof value === "string" ? value.trim() : typeof value === "object" ? trimJSON(value) : value;
@@ -1506,9 +1468,8 @@ const checkProjection = async (zip) => {
 
   if (prjText.includes("GEOGCS") && prjText.includes("WGS_1984") && prjText.includes("DATUM") && prjText.includes("D_WGS_1984")) {
     return "EPSG:4326";
-  } else {
-    return false;
   }
+  return false;
 };
 
 // Function to handle the template download
@@ -1522,6 +1483,7 @@ const downloadTemplate = async ({
   Schemas,
   HierarchyConfigurations,
   setLoader,
+  hierarchy,
   t,
 }) => {
   try {
@@ -1541,49 +1503,28 @@ const downloadTemplate = async ({
     });
     const translatedTemplate = translateTemplate(template, t);
 
-    // const workbook = XLSX.utils.book_new();
-
-    // translatedTemplate.forEach(({ sheetName, data }) => {
-    //   const worksheet = XLSX.utils.json_to_sheet(data, { skipHeader: true });
-    //   const columnCount = data?.[0]?.length || 0;
-    //   const wscols = Array(columnCount).fill({ width: 30 });
-    //   worksheet["!cols"] = wscols;
-    //   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-    // });
-
-    // const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array", compression: true });
     // Create a new workbook
     const workbook = new ExcelJS.Workbook();
 
-    translatedTemplate.forEach(({ sheetName, data }) => {
-      // Create a new worksheet with properties
-      const worksheet = workbook.addWorksheet(sheetName, {
-        properties: {
-          outlineLevelCol: 1,
-          defaultRowHeight: 15,
-        },
-      });
+    formatTemplate(translatedTemplate, workbook);
 
-      // Add data to worksheet
-      for (const row of data) {
-        worksheet.addRow(row);
-      }
-
-      // Set column widths
-      const columnCount = data?.[0]?.length || 0;
-      const wscols = Array(columnCount).fill({ width: 30 });
-      wscols.forEach((col, colIndex) => {
-        worksheet.getColumn(colIndex + 1).width = col.width;
-      });
-
-      // Make the first row bold
-      if (worksheet.getRow(1)) {
-        worksheet.getRow(1).font = { bold: true };
-      }
-
-      // Adjust properties afterwards if needed (not supported by worksheet-writer)
-      worksheet.properties.outlineLevelCol = 2;
-      worksheet.properties.defaultRowHeight = 20; // Adjusted row height
+    // Color headers
+    colorHeaders(
+      workbook,
+      [...hierarchy.map((item) => t(item)), t(commonColumn)],
+      schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
+    );
+    // protextData
+    await protectData({
+      workbook,
+      hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
+      hierarchyLevelName,
+      addFacilityData: schema?.template?.includeFacilityData,
+      schema,
+      boundaries: campaignData?.boundaries,
+      tenantId: Digit.ULBService.getCurrentTenantId(),
+      hierarchyType,
+      t,
     });
 
     // Write the workbook to a buffer
@@ -1606,6 +1547,122 @@ const downloadTemplate = async ({
     console.error(error?.message);
     setToast({ state: "error", message: t("ERROR_DOWNLOADING_TEMPLATE") });
   }
+};
+
+const protectData = async ({
+  workbook,
+  hierarchyLevelWiseSheets = true,
+  hierarchyLevelName,
+  addFacilityData = false,
+  schema,
+  boundaries,
+  tenantId,
+  hierarchyType,
+  t,
+}) => {
+  if (hierarchyLevelWiseSheets) {
+    if (addFacilityData) {
+      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
+      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
+      if (schema?.template?.facilitySchemaApiMapping) {
+      } else {
+      }
+    } else {
+      await freezeWorkbookValues(workbook);
+      await unfreezeColumnsByHeader(
+        workbook,
+        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
+      );
+    }
+  } else {
+    // total boundary Data in one sheet
+    if (addFacilityData) {
+      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
+      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
+      if (schema?.template?.facilitySchemaApiMapping) {
+      } else {
+      }
+    } else {
+      await freezeWorkbookValues(workbook);
+      await unfreezeColumnsByHeader(
+        workbook,
+        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
+      );
+    }
+  }
+};
+
+const colorHeaders = async (workbook, headerList1, headerList2) => {
+  try {
+    // Iterate through each sheet
+    workbook.eachSheet((sheet, sheetId) => {
+      // Get the first row
+      const firstRow = sheet.getRow(1);
+
+      // Iterate through each cell in the first row
+      firstRow.eachCell((cell, colNumber) => {
+        const cellValue = cell.value.toString();
+
+        // Check conditions and set colors
+        if (headerList1.includes(cellValue)) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "ff9248" }, // Pink color
+          };
+        } else if (headerList2.includes(cellValue)) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "93C47D" }, // Red color
+          };
+        }
+      });
+    });
+  } catch (error) {
+    console.error("Error coloring headers:", error);
+  }
+};
+
+const formatTemplate = (template, workbook) => {
+  template.forEach(({ sheetName, data }) => {
+    // Create a new worksheet with properties
+    const worksheet = workbook.addWorksheet(sheetName, {
+      // properties: {
+      //   outlineLevelCol: 1,
+      //   defaultRowHeight: 15,
+      // },
+    });
+    data?.forEach((row, index) => {
+      const worksheetRow = worksheet.addRow(row);
+
+      // Apply fill color to each cell in the first row and make cells bold
+      if (index === 0) {
+        worksheetRow.eachCell((cell, colNumber) => {
+          // // Set cell fill color
+          // cell.fill = {
+          //   type: "pattern",
+          //   pattern: "solid",
+          //   fgColor: {
+          //     argb: headerToColorwithColor1.includes(cell.value) ? "ff9248" : headerToColorwithColor2.includes(cell.value) ? "93C47D" : undefined,
+          //   },
+          // };
+
+          // Set font to bold
+          cell.font = { bold: true };
+
+          // Enable text wrapping
+          cell.alignment = { wrapText: true };
+
+          // Update column width based on the length of the cell's text
+          const currentWidth = worksheet.getColumn(colNumber).width || SHEET_COLUMN_WIDTH; // Default width or current width
+          const newWidth = Math.max(currentWidth, cell.value.toString().length + 2); // Add padding
+          worksheet.getColumn(colNumber).width = newWidth;
+        });
+      }
+    });
+    updateFontNameToRoboto(worksheet);
+  });
 };
 
 const translateTemplate = (template, t) => {
@@ -1632,9 +1689,8 @@ const translateTemplate = (template, t) => {
         // Skip transformation for the boundaryCode column
         if ((index === boundaryCodeIndex && rowIndex !== 0) || typeof entity === "number") {
           return entity;
-        } else {
-          return t(entity);
         }
+        return t(entity);
       });
       transformedSheet.data.push(transformedRow);
     }
@@ -1689,6 +1745,10 @@ const CustomIcon = (props) => {
   return <props.Icon fill={props.color} {...props} />;
 };
 
+const generateLocalisationKeyForSchemaProperties = (code) => {
+  if (!code) return code;
+  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+};
 // Performs resource mapping and data filtering for Excel files based on provided schema data, hierarchy, and file data.
 const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, selectedFileType, fileDataToStore, t) => {
   let resourceMappingData = [];
@@ -1698,7 +1758,9 @@ const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, sel
     // Extract all unique column names from fileDataToStore and then doing thir resource mapping
     const columnForMapping = new Set(Object.values(fileDataToStore).flatMap((value) => value?.[0] || []));
     if (schemaData?.schema?.["Properties"]) {
-      const schemaKeys = Object.keys(schemaData.schema["Properties"]).concat(hierarchy);
+      const schemaKeys = Object.keys(schemaData.schema["Properties"])
+        .map((item) => generateLocalisationKeyForSchemaProperties(item))
+        .concat([...hierarchy, commonColumn]);
       schemaKeys.forEach((item) => {
         if (columnForMapping.has(t(item))) {
           resourceMappingData.push({
@@ -1721,7 +1783,7 @@ const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, sel
             toRemove.push(index);
             return;
           }
-          headers.push(mappedTo);
+          headers.push(revertLocalisationKey(mappedTo));
           return;
         });
         for (let i = 1; i < value?.length; i++) {
@@ -1739,13 +1801,18 @@ const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, sel
   }
   return { tempResourceMappingData: resourceMappingData, tempFileDataToStore: newFileData };
 };
-
+const revertLocalisationKey = (localisedCode) => {
+  if (!localisedCode || !localisedCode.startsWith(SCHEMA_PROPERTIES_PREFIX + "_")) {
+    return localisedCode;
+  }
+  return localisedCode.substring(SCHEMA_PROPERTIES_PREFIX.length + 1);
+};
 const prepareExcelFileBlobWithErrors = async (data, errors, t) => {
   let tempData = { ...data };
   // Process each dataset within the data object
   const processedData = {};
   for (const key in tempData) {
-    if (tempData.hasOwnProperty(key)) {
+    if (Object.hasOwn(tempData, key)) {
       const dataset = [...tempData[key]];
 
       // Add the 'error' column to the header
@@ -1808,7 +1875,7 @@ const boundaryDataGeneration = async (schemaData, campaignData, t) => {
       } else {
         filteredBoundaries = boundaryData;
       }
-      const xlsxData = addBoundaryData([], filteredBoundaries)?.[0]?.data;
+      const xlsxData = addBoundaryData([], filteredBoundaries, campaignData?.hierarchyType)?.[0]?.data;
       xlsxData.forEach((item, i) => {
         if (i === 0) return;
         let boundaryCodeIndex = xlsxData?.[0]?.indexOf(commonColumn);
@@ -1854,7 +1921,7 @@ export const handleExcelFile = async (
     fileDataToStore = await convertJsonToXlsx(tempFileDataToStore);
     // Converting the input file to json format
     let result = await parseXlsxToJsonMultipleSheets(fileDataToStore, { header: 1 });
-    if (result && result.error) {
+    if (result?.error) {
       return {
         check: false,
         interruptUpload: true,
@@ -1945,7 +2012,7 @@ const addMissingPropertiesToFileData = (data, missingProperties) => {
       return acc;
     }, []);
     const newTempHeaders = value?.[0].length !== 0 ? [...value[0], ...filteredMissingProperties] : [...filteredMissingProperties];
-    console.log(newTempHeaders);
+    console.error(newTempHeaders);
     tempData[key] = [newTempHeaders, ...value.slice(1)];
   });
   return tempData;

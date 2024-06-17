@@ -40,12 +40,12 @@ const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Failed to download microplan: ", error.message);
+      console.error(`Failed to download microplan: ${error.message}`, error);
     }
   };
 
   const clickGoHome = () => {
-    history.push('/microplan-ui/employee');
+    history.push("/microplan-ui/employee");
   };
 
   return (
@@ -73,7 +73,7 @@ const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
         </div>
       </div>
 
-      <ActionBar className={'custom-action-bar-success-screen'}>
+      <ActionBar className={"custom-action-bar-success-screen"}>
         {/* Back button */}
         <Button
           type="button"
@@ -90,7 +90,6 @@ const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
             type="button"
             className="custom-button"
             label={t("GO_TO_HCM")}
-            onButtonClick={()=>{}}
             isSuffix={true}
             variation={"primary"}
             textStyles={{ padding: 0, margin: 0 }}

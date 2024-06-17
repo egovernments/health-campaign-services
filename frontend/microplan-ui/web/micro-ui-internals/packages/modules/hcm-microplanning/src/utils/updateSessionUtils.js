@@ -124,11 +124,64 @@ export const updateSessionUtils = {
       }
     };
 
+    const sortRules = (rules) => {
+      // Step 1: Identify all unique rule outputs
+      const allOutputs = [...new Set(rules.map((rule) => rule.output))];
+
+      // Step 2: Build input-output relationships
+      const inputOutputMap = new Map(); // Map to store input -> output relationship
+      rules.forEach((rule) => {
+        const { input, output } = rule;
+        if (!inputOutputMap.has(input)) {
+          inputOutputMap.set(input, []);
+        }
+        inputOutputMap.get(input).push(output);
+      });
+
+      // Step 3: Sort the output list based on dependencies
+      const sortedOutputList = [];
+      const visited = new Set();
+
+      const dfs = (output) => {
+        if (!visited.has(output)) {
+          visited.add(output);
+          if (inputOutputMap.has(output)) {
+            inputOutputMap.get(output).forEach((input) => {
+              dfs(input);
+            });
+          }
+          sortedOutputList.push(output);
+        }
+      };
+
+      // Sort outputs based on dependencies
+      allOutputs.forEach((output) => {
+        dfs(output);
+      });
+
+      // Reverse to get outputs in the correct order (outputs first)
+      sortedOutputList.reverse();
+
+      // Step 4: Arrange rules based on sorted output list
+      const sortedRules = [];
+      const ruleMap = new Map(rules.map((rule) => [rule.id, rule]));
+
+      sortedOutputList.forEach((output) => {
+        rules
+          .filter((rule) => rule.output === output)
+          .forEach((rule) => {
+            sortedRules.push(rule);
+          });
+      });
+
+      return sortedRules;
+    };
+
     const setMicroplanRuleEngine = () => {
       const rulesList = state.UIConfiguration?.filter((item) => item.name === "ruleConfigure")?.[0]?.ruleConfigureOperators;
-
+      let sortedRules = sortRules(row.operations);
       if (row.operations.length > 0) {
-        sessionObj.ruleEngine = row.operations?.map((item) => {
+        sessionObj.ruleEngine = sortedRules?.map((item) => {
           return {
             ...item,
             operator: rulesList.filter((rule) => rule.code === item.operator)?.[0]?.name,
@@ -167,7 +220,7 @@ export const updateSessionUtils = {
         } else {
           filteredBoundaries = boundaryData;
         }
-        const xlsxData = addBoundaryData([], filteredBoundaries)?.[0]?.data;
+        const xlsxData = addBoundaryData([], filteredBoundaries, additionalProps.campaignData?.hierarchyType)?.[0]?.data;
         xlsxData.forEach((item, i) => {
           if (i === 0) return;
           let boundaryCodeIndex = xlsxData?.[0]?.indexOf(commonColumn);
@@ -255,15 +308,6 @@ export const updateSessionUtils = {
       if (schema?.schema?.["Properties"]) {
         schemaKeys = additionalProps.heirarchyData?.concat(Object.keys(schema.schema["Properties"]));
       }
-
-      // sortedSecondList = sortedSecondList.map((item) => {
-      //   if (item?.mappedTo === LOCALITY && additionalProps.heirarchyData?.[additionalProps.heirarchyData?.length - 1]) {
-      //     return { ...item, mappedTo: additionalProps.heirarchyData?.[additionalProps.heirarchyData?.length - 1] };
-      //   } else {
-      //     return item;
-      //   }
-      // });
-
       upload.data = result;
       if (processedData) return;
       const mappedToList = upload?.resourceMapping.map((item) => item.mappedTo);
@@ -279,7 +323,12 @@ export const updateSessionUtils = {
         return item;
       });
       upload.data.features = newFeatures;
-      if (additionalProps.heirarchyData?.every((item) => !mappedToList.includes(item))) {
+      if (
+        additionalProps.heirarchyData?.every(
+          (item) =>
+            !mappedToList.includes(`${additionalProps.campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item)}`)
+        )
+      ) {
         let boundaryDataAgainstBoundaryCode = await fetchBoundaryDataWrapper(schema);
         upload.data.features.forEach((feature) => {
           const boundaryCode = feature.properties.boundaryCode;
@@ -342,7 +391,9 @@ export const updateSessionUtils = {
                   const response = await handleExcelFile(
                     file,
                     schemaData,
-                    additionalProps.heirarchyData,
+                    additionalProps.heirarchyData.map(
+                      (item) => `${additionalProps.campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item)}`
+                    ),
                     { id: inputFileType },
                     boundaryDataAgainstBoundaryCode,
                     () => {},

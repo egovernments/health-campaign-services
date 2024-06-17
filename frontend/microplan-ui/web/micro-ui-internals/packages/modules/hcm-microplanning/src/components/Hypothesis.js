@@ -8,7 +8,7 @@ import { tourSteps } from "../configs/tourSteps";
 import { v4 as uuidv4 } from "uuid";
 import { PlusWithSurroundingCircle } from "../icons/Svg";
 import { PRIMARY_THEME_COLOR } from "../configs/constants";
-import { Modal } from "@egovernments/digit-ui-react-components";
+import { Button, Modal } from "@egovernments/digit-ui-react-components";
 const page = "hypothesis";
 
 const Hypothesis = ({
@@ -33,6 +33,7 @@ const Hypothesis = ({
   // const [toast, setToast] = useState();
   const [autofillHypothesis, setAutofillHypothesis] = useState([]);
   const { state, dispatch } = useMyContext();
+  const [orignalHypothesisCount, setOrignalHypothesisCount] = useState(0);
 
   // Set TourSteps
   useEffect(() => {
@@ -59,7 +60,7 @@ const Hypothesis = ({
       if (previouspage?.checkForCompleteness && !microplanData?.status?.[previouspage?.name]) setEditable(false);
       else setEditable(true);
     }
-    if (microplanData && microplanData.hypothesis) {
+    if (microplanData?.hypothesis) {
       const temp = microplanData?.hypothesis;
       setAssumptions(temp);
     }
@@ -71,8 +72,9 @@ const Hypothesis = ({
     let hypothesisAssumptions = state?.HypothesisAssumptions;
     if (!hypothesisAssumptions) return;
     let temp = hypothesisAssumptions.find((item) => item.campaignType === campaignType);
-    if (!(temp && temp.assumptions)) return;
-    const hypothesisAssumptionsList = temp.assumptions;
+    if (!temp?.assumptions) return;
+    const hypothesisAssumptionsList = Array.isArray(temp.assumptions) ? temp.assumptions : [];
+    setOrignalHypothesisCount(hypothesisAssumptionsList.length);
     setExampleOption(hypothesisAssumptionsList.length !== 0 ? hypothesisAssumptionsList[0] : "");
 
     let newAssumptions = setAutofillHypothesisData(
@@ -170,6 +172,7 @@ const Hypothesis = ({
   }, [itemForDeletion, deleteAssumptionHandler, setItemForDeletion, setAssumptions, setHypothesisAssumptionsList, closeModal, setToast, t]);
 
   const sectionClass = `jk-header-btn-wrapper hypothesis-section ${editable ? "" : "non-editable-component"} popup-wrap-rest-unfocus `;
+
   return (
     <>
       <div className={sectionClass}>
@@ -188,44 +191,14 @@ const Hypothesis = ({
           t={t}
         />
         <div className="add-button-help" />
-        <button type="button" className="add-button" onClick={() => addAssumptionsHandler(setAssumptions)}>
-          <PlusWithSurroundingCircle fill={PRIMARY_THEME_COLOR} width="1.05rem" height="1.05rem" />
-          <p>{t("ADD_ROW")}</p>
-        </button>
-        {/* delete conformation */}
-
-        {/* might need it
-      {modal === "data-change-check" && (
-        <Modal
-          popupStyles={{  borderRadius: "0.25rem", width: "31.188rem" }}
-          popupModuleActionBarStyles={{
-            display: "flex",
-            flex: 1,
-            justifyContent: "space-between",
-            margin: 0,
-            padding: 0,
-            width: "100%",
-            padding: "0 0 1rem 1.3rem",
-          }}
-          popupModuleMianStyles={{ padding: 0, margin: 0 }}
-          style={{
-            flex: 1,
-            backgroundColor: "white",
-            border: `0.063rem solid ${PRIMARY_THEME_COLOR}`,
-          }}
-          headerBarMainStyle={{ padding: 0, margin: 0 }}
-          headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_DATA_WAS_UPDATED_WANT_TO_SAVE")} />}
-          headerBarEnd={<CloseButton clickHandler={cancelUpdateData} style={{ padding: "0.4rem 0.8rem 0 0" }} />}
-          actionCancelLabel={t("YES")}
-          actionCancelOnSubmit={updateData.bind(null, true)}
-          actionSaveLabel={t("NO")}
-          actionSaveOnSubmit={() => updateData(false)}
-        >
-          <div className="modal-body">
-            <p className="modal-main-body-p">{t("INSTRUCTION_DATA_WAS_UPDATED_WANT_TO_SAVE")}</p>
-          </div>
-        </Modal>
-      )} */}
+        <Button
+          variation={"secondary"}
+          icon={<PlusWithSurroundingCircle fill={PRIMARY_THEME_COLOR} width="1.05rem" height="1.05rem" style={{ margin: 0 }} />}
+          className="add-button"
+          onButtonClick={() => addAssumptionsHandler(setAssumptions)}
+          label={t("ADD_ROW")}
+          isDisabled={assumptions?.filter((item) => item.active)?.length === orignalHypothesisCount}
+        />
       </div>
       <div className="popup-wrap-focus">
         {modal === "delete-conformation" && (
@@ -256,10 +229,6 @@ const Hypothesis = ({
             </div>
           </Modal>
         )}
-
-        {/* {toast && toast.state === "error" && (
-          <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type={"error"} />
-        )} */}
       </div>
     </>
   );
@@ -376,11 +345,8 @@ const InterractableSection = React.memo(
               <p className="heading">{t("VALUE")}</p>
             </div>
             <div className="invisible">
-              <button className="delete-button invisible" onClick={() => deleteHandler(item)}>
-                <div>
-                  {" "}
-                  <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />
-                </div>
+              <button type="button" className="delete-button invisible" onClick={() => deleteHandler(item)}>
+                <div> {Trash && <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />}</div>
                 <p>{t("DELETE")}</p>
               </button>
             </div>
@@ -417,11 +383,15 @@ const InterractableSection = React.memo(
                   <Input key={item.id} item={item} t={t} assumptions={assumptions} setAssumptions={setAssumptions} />
                 </div>
                 <div>
-                  <button className="delete-button delete-button-help-locator" onClick={() => deleteHandler(item)}>
-                    <div>
-                      {" "}
-                      <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />
-                    </div>
+                  <button
+                    type="button"
+                    className="delete-button delete-button-help-locator"
+                    onClick={() => deleteHandler(item)}
+                    onKeyDown={(e) => e.key === "Enter" && deleteHandler(item)}
+                    aria-label={t("DELETE")}
+                    role="button"
+                  >
+                    <div> {Trash && <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />}</div>
                     <p>{t("DELETE")}</p>
                   </button>
                 </div>
@@ -499,13 +469,13 @@ const Select = React.memo(({ item, assumptions, setAssumptions, disabled = false
   const [filteredOptions, setFilteredOptions] = useState([]);
 
   useEffect(() => {
-    if (item && item.key) setSelected({ code: item.key });
+    if (item?.key) setSelected({ code: item.key });
   }, [item]);
 
   useEffect(() => {
     if (!options) return;
     const filteredOptions = options.length ? options : [];
-    if (item && item.key && !filteredOptions.includes(item.key)) {
+    if (item?.key && !filteredOptions.includes(item.key)) {
       setFilteredOptions([item.key, ...filteredOptions]);
     } else setFilteredOptions(filteredOptions);
   }, [options]);
@@ -577,12 +547,12 @@ const Input = React.memo(({ item, setAssumptions, t, disabled = false }) => {
         }
       } else value = parseFloat(e.target.value);
 
-      setInputValue(!isNaN(value) ? value : "");
+      setInputValue(!Number.isNaN(value) ? value : "");
       const newDataSegment = {
         ...item,
         id: item.id,
         key: item.key,
-        value: !isNaN(value) ? value : "",
+        value: !Number.isNaN(value) ? value : "",
       };
       setAssumptions((previous) => {
         let filteredAssumptionsList = previous.map((data) => {

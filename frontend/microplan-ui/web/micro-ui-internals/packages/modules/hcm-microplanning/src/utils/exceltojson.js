@@ -7,7 +7,7 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = async function (event) {
+    reader.onload = async (event) => {
       try {
         const arrayBuffer = event.target.result;
         const workbook = new ExcelJS.Workbook();
@@ -18,15 +18,13 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
           const jsonSheetData = [];
           let headers = [];
 
-          worksheet.eachRow((row, rowNumber) => {
+          worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
             const rowData = row.values.slice(1); // Remove the first element (it's always undefined due to ExcelJS indexing from 1)
-            console.log(rowData);
             for (let i = 0; i < rowData.length; i++) {
               if (typeof rowData[i] === "string") {
                 rowData[i] = rowData[i].trim();
               }
             }
-            console.log(rowData);
 
             if (options.header && rowNumber === 1) {
               headers = rowData;
@@ -43,7 +41,6 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
 
           if (jsonSheetData.length !== 0 && jsonSheetData?.[0].length !== 0) jsonData[worksheet.name] = jsonSheetData;
         });
-        console.log("Json Data: ", jsonData);
         resolve(jsonData);
       } catch (error) {
         console.error(error);
@@ -51,7 +48,7 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
       }
     };
 
-    reader.onerror = function (error) {
+    reader.onerror = (error) => {
       console.error(error);
       resolve({ error: true, details: error });
     };

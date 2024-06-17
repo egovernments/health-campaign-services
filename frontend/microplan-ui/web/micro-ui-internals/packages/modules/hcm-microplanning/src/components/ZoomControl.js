@@ -2,7 +2,7 @@ import React, { memo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 const ZoomControl = memo(({ map, t }) => {
-  if (!map) return <div>{t("ERROR_MAP_OBJECT_MISSING")}</div>;
+  if (!map) return <div>{t("LOADING_MAP")}</div>;
 
   const zoomIn = useCallback(() => {
     map.zoomIn();
@@ -15,10 +15,10 @@ const ZoomControl = memo(({ map, t }) => {
   return (
     <div className="zoom-container">
       <div className="zoom-control">
-        <button className="zoom-button zoom-in" onClick={zoomIn} aria-label="Zoom in">
+        <button type="button" className="zoom-button zoom-in" onClick={zoomIn} aria-label="Zoom in">
           +
         </button>
-        <button className="zoom-button zoom-out" onClick={zoomOut} aria-label="Zoom out">
+        <button type="button" className="zoom-button zoom-out" onClick={zoomOut} aria-label="Zoom out">
           -
         </button>
       </div>

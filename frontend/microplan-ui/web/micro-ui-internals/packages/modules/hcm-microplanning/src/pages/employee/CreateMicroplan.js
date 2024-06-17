@@ -25,9 +25,6 @@ import { useMyContext } from "../../utils/context";
 import { updateSessionUtils } from "../../utils/updateSessionUtils";
 import { render } from "react-dom";
 
-// // will be changed laters
-// const campaignType = "ITIN";
-
 // Main component for creating a microplan
 const CreateMicroplan = () => {
   // Fetching data using custom MDMS hook
@@ -159,6 +156,7 @@ const CreateMicroplan = () => {
           heirarchyData: heirarchyData,
           t,
           campaignType,
+          campaignData,
         };
         const computedSession = await updateSessionUtils.computeSessionObject(data?.PlanConfiguration[0], state, additionalProps);
         if (computedSession) {
@@ -193,6 +191,7 @@ const CreateMicroplan = () => {
           heirarchyData: heirarchyData,
           t,
           campaignType,
+          campaignData,
         };
         const computedSession = await updateSessionUtils.computeSessionObject(data?.PlanConfiguration[0], state, additionalProps);
         if (computedSession) {
@@ -271,25 +270,6 @@ const CreateMicroplan = () => {
           onClose={() => setToast(undefined)}
         />
       )}
-      {/* {toast && toast.state === "error" && (
-        <Toast
-          style={{ zIndex: "999991" }}
-          label={toast.message}
-          transitionTime={toast?.transitionTime}
-          onClose={() => setToast(undefined)}
-          type="error"
-        />
-      )}
-      {toast && toast.state === "warning" && (
-        <Toast
-          style={{ zIndex: "9999999" }}
-          label={toast.message}
-          transitionTime={toast?.transitionTime}
-          isDleteBtn
-          onClose={() => setToast(null)}
-          type="warning"
-        />
-      )} */}
       {loaderActivation && <LoaderWithGap text={"LOADING"} />}
     </>
   );

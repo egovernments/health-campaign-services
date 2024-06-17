@@ -94,12 +94,12 @@ export const SpatialDataPropertyMapping = ({ uploadedData, resourceMapping, setR
     });
 
     //field level validations
-    for(const item of userUploadedColumns){
+    for (const item of userUploadedColumns) {
       if (item.length < 2) {
-       setToast({ state: "error", message: t("ERROR_FIELD_LENGTH") });
-       close();
+        setToast({ state: "error", message: t("ERROR_FIELD_LENGTH") });
+        close();
       }
-    };
+    }
     setUserColumns((preUserColumns) => [...preUserColumns, ...userUploadedColumns]);
   }, [uploadedData]);
 

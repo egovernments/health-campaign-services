@@ -502,6 +502,10 @@ const processDropdownForNestedMultiSelect = (dropDownOptions) => {
   return result;
 };
 
+const transformIntoLocalisationCode = (code) => {
+  return code?.toUpperCase();
+};
+
 export default {
   formatDates,
   computeGeojsonWithMappedProperties,
@@ -517,4 +521,5 @@ export default {
   planConfigRequestBodyValidator,
   getSchema,
   processDropdownForNestedMultiSelect,
+  transformIntoLocalisationCode,
 };

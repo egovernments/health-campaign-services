@@ -9,9 +9,6 @@ import SavedMicroplans from "./SavedMicroplans";
 import SelectCampaign from "./SelectCampaign";
 import { useMyContext } from "../../utils/context";
 
-import { UIConfiguration } from "./MDMS/UIConfiguration.json";
-import { Schemas } from "./MDMS/Schemas.json";
-
 const MicroplanningBreadCrumb = ({ location, defaultPath }) => {
   const { t } = useTranslation();
   const pathVar = location.pathname.replace(defaultPath + "/", "").split("?")?.[0];
@@ -82,7 +79,9 @@ const App = ({ path }) => {
       select: (data) => {
         dispatch({
           type: "SETINITDATA",
-          state: { ...data?.["hcm-microplanning"], UIConfiguration, Schemas },
+          state: {
+            ...data?.["hcm-microplanning"],
+          },
         });
       },
     }

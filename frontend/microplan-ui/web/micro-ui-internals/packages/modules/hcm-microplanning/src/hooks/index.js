@@ -16,7 +16,7 @@ const microplan = {
   useUpdatePlanConfig,
   useSavedMicroplans,
   useSearchCampaign,
-  useGenerateIdCampaign
+  useGenerateIdCampaign,
 };
 
 const contracts = {};

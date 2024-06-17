@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, Fragment, useRef } from "react
 import { useTranslation } from "react-i18next";
 import { Info, Trash } from "@egovernments/digit-ui-svg-components";
 import { ModalHeading } from "./CommonComponents";
-import { Modal } from "@egovernments/digit-ui-react-components";
+import { Button, Modal } from "@egovernments/digit-ui-react-components";
 import { Dropdown, InfoCard, Toast } from "@egovernments/digit-ui-components";
 import { tourSteps } from "../configs/tourSteps";
 import { useMyContext } from "../utils/context";
@@ -37,6 +37,7 @@ const RuleEngine = ({
   const [validationSchemas, setValidationSchemas] = useState([]);
   const [autofillData, setAutoFillData] = useState([]);
   const { state, dispatch } = useMyContext();
+  const [originalRuleOutputCount, setOriginalRuleOutputCount] = useState(0);
   // const [toast, setToast] = useState();
   const [pureInputList, setPureInputList] = useState([]);
   // Set TourSteps
@@ -143,10 +144,14 @@ const RuleEngine = ({
     setHypothesisAssumptionsList(hypothesisAssumptions);
     let outputs;
     if (ruleConfigureOutput) temp = ruleConfigureOutput?.find((item) => item.campaignType === campaignType);
-    if (temp && temp.data) {
+    if (temp?.data) {
       let data = temp.data;
+      setOriginalRuleOutputCount(data.length);
       microplanData?.ruleEngine?.forEach((item) => {
-        if (item.active) data = data.filter((e) => e !== item?.output);
+        if (item.active) {
+          let filteredData = data.filter((e) => e !== item?.output);
+          data = filteredData;
+        }
       });
       outputs = data;
       setOutputs(data);
@@ -155,7 +160,7 @@ const RuleEngine = ({
     if (ruleConfigureInputs) setInputs(ruleConfigureInputs);
     let operator;
     if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (temp && temp.ruleConfigureOperators) {
+    if (temp?.ruleConfigureOperators) {
       temp = temp.ruleConfigureOperators.map((item) => item.name);
       operator = temp;
       setOperators(temp);
@@ -258,47 +263,16 @@ const RuleEngine = ({
             t={t}
           />
           <div className="add-button-help" />
-          <button type="button" className="add-button" onClick={() => addRulesHandler(setRules)} aria-label="Add Rules" role="button">
-            <PlusWithSurroundingCircle fill={PRIMARY_THEME_COLOR} width="1.05rem" height="1.05rem" />
-            <p>{t("ADD_ROW")}</p>
-          </button>
-        </div>
-        <RuleEngineInformation t={t} />
-        {/* {toast && toast.state === "warning" && (
-          <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type="warning" />
-        )} */}
 
-        {/* // uncomment to activate data change save check
-      {modal === "data-change-check" && (
-        <Modal
-          popupStyles={{ borderRadius: "0.25rem", width: "31.188rem" }}
-          popupModuleActionBarStyles={{
-            display: "flex",
-            flex: 1,
-            justifyContent: "space-between",
-            padding: 0,
-            width: "100%",
-            padding: "0 0 1rem 1rem",
-          }}
-          popupModuleMianStyles={{ padding: 0, margin: 0 }}
-          style={{
-            flex: 1,
-            backgroundColor: "white",
-            border: `0.063rem solid ${PRIMARY_THEME_COLOR}`,
-          }}
-          headerBarMainStyle={{ padding: 0, margin: 0 }}
-          headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_DATA_WAS_UPDATED_WANT_TO_SAVE")} />}
-          headerBarEnd={<CloseButton clickHandler={cancelUpdateData} style={{ padding: "0.4rem 0.8rem 0 0" }} />}
-          actionCancelLabel={t("YES")}
-          actionCancelOnSubmit={updateData.bind(null, true)}
-          actionSaveLabel={t("NO")}
-          actionSaveOnSubmit={() => updateData(false)}
-        >
-          <div className="modal-body">
-            <p className="modal-main-body-p">{t("INSTRUCTION_DATA_WAS_UPDATED_WANT_TO_SAVE")}</p>
-          </div>
-        </Modal>
-      )} */}
+          <Button
+            variation={"secondary"}
+            icon={<PlusWithSurroundingCircle fill={PRIMARY_THEME_COLOR} width="1.05rem" height="1.05rem" style={{ margin: 0 }} />}
+            className="add-button"
+            onButtonClick={() => addRulesHandler(setRules)}
+            label={t("ADD_ROW")}
+            isDisabled={rules?.filter((item) => item.active)?.length === originalRuleOutputCount}
+          />
+        </div>
       </div>
       {/* delete conformation */}
       <div className="popup-wrap-focus">
@@ -333,16 +307,6 @@ const RuleEngine = ({
         )}
       </div>
     </>
-  );
-};
-
-const RuleEngineInformation = ({ t }) => {
-  return (
-    <InfoCard
-      text={t("RULE_ENGINE_INFORMATION_DESCRIPTION")}
-      className={"information-description"}
-      style={{ margin: "1rem 0 0 0", width: "100%", maxWidth: "unset" }}
-    />
   );
 };
 
@@ -491,10 +455,8 @@ const InterractableSection = React.memo(
               <p className="heading">{t("KEY")}</p>
             </div>
             <div className="invisible">
-              <button className="delete-button invisible" onClick={() => deleteHandler(item)} aria-label={t("DELETE")} role="button">
-                <div>
-                  <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />
-                </div>
+              <button className="delete-button invisible" onClick={() => deleteHandler(item)} aria-label={t("DELETE")} role="button" type="button">
+                <div>{Trash && <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />}</div>
                 <p>{t("DELETE")}</p>
               </button>
             </div>
@@ -575,10 +537,15 @@ const InterractableSection = React.memo(
                   />
                 </div>
                 <div>
-                  <button className="delete-button" onClick={() => deleteHandler(item)} aria-label={t("DELETE")} role="button">
-                    <div>
-                      <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />
-                    </div>
+                  <button
+                    className="delete-button"
+                    onClick={() => deleteHandler(item)}
+                    onKeyDown={(e) => e.key === "Enter" && deleteHandler(item)}
+                    aria-label={t("DELETE")}
+                    role="button"
+                    type="button"
+                  >
+                    <div>{Trash && <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />}</div>
                     <p>{t("DELETE")}</p>
                   </button>
                 </div>
@@ -592,73 +559,81 @@ const InterractableSection = React.memo(
 
 const Example = ({ exampleOption, t }) => {
   return (
-    <div className="example">
-      <p className="heading">{t("EXAMPLE")}</p>
-      <div className="example-body">
-        <div className="value-input-key">
-          <p className="heading">{t("VALUE")}</p>
-          <Dropdown
-            variant="select-dropdown"
-            t={t}
-            isMandatory={false}
-            option={[]}
-            selected={null}
-            optionKey="code"
-            placeholder={t(exampleOption?.output ? exampleOption?.output : "SELECT_OPTION")}
-            showToolTip={true}
-          />
-          <p className="heading">{t("RULE_ENGINE_VALUE_HELP_TEXT")}</p>
-        </div>
+    <div className="example-wrapper">
+      <div className="example">
+        <p className="heading">{t("EXAMPLE")}</p>
+        <div className="example-body">
+          <div className="value-input-key value">
+            <p className="heading">{t("VALUE")}</p>
+            <Dropdown
+              variant="select-dropdown"
+              t={t}
+              isMandatory={false}
+              option={[]}
+              selected={null}
+              optionKey="code"
+              placeholder={t(exampleOption?.output ? exampleOption?.output : "SELECT_OPTION")}
+              showToolTip={true}
+            />
+            <p className="heading">{t("RULE_ENGINE_VALUE_HELP_TEXT")}</p>
+          </div>
 
-        <div className="equal-to-icon">
-          <p className="heading invisible">{"="}</p>
+          <div className="equal-to-icon">
+            <p className="heading invisible">{"="}</p>
 
-          <div className="equal-to-icon">=</div>
-          <p className="heading invisible">{"="}</p>
-        </div>
+            <div className="equal-to-icon">=</div>
+            <p className="heading invisible">{"="}</p>
+          </div>
 
-        <div className="value-input-key">
-          <p className="heading">{t("RULE_ENGINE_INPUT")}</p>
-          <Dropdown
-            variant="select-dropdown"
-            t={t}
-            isMandatory={false}
-            option={[]}
-            selected={null}
-            optionKey="code"
-            placeholder={t(exampleOption?.input ? exampleOption?.input : "SELECT_OPTION")}
-            showToolTip={true}
-          />
-          <p className="heading">{t("RULE_ENGINE_INPUT_HELP_TEXT")}</p>
+          <div className="value-input-key">
+            <p className="heading">{t("RULE_ENGINE_INPUT")}</p>
+            <Dropdown
+              variant="select-dropdown"
+              t={t}
+              isMandatory={false}
+              option={[]}
+              selected={null}
+              optionKey="code"
+              placeholder={t(exampleOption?.input ? exampleOption?.input : "SELECT_OPTION")}
+              showToolTip={true}
+            />
+            <p className="heading">{t("RULE_ENGINE_INPUT_HELP_TEXT")}</p>
+          </div>
+          <div className="operator">
+            <p className="heading">{t("RULE_ENGINE_OPERATOR")}</p>
+            <Dropdown
+              variant="select-dropdown"
+              t={t}
+              isMandatory={false}
+              option={[]}
+              selected={null}
+              optionKey="code"
+              placeholder={t(exampleOption?.operator ? exampleOption?.operator : "SELECT_OPTION")}
+              showToolTip={true}
+            />
+            <p className="heading">{t("RULE_ENGINE_OPERATOR_HELP_TEXT")}</p>
+          </div>
+          <div className="value-input-key">
+            <p className="heading">{t("KEY")}</p>
+            <Dropdown
+              variant="select-dropdown"
+              t={t}
+              isMandatory={false}
+              option={[]}
+              selected={null}
+              optionKey="code"
+              placeholder={t(exampleOption?.assumptionValue ? exampleOption?.assumptionValue : "SELECT_OPTION")}
+              showToolTip={true}
+            />
+            <p className="heading">{t("RULE_ENGINE_KEY_HELP_TEXT")}</p>
+          </div>
         </div>
-        <div className="operator">
-          <p className="heading">{t("RULE_ENGINE_OPERATOR")}</p>
-          <Dropdown
-            variant="select-dropdown"
-            t={t}
-            isMandatory={false}
-            option={[]}
-            selected={null}
-            optionKey="code"
-            placeholder={t(exampleOption?.operator ? exampleOption?.operator : "SELECT_OPTION")}
-            showToolTip={true}
-          />
-          <p className="heading">{t("RULE_ENGINE_OPERATOR_HELP_TEXT")}</p>
-        </div>
-        <div className="value-input-key">
-          <p className="heading">{t("KEY")}</p>
-          <Dropdown
-            variant="select-dropdown"
-            t={t}
-            isMandatory={false}
-            option={[]}
-            selected={null}
-            optionKey="code"
-            placeholder={t(exampleOption?.assumptionValue ? exampleOption?.assumptionValue : "SELECT_OPTION")}
-            showToolTip={true}
-          />
-          <p className="heading">{t("RULE_ENGINE_KEY_HELP_TEXT")}</p>
-        </div>
+      </div>
+      <div>
+        <button className="delete-button invisible" aria-label={t("DELETE")} role="button" type="button">
+          <div>{Trash && <Trash width={"0.8rem"} height={"1rem"} fill={PRIMARY_THEME_COLOR} />}</div>
+          <p>{t("DELETE")}</p>
+        </button>
       </div>
     </div>
   );
@@ -692,7 +667,7 @@ const deleteAssumptionHandler = (item, setItemForDeletion, setRules, setOutputs,
 
       return newRules || [];
     });
-    if (item && item.output) {
+    if (item?.output) {
       setOutputs((previous) => {
         if (!previous?.includes(item.output)) return previous ? [...previous, item.output] : [item.output];
       });
@@ -713,7 +688,7 @@ const Select = React.memo(
 
     useEffect(() => {
       if (item) {
-        if (outputs && outputs.some((e) => e === item.input)) {
+        if (outputs?.some((e) => e === item.input)) {
           if (rules.filter((item) => item.active).some((e) => e?.output === item?.input)) setSelected({ code: item?.[toChange] });
         } else setSelected({ code: item[toChange] });
       }
@@ -835,7 +810,7 @@ const getRuleConfigInputsFromSchema = (campaignType, microplanData, schemas) => 
         return acc;
       }, [])
     )
-    .flatMap((item) => item)
+    .flat()
     .filter((item) => !!item);
   return [...new Set(finalData)];
 };
@@ -843,6 +818,7 @@ const getRuleConfigInputsFromSchema = (campaignType, microplanData, schemas) => 
 // This function adding the rules configures in MDMS with respect to the canpaign when rule section is empty
 const filterRulesAsPerConstrains = (autofillData, rules, hypothesisAssumptionsList, outputs, operators, inputs, setInputs, setOutputs, autofill) => {
   if (rules && rules.filter((item) => item.active).length !== 0) return { rules };
+
   let wereRulesNotDeleted = true;
   let newRules = [];
   const ruleOuputList = rules ? rules.filter((item) => item.active).map((item) => item?.output) : [];
