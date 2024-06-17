@@ -282,7 +282,7 @@ const createBatchRequest = async (request: any, batch: any[], mobileNumberRowNum
     includeDeleted: true
   };
   logger.info("Individual search to validate the mobile no initiated");
-  const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
+  const response = await httpRequest(config.host.healthIndividualHost + config.paths.healthIndividualSearch, searchBody, params);
 
   if (!response) {
     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
