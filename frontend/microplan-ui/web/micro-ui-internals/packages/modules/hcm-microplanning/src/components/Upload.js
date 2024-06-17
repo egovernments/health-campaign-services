@@ -35,7 +35,14 @@ import { v4 as uuidv4 } from "uuid";
 import { addBoundaryData, createTemplate, fetchBoundaryData, filterBoundaries } from "../utils/createTemplate";
 import XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import { freezeSheetValues, freezeWorkbookValues, performUnfreezeCells, unfreezeColumnsByHeader, updateFontNameToRoboto } from "../utils/excelUtils";
+import {
+  freezeSheetValues,
+  freezeWorkbookValues,
+  hideUniqueIdentifierColumn,
+  performUnfreezeCells,
+  unfreezeColumnsByHeader,
+  updateFontNameToRoboto,
+} from "../utils/excelUtils";
 const page = "upload";
 
 const Upload = ({
@@ -1564,6 +1571,10 @@ const protectData = async ({
     if (addFacilityData) {
       await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
       await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
+      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
+        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
+        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
+      }
       if (schema?.template?.facilitySchemaApiMapping) {
       } else {
       }
@@ -1579,6 +1590,11 @@ const protectData = async ({
     if (addFacilityData) {
       await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
       await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
+      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
+        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
+        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
+      }
+
       if (schema?.template?.facilitySchemaApiMapping) {
       } else {
       }
@@ -1820,8 +1836,14 @@ const prepareExcelFileBlobWithErrors = async (data, errors, t) => {
       // Process each data row
       if (errors) {
         dataset[0].push(t("MICROPLAN_ERROR_COLUMN"));
+        let headerCount = 0;
         for (let i = 1; i < dataset.length; i++) {
           const row = dataset[i];
+          if (i === 1 && row) headerCount = row.length;
+
+          if (headerCount > row.length) {
+            row.push(...Array(headerCount - row.length).fill(""));
+          }
 
           // Check if there are errors for the given commonColumnData
           const errorInfo = errors?.[key]?.[i - 1];

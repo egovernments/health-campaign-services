@@ -133,3 +133,18 @@ export const performUnfreezeCells = async (workbook, sheetName) => {
   }
   sheet.protect(SHEET_PASSWORD, { selectLockedCells: true, selectUnlockedCells: true });
 };
+
+export const hideUniqueIdentifierColumn = async (workbook, sheetName, column) => {
+  const sheet = workbook.getWorksheet(sheetName);
+  for (const item of column) {
+    let colIndex;
+    sheet.getRow(1).eachCell((cell, colNumber) => {
+      if (cell.value === item) {
+        colIndex = colNumber;
+      }
+    });
+    if (column && sheet.getColumn(colIndex)) {
+      sheet.getColumn(colIndex).hidden = true;
+    }
+  }
+};

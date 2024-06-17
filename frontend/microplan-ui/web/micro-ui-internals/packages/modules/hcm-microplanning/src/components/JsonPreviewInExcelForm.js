@@ -74,7 +74,7 @@ export const JsonPreviewInExcelForm = (props) => {
                             : {}),
                           ...(convertedError ? { backgroundColor: "rgb(250,148,148)" } : {}),
                         }}
-                        title={convertedError ? t(convertedError) : undefined}
+                        title={convertedError ? convertedError : undefined}
                       >
                         {cellIndex === 0 && rowHasError && <div className="edited-row-marker" />}
 
