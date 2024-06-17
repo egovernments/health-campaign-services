@@ -11,8 +11,8 @@ if (!HOST) {
 }
 
 
-const getDBSchemaName = (dbSchema="")=>{
-  return dbSchema ? (dbSchema=="egov"?"public":dbSchema) :"public";
+const getDBSchemaName = (dbSchema = "") => {
+  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 // Configuration object containing various environment variables
 const config = {
@@ -143,7 +143,8 @@ const config = {
       idName: process.env.CMP_IDGEN_IDNAME || "campaign.number"
     },
     matchFacilityData: false,
-    retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3"
+    retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
+    notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE || false,
   }
 };
 // Exporting getErrorCodes function and config object

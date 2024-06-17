@@ -244,7 +244,31 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   request.body.Activities = activities
 }
 
-const createBatchRequest = async (request: any, batch: any[]) => {
+async function getUuidsError(request: any, response: any, mobileNumberRowNumberMapping: any) {
+  var errors: any[] = []
+  var count = 0;
+  request.body.mobileNumberUuidsMapping = request.body.mobileNumberUuidsMapping ? request.body.mobileNumberUuidsMapping : {};
+  for (const user of response.Individual) {
+    if (!user?.userUuid) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid` })
+      count++;
+    }
+    else if (!user?.userDetails?.username) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have username`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username` })
+      count++;
+    }
+    else {
+      request.body.mobileNumberUuidsMapping[user?.mobileNumber] = { userUuid: user?.id, code: user?.userDetails?.username, rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber] }
+    }
+  }
+  if (count > 0) {
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+  }
+}
+
+const createBatchRequest = async (request: any, batch: any[], mobileNumberRowNumberMapping: any) => {
   const searchBody = {
     RequestInfo: request?.body?.RequestInfo,
     Individual: {
@@ -263,6 +287,9 @@ const createBatchRequest = async (request: any, batch: any[]) => {
   if (!response) {
     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
   }
+  if (config.values.notCreateUserIfAlreadyThere) {
+    await getUuidsError(request, response, mobileNumberRowNumberMapping);
+  }
 
   if (response?.Individual?.length > 0) {
     return response.Individual.map((item: any) => item?.mobileNumber);
@@ -270,7 +297,7 @@ const createBatchRequest = async (request: any, batch: any[]) => {
   return [];
 };
 
-async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
+async function getUserWithMobileNumbers(request: any, mobileNumbers: any[], mobileNumberRowNumberMapping: any) {
   logger.info("mobileNumbers to search: " + JSON.stringify(mobileNumbers));
   const BATCH_SIZE = 50;
   let allResults: any[] = [];
@@ -279,7 +306,7 @@ async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
   const batchPromises = [];
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
-    batchPromises.push(createBatchRequest(request, batch));
+    batchPromises.push(createBatchRequest(request, batch, mobileNumberRowNumberMapping));
   }
 
   // Wait for all batch requests to complete
@@ -289,7 +316,6 @@ async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
   for (const result of batchResults) {
     allResults = allResults.concat(result);
   }
-
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
   logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
@@ -306,9 +332,9 @@ async function matchUserValidation(createdData: any[], request: any) {
     return acc;
   }, {});
   logger.info("mobileNumberRowNumberMapping : " + JSON.stringify(mobileNumberRowNumberMapping));
-  const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers);
+  const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers, mobileNumberRowNumberMapping);
   for (const key in mobileNumberRowNumberMapping) {
-    if (mobileNumberResponse.has(key)) {
+    if (mobileNumberResponse.has(key) && !config.values.notCreateUserIfAlreadyThere) {
       errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with mobileNumber ${key} already exists` })
       count++;
     }
@@ -605,7 +631,7 @@ async function enrichEmployees(employees: any[], request: any) {
   }
 }
 
-function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any) {
+function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any, request: any) {
   const createdEmployees = responsePayload?.Employees;
   // create an object which have keys as employee.code and values as employee.uuid  
   const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
@@ -619,6 +645,59 @@ function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any) {
   }
 }
 
+async function handeFacilityProcess(request: any, createAndSearchConfig: any, params: any, activities: any[], newRequestBody: any) {
+  for (const facility of newRequestBody.Facilities) {
+    facility.address = {}
+  }
+  var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+  var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, "facility", createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
+  logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
+  activities.push(activity);
+}
+
+
+async function handleUserProcess(request: any, createAndSearchConfig: any, params: any, dataToCreate: any[], activities: any[], newRequestBody: any) {
+  if (config.values.notCreateUserIfAlreadyThere) {
+    var Employees: any[] = []
+    if (request.body?.mobileNumberUuidsMapping) {
+      for (const employee of newRequestBody.Employees) {
+        if (request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]) {
+          logger.info(`User with mobile number ${employee?.user?.mobileNumber} already exist`);
+        }
+        else {
+          Employees.push(employee)
+        }
+      }
+    }
+    newRequestBody.Employees = Employees
+  }
+  if (newRequestBody.Employees.length > 0) {
+    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+    if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
+      enrichDataToCreateForUser(dataToCreate, responsePayload, request);
+    }
+    else {
+      throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Some internal server error occured during user creation.");
+    }
+    var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, "user", createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
+    logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
+    activities.push(activity);
+  }
+}
+
+async function enrichAlreadyExsistingUser(request: any) {
+  if (request.body.ResourceDetails.type == "user" && request?.body?.mobileNumberUuidsMapping) {
+    for (const employee of request.body.dataToCreate) {
+      if (request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber]) {
+        employee.uuid = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].userUuid;
+        employee.code = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
+        employee.user.userName = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
+        employee.user.password = config.user.userDefaultPassword;
+      }
+    }
+  }
+}
+
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
   logger.info(type + " create data  ");
   if (createAndSearchConfig?.createBulkDetails?.limit) {
@@ -626,7 +705,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     const dataToCreate = request?.body?.dataToCreate;
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
     var creationTime = Date.now();
-    var activities = [];
+    var activities: any[] = [];
     for (let i = 0; i < chunks; i++) {
       const start = i * limit;
       const end = (i + 1) * limit;
@@ -637,24 +716,13 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       creationTime = Date.now();
       if (type == "facility") {
-        for (const facility of newRequestBody.Facilities) {
-          facility.address = {}
-        }
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+        await handeFacilityProcess(request, createAndSearchConfig, params, activities, newRequestBody);
       }
       else if (type == "user") {
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
-        if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
-          enrichDataToCreateForUser(dataToCreate, responsePayload);
-        }
-        else {
-          throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Some internal server error occured during user creation.");
-        }
+        await handleUserProcess(request, createAndSearchConfig, params, chunkData, activities, newRequestBody);
       }
-      var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
-      logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
-      activities.push(activity);
     }
+    await enrichAlreadyExsistingUser(request);
     logger.info(`Waiting for 10 seconds`);
     await new Promise(resolve => setTimeout(resolve, 10000));
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
