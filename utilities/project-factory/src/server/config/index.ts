@@ -9,6 +9,11 @@ if (!HOST) {
   console.log("You need to set the HOST variable");
   process.exit(1);
 }
+
+
+const getDBSchemaName = (dbSchema="")=>{
+  return dbSchema ? (dbSchema=="egov"?"public":dbSchema) :"public";
+}
 // Configuration object containing various environment variables
 const config = {
   masterNameForSchemaOfColumnHeaders: "adminSchema",
@@ -53,10 +58,10 @@ const config = {
     DB_NAME: process.env.DB_NAME || "postgres",
     DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
     DB_PORT: process.env.DB_PORT || "5432",
-    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${process.env.DB_SCHEMA}.eg_cm_campaign_details`,
-    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${process.env.DB_SCHEMA}.eg_cm_campaign_process`,
-    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${process.env.DB_SCHEMA}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${process.env.DB_SCHEMA}.eg_cm_resource_details`
+    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
+    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
+    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`
   },
   // Application configuration
   app: {
