@@ -1,0 +1,44 @@
+{
+  "tenantId": "mz",
+  "moduleName": "hcm-microplanning",
+  "UIConfiguration": [
+    {
+      "name": "uploadGuideLines",
+      "UploadGuideLineInstructions": [
+        "INSTRUCTION_POINTS_1",
+        "INSTRUCTION_POINTS_2",
+        "INSTRUCTION_POINTS_3",
+        "INSTRUCTION_POINTS_4",
+        "INSTRUCTION_POINTS_5"
+      ]
+    },
+    {
+      "name": "microplanNamingRegx",
+      "microplanNamingRegx": "^(?![\\d\\s+\\-_()]+$)(?=.{1,})[A-Za-z\\d\\s+\\-_()]*$"
+    },
+    {
+      "name": "microplanNamingConvention",
+      "microplanNamingConvention": [
+        "MICROPLAN_NAMING_CONVENTION_1",
+        "MICROPLAN_NAMING_CONVENTION_2",
+        "MICROPLAN_NAMING_CONVENTION_3",
+        "MICROPLAN_NAMING_CONVENTION_4"
+      ]
+    },
+    {
+      "name": "ruleConfigure",
+      "ruleConfigureOperators": [
+        { "name": "DEVIDED_BY", "code": "/" },
+        { "name": "MULTIPLIED_BY", "code": "*" },
+        { "name": "ADDITION", "code": "+" },
+        { "name": "SUBSTRACTION", "code": "-" },
+        { "name": "RAISE_TO", "code": "**" }
+      ]
+    },
+    {
+      "name": "mapping",
+      "boundriesDataOrigin": ["Population"],
+      "layerDataOrigin": ["Facilities"]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "tenantId": "mz",
+  "moduleName": "hcm-microplanning",
+  "HierarchyConfigurations": [
+    {
+      "name": "devideBoundaryDataBy",
+      "value" : "Distrito"
+    }
+  ]
+}

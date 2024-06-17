@@ -1,0 +1,34 @@
+{
+    "tenantId": "mz",
+    "moduleName": "hcm-microplanning",
+    "Resources": [
+        {
+            "campaignType": "LLIN-mz",
+            "data": [
+                "NO_OF_HOUSEHOLD",
+                "NO_OF_DISTRIBUTORS_PER_BOUNDARY",
+                "NO_OF_BEDNETS_REQUIRED",
+                "NO_OF_SUPERVISORS"
+            ]
+        },
+        {
+            "campaignType": "IRS",
+            "data": [
+                "NO_OF_HOUSEHOLD",
+                "NO_OF_HOUSEHOLD_TO_BE_COVERED",
+                "NO_OF_POPULATION_TO_BE_COVERED",
+                "QUANTITY_OF_INSECTICIDE_REQUIRED",
+                "NO_OF_DISTRIBUTORS"
+            ]
+        },
+        {
+            "campaignType": "MR-DN",
+            "data": [
+                "NO_OF_SPAQS_1_REQUIRED_FOR_AGE_3_TO_11_MONTHS",
+                "NO_OF_SPAQS_2_REQUIRED_FOR_AGE_12_TO_59_MONTHS",
+                "NO_OF_TEAMS_PER_BOUNDARY",
+                "NO_OF_SUPERVISORS_PER_BOUNDARY"
+            ]
+        }
+    ]
+}

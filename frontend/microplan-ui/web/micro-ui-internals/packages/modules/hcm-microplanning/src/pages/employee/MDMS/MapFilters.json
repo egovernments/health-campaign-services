@@ -1,0 +1,34 @@
+{
+  "tenantId": "mz",
+  "moduleName": "hcm-microplanning",
+  "MapFilters": [
+    {
+      "name": "Warehouse",
+      "icon": {
+        "index": "Warehouse",
+        "marker": "WarehouseMarker"
+      }
+    },
+    {
+      "name": "Church",
+      "icon": {
+        "index": "Church",
+        "marker": "ChurchMarker"
+      }
+    },
+    {
+      "name": "School",
+      "icon": {
+        "index": "School",
+        "marker": "SchoolMarker"
+      }
+    },
+    {
+      "name": "Health Facility",
+      "icon": {
+        "index": "HealthFacility",
+        "marker": "HealthFacilityMarker"
+      }
+    }
+  ]
+}

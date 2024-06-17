@@ -1,0 +1,139 @@
+.selector-button-border,
+.digit-button-secondary {
+  h2,
+  .digit-button-label {
+    color: $primary-theme-color !important;
+  }
+
+  background-color: white !important;
+}
+
+.selector-button-primary {
+  background-color: $primary-theme-color !important;
+  box-shadow: inset 0 0 0 0 black !important;
+
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 black !important;
+  }
+}
+
+.jk-digit-primary-btn {
+  background-color: $primary-theme-color !important;
+  border-color: $primary-theme-color;
+  box-shadow: inset 0 0 0 0 black !important;
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 black !important;
+  }
+}
+
+.jk-digit-secondary-btn {
+  h2 {
+    color: $primary-theme-color !important;
+  }
+}
+
+.help-lable {
+  color: $primary-theme-color;
+}
+
+.digit-header-content {
+  font-size: 2rem;
+}
+
+.user-img-txt {
+  background-color: $primary-theme-color !important;
+}
+
+.submit-bar {
+  background-color: $primary-theme-color !important;
+}
+
+.bread-crumb--item a {
+  color: $primary-theme-color !important;
+}
+
+.employeeCard,
+.card-home .complaint-links-container .header {
+  .logo {
+    background-color: $primary-theme-color !important;
+  }
+
+  .body {
+    .links-wrapper .link {
+      color: $primary-theme-color !important;
+    }
+  }
+}
+
+.primary-label-btn {
+  color: $primary-theme-color !important;
+}
+
+.language-button-container {
+  .customBtn-selected {
+    background-color: $primary-theme-color !important;
+    &:hover {
+      box-shadow: inset 0 -0.125rem 0 0 black;
+    }
+  }
+}
+
+.digit-submit-bar {
+  box-shadow: inset 0 0 0 0 black !important;
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 black !important;
+  }
+}
+
+.search-button-wrapper {
+  .link-label {
+    color: $primary-theme-color !important;
+  }
+}
+
+.employee-card-input:hover,
+employee-select-wrap--elipses:hover {
+  border-color: $primary-theme-color !important;
+}
+
+.wbh-header,
+.wbh-header-container {
+  margin: 0;
+}
+
+.popup-module-action-bar .selector-button-border {
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 $primary-theme-color;
+  }
+}
+.search-button-wrapper button {
+  box-shadow: inset 0 0 0 0 black;
+
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 black;
+  }
+}
+
+.digit-home-moduleCardWrapper {
+  padding-left: 0;
+}
+
+.digit-label-field-pair > div {
+  width: 100%;
+}
+
+.jk-digit-secondary-btn {
+  box-shadow: inset 0 0 0 0 black;
+
+  &:hover {
+    box-shadow: inset 0 -0.125rem 0 0 $primary-theme-color;
+  }
+}
+
+.employee-select-wrap .select:hover {
+  border-color: $primary-theme-color !important;
+}
+
+.digit-text-input-field .input-container:hover {
+  border-color: $primary-theme-color !important;
+}

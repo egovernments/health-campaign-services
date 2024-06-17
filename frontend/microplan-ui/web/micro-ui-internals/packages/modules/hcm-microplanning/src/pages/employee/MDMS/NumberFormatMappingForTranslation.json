@@ -1,0 +1,12 @@
+{
+    "tenantId": "mz",
+    "moduleName": "hcm-microplanning",
+    "NumberFormatMappingForTranslation": [
+        {
+            "pt_MZ": "pt-MZ",
+            "en_MZ": "en-MZ",
+            "en_US": "en-US",
+            "fr_FR": "fr-FR"
+        }
+    ]
+}
