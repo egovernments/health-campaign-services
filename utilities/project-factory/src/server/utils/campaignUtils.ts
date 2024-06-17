@@ -1273,7 +1273,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
             }
         });
     }
-    logger.info("Boundary target mapping " + JSON.stringify(boundaryTargetMapping));
+    logger.info("Boundary target mapping count" + Object.keys(boundaryTargetMapping)?.length);
     return boundaryTargetMapping;
 }
 
