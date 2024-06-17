@@ -55,5 +55,6 @@ public class ServiceConstants {
     public static final String VALIDATE_BOOLEAN_REGX = "^(?i)(true|false)$";
     public static final String FILE_TEMPLATE = "Facilities";
     public static final String HIERARCHYTYPE_REPLACER = "{hierarchyType}";
+    public static final String FILE_EXTENSION = "excel";
 
 }

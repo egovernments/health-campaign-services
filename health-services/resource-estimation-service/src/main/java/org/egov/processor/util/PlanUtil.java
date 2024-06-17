@@ -54,10 +54,8 @@ public class PlanUtil {
 	 * @param assumptionValueMap The assumption value map.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
-			Map<String, BigDecimal> assumptionValueMap) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues,
-				assumptionValueMap);
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues);
 		try {			
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -77,8 +75,7 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
-			Map<String, BigDecimal> assumptionValueMap) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		return PlanRequest.builder()

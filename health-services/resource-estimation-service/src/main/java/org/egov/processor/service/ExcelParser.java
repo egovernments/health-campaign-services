@@ -100,7 +100,7 @@ public class ExcelParser implements FileParser {
 			Object campaignResponse) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
-		File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
+		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
 
 		if (file == null || !file.exists()) {
 			log.info("FILE NOT FOUND");
@@ -144,20 +144,20 @@ public class ExcelParser implements FileParser {
 			}
 
 			File fileToUpload = convertWorkbookToXls(workbook);
-			String uploadedFileId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
 			if (config.isIntegrateWithAdminConsole()) {
-				campaignIntegrationUtil.updateCampaignResources(uploadedFileId, campaignResourcesList,
+				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
 			}
-			return uploadedFileId;
+			return uploadedFileStoreId;
 		} catch (IOException | InvalidFormatException e) {
 			log.error("Error processing Excel file: {}", e.getMessage());
+			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+					"Error processing Excel file");
 		}
-
-		return null;
 	}
 
 	/**
@@ -189,7 +189,7 @@ public class ExcelParser implements FileParser {
 				planConfigurationRequest.getPlanConfiguration().getTenantId());
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
-		Map<String, Object> mdmsDataType = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
+		Map<String, Object> attributenamevsdatatypemap = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
 				file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
 		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfig.getTenantId(),
 				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
@@ -212,9 +212,9 @@ public class ExcelParser implements FileParser {
 					.convertAssumptionsToMap(planConfig.getAssumptions());
 			Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 
-			Integer indexOfBCode = campaignIntegrationUtil.getIndexOfBCode(0,
+			Integer indexOfBCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
 					campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
-			validateRows(indexOfBCode, row, firstRow, mdmsDataType, mappedValues, mapOfColumnNameAndIndex,
+			validateRows(indexOfBCode, row, firstRow, attributenamevsdatatypemap, mappedValues, mapOfColumnNameAndIndex,
 					planConfigurationRequest, boundaryCodeList);
 			JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
 			int columnIndex = row.getLastCellNum(); // Get the index of the last cell in the row
@@ -236,7 +236,7 @@ public class ExcelParser implements FileParser {
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
-			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, assumptionValueMap);
+			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
 			// TODO: remove after testing
 			printRow(sheet, row);
 		}
@@ -373,16 +373,18 @@ public class ExcelParser implements FileParser {
 	 * @throws CustomException if the input data is not valid or if a custom
 	 *                         exception occurs.
 	 */
-	public void validateRows(Integer indexOfBCode, Row row, Row columnHeaderRow, Map<String, Object> mdmsDataType,
+	public void validateRows(Integer indexOfBCode, Row row, Row columnHeaderRow, Map<String, Object> attributenamevsdatatypemap,
 			Map<String, String> mappedValues, Map<String, Integer> mapOfColumnNameAndIndex,
 			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList) {
 
 		try {
-			validateTillBCode(indexOfBCode, row, columnHeaderRow);
-			validateOtherColumn(mdmsDataType, mappedValues, mapOfColumnNameAndIndex, row, columnHeaderRow, indexOfBCode,
+			validateTillBoundaryCode(indexOfBCode, row, columnHeaderRow);
+			validateAttributes(attributenamevsdatatypemap, mappedValues, mapOfColumnNameAndIndex, row, columnHeaderRow, indexOfBCode,
 					boundaryCodeList);
 		} catch (JsonProcessingException e) {
 			log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1));
+			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
+			planUtil.update(planConfigurationRequest);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 					ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum());
 		} catch (CustomException customException) {
@@ -408,7 +410,7 @@ public class ExcelParser implements FileParser {
 	 * @throws JsonMappingException    if there's an issue mapping JSON.
 	 * @throws JsonProcessingException if there's an issue processing JSON.
 	 */
-	private void validateOtherColumn(Map<String, Object> mdmsDataType, Map<String, String> mappedValues,
+	private void validateAttributes(Map<String, Object> attributenamevsdatatypemap, Map<String, String> mappedValues,
 			Map<String, Integer> mapOfColumnNameAndIndex, Row row, Row columnHeaderRow, Integer indexOfBCode,
 			List<String> boundaryCodeList) throws JsonMappingException, JsonProcessingException {
 		for (int j = indexOfBCode; j < mapOfColumnNameAndIndex.size(); j++) {
@@ -416,8 +418,8 @@ public class ExcelParser implements FileParser {
 			Cell columnName = columnHeaderRow.getCell(j);
 			String name = findByValue(mappedValues, columnName.getStringCellValue());
 			String value;
-			if (mdmsDataType.containsKey(name)) {
-				value = mdmsDataType.get(name).toString();
+			if (attributenamevsdatatypemap.containsKey(name)) {
+				value = attributenamevsdatatypemap.get(name).toString();
 				switch (cell.getCellType()) {
 				case STRING:
 					String cellValue = cell.getStringCellValue();
@@ -478,7 +480,7 @@ public class ExcelParser implements FileParser {
 	 * @param row             The row containing the data to be validated.
 	 * @param columnHeaderRow The row containing the column headers.
 	 */
-	private void validateTillBCode(Integer indexOfBCode, Row row, Row columnHeaderRow) {
+	private void validateTillBoundaryCode(Integer indexOfBCode, Row row, Row columnHeaderRow) {
 		for (int j = 0; j <= indexOfBCode - 1; j++) {
 			Cell cell = row.getCell(j);
 			if (cell != null && !cell.getCellType().name().equals("BLANK")) {

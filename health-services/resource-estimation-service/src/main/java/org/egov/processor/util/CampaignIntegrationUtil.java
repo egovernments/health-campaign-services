@@ -143,7 +143,7 @@ public class CampaignIntegrationUtil {
 		Integer indexValue = 0;
 		Boundary boundary = new Boundary();
 		List<Map.Entry<String, Integer>> sortedColumnList = sortColumnByIndex(mapOfColumnNameAndIndex);
-		indexValue = getIndexOfBCode(indexValue, sortedColumnList, mappedValues);
+		indexValue = getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
 		prepareBoundary(indexOfType, indexValue, sortedColumnList, feature, boundary, mappedValues);
 		if (isValidToAdd(boundaryList, resultMap, validToAdd, boundary))
 			boundaryList.add(boundary);
@@ -157,7 +157,7 @@ public class CampaignIntegrationUtil {
 	 * @param mappedValues The map containing mapped values.
 	 * @return The index value of the boundary code.
 	 */
-	public Integer getIndexOfBCode(Integer indexValue, List<Map.Entry<String, Integer>> sortedColumnList,Map<String, String> mappedValues) {
+	public Integer getIndexOfBoundaryCode(Integer indexValue, List<Map.Entry<String, Integer>> sortedColumnList,Map<String, String> mappedValues) {
 		for (Map.Entry<String, Integer> entry : sortedColumnList) {
 			if (entry.getKey().equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
 				indexValue = entry.getValue();
