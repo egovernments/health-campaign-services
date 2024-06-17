@@ -75,7 +75,35 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   }, [params?.hierarchyType]);
 
   useEffect(() => {
-    setHierarchyTypeDataresult(params?.hierarchy);
+    if (params?.hierarchy) {
+      const sortHierarchy = (hierarchy) => {
+        const boundaryMap = new Map();
+        hierarchy.forEach(item => {
+          boundaryMap.set(item.boundaryType, item);
+        });
+
+        const sortedHierarchy = [];
+        let currentType = null;
+
+        while (sortedHierarchy.length < hierarchy.length) {
+          for (let i = 0; i < hierarchy.length; i++) {
+            if (hierarchy[i].parentBoundaryType === currentType) {
+              sortedHierarchy.push(hierarchy[i]);
+              currentType = hierarchy[i].boundaryType;
+              break;
+            }
+          }
+        }
+
+        return sortedHierarchy;
+      };
+
+      const sortedHierarchy = sortHierarchy(params.hierarchy.boundaryHierarchy);
+      setHierarchyTypeDataresult({
+        ...params.hierarchy,
+        boundaryHierarchy: sortedHierarchy
+      });
+    }
   }, [params?.hierarchy]);
 
   useEffect(() => {
