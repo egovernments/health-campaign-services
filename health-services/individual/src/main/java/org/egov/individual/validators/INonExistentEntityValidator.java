@@ -72,8 +72,7 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
         });
         // Check if the entity map is not empty
         if (!eMap.isEmpty()) {
-            // Extract entity IDs
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
+
             // Create a search object for querying existing entities
             IndividualSearch individualSearch = IndividualSearch.builder()
                     .id(idList)
