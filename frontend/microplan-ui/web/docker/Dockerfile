@@ -9,7 +9,7 @@ ENV NODE_OPTIONS "--max-old-space-size=8168"
 COPY ${WORK_DIR} .
 RUN ls -lah
 
-RUN chmod +x frontend/microplan-ui/web/install-deps.sh
+RUN chmod +x ./web/install-deps.sh
 
 #RUN node web/envs.js
 RUN cd web/ \
