@@ -6,7 +6,7 @@ import config from "../config";
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
 const axiosInstance = Axios.create({
-  timeout: 10000,
+  timeout: 0, // Set timeout to 0 to wait indefinitely
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
 });
