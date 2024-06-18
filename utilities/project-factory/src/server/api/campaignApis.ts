@@ -745,17 +745,29 @@ async function processGenericRequest(request: any, localizationMap?: { [key: str
 }
 
 async function handleResouceDetailsError(request: any, error: any) {
+  var stringifiedError: any;
+  if (error?.description || error?.message) {
+    stringifiedError = JSON.stringify({
+      status: error.status || '',
+      code: error.code || '',
+      description: error.description || '',
+      message: error.message || ''
+    });
+  }
+  else {
+    if (typeof error == "object")
+      stringifiedError = JSON.stringify(error);
+    else {
+      stringifiedError = error
+    }
+  }
+
   logger.error("Error while processing after validation : " + error)
   if (request?.body?.ResourceDetails) {
     request.body.ResourceDetails.status = "failed";
     request.body.ResourceDetails.additionalDetails = {
       ...request?.body?.ResourceDetails?.additionalDetails,
-      error: JSON.stringify({
-        status: error.status || '',
-        code: error.code || '',
-        description: error.description || '',
-        message: error.message || ''
-      })
+      error: stringifiedError
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
