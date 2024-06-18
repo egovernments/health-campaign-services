@@ -65,7 +65,9 @@ public class ShapeFileParser implements FileParser {
         parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 
         Map<String, BigDecimal> resultMap = new HashMap<>();
-        Map<String, String> mappedValues = planConfig.getResourceMapping().stream().collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+        Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
+        		.filter(f-> f.getFilestoreId().equals(fileStoreId))
+        		.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
         Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 
         calculationUtil.calculateResources(jsonNode, planConfigurationRequest, resultMap, mappedValues, assumptionValueMap);

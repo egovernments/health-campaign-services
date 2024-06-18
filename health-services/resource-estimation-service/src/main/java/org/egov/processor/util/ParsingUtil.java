@@ -71,10 +71,10 @@ public class ParsingUtil {
                 .map(ResourceMapping::getMappedFrom)
                 .collect(Collectors.toSet());
 
-        for (String attributeName : columnNamesList) {
+        for (String attributeName : mappedFromSet) {
             if (attributeName.equalsIgnoreCase("the_geom"))
                 continue;
-            if (!mappedFromSet.contains(attributeName)) {
+            if (!columnNamesList.contains(attributeName)) {
                 log.error("Attribute mapping is invalid.");
                 log.info("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
                 throw new CustomException("Attribute mapping is invalid.", "Attribute mapping is invalid.");
@@ -142,7 +142,7 @@ public class ParsingUtil {
      * @return The File object representing the byte array.
      */
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
         return convertByteArrayToFile(byteArray, "geojson");
     }
 
@@ -154,7 +154,7 @@ public class ParsingUtil {
      * @return The String representation of the byte array.
      */
     public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
         return new String(byteArray, StandardCharsets.UTF_8);
     }
 
@@ -223,7 +223,7 @@ public class ParsingUtil {
      */
     public File extractShapeFilesFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
         File shpFile = null;
-        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(zipFileBytes); ZipInputStream zis = new ZipInputStream(bais)) {
             ZipEntry entry;

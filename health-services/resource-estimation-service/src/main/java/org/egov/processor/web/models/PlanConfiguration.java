@@ -82,7 +82,8 @@ public class PlanConfiguration {
      */
     public enum StatusEnum {
         DRAFT ,
-        GENERATED
+        GENERATED,
+        INVALID_DATA
     }
 
 }

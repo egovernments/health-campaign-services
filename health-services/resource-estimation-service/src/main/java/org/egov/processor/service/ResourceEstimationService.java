@@ -2,26 +2,19 @@ package org.egov.processor.service;
 
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
+
 import org.egov.processor.config.Configuration;
+import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.util.CampaignIntegrationUtil;
-import org.egov.processor.util.PlanConfigurationUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.PlanConfigurationSearchCriteria;
-import org.egov.processor.web.models.PlanConfigurationSearchRequest;
-import org.egov.processor.web.models.PlanRequest;
 import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
 import org.springframework.stereotype.Service;
 
-import static org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL;
-import static org.egov.processor.web.models.File.InputFileTypeEnum.GEOJSON;
-import static org.egov.processor.web.models.File.InputFileTypeEnum.SHAPEFILE;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -65,6 +58,7 @@ public class ResourceEstimationService {
                 FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                     throw new IllegalArgumentException("Unsupported file type: " + ft);
                 });
+                if(!file.getTemplateIdentifier().equalsIgnoreCase(ServiceConstants.FILE_TEMPLATE))
                 parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
             }
         }
