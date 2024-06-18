@@ -14,6 +14,7 @@ import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockSearch;
 import org.egov.common.validator.Validator;
 import org.egov.stock.repository.StockRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -67,7 +68,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
                         entities.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
             }
             List<Stock> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

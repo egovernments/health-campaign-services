@@ -15,6 +15,7 @@ import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.referralmanagement.ReferralSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.ReferralRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -76,7 +77,7 @@ public class RmNonExistentEntityValidator implements Validator<ReferralBulkReque
                         referrals.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("REFERRAL_SEARCH_FAILED", "Search Failed for Referral, " + e);
             }
             List<Referral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);

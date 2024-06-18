@@ -15,6 +15,7 @@ import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkReques
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.HFReferralRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -84,7 +85,7 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
                         hfReferrals.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral,  " + e);
             }
             List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);

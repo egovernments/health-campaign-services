@@ -14,6 +14,7 @@ import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationSearch;
 import org.egov.common.validator.Validator;
 import org.egov.stock.repository.StockReconciliationRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -67,7 +68,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
                         entities.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e);
             }
             List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

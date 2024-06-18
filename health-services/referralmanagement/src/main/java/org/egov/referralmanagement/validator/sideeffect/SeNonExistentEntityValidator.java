@@ -15,6 +15,7 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkReques
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.SideEffectRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -74,7 +75,7 @@ public class SeNonExistentEntityValidator implements Validator<SideEffectBulkReq
                         sideEffects.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("SIDE_EFFECT_SEARCH_FAILED", "Search Failed for SideEffect, " + e);
             }
 
             List<SideEffect> nonExistentIndividuals = checkNonExistentEntities(iMap,

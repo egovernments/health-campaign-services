@@ -1,12 +1,15 @@
 package org.egov.stock.validator;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
-import org.egov.common.models.stock.StockReconciliationSearch;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationTestBuilder;
@@ -15,6 +18,7 @@ import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.validator.stock.SNonExistentValidator;
 import org.egov.stock.validator.stockreconciliation.SrNonExistentValidator;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,16 +26,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,7 +53,7 @@ class NonExistentEntityValidatorTest {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.emptyList());
         } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
         }
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
@@ -73,7 +69,7 @@ class NonExistentEntityValidatorTest {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
         } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
         }
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
@@ -91,7 +87,7 @@ class NonExistentEntityValidatorTest {
             when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e);
         }
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);
@@ -109,7 +105,7 @@ class NonExistentEntityValidatorTest {
                     .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder().withStock()
                             .withId("some-id").build()));
         } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e);
         }
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);

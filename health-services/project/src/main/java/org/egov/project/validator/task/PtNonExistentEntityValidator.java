@@ -15,6 +15,7 @@ import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectTaskRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -76,7 +77,7 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("SEARCH_FAILED", "Search Failed for given Entity, " + e);
             }
             List<Task> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

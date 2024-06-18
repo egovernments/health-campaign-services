@@ -14,6 +14,7 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -87,7 +88,7 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
             } catch (Exception e) {
                 // Handle query builder exception
                 existingEntities = new ArrayList<>();
-                throw new RuntimeException(e);
+                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e);
             }
             // Check for non-existent entities
             List<Individual> nonExistentEntities = checkNonExistentEntities(eMap,

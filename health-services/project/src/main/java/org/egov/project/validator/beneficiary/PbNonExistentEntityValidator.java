@@ -14,6 +14,7 @@ import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -70,7 +71,7 @@ public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRe
                         projectBeneficiaries.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                throw new CustomException("PROJECT_BENEFICIARY_SEARCH_FAILED", "Search Failed for ProjectBeneficiary, " + e);
             }
 
             List<ProjectBeneficiary> nonExistentIndividuals = checkNonExistentEntities(iMap,
