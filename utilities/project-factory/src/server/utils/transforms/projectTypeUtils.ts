@@ -58,12 +58,12 @@ export const projectTypeConversion = (
   campaignObject: any = {}
 ) => {
   const deliveryRules = campaignObject.deliveryRules;
-  const resources = deliveryRules.flatMap((e: { products: any }) =>
+  const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e: { products: any }) =>
     [...e.products].map((ele, ind) => ({
       isBaseUnitVariant: ind == 0,
       productVariantId: ele.value,
     }))
-  );
+  ));
   const minAndMaxAge = getMinAndMaxAge(deliveryRules);
   var newProjectType = {
     ...projectType,
