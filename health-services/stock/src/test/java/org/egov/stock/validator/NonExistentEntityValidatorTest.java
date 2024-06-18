@@ -1,12 +1,10 @@
 package org.egov.stock.validator;
 
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
-import org.egov.common.models.stock.StockReconciliationSearch;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationTestBuilder;
@@ -27,9 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -53,12 +49,8 @@ class NonExistentEntityValidatorTest {
     @DisplayName("should add to error details map if entity not found")
     void shouldAddToErrorDetailsMapIfEntityNotFound() {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStockId("some-id").withRequestInfo().build();
-        try {
-            when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
-                    .thenReturn(Collections.emptyList());
-        } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
-        }
+        when(stockRepository.findById(anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.emptyList());
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
 
@@ -69,12 +61,8 @@ class NonExistentEntityValidatorTest {
     @DisplayName("should not add to error details map if entity found")
     void shouldNotAddToErrorDetailsMapIfEntityFound() {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStockId("some-id").withRequestInfo().build();
-        try {
-            when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
-                    .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
-        } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
-        }
+        when(stockRepository.findById(anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
 
@@ -87,12 +75,8 @@ class NonExistentEntityValidatorTest {
     void shouldAddToErrorDetailsMapIfReconciliationEntityNotFound() {
         StockReconciliationBulkRequest request = StockReconciliationBulkRequestTestBuilder.builder()
                 .withStockId("some-id").withRequestInfo().build();
-        try {
-            when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
+        when(stockReconciliationRepository.findById(anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.emptyList());
-        } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
-        }
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);
 
@@ -104,13 +88,9 @@ class NonExistentEntityValidatorTest {
     void shouldNotAddToErrorDetailsMapIfReconciliationEntityFound() {
         StockReconciliationBulkRequest request = StockReconciliationBulkRequestTestBuilder.builder()
                 .withStockId("some-id").withRequestInfo().build();
-        try {
-            when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
-                    .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder().withStock()
-                            .withId("some-id").build()));
-        } catch (QueryBuilderException e) {
-            throw new RuntimeException(e);
-        }
+        when(stockReconciliationRepository.findById(anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder().withStock()
+                        .withId("some-id").build()));
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);
 
