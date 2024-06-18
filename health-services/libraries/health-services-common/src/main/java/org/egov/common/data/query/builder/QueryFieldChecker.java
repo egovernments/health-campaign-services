@@ -1,7 +1,7 @@
 package org.egov.common.data.query.builder;
 
-import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.data.query.annotations.UpdateBy;
+import org.egov.common.models.core.Exclude;
 
 import java.lang.reflect.Field;
 import java.util.Optional;
