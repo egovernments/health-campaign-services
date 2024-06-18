@@ -771,7 +771,7 @@ async function handleResouceDetailsError(request: any, error: any) {
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-      persistMessage.ResourceDetails.additionalDetails = {}
+       persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
     }
     produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
