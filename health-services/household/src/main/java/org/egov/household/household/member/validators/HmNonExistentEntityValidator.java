@@ -9,9 +9,11 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberSearch;
+import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -70,6 +73,7 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
         // Create a map of household members with their IDs as keys
         Map<String, HouseholdMember> iMap = getIdToObjMap(householdMembers
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        // Check if the map is not empty
 
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
@@ -80,9 +84,9 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
             clientReferenceIdList.add(householdMember.getClientReferenceId());
         });
 
-        // Check if the map is not empty
         if (!iMap.isEmpty()) {
-
+            // Extract IDs from the map
+            List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
             // Create a search object for querying existing entities
             HouseholdMemberSearch householdMemberSearch = HouseholdMemberSearch.builder()
                     .clientReferenceId(clientReferenceIdList)

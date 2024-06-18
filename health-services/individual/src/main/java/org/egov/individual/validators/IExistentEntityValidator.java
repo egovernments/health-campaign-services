@@ -5,15 +5,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
@@ -26,9 +23,6 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
  * This validator checks if the provided individual entities already exist in the database based on their client reference IDs.
  * @author kanishq-egov
  */
-@Component
-@Order(value = 1)
-@Slf4j
 public class IExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final IndividualRepository individualRepository;

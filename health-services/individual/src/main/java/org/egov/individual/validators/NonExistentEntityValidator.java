@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,30 +56,10 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, Individual> iMap = getIdToObjMap(individuals
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
-        // Lists to store IDs and client reference IDs
-        List<String> idList = new ArrayList<>();
-        List<String> clientReferenceIdList = new ArrayList<>();
-        // Extract IDs and client reference IDs from individual entities
-        individuals.forEach(individual -> {
-            idList.add(individual.getId());
-            clientReferenceIdList.add(individual.getClientReferenceId());
-        });
         if (!iMap.isEmpty()) {
-            // Create a search object for querying existing entities
-            IndividualSearch individualSearch = IndividualSearch.builder()
-                    .id(idList)
-                    .clientReferenceId(clientReferenceIdList)
-                    .build();
-
-            List<Individual> existingIndividuals;
-            try {
-                // Query the repository to find existing entities
-                existingIndividuals = individualRepository.find(individualSearch, individuals.size(), 0,
-                        individuals.get(0).getTenantId(), null, false).getResponse();
-            } catch (Exception e) {
-                // Handle query builder exception
-                throw new RuntimeException(e);
-            }
+            List<String> individualIds = new ArrayList<>(iMap.keySet());
+            List<Individual> existingIndividuals = individualRepository.findById(individualIds,
+                    getIdFieldName(idMethod), false).getResponse();
             List<Individual> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingIndividuals, idMethod);
             nonExistentIndividuals.forEach(individual -> {
