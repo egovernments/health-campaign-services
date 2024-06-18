@@ -81,7 +81,7 @@ public class CalculationUtil {
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
             //TODO: create corresponding microplan
-            planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues, assumptionValueMap);
+            planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues);
             
         }
     }
