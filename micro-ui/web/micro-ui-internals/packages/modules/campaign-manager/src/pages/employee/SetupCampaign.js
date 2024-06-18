@@ -509,7 +509,7 @@ const SetupCampaign = ({ hierarchyType }) => {
                   : typeof attribute?.attribute === "string"
                   ? attribute?.attribute
                   : null,
-                operator: "LESS_THAN",
+                operator: "LESS_THAN_EQUAL_TO",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
 
@@ -519,7 +519,7 @@ const SetupCampaign = ({ hierarchyType }) => {
                   : typeof attribute?.attribute === "string"
                   ? attribute?.attribute
                   : null,
-                operator: "GREATER_THAN",
+                operator: "GREATER_THAN_EQUAL_TO",
                 value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {

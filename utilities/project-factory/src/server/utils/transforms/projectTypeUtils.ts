@@ -6,20 +6,7 @@ const MAX_AGE_IN_MONTHS = MAX_AGE * 12;
 TODO: Update configObject with appropriate values.
 This object contains configuration settings for delivery strategies and wait times.
 */
-const configObject: any = {
-  deliveryStrategy: {
-    default: "DIRECT",
-    other: "INDIRECT",
-  },
-  mandatoryWaitSinceLastCycleInDays: {
-    default: null,
-    other: "30",
-  },
-  mandatoryWaitSinceLastDeliveryInDays: {
-    default: null,
-    other: null,
-  },
-};
+
 
 /* TODO: Update the logic to fetch the projecttype master */
 const defaultProjectType: any = {
@@ -64,153 +51,6 @@ const defaultProjectType: any = {
 };
 
 /* 
-Map delivery rules to cycles based on delivery and cycle numbers.
-
-sample delivery array =[{
-    "cycleNumber": 1,
-    "deliveryNumber": 1,
-    "deliveryType": "DIRECT",
-    "deliveryRuleNumber": 1,
-    "products": [
-        {
-            "value": "PVAR-2024-05-29-000068",
-            "name": "SP  - 250mg",
-            "count": 1
-        }
-    ],
-    "conditions": [
-        {
-            "attribute": "Age",
-            "operator": "LESS_THAN",
-            "value": 11
-        }
-    ]
-}]
-*/
-const deliveryRulesToCyles = (delivery = []) => {
-  return delivery.reduce((acc: any, curr: any) => {
-    const deliveryNumber = curr.deliveryNumber;
-    if (!acc?.[curr?.cycleNumber]) {
-      const deliveryObj = { [deliveryNumber]: [{ ...curr }] };
-      acc[curr.cycleNumber] = {
-        startDate: curr.startDate,
-        endDate: curr.endDate,
-        delivery: deliveryObj,
-      };
-    } else {
-      const deliveryObj = { ...acc?.[curr?.cycleNumber]?.delivery };
-
-      if (acc?.[curr?.cycleNumber]?.delivery?.[deliveryNumber]) {
-        deliveryObj[deliveryNumber] = [
-          ...deliveryObj?.[deliveryNumber],
-          { ...curr },
-        ];
-      } else {
-        deliveryObj[deliveryNumber] = [{ ...curr }];
-      }
-      acc[curr.cycleNumber].delivery = { ...deliveryObj };
-    }
-    return { ...acc };
-  }, {});
-};
-/* 
-Convert delivery rules to a format suitable for processing.
-sample deliveryobj
-{
-    "1": [
-        {
-            "cycleNumber": 1,
-            "deliveryNumber": 1,
-            "deliveryType": "DIRECT",
-            "deliveryRuleNumber": 1,
-            "products": [
-                {
-                    "value": "PVAR-2024-05-29-000068",
-                    "name": "SP  - 250mg",
-                    "count": 1
-                }
-            ],
-            "conditions": [
-                {
-                    "attribute": "Age",
-                    "operator": "LESS_THAN",
-                    "value": 11
-                }
-            ]
-        }
-    ]
-}
-*/
-const deliveriesConv = (deliveryObj: any = {}) => {
-  return Object.keys(deliveryObj).map((key, ind) => {
-    return {
-      id: key,
-      deliveryStrategy: deliveryObj?.[key]?.[0]?.deliveryType,
-      mandatoryWaitSinceLastDeliveryInDays:
-        configObject.mandatoryWaitSinceLastDeliveryInDays?.["default"],
-      doseCriteria: deliveryObj?.[key]?.map((e: any) => {
-        return {
-          ProductVariants: getUniqueArrayByProductVariantId(
-            deliveryObj?.[key].flatMap((elem: { products: any }) =>
-              [...elem.products].map((ele, index) => ({
-                isBaseUnitVariant: index == 0,
-                productVariantId: ele?.value,
-                quantity: ele?.count,
-              }))
-            )
-          ),
-          // cylce conditions hardcoded TODO update logic
-          condition: getRequiredCondition(e?.conditions),
-        };
-      }),
-    };
-  });
-};
-/* 
-Transform cycle conditions and delivery rules into a standardized format.
-sample cyclesObj ={
-    1: {
-    "delivery": {
-        "1": [
-            {
-                "cycleNumber": 1,
-                "deliveryNumber": 1,
-                "deliveryType": "DIRECT",
-                "deliveryRuleNumber": 1,
-                "products": [
-                    {
-                        "value": "PVAR-2024-05-29-000068",
-                        "name": "SP  - 250mg",
-                        "count": 1
-                    }
-                ],
-                "conditions": [
-                    {
-                        "attribute": "Age",
-                        "operator": "LESS_THAN",
-                        "value": 11
-                    }
-                ]
-    }
-}
-*/
-const transformDeliveryConditions = (cyclesObj: any = {}) => {
-  return Object.keys(cyclesObj).map((cycleKey, ind) => {
-    var tempObj = cyclesObj[cycleKey];
-
-    return {
-      endDate: tempObj?.endDate,
-      id: cycleKey,
-      mandatoryWaitSinceLastCycleInDays:
-        configObject.mandatoryWaitSinceLastCycleInDays?.[
-          ind == 0 ? "default" : "other"
-        ],
-      startDate: tempObj?.startDate,
-      deliveries: deliveriesConv(tempObj?.delivery),
-    };
-  });
-};
-/* 
 Convert campaign details to project details enriched with campaign information.
 */
 export const projectTypeConversion = (
@@ -234,9 +74,7 @@ export const projectTypeConversion = (
   };
   /*Handled the logics for the SMC Project Type  */
   if (projectType.code == "MR-DN") {
-    const cyclesObj = deliveryRulesToCyles(deliveryRules);
-    const cycles = transformDeliveryConditions(cyclesObj);
-    newProjectType["cycles"] = cycles;
+    newProjectType["cycles"] = transformData(deliveryRules);
   }
   logger.debug(
     "transformed projectType : " + getFormattedStringForDebug(newProjectType)
@@ -278,77 +116,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
   ];
 };
 
-// Function to get the key based on condition and attribute
-const getConditionsKey = (condition: any, key: string) => {
-  // Get all keys of the condition object
-  const keys = Object.keys(condition);
 
-  // Check if the key is present in the condition object
-  if (keys.filter((e) => e == key).length > 0) {
-    return `${
-      key.includes("LESS_THAN") ? "<" + condition[key] : condition[key] + "<"
-    }`;
-  } else if (keys.filter((e) => e.includes(key)).length > 0) {
-    return `${
-      key.includes("LESS_THAN") ? "<=" + condition[key] : condition[key] + "<="
-    }`;
-  } else if (keys.includes("EQUAL_TO")) {
-    return `${condition[key]}=`;
-  } else {
-    return `${key.includes("LESS_THAN") ? `>${MAX_AGE_IN_MONTHS}` : "0<"}`;
-  }
-};
-
-// Function to get the condition based on attribute
-const getCondition = (condition: any = {}, attribute: string) => {
-  if (attribute == "gender") {
-    // since hcm app can understand 0 or 1 for gender
-    return `${attribute}==${condition?.["EQUAL_TO"] == "MALE" ? 0 : 1}`;
-  }
-  // Call getConditionsKey function to get the condition for LESS_THAN and GREATER_THAN
-  return `${getConditionsKey(
-    condition,
-    "GREATER_THAN"
-  )}${attribute}and${attribute}${getConditionsKey(condition, "LESS_THAN")}`;
-};
-
-/* 
-sample conditions array =[{
-    "attribute": "Age",
-    "operator": "LESS_THAN",
-    "value": 11
-}]
-*/
-// Function to get the required condition
-const getRequiredCondition = (conditions: any = []) => {
-  // Format the conditions into an object with attribute keys
-  const formattedCondition = conditions.reduce((acc: any, curr: any) => {
-    if (acc[curr.attribute.toLowerCase()]) {
-      acc[curr.attribute.toLowerCase()] = {
-        [curr.operator]: curr.value,
-        ...acc[curr.attribute.toLowerCase()],
-      };
-    } else {
-      acc[curr.attribute?.toLowerCase()] = {
-        [curr.operator]: curr.value,
-      };
-    }
-    return { ...acc };
-  }, {});
-
-  // Sort keys of formattedCondition and get the first one
-  const sortedKeys = Object.keys(formattedCondition).slice().sort();
-  // update the below logic to support multiple conditions currently hardcoded for age or 1 st condition
-  return getCondition(formattedCondition[sortedKeys[0]], sortedKeys[0]);
-};
-
-const getUniqueArrayByProductVariantId = (array: any) => {
-  return array.filter(
-    (value: any, index: any, self: any) =>
-      index ===
-      self.findIndex((t: any) => t.productVariantId === value.productVariantId)
-  );
-};
 /* construct max and min age */
 const getMinAndMaxAge = (deliveries = []) => {
   // Flatten the conditions arrays from all delivery objects and filter to keep only 'Age' attributes
@@ -379,4 +147,176 @@ const getMinAndMaxAge = (deliveries = []) => {
     min: min !== Infinity ? min : 0,
     max: max !== -Infinity ? max : MAX_AGE_IN_MONTHS,
   };
+};
+
+
+
+type MandatoryWaitDays = {
+  default: string | null;
+  other: string | null;
+};
+
+interface ConfigObject {
+  mandatoryWaitSinceLastCycleInDays: MandatoryWaitDays;
+  mandatoryWaitSinceLastDeliveryInDays: MandatoryWaitDays;
+}
+
+// Configuration for default values
+const configObject: ConfigObject = {
+  mandatoryWaitSinceLastCycleInDays: {
+    default: null,
+    other: "30"
+  },
+  mandatoryWaitSinceLastDeliveryInDays: {
+    default: null,
+    other: null
+  }
+};
+
+// Define types for product variants and conditions
+type ProductVariant = {
+  value: string;
+  name: string;
+  count: number;
+};
+
+type ConditionOperator = 'LESS_THAN' | 'LESS_THAN_EQUAL_TO' | 'GREATER_THAN' | 'GREATER_THAN_EQUAL_TO' | 'EQUAL_TO';
+
+type Condition = {
+  attribute: string;
+  operator: ConditionOperator;
+  value: number | string;
+};
+
+type DeliveryItem = {
+  cycleNumber: number;
+  deliveryNumber: number;
+  deliveryType: string;
+  deliveryRuleNumber: number;
+  products: ProductVariant[];
+  conditions: Condition[];
+};
+
+type FormattedCondition = Record<string, Record<ConditionOperator, number | string>>;
+
+type DoseCriterion = {
+  ProductVariants: {
+    isBaseUnitVariant: boolean;
+    productVariantId: string;
+    quantity: number;
+  }[];
+  condition: string;
+};
+
+type Delivery = {
+  id: string;
+  deliveryStrategy: string;
+  mandatoryWaitSinceLastDeliveryInDays: string | null;
+  doseCriteria: DoseCriterion[];
+};
+
+type TransformedCycle = {
+  id: string;
+  mandatoryWaitSinceLastCycleInDays: string | null;
+  deliveries: Delivery[];
+};
+
+// Helper functions
+
+// Get unique product variants
+const getUniqueArrayByProductVariantId = (
+  array: { isBaseUnitVariant: boolean; productVariantId: string; quantity: number; }[]
+): { isBaseUnitVariant: boolean; productVariantId: string; quantity: number; }[] => {
+  return array.filter(
+    (value, index, self) =>
+      index === self.findIndex(t => t.productVariantId === value.productVariantId)
+  );
+};
+
+// Construct conditions in a simplified form
+const getConditionString = (condition: Record<ConditionOperator, number | string>, attribute: string): string => {
+  let conditionStr = '';
+  if (condition.LESS_THAN !== undefined) {
+    conditionStr += `${attribute}<${condition.LESS_THAN}`;
+  }
+  if (condition.LESS_THAN_EQUAL_TO !== undefined) {
+    conditionStr += `${attribute}<=${condition.LESS_THAN_EQUAL_TO}`;
+  }
+  if (condition.GREATER_THAN !== undefined) {
+    conditionStr = `${condition.GREATER_THAN}<${attribute}and` + conditionStr;
+  }
+  if (condition.GREATER_THAN_EQUAL_TO !== undefined) {
+    conditionStr = `${condition.GREATER_THAN_EQUAL_TO}<=${attribute}and` + conditionStr;
+  }
+  if (condition.EQUAL_TO !== undefined) {
+    if (attribute === "gender") {
+      conditionStr += `${attribute}==${condition.EQUAL_TO === "MALE" ? 0 : 1}`;
+    } else {
+      conditionStr += `${attribute}=${condition.EQUAL_TO}`;
+    }
+  }
+  return conditionStr;
+};
+
+// Function to generate the condition string from an array of conditions
+const getRequiredCondition = (conditions: Condition[]): string => {
+  const formattedConditions: FormattedCondition = conditions.reduce((acc:any, { attribute, operator, value }) => {
+    attribute = attribute.toLowerCase();
+    if (!acc[attribute]) {
+      acc[attribute] = {};
+    }
+    acc[attribute][operator] = value;
+    return acc;
+  }, {} as FormattedCondition);
+
+  const conditionStrings = Object.keys(formattedConditions).map(attribute =>
+    getConditionString(formattedConditions[attribute], attribute)
+  );
+
+  return conditionStrings.join('and');
+};
+
+// Transformation function
+const transformData = (input: DeliveryItem[]): TransformedCycle[] => {
+  const groupedByCycle = input.reduce<Record<number, TransformedCycle>>((acc, item) => {
+    const { cycleNumber, deliveryNumber, deliveryType, products, conditions } = item;
+
+    if (!acc[cycleNumber]) {
+      acc[cycleNumber] = {
+        id: cycleNumber.toString(),
+        mandatoryWaitSinceLastCycleInDays: configObject.mandatoryWaitSinceLastCycleInDays.default,
+        deliveries: []
+      };
+    }
+
+    const delivery: Delivery = {
+      id: deliveryNumber.toString(),
+      deliveryStrategy: deliveryType,
+      mandatoryWaitSinceLastDeliveryInDays: configObject.mandatoryWaitSinceLastDeliveryInDays.default,
+      doseCriteria: []
+    };
+
+    const doseCriteria: DoseCriterion = {
+      ProductVariants: getUniqueArrayByProductVariantId(
+        products.map((product, index) => ({
+          isBaseUnitVariant: index === 0,
+          productVariantId: product.value,
+          quantity: product.count
+        }))
+      ),
+      condition: getRequiredCondition(conditions)
+    };
+
+    const existingDelivery = acc[cycleNumber].deliveries.find(d => d.id === deliveryNumber.toString());
+    if (existingDelivery) {
+      existingDelivery.doseCriteria.push(doseCriteria);
+    } else {
+      delivery.doseCriteria.push(doseCriteria);
+      acc[cycleNumber].deliveries.push(delivery);
+    }
+
+    return acc;
+  }, {});
+
+  return Object.values(groupedByCycle);
 };
