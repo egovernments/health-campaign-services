@@ -56,6 +56,7 @@ public class IndividualSearch extends EgovOfflineSearchModel {
     private String wardCode = null;
 
     @JsonProperty("individualName")
+    @Exclude
     private String individualName = null;
 
     @JsonProperty("createdFrom")

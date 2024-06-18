@@ -65,6 +65,7 @@ public class IndividualSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("identifier")
     @Valid
+    @Exclude
     private Identifier identifier = null;
 
     @JsonProperty("boundaryCode")
