@@ -454,7 +454,12 @@ const SetupCampaign = ({ hierarchyType }) => {
         hierarchyType: hierarchyType,
         hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
       });
-    } else if (hierarchyDefinition?.BoundaryHierarchy?.[0]) {
+    }
+  }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0], draftData]); // Only run if dataParams changes
+
+
+  useEffect(() => {
+     if (hierarchyDefinition?.BoundaryHierarchy?.[0]) {
       setDataParams({
         ...dataParams,
         facilityId: facilityId,
@@ -467,8 +472,7 @@ const SetupCampaign = ({ hierarchyType }) => {
         isUserLoading,
       });
     }
-  }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0], draftData]); // Only run if dataParams changes
-
+  }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0], draftData]);
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData, dataParams, isSubmitting, summaryErrors));
   }, [totalFormData, dataParams, isSubmitting, summaryErrors]);
