@@ -107,14 +107,14 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
             const pvarIds = getPvarIds(messageObject);
-            if (pvarIds) {
+            if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                 resources.push({
                     type: "resource",
                     resourceIds: pvarIds
                 })
             }
             for (const type of Object.keys(boundaryCodes)) {
-                if (boundaryCodes[type][key]) {
+                if (boundaryCodes[type][key] && Array.isArray(boundaryCodes[type][key]) && boundaryCodes[type][key].length > 0) {
                     resources.push({
                         type: type == "user" ? "staff" : type,
                         resourceIds: [...boundaryCodes[type][key]]
@@ -143,9 +143,12 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     const boundaryCodes: any = {};
 
     await enrichBoundaryCodes(resources, messageObject, boundaryCodes, sheetName);
+    logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
     var boundaryWithProject: any = {};
     await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
+    logger.info("boundaryWithProject : " + JSON.stringify(boundaryWithProject));
     const projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
+    logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
     logger.info("projectMapping started ");
     const projectMappingResponse: any = await createCampaignService(projectMappingBody);
     logger.info("Project Mapping Response received");

@@ -200,7 +200,7 @@ async function validateProjectResource(requestBody: any) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter Type In Resources");
                 }
                 if (!resourceId) {
-                    throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ResourceId In Resources");
+                    throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ResourceId In Resources of type " + type);
                 }
                 // Validate the resource ID based on its type
                 // await validateResourceId(type, resourceId, requestBody);
