@@ -195,6 +195,8 @@ type DeliveryItem = {
   deliveryRuleNumber: number;
   products: ProductVariant[];
   conditions: Condition[];
+  startDate:any,
+  endDate:any
 };
 
 type FormattedCondition = Record<string, Record<ConditionOperator, number | string>>;
@@ -219,6 +221,8 @@ type TransformedCycle = {
   id: string;
   mandatoryWaitSinceLastCycleInDays: string | null;
   deliveries: Delivery[];
+  startDate:any,
+  endDate:any,
 };
 
 // Helper functions
@@ -279,13 +283,15 @@ const getRequiredCondition = (conditions: Condition[]): string => {
 // Transformation function
 const transformData = (input: DeliveryItem[]): TransformedCycle[] => {
   const groupedByCycle = input.reduce<Record<number, TransformedCycle>>((acc, item) => {
-    const { cycleNumber, deliveryNumber, deliveryType, products, conditions } = item;
+    const { cycleNumber, deliveryNumber, deliveryType, products, conditions,startDate,endDate } = item;
 
     if (!acc[cycleNumber]) {
       acc[cycleNumber] = {
         id: cycleNumber.toString(),
         mandatoryWaitSinceLastCycleInDays: configObject.mandatoryWaitSinceLastCycleInDays.default,
-        deliveries: []
+        deliveries: [],
+        startDate,
+        endDate
       };
     }
 
