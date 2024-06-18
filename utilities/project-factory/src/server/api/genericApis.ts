@@ -4,7 +4,6 @@ import FormData from "form-data"; // Import FormData for handling multipart/form
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 import { validateMappingId } from '../utils/campaignMappingUtils';
@@ -670,14 +669,17 @@ async function createStaff(resouceBody: any) {
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.info("Project Staff mapping created");
   logger.debug(
     "Project Staff mapping response " +
     getFormattedStringForDebug(staffResponse)
   );
-  validateStaffResponse(staffResponse);
+  // validateStaffResponse(staffResponse);
 }
 
 /**
@@ -696,14 +698,17 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.debug("Project Resource Created");
   logger.debug(
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
   );
-  validateProjectResourceResponse(projectResourceResponse);
+  // validateProjectResourceResponse(projectResourceResponse);
 }
 
 /**
@@ -722,14 +727,17 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.info("Project Facility Created");
   logger.debug(
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
   );
-  validateProjectFacilityResponse(projectFacilityResponse);
+  // validateProjectFacilityResponse(projectFacilityResponse);
 }
 
 // Helper function to create staff

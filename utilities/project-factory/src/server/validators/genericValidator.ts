@@ -79,116 +79,6 @@ function validateBodyViaSchema(schema: any, objectData: any) {
     }
 }
 
-// function validateBoundaries(requestBody: any) {
-//     const { boundaryCode } = requestBody?.Campaign;
-//     if (!boundaryCode) {
-//         throwError("COMMON", 400, "VALIDATION_ERROR", "Enter BoundaryCode In Campaign");
-//     }
-//     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-//         const { boundaryCode: campaignBoundaryCode, parentBoundaryCode } = campaignDetails;
-//         if (!parentBoundaryCode && boundaryCode != campaignBoundaryCode) {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ParentBoundaryCode In CampaignDetails");
-//         }
-//         if (!campaignBoundaryCode) {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", "Enter BoundaryCode In CampaignDetails");
-//         }
-//     }
-// }
-
-// Function to validate the user ID
-// async function validateUserId(resourceId: any, requestBody: any) {
-//     // Constructing the search body for user validation
-//     const userSearchBody = {
-//         RequestInfo: requestBody?.RequestInfo,
-//         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0],
-//         uuid: [resourceId]
-//     }
-
-//     // Logging user search URL and request body
-//     logger.info("User search url : " + config.host.userHost + config.paths.userSearch);
-//     logger.info("userSearchBody : " + JSON.stringify(userSearchBody));
-
-//     // Performing the HTTP request to validate the user ID
-//     const response = await httpRequest(config.host.userHost + config.paths.userSearch, userSearchBody);
-
-//     // Handling response errors if user ID is invalid
-//     if (!response?.user?.[0]?.uuid) {
-//         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type staff with id " + resourceId);
-//     }
-// }
-
-// Function to validate the product variant ID
-// async function validateProductVariantId(resourceId: any, requestBody: any) {
-//     // Constructing the search body for product variant validation
-//     const productVariantSearchBody = {
-//         RequestInfo: requestBody?.RequestInfo,
-//         ProductVariant: { id: [resourceId] }
-//     }
-//     const productVariantSearchParams = {
-//         limit: 10,
-//         offset: 0,
-//         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0]
-//     }
-
-//     // Logging product variant search URL and request body
-//     logger.info("ProductVariant search url : " + config.host.productHost + config.paths.productVariantSearch);
-//     logger.info("productVariantSearchBody : " + JSON.stringify(productVariantSearchBody));
-//     logger.info("productVariantSearchParams : " + JSON.stringify(productVariantSearchParams));
-
-//     // Performing the HTTP request to validate the product variant ID
-//     const response = await httpRequest(config.host.productHost + config.paths.productVariantSearch, productVariantSearchBody, productVariantSearchParams);
-
-//     // Handling response errors if product variant ID is invalid
-//     if (!response?.ProductVariant?.[0]?.id) {
-//         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type resource with id " + resourceId);
-//     }
-// }
-
-// Function to validate the project facility ID
-// async function validateProjectFacilityId(resourceId: any, requestBody: any) {
-//     // Constructing the search body for project facility validation
-//     const facilitySearchBody = {
-//         RequestInfo: requestBody?.RequestInfo,
-//         Facility: {
-//             id: [resourceId]
-//         }
-//     }
-//     const facilitySearchParams = {
-//         limit: 10,
-//         offset: 0,
-//         tenantId: requestBody?.Campaign?.tenantId?.split('.')?.[0]
-//     }
-
-//     // Logging facility search URL and request body
-//     logger.info("Facility search url : " + config.host.facilityHost + config.paths.facilitySearch);
-//     logger.info("facilitySearchBody : " + JSON.stringify(facilitySearchBody));
-//     logger.info("facilitySearchParams : " + JSON.stringify(facilitySearchParams));
-
-//     // Performing the HTTP request to validate the project facility ID
-//     const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
-
-//     // Handling response errors if project facility ID is invalid
-//     if (!response?.Facilities?.[0]?.id) {
-//         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type facility with id " + resourceId);
-//     }
-// }
-
-// Function to validate the resource ID based on its type
-// async function validateResourceId(type: any, resourceId: any, requestBody: any) {
-//     // Dispatching validation based on resource type
-//     // if (type == "staff") {
-//     //     await validateUserId(resourceId, requestBody)
-//     // }
-//     // else if (type == "resource") {
-//     //     await validateProductVariantId(resourceId, requestBody)
-//     // }
-//     // else if (type == "facility") {
-//     //     await validateProjectFacilityId(resourceId, requestBody)
-//     // }
-//     // else {
-//     //     throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resource type " + type);
-//     // }
-// }
 // Function to validate the resources associated with a campaign
 async function validateProjectResource(requestBody: any) {
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
@@ -252,25 +142,25 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
 }
 
 // Function to validate project staff response
-function validateStaffResponse(staffResponse: any) {
-    if (!staffResponse?.ProjectStaff?.id) {
-        throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
-    }
-}
+// function validateStaffResponse(staffResponse: any) {
+//     if (!staffResponse?.ProjectStaff?.id) {
+//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
+//     }
+// }
 
 // Function to validate project resource response
-function validateProjectResourceResponse(projectResouceResponse: any) {
-    if (!projectResouceResponse?.ProjectResource?.id) {
-        throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
-    }
-}
+// function validateProjectResourceResponse(projectResouceResponse: any) {
+//     if (!projectResouceResponse?.ProjectResource?.id) {
+//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
+//     }
+// }
 
 // Function to validate project facility response
-function validateProjectFacilityResponse(projectFacilityResponse: any) {
-    if (!projectFacilityResponse?.ProjectFacility?.id) {
-        throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
-    }
-}
+// function validateProjectFacilityResponse(projectFacilityResponse: any) {
+//     if (!projectFacilityResponse?.ProjectFacility?.id) {
+//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
+//     }
+// }
 
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
@@ -324,9 +214,9 @@ export {
     validateBodyViaSchema,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
-    validateStaffResponse,
-    validateProjectFacilityResponse,
-    validateProjectResourceResponse,
+    // validateStaffResponse,
+    // validateProjectFacilityResponse,
+    // validateProjectResourceResponse,
     validateGenerateRequest,
     validateHierarchyType,
     validateCampaignBodyViaSchema
