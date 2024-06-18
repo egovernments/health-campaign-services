@@ -12,5 +12,6 @@ public interface QueryFieldChecker {
     QueryFieldChecker isNotNull = (field, object) -> Optional.ofNullable(field.get(object)).isPresent();
     QueryFieldChecker isAnnotatedWithUpdateBy = (field, object) -> field.getDeclaredAnnotation(UpdateBy.class) != null;
 
+    // Exclude annotation is now referred from health-services-models
     QueryFieldChecker isNotAnnotatedWithExclude = ((field, object) -> field.getDeclaredAnnotation(Exclude.class) == null);
 }
