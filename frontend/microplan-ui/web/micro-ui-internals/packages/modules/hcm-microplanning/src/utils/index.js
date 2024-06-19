@@ -223,6 +223,14 @@ const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqTy
       }, []),
       operations: data?.ruleEngine?.reduce((acc, item) => {
         if (reqType === "create" && !item?.active) return acc;
+        if (!item.active && !item.input) {
+          const data = JSON.parse(JSON.stringify(item));
+          const operator = Operators.find((e) => e.name === data.operator);
+          if (operator && operator.code) data.operator = operator?.code;
+          if (data?.oldInput) data.input = data.oldInput;
+          acc.push(data);
+          return acc;
+        }
         if (!item.active && !item.operator && !item.output && !item.input && !item.assumptionValue) return acc;
         const data = JSON.parse(JSON.stringify(item));
         const operator = Operators.find((e) => e.name === data.operator);
@@ -447,7 +455,7 @@ const ruleOutputCheck = (rules, ruleOuputList) => {
   return false;
 };
 const emptyRuleCheck = (rules) => {
-  return !rules || rules.filter((item) => item.active && Object.values(item)?.filter((e) => e === "").length === 0);
+  return !rules || rules.filter((item) => item.active && Object.values(item)?.filter((e) => e === "")).length === 0;
 };
 const ruleHypothesisCheck = (rules, ruleHypothesis) => {
   if (rules && Array.isArray(rules) && rules.length !== 0 && ruleHypothesis && Array.isArray(ruleHypothesis) && ruleHypothesis.length !== 0) {

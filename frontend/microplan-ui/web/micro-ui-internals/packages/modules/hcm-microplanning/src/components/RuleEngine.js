@@ -655,7 +655,7 @@ const deleteAssumptionHandler = (item, setItemForDeletion, setRules, setOutputs,
           possibleOutputs.push(...pureInputList);
           if (!possibleOutputs.includes(dataItem?.input)) {
             if (dataItem?.output !== "") outputToRemove.push(dataItem.output);
-            acc.push({ ...dataItem, input: "" });
+            acc.push({ ...dataItem, input: "", oldInput: dataItem?.input ? dataItem?.input : dataItem?.oldInput });
           } else {
             acc.push(dataItem);
           }
