@@ -319,7 +319,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }
               let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
               if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join(", ")}`;
+                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join("/ ")}`;
               }
               return `${t("HCM_DATA_AT_ROW")} ${index} ${formattedError}`;
             })
@@ -432,7 +432,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }
               let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
               if (error.keyword === "enum" && error.params && error.params.allowedValues) {
-                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join(", ")}`;
+                formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join("/ ")}`;
               }
               return `${t("HCM_DATA_AT_ROW")} ${index} ${formattedError} at ${sheetName}`;
             })
