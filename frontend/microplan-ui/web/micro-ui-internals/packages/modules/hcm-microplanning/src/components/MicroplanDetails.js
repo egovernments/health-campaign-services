@@ -252,7 +252,7 @@ const MicroplanDetails = ({
         <p style={{ marginBottom: "1.5rem" }}>{t("MP_FOOTER")}</p>
         <LabelFieldPair>
           <CardLabel style={{ fontWeight: "500", display: "flex", alignItems: "center", margin: 0 }}>
-            {`${t("NAME_OF_MP")}  `} <p style={{ color: "red", margin: 0 }}> *</p>
+            {`${t("NAME_OF_MP")}  `} <p style={{ color: "red", margin: 0, paddingLeft: "0.15rem" }}> *</p>
           </CardLabel>
           <div style={{ width: "100%", maxWidth: "960px", height: "fit-content" }}>
             <TextInput

@@ -87,7 +87,9 @@ const Mapping = ({
         return (
           data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => ({
             ...item,
-            parentBoundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.parentBoundaryType)}`,
+            parentBoundaryType: item?.parentBoundaryType
+              ? `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.parentBoundaryType)}`
+              : null,
             boundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`,
           })) || {}
         );
@@ -667,6 +669,7 @@ const BoundarySelection = memo(
     const [expandedIndex, setExpandedIndex] = useState(null);
     const scrollContainerRef = useRef(null);
     const [changedBoundaryType, setChangedBoundaryType] = useState("");
+    const [isScrollable, setIsScrollable] = useState(false);
 
     useEffect(() => {
       // Scroll to the expanded item's child element after the state has updated and the DOM has re-rendered
@@ -725,8 +728,36 @@ const BoundarySelection = memo(
       setShowConformationModal(false);
     };
 
+    const checkScrollbar = () => {
+      if (scrollContainerRef.current) {
+        setIsScrollable(scrollContainerRef.current.scrollHeight > scrollContainerRef.current.clientHeight);
+      }
+    };
+
+    useEffect(() => {
+      // Initial check
+      checkScrollbar();
+
+      // Check on resize
+      window.addEventListener("resize", checkScrollbar);
+
+      // Cleanup event listeners on component unmount
+      return () => {
+        window.removeEventListener("resize", checkScrollbar);
+      };
+    }, []);
+
+    useEffect(() => {
+      const content = scrollContainerRef.current;
+      content.addEventListener("scroll", checkScrollbar);
+
+      return () => {
+        content.removeEventListener("scroll", checkScrollbar);
+      };
+    }, [scrollContainerRef]);
+
     return (
-      <div className={`filter-by-boundary  ${!isboundarySelectionSelected ? "height-control" : ""}`} ref={filterBoundaryRef}>
+      <div className={`filter-by-boundary  ${!isboundarySelectionSelected ? "height-control" : ""} `} ref={filterBoundaryRef}>
         {isLoading && <LoaderWithGap text={"LOADING"} />}
         <Button
           icon="FilterAlt"
@@ -743,7 +774,7 @@ const BoundarySelection = memo(
             <InfoIconOutline width="1.8rem" fill="rgba(11, 12, 12, 1)" />
           </div>
           <div
-            className="hierarchy-selection-container"
+            className={`hierarchy-selection-container ${isScrollable ? "scrollable" : ""}`}
             style={checkTruthyKeys(boundarySelections) ? { maxHeight: "20rem" } : {}}
             ref={scrollContainerRef}
           >
@@ -811,17 +842,22 @@ const BoundarySelection = memo(
             ))}
           </div>
           {checkTruthyKeys(boundarySelections) && (
-            <div>
-              <Button
-                variation="secondary"
-                className="button-primary"
-                textStyles={{ width: "fit-content", display: "flex", alignItems: "center" }}
-                style={{ marginTop: "0.7rem", width: "14rem", display: "flex", alignItems: "center", height: "2rem", maxHeight: "2rem" }}
-                icon={"AutoRenew"}
-                label={t("CLEAR_ALL_FILTERS")}
-                onClick={handleClearAll}
-              />
-            </div>
+            <Button
+              variation="secondary"
+              className="button-primary"
+              textStyles={{ width: "fit-content", display: "flex", alignItems: "center" }}
+              style={{
+                margin: "0.7rem 1rem 0rem 1rem",
+                display: "flex",
+                alignItems: "center",
+                width: "14.5rem",
+                height: "2rem",
+                maxHeight: "2rem",
+              }}
+              icon={"AutoRenew"}
+              label={t("CLEAR_ALL_FILTERS")}
+              onClick={handleClearAll}
+            />
           )}
           {showConfirmationModal && (
             <div className="popup-wrap-focus">

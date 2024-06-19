@@ -146,7 +146,7 @@ $border-color: rgba(214, 213, 212, 1);
   }
 
   p {
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     font-size: 1rem !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -1390,6 +1390,7 @@ $border-color: rgba(214, 213, 212, 1);
       align-items: center;
 
       h2 {
+        font-weight: 600;
         width: fit-content !important;
       }
 
@@ -1563,7 +1564,8 @@ $border-color: rgba(214, 213, 212, 1);
           display: block;
           min-width: 16.5rem;
           margin: 0.5rem 0 0 0 !important;
-          padding: 1rem 0.7rem 1rem 1rem;
+          /*padding: 1rem 0.7rem 1rem 1rem;*/
+          padding: 1rem 0rem 1rem 0rem;
           background: rgba(255, 255, 255, 1) !important;
           box-shadow: 0 0.063rem 0.25rem 0 rgba(0, 0, 0, 0.16);
           position: relative;
@@ -1580,23 +1582,31 @@ $border-color: rgba(214, 213, 212, 1);
             align-items: center;
             gap: 0.5rem;
             padding: 0;
+            margin-right: 1rem;
+            margin-left: 1rem;
           }
 
           .hierarchy-selection-container {
             position: relative;
             overflow-x: hidden;
-            overflow-y: scroll;
+            overflow-y: auto;
             max-height: 24rem;
             display: flex;
             flex-direction: column;
+            margin: 0;
+            padding-left: 1rem;
+            padding-right: 1rem;
 
             @include custom-scrollbar;
 
             .hierarchy-selection-element {
               position: relative;
               padding-top: 1rem;
-              padding-right: 0.3rem;
             }
+          }
+          .scrollable {
+            padding-right: 0.2rem;
+            margin-right: 0.2rem;
           }
         }
       }
@@ -1848,6 +1858,7 @@ $border-color: rgba(214, 213, 212, 1);
         .radio-option-container {
           padding: 0.7rem;
           margin: 0;
+          width: 100%;
           border-bottom: 0.063rem solid rgba(214, 213, 212, 1);
         }
         .custom-box {
@@ -2054,9 +2065,8 @@ $border-color: rgba(214, 213, 212, 1);
         padding: 0 0 0.3rem 0;
         margin: 0;
       }
-
       width: 19.75rem;
-      padding-right: 1rem;
+      padding-right: 0.7rem;
     }
   }
 
@@ -2427,6 +2437,7 @@ $border-color: rgba(214, 213, 212, 1);
     align-items: center;
 
     h2 {
+      font-weight: 600;
       width: fit-content !important;
     }
 

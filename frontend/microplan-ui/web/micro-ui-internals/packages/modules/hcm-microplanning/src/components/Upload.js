@@ -76,7 +76,6 @@ const Upload = ({
   const [template, setTemplate] = useState([]);
   const [resourceMapping, setResourceMapping] = useState([]);
   const [previewUploadedData, setPreviewUploadedData] = useState();
-  const [uploadGuideLines, setUploadGuideLines] = useState();
   const { state, dispatch } = useMyContext();
 
   //fetch campaign data
@@ -261,10 +260,6 @@ const Upload = ({
       let uploadSections = state?.UploadConfiguration;
       let schemas = state?.Schemas;
       let UIConfiguration = state?.UIConfiguration;
-      if (UIConfiguration) {
-        const uploadGuideLinesList = UIConfiguration.find((item) => item.name === "uploadGuideLines").UploadGuideLineInstructions;
-        setUploadGuideLines(uploadGuideLinesList);
-      }
       if (schemas) setValidationSchemas(schemas);
       if (uploadSections) {
         setSelectedSection(uploadSections.length > 0 ? uploadSections[0] : null);
@@ -287,11 +282,21 @@ const Upload = ({
     ));
   }, [sections, selectedSection, fileDataList]);
 
+  const showDownloadTemplate = () => {
+    if (selectedSection?.UploadFileTypes) {
+      const schema = getSchema(campaignType, selectedFileType?.id, selectedSection.id, validationSchemas);
+      if (schema?.template?.showTemplateDownload) return true;
+    }
+    return false;
+  };
+
   // Handler for when a file type is selected for uplaod
   const selectFileTypeHandler = (e) => {
     if (selectedSection?.UploadFileTypes) {
+      const schema = getSchema(campaignType, e.target.name, selectedSection.id, validationSchemas);
       setSelectedFileType(selectedSection.UploadFileTypes.find((item) => item.id === e.target.name));
-      setModal("upload-modal");
+      if (schema?.template?.showTemplateDownload) setModal("upload-modal");
+      else UploadFileClickHandler(false);
       return;
     }
     setToast({
@@ -557,17 +562,19 @@ const Upload = ({
   const dataToBlob = async () => {
     try {
       let blob;
+      const schema = getSchema(campaignType, selectedFileType.id, selectedSection.id, validationSchemas);
       switch (fileData.fileType) {
         case EXCEL:
           if (fileData?.errorLocationObject?.length !== 0)
-            blob = await prepareExcelFileBlobWithErrors(fileData.data, fileData.errorLocationObject, t);
+            blob = await prepareExcelFileBlobWithErrors(fileData.data, fileData.errorLocationObject, schema, hierarchy, t);
           else blob = fileData.file;
           break;
         case SHAPEFILE:
         case GEOJSON:
           if (fileData?.data) {
             const result = Digit.Utils.microplan.convertGeojsonToExcelSingleSheet(fileData?.data?.features, fileData?.section);
-            if (fileData?.errorLocationObject?.length !== 0) blob = await prepareExcelFileBlobWithErrors(result, fileData.errorLocationObject, t);
+            if (fileData?.errorLocationObject?.length !== 0)
+              blob = await prepareExcelFileBlobWithErrors(result, fileData.errorLocationObject, schema, hierarchy, t);
           }
           break;
       }
@@ -580,6 +587,7 @@ const Upload = ({
 
   // Download the selected file
   const downloadFile = async () => {
+    setLoader("LOADING");
     try {
       let blob = await dataToBlob();
       if (blob) {
@@ -619,6 +627,7 @@ const Upload = ({
         message: t("ERROR_UNKNOWN_ERROR"),
       });
     }
+    setLoader(false);
   };
 
   // delete the selected file
@@ -887,6 +896,7 @@ const Upload = ({
                     UploadFileToFileStorage={UploadFileToFileStorage}
                     onTypeError={onTypeErrorWhileFileUpload}
                     downloadTemplateHandler={downloadTemplateHandler}
+                    showDownloadTemplate={showDownloadTemplate}
                   />
                 </div>
               ) : (
@@ -909,6 +919,7 @@ const Upload = ({
                     error={uploadedFileError}
                     openDataPreview={openDataPreview}
                     downloadTemplateHandler={downloadTemplateHandler}
+                    showDownloadTemplate={showDownloadTemplate}
                   />
                 )}
               </div>
@@ -1071,7 +1082,10 @@ const Upload = ({
               }
               headerBarEnd={<CloseButton clickHandler={closeModal} style={{ margin: "0.8rem 0.8rem 0 0" }} />}
             >
-              <UploadGuideLines uploadGuideLines={uploadGuideLines} t={t} />
+              <UploadGuideLines
+                uploadGuideLines={findGuideLine(campaignType, selectedFileType.id, selectedSection.id, state?.UploadGuidelines)}
+                t={t}
+              />
             </Modal>
           )}
           {loader && <LoaderWithGap text={t(loader)} />}
@@ -1090,6 +1104,15 @@ const Upload = ({
       </div>
     </>
   );
+};
+
+//find guideline
+const findGuideLine = (campaignType, type, section, guidelineArray) => {
+  if (!guidelineArray) return guidelineArray;
+  return guidelineArray.find(
+    (guideline) =>
+      guideline.fileType === type && guideline.templateIdentifier === section && (!guideline.campaignType || guideline.campaignType === campaignType)
+  )?.guidelines;
 };
 
 // Component for rendering individual section option
@@ -1202,7 +1225,15 @@ const UploadComponents = ({ item, selected, uploadOptions, selectedFileType, sel
 };
 
 // Component for uploading file
-const FileUploadComponent = ({ selectedSection, selectedFileType, UploadFileToFileStorage, section, onTypeError, downloadTemplateHandler }) => {
+const FileUploadComponent = ({
+  selectedSection,
+  selectedFileType,
+  UploadFileToFileStorage,
+  section,
+  onTypeError,
+  downloadTemplateHandler,
+  showDownloadTemplate,
+}) => {
   if (!selectedSection || !selectedFileType) return <div></div>;
   const { t } = useTranslation();
   let types;
@@ -1214,12 +1245,14 @@ const FileUploadComponent = ({ selectedSection, selectedFileType, UploadFileToFi
       <div>
         <div className="heading">
           <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
-            <div className="icon">
-              <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
-            </div>
-            <p>{t("DOWNLOAD_TEMPLATE")}</p>
-          </button>
+          {showDownloadTemplate() && (
+            <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
+              <div className="icon">
+                <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
+              </div>
+              <p>{t("DOWNLOAD_TEMPLATE")}</p>
+            </button>
+          )}
         </div>
         <p>{t(`INSTRUCTIONS_FILE_UPLOAD_FROM_TEMPLATE_${selectedSection.code}`)}</p>
         <FileUploader handleChange={UploadFileToFileStorage} label={"idk"} onTypeError={onTypeError} multiple={false} name="file" types={types}>
@@ -1246,6 +1279,7 @@ const UploadedFile = ({
   error,
   openDataPreview,
   downloadTemplateHandler,
+  showDownloadTemplate,
 }) => {
   const { t } = useTranslation();
   const [errorList, setErrorList] = useState([]);
@@ -1285,12 +1319,14 @@ const UploadedFile = ({
       <div>
         <div className="heading">
           <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
-            <div className="icon">
-              <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
-            </div>
-            <p>{t("DOWNLOAD_TEMPLATE")}</p>
-          </button>
+          {showDownloadTemplate() && (
+            <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
+              <div className="icon">
+                <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
+              </div>
+              <p>{t("DOWNLOAD_TEMPLATE")}</p>
+            </button>
+          )}
         </div>
         <p>{t(`INSTRUCTIONS_FILE_UPLOAD_FROM_TEMPLATE_${selectedSection.code}`)}</p>
 
@@ -1320,7 +1356,7 @@ const UploadedFile = ({
       {error && Array.isArray(error) && (
         <InfoCard
           variant="error"
-          style={{ margin: "0" }}
+          style={{ margin: "0.5rem 0" }}
           label={t("ERROR_UPLOADED_FILE")}
           additionalElements={[
             <InfoButton infobuttontype="error" label={t("ERROR_VIEW_DETAIL_ERRORS")} onClick={openDataPreview} />,
@@ -1519,18 +1555,15 @@ const downloadTemplate = async ({
     colorHeaders(
       workbook,
       [...hierarchy.map((item) => t(item)), t(commonColumn)],
-      schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
+      schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : [],
+      []
     );
     // protextData
     await protectData({
       workbook,
       hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
-      hierarchyLevelName,
       addFacilityData: schema?.template?.includeFacilityData,
       schema,
-      boundaries: campaignData?.boundaries,
-      tenantId: Digit.ULBService.getCurrentTenantId(),
-      hierarchyType,
       t,
     });
 
@@ -1556,17 +1589,7 @@ const downloadTemplate = async ({
   }
 };
 
-const protectData = async ({
-  workbook,
-  hierarchyLevelWiseSheets = true,
-  hierarchyLevelName,
-  addFacilityData = false,
-  schema,
-  boundaries,
-  tenantId,
-  hierarchyType,
-  t,
-}) => {
+const protectData = async ({ workbook, hierarchyLevelWiseSheets = true, addFacilityData = false, schema, t }) => {
   if (hierarchyLevelWiseSheets) {
     if (addFacilityData) {
       await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
@@ -1608,7 +1631,7 @@ const protectData = async ({
   }
 };
 
-const colorHeaders = async (workbook, headerList1, headerList2) => {
+const colorHeaders = async (workbook, headerList1, headerList2, headerList3) => {
   try {
     // Iterate through each sheet
     workbook.eachSheet((sheet, sheetId) => {
@@ -1620,17 +1643,23 @@ const colorHeaders = async (workbook, headerList1, headerList2) => {
         const cellValue = cell.value.toString();
 
         // Check conditions and set colors
-        if (headerList1.includes(cellValue)) {
+        if (headerList1?.includes(cellValue)) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
-            fgColor: { argb: "ff9248" }, // Pink color
+            fgColor: { argb: "ff9248" },
           };
-        } else if (headerList2.includes(cellValue)) {
+        } else if (headerList2?.includes(cellValue)) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
-            fgColor: { argb: "93C47D" }, // Red color
+            fgColor: { argb: "93C47D" },
+          };
+        } else if (headerList3?.includes(cellValue)) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "CCCC00" },
           };
         }
       });
@@ -1730,26 +1759,26 @@ const getSchema = (campaignType, type, section, schemas) => {
 
 // Uplaod GuideLines
 const UploadGuideLines = ({ uploadGuideLines, t }) => {
+  const formMsgFromObject = (item) => {
+    if (!item?.hasLink) {
+      return t(item?.name);
+    }
+    return (
+      <>
+        {t(item?.name)} <a href={item?.linkEndPoint}>{t(item?.linkName)}</a>{" "}
+      </>
+    );
+  };
   return (
     <div className="guidelines">
-      {/* <p className="sub-heading">{t("PREREQUISITES")}</p>
-      <div className="instruction-list">
-        {t("INSTRUCTION_PREREQUISITES_1")}&nbsp;
-        <a className="link" href="https://help.sap.com/docs/SAP_BW4HANA/107a6e8a38b74ede94c833ca3b7b6f51/ff09575df3614f3da5738ea14e72b703.html">
-          {t("INSTRUCTION_PREREQUISITES_LINK")}
-        </a>
-      </div>
-      <p className="instruction-list ">{t("INSTRUCTION_PREREQUISITES_2")}</p>
-      <p className="sub-heading padtop">{t("PROCEDURE")}</p> */}
-      <p className="sub-heading">{t("PROCEDURE")}</p>
-      {uploadGuideLines.map((item, index) => (
+      {uploadGuideLines?.map((item, index) => (
         <div className="instruction-list-container">
           <p key={index} className="instruction-list number">
             {t(index + 1)}.
           </p>
-          <p key={index} className="instruction-list text">
-            {t(item)}
-          </p>
+          <div key={index} className="instruction-list text">
+            {formMsgFromObject(item)}
+          </div>
         </div>
       ))}
     </div>
@@ -1823,23 +1852,34 @@ const revertLocalisationKey = (localisedCode) => {
   }
   return localisedCode.substring(SCHEMA_PROPERTIES_PREFIX.length + 1);
 };
-const prepareExcelFileBlobWithErrors = async (data, errors, t) => {
+const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, t) => {
   let tempData = { ...data };
   // Process each dataset within the data object
   const processedData = {};
+  let headerList1 = [];
+  let headerList2 = [t("MICROPLAN_ERROR_COLUMN")];
+  const schemaCols = schema?.schema?.Properties ? Object.keys(schema.schema.Properties) : [];
   for (const key in tempData) {
     if (Object.hasOwn(tempData, key)) {
       const dataset = [...tempData[key]];
 
       // Add the 'error' column to the header
-      dataset[0] = dataset[0].map((item) => t(item));
+      dataset[0] = dataset[0].map((item) => {
+        if (item !== commonColumn && schemaCols.includes(item)) {
+          return t(generateLocalisationKeyForSchemaProperties(item));
+        }
+        return t(item);
+      });
+      headerList1.push(...dataset[0]);
       // Process each data row
       if (errors) {
         dataset[0].push(t("MICROPLAN_ERROR_COLUMN"));
         let headerCount = 0;
         for (let i = 1; i < dataset.length; i++) {
           const row = dataset[i];
-          if (i === 1 && row) headerCount = row.length;
+          if (i === 1 && row) {
+            headerCount = row.length;
+          }
 
           if (headerCount > row.length) {
             row.push(...Array(headerCount - row.length).fill(""));
@@ -1872,10 +1912,64 @@ const prepareExcelFileBlobWithErrors = async (data, errors, t) => {
       right: { style: "thin", color: { argb: "B91900" } },
     },
   };
-  let xlsxBlob = await convertJsonToXlsx(processedData, { errorColumn, style });
-  return xlsxBlob;
-};
+  const workbook = await convertToWorkBook(processedData, { errorColumn, style });
+  colorHeaders(
+    workbook,
+    [...hierarchy.map((item) => t(item)), t(commonColumn)],
+    schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : [],
+    []
+  );
 
+  // protextData
+  await protectData({
+    workbook,
+    hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
+    addFacilityData: schema?.template?.includeFacilityData,
+    schema,
+    t,
+  });
+  return await workbook.xlsx.writeBuffer({ compression: true }).then((buffer) => {
+    // Create a Blob from the buffer
+    return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  });
+  // return xlsxBlob;
+};
+const convertToWorkBook = async (jsonData, columnWithStyle) => {
+  const workbook = new ExcelJS.Workbook();
+
+  // Iterate over each sheet in jsonData
+  for (const [sheetName, data] of Object.entries(jsonData)) {
+    // Create a new worksheet
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    // Convert data to worksheet
+    for (const row of data) {
+      const newRow = worksheet.addRow(row);
+      // Apply red font color to the errorColumn if it exists
+      let errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
+      if (columnWithStyle?.errorColumn && errorColumnIndex !== -1) {
+        const columnIndex = errorColumnIndex + 1;
+        if (columnIndex > 0) {
+          const newCell = newRow.getCell(columnIndex);
+          if (columnWithStyle.style && newCell) for (const key in columnWithStyle.style) newCell[key] = columnWithStyle.style[key];
+        }
+      }
+    }
+
+    // Make the first row bold
+    if (worksheet.getRow(1)) {
+      worksheet.getRow(1).font = { bold: true };
+    }
+
+    // Set column widths
+    const columnCount = data?.[0]?.length || 0;
+    const wscols = Array(columnCount).fill({ width: 30 });
+    wscols.forEach((col, colIndex) => {
+      worksheet.getColumn(colIndex + 1).width = col.width;
+    });
+  }
+  return workbook;
+};
 const boundaryDataGeneration = async (schemaData, campaignData, t) => {
   let boundaryDataAgainstBoundaryCode = {};
   if (schemaData && !schemaData.doHierarchyCheckInUploadedData) {

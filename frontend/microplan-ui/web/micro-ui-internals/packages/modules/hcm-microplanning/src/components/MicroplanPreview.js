@@ -46,7 +46,7 @@ const MicroplanPreview = ({
   const [userEditedResources, setUserEditedResources] = useState({}); // state to maintain a record of the resources that the user has edited ( boundaryCode : {resource : value})
   const [microplanPreviewAggregates, setMicroplaPreviewAggregates] = useState();
   const { state, dispatch } = useMyContext();
-
+  const [updateHypothesis, setUpdateHypothesis] = useState(false);
   //fetch campaign data
   const { id = "" } = Digit.Hooks.useQueryParams();
   const { isLoading: isCampaignLoading, data: campaignData } = Digit.Hooks.microplan.useSearchCampaign(
@@ -77,7 +77,9 @@ const MicroplanPreview = ({
         return (
           data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => ({
             ...item,
-            parentBoundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.parentBoundaryType)}`,
+            parentBoundaryType: item?.parentBoundaryType
+              ? `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.parentBoundaryType)}`
+              : null,
             boundaryType: `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`,
           })) || {}
         );
@@ -143,50 +145,59 @@ const MicroplanPreview = ({
     if (!dataToShow || checkDataCompletion !== "true" || !setCheckDataCompletion) return;
     let check = filterObjects(hypothesisAssumptionsList, microplanData?.hypothesis);
     if (check.length === 0) {
-      return createMicroplan();
+      if (navigationEvent?.name === "next") return setModal("confirm-microplan-generation");
+      return createMicroplan(false);
     }
     setModal("confirm-apply-changed-hypothesis");
   }, [checkDataCompletion]);
 
   // check if data has changed or not
-  const updateData = useCallback(() => {
-    if (!setMicroplanData) return;
-    try {
-      let tempData = filterMicroplanDataToShowWithHierarchySelection(data, {}, hierarchy);
-      // Adding resources to the data we need to show
-      tempData = Digit.Utils.microplan.addResourcesToFilteredDataToShow(
-        tempData,
-        resources,
-        hypothesisAssumptionsList,
-        formulaConfiguration,
-        userEditedResources,
-        t
-      );
-      setMicroplanData((previous) => ({
-        ...previous,
-        microplanPreview: {
-          previewData: tempData,
+  const updateData = useCallback(
+    (doPerform) => {
+      // Update the microplan data with selected hierarchy and resources
+      // This function also handles setting the completion check based on the action to be performed
+      if (!setMicroplanData) return;
+      try {
+        let tempData = filterMicroplanDataToShowWithHierarchySelection(data, {}, hierarchy);
+        // Adding resources to the data we need to show
+        tempData = Digit.Utils.microplan.addResourcesToFilteredDataToShow(
+          tempData,
+          resources,
+          hypothesisAssumptionsList,
+          formulaConfiguration,
           userEditedResources,
-        },
-      }));
-      setCheckDataCompletion("perform-action");
-    } catch (error) {
-      console.error("Failed to update data:", error);
-    }
-  }, [
-    resources,
-    boundarySelections,
-    hierarchy,
-    hypothesisAssumptionsList,
-    formulaConfiguration,
-    userEditedResources,
-    setMicroplanData,
-    setCheckDataCompletion,
-  ]);
+          t
+        );
+        setMicroplanData((previous) => ({
+          ...previous,
+          microplanPreview: {
+            previewData: tempData,
+            userEditedResources,
+          },
+        }));
+        if (doPerform) {
+          return setCheckDataCompletion("perform-action");
+        }
+        setCheckDataCompletion("false");
+      } catch (error) {
+        console.error("Failed to update data:", error);
+      }
+    },
+    [
+      resources,
+      boundarySelections,
+      hierarchy,
+      hypothesisAssumptionsList,
+      formulaConfiguration,
+      userEditedResources,
+      setMicroplanData,
+      setCheckDataCompletion,
+    ]
+  );
 
   const cancelUpdateData = useCallback(() => {
-    setCheckDataCompletion("perform-action");
-    setModal("none");
+    setUpdateHypothesis(false);
+    setModal("confirm-microplan-generation");
   }, [setCheckDataCompletion, setModal]);
 
   useEffect(() => {
@@ -216,46 +227,61 @@ const MicroplanPreview = ({
   };
 
   const cancleNavigation = () => {
-    setCheckDataCompletion("false");
+    if (navigationEvent?.name !== "next") setCheckDataCompletion("false");
     setModal("none");
   };
 
-  const createMicroplan = useCallback(() => {
-    if (!hypothesisAssumptionsList || !setMicroplanData) return;
-    const microData = updateMicroplanData(hypothesisAssumptionsList);
-    setLoaderActivation(true);
-    updateHyothesisAPICall(
-      microData,
+  const createMicroplan = useCallback(
+    (doCreation) => {
+      if (!hypothesisAssumptionsList || !setMicroplanData) return;
+      const updateDataWrapper = () => {
+        if (doCreation || navigationEvent?.name !== "next") {
+          return updateData(true);
+        }
+        updateData(false);
+      };
+      const setCheckDataCompletionWrapper = (value) => {
+        if (!doCreation) {
+          return setCheckDataCompletion("false");
+        }
+        setCheckDataCompletion(value);
+      };
+      const microData = updateHypothesis ? updateMicroplanData(hypothesisAssumptionsList) : microplanData;
+      setLoaderActivation(true);
+      updateHyothesisAPICall(
+        microData,
+        setMicroplanData,
+        operatorsObject,
+        microData?.microplanDetails?.name,
+        campaignId,
+        UpdateMutate,
+        setToast,
+        updateDataWrapper,
+        setLoaderActivation,
+        doCreation && navigationEvent?.name === "next" ? "GENERATED" : "DRAFT",
+        cancleNavigation,
+        state,
+        campaignType,
+        navigationEvent,
+        setCheckDataCompletionWrapper,
+        t
+      );
+
+      setModal("none");
+    },
+    [
+      hypothesisAssumptionsList,
       setMicroplanData,
       operatorsObject,
-      microData?.microplanDetails?.name,
       campaignId,
       UpdateMutate,
       setToast,
       updateData,
       setLoaderActivation,
-      navigationEvent?.name === "next" ? "GENERATED" : "DRAFT",
-      cancleNavigation,
-      state,
-      campaignType,
       navigationEvent,
-      setCheckDataCompletion,
-      t
-    );
-
-    setModal("none");
-  }, [
-    hypothesisAssumptionsList,
-    setMicroplanData,
-    operatorsObject,
-    campaignId,
-    UpdateMutate,
-    setToast,
-    updateData,
-    setLoaderActivation,
-    navigationEvent,
-    t,
-  ]);
+      t,
+    ]
+  );
 
   const updateMicroplanData = useCallback(
     (hypothesisAssumptionsList) => {
@@ -388,7 +414,10 @@ const MicroplanPreview = ({
             headerBarMainStyle={{ padding: 0, margin: 0 }}
             headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_PROCEED_WITH_NEW_HYPOTHESIS")} />}
             actionCancelLabel={t("YES")}
-            actionCancelOnSubmit={createMicroplan}
+            actionCancelOnSubmit={() => {
+              setUpdateHypothesis(true);
+              setModal("confirm-microplan-generation");
+            }}
             actionSaveLabel={t("NO")}
             actionSaveOnSubmit={cancelUpdateData}
             formId="modal-action"
@@ -396,9 +425,36 @@ const MicroplanPreview = ({
             <AppplyChangedHypothesisConfirmation newhypothesisList={hypothesisAssumptionsList} hypothesisList={microplanData?.hypothesis} t={t} />
           </Modal>
         )}
-        {/* {toast && toast.state === "error" && (
-          <Toast style={{ zIndex: "9999999" }} label={toast.message} isDleteBtn onClose={() => setToast(null)} type={"error"} />
-        )} */}
+        {modal === "confirm-microplan-generation" && (
+          <Modal
+            popupStyles={{ borderRadius: "0.25rem", width: "31.188rem" }}
+            popupModuleActionBarStyles={{
+              display: "flex",
+              flex: 1,
+              justifyContent: "flex-start",
+              width: "100%",
+              padding: "1rem",
+            }}
+            popupModuleMianStyles={{ padding: 0, margin: 0 }}
+            style={{
+              flex: 1,
+              height: "2.5rem",
+              backgroundColor: "white",
+              border: `0.063rem solid ${PRIMARY_THEME_COLOR}`,
+            }}
+            headerBarMainStyle={{ padding: 0, margin: 0 }}
+            headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_MICROPLAN_GENERATION_CONFIRMATION")} />}
+            actionCancelLabel={t("YES")}
+            actionCancelOnSubmit={() => createMicroplan(true)}
+            actionSaveLabel={t("NO")}
+            actionSaveOnSubmit={() => createMicroplan(false)}
+            formId="modal-action"
+          >
+            <div className="modal-body">
+              <p className="modal-main-body-p">{t("INSTRUCTIONS_MICROPLAN_GENERATION_CONFIRMATION")}</p>
+            </div>
+          </Modal>
+        )}
       </div>
       {loaderActivation && <LoaderWithGap text={"LOADING"} />}
     </>
@@ -996,13 +1052,9 @@ const updateHyothesisAPICall = async (
     }
     await UpdateMutate(body, {
       onSuccess: async (data) => {
-        setToast({ state: "success", message: t("SUCCESS_DATA_SAVED") });
         updateData();
         setLoaderActivation(false);
-        setMicroplanData((previous) => ({ ...previous, microplanStatus: "GENERATED" }));
-        setTimeout(() => {
-          setToast(undefined);
-        }, 2000);
+        setMicroplanData((previous) => ({ ...previous, microplanStatus: status }));
       },
       onError: (error, variables) => {
         setLoaderActivation(false);
@@ -1012,9 +1064,6 @@ const updateHyothesisAPICall = async (
         });
         if (status === "GENERATED") cancleNavigation();
         else updateData();
-        setTimeout(() => {
-          setToast(undefined);
-        }, 2000);
       },
     });
   } catch (error) {

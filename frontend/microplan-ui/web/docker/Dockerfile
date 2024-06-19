@@ -9,12 +9,10 @@ ENV NODE_OPTIONS "--max-old-space-size=8168"
 COPY ${WORK_DIR} .
 RUN ls -lah
 
-RUN chmod +x ./web/install-deps.sh
-
 #RUN node web/envs.js
 RUN cd web/ \
     && chmod +x ./install-deps.sh \
-    &&  ./install-deps.sh \
+    && ./install-deps.sh \
     && yarn install \
     && yarn build:webpack 
 
