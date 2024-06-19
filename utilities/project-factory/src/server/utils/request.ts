@@ -1,7 +1,8 @@
 import { Response } from "express"; // Importing necessary module Response from Express
 import { getFormattedStringForDebug, logger } from "./logger"; // Importing logger from logger module
-import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
+import { throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
 import config from "../config";
+import { redis, checkRedisConnection } from "./redisUtils"; // Importing checkRedisConnection function
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
@@ -42,12 +43,10 @@ export const defaultheader = {
 // Function to extract service name from URL
 const getServiceName = (url = "") => url && url.slice && url.slice(url.lastIndexOf(url.split("/")[3]));
 
-const cacheEnabled = true; // Variable to indicate whether caching is enabled or not
+const cacheEnabled = config.cacheValues.cacheEnabled; // Variable to indicate whether caching is enabled or not
 
 /**
  * Used to Make API call through axios library
- * 
- * @author jagankumar-egov
  * 
  * @param {string} _url - The URL to make the HTTP request to
  * @param {Object} _requestBody - The request body
@@ -69,29 +68,38 @@ const httpRequest = async (
   retry: any = false,
   dontThrowError: any = false
 ): Promise<any> => {
-  let attempt = 0; // Track the number of attempts
-  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4; // Maximum number of retry attempts
+  let attempt = 0;
+  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
+  const cacheKey = headers && headers.cachekey ? `cache:${headers.cachekey}` : null; // Create cache key
+  const cacheTTL = 300; // TTL in seconds (5 minutes)
 
   while (attempt < maxAttempts) {
     try {
-      if (headers && headers.cachekey && cacheEnabled) {
-        const cacheData = getCachedResponse(headers.cachekey); // Get cached response data
-        if (cacheData) {
-          return cacheData; // Return cached data if available
+      const isRedisConnected = await checkRedisConnection();
+      if (cacheKey && cacheEnabled && isRedisConnected) {
+        const cachedData = await redis.get(cacheKey); // Get cached data
+        if (cachedData) {
+          logger.info("CACHE HIT :: " + cacheKey);
+          logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
+
+          // Reset the TTL for the cache key
+          if (config.cacheValues.resetCache) {
+            await redis.expire(cacheKey, cacheTTL);
+          }
+
+          return JSON.parse(cachedData); // Return parsed cached data if available
         }
-        logger.info(
-          "NO CACHE FOUND :: REQUEST :: " +
-          JSON.stringify(headers.cachekey)
-        );
+        logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
       }
+
       logger.info(
         "INTER-SERVICE :: REQUEST :: " +
         getServiceName(_url) +
         " CRITERIA :: " +
         JSON.stringify(_params)
       );
-      logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(_requestBody))
-      // Make HTTP request using Axios
+      logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(_requestBody));
+
       const response = await axiosInstance({
         method: _method,
         url: _url,
@@ -101,7 +109,7 @@ const httpRequest = async (
         responseType,
       });
 
-      const responseStatus = parseInt(get(response, "status"), 10); // Get response status
+      const responseStatus = parseInt(get(response, "status"), 10);
       logger.info(
         "INTER-SERVICE :: SUCCESS :: " +
         getServiceName(_url) +
@@ -110,51 +118,54 @@ const httpRequest = async (
       );
       logger.debug("INTER-SERVICE :: RESPONSEBODY :: " + getFormattedStringForDebug(response.data));
 
-      // If response status is successful, cache the response data if caching is enabled
-      if (responseStatus === 200 || responseStatus === 201 || responseStatus === 202) {
-        if (headers && headers.cachekey) {
-          cacheResponse(response.data, headers.cachekey);
+      if ([200, 201, 202].includes(responseStatus)) {
+        if (cacheKey && isRedisConnected) {
+          await redis.set(cacheKey, JSON.stringify(response.data), "EX", cacheTTL); // Cache the response data with TTL
         }
-        // Return response data with status code if sendStatusCode flag is false
-        if (!sendStatusCode)
-          return response.data;
-        else return { ...response.data, "statusCode": responseStatus };
+        return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
     } catch (error: any) {
-      var errorResponse = error?.response; // Get error response
-      // Log error details
+      const errorResponse = error?.response;
       logger.error(
         "INTER-SERVICE :: FAILURE :: " +
         getServiceName(_url) +
         ":: CODE :: " +
         errorResponse?.status +
         ":: ERROR :: " +
-        errorResponse?.data?.Errors?.[0]?.code || error +
+        (errorResponse?.data?.Errors?.[0]?.code || error) +
         ":: DESCRIPTION :: " +
         errorResponse?.data?.Errors?.[0]?.description
       );
-      logger.error("error occurred while making request to " +
+      logger.error(
+        "error occurred while making request to " +
         getServiceName(_url) +
         ": error response :" +
-        (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message))
-      logger.error(":: ERROR STACK :: " + error?.stack || error);
-      logger.warn(`Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] })}`);
+        (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message)
+      );
+      logger.error(":: ERROR STACK :: " + (error?.stack || error));
+      logger.warn(
+        `Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(
+          errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
+        )}`
+      );
       if (retry) {
-        attempt++; // Increment the attempt count
+        attempt++;
         if (attempt >= maxAttempts) {
           if (dontThrowError) {
             logger.warn(`Maximum retry attempts reached for httprequest with url ${_url}`);
             return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
-          }
-          else {
+          } else {
             throwTheHttpError(errorResponse, error, _url);
           }
         }
-        // Wait for a short period before retrying
         logger.warn(`Waiting for 20 seconds before retrying httprequest with url ${_url}`);
-        await new Promise(resolve => setTimeout(resolve, 20000));
+        await new Promise((resolve) => setTimeout(resolve, 20000));
       } else if (dontThrowError) {
-        logger.warn(`Error occurred while making request to ${getServiceName(_url)}: returning error response ${JSON.stringify(errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] })}`);
+        logger.warn(
+          `Error occurred while making request to ${getServiceName(_url)}: returning error response ${JSON.stringify(
+            errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
+          )}`
+        );
         return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
       } else {
         throwTheHttpError(errorResponse, error, _url);
@@ -166,7 +177,7 @@ const httpRequest = async (
 function throwTheHttpError(errorResponse?: any, error?: any, _url?: string) {
   // Throw error response via request if error response contains errors
   if (errorResponse?.data?.Errors?.[0]) {
-    errorResponse.data.Errors[0].status = errorResponse?.data?.Errors?.[0]?.status || errorResponse?.status
+    errorResponse.data.Errors[0].status = errorResponse?.data?.Errors?.[0]?.status || errorResponse?.status;
     throwErrorViaRequest(errorResponse?.data?.Errors?.[0]);
   } else {
     // Throw error message via request

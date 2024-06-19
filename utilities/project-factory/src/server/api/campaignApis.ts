@@ -9,7 +9,6 @@ import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
 import { produceModifiedMessages } from "../kafka/Listener";
-import { userRoles } from "../config/constants";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
@@ -543,7 +542,8 @@ function convertUserRoles(employees: any[], request: any) {
       var newRoles: any[] = []
       const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
       for (const role of rolesArray) {
-        newRoles.push({ name: role, code: userRoles[role], tenantId: request?.body?.ResourceDetails?.tenantId })
+        const code = role.toUpperCase().split(' ').join('_')
+        newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
       }
       employee.user.roles = newRoles
     }
@@ -771,7 +771,7 @@ async function handleResouceDetailsError(request: any, error: any) {
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-       persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
+      persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
     }
     produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }

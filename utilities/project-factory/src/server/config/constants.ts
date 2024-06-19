@@ -9,7 +9,7 @@ export const CONSTANTS: any = {
             INTERNAL_SERVER_ERROR: "Internal server error",
             INVALID_PAGINATION: "Invalid pagination",
             KAFKA_ERROR: "Some error occured in kafka",
-            SCHEMA_ERROR : " Schema related error",
+            SCHEMA_ERROR: " Schema related error",
             RESPONSE_NOT_FOUND_ERROR: "Response not found"
         },
         FILE: {
@@ -84,15 +84,6 @@ const getMessage = (key: any) => {
 
     // Return 'unknownError' if the error key is not found
     return unknownError;
-}
-
-export const userRoles: any = {
-    "Registrar": "REGISTRAR",
-    "Distributor": "DISTRIBUTOR",
-    "Supervisor": "SUPERVISOR",
-    "Help Desk": "HELPDESK_USER",
-    "Monitor Local": "MONITOR_LOCAL",
-    "Logistical officer": "LOGISTICAL_OFFICER",
 }
 
 export const campaignStatuses: any = {

@@ -1,7 +1,7 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
-import { httpRequest } from "../utils/request";
+import { defaultheader, httpRequest } from "../utils/request";
 import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../api/campaignApis";
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
@@ -37,11 +37,15 @@ function processBoundary(responseBoundaries: any[], request: any, boundaryItems:
 }
 async function fetchBoundariesInChunks(request: any) {
     const { tenantId, hierarchyType } = request.body.ResourceDetails;
-    const boundaryEntitySearchParams: any = {
+    const params: any = {
         tenantId, hierarchyType, includeChildren: true
     };
     const responseBoundaries: any[] = [];
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEntitySearchParams);
+    const header = {
+        ...defaultheader,
+        cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;
@@ -62,11 +66,15 @@ function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: 
 
 async function fetchBoundariesFromCampaignDetails(request: any) {
     const { tenantId, hierarchyType } = request.body.CampaignDetails;
-    const boundaryEntitySearchParams: any = {
+    const params: any = {
         tenantId, hierarchyType, includeChildren: true
     };
+    const header = {
+        ...defaultheader,
+        cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
     const responseBoundaries: any[] = [];
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEntitySearchParams);
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;

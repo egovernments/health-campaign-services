@@ -36,6 +36,11 @@ const config = {
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
   },
+  cacheValues: {
+    cacheEnabled: process.env.CACHE_ENABLED,
+    resetCache: process.env.RESET_CACHE,
+    redisPort: process.env.REDIS_PORT || "6379",
+  },
   kafka: {
     // Kafka topics
     KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC: process.env.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC || "save-project-campaign-details",
@@ -85,6 +90,7 @@ const config = {
     serverHost: HOST,
     // Kafka broker host
     KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
+    redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
     mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
     filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-dev.digit.org/",
@@ -146,7 +152,7 @@ const config = {
     matchFacilityData: false,
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
     notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE || false,
-    maxHttpRetries: "4"
+    maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4"
   }
 };
 // Exporting getErrorCodes function and config object

@@ -1,7 +1,7 @@
 // Import necessary modules and libraries
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
-import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
+import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
@@ -923,15 +923,19 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     const searchBody = {
       RequestInfo: request.body.RequestInfo,
     }
-    const params = {
+    const params: any = {
       hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
       tenantId: request?.body?.ResourceDetails?.tenantId,
       codes: code
     }
     var retry = 6;
     var boundaryFound = false;
+    const header = {
+      ...defaultheader,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
     while (!boundaryFound && retry >= 0) {
-      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params);
+      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
       if (response?.TenantBoundary?.[0].boundary?.[0]) {
         boundaryFound = true;
       }
@@ -969,8 +973,12 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
       "includeChildren": true,
       "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
     };
+    const header = {
+      ...defaultheader,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
 
-    const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+    const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
     const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
     const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
 
@@ -1051,33 +1059,6 @@ async function callMdmsData(
   const url = config.host.mdms + config.paths.mdms_v1_search;
   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
   return response;
-}
-
-
-
-async function callMdmsV2Data(
-  request: any,
-  moduleName: string,
-  masterName: string,
-  tenantId: string, filters: any) {
-  try {
-    const { RequestInfo = {} } = request?.body || {};
-    const requestBody = {
-      RequestInfo,
-      MdmsCriteria: {
-        tenantId: tenantId,
-        filters,
-        schemaCode: moduleName + "." + config?.masterNameForSchemaOfColumnHeaders,
-        limit: 10,
-        offset: 0
-      },
-    };
-    const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
-    const response = await httpRequest(url, requestBody, { tenantId: tenantId });
-    return response;
-  } catch (error: any) {
-    throwError("MDMS", 400, "MDMS_DATA_NOT_FOUND_ERROR", `Mdms Data not found for ${moduleName}"-"${masterName}`)
-  }
 }
 
 function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, errorMessage: any) {
@@ -1168,7 +1149,11 @@ async function callMdmsTypeSchema(
     }
   };
   const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
-  const response = await httpRequest(url, requestBody);
+  const header = {
+    ...defaultheader,
+    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${campaignType}${type}.${campaignType}${requestBody?.MdmsCriteria?.schemaCode}`
+  }
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
@@ -1202,6 +1187,5 @@ export {
   getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsV2Data,
   callMdmsTypeSchema
 }

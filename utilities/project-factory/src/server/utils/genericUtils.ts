@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { httpRequest } from "./request";
+import { httpRequest, defaultheader } from "./request";
 import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Listener";
@@ -835,7 +835,11 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
 async function getBoundaryRelationshipData(request: any, params: any) {
   logger.info("Boundary relationship search initiated")
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-  const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+  const header = {
+    ...defaultheader,
+    cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+  }
+  const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
   logger.info("Boundary relationship search response received")
   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
