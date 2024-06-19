@@ -68,7 +68,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
                         entities.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
+                throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage());
             }
             List<Stock> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

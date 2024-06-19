@@ -89,7 +89,7 @@ public class HNonExistentEntityValidator implements Validator<HouseholdBulkReque
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("HOUSEHOLD_SEARCH_FAILED", "Search Failed for Household, " + e);
+                throw new CustomException("HOUSEHOLD_SEARCH_FAILED", "Search Failed for Household, " + e.getMessage());
             }
             // Check for non-existent entities
             List<Household> nonExistentEntities = checkNonExistentEntities(eMap,

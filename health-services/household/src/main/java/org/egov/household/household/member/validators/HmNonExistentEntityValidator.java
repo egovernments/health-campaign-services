@@ -97,7 +97,7 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
                         householdMembers.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("HOUSEHOLD_MEMBER_SEARCH_FAILED", "Search Failed for HouseholdMember,  " + e);
+                throw new CustomException("HOUSEHOLD_MEMBER_SEARCH_FAILED", "Search Failed for HouseholdMember, " + e.getMessage());
             }
 
             // Check for non-existent household members

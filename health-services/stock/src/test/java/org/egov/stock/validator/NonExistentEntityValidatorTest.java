@@ -53,7 +53,7 @@ class NonExistentEntityValidatorTest {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.emptyList());
         } catch (QueryBuilderException e) {
-            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
+            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage());
         }
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
@@ -69,7 +69,7 @@ class NonExistentEntityValidatorTest {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
         } catch (QueryBuilderException e) {
-            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e);
+            throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage());
         }
 
         Map<Stock, List<Error>> errorDetailsMap = stockNonExistentValidator.validate(request);
@@ -87,7 +87,7 @@ class NonExistentEntityValidatorTest {
             when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         } catch (QueryBuilderException e) {
-            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e);
+            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
         }
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);
@@ -105,7 +105,7 @@ class NonExistentEntityValidatorTest {
                     .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder().withStock()
                             .withId("some-id").build()));
         } catch (QueryBuilderException e) {
-            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e);
+            throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
         }
 
         Map<StockReconciliation, List<Error>> errorDetailsMap = stockReconciliationNonExistentValidator.validate(request);

@@ -80,7 +80,7 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
                         individuals.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e);
+                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e.getMessage());
             }
             List<Individual> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingIndividuals, idMethod);

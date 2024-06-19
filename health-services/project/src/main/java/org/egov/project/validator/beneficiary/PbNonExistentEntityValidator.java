@@ -71,7 +71,7 @@ public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRe
                         projectBeneficiaries.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("PROJECT_BENEFICIARY_SEARCH_FAILED", "Search Failed for ProjectBeneficiary, " + e);
+                throw new CustomException("PROJECT_BENEFICIARY_SEARCH_FAILED", "Search Failed for ProjectBeneficiary, " + e.getMessage());
             }
 
             List<ProjectBeneficiary> nonExistentIndividuals = checkNonExistentEntities(iMap,

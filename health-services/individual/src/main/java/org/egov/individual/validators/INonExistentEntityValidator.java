@@ -88,7 +88,7 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
             } catch (Exception e) {
                 // Handle query builder exception
                 existingEntities = new ArrayList<>();
-                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e);
+                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e.getMessage());
             }
             // Check for non-existent entities
             List<Individual> nonExistentEntities = checkNonExistentEntities(eMap,
