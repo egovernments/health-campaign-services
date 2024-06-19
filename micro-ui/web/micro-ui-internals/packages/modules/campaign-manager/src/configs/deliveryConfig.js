@@ -51,6 +51,7 @@ export const deliveryConfig = [
         conditionConfig: [
           {
             deliveryType: "DIRECT",
+            disableDeliveryType: true,
             attributeConfig: [
               {
                 key: 1,
@@ -78,6 +79,7 @@ export const deliveryConfig = [
             ],
           },
           {
+            disableDeliveryType: true,
             deliveryType: "DIRECT",
             attributeConfig: [
               {

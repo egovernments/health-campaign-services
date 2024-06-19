@@ -91,7 +91,7 @@ function AddProduct() {
               tenantId: tenantId,
               productId: i?.id,
               variation: target?.variant,
-              sku: target?.variant,
+              sku: `${target?.name} - ${target?.variant}`,
             };
           }
           return;

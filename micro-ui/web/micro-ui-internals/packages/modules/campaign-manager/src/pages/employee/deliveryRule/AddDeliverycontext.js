@@ -667,6 +667,12 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
               optionsKey="code"
               onSelect={(value) => updateDeliveryType(value)}
               t={t}
+              disabled={
+                filteredDeliveryConfig?.deliveryConfig?.find((i, n) => n === targetedData?.deliveryIndex - 1)?.conditionConfig?.[delivery?.ruleKey - 1]
+                  ?.disableDeliveryType
+                  ? true
+                  : false
+              }
             />
           </LabelFieldPair>
         )}
