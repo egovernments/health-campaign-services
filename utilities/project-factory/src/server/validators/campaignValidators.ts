@@ -225,28 +225,28 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value is missing at row ${obj['!row#number!']} in sheet ${key}. Please provide a numeric integer between 1 and 100000.`,
+                                errorDetails: `Target value is missing at row ${obj['!row#number!']} in sheet ${key}.(Targets values can only be positive numbers less than 1 Million)`,
                                 sheetName: key
                             });
                         } else if (typeof target !== 'number') {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not a number. Target values must be numeric integers between 1 and 100000.`,
+                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not a number.(Targets values can only be positive numbers less than 1 Million)`,
                                 sheetName: key
                             });
-                        } else if (target <= 0 || target > 100000) {
+                        } else if (target <= 0 || target > 1000000) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!']} in sheet ${key} is out of range. Target values must be numeric integers between 1 and 100000.`,
+                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is out of range.(Targets values can only be positive numbers less than 1 Million)`,
                                 sheetName: key
                             });
                         } else if (!Number.isInteger(target)) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value ${target} at row ${obj['!row#number!']} in sheet ${key} is not an integer. Target values must be whole numbers between 1 and 100000.`,
+                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not an integer.(Targets values can only be positive numbers less than 1 Million)`,
                                 sheetName: key
                             });
                         }
