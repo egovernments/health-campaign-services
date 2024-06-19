@@ -6,7 +6,6 @@ import { initLibraries } from "@egovernments/digit-ui-libraries";
 import { DigitUI } from "@egovernments/digit-ui-module-core";
 import "@egovernments/digit-ui-css/example/index.css";
 
-import { pgrCustomizations } from "./pgr";
 import { UICustomizations } from "./UICustomizations";
 import { initCampaignComponents } from "@egovernments/digit-ui-module-campaign-manager"
 import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench";
@@ -57,7 +56,6 @@ const initTokens = (stateCode) => {
 const initDigitUI = () => {
   window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH") || "digit-ui";
   window.Digit.Customizations = {
-    PGR: pgrCustomizations,
     commonUiConfig: UICustomizations
   };
   window?.Digit.ComponentRegistryService.setupRegistry({
