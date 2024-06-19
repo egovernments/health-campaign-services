@@ -5,7 +5,6 @@ import { initLibraries } from "@egovernments/digit-ui-libraries";
 import { DigitUI } from "@egovernments/digit-ui-module-core";
 import "@egovernments/digit-ui-css/example/index.css";
 
-import { pgrCustomizations } from "./pgr";
 import { UICustomizations } from "./UICustomizations";
 import { initMicroplanningComponents } from "@egovernments/digit-ui-module-hcmmicroplanning";
 
@@ -18,7 +17,7 @@ const enabledModules = [
   "HCMWORKBENCH",
   //  "Engagement", "NDSS","QuickPayLinks", "Payment",
   "Utilities",
-  "Microplanning"
+  "Microplanning",
   //added to check fsm
   // "FSM"
 ];
@@ -52,22 +51,21 @@ const initTokens = (stateCode) => {
 const initDigitUI = () => {
   window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH") || "digit-ui";
   window.Digit.Customizations = {
-    PGR: pgrCustomizations,
-    commonUiConfig: UICustomizations
+    commonUiConfig: UICustomizations,
   };
-  window?.Digit.ComponentRegistryService.setupRegistry({
-    
-  });
+  window?.Digit.ComponentRegistryService.setupRegistry({});
 
   initMicroplanningComponents();
 
   const moduleReducers = (initData) => initData;
 
-
   const stateCode = window?.globalConfigs?.getConfig("STATE_LEVEL_TENANT_ID") || "pb";
   initTokens(stateCode);
 
-  ReactDOM.render(<DigitUI stateCode={stateCode} enabledModules={enabledModules}       defaultLanding="employee"  moduleReducers={moduleReducers} />, document.getElementById("root"));
+  ReactDOM.render(
+    <DigitUI stateCode={stateCode} enabledModules={enabledModules} defaultLanding="employee" moduleReducers={moduleReducers} />,
+    document.getElementById("root")
+  );
 };
 
 initLibraries().then(() => {

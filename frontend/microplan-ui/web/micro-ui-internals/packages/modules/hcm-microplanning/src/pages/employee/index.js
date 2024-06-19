@@ -74,6 +74,7 @@ const App = ({ path }) => {
       { name: "MapFilters" },
       { name: "HierarchyConfigurations" },
       { name: "NumberFormatMappingForTranslation" },
+      { name: "UploadGuidelines" },
     ],
     {
       select: (data) => {

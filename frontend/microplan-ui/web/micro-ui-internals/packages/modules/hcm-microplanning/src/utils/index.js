@@ -224,7 +224,7 @@ const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqTy
       operations: data?.ruleEngine?.reduce((acc, item) => {
         if (reqType === "create" && !item?.active) return acc;
         if (!item.active && !item.input) {
-          const data = JSON.parse(JSON.stringify(item));
+          const data = { ...item };
           const operator = Operators.find((e) => e.name === data.operator);
           if (operator && operator.code) data.operator = operator?.code;
           if (data?.oldInput) data.input = data.oldInput;
@@ -232,7 +232,7 @@ const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqTy
           return acc;
         }
         if (!item.active && !item.operator && !item.output && !item.input && !item.assumptionValue) return acc;
-        const data = JSON.parse(JSON.stringify(item));
+        const data = { ...item };
         const operator = Operators.find((e) => e.name === data.operator);
         if (operator && operator.code) data.operator = operator?.code;
         acc.push(data);
