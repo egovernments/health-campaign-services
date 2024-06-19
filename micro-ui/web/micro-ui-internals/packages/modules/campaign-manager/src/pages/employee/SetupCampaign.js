@@ -243,6 +243,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const noAction = searchParams.get("action");
   const isDraft = searchParams.get("draft");
   const isSkip = searchParams.get("skip");
+  const keyParam = searchParams.get("key");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
@@ -1364,8 +1365,15 @@ const SetupCampaign = ({ hierarchyType }) => {
     const relatedSteps = campaignConfig?.[0]?.form.filter((step) => nonNullFormDataKeys.includes(step.name));
 
     const highestStep = relatedSteps.reduce((max, step) => Math.max(max, parseInt(step.stepCount)), 0);
-
+    if(isDraft == "true"){
+      const filteredSteps = campaignConfig?.[0]?.form.find((item) => item.key === keyParam)?.stepCount;
+      setActive(filteredSteps);
+    }
+    else{
     setActive(highestStep);
+    }
+
+    // setActive(highestStep);
   };
 
   useEffect(() => {
