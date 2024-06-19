@@ -80,7 +80,7 @@ To run this project, you will need to add the following environment variables to
 
 # Section Information
 
-Form composer has not been used
+Form composer has not been used in Create Microplan flow
 
 ## Create Flow
 
