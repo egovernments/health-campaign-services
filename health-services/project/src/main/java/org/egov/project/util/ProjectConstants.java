@@ -23,7 +23,9 @@ public class ProjectConstants {
     public enum TaskStatus {
         BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
         BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
-        BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE");
+        BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
+        BENEFICIARY_SICK("BENEFICIARY_SICK"),
+        BENEFICIARY_ABSENT("BENEFICIARY_ABSENT");
         private String value;
 
         TaskStatus(String value) {
