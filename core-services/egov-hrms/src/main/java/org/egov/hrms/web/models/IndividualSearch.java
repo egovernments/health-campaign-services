@@ -54,7 +54,9 @@ public class IndividualSearch extends EgovOfflineSearchModel {
     @JsonProperty("wardCode")
     private String wardCode = null;
 
+    //Exclude annotation to exclude the field during dynamic sql query generation, because this field is not available in table and generic query fails
     @JsonProperty("individualName")
+    @Exclude
     private String individualName = null;
 
     @JsonProperty("createdFrom")
