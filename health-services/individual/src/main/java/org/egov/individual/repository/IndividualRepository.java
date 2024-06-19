@@ -25,6 +25,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -48,23 +49,26 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public List<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
-        List<Individual> objFound;
-        objFound = findInCache(ids);
-        if (!includeDeleted) {
-            objFound = objFound.stream()
-                    .filter(entity -> entity.getIsDeleted().equals(false))
-                    .collect(Collectors.toList());
-        }
-        if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound, idColumn);
-            ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .collect(Collectors.toList()));
-            if (ids.isEmpty()) {
-                return objFound;
+        List<Individual> objFound = new ArrayList<>();
+        try {
+            objFound = findInCache(ids);
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> entity.getIsDeleted().equals(false))
+                        .collect(Collectors.toList());
             }
+            if (!objFound.isEmpty()) {
+                Method idMethod = getIdMethod(objFound, idColumn);
+                ids.removeAll(objFound.stream()
+                        .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                        .collect(Collectors.toList()));
+                if (ids.isEmpty()) {
+                    return objFound;
+                }
+            }
+        }catch (Exception e){
+            log.info("Error occurred while reading from cache",e);
         }
-
         String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
