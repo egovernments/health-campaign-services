@@ -76,6 +76,7 @@ export const generatedResourceTransformer = (dbRows: any[] = []) => {
     // Rename and restructure properties
     item.tenantId = item.tenantid;
     item.additionalDetails = item.additionaldetails;
+    item.additionalDetails.Filters = item?.additionaldetails?.filters ? {} : item?.additionaldetails?.filters;
     item.fileStoreid = item.filestoreid;
 
     // Remove unnecessary properties

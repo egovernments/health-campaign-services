@@ -1,5 +1,11 @@
-export const useResourceData = async (data, hierarchyType, type, tenantId, id) => {
+import axios from 'axios';
+import * as XLSX from 'xlsx';
+import { baseTimeOut } from '../configs/baseTimeOut';
+export const useResourceData = async (data, hierarchyType, type, tenantId, id , baseTimeOut) => {
+
+
   let Type;
+  let jsonDataLength;
   let Error = {
     isError: false,
     error: {},
@@ -13,6 +19,29 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
     Type = "boundaryWithTarget";
   }
   try {
+    if(data){
+      axios
+      .get("/filestore/v1/files/id", {
+        responseType: "arraybuffer",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "auth-token": Digit.UserService.getUser()?.["access_token"],
+        },
+        params: {
+          tenantId: Digit.ULBService.getCurrentTenantId(),
+          fileStoreId: data?.[0]?.filestoreId,
+        },
+      })
+      .then(async (res) => {
+        const fileData = res.data;
+        const workbook = XLSX.read(fileData, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[1];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        jsonDataLength = jsonData.length;
+      });
+    }
     const responseTemp = await Digit.CustomService.getResponse({
       url: "/project-factory/v1/data/_create",
       body: {
@@ -27,7 +56,9 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
         },
       },
     });
+    
     response = responseTemp;
+
   } catch (error) {
     if (error?.response && error?.response?.data) {
       const errorMessage = error?.response?.data?.Errors?.[0]?.message;
@@ -46,6 +77,11 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
 
   let searchResponse;
   let status = "validation-started";
+  const baseDelay = baseTimeOut?.baseTimeout?.[0]?.baseTimeOut;
+  const maxTime = baseTimeOut?.baseTimeout?.[0]?.maxTime;
+  let retryInterval = Math.min(baseDelay * jsonDataLength , maxTime);
+
+  await new Promise((resolve) => setTimeout(resolve, retryInterval));
 
   // Retry until a response is received
   while (status !== "failed" && status !== "invalid" && status !== "completed") {
@@ -61,7 +97,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId, id) =
     });
     status = searchResponse?.ResourceDetails?.[0]?.status;
     if (status !== "failed" && status !== "invalid" && status !== "completed") {
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, retryInterval));
     }
   }
   if (Error.isError) {

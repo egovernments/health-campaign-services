@@ -265,6 +265,9 @@
   .label-field-pair {
     flex-direction: column;
     align-items: flex-start !important;
+    .card-label.card-label-smaller {
+      font-weight: 700;
+    }
     .employee-select-wrap.form-field {
       width: 100%;
     }
