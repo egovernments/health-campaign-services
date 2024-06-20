@@ -11,6 +11,7 @@ import { initCampaignComponents } from "@egovernments/digit-ui-module-campaign-m
 import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench";
 import { initUtilitiesComponents } from "@egovernments/digit-ui-module-utilities";
 import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
+import { initMicroplanningComponents } from "@egovernments/digit-ui-module-hcmmicroplanning";
 
 var Digit = window.Digit || {};
 
@@ -67,6 +68,7 @@ const initDigitUI = () => {
   initWorkbenchComponents();
   initWorkbenchHCMComponents();
   initCampaignComponents();
+  initMicroplanningComponents();
 
   const moduleReducers = (initData) => initData;
 

@@ -15,6 +15,7 @@ import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench
 import { initUtilitiesComponents } from "@egovernments/digit-ui-module-utilities";
 import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
 import { initCampaignComponents } from "@egovernments/digit-ui-module-campaign-manager"
+import { initMicroplanningComponents } from "@egovernments/digit-ui-module-hcmmicroplanning";
 
 window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH");
 
@@ -44,6 +45,7 @@ const initDigitUI = () => {
   initWorkbenchComponents();
   initWorkbenchHCMComponents();
   initCampaignComponents();
+  initMicroplanningComponents()
 
 };
 

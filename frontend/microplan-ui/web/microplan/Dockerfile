@@ -15,6 +15,7 @@ RUN cd web/ \
     && node -e 'console.log("core only")' \
     && cd microplan/ \
     && chmod +x ./install-deps.sh \
+    && ls -lah \
     &&  ./install-deps.sh \
     && cd ../ \
     && yarn install \ 

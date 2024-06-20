@@ -20,6 +20,7 @@
     "@egovernments/digit-ui-module-workbench": "1.0.1-beta.16",
     "@egovernments/digit-ui-module-hcmworkbench":"0.0.38",
     "@egovernments/digit-ui-module-campaign-manager": "0.0.1",
+    "@egovernments/digit-ui-module-hcmmicroplanning":"0.0.1",
     "babel-loader": "8.1.0",
     "clean-webpack-plugin": "4.0.0",
     "react": "17.0.2",
