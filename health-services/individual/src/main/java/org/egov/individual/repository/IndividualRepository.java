@@ -54,6 +54,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
+        long startTime2 = System.nanoTime();
         List<Individual> objFound;
         objFound = findInCache(ids).stream()
                 .filter(individual -> individual.getIsDeleted().equals(includeDeleted))
@@ -75,7 +76,17 @@ public class IndividualRepository extends GenericRepository<Individual> {
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
+        long endTime2 = System.nanoTime();
+        long duration2 = endTime2 - startTime2; // Duration in nanoseconds
+        double durationInMillis2 = duration2 / 1_000_000.0;
+        log.info("IndividualRepository ::: findById ::: individualsQuery ::: {}",durationInMillis2);
+
+        long startTime = System.nanoTime();
         enrichIndividuals(individuals, includeDeleted);
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Duration in nanoseconds
+        double durationInMillis = duration / 1_000_000.0;
+        log.info("IndividualRepository ::: findById ::: enrichIndividuals ::: {}",durationInMillis);
         objFound.addAll(individuals);
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
@@ -83,6 +94,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
                                            String tenantId, Long lastChangedSince, Boolean includeDeleted) {
+        long startTime = System.nanoTime();
         Map<String, Object> paramsMap = new HashMap<>();
         String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
                 includeDeleted, paramsMap);
@@ -96,7 +108,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
             if (!individuals.isEmpty()) {
                 enrichIndividuals(individuals, includeDeleted);
             }
+            long endTime = System.nanoTime();
+            long duration = endTime - startTime; // Duration in nanoseconds
+            double durationInMillis = duration / 1_000_000.0;
+            log.info("IndividualRepository ::: find ::: if ::: {}",durationInMillis);
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
+
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
             String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
@@ -119,6 +136,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                     });
                 }
+                long endTime = System.nanoTime();
+                long duration = endTime - startTime; // Duration in nanoseconds
+                double durationInMillis = duration / 1_000_000.0;
+                log.info("IndividualRepository ::: find ::: else ::: {}",durationInMillis);
                 return SearchResponse.<Individual>builder().response(individuals).build();
             }
             return SearchResponse.<Individual>builder().build();
@@ -327,7 +348,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {
         if (!individuals.isEmpty()) {
+            long startTime1 = System.nanoTime();
             individuals.forEach(individual -> {
+                long startTime = System.nanoTime();
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
@@ -340,7 +363,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                 individual.setAddress(addresses);
                 individual.setIdentifiers(identifiers);
+                long endTime = System.nanoTime();
+                long duration = endTime - startTime; // Duration in nanoseconds
+                double durationInMillis = duration / 1_000_000.0;
+                log.info("IndividualRepository ::: enrichIndividuals ::: enrichIndividuals ::: {}",durationInMillis);
             });
+            long endTime1 = System.nanoTime();
+            long duration1 = endTime1 - startTime1; // Duration in nanoseconds
+            double durationInMillis1 = duration1 / 1_000_000.0;
+            log.info("IndividualRepository ::: enrichIndividuals ::: enrichIndividuals1 ::: {}",durationInMillis1);
         }
     }
 

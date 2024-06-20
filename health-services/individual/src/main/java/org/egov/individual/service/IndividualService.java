@@ -294,14 +294,26 @@ public class IndividualService {
                                              RequestInfo requestInfo) {
         SearchResponse<Individual> searchResponse = null;
 
+        long startTime = System.nanoTime();
         String idFieldName = getIdFieldName(individualSearch);
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Duration in nanoseconds
+        double durationInMillis = duration / 1_000_000.0;
+        log.info("IndividualService ::: search ::: getIdFieldName ::: {}",durationInMillis);
+
         List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
+            long startTime4 = System.nanoTime();
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
                     individualSearch);
 
+            long startTime5 = System.nanoTime();
             searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+            long endTime5 = System.nanoTime();
+            long duration5 = endTime5 - startTime5; // Duration in nanoseconds
+            double durationInMillis5 = duration5 / 1_000_000.0;
+            log.info("IndividualApiController ::: individualV1SearchPost ::: findById ::: {}",durationInMillis5);
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -316,10 +328,15 @@ public class IndividualService {
 
             searchResponse.setResponse(decryptedIndividualList);
 
+            long endTime4 = System.nanoTime();
+            long duration4= endTime4 - startTime4; // Duration in nanoseconds
+            double durationInMillis4 = duration4 / 1_000_000.0;
+            log.info("IndividualApiController ::: individualV1SearchPost ::: isSearchByIdOnly ::: {}",durationInMillis4);
+
             return searchResponse;
         }
         //encrypt search criteria
-
+        long startTime3 = System.nanoTime();
         IndividualSearch encryptedIndividualSearch;
         if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
             encryptedIndividualSearch = individualEncryptionService
@@ -331,6 +348,13 @@ public class IndividualService {
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchEncrypt");
         }
+
+        long endTime3 = System.nanoTime();
+        long duration3 = endTime3 - startTime3; // Duration in nanoseconds
+        double durationInMillis3 = duration3 / 1_000_000.0;
+        log.info("IndividualService ::: search ::: encrypt ::: {}",durationInMillis3);
+
+
         try {
             searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                     lastChangedSince, includeDeleted);
@@ -341,11 +365,18 @@ public class IndividualService {
             log.error("database error occurred", exception);
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
+
+        long startTime2 = System.nanoTime();
         //decrypt
         List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
                 ? individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", requestInfo)
                 : encryptedIndividualList;
+
+        long endTime2 = System.nanoTime();
+        long duration2 = endTime2 - startTime2; // Duration in nanoseconds
+        double durationInMillis2 = duration2 / 1_000_000.0;
+        log.info("IndividualService ::: search ::: decrypt ::: {}",durationInMillis2);
 
         searchResponse.setResponse(decryptedIndividualList);
 

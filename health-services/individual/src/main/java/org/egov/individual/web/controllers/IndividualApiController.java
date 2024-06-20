@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @Validated
+@Slf4j
 public class IndividualApiController {
 
     private final IndividualService individualService;
@@ -88,6 +90,7 @@ public class IndividualApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request
     ) {
+        long startTime = System.nanoTime();
         SearchResponse<Individual> searchResponse  = individualService.search(
                 request.getIndividual(),
                 urlParams.getLimit(),
@@ -97,6 +100,10 @@ public class IndividualApiController {
                 urlParams.getIncludeDeleted(),
                 request.getRequestInfo()
         );
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime; // Duration in nanoseconds
+        double durationInMillis = duration / 1_000_000.0;
+        log.info("IndividualApiController ::: individualV1SearchPost ::: {}",durationInMillis);
         IndividualBulkResponse response = IndividualBulkResponse.builder()
                 .individual(searchResponse.getResponse())
                 .totalCount(searchResponse.getTotalCount())
