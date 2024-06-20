@@ -107,7 +107,7 @@ const CreateMicroplan = () => {
       statusData[item.name] = false;
       if (item?.checkForCompleteness) toCheckCompletenesData.push(item.name);
     });
-    if (data && data?.status) {
+    if (data?.status) {
       if (Object.keys(data?.status) === 0) setMicroplanData({ ...data, status: statusData });
       else setMicroplanData({ ...data });
     }

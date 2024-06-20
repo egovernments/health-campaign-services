@@ -1221,7 +1221,7 @@ const extractGeoData = (
     }
 
     // Update data availability based on conditions
-    if (dataAvailabilityCheck == "initialStage" && (combineList.length === 0 || Object.keys(files).length === 0)) dataAvailabilityCheck = "false";
+    if (dataAvailabilityCheck === "initialStage" && (combineList.length === 0 || Object.keys(files).length === 0)) dataAvailabilityCheck = "false";
     switch (dataAvailabilityCheck) {
       case "false":
       case undefined:

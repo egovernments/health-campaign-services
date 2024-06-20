@@ -22,7 +22,7 @@ gjv.define("Position", (position) => {
 
 // Main functino for geojson validation that includes structural and property validations
 export const geojsonValidations = (data, schemaData, t) => {
-  let valid = geojsonStructureValidation(data);
+  const valid = geojsonStructureValidation(data);
   if (valid.valid) {
     return { valid: true };
   }
