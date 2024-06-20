@@ -41,11 +41,17 @@ public class TransformerProperties {
     @Value("${transformer.producer.service.index.v2.topic}")
     private String transformerProducerServiceIndexV2Topic;
 
+    @Value("${transformer.producer.hfreferral.service.index.topic}")
+    private String transformerProducerHfReferralServiceIndexTopic;
+
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
 
     @Value("${transformer.producer.referral.index.v1.topic}")
     private String transformerProducerReferralIndexV1Topic;
+
+    @Value("${transformer.producer.hfreferral.index.v1.topic}")
+    private String transformerProducerHfReferralIndexV1Topic;
 
     @Value("${transformer.producer.attendance.log.index.v1.topic}")
     private String transformerProducerAttendanceLogIndexV1Topic;
@@ -157,6 +163,9 @@ public class TransformerProperties {
 
     @Value("${referral.service.checklist.name}")
     private String checkListName;
+
+    @Value("${hfreferral.fever.service.checklist.name}")
+    private String hfReferralFeverCheckListName;
 
 
 }

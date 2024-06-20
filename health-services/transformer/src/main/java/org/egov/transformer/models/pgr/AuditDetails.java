@@ -1,14 +1,13 @@
 package org.egov.transformer.models.pgr;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
 import lombok.*;
 import org.springframework.validation.annotation.Validated;
 
 /**
  * Collection of audit related fields used by most models
  */
-@ApiModel(description = "Collection of audit related fields used by most models")
+
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
