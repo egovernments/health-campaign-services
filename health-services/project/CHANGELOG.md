@@ -8,6 +8,8 @@ All notable changes to this module will be documented in this file.
 - Boundary v2 Integration
 - MDMS v2 integration
 - Beneficiary Tag null check in update
+- Upgraded PostgresSQL Driver version to 42.7.1
+- Upgraded Flyway base image version to 10.7.1 for DB Migration
 
 ## 1.1.2 - 2024-02-26
 - Implemented validation for updating project start date and end date.

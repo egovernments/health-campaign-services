@@ -4,6 +4,7 @@ All notable changes to this module will be documented in this file.
 - Added EgovModel, EgovSearchModel, EgovOfflineModel, EgovOfflineSearchModel
 - Updated Lombok to 1.18.22 for SuperBuilder annotation support.
 - Upgraded to 2.9 LTS
+- Changed Dockerfile, base image required for Java 17.
 
 ## 1.0.19 - 2024-02-26
 - Updated project staff search to accept a list of staffIds

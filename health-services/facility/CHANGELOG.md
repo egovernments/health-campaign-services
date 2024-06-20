@@ -4,6 +4,8 @@ All notable changes to this module will be documented in this file.
 - Integrated Core 2.9LTS
 - Upgraded to health models 1.0.20 and health common 1.0.16
 - Integrated Boundary v2 functionality
+- Upgraded PostgresSQL Driver version to 42.7.1
+- Upgraded Flyway base image version to 10.7.1 for DB Migration
 
 ## 1.0.0
 
