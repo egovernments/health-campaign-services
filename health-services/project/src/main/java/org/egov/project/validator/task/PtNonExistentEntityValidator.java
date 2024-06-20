@@ -1,16 +1,5 @@
 package org.egov.project.validator.task;
 
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.Error;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskBulkRequest;
-import org.egov.common.validator.Validator;
-import org.egov.project.repository.ProjectTaskRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
-import org.springframework.util.ReflectionUtils;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,8 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskBulkRequest;
+import org.egov.common.models.project.TaskSearch;
+import org.egov.common.validator.Validator;
+import org.egov.project.repository.ProjectTaskRepository;
+import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.util.ReflectionUtils;
+
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
@@ -55,10 +56,30 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, Task> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        // Lists to store IDs and client reference IDs
+        List<String> idList = new ArrayList<>();
+        List<String> clientReferenceIdList = new ArrayList<>();
+        // Extract IDs and client reference IDs from Project Task entities
+        entities.forEach(entity -> {
+            idList.add(entity.getId());
+            clientReferenceIdList.add(entity.getClientReferenceId());
+        });
         if (!eMap.isEmpty()) {
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Task> existingEntities = projectTaskRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false).getResponse();
+            TaskSearch taskSearch = TaskSearch.builder()
+                    .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
+                    .build();
+
+            List<Task> existingEntities;
+            try {
+                // Query the repository to find existing entities
+                existingEntities = projectTaskRepository.find(taskSearch, entities.size(), 0,
+                        entities.get(0).getTenantId(), null, false).getResponse();
+            } catch (Exception e) {
+                // Handle query builder exception
+                log.error("Search failed for ProjectTask with error: {}", e.getMessage(), e);
+                throw new CustomException("SEARCH_FAILED", "Search Failed for given ProjectTask, " + e.getMessage());
+            }
             List<Task> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
             nonExistentEntities.forEach(task -> {

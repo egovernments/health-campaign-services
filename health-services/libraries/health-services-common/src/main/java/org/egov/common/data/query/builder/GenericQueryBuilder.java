@@ -4,6 +4,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.utils.ObjectUtils;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.time.LocalDate;
@@ -43,7 +44,7 @@ public interface GenericQueryBuilder {
 
         // If there are no query parameters, return an empty string
         if (queryParameters.isEmpty()) {
-            return " ";
+            return "";
         }
 
         // Append the clause name to the clauseBuilder
@@ -89,7 +90,7 @@ public interface GenericQueryBuilder {
         List<String> whereClauses = new ArrayList<>();
 
         // Iterate through all declared fields of the object
-        Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
+        getAllDeclaredFields(object.getClass()).forEach(field -> {
             // Check if the field is of type LocalDate or enum
             if (field.getType().equals(LocalDate.class) || field.getType().isEnum() || Modifier.isStatic(field.getModifiers())) {
                 // Skip processing for LocalDate and enum fields
@@ -148,4 +149,21 @@ public interface GenericQueryBuilder {
         return whereClauses;
     }
 
+
+    /**
+     * This method retrieves all declared fields from the given class and its superclasses.
+     *
+     * @param clazz the class whose fields are to be retrieved
+     * @return a list of all declared fields in the class and its superclasses, excluding Object class fields
+     */
+    static List<Field> getAllDeclaredFields(Class<?> clazz) {
+        List<Field> fields = new ArrayList<>();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                fields.add(field);
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return fields;
+    }
 }
