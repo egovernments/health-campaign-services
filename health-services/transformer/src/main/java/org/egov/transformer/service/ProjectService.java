@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jayway.jsonpath.JsonPath;
+import digit.models.coremodels.RequestInfoWrapper;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
@@ -23,7 +25,6 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 import org.egov.transformer.models.boundary.*;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.io.IOException;
 import java.util.*;
@@ -121,9 +122,38 @@ public class ProjectService {
         boundaryMap =  boundaries.stream()
                 .collect(Collectors.toMap(
                         EnrichedBoundary::getBoundaryType,
-                        boundary -> boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1)
+                        boundary -> {
+                            String boundaryName = getBoundaryNameFromLocalisationService(boundary.getCode(), requestInfo, tenantId);
+                            if(boundaryName == null) {
+                                boundaryName = boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1);
+                            }
+                            return boundaryName;
+                        }
                 ));
         return boundaryMap;
+    }
+
+    private String getBoundaryNameFromLocalisationService(String boundaryCode, RequestInfo requestInfo, String tenantId) {
+        StringBuilder uri = new StringBuilder();
+        RequestInfoWrapper requestInfoWrapper = new RequestInfoWrapper();
+        requestInfoWrapper.setRequestInfo(requestInfo);
+        uri.append(transformerProperties.getLocalizationHost()).append(transformerProperties.getLocalizationContextPath())
+                .append(transformerProperties.getLocalizationSearchEndpoint())
+                .append("?tenantId=" + tenantId)
+                .append("&module=" + transformerProperties.getBoundaryHierarchyName())
+                .append("&locale=" + transformerProperties.getLocalizationLocaleCode())
+                .append("&codes=" + boundaryCode);
+        List<String> codes = null;
+        List<String> messages = null;
+        Object result = null;
+        try {
+            result = serviceRequestClient.fetchResult(uri, requestInfoWrapper, Map.class);
+            codes = JsonPath.read(result, LOCALIZATION_CODES_JSONPATH);
+            messages = JsonPath.read(result, Constants.LOCALIZATION_MSGS_JSONPATH);
+        } catch (Exception e) {
+            log.error("Exception while fetching from localization: {}", ExceptionUtils.getStackTrace(e));
+        }
+        return CollectionUtils.isEmpty(messages) ? null : messages.get(0);
     }
 
     private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {

@@ -87,5 +87,7 @@ public interface Constants {
     String INHAND = "inHand";
     String HEIGHT = "height";
     String DISABILITY_TYPE = "disabilityType";
+    String LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
+    String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
 
 }

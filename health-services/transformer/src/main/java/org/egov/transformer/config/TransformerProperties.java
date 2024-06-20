@@ -191,4 +191,22 @@ public class TransformerProperties {
     @Value("${egov.boundary.temp.code}")
     private String boundaryCodeTemp;
 
+    //Localization
+    @Value("${egov.localization.host}")
+    private String localizationHost;
+
+    @Value("${egov.localization.context.path}")
+    private String localizationContextPath;
+
+    @Value("${egov.localization.search.endpoint}")
+    private String localizationSearchEndpoint;
+
+    @Value("${egov.localization.statelevel}")
+    private Boolean isLocalizationStateLevel;
+
+    @Value("${egov.localization.module.name:rainmaker-boundary-admin}")
+    private String localizationModuleName;
+
+    @Value("${egov.localization.locale.code:en_MZ}")
+    private String localizationLocaleCode;
 }
