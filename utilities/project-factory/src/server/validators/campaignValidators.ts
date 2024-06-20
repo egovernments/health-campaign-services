@@ -1196,7 +1196,7 @@ function validateAllDistrictTabsPresentOrNot(dataFromSheet: any, localizationMap
     logger.debug("actual districts in boundary data sheet : " + getFormattedStringForDebug(tabsOfDistrict));
     const tabsFromTargetSheet = Object.keys(dataFromSheet);
     logger.info("districts present in user filled sheet : " + (tabsFromTargetSheet?.length - tabsIndex));
-    logger.debug("districts present in user filled sheet : " + getFormattedStringForDebug(tabsFromTargetSheet));
+    logger.debug("districts present in user filled sheet (exclude first two tabs): " + getFormattedStringForDebug(tabsFromTargetSheet));
 
     if (tabsFromTargetSheet.length - tabsIndex !== tabsOfDistrict.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uplaoded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system `)
