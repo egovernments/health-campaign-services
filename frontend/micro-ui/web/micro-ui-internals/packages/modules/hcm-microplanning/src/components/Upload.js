@@ -964,7 +964,7 @@ const Upload = ({
                   label={t("HEADING_DOWNLOAD_TEMPLATE_FOR_" + selectedSection.code + "_" + selectedFileType.code)}
                 />
               }
-              bodyText={t("INSTRUCTIONS_DOWNLOAD_TEMPLATE_FOR_" + selectedSection.code + "_" + selectedFileType.code)}
+              bodyText={t(`INSTRUCTIONS_DOWNLOAD_TEMPLATE_FOR_${selectedSection.code}_${selectedFileType.code}`)}
             />
           )}
           {modal === "delete-conformation" && (
