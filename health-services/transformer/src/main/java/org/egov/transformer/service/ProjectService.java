@@ -140,7 +140,7 @@ public class ProjectService {
         uri.append(transformerProperties.getLocalizationHost()).append(transformerProperties.getLocalizationContextPath())
                 .append(transformerProperties.getLocalizationSearchEndpoint())
                 .append("?tenantId=" + tenantId)
-                .append("&module=" + transformerProperties.getBoundaryHierarchyName())
+                .append("&module=" + transformerProperties.getLocalizationModuleName())
                 .append("&locale=" + transformerProperties.getLocalizationLocaleCode())
                 .append("&codes=" + boundaryCode);
         List<String> codes = null;
