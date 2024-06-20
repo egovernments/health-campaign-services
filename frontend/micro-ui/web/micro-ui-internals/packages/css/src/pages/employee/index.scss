@@ -116,6 +116,7 @@
     overflow: hidden;
     border-radius: 4px;
     table {
+      border-width: 0px !important;
       background-color: #fafafa;
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
@@ -151,6 +152,7 @@
       border: 1px solid #d6d5d4;
       border-collapse: collapse;
       border-radius: 1rem;
+      border-width: 0px !important;
       tbody {
         background-color: #fff;
         tr:nth-child(odd) {
@@ -276,11 +278,33 @@ tbody {
       }
     }
   }
+  .digit-infobanner-wrap.error {
+    margin-left: 0;
+    margin-bottom: 1.5rem;
+    min-width: 100%;
+    .digit-button-primary {
+      height: 1.5rem;
+      background-color: #d4351c !important;
+      .icon-label-container.primary.large {
+        font-size: 14px;
+        .digit-button-label {
+          font-size: 14px;
+          color: #ffffff;
+        }
+      }
+    }
+  }
 }
 .view-composer-header-section {
   .employee-card-sub-header {
     @extend .typography.text-heading-m;
     margin-bottom: 1.5rem;
+  }
+  .employee-card-sub-header.error {
+    color: #d4351c;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 }
 .add-new-product-container {
@@ -311,6 +335,16 @@ tbody {
 .page-padding-fix {
   margin-top: 1.5rem;
 }
+.addProductActionClass {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  .submit-bar {
+    width: max-content;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
 .loginFormStyleEmployee {
   .loginCardClassName {
     .digit-header-content {
@@ -337,6 +371,27 @@ tbody {
 .digit-dropdown-employee-select-wrap.language-dropdown {
   .digit-dropdown-options-card {
     min-width: fit-content;
+  }
+}
+.digit-popup-wrapper.boundaries-pop-module.default {
+  width: 36rem;
+  .digit-popup-footer {
+    .digit-popup-footer-buttons {
+      width: 100% !important;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      .digit-button-secondary {
+        width: 100%;
+      }
+      .digit-button-primary {
+        width: 100%;
+      }
+    }
+  }
+}
+.campaign-type-alert-button {
+  .digit-button-label {
+    width: 100% !important;
   }
 }
 .campaign-pop-module {
@@ -396,4 +451,31 @@ tbody {
 }
 .link {
   color: #c84c0e !important;
+}
+.employeeCard.employeeCard-override.card-error {
+  border: 1px solid #d4351c;
+}
+.label-field-pair.delivery-type-radio {
+  gap: 5rem;
+  .digit-radio-options-wrap {
+    gap: 2rem;
+    margin-bottom: 0 !important;
+    .radio-option-container {
+      margin-bottom: 0;
+      align-items: center;
+    }
+  }
+}
+.bold {
+  font-weight: 700;
+}
+.summary-doc-error {
+  p {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .digit-infobanner-wrap.error {
+    margin-bottom: 0.5rem;
+    margin-top: 1.5rem;
+  }
 }

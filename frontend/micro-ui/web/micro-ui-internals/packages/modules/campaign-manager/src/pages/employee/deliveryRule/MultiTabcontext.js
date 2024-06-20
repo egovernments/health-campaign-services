@@ -3,6 +3,7 @@ import { Card, Header, Paragraph, CardHeader, CardSubHeader, CardText } from "@e
 import AddDeliveryRuleWrapper from "./AddDeliverycontext";
 import { CycleContext } from ".";
 import { useTranslation } from "react-i18next";
+import { InfoCard } from "@egovernments/digit-ui-components";
 //just pass campaign data here
 // function restructureData(data) {
 //   const restructuredData = [];
@@ -157,6 +158,28 @@ const TabContent = ({ activeSubTab, subTabCount = 3, onSubTabChange, project }) 
         <CardText>{t(`CAMPAIGN_TAB_SUB_TEXT_${project?.code ? project?.code?.toUpperCase() : project?.toUpperCase()}`)} </CardText>
       </div>
       {/* Add content specific to each tab as needed */}
+      <InfoCard
+        populators={{
+          name: "infocard",
+        }}
+        variant="default"
+        style={{ marginTop: "1.5rem", marginLeft: "0rem" , marginBottom: "0rem", maxWidth: "100%" }}
+        className= {"infoClass"}
+        headerWrapperClassName = {"headerWrapperClassName"}
+        additionalElements={[
+          <img className="whoLogo"
+            // style="display: block;-webkit-user-select: none;margin: auto;cursor: zoom-in;background-color: hsl(0, 0%, 90%);transition: background-color 300ms;"
+            src="https://cdn.worldvectorlogo.com/logos/world-health-organization-logo-1.svg"
+            alt="WHO Logo"
+            width="164"
+            height="90"
+          ></img>,
+          <span style={{ color: "#505A5F" }}>
+            {t(`CAMPAIGN_TAB_INFO_TEXT_${project?.code ? project?.code?.toUpperCase() : project?.toUpperCase()}`)}
+          </span>
+        ]}
+        label={"Info"}
+      />
     </Card>
   );
 };

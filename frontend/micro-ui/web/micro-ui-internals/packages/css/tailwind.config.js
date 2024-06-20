@@ -115,6 +115,7 @@ module.exports = {
         "input-border": "#505A5F",
         "primary-bg": "#FEEFE7",
         "text-primary": "#363636",
+        "error-v2": "#D4351C",
       },
       alert: {
         error: "#b91900",

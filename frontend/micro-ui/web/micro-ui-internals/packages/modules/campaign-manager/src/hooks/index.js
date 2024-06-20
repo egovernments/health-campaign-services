@@ -7,6 +7,7 @@ import { useGenerateIdCampaign } from "./useGenerateIdCampaign";
 import { useResourceData } from "./useResourceData";
 import useCreateProductVariant from "./useCreateProductVariant";
 import useCreateProduct from "./useCreateProduct";
+import useParallelSearch from "./useParallelSearch";
 
 const UserService = {};
 
@@ -23,6 +24,7 @@ const campaign = {
   useResourceData,
   useCreateProduct,
   useCreateProductVariant,
+  useParallelSearch,
 };
 
 const Hooks = {

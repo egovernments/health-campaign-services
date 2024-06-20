@@ -4,8 +4,9 @@ import { DocumentIcon } from "./DocumentIcon";
 import XlsPreview from "./XlsPreview";
 import { XlsxFile } from "./icons/XlsxFile";
 import { downloadExcelWithCustomName } from "../utils";
+import { InfoCard } from "@egovernments/digit-ui-components";
 
-function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenerate = false }) {
+function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenerate = false, cardErrors }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [filesArray, setFilesArray] = useState(null);
@@ -68,8 +69,19 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
               )
           )
         ) : (
-          <div>
+          <div className="summary-doc-error" style={{ width: "100%" }}>
             <p>{t("ES_CAMPAIGN_NO_DOCUMENTS_AVAILABLE")}</p>
+            {cardErrors?.map((i) => (
+              <InfoCard
+                populators={{
+                  name: "infocard",
+                }}
+                variant="error"
+                text={t(i?.error ? i?.error : i?.message)}
+                hasAdditionalElements={true}
+                // additionalElements={[<Button label={i?.button} onClick={i.onClick} />]}
+              />
+            ))}
           </div>
         )}
       </div>

@@ -1,75 +1,29 @@
 // Import necessary modules and libraries
-import * as XLSX from "xlsx"; // Import XLSX library for Excel file processing
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
-import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
+import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../validators/genericValidator"; // Import validation functions
-import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
-import { getFiltersFromCampaignSearchResponse, getHierarchy } from './campaignApis';
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
+import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 import { validateMappingId } from '../utils/campaignMappingUtils';
 import { campaignStatuses } from '../config/constants';
-import { getBoundaryTabName } from '../utils/boundaryUtils';
 const _ = require('lodash'); // Import lodash library
+import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 
-// Function to retrieve workbook from Excel file URL and sheet name
-const getWorkbook = async (fileUrl: string, sheetName: string) => {
-  // Define headers for HTTP request
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/pdf",
-  };
-
-  // Make HTTP request to retrieve Excel file as arraybuffer
-  const responseFile = await httpRequest(
-    fileUrl,
-    null,
-    {},
-    "get",
-    "arraybuffer",
-    headers
-  );
-
-  // Read Excel file into workbook
-  const workbook = XLSX.read(responseFile, { type: "buffer" });
-  // Check if the specified sheet exists in the workbook
-  if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-    throwError(
-      "FILE",
-      400,
-      "INVALID_SHEETNAME",
-      `Sheet with name "${sheetName}" is not present in the file.`
-    );
-  }
-
-  // Return the workbook
-  return workbook;
-};
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   // Define headers for HTTP request
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/pdf",
-  };
 
-  // Make HTTP request to retrieve Excel file as arraybuffer
-  const responseFile = await httpRequest(
-    fileUrl,
-    null,
-    {},
-    "get",
-    "arraybuffer",
-    headers
-  );
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, "");
 
-  // Read Excel file into workbook
-  const workbook = XLSX.read(responseFile, { type: "buffer" });
-  const mainSheet = workbook.SheetNames[1];
-  const localizedMainSheet = getLocalizedName(mainSheet, localizationMap);
-  if (!workbook.Sheets.hasOwnProperty(mainSheet)) {
+  // Get the main sheet name (assuming it's the second sheet)
+  const mainSheetName = workbook.getWorksheet(1).name;
+  const localizedMainSheet = getLocalizedName(mainSheetName, localizationMap);
+
+  // Check if the main sheet exists in the workbook
+  if (!workbook.getWorksheet(localizedMainSheet)) {
     throwError(
       "FILE",
       400,
@@ -82,23 +36,32 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   return workbook;
 };
 
-function isNumeric(value: any) {
-  return /^-?\d+(\.\d+)?$/.test(value);
+function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+  const jsonData: any[] = [];
+  const headers = sheetData[1]; // Extract the headers from the first row
+
+  for (let i = 2; i < sheetData.length; i++) {
+    const rowData: any = {};
+    const row = sheetData[i];
+    if (row) {
+      for (let j = 0; j < headers.length; j++) {
+        const key = headers[j];
+        const value = row[j] === undefined || row[j] === "" ? "" : row[j];
+        if (value || value === 0) {
+          rowData[key] = value;
+        }
+      }
+      if (Object.keys(rowData).length > 0) {
+        if (getRow) rowData["!row#number!"] = i;
+        if (getSheetName) rowData["!sheet#name!"] = sheetName;
+        jsonData.push(rowData);
+      }
+    }
+  };
+  return jsonData;
 }
 
-// Function to retrieve data from a specific sheet in an Excel file
-const getSheetData = async (
-  fileUrl: string,
-  sheetName: string,
-  getRow = false,
-  createAndSearchConfig?: any,
-  localizationMap?: { [key: string]: string }
-) => {
-  // Retrieve workbook using the getWorkbook function
-  const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-  const workbook: any = await getWorkbook(fileUrl, localizedSheetName);
-
-  // If parsing array configuration is provided, validate first row of each column
+function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
   if (
     createAndSearchConfig &&
     createAndSearchConfig.parseArrayConfig &&
@@ -107,17 +70,13 @@ const getSheetData = async (
     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
     // Iterate over each column configuration
     for (const columnConfig of parseLogic) {
-      const { sheetColumn } = columnConfig;
-      const expectedColumnName = columnConfig.sheetColumnName;
-      var localizedColumnName;
-      localizedColumnName = getLocalizedName(
-        expectedColumnName,
-        localizationMap
-      );
+      const { sheetColumn, sheetColumnName } = columnConfig;
+      const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+
       // Get the value of the first row in the current column
       if (sheetColumn && localizedColumnName) {
-        const firstRowValue =
-          workbook.Sheets[localizedSheetName][`${sheetColumn}1`]?.v;
+        const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
+
         // Validate the first row of the current column
         if (firstRowValue !== localizedColumnName) {
           throwError(
@@ -130,31 +89,30 @@ const getSheetData = async (
       }
     }
   }
+}
 
-  // Convert sheet data to JSON format
-  const sheetData = XLSX.utils.sheet_to_json(
-    workbook.Sheets[localizedSheetName],
-    { blankrows: true, raw: false }
-  );
-  var jsonData = sheetData.map((row: any, index: number) => {
-    const rowData: any = {};
-    if (Object.keys(row).length > 0) {
-      Object.keys(row).forEach((key) => {
-        // Check if the value is a numerical string
-        rowData[key] = isNumeric(row[key])
-          ? Number(row[key])
-          : row[key] === undefined || row[key] === ""
-            ? ""
-            : row[key];
-      });
-      if (getRow) rowData["!row#number!"] = index + 1;
-      return rowData;
-    }
-  });
+// Function to retrieve data from a specific sheet in an Excel file
+const getSheetData = async (
+  fileUrl: string,
+  sheetName: string,
+  getRow = false,
+  createAndSearchConfig?: any,
+  localizationMap?: { [key: string]: string }
+) => {
+  // Retrieve workbook using the getTargetWorkbook function
+  const localizedSheetName = getLocalizedName(sheetName, localizationMap);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
 
-  jsonData = jsonData.filter((element) => element !== undefined);
+  const worksheet: any = workbook.getWorksheet(localizedSheetName);
+
+
+  // If parsing array configuration is provided, validate first row of each column
+  validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
+
+  const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+  const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
-};
+}
 
 const getTargetSheetData = async (
   fileUrl: string,
@@ -162,46 +120,90 @@ const getTargetSheetData = async (
   getSheetName = false,
   localizationMap?: any
 ) => {
-  const workbook: any = await getTargetWorkbook(fileUrl, localizationMap);
-  const sheetNames = workbook.SheetNames;
+  const workbook = await getTargetWorkbook(fileUrl, localizationMap);
+  const sheetNames: string[] = [];
+  workbook.eachSheet((worksheet: any) => {
+    sheetNames.push(worksheet.name);
+  });
   const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
 
   const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
 
   for (const sheetName of localizedSheetNames) {
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-      blankrows: true, raw: false
-    });
-    var jsonData = sheetData.map((row: any, index: number) => {
-      const rowData: any = {};
-      if (Object.keys(row).length > 0) {
-        Object.keys(row).forEach((key) => {
-          // Check if the value is a numerical string
-          rowData[key] = isNumeric(row[key])
-            ? Number(row[key])
-            : row[key] === undefined || row[key] === ""
-              ? ""
-              : row[key];
-        });
-        if (getRow) rowData["!row#number!"] = index + 1;
-        if (getSheetName) rowData["!sheet#name!"] = sheetName;
-        return rowData;
-      }
-    });
-    jsonData = jsonData.filter((element) => element !== undefined);
-    workbookData[sheetName] = jsonData; // Store sheet data in the object
-    // logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
+    const worksheet = workbook.getWorksheet(sheetName);
+    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
-  // Return data from all sheets
   return workbookData;
 };
+
+const getTargetSheetDataAfterCode = async (
+  fileUrl: string,
+  getRow = false,
+  getSheetName = false,
+  codeColumnName = "Boundary Code",
+  localizationMap?: any
+) => {
+  const workbook = await getTargetWorkbook(fileUrl, localizationMap);
+  const sheetNames: string[] = [];
+  workbook.eachSheet((worksheet: any) => {
+    sheetNames.push(worksheet.name);
+  });
+  const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
+
+  const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
+
+  for (const sheetName of localizedSheetNames) {
+    const worksheet = workbook.getWorksheet(sheetName);
+    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+
+    // Find the target column index where the first row value matches codeColumnName
+    const firstRow = sheetData[1];
+    let targetColumnIndex = -1;
+    for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
+      if (firstRow[colIndex] === codeColumnName) {
+        targetColumnIndex = colIndex;
+        break;
+      }
+    }
+
+    if (targetColumnIndex === -1) {
+      console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
+      continue;
+    }
+
+    // Process data from sheet
+    const processedData = sheetData.map((row: any, rowIndex: any) => {
+      if (rowIndex <= 1) return null; // Skip header row
+
+      let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
+
+      // Add integer values in the target column for the current row
+      let sum = 0;
+      for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
+        const value = row[colIndex];
+        if (typeof value === 'number' && Number.isInteger(value)) {
+          sum += value;
+        }
+      }
+
+      // Add the sum to the row data
+      rowData['Target at the Selected Boundary level'] = sum;
+      return rowData;
+    }).filter(Boolean); // Remove null entries
+
+    workbookData[sheetName] = processedData;
+  }
+
+  return workbookData;
+};
+
 
 // Function to search MDMS for specific unique identifiers
 const searchMDMS: any = async (
   uniqueIdentifiers: any[],
   schemaCode: string,
-  requestinfo: any,
-  response: any
+  requestinfo: any
 ) => {
   // Check if unique identifiers are provided
   if (!uniqueIdentifiers) {
@@ -391,15 +393,12 @@ const getCount: any = async (
 
 // Function to create Excel sheet and upload it
 async function createAndUploadFile(
-  updatedWorkbook: XLSX.WorkBook,
+  updatedWorkbook: any,
   request: any,
   tenantId?: any
 ) {
   // Write the updated workbook to a buffer
-  const buffer = XLSX.write(updatedWorkbook, {
-    bookType: "xlsx",
-    type: "buffer",
-  });
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
 
   // Create form data for file upload
   const formData = new FormData();
@@ -426,11 +425,8 @@ async function createAndUploadFile(
   // Extract response data
   const responseData = fileCreationResult?.files;
   if (!responseData) {
-    throwError(
-      "COMMON",
-      500,
-      "INTERNAL_SERVER_ERROR",
-      "Error while uploading excel file"
+    throw new Error(
+      "Error while uploading excel file: INTERNAL_SERVER_ERROR"
     );
   }
 
@@ -499,28 +495,9 @@ function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
 }
 
 // Function to create an Excel sheet
-async function createExcelSheet(
-  data: any,
-  headers: any,
-  sheetName: string = "Sheet1"
-) {
-  // Create a new Excel workbook
-  const workbook = XLSX.utils.book_new();
-
-  // Combine headers and data into sheet data
-  const sheetData = [headers, ...data];
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // Define column widths (in pixels)
-  const columnWidths = headers.map(() => ({ width: 30 }));
-
-  // Apply column widths to the sheet
-  ws["!cols"] = columnWidths;
-
-  // Append sheet to the workbook
-  XLSX.utils.book_append_sheet(workbook, ws, sheetName);
-
-  return { wb: workbook, ws: ws, sheetName: sheetName }; // Return the workbook, worksheet, and sheet name
+async function createExcelSheet(data: any, headers: any) {
+  var rows = [headers, ...data];
+  return rows;
 }
 
 // Function to handle getting boundary codes
@@ -643,29 +620,31 @@ async function getBoundarySheetData(
     const modifiedHierarchy = hierarchy.map((ele) =>
       `${hierarchyType}_${ele}`.toUpperCase()
     );
-    const localizedHeaders = getLocalizedHeaders(
+    const localizedHeadersUptoHierarchy = getLocalizedHeaders(
       modifiedHierarchy,
       localizationMap
     );
+    const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
-    const localizedBoundaryTab = getLocalizedName(
-      getBoundaryTabName(),
-      localizationMap
-    );
+    // const localizedBoundaryTab = getLocalizedName(
+    //   getBoundaryTabName(),
+    //   localizationMap
+    // );
     logger.info(`generated a empty template for boundary`);
     return await createExcelSheet(
       boundaryData,
-      localizedHeaders,
-      localizedBoundaryTab
+      headers
     );
   } else {
     // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
     const responseFromCampaignSearch =
-      await getFiltersFromCampaignSearchResponse(request);
-    if (responseFromCampaignSearch?.Filters != null) {
+      await getCampaignSearchResponse(request);
+    const FiltersFromCampaignId = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
+    if (FiltersFromCampaignId?.Filters != null) {
       const filteredBoundaryData = await generateFilteredBoundaryData(
         request,
-        responseFromCampaignSearch
+        FiltersFromCampaignId
       );
       return await getDataSheetReady(
         filteredBoundaryData,
@@ -677,28 +656,30 @@ async function getBoundarySheetData(
     }
   }
 }
+
 async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
     `${config.host.projectHost}` + `${config.paths.staffCreate}`;
-  logger.info("Project Staff Creation url " + staffCreateUrl);
-  logger.debug(
-    "Project Staff Creation body " + getFormattedStringForDebug(resouceBody)
-  );
+  logger.info("Project staff Creation : API :" + config.paths.staffCreate);
+
   const staffResponse = await httpRequest(
     staffCreateUrl,
     resouceBody,
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.info("Project Staff mapping created");
   logger.debug(
     "Project Staff mapping response " +
     getFormattedStringForDebug(staffResponse)
   );
-  validateStaffResponse(staffResponse);
+  // validateStaffResponse(staffResponse);
 }
 
 /**
@@ -709,24 +690,25 @@ async function createProjectResource(resouceBody: any) {
   // Create project resources
   const projectResourceCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectResourceCreate}`;
-  logger.info("Project Resource Creation url " + projectResourceCreateUrl);
-  logger.debug(
-    "Project Resource Creation body " + getFormattedStringForDebug(resouceBody)
-  );
+  logger.info("Project Resource Creation : API : " + config.paths.projectResourceCreate);
+
   const projectResourceResponse = await httpRequest(
     projectResourceCreateUrl,
     resouceBody,
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.debug("Project Resource Created");
   logger.debug(
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
   );
-  validateProjectResourceResponse(projectResourceResponse);
+  // validateProjectResourceResponse(projectResourceResponse);
 }
 
 /**
@@ -737,25 +719,68 @@ async function createProjectFacility(resouceBody: any) {
   // Create project facilities
   const projectFacilityCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectFacilityCreate}`;
-  logger.info("Project Facility Creation url " + projectFacilityCreateUrl);
-  logger.debug(
-    "Project Facility Creation body " + getFormattedStringForDebug(resouceBody)
-  );
+  logger.info("Project Facility Creation  : API :" + config.paths.projectFacilityCreate);
+
   const projectFacilityResponse = await httpRequest(
     projectFacilityCreateUrl,
     resouceBody,
     undefined,
     "post",
     undefined,
-    undefined
+    undefined,
+    undefined,
+    false,
+    true
   );
   logger.info("Project Facility Created");
   logger.debug(
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
   );
-  validateProjectFacilityResponse(projectFacilityResponse);
+  // validateProjectFacilityResponse(projectFacilityResponse);
 }
+
+// Helper function to create staff
+const createStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  const ProjectStaff = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    userId: resourceId,
+    startDate,
+    endDate,
+  };
+  const newResourceBody = { ...resouceBody, ProjectStaff };
+  return createStaff(newResourceBody);
+};
+
+// Helper function to create project resource
+const createProjectResourceHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  const ProjectResource = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    resource: {
+      productVariantId: resourceId,
+      type: "DRUG",
+      isBaseUnitVariant: false,
+    },
+    startDate,
+    endDate,
+  };
+  const newResourceBody = { ...resouceBody, ProjectResource };
+  return createProjectResource(newResourceBody);
+};
+
+// Helper function to create project facility
+const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any) => {
+  const ProjectFacility = {
+    tenantId: tenantId.split(".")?.[0],
+    projectId,
+    facilityId: resourceId,
+  };
+  const newResourceBody = { ...resouceBody, ProjectFacility };
+  return createProjectFacility(newResourceBody);
+};
+
 
 /**
  * Asynchronously creates related entities such as staff, resources, and facilities based on the provided resources, tenant ID, project ID, start date, end date, and resource body.
@@ -774,48 +799,27 @@ async function createRelatedEntity(
   endDate: any,
   resouceBody: any
 ) {
+  // Array to hold all promises
+  const promises = [];
+
   // Create related entities
   for (const resource of resources) {
     const type = resource?.type;
     for (const resourceId of resource?.resourceIds) {
-      if (type == "staff") {
-        const ProjectStaff = {
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          userId: resourceId,
-          startDate,
-          endDate,
-        };
-        resouceBody.ProjectStaff = ProjectStaff;
-        await createStaff(resouceBody);
-      } else if (type == "resource") {
-        const ProjectResource = {
-          // FIXME : Tenant Id should not be splitted
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          resource: {
-            productVariantId: resourceId,
-            type: "DRUG",
-            isBaseUnitVariant: false,
-          },
-          startDate,
-          endDate,
-        };
-        resouceBody.ProjectResource = ProjectResource;
-        await createProjectResource(resouceBody);
-      } else if (type == "facility") {
-        const ProjectFacility = {
-          // FIXME : Tenant Id should not be splitted
-          tenantId: tenantId.split(".")?.[0],
-          projectId,
-          facilityId: resourceId,
-        };
-        resouceBody.ProjectFacility = ProjectFacility;
-        await createProjectFacility(resouceBody);
+      logger.info(`creating project ${type} mapping for project : ${projectId} and resourceId ${resourceId}`);
+      if (type === "staff") {
+        promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+      } else if (type === "resource") {
+        promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+      } else if (type === "facility") {
+        promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
       }
     }
   }
+  // Wait for all promises to complete
+  await Promise.all(promises);
 }
+
 
 /**
  * Asynchronously creates related resources based on the provided request body.
@@ -919,15 +923,19 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     const searchBody = {
       RequestInfo: request.body.RequestInfo,
     }
-    const params = {
+    const params: any = {
       hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
       tenantId: request?.body?.ResourceDetails?.tenantId,
       codes: code
     }
     var retry = 6;
     var boundaryFound = false;
+    const header = {
+      ...defaultheader,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
     while (!boundaryFound && retry >= 0) {
-      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params);
+      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
       if (response?.TenantBoundary?.[0].boundary?.[0]) {
         boundaryFound = true;
       }
@@ -965,8 +973,12 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
       "includeChildren": true,
       "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
     };
+    const header = {
+      ...defaultheader,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
 
-    const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+    const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
     const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
     const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
 
@@ -1049,32 +1061,108 @@ async function callMdmsData(
   return response;
 }
 
-async function callMdmsSchema(
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, errorMessage: any) {
+
+  // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
+  columns.sort((a: any, b: any) => {
+    if (a.orderNumber === b.orderNumber) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.orderNumber - b.orderNumber;
+  });
+
+  required.sort((a: any, b: any) => {
+    if (a.orderNumber === b.orderNumber) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.orderNumber - b.orderNumber;
+  });
+
+  const sortedRequiredColumns = required.map((column: any) => column.name);
+
+  // Extract sorted property names
+  const sortedPropertyNames = columns.map((column: any) => column.name);
+
+  // Update data with new properties and required fields
+  data.properties = properties;
+  data.required = sortedRequiredColumns;
+  data.columns = sortedPropertyNames;
+  data.unique = unique;
+  data.errorMessage = errorMessage;
+  data.columnsNotToBeFreezed = columnsNotToBeFreezed;
+}
+
+function convertIntoSchema(data: any) {
+  const properties: any = {};
+  const errorMessage: any = {};
+  const required: any[] = [];
+  const columns: any[] = [];
+  const unique: any[] = [];
+  const columnsNotToBeFreezed: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+        if (property?.errorMessage)
+          errorMessage[property?.name] = property?.errorMessage;
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push({ name: property?.name, orderNumber: property?.orderNumber });
+        }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
+        if (!property?.freezeColumn || property?.freezeColumn == false) {
+          columnsNotToBeFreezed.push(property?.name);
+        }
+
+        // If orderNumber is missing, default to a very high number
+        columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+      }
+    }
+  }
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, errorMessage);
+  return data;
+}
+
+
+
+async function callMdmsTypeSchema(
   request: any,
-  moduleName: string,
-  masterName: string,
-  tenantId: string
+  tenantId: string,
+  type: any,
+  campaignType = "all"
 ) {
   const { RequestInfo = {} } = request?.body || {};
   const requestBody = {
     RequestInfo,
-    SchemaDefCriteria: {
+    MdmsCriteria: {
       tenantId: tenantId,
-      limit: 5,
-      codes: [`${moduleName}.${masterName}`]
+      uniqueIdentifiers: [
+        `${type}.${campaignType}`
+      ],
+      schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"
     }
   };
-  const url = config.host.mdmsV2 + config.paths.mdmsV2SchemaSearch;
-  const response = await httpRequest(url, requestBody);
-  if (!response?.SchemaDefinitions?.[0]?.definition) {
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const header = {
+    ...defaultheader,
+    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${campaignType}${type}.${campaignType}${requestBody?.MdmsCriteria?.schemaCode}`
+  }
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
-  return response?.SchemaDefinitions?.[0]?.definition;
+  return convertIntoSchema(response?.mdms?.[0]?.data);
 }
 
 async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
-  const resp = await callMdmsData(request, moduleName, masterName, tenantId);
-  return resp;
+  const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
+  return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
 }
 
 export {
@@ -1082,7 +1170,6 @@ export {
   getAutoGeneratedBoundaryCodesHandler,
   createBoundaryEntities,
   createBoundaryRelationship,
-  getWorkbook,
   getSheetData,
   searchMDMS,
   getCampaignNumber,
@@ -1097,7 +1184,8 @@ export {
   generateHierarchyList,
   getTargetWorkbook,
   getTargetSheetData,
+  getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsSchema
+  callMdmsTypeSchema
 }

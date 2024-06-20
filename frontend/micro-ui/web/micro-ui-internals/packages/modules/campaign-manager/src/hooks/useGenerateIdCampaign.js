@@ -1,4 +1,4 @@
-export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId, config = {} }) => {
+export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId, config = {}, forceUpdate = "true" }) => {
   const updatedFilters = filters?.map(({ type, ...rest }) => ({
     ...rest,
     boundaryType: type,
@@ -9,7 +9,7 @@ export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId
     params: {
       tenantId: Digit.ULBService.getCurrentTenantId(),
       type: type,
-      forceUpdate: true,
+      forceUpdate: forceUpdate,
       hierarchyType: hierarchyType,
       campaignId: campaignId,
     },
