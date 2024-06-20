@@ -127,7 +127,7 @@ const CreateMicroplan = () => {
       }));
 
       setCheckDataCompletion("false");
-      let body = Digit.Utils.microplan.mapDataForApi(
+      const body = Digit.Utils.microplan.mapDataForApi(
         microplanData,
         operatorsObject,
         microplanData?.microplanDetails?.name,
