@@ -9,6 +9,7 @@ All notable changes to this module will be documented in this file.
 - MDMS v2 integration
 - Upgraded PostgresSQL Driver version to 42.7.1
 - Upgraded Flyway base image version to 10.7.1 for DB Migration
+- Upgraded Flyway-Core to 9.22.3
 
 ## 1.1.4 - 2024-05-10
 - Integrated Boundary v2 functionality
