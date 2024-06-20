@@ -65,9 +65,11 @@ public class TaskResource   {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+  /**
+   * Additional fields that may be used for extending the information stored with each task.
+   */
+  @JsonProperty("additionalFields")
+  @Valid
+  private AdditionalFields additionalFields = null;
 }
 
