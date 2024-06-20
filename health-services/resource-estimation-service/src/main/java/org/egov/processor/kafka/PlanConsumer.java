@@ -33,7 +33,7 @@ public class PlanConsumer {
                 resourceEstimationService.estimateResources(planConfigurationRequest);
             }
         } catch (Exception exception) {
-            log.error("Error in Plan consumer", exception);
+            log.error("Error processing record from topic {} : {} ",topic, exception);
         }
     }
 }

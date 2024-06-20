@@ -30,7 +30,7 @@ public class File {
     @JsonProperty("filestoreId")
     @NotNull
     @Size(min = 1, max = 128)
-    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Filestore Id must not contain only special characters")
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Filestore Id must contain alphanumeric characters and may include some special characters")
     private String filestoreId = null;
 
     @JsonProperty("inputFileType")
@@ -40,7 +40,7 @@ public class File {
     @JsonProperty("templateIdentifier")
     @NotNull
     @Size(min = 2, max = 128)
-    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Name must not contain only special characters")
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Name must contain alphanumeric characters and may include some special characters")
     private String templateIdentifier = null;
 
     @JsonProperty("active")

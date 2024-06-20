@@ -40,7 +40,7 @@ public class BoundaryUtil {
 
 		} catch (Exception ex) {
 			log.error("Boundary relationship response error!!", ex);
-			throw new CustomException("BOUNDARY_SEARCH_EXCEPTION", "Boundary relationship response can not parsed!!!");
+			throw new CustomException("BOUNDARY_SEARCH_EXCEPTION", "Failed to parse boundary relationship response for tenantId: "+tenantId);
 		}
 	}
 

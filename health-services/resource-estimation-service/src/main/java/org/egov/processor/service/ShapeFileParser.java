@@ -122,7 +122,7 @@ public class ShapeFileParser implements FileParser {
             params.put("url", shapefile.toURI().toURL());
             return DataStoreFinder.getDataStore(params);
         } catch (IOException e) {
-            throw new CustomException("","");
+            throw new CustomException(e.getMessage(),"");
         }
 
     }
