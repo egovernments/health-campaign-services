@@ -302,7 +302,7 @@ const MicroplanPreview = ({
     let combinedData = fetchMicroplanPreviewData(campaignType, microplanData, validationSchemas, hierarchy);
     // process and form hierarchy
     if (combinedData && hierarchy) {
-      var { hierarchyLists, hierarchicalData } = processHierarchyAndData(hierarchyRawData, [combinedData]);
+      let { hierarchyLists, hierarchicalData } = processHierarchyAndData(hierarchyRawData, [combinedData]);
       setBoundaryData({ Microplan: { hierarchyLists, hierarchicalData } });
     }
     if (combinedData) {
