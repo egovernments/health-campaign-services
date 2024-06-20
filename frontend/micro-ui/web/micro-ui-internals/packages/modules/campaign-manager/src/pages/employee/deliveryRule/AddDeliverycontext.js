@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import RemoveableTagNew from "../../../components/RemovableTagNew";
 import AddProducts from "./AddProductscontext";
 import { CycleContext } from ".";
-import { TextInput } from "@egovernments/digit-ui-components";
+import { RadioButtons, TextInput } from "@egovernments/digit-ui-components";
 import { PRIMARY_COLOR } from "../../../utils";
 
 const DustbinIcon = () => (
@@ -563,12 +563,23 @@ const AddAttributeWrapper = ({ targetedData, deliveryRuleIndex, delivery, delive
 };
 
 const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index, key, delivery, onDelete }) => {
-  const { campaignData, dispatchCampaignData } = useContext(CycleContext);
+  const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(null);
   const { t } = useTranslation();
   const prodRef = useRef();
+  const tenantId = Digit.ULBService.getCurrentTenantId();
   const closeToast = () => setShowToast(null);
+  const { isLoading: deliveryTypeConfigLoading, data: deliveryTypeConfig } = Digit.Hooks.useCustomMDMS(
+    tenantId,
+    "HCM-ADMIN-CONSOLE",
+    [{ name: "deliveryTypeConfig" }],
+    {
+      select: (data) => {
+        return data?.["HCM-ADMIN-CONSOLE"]?.deliveryTypeConfig;
+      },
+    }
+  );
   useEffect(() => {
     if (showToast) {
       setTimeout(closeToast, 5000);
@@ -607,6 +618,19 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
     });
   };
 
+  const updateDeliveryType = (value) => {
+    const temp = delivery;
+    setDeliveryRules((prevState) => {
+      const updatedDeliveryRules = prevState.map((delivery) => {
+        if (delivery.ruleKey === temp.ruleKey) {
+          return { ...delivery, deliveryType: value?.code };
+        }
+        return delivery;
+      });
+      return updatedDeliveryRules;
+    });
+  };
+
   return (
     <>
       <Card className="delivery-rule-container">
@@ -632,6 +656,26 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
             </div>
           )}
         </CardHeader>
+        {filteredDeliveryConfig?.customAttribute && filteredDeliveryConfig?.projectType !== "LLIN-mz" && (
+          <LabelFieldPair style={{ marginTop: "1.5rem", marginBottom: "1.5rem", alignItems: "flex-start" }} className="delivery-type-radio">
+            <div className="deliveryType-labelfield">
+              <span className="bold">{`${t("HCM_DELIVERY_TYPE")}`}</span>
+            </div>
+            <RadioButtons
+              options={deliveryTypeConfig}
+              selectedOption={deliveryTypeConfig?.find((i) => i?.code === delivery?.deliveryType)}
+              optionsKey="code"
+              onSelect={(value) => updateDeliveryType(value)}
+              t={t}
+              disabled={
+                filteredDeliveryConfig?.deliveryConfig?.find((i, n) => n === targetedData?.deliveryIndex - 1)?.conditionConfig?.[delivery?.ruleKey - 1]
+                  ?.disableDeliveryType
+                  ? true
+                  : false
+              }
+            />
+          </LabelFieldPair>
+        )}
         <AddAttributeWrapper
           targetedData={targetedData}
           deliveryRuleIndex={delivery.ruleKey}

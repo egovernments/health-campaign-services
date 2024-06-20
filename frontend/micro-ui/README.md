@@ -1,5 +1,5 @@
 
-# workbench ui 
+# DIGIT ui 
 
 A React App built on top of DIGIT UI Core.
 
@@ -135,6 +135,5 @@ Start the server
 ```bash
   yarn start
 ```
-
 
 ![Logo](https://s3.ap-south-1.amazonaws.com/works-dev-asset/mseva-white-logo.png)

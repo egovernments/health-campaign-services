@@ -3,16 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
+import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
-import { callMdmsSchema, getCampaignNumber, getWorkbook } from "./genericApis";
+import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 const _ = require('lodash');
-import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../kafka/Listener";
-import { userRoles } from "../config/constants";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 
 
 
@@ -155,20 +154,20 @@ function changeBodyViaElements(elements: any, requestBody: any) {
   }
 }
 
-function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
-  if (!elements) {
-    return;
-  }
-  for (const element of elements) {
-    const arrayToSearch = []
-    for (const data of dataFromSheet) {
-      if (data[element.sheetColumnName]) {
-        arrayToSearch.push(data[element.sheetColumnName]);
-      }
-    }
-    _.set(request.body, element?.searchPath, arrayToSearch);
-  }
-}
+// function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
+//   if (!elements) {
+//     return;
+//   }
+//   for (const element of elements) {
+//     const arrayToSearch = []
+//     for (const data of dataFromSheet) {
+//       if (data[element.sheetColumnName]) {
+//         arrayToSearch.push(data[element.sheetColumnName]);
+//       }
+//     }
+//     _.set(request.body, element?.searchPath, arrayToSearch);
+//   }
+// }
 
 function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
   newCreatedData.forEach((createdElement: any) => {
@@ -199,10 +198,6 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     for (const searchedElement of newSearchedData) {
       let match = true;
       for (const key in createdElement) {
-        if (createdElement.hasOwnProperty(key) && !searchedElement.hasOwnProperty(key) && key != '!row#number!') {
-          match = false;
-          break;
-        }
         if (createdElement[key] !== searchedElement[key] && key != '!row#number!') {
           match = false;
           break;
@@ -248,43 +243,84 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   request.body.Activities = activities
 }
 
-async function getUserWithMobileNumbers(request: any, mobileNumbers: any[]) {
+async function getUuidsError(request: any, response: any, mobileNumberRowNumberMapping: any) {
+  var errors: any[] = []
+  var count = 0;
+  request.body.mobileNumberUuidsMapping = request.body.mobileNumberUuidsMapping ? request.body.mobileNumberUuidsMapping : {};
+  for (const user of response.Individual) {
+    if (!user?.userUuid) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid` })
+      count++;
+    }
+    else if (!user?.userDetails?.username) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have username`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username` })
+      count++;
+    }
+    else {
+      request.body.mobileNumberUuidsMapping[user?.mobileNumber] = { userUuid: user?.id, code: user?.userDetails?.username, rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber] }
+    }
+  }
+  if (count > 0) {
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+  }
+}
+
+const createBatchRequest = async (request: any, batch: any[], mobileNumberRowNumberMapping: any) => {
+  const searchBody = {
+    RequestInfo: request?.body?.RequestInfo,
+    Individual: {
+      mobileNumber: batch
+    }
+  };
+  const params = {
+    limit: 55,
+    offset: 0,
+    tenantId: request?.body?.ResourceDetails?.tenantId,
+    includeDeleted: true
+  };
+  logger.info("Individual search to validate the mobile no initiated");
+  const response = await httpRequest(config.host.healthIndividualHost + config.paths.healthIndividualSearch, searchBody, params, undefined, undefined, undefined, undefined, true);
+
+  if (!response) {
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
+  }
+  if (config.values.notCreateUserIfAlreadyThere) {
+    await getUuidsError(request, response, mobileNumberRowNumberMapping);
+  }
+
+  if (response?.Individual?.length > 0) {
+    return response.Individual.map((item: any) => item?.mobileNumber);
+  }
+  return [];
+};
+
+async function getUserWithMobileNumbers(request: any, mobileNumbers: any[], mobileNumberRowNumberMapping: any) {
   logger.info("mobileNumbers to search: " + JSON.stringify(mobileNumbers));
   const BATCH_SIZE = 50;
   let allResults: any[] = [];
 
+  // Create an array of batch promises
+  const batchPromises = [];
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
-    const searchBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      Individual: {
-        mobileNumber: batch
-      }
-    };
-    const params = {
-      limit: 55,
-      offset: 0,
-      tenantId: request?.body?.ResourceDetails?.tenantId,
-      includeDeleted: true
-    };
-    logger.info("Individual search to validate the mobile no initiated");
-    const response = await httpRequest(config.host.healthIndividualHost + "health-individual/v1/_search", searchBody, params);
-
-    if (!response) {
-      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Error occurred during user search while validating mobile number.");
-    }
-
-    if (response?.Individual?.length > 0) {
-      const resultMobileNumbers = response.Individual.map((item: any) => item?.mobileNumber);
-      allResults = allResults.concat(resultMobileNumbers);
-    }
+    batchPromises.push(createBatchRequest(request, batch, mobileNumberRowNumberMapping));
   }
 
+  // Wait for all batch requests to complete
+  const batchResults = await Promise.all(batchPromises);
+
+  // Aggregate all results
+  for (const result of batchResults) {
+    allResults = allResults.concat(result);
+  }
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
   logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
   return resultSet;
 }
+
 
 async function matchUserValidation(createdData: any[], request: any) {
   var count = 0;
@@ -295,9 +331,9 @@ async function matchUserValidation(createdData: any[], request: any) {
     return acc;
   }, {});
   logger.info("mobileNumberRowNumberMapping : " + JSON.stringify(mobileNumberRowNumberMapping));
-  const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers);
+  const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers, mobileNumberRowNumberMapping);
   for (const key in mobileNumberRowNumberMapping) {
-    if (mobileNumberResponse.has(key)) {
+    if (mobileNumberResponse.has(key) && !config.values.notCreateUserIfAlreadyThere) {
       errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with mobileNumber ${key} already exists` })
       count++;
     }
@@ -321,13 +357,8 @@ function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], 
     }
   }
   else {
-    const codeSet = new Set(createdData.map(item => item.code));
-    for (const data of searchedData) {
-      if (codeSet.has(data.code)) {
-        matchingSearchData.push(data);
-        count++;
-      }
-    }
+    count = searchedData.length;
+    matchingSearchData = searchedData;
   }
   if (count < createdData.length) {
     request.body.ResourceDetails.status = "PERSISTER_ERROR"
@@ -396,27 +427,75 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
 
 
 async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
-  if (request?.body?.dataToSearch?.length > 0) {
-    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-    changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-    matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
-  }
+  // if (request?.body?.dataToSearch?.length > 0) {
+  //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+  //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
+  //   changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
+  //   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+  //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  // }
   if (request?.body?.ResourceDetails?.type == "user") {
     await enrichEmployees(request?.body?.dataToCreate, request)
     await matchUserValidation(request.body.dataToCreate, request)
   }
 }
 
+async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
+  const searchBody = {
+    RequestInfo: request?.body?.RequestInfo
+  };
+
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
+  logger.info(`Waiting for 10 seconds`);
+  await new Promise(resolve => setTimeout(resolve, 10000));
+  const chunkSize = 50;
+  let employeesSearched: any[] = [];
+
+  for (let i = 0; i < dataToCreate.length; i += chunkSize) {
+    const chunk = dataToCreate.slice(i, i + chunkSize);
+    const uuids = chunk.map((data: any) => data.uuid).join(',');
+
+    const params = {
+      tenantId: tenantId,
+      uuids: uuids,
+      limit: 51,
+      offset: 0
+    };
+
+    try {
+      const response = await httpRequest(searchUrl, searchBody, params, undefined, undefined, undefined, undefined, true);
+      if (response && response.Employees) {
+        employeesSearched = employeesSearched.concat(response.Employees);
+      } else {
+        throw new Error("Unable to fetch employees based on UUIDs");
+      }
+    } catch (error: any) {
+      console.log(error);
+      throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error.message || "Some internal error occurred while searching employees");
+    }
+  }
+
+  return employeesSearched;
+}
+
+
+
+
 
 
 // Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(createAndSearchConfig: any, request: any, dataToCreate: any[], creationTime: any, activities: any) {
   // Confirm creation of resources by matching data  // wait for 5 seconds
-  const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  if (request?.body?.ResourceDetails?.type != "user") {
+    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+    matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  }
+  else {
+    const arraysToMatch = await getEmployeesBasedOnUuids(dataToCreate, request)
+    matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  }
 }
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
@@ -428,6 +507,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     await reorderBoundariesOfDataAndValidate(request, localizationMap)
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
+    console.log(error)
     await handleResouceDetailsError(request, error);
   }
 }
@@ -438,14 +518,16 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
+    logger.info("target sheet format validation started");
     immediateValidationForTargetSheet(dataFromSheet, localizationMap);
+    logger.info("target sheet format validation completed and starts with data validation");
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, localizationMap);
   }
 
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
-      const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
@@ -460,7 +542,8 @@ function convertUserRoles(employees: any[], request: any) {
       var newRoles: any[] = []
       const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
       for (const role of rolesArray) {
-        newRoles.push({ name: role, code: userRoles[role], tenantId: request?.body?.ResourceDetails?.tenantId })
+        const code = role.toUpperCase().split(' ').join('_')
+        newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
       }
       employee.user.roles = newRoles
     }
@@ -548,14 +631,81 @@ async function enrichEmployees(employees: any[], request: any) {
   }
 }
 
+function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any, request: any) {
+  const createdEmployees = responsePayload?.Employees;
+  // create an object which have keys as employee.code and values as employee.uuid  
+  const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
+    map[employee.code] = employee.uuid;
+    return map;
+  }, {});
+  for (const employee of dataToCreate) {
+    if (!employee?.uuid && employeeMap[employee?.code]) {
+      employee.uuid = employeeMap[employee?.code];
+    }
+  }
+}
+
+async function handeFacilityProcess(request: any, createAndSearchConfig: any, params: any, activities: any[], newRequestBody: any) {
+  for (const facility of newRequestBody.Facilities) {
+    facility.address = {}
+  }
+  var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+  var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, "facility", createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
+  logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
+  activities.push(activity);
+}
+
+
+async function handleUserProcess(request: any, createAndSearchConfig: any, params: any, dataToCreate: any[], activities: any[], newRequestBody: any) {
+  if (config.values.notCreateUserIfAlreadyThere) {
+    var Employees: any[] = []
+    if (request.body?.mobileNumberUuidsMapping) {
+      for (const employee of newRequestBody.Employees) {
+        if (request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]) {
+          logger.info(`User with mobile number ${employee?.user?.mobileNumber} already exist`);
+        }
+        else {
+          Employees.push(employee)
+        }
+      }
+    }
+    newRequestBody.Employees = Employees
+  }
+  if (newRequestBody.Employees.length > 0) {
+    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true, true);
+    if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
+      enrichDataToCreateForUser(dataToCreate, responsePayload, request);
+    }
+    else {
+      throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Some internal server error occured during user creation.");
+    }
+    var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, "user", createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
+    logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`);
+    activities.push(activity);
+  }
+}
+
+async function enrichAlreadyExsistingUser(request: any) {
+  if (request.body.ResourceDetails.type == "user" && request?.body?.mobileNumberUuidsMapping) {
+    for (const employee of request.body.dataToCreate) {
+      if (request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber]) {
+        employee.uuid = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].userUuid;
+        employee.code = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
+        employee.user.userName = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
+        employee.user.password = config.user.userDefaultPassword;
+      }
+    }
+  }
+}
+
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
-  logger.info(type + " create data  " );
+  logger.info(type + " create data  ");
   if (createAndSearchConfig?.createBulkDetails?.limit) {
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
     var creationTime = Date.now();
-    var activities = [];
+    var activities: any[] = [];
     for (let i = 0; i < chunks; i++) {
       const start = i * limit;
       const end = (i + 1) * limit;
@@ -564,36 +714,17 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         RequestInfo: request?.body?.RequestInfo,
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
-      var gotFailed = true, retryCount = 7;
-      while (gotFailed && retryCount > 0) {
-        try {
-          creationTime = Date.now();
-          retryCount = retryCount - 1;
-          gotFailed = false;
-          if (type == "facility") {
-            for (const facility of newRequestBody.Facilities) {
-              facility.address = {}
-            }
-            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
-          }
-          else if (type == "user") {
-            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
-          }
-        } catch (error) {
-          var e = error;
-          gotFailed = true;
-          logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
-          await new Promise(resolve => setTimeout(resolve, 30000));
-        }
+      creationTime = Date.now();
+      if (type == "facility") {
+        await handeFacilityProcess(request, createAndSearchConfig, params, activities, newRequestBody);
       }
-      if (gotFailed) {
-        throw e;
+      else if (type == "user") {
+        await handleUserProcess(request, createAndSearchConfig, params, chunkData, activities, newRequestBody);
       }
-      var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
-      logger.info(`Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}` );
-      activities.push(activity);
     }
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await enrichAlreadyExsistingUser(request);
+    logger.info(`Waiting for 10 seconds`);
+    await new Promise(resolve => setTimeout(resolve, 10000));
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
   await generateProcessedFileAndPersist(request, localizationMap);
@@ -614,21 +745,38 @@ async function processGenericRequest(request: any, localizationMap?: { [key: str
 }
 
 async function handleResouceDetailsError(request: any, error: any) {
+  var stringifiedError: any;
+  if (error?.description || error?.message) {
+    stringifiedError = JSON.stringify({
+      status: error.status || '',
+      code: error.code || '',
+      description: error.description || '',
+      message: error.message || ''
+    });
+  }
+  else {
+    if (typeof error == "object")
+      stringifiedError = JSON.stringify(error);
+    else {
+      stringifiedError = error
+    }
+  }
+
   logger.error("Error while processing after validation : " + error)
   if (request?.body?.ResourceDetails) {
     request.body.ResourceDetails.status = "failed";
     request.body.ResourceDetails.additionalDetails = {
       ...request?.body?.ResourceDetails?.additionalDetails,
-      error: JSON.stringify({
-        status: error.status || '',
-        code: error.code || '',
-        description: error.description || '',
-        message: error.message || ''
-      })
+      error: stringifiedError
     };
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
+    if (request?.body?.ResourceDetails?.action == "create") {
+      persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
+    }
+    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
+    logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
@@ -651,6 +799,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
       await generateProcessedFileAndPersist(request, localizationMap);
     }
   } catch (error: any) {
+    console.log(error)
     await handleResouceDetailsError(request, error)
   }
 }
@@ -670,9 +819,14 @@ async function processCreate(request: any, localizationMap?: any) {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
-    if (type == "facility" || type == "user") {
+    if (type == "facility") {
       logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsSchema(request, config?.values?.moduleName, type, tenantId);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse
+    }
+    else if (type == "user") {
+      logger.info("Fetching schema to validate the created data for type: " + type);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
     logger.info("translating schema")
@@ -742,6 +896,7 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
     else {
       logger.info("Project not found. Waiting for 1 seconds");
       retry = retry - 1
+      logger.info(`Waiting for ${retry} for 1 more second`);
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
@@ -751,12 +906,12 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
 }
 
 async function projectCreate(projectCreateBody: any, request: any) {
-  logger.info("Project creation url " + config.host.projectHost + config.paths.projectCreate)
+  logger.info("Project creation API started")
   logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
-  const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody);
+  const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody, undefined, undefined, undefined, undefined, undefined, true);
   logger.debug("Project creation response" + getFormattedStringForDebug(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
-    logger.info("Project created successfully with id " + JSON.stringify(projectCreateResponse?.Project[0]?.id))
+    logger.info("Project created successfully with name " + JSON.stringify(projectCreateResponse?.Project[0]?.name))
     logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`)
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
@@ -805,34 +960,30 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 };
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false, localizationMap?: any) => {
-  const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap)
-  const workbook: any = await getWorkbook(fileUrl, localizedBoundarySheetName);
-  const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-    header: 1,
-  })[0] as (any)[];
+  const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap);
+  const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedBoundarySheetName);
+
+  const worksheet = workbook.getWorksheet(localizedBoundarySheetName);
+  const columnsToValidate = worksheet.getRow(1).values.map((header: any) => header ? header.toString().trim() : undefined);
 
   // Filter out empty items and return the result
-  for (let i = 0; i < columnsToValidate.length; i++) {
-    if (typeof columnsToValidate[i] !== 'string') {
-      columnsToValidate[i] = undefined;
-    }
-  }
-  return columnsToValidate;
+  return columnsToValidate.filter((header: any) => typeof header === 'string');
 }
-async function getFiltersFromCampaignSearchResponse(request: any) {
-  logger.info(`searching for campaign details to get the filters for boundary generation`);
-  const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
-  const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId, "ids": [request?.query?.campaignId] } }
-  const requestBody = { ...requestInfo, ...campaignDetails };
-  const req: any = replicateRequest(request, requestBody)
-  const projectTypeSearchResponse: any = await searchProjectTypeCampaignService(req);
-  const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele: any) => ({ ...ele, boundaryType: ele?.type }));
-  if (!boundaries) {
-    logger.info(`no boundaries found so considering the complete hierarchy`);
-    return { Filters: null };
+
+
+async function getCampaignSearchResponse(request: any) {
+  try {
+    logger.info(`searching for campaign details`);
+    const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
+    const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, "ids": [request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId] } }
+    const requestBody = { ...requestInfo, ...campaignDetails };
+    const req: any = replicateRequest(request, requestBody)
+    const projectTypeSearchResponse: any = await searchProjectTypeCampaignService(req);
+    return projectTypeSearchResponse;
+  } catch (error: any) {
+    logger.error(`Error while searching for campaign details: ${error.message}`);
+    throwError("COMMON", 400, "RESPONSE_NOT_FOUND_ERROR", error?.message)
   }
-  logger.info(`boundaries found for filtering`);
-  return { Filters: { boundaries: boundaries } };
 }
 
 export {
@@ -850,6 +1001,6 @@ export {
   getHierarchy,
   getHeadersOfBoundarySheet,
   handleResouceDetailsError,
-  getFiltersFromCampaignSearchResponse,
+  getCampaignSearchResponse,
   confirmProjectParentCreation
 };
