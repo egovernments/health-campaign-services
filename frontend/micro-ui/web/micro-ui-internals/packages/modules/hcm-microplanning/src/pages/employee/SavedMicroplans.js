@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Header, InboxSearchComposerV2, Loader } from "@egovernments/digit-ui-react-components";
 import { useHistory } from "react-router-dom";
@@ -114,21 +114,21 @@ const configs = {
 };
 
 const SavedMicroplans = () => {
-  const [showLoader,setShowLoader] = useState(false) 
-  const {state} = useMyContext()
-  const history = useHistory()
+  const [showLoader, setShowLoader] = useState(false);
+  const { state } = useMyContext();
+  const history = useHistory();
   const { t } = useTranslation();
 
   const onClickRow = async (row) => {
-    setShowLoader(true)
+    setShowLoader(true);
     try {
       const campaignType = row?.original?.CampaignDetails?.projectType;
-      const heirarchyData =  await Digit.CustomService.getResponse({
+      const heirarchyData = await Digit.CustomService.getResponse({
         url: "/boundary-service/boundary-hierarchy-definition/_search",
         useCache: false,
         method: "POST",
         userService: false,
-        body:{
+        body: {
           BoundaryTypeHierarchySearchCriteria: {
             tenantId: Digit.ULBService.getStateId(),
             hierarchyType: row?.original?.CampaignDetails?.hierarchyType,
@@ -136,25 +136,25 @@ const SavedMicroplans = () => {
         },
       });
       const additionalProps = {
-        heirarchyData:heirarchyData?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => item?.boundaryType),
+        heirarchyData: heirarchyData?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => item?.boundaryType),
         t,
         campaignType,
-        campaignData: row?.original?.CampaignDetails
-      }
+        campaignData: row?.original?.CampaignDetails,
+      };
       //here compute the sessionObject based on the row?.original data and then re-route
-      const computedSession = await updateSessionUtils.computeSessionObject(row.original,state,additionalProps)
+      const computedSession = await updateSessionUtils.computeSessionObject(row.original, state, additionalProps);
       Digit.SessionStorage.set("microplanData", computedSession);
-      setShowLoader(false)
+      setShowLoader(false);
       history.push(`/${window.contextPath}/employee/microplanning/create-microplan?id=${row?.original?.executionPlanId}`);
     } catch (error) {
-      console.error(error.message)
+      console.error(error.message);
     }
   };
 
   const savedMircoplanSession = Digit.Hooks.useSessionStorage("SAVED_MICROPLAN_SESSION", {});
 
-  if(showLoader){
-    return <Loader />
+  if (showLoader) {
+    return <Loader />;
   }
 
   return (
@@ -169,7 +169,7 @@ const SavedMicroplans = () => {
               onClickRow,
             },
           }}
-        ></InboxSearchComposerV2>
+        />
       </div>
     </React.Fragment>
   );

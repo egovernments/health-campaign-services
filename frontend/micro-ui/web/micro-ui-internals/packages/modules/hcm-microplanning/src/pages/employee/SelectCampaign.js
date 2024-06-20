@@ -118,7 +118,7 @@ const configs = {
             populators: {
               name: "endDate",
               error: "DATE_VALIDATION_MSG",
-              min: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0,10),
+              min: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
               style: {
                 marginBottom: "0px",
               },
@@ -217,7 +217,7 @@ const SelectCampaign = () => {
               onClickRow,
             },
           }}
-        ></InboxSearchComposerV2>
+        />
       </div>
     </React.Fragment>
   );

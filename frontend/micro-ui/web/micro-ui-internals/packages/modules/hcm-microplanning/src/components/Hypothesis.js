@@ -69,21 +69,24 @@ const Hypothesis = ({
   }, []);
 
   const fetchDataAndUpdateState = useCallback(() => {
-    let hypothesisAssumptions = state?.HypothesisAssumptions;
+    const hypothesisAssumptions = state?.HypothesisAssumptions;
     if (!hypothesisAssumptions) return;
-    let temp = hypothesisAssumptions.find((item) => item.campaignType === campaignType);
+    const temp = hypothesisAssumptions.find((item) => item.campaignType === campaignType);
     if (!temp?.assumptions) return;
     const hypothesisAssumptionsList = Array.isArray(temp.assumptions) ? temp.assumptions : [];
     setOrignalHypothesisCount(hypothesisAssumptionsList.length);
     setExampleOption(hypothesisAssumptionsList.length !== 0 ? hypothesisAssumptionsList[0] : "");
 
-    let newAssumptions = setAutofillHypothesisData(
+    const newAssumptions = setAutofillHypothesisData(
       hypothesisAssumptionsList,
       microplanData?.hypothesis ? microplanData?.hypothesis : assumptions,
       setAssumptions
     );
 
-    let newHypothesislist = filterHypothesisList(newAssumptions.length !== 0 ? newAssumptions : microplanData.hypothesis, hypothesisAssumptionsList);
+    const newHypothesislist = filterHypothesisList(
+      newAssumptions.length !== 0 ? newAssumptions : microplanData.hypothesis,
+      hypothesisAssumptionsList
+    );
     setHypothesisAssumptionsList(newHypothesislist);
   }, [campaignType, microplanData, setAutofillHypothesisData, filterHypothesisList, assumptions, setAssumptions]);
 
@@ -129,7 +132,7 @@ const Hypothesis = ({
           setCheckDataCompletion("false");
           return;
         }
-        let newAssumptions = assumptions.map((item) => {
+        const newAssumptions = assumptions.map((item) => {
           if (parseFloat(item.value) === 0) {
             return { ...item, value: 0.01 };
           } else {
@@ -236,7 +239,7 @@ const Hypothesis = ({
 
 // Function to add a new assumption
 const addAssumptionsHandler = (setAssumptions) => {
-  let uuid = uuidv4();
+  const uuid = uuidv4();
   setAssumptions((previous) => [
     ...previous,
     {
@@ -491,7 +494,7 @@ const Select = React.memo(({ item, assumptions, setAssumptions, disabled = false
         value: item.value,
       };
       setAssumptions((previous) => {
-        let filteredAssumptionsList = previous.map((data) => {
+        const filteredAssumptionsList = previous.map((data) => {
           if (data.id === item.id) return newDataSegment;
           return data;
         });
@@ -499,7 +502,7 @@ const Select = React.memo(({ item, assumptions, setAssumptions, disabled = false
       });
 
       setOptions((previous) => {
-        let newOptions = previous.filter((item) => item !== e?.code);
+        const newOptions = previous.filter((item) => item !== e?.code);
         if (selected && !newOptions.includes(selected?.code)) newOptions.unshift(selected?.code);
         return newOptions;
       });
@@ -555,7 +558,7 @@ const Input = React.memo(({ item, setAssumptions, t, disabled = false }) => {
         value: !Number.isNaN(value) ? value : "",
       };
       setAssumptions((previous) => {
-        let filteredAssumptionsList = previous.map((data) => {
+        const filteredAssumptionsList = previous.map((data) => {
           if (data.id === item.id) {
             return newDataSegment;
           }
@@ -587,8 +590,8 @@ const Input = React.memo(({ item, setAssumptions, t, disabled = false }) => {
 const setAutofillHypothesisData = (autofillHypothesis, assumptions, setAssumptions) => {
   if (assumptions?.length !== 0) return [];
   let newAssumptions = [];
-  for (let i in autofillHypothesis) {
-    let uuid = uuidv4();
+  for (const i in autofillHypothesis) {
+    const uuid = uuidv4();
     newAssumptions.push({
       id: uuid,
       key: autofillHypothesis[Number(i)],

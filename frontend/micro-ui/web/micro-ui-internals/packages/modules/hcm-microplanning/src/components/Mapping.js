@@ -495,7 +495,7 @@ const MapChoroplethIndex = ({ t, choroplethProperty }) => {
 };
 
 const FilterItemBuilder = ({ item, MapFilters, t }) => {
-  let temp = MapFilters?.find((e) => e?.name == item)?.icon?.index;
+  let temp = MapFilters?.find((e) => e?.name === item)?.icon?.index;
   let DynamicIcon = IconCollection?.[temp];
   // let icon;
   // if (typeof DynamicIcon === "function") icon = DynamicIcon({});
@@ -913,7 +913,7 @@ const BaseMapSwitcher = ({ baseMaps, showBaseMapSelector, setShowBaseMapSelector
           <div className="base-map-area">
             {Object.entries(baseMaps).map(([name, baseMap], index) => {
               return (
-                <div key={index} className={`base-map-entity ${name == selectedBaseMapName ? "selected" : ""}`}>
+                <div key={index} className={`base-map-entity ${name === selectedBaseMapName ? "selected" : ""}`}>
                   <img
                     className="base-map-img"
                     key={index}
@@ -1030,11 +1030,7 @@ const extractGeoData = (
           if (value?.isLocationDataColumns) {
             latLngColumns.push(t(key));
           }
-          if (
-            filterDataOrigin?.layerDataOrigin &&
-            filterDataOrigin?.layerDataOrigin.includes(fileData?.section) &&
-            value?.isFilterPropertyOfMapSection
-          ) {
+          if (filterDataOrigin?.layerDataOrigin?.includes(fileData?.section) && value?.isFilterPropertyOfMapSection) {
             filterProperty.push(key);
           }
           if (value?.isVisualizationPropertyOfMapSection && filterDataOrigin?.boundriesDataOrigin?.includes(fileData?.section)) {
@@ -1046,7 +1042,7 @@ const extractGeoData = (
 
         // Check if file contains latitude and longitude columns
         if (fileData?.data && Object.keys(fileData?.data).length > 0) {
-          if (dataAvailabilityCheck == "initialStage") dataAvailabilityCheck = "true";
+          if (dataAvailabilityCheck === "initialStage") dataAvailabilityCheck = "true";
           // Check file type and update data availability accordingly
           switch (fileData?.fileType) {
             case EXCEL: {
@@ -1143,7 +1139,7 @@ const extractGeoData = (
             case SHAPEFILE: {
               dataAvailabilityCheck = dataAvailabilityCheck === "partial" ? "partial" : dataAvailabilityCheck === "false" ? "partial" : "true"; // Update data availability for GeoJSON or Shapefile
               // Extract keys from the first feature's properties
-              var keys = Object.keys(fileData?.data.features[0].properties);
+              let keys = Object.keys(fileData?.data.features[0].properties);
               keys.push("feature");
 
               // Extract corresponding values for each feature

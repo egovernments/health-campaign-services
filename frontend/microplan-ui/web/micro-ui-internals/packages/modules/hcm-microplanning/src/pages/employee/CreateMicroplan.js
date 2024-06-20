@@ -87,7 +87,7 @@ const CreateMicroplan = () => {
     if (!state || !state.UIConfiguration) return;
     let UIConfiguration = state.UIConfiguration;
     if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (!(temp && temp.ruleConfigureOperators)) return;
+    if (!temp?.ruleConfigureOperators) return;
     setOperatorsObject(temp.ruleConfigureOperators);
   }, []);
 

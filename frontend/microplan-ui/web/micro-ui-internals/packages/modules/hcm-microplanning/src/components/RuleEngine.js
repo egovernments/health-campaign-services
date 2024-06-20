@@ -127,11 +127,11 @@ const RuleEngine = ({
   // useEffect to initialise the data from MDMS
   useEffect(() => {
     if (!state) return;
-    let schemas = state?.Schemas;
+    const schemas = state?.Schemas;
     let hypothesisAssumptions = [];
     microplanData?.hypothesis?.filter((item) => item.active).forEach((item) => (item.key !== "" ? hypothesisAssumptions.push(item.key) : null));
-    let ruleConfigureOutput = state?.RuleConfigureOutput;
-    let UIConfiguration = state?.UIConfiguration;
+    const ruleConfigureOutput = state?.RuleConfigureOutput;
+    const UIConfiguration = state?.UIConfiguration;
     let ruleConfigureInputs = getRuleConfigInputsFromSchema(campaignType, microplanData, schemas) || [];
     let AutoFilledRuleConfigurationsList = state?.AutoFilledRuleConfigurations;
     AutoFilledRuleConfigurationsList = AutoFilledRuleConfigurationsList.find((item) => item.campaignType === campaignType)?.data;
@@ -149,7 +149,7 @@ const RuleEngine = ({
       setOriginalRuleOutputCount(data.length);
       microplanData?.ruleEngine?.forEach((item) => {
         if (item.active) {
-          let filteredData = data.filter((e) => e !== item?.output);
+          const filteredData = data.filter((e) => e !== item?.output);
           data = filteredData;
         }
       });
@@ -312,7 +312,7 @@ const RuleEngine = ({
 
 // Function to add a new assumption
 const addRulesHandler = (setRules) => {
-  let uuid = uuidv4();
+  const uuid = uuidv4();
   setRules((previous) => [
     ...previous,
     {
@@ -696,7 +696,7 @@ const Select = React.memo(
 
     useEffect(() => {
       if (!options) return;
-      let filteredOptions = options.length ? options : [];
+      const filteredOptions = options.length ? options : [];
       let filteredOptionPlaceHolder = [];
       if (item?.[toChange] && !filteredOptions.includes(item[toChange])) {
         filteredOptionPlaceHolder = [item[toChange], ...filteredOptions];

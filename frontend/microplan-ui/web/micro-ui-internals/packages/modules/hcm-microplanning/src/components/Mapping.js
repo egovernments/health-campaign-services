@@ -1046,7 +1046,7 @@ const extractGeoData = (
 
         // Check if file contains latitude and longitude columns
         if (fileData?.data && Object.keys(fileData?.data).length > 0) {
-          if (dataAvailabilityCheck == "initialStage") dataAvailabilityCheck = "true";
+          if (dataAvailabilityCheck === "initialStage") dataAvailabilityCheck = "true";
           // Check file type and update data availability accordingly
           switch (fileData?.fileType) {
             case EXCEL: {

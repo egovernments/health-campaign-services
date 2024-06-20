@@ -87,7 +87,7 @@ const CreateMicroplan = () => {
     if (!state || !state.UIConfiguration) return;
     let UIConfiguration = state.UIConfiguration;
     if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (!(temp && temp.ruleConfigureOperators)) return;
+    if (!temp?.ruleConfigureOperators) return;
     setOperatorsObject(temp.ruleConfigureOperators);
   }, []);
 
@@ -220,7 +220,7 @@ const CreateMicroplan = () => {
   const setCurrentPageExternally = useCallback(
     (props) => {
       switch (props.method) {
-        case "set":
+        case "set": {
           let currentPage;
           const data = Digit.SessionStorage.get("microplanData");
           if (data && data?.currentPage) currentPage = data.currentPage;
@@ -229,11 +229,13 @@ const CreateMicroplan = () => {
             return true;
           }
           break;
-        case "save":
+        }
+        case "save": {
           if (props && props.currentPage) {
             setMicroplanData((previous) => ({ ...previous, currentPage: props.currentPage }));
           }
           break;
+        }
       }
     },
     [microplanData, setMicroplanData, Navigator]

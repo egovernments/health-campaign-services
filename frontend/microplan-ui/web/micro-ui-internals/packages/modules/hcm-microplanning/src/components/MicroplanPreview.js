@@ -377,7 +377,7 @@ const MicroplanPreview = ({
             />
           </div>
           <div className="preview-container">
-            {dataToShow?.length != 0 ? (
+            {dataToShow?.length !== 0 ? (
               <DataPreview
                 previewData={dataToShow}
                 isCampaignLoading={isCampaignLoading}

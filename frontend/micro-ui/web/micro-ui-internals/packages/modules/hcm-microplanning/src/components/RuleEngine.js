@@ -802,7 +802,7 @@ const getRuleConfigInputsFromSchema = (campaignType, microplanData, schemas) => 
       return sortData.some((entry) => entry.section === schema.section && entry.fileType === schema.type);
     }) || [];
   const finalData = filteredSchemas
-    ?.map((item) =>
+    ?.flatMap((item) =>
       Object.entries(item?.schema?.Properties || {}).reduce((acc, [key, value]) => {
         if (value?.isRuleConfigureInputs) {
           acc.push(key);
@@ -810,7 +810,6 @@ const getRuleConfigInputsFromSchema = (campaignType, microplanData, schemas) => 
         return acc;
       }, [])
     )
-    .flat()
     .filter((item) => !!item);
   return [...new Set(finalData)];
 };
@@ -842,11 +841,10 @@ const filterRulesAsPerConstrains = (autofillData, rules, hypothesisAssumptionsLi
     ) {
       if (autofill) {
         continue;
-      } else {
-        if (active) {
-          wereRulesNotDeleted = false;
-          active = false;
-        }
+      }
+      if (active) {
+        wereRulesNotDeleted = false;
+        active = false;
       }
     }
     if (!item["id"]) {

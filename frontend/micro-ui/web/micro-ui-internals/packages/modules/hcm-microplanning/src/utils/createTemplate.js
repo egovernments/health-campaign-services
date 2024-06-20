@@ -28,14 +28,13 @@ export const getFacilities = async (params, body) => {
     response = (await Digit.CustomService.getResponse(reqCriteria))?.Facilities || {};
   } catch (error) {
     if (error.response) {
-      throw new Error("Failed to fetch facility data: " + error.response.data.message);
+      throw new Error(`Failed to fetch facility data: ${error.response.data.message}`);
     } else if (error.request) {
       // Network error
       throw new Error("Network error while fetching facility data");
-    } else {
-      // Other errors
-      throw new Error("Error while fetching facility data: " + error.message);
     }
+    // Other errors
+    throw new Error("Error while fetching facility data: " + error.message);
   }
   return response;
 };
@@ -63,7 +62,7 @@ export const addBoundaryData = (xlsxData, boundaryData, hierarchyType) => {
     if (!boundaryData || !Array.isArray(boundaryData)) return;
 
     // Clone the current boundary predecessor to avoid modifying the original data
-    let rowData = [...currentBoundaryPredecessor];
+    const rowData = [...currentBoundaryPredecessor];
     // Clone the data accumulator to preserve the accumulated data
     let tempDataAccumulator = [...dataAccumulator];
     // Use a set to accumulate unique hierarchy levels
@@ -73,7 +72,7 @@ export const addBoundaryData = (xlsxData, boundaryData, hierarchyType) => {
     for (const item of boundaryData) {
       if (item?.code) {
         // Create a new row with the current item's code
-        let tempRow = [...rowData, item?.code];
+        const tempRow = [...rowData, item?.code];
         let response;
         // Add the current item's boundary type to the hierarchy
         tempHierarchyAccumulator.add(item.boundaryType);
@@ -110,7 +109,7 @@ export const addBoundaryData = (xlsxData, boundaryData, hierarchyType) => {
       if (!item) {
         item = [];
       }
-      let itemLength = item.length;
+      const itemLength = item.length;
       while (item.length <= topIndex) {
         item.push("");
       }
@@ -139,7 +138,7 @@ const fillDataWithBlanks = (data, tillRow) => {
 };
 const generateLocalisationKeyForSchemaProperties = (code) => {
   if (!code) return code;
-  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+  return `${SCHEMA_PROPERTIES_PREFIX}_${code}`;
 };
 /**
  *
@@ -151,7 +150,7 @@ const generateLocalisationKeyForSchemaProperties = (code) => {
  */
 const addSchemaData = (xlsxData, schema, extraColumnsToAdd) => {
   if (!schema) return xlsxData;
-  let columnSchema = schema.schema?.Properties || {};
+  const columnSchema = schema.schema?.Properties || {};
   let newXlsxData = [];
   let columnList = [[], [], [], []]; // Initialize columnList with four empty arrays
 
@@ -390,7 +389,7 @@ const addFacilitySheet = (xlsxData, mapping, facilities, schema, t) => {
   // Combine headers and data rows
   const arrayOfArrays = [headers.map((item) => generateLocalisationKeyForSchemaProperties(item)), ...dataRow];
 
-  let facilitySheet = {
+  const facilitySheet = {
     sheetName: FACILITY_DATA_SHEET,
     data: arrayOfArrays,
   };
@@ -462,7 +461,7 @@ export const createTemplate = async ({
       if (schema?.template?.facilitySchemaApiMapping)
         xlsxData = addFacilitySheet(xlsxData, schema?.template?.facilitySchemaApiMapping, facilities, schema, t);
       else {
-        let facilitySheet = {
+        const facilitySheet = {
           sheetName: FACILITY_DATA_SHEET,
           data: [],
         };

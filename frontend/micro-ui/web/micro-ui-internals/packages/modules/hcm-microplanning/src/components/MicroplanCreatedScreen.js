@@ -17,7 +17,7 @@ const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
       if (!microplanData?.microplanPreview) return;
       let data = _.cloneDeep(microplanData?.microplanPreview?.previewData);
       data[0] = data[0].map((item) => t(item));
-      for (let i in data) {
+      for (const i in data) {
         data[i] = data[i].map((item) => (item ? t(item) : t("NO_DATA")));
       }
 

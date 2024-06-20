@@ -13,7 +13,7 @@ export const convertJsonToXlsx = async (jsonData, columnWithStyle) => {
     for (const row of data) {
       const newRow = worksheet.addRow(row);
       // Apply red font color to the errorColumn if it exists
-      let errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
+      const errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
       if (columnWithStyle?.errorColumn && errorColumnIndex !== -1) {
         const columnIndex = errorColumnIndex + 1;
         if (columnIndex > 0) {

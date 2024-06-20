@@ -120,7 +120,7 @@ const computeDifferences = (data1, data2) => {
   }
 
   for (const key in data2) {
-    if (!data1.hasOwnProperty(key)) {
+    if (!Object.hasOwn(data1, key)) {
       added[key] = data2[key];
       removed[key] = [];
     }
@@ -164,13 +164,7 @@ const handleSelection = (e, boundaryType, boundarySelections, hierarchy, setBoun
 
 // Preventing default action when we scroll on input[number] is that it increments or decrements the number
 const inputScrollPrevention = (e) => {
-  e.target.addEventListener(
-    "wheel",
-    function (e) {
-      e.preventDefault();
-    },
-    { passive: false }
-  );
+  e.target.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
 };
 
 // Construct api request body
@@ -203,7 +197,7 @@ const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqTy
         return;
       resourceMapping.push(item?.resourceMapping);
     });
-    resourceMapping = resourceMapping.flatMap((inner) => inner);
+    resourceMapping = resourceMapping.flat();
   }
 
   // return a Create API body

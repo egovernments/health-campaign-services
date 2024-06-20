@@ -377,7 +377,7 @@ const MicroplanPreview = ({
             />
           </div>
           <div className="preview-container">
-            {dataToShow?.length != 0 ? (
+            {dataToShow?.length !== 0 ? (
               <DataPreview
                 previewData={dataToShow}
                 isCampaignLoading={isCampaignLoading}
@@ -511,12 +511,12 @@ const HypothesisValues = memo(({ boundarySelections, hypothesisAssumptionsList, 
           .filter((item) => item?.active)
           ?.filter((item) => item.key !== "")
           .map((item, index) => (
-            <div key={"hyopthesis_" + index} className="hypothesis-list-entity">
+            <div key={`hyopthesis_${index}`} className="hypothesis-list-entity">
               <p>{t(item?.key)}</p>
               <div className="input">
                 {/* Dropdown for boundaries */}
                 <TextInput
-                  name={"hyopthesis_" + index}
+                  name={`hyopthesis_${index}`}
                   type={"text"}
                   className="text-input"
                   value={item?.value}
@@ -680,7 +680,7 @@ const DataPreview = memo(
                   >
                     {cellIndex === 0 &&
                       userEditedResources?.[rowData?.[conmmonColumnIndex]] &&
-                      Object.keys(userEditedResources?.[rowData?.[conmmonColumnIndex]]).length !== 0 && <div className="edited-row-marker"></div>}
+                      Object.keys(userEditedResources?.[rowData?.[conmmonColumnIndex]]).length !== 0 && <div className="edited-row-marker" />}
 
                     {rowData[cellIndex] || rowData[cellIndex] === 0 ? rowData[cellIndex] : t("NO_DATA")}
                   </td>
@@ -782,7 +782,7 @@ const getRequiredColumnsFromSchema = (campaignType, microplanData, schemas) => {
   //   .filter((item) => !!item);
   // finalData = [...finalData, ...tempdata];
   tempdata = filteredSchemas
-    ?.map((item) =>
+    ?.flatMap((item) =>
       Object.entries(item?.schema?.Properties || {}).reduce((acc, [key, value]) => {
         if (value?.isRuleConfigureInputs && value?.toShowInMicroplanPreview) {
           acc.push(key);
@@ -795,7 +795,7 @@ const getRequiredColumnsFromSchema = (campaignType, microplanData, schemas) => {
   finalData = [...finalData, ...tempdata];
 
   tempdata = filteredSchemas
-    ?.map((item) =>
+    ?.flatMap((item) =>
       Object.entries(item?.schema?.Properties || {}).reduce((acc, [key, value]) => {
         if (value?.toShowInMicroplanPreview) acc.push(key);
         return acc;
@@ -859,7 +859,7 @@ const innerJoinLists = (data1, data2, commonColumnName, listOfColumnsNeededInFin
   }
 
   // Determine the headers for the final combined dataset based on listOfColumnsNeededInFinalData
-  const combinedHeaders = listOfColumnsNeededInFinalData.filter((header) => data1[0].includes(header) || (data2 && data2[0].includes(header)));
+  const combinedHeaders = listOfColumnsNeededInFinalData.filter((header) => data1[0].includes(header) || data2?.[0].includes(header));
 
   // Combine rows
   const combinedData = [combinedHeaders];
@@ -1098,9 +1098,8 @@ const fetchMicroplanPreviewData = (campaignType, microplanData, validationSchema
     const dataAfterJoins = fetchedData.reduce((accumulator, currentData, index) => {
       if (index === 0) {
         return innerJoinLists(currentData, null, commonColumn, filteredSchemaColumns);
-      } else {
-        return innerJoinLists(accumulator, currentData, commonColumn, filteredSchemaColumns);
       }
+      return innerJoinLists(accumulator, currentData, commonColumn, filteredSchemaColumns);
     }, null);
     return dataAfterJoins;
   } catch (error) {
@@ -1128,9 +1127,7 @@ const fetchMicroplanData = (microplanData, campaignType, validationSchemas) => {
         switch (fileData?.fileType) {
           case EXCEL: {
             // extract dada
-            const mergedData = schema?.template?.hierarchyLevelWiseSheets
-              ? Object.values(fileData?.data).flatMap((data) => data)
-              : Object.values(fileData?.data)?.[0];
+            const mergedData = schema?.template?.hierarchyLevelWiseSheets ? Object.values(fileData?.data).flat() : Object.values(fileData?.data)?.[0];
 
             let commonColumnIndex = mergedData?.[0]?.indexOf(commonColumn);
 
@@ -1145,7 +1142,7 @@ const fetchMicroplanData = (microplanData, campaignType, validationSchemas) => {
           case GEOJSON:
           case SHAPEFILE: {
             // Extract keys from the first feature's properties
-            var keys = Object.keys(fileData?.data.features[0].properties);
+            let keys = Object.keys(fileData?.data.features[0].properties);
 
             // Extract corresponding values for each feature
             const values = fileData?.data?.features.map((feature) => {
@@ -1172,7 +1169,7 @@ const fetchMicroplanData = (microplanData, campaignType, validationSchemas) => {
 const EditResourceData = ({ previewData, selectedRow, resources, tempResourceChanges, setTempResourceChanges, data, t }) => {
   const conmmonColumnData = useMemo(() => {
     const index = previewData?.[0]?.indexOf(commonColumn);
-    if (index == -1) return;
+    if (index === -1) return;
     return previewData?.[selectedRow]?.[index];
   }, [previewData]);
 
@@ -1209,7 +1206,7 @@ const EditResourceData = ({ previewData, selectedRow, resources, tempResourceCha
                 </td>
                 <td className="new-value no-left-padding">
                   <TextInput
-                    name={"data_" + index}
+                    name={`data_${index}`}
                     value={currentData || t("NO_DATA")}
                     style={{ margin: 0, backgroundColor: "rgba(238, 238, 238, 1)" }}
                     t={t}
@@ -1234,7 +1231,7 @@ const EditResourceData = ({ previewData, selectedRow, resources, tempResourceCha
                 </td>
                 <td className="new-value no-left-padding">
                   <TextInput
-                    name={"hyopthesis_" + index}
+                    name={`hyopthesis_${index}`}
                     value={
                       tempResourceChanges?.[conmmonColumnData]?.[item] || tempResourceChanges?.[conmmonColumnData]?.[item] === 0
                         ? tempResourceChanges[conmmonColumnData][item]
