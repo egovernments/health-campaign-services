@@ -268,6 +268,12 @@ config:
       - work-dir: frontend/micro-ui/
         dockerfile: frontend/micro-ui/web/workbench/Dockerfile
         image-name: workbench-ui
+        
+  - name: builds/health-campaign-services/frontend/microplan-ui
+    build:
+      - work-dir: frontend/microplan-ui/
+        dockerfile: frontend/microplan-ui/web/microplan/Dockerfile
+        image-name: microplan-ui
 
 #Utilities
   - name: "builds/health-campaign-services/health-services/project-factory"
