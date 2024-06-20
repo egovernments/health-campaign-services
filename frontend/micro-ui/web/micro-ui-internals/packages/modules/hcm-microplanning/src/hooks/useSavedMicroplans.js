@@ -7,6 +7,7 @@ const useSavedMicroplans = (reqCriteria) => {
     ...config,
     cacheTime: 0,
     staleTime: 0,
+    onError: (err) => console.error("Error fetching saved microplans:", err),
   });
 
   return {

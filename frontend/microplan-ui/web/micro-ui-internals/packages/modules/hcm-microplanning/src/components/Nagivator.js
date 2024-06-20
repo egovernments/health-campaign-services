@@ -48,7 +48,7 @@ const Navigator = memo((props) => {
     if (checkDataCompletion === "invalid") {
       if (navigationEvent && navigationEvent.name === "next") {
         props?.setToast({ state: "error", message: t("MICROPLAN_PLEASE_FILL_ALL_THE_FIELDS_AND_RESOLVE_ALL_THE_ERRORS") });
-      } else if (navigationEvent && navigationEvent.name === "step" && navigationEvent.step != undefined) {
+      } else if (navigationEvent && navigationEvent.name === "step" && navigationEvent.step !== undefined) {
         if (navigationEvent.step > currentPage.id)
           props?.setToast({ state: "error", message: t("MICROPLAN_PLEASE_FILL_ALL_THE_FIELDS_AND_RESOLVE_ALL_THE_ERRORS") });
         else onStepClick(navigationEvent.step);
@@ -262,7 +262,7 @@ const handleNavigationEvent = (
         return props?.completeNavigation();
       }
       nextStep();
-    } else if (navigationEvent && navigationEvent.name === "step" && navigationEvent.step != undefined) onStepClick(navigationEvent.step);
+    } else if (navigationEvent && navigationEvent.name === "step" && navigationEvent.step !== undefined) onStepClick(navigationEvent.step);
     else if (navigationEvent && navigationEvent.name === "previousStep") previousStep();
     setCheckDataCompletion("false");
     setNavigationEvent(undefined);

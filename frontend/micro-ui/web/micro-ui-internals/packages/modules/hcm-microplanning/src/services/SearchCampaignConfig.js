@@ -7,12 +7,16 @@ const SearchCampaignConfig = async (body) => {
       userService: false,
       body,
     });
-    if(response?.CampaignDetails?.length===0){
+    if (response?.CampaignDetails?.length === 0) {
       throw new Error("Campaign not found with the given id");
     }
-    return response?.CampaignDetails?.[0]
+    return response?.CampaignDetails?.[0];
   } catch (error) {
-    throw new Error(error?.response?.data?.Errors[0].message);
+    if (error?.response?.data?.Errors) {
+      throw new Error(error.response.data.Errors[0].message);
+    } else {
+      throw new Error("An unknown error occurred");
+    }
   }
 };
 

@@ -1209,10 +1209,10 @@ const extractGeoData = (
     setDataAvailability(dataAvailabilityCheck);
 
     // Combine boundary and layer data origins
-    const combineList = [...filterDataOrigin?.boundriesDataOrigin, ...filterDataOrigin?.layerDataOrigin];
+    const combineList = [...(filterDataOrigin?.boundriesDataOrigin || []), ...(filterDataOrigin?.layerDataOrigin || [])];
 
     // Section wise check
-    if (dataAvailabilityCheck == "true") {
+    if (dataAvailabilityCheck === "true") {
       let sectionWiseCheck = true;
       combineList.forEach((item) => {
         sectionWiseCheck = Object.keys(files).includes(item) && sectionWiseCheck;
@@ -1292,7 +1292,8 @@ const fetchFeatures = (data, parameter = "ALL", outputList = [], addOn = {}) => 
       }
     }
     return tempStorage;
-  } else if (Array.isArray(parameter)) {
+  }
+  if (Array.isArray(parameter)) {
     for (let [entityKey, entityValue] of Object.entries(data)) {
       if (parameter.includes(entityKey) && entityValue && entityValue.data && entityValue.data.feature) {
         let feature = entityValue.data.feature;

@@ -65,7 +65,7 @@ export const processHierarchyAndData = (hierarchy, allData) => {
     Object.values(hierarchicalData).forEach((country) => {
       if (country.children[null]) {
         country.data = country.children[null].data;
-        delete country.children[null];
+        country.children[null] = undefined;
       }
     });
   } catch (error) {
@@ -139,13 +139,13 @@ export const findChildren = (parents, hierarchy) => {
       tempData = {
         ...accumulator,
         ...hierarchy.reduce((data, item) => {
-          if (parents.includes(item?.name) && item?.children) data = { ...data, ...item?.children };
+          if (parents.includes(item?.name) && item?.children) Object.assign(data, item?.children);
           return data;
         }, {}),
       };
     else
       tempData = hierarchy.reduce((data, item) => {
-        if (parents.includes(item?.name) && item?.children) data = { ...data, ...item?.children };
+        if (parents.includes(item?.name) && item?.children) Object.assign(data, item?.children);
         return data;
       }, {});
     for (let parent of hierarchy) {
@@ -221,7 +221,7 @@ const findByBoundaryType = (boundaryType, hierarchy) => {
   for (let [key, value] of Object.entries(hierarchy)) {
     if (value?.boundaryType === boundaryType) return Object.keys(hierarchy).filter(Boolean);
     else if (value?.children) return findByBoundaryType(boundaryType, value?.children);
-    else return [];
+    return [];
   }
   return [];
 };

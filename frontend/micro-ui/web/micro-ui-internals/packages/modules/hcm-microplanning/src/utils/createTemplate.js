@@ -29,7 +29,8 @@ export const getFacilities = async (params, body) => {
   } catch (error) {
     if (error.response) {
       throw new Error(`Failed to fetch facility data: ${error.response.data.message}`);
-    } else if (error.request) {
+    }
+    if (error.request) {
       // Network error
       throw new Error("Network error while fetching facility data");
     }
@@ -151,8 +152,8 @@ const generateLocalisationKeyForSchemaProperties = (code) => {
 const addSchemaData = (xlsxData, schema, extraColumnsToAdd) => {
   if (!schema) return xlsxData;
   const columnSchema = schema.schema?.Properties || {};
-  let newXlsxData = [];
-  let columnList = [[], [], [], []]; // Initialize columnList with four empty arrays
+  const newXlsxData = [];
+  const columnList = [[], [], [], []]; // Initialize columnList with four empty arrays
 
   for (const [key, value] of Object.entries(columnSchema)) {
     if (key === commonColumn) continue;
@@ -376,7 +377,7 @@ const addFacilitySheet = (xlsxData, mapping, facilities, schema, t) => {
     dataRow.push(headers.map((header) => facility[mapping[header]]));
   }
   headers.push(commonColumn);
-  let additionalCols = [];
+  const additionalCols = [];
   if (schema?.schema?.Properties) {
     const properties = Object.keys(schema.schema.Properties);
     for (const col of properties) {
@@ -461,7 +462,7 @@ export const createTemplate = async ({
       if (schema?.template?.facilitySchemaApiMapping)
         xlsxData = addFacilitySheet(xlsxData, schema?.template?.facilitySchemaApiMapping, facilities, schema, t);
       else {
-        const facilitySheet = {
+        let facilitySheet = {
           sheetName: FACILITY_DATA_SHEET,
           data: [],
         };

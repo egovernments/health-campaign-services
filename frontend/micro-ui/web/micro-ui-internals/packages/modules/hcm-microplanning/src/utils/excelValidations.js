@@ -39,7 +39,7 @@ export const excelValidations = (data, schemaData, t) => {
   };
   const validateExcel = ajv.compile(schema);
   const valid = validateExcel(data);
-  let locationDataColumns = Object.entries(schemaData?.Properties || {}).reduce((acc, [key, value]) => {
+  const locationDataColumns = Object.entries(schemaData?.Properties || {}).reduce((acc, [key, value]) => {
     if (value?.isLocationDataColumns) {
       acc.push(key);
     }
@@ -167,14 +167,13 @@ export const checkForErrorInUploadedFileExcel = async (fileInJson, schemaData, t
     const valid = excelValidations(fileInJson, schemaData, t);
     if (valid.valid) {
       return { valid: true };
-    } else {
-      return {
-        valid: false,
-        message: valid.message,
-        errors: valid.errors,
-        missingProperties: valid.missingColumnsList,
-      };
     }
+    return {
+      valid: false,
+      message: valid.message,
+      errors: valid.errors,
+      missingProperties: valid.missingColumnsList,
+    };
   } catch (error) {
     console.error("Error in excel validations: ", error?.message);
     return { valid: false, message: ["ERROR_PARSING_FILE"] };

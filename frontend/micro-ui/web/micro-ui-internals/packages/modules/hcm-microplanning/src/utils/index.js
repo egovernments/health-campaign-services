@@ -61,7 +61,7 @@ const computeGeojsonWithMappedProperties = ({ campaignType, fileType, templateId
   const sortedSecondList = sortSecondListBasedOnFirstListOrder(schemaKeys, resourceMapping);
   // Creating a object with input data with MDMS keys
   const newFeatures = fileData.data["features"].map((item) => {
-    let newProperties = {};
+    const newProperties = {};
 
     sortedSecondList.forEach((e) => {
       newProperties[e["mappedTo"]] = item["properties"][e["mappedFrom"]];
@@ -69,7 +69,7 @@ const computeGeojsonWithMappedProperties = ({ campaignType, fileType, templateId
     item["properties"] = newProperties;
     return item;
   });
-  let data = fileData.data;
+  const data = fileData.data;
   data["features"] = newFeatures;
   return data;
 };
@@ -130,9 +130,9 @@ const computeDifferences = (data1, data2) => {
 };
 
 const extractNames = (data) => {
-  let names = [];
+  const names = [];
 
-  for (let key in data) {
+  for (const key in data) {
     if (Array.isArray(data[key])) {
       data[key].forEach((item) => {
         if (item.name) {
@@ -148,13 +148,13 @@ const extractNames = (data) => {
 const handleSelection = (e, boundaryType, boundarySelections, hierarchy, setBoundarySelections, boundaryData, setIsLoading) => {
   setIsLoading(true);
   if (!e || !boundaryType) return;
-  let selections = e.map((item) => item?.[1]);
-  let newComputedSelection = { ...boundarySelections, [boundaryType]: selections };
+  const selections = e.map((item) => item?.[1]);
+  const newComputedSelection = { ...boundarySelections, [boundaryType]: selections };
   const { removed, added } = computeDifferences(boundarySelections, newComputedSelection);
   // for(const item in removed){
   if (removed && Object.keys(removed).length !== 0 && Object.values(removed)?.flatMap((item) => item).length !== 0) {
-    let filteredRemoved = extractNames(removed);
-    let children = Object.values(findChildren(filteredRemoved, Object.values(boundaryData)?.[0]?.hierarchicalData))?.map((item) => item?.name);
+    const filteredRemoved = extractNames(removed);
+    const children = Object.values(findChildren(filteredRemoved, Object.values(boundaryData)?.[0]?.hierarchicalData))?.map((item) => item?.name);
     for (const key in newComputedSelection) {
       newComputedSelection[key] = newComputedSelection[key].filter((item) => !children.includes(item?.name));
     }
@@ -169,8 +169,8 @@ const inputScrollPrevention = (e) => {
 
 // Construct api request body
 const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqType = "update") => {
-  let files = [],
-    resourceMapping = [];
+  let files = [];
+  resourceMapping = [];
   if (data && data.upload) {
     Object.values(data?.upload).forEach((item) => {
       if (!item || item.error || !item.filestoreId) return;
@@ -382,9 +382,9 @@ const calculateResource = (resourceName, rowData, formulaConfiguration, headers,
   // Finding Input
   // check for Uploaded Data
   let inputValue = findInputValue(formula, rowData, formulaConfiguration, headers, hypothesisAssumptionsList, t);
-  if (inputValue == undefined || inputValue === null) return null;
+  if (inputValue === undefined || inputValue === null) return null;
   let assumptionValue = hypothesisAssumptionsList?.find((item) => item?.active && item?.key === formula?.assumptionValue)?.value;
-  if (assumptionValue == undefined) return null;
+  if (assumptionValue === undefined) return null;
 
   return findResult(inputValue, assumptionValue, formula?.operator);
 };

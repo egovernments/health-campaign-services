@@ -35,8 +35,8 @@ const SearchSavedPlans = async (body) => {
     });
 
     const { PlanConfiguration } = responsePlan;
-    if(!PlanConfiguration || PlanConfiguration.length === 0) return [];
-    
+    if (!PlanConfiguration || PlanConfiguration.length === 0) return [];
+
     const executionPlanIds = PlanConfiguration?.map((row) => row?.executionPlanId)?.filter((item) => item);
     const CampaignDetails = {
       tenantId: Digit.ULBService.getCurrentTenantId(),
@@ -57,7 +57,11 @@ const SearchSavedPlans = async (body) => {
     };
     return finalResult;
   } catch (error) {
-    throw new Error(error?.response?.data?.Errors[0].message);
+    if (error?.response?.data?.Errors) {
+      throw new Error(error.response.data.Errors[0].message);
+    } else {
+      throw new Error("An unknown error occurred");
+    }
   }
 };
 

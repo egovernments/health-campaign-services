@@ -1792,7 +1792,7 @@ const CustomIcon = (props) => {
 
 const generateLocalisationKeyForSchemaProperties = (code) => {
   if (!code) return code;
-  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+  return `${SCHEMA_PROPERTIES_PREFIX}_${code}`;
 };
 // Performs resource mapping and data filtering for Excel files based on provided schema data, hierarchy, and file data.
 const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, selectedFileType, fileDataToStore, t) => {

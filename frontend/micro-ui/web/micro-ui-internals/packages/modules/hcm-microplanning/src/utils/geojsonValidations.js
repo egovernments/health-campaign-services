@@ -35,7 +35,7 @@ export const geojsonValidations = (data, schemaData, t) => {
 // Funciton responsible for structural verification of geojson data
 export const geojsonStructureValidation = (data) => {
   let valid = true;
-  let trace = {};
+  const trace = {};
   for (let i = 0; i < data["features"].length; i++) {
     const check = gjv.valid(data["features"][i]);
     valid = valid && check;

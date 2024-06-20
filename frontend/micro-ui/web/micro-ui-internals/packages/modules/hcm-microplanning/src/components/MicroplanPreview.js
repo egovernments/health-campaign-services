@@ -1177,7 +1177,7 @@ const EditResourceData = ({ previewData, selectedRow, resources, tempResourceCha
     if (!conmmonColumnData) return;
     if (isNaN(value) || (!isFinite(value) && value !== "")) return;
     let changedDataAgainstBoundaryCode = tempResourceChanges?.[conmmonColumnData] || {};
-    changedDataAgainstBoundaryCode[item] = value == "" ? undefined : parseFloat(value);
+    changedDataAgainstBoundaryCode[item] = value === "" ? undefined : parseFloat(value);
     setTempResourceChanges((previous) => ({ ...previous, [conmmonColumnData]: changedDataAgainstBoundaryCode }));
   };
 

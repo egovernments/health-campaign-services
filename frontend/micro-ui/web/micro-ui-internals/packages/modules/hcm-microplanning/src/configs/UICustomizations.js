@@ -44,7 +44,7 @@ const epochTimeForTomorrow12 = () => {
 
 function cleanObject(obj) {
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.hasOwn(obj, key)) {
       if (Array.isArray(obj[key])) {
         if (obj[key].length === 0) {
           delete obj[key];

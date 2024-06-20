@@ -139,7 +139,7 @@ const fillDataWithBlanks = (data, tillRow) => {
 };
 const generateLocalisationKeyForSchemaProperties = (code) => {
   if (!code) return code;
-  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+  return `${SCHEMA_PROPERTIES_PREFIX}_${code}`;
 };
 /**
  *

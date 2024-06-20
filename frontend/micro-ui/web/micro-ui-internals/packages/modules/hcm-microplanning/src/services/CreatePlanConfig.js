@@ -7,9 +7,13 @@ const CreatePlanConfig = async (body) => {
       userService: true,
       body,
     });
-    return response
+    return response;
   } catch (error) {
-    throw new Error(error?.response?.data?.Errors[0].message);
+    if (error?.response?.data?.Errors) {
+      throw new Error(error.response.data.Errors[0].message);
+    } else {
+      throw new Error("An unknown error occurred");
+    }
   }
 };
 

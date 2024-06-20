@@ -1576,7 +1576,7 @@ const downloadTemplate = async ({
       // Create a link element and simulate click to trigger download
       const link = document.createElement("a");
       link.href = url;
-      link.download = t(section) + ".xlsx";
+      link.download = `${t(section)}.xlsx`;
       link.click();
       // Revoke the URL to release the Blob
       URL.revokeObjectURL(url);
@@ -1792,7 +1792,7 @@ const CustomIcon = (props) => {
 
 const generateLocalisationKeyForSchemaProperties = (code) => {
   if (!code) return code;
-  return SCHEMA_PROPERTIES_PREFIX + "_" + code;
+  return `${SCHEMA_PROPERTIES_PREFIX}_${code}`;
 };
 // Performs resource mapping and data filtering for Excel files based on provided schema data, hierarchy, and file data.
 const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, selectedFileType, fileDataToStore, t) => {
@@ -1890,7 +1890,7 @@ const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, t
           if (errorInfo) {
             let rowDataAddOn = Object.entries(errorInfo)
               .map(([key, value]) => {
-                return t(key) + ": " + value.map((item) => t(item)).join(", ");
+                return `${t(key)}: ${value.map((item) => t(item)).join(", ")}`;
               })
               .join("\n");
             row.push(rowDataAddOn);
