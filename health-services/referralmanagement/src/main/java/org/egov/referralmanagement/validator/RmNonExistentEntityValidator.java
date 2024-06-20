@@ -77,7 +77,8 @@ public class RmNonExistentEntityValidator implements Validator<ReferralBulkReque
                         referrals.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("REFERRAL_SEARCH_FAILED", "Search Failed for Referral, " + e.getMessage());
+                log.error("Search failed for Referral with error: {}", e.getMessage(), e);
+                throw new CustomException("REFERRAL_SEARCH_FAILED", "Search Failed for Referral, " + e.getMessage()); 
             }
             List<Referral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);

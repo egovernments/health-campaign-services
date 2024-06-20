@@ -75,7 +75,8 @@ public class SeNonExistentEntityValidator implements Validator<SideEffectBulkReq
                         sideEffects.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("SIDE_EFFECT_SEARCH_FAILED", "Search Failed for SideEffect, " + e.getMessage());
+                log.error("Search failed for SideEffect with error: {}", e.getMessage(), e);
+                throw new CustomException("SIDE_EFFECT_SEARCH_FAILED", "Search Failed for SideEffect, " + e.getMessage()); 
             }
 
             List<SideEffect> nonExistentIndividuals = checkNonExistentEntities(iMap,

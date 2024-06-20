@@ -68,6 +68,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
                         entities.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
+                log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
                 throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
             }
             List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,

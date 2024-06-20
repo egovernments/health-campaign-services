@@ -85,7 +85,8 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
                         hfReferrals.get(0).getTenantId(), null, false);
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral, " + e.getMessage());
+                log.error("Search failed for HFReferral with error: {}", e.getMessage(), e);
+                throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral, " + e.getMessage()); 
             }
             List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);

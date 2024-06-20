@@ -77,7 +77,8 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new CustomException("SEARCH_FAILED", "Search Failed for given Entity, " + e.getMessage());
+                log.error("Search failed for ProjectTask with error: {}", e.getMessage(), e);
+                throw new CustomException("SEARCH_FAILED", "Search Failed for given ProjectTask, " + e.getMessage());
             }
             List<Task> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
