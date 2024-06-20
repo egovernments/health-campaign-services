@@ -1036,7 +1036,7 @@ const updateHyothesisAPICall = async (
   t
 ) => {
   try {
-    let body = Digit.Utils.microplan.mapDataForApi(microplanData, operatorsObject, MicroplanName, campaignId, status);
+    const body = Digit.Utils.microplan.mapDataForApi(microplanData, operatorsObject, MicroplanName, campaignId, status);
     body.PlanConfiguration["id"] = microplanData?.planConfigurationId;
     body.PlanConfiguration["auditDetails"] = microplanData?.auditDetails;
     if (!Digit.Utils.microplan.planConfigRequestBodyValidator(body, state, campaignType)) {
