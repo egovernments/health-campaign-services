@@ -142,7 +142,7 @@ const CreateMicroplan = () => {
       setLoaderActivation(true);
       if (!microplanData?.planConfigurationId) {
         await createPlanConfiguration(body, setCheckDataCompletion, setLoaderActivation);
-      } else if (microplanData && microplanData.planConfigurationId) {
+      } else if (microplanData?.planConfigurationId) {
         await updatePlanConfiguration(body, setCheckDataCompletion, setLoaderActivation);
       }
     },
@@ -231,7 +231,7 @@ const CreateMicroplan = () => {
           break;
         }
         case "save": {
-          if (props && props.currentPage) {
+          if (props.currentPage) {
             setMicroplanData((previous) => ({ ...previous, currentPage: props.currentPage }));
           }
           break;
