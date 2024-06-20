@@ -240,27 +240,46 @@ async function generateActivityMessage(tenantId: any, requestBody: any, requestP
 /* Fetches data from the database */
 async function searchGeneratedResources(request: any) {
   try {
-    const { type } = request.query;
-    const { tenantId, hierarchyType } = request.query;
-    const status = generatedResourceStatuses.completed;
-    let queryResult: any;
-    let queryString: string;
+    const { type, tenantId, hierarchyType, id, status } = request.query;
+    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    let queryConditions: string[] = [];
     let queryValues: any[] = [];
 
-    queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
-    // query for download with id
-    if (request?.query?.id) {
-      queryString += "id = $1 AND type = $2 AND hierarchytype = $3 AND tenantid = $4 ";
-      queryValues = [request.query.id, type, hierarchyType, tenantId];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
     }
-    else {
-      queryString += "type = $1 AND hierarchytype = $2 AND  tenantid = $3  AND status =$4 ";
-      queryValues = [type, hierarchyType, tenantId, status];
+
+    if (type) {
+      queryConditions.push(`type = $${queryValues.length + 1}`);
+      queryValues.push(type);
     }
-    queryResult = await executeQuery(queryString, queryValues);
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+
+    queryString += queryConditions.join(" AND ");
+
+    // Add sorting and limiting
+    queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
-  }
-  catch (error: any) {
+  } catch (error: any) {
     logger.error(`Error fetching data from the database: ${error.message}`);
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
     return null; // Return null in case of an error
