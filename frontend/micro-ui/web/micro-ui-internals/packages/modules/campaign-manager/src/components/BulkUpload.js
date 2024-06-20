@@ -128,7 +128,8 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
       <div
         className="uploaded-file-container"
         key={index}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           setShowPreview(true);
         }}
       >

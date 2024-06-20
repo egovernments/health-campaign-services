@@ -1,22 +1,24 @@
 import React, { useReducer, Fragment, useEffect, useState } from "react";
 import { CardText, LabelFieldPair, Card, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
-import { TextInput } from "@egovernments/digit-ui-components";
+import { TextInput, InfoCard } from "@egovernments/digit-ui-components";
 // import { deliveryConfig } from "../../configs/deliveryConfig";
 
 const initialState = (saved, filteredDeliveryConfig, refetch) => {
   const data = {
     cycleConfgureDate: {
-      cycle: saved?.cycleConfgureDate?.cycle && !refetch
-        ? saved?.cycleConfgureDate?.cycle
-        : filteredDeliveryConfig?.cycleConfig
-        ? filteredDeliveryConfig?.cycleConfig?.cycle
-        : 1,
-      deliveries: saved?.cycleConfgureDate?.deliveries && !refetch
-        ? saved?.cycleConfgureDate?.deliveries
-        : filteredDeliveryConfig?.cycleConfig
-        ? filteredDeliveryConfig?.cycleConfig?.deliveries
-        : 1,
+      cycle:
+        saved?.cycleConfgureDate?.cycle && !refetch
+          ? saved?.cycleConfgureDate?.cycle
+          : filteredDeliveryConfig?.cycleConfig
+          ? filteredDeliveryConfig?.cycleConfig?.cycle
+          : 1,
+      deliveries:
+        saved?.cycleConfgureDate?.deliveries && !refetch
+          ? saved?.cycleConfgureDate?.deliveries
+          : filteredDeliveryConfig?.cycleConfig
+          ? filteredDeliveryConfig?.cycleConfig?.deliveries
+          : 1,
     },
     cycleData: saved?.cycleData ? [...saved?.cycleData] : [],
   };
@@ -77,7 +79,8 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
     }
   );
   const saved = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
-  const refetch = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleConfgureDate?.refetch;
+  const refetch = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleConfgureDate
+    ?.refetch;
   const tempSession = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
   const [state, dispatch] = useReducer(reducer, initialState(saved, filteredDeliveryConfig, refetch));
   const { cycleConfgureDate, cycleData } = state;
@@ -148,6 +151,32 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
           ?.split("-")
           ?.reverse()
           ?.join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate?.split("-")?.reverse()?.join("/")})`}
+      />
+      <InfoCard
+        className={"infoClass"}
+        populators={{
+          name: "infocard",
+        }}
+        variant="default"
+        style={{ marginBottom : "1.5rem", marginLeft : "0rem", maxWidth: "100%" }}
+        additionalElements={[
+          <img className="whoLogo"
+            // style="display: block;-webkit-user-select: none;margin: auto;cursor: zoom-in;background-color: hsl(0, 0%, 90%);transition: background-color 300ms;"
+            src="https://cdn.worldvectorlogo.com/logos/world-health-organization-logo-1.svg"
+            alt="WHO Logo"
+            width="164"
+            height="90"
+          ></img>,
+          <span style={{ color: "#505A5F" }}>{t(
+            `CAMPAIGN_CYCLE_INFO_${
+              tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code
+                ? tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()
+                : tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.toUpperCase()
+            }`
+          )}</span>,
+        ]}
+        label={"Info"}
+        headerClassName={"headerClassName"}
       />
       <Card className="campaign-counter-container">
         <CardText>
