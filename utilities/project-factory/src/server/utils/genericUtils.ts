@@ -280,6 +280,7 @@ async function searchGeneratedResources(request: any) {
     const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
   } catch (error: any) {
+    console.log(error)
     logger.error(`Error fetching data from the database: ${error.message}`);
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
     return null; // Return null in case of an error
@@ -385,6 +386,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       request.body.generatedResource = finalResponse;
     }
   } catch (error: any) {
+    console.log(error)
     handleGenerateError(newEntryResponse, generatedResource, error);
   }
 }

@@ -56,6 +56,7 @@ const getBoundaryDataService = async (
         logger.info("RETURNS THE BOUNDARY RESPONSE");
         return BoundaryFileDetails;
     } catch (e: any) {
+        console.log(e)
         logger.error(String(e))
         // Handle errors and send error response
         throw (e);
