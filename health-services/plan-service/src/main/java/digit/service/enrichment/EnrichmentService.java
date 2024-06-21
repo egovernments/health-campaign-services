@@ -33,7 +33,7 @@ public class EnrichmentService {
      */
     public void enrichCreate(PlanConfigurationRequest request) {
         enrichPlanConfiguration(request.getPlanConfiguration());
-        if (request.getRequestInfo().getUserInfo() == null)
+        if(ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo()))
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
 
         enrichAuditDetails(request, Boolean.TRUE);

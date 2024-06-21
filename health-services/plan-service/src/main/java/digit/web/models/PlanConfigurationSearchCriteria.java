@@ -23,7 +23,7 @@ import lombok.Builder;
 public class PlanConfigurationSearchCriteria {
 
     @JsonProperty("tenantId")
-    @Size(min = 1, max = 100)
+    @Size(min = 2, max = 256)
     @NotNull
     private String tenantId = null;
 

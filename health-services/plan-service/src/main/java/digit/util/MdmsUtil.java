@@ -38,11 +38,11 @@ public class MdmsUtil {
         StringBuilder uri = new StringBuilder();
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId);
-        Object response = new HashMap<>();
+        Object mdmsResponseMap  = new HashMap<>();
         MdmsResponse mdmsResponse = new MdmsResponse();
         try {
-            response = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
-            mdmsResponse = mapper.convertValue(response, MdmsResponse.class);
+        	mdmsResponseMap  = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
+            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }

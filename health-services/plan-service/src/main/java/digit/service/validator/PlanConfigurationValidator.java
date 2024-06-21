@@ -97,7 +97,7 @@ public class PlanConfigurationValidator {
             if(!assumptionListFromMDMS.contains(assumption.getKey()))
             {
                 log.error("Assumption Key " + assumption.getKey() + " is not present in MDMS");
-                throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE);
+                throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
             }
         }
     }

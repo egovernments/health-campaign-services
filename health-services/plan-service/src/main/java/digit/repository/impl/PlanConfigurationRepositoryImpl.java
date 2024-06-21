@@ -61,6 +61,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
 
         // Return empty list back as response if no plan ids are found
         if(CollectionUtils.isEmpty(planConfigIds)) {
+        	log.info("No plan config ids found for provided plan configuration search criteria.");
             return new ArrayList<>();
         }
 

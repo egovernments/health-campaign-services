@@ -51,9 +51,6 @@ public class PlanValidator {
         String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
-        // Validate execution plan existence
-        validateExecutionPlanExistence(request);
-
         // Validate activities
         validateActivities(request);
 
@@ -129,12 +126,6 @@ public class PlanValidator {
         });
     }
 
-    /**
-     * This method validates if the execution plan id provided in the request exists
-     * @param request
-     */
-    private void validateExecutionPlanExistence(PlanRequest request) {
-    }
 
     /**
      * This method validates the activities provided in the request

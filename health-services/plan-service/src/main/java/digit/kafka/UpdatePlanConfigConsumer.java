@@ -30,7 +30,7 @@ public class UpdatePlanConfigConsumer {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
             planConfigurationService.update(planConfigurationRequest);
         } catch (Exception exception) {
-            log.error("Error in update plan configuration consumer", exception);
+            log.error("Error in update plan configuration consumer while processing topic {}: {}", topic, consumerRecord, exception);
         }
     }
 }

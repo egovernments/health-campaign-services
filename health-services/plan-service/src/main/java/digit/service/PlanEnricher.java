@@ -20,6 +20,9 @@ public class PlanEnricher {
      * @param body
      */
     public void enrichPlanCreate(PlanRequest body) {
+    	 if (body.getPlan() == null) {
+             throw new IllegalArgumentException("Plan details are missing in the request.");
+         }
         // Generate id for plan
         UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), "id");
 

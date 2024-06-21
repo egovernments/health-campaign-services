@@ -68,7 +68,7 @@ public class ServiceConstants {
     public static final String METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE = "Metric Details' Unit not found in MDMS";
 
     public static final String INACTIVE_OPERATION_USED_AS_INPUT_CODE = "INACTIVE_OPERATION_USED_AS_INPUT";
-    public static final String INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE = "Inactive operation output used as input - ";
+    public static final String INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE = "Inactive operation output used. ";
 
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;

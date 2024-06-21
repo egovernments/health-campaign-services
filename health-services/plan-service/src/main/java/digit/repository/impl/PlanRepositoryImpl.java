@@ -46,7 +46,11 @@ public class PlanRepositoryImpl implements PlanRepository {
      */
     @Override
     public void create(PlanRequest planRequest) {
-        producer.push(config.getPlanCreateTopic(), planRequest);
+		try {
+			producer.push(config.getPlanCreateTopic(), planRequest);
+		} catch (Exception e) {
+			log.info("Pushing message to topic " + config.getPlanCreateTopic() + " failed.", e);
+		}
     }
 
     /**
@@ -61,7 +65,8 @@ public class PlanRepositoryImpl implements PlanRepository {
 
         // Return empty list back as response if no plan ids are found
         if(CollectionUtils.isEmpty(planIds)) {
-            return new ArrayList<>();
+            log.info("No plan ids found for provided plan search criteria.");
+        	return new ArrayList<>();
         }
 
         // Fetch plans from database based on the acquired ids
@@ -75,9 +80,13 @@ public class PlanRepositoryImpl implements PlanRepository {
      * @param planRequest
      */
     @Override
-    public void update(PlanRequest planRequest) {
-        producer.push(config.getPlanUpdateTopic(), planRequest);
-    }
+	public void update(PlanRequest planRequest) {
+		try {
+			producer.push(config.getPlanUpdateTopic(), planRequest);
+		} catch (Exception e) {
+			log.info("Pushing message to topic " + config.getPlanUpdateTopic() + " failed.", e);
+		}
+	}
 
     /**
      * Helper method to query database for plan ids based on the provided search criteria.
