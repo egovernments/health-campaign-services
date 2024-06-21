@@ -1,4 +1,3 @@
-import { logoutV1 } from "./logout";
 import utils from "../utils";
 import useCreatePlanConfig from "./useCreatePlanConfig";
 import useSearchPlanConfig from "./useSearchPlanConfig";
@@ -6,9 +5,7 @@ import useUpdatePlanConfig from "./useUpdatePlanConfig";
 import useSavedMicroplans from "./useSavedMicroplans";
 import useSearchCampaign from "./useSearchCampaign";
 import { useGenerateIdCampaign } from "./useGenerateIdCampaign";
-const UserService = {
-  logoutV1,
-};
+const UserService = {};
 
 const microplan = {
   useCreatePlanConfig,

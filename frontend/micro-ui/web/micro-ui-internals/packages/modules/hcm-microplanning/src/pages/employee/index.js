@@ -59,7 +59,7 @@ const App = ({ path }) => {
   const [sessionFormDataView, setSessionFormDataView, clearSessionFormDataView] = MDMSViewSession;
 
   const { isLoading: isLoadingMdmsBaseData, data } = Digit.Hooks.useCustomMDMS(
-    "mz",
+    Digit.ULBService.getCurrentTenantId(),
     "hcm-microplanning",
     [
       { name: "UploadConfiguration" },

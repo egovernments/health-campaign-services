@@ -1,19 +1,20 @@
-const UpdatePlanConfig = async (body) => {
+const updateCampaignService = async (req, tenantId) => {
   try {
     const response = await Digit.CustomService.getResponse({
-      url: "/plan-service/config/_update",
-      useCache: false,
-      method: "POST",
-      userService: true,
-      body,
+      url: "/project-factory/v1/project-type/update",
+      body: {
+        CampaignDetails: req,
+      },
     });
     return response;
   } catch (error) {
-    if (error?.response?.data?.Errors) {
-      throw new Error(error.response.data.Errors[0].message);
+    // throw new Error(error?.response?.data?.Errors[0].message);
+    if (!error?.response?.data?.Errors[0].description) {
+      throw new Error(error?.response?.data?.Errors[0].code);
     } else {
-      throw new Error("An unknown error occurred");
+      throw new Error(error?.response?.data?.Errors[0].description);
     }
   }
 };
-export default UpdatePlanConfig;
+
+export default updateCampaignService;
