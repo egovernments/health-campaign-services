@@ -170,7 +170,7 @@ const inputScrollPrevention = (e) => {
 // Construct api request body
 const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqType = "update") => {
   let files = [];
-  resourceMapping = [];
+  let resourceMapping = [];
   if (data && data.upload) {
     Object.values(data?.upload).forEach((item) => {
       if (!item || item.error || !item.filestoreId) return;
