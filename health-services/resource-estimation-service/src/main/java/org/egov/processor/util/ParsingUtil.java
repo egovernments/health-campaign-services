@@ -1,7 +1,5 @@
 package org.egov.processor.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,7 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -29,10 +27,12 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
-import org.geotools.api.feature.simple.SimpleFeatureType;
-import org.geotools.api.feature.type.AttributeDescriptor;
-import org.geotools.data.simple.SimpleFeatureCollection;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -54,15 +54,15 @@ public class ParsingUtil {
     {
         if(jsonNode.get("features") == null)
             throw new CustomException("No Features found in geojson", " ");
-
+        List<String> columnNames = new ArrayList<>();
+        if(jsonNode.get("features")!=null) {
         JsonNode propertiesNode = jsonNode.get("features").get(0).get("properties");
         Iterator<String> fieldNames = propertiesNode.fieldNames();
-        List<String> columnNames = new ArrayList<>();
         while (fieldNames.hasNext()) {
             String columnName = fieldNames.next();
             columnNames.add(columnName);
         }
-        System.out.println(columnNames);
+        }
         return columnNames;
     }
     public void validateColumnNames(List<String> columnNamesList, PlanConfiguration planConfig, String fileStoreId ) {
@@ -77,7 +77,7 @@ public class ParsingUtil {
             if (!columnNamesList.contains(attributeName)) {
                 log.error("Attribute mapping is invalid.");
                 log.info("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
-                throw new CustomException("Attribute mapping is invalid.", "Attribute mapping is invalid.");
+                throw new CustomException("Attribute mapping is invalid.", "Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
             }
         }
 
@@ -118,15 +118,10 @@ public class ParsingUtil {
      */
     public File convertByteArrayToFile(byte[] byteArray, String fileName) {
         try {
-            // Create a new file with the given file name
             File file = new File(fileName);
-            // Convert the byte array to a ByteArrayInputStream
             ByteArrayInputStream bis = new ByteArrayInputStream(byteArray);
-            // Use Apache Commons IO to copy the ByteArrayInputStream to the File
             FileUtils.copyInputStreamToFile(bis, file);
-            // Close the ByteArrayInputStream
             bis.close();
-            // Return the File object
             return file;
         } catch (IOException e) {
             log.error("CANNOT_CONVERT_BYTE_ARRAY_TO_FILE", "Cannot convert byte array from response to File object");

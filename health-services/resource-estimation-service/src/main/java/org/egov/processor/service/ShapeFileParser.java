@@ -1,18 +1,14 @@
 package org.egov.processor.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
@@ -25,6 +21,11 @@ import org.geotools.api.data.DataStoreFinder;
 import org.geotools.api.data.SimpleFeatureSource;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -103,7 +104,7 @@ public class ShapeFileParser implements FileParser {
 
             writeFeaturesToGeoJson(featureSource, geojsonFile);
         } catch (IOException e) {
-            throw new CustomException(e.getMessage(), "");
+            throw new CustomException("CONVERSION_ERROR",e.getMessage());
         }
 
         return geojsonFile;
@@ -122,7 +123,7 @@ public class ShapeFileParser implements FileParser {
             params.put("url", shapefile.toURI().toURL());
             return DataStoreFinder.getDataStore(params);
         } catch (IOException e) {
-            throw new CustomException(e.getMessage(),"");
+        	throw new CustomException("Exception accours while getting data store",e.getMessage());
         }
 
     }
@@ -138,7 +139,7 @@ public class ShapeFileParser implements FileParser {
         try (FileOutputStream geojsonStream = new FileOutputStream(geojsonFile)) {
             new FeatureJSON().writeFeatureCollection(featureSource.getFeatures(), geojsonStream);
         } catch (IOException e) {
-            throw new CustomException("","");
+            throw new CustomException("Failed to write feature to GeoJson",e.getMessage());
         }
     }
 

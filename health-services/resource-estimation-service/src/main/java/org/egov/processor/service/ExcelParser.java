@@ -101,12 +101,10 @@ public class ExcelParser implements FileParser {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
-
 		if (file == null || !file.exists()) {
 			log.info("FILE NOT FOUND");
 			return null;
 		}
-
 		return processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
 	}
 
@@ -154,7 +152,7 @@ public class ExcelParser implements FileParser {
 			}
 			return uploadedFileStoreId;
 		} catch (IOException | InvalidFormatException e) {
-			log.error("Error processing Excel file: {}", e.getMessage());
+			log.error("Error processing Excel file: {}", e);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 					"Error processing Excel file");
 		}
@@ -196,8 +194,15 @@ public class ExcelParser implements FileParser {
 		List<String> boundaryList = new ArrayList<>();
 		List<String> boundaryCodeList = getAllBoundaryPresentforHierarchyType(
 				boundarySearchResponse.getTenantBoundary().get(0).getBoundary(), boundaryList);
-		// log.info(list.toString());
 		Row firstRow = null;
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList,
+				planConfig, attributeNameVsDataTypeMap, boundaryCodeList, firstRow);
+	}
+
+	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
+			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
+			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
+			Row firstRow) throws IOException {
 		for (Row row : sheet) {
 			if (row.getRowNum() == 0) {
 				firstRow = row;
@@ -217,22 +222,8 @@ public class ExcelParser implements FileParser {
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
 					planConfigurationRequest, boundaryCodeList);
 			JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
-			int columnIndex = row.getLastCellNum(); // Get the index of the last cell in the row
-
-			for (Operation operation : planConfig.getOperations()) {
-				BigDecimal result = calculationUtil.calculateResult(operation, feature, mappedValues,
-						assumptionValueMap, resultMap);
-				String output = operation.getOutput();
-				resultMap.put(output, result);
-
-				Cell cell = row.createCell(columnIndex++);
-				cell.setCellValue(result.doubleValue());
-
-				if (row.getRowNum() == 1) {
-					Cell headerCell = sheet.getRow(0).createCell(row.getLastCellNum() - 1);
-					headerCell.setCellValue(output);
-				}
-			}
+			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
+					assumptionValueMap, feature);
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
@@ -240,6 +231,28 @@ public class ExcelParser implements FileParser {
 			// TODO: remove after testing
 			printRow(sheet, row);
 		}
+	}
+
+	private void performCalculationsOnOperations(Sheet sheet, PlanConfiguration planConfig, Row row,
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
+			Map<String, BigDecimal> assumptionValueMap, JsonNode feature) {
+		int columnIndex = row.getLastCellNum(); // Get the index of the last cell in the row
+
+		for (Operation operation : planConfig.getOperations()) {
+			BigDecimal result = calculationUtil.calculateResult(operation, feature, mappedValues,
+					assumptionValueMap, resultMap);
+			String output = operation.getOutput();
+			resultMap.put(output, result);
+
+			Cell cell = row.createCell(columnIndex++);
+			cell.setCellValue(result.doubleValue());
+
+			if (row.getRowNum() == 1) {
+				Cell headerCell = sheet.getRow(0).createCell(row.getLastCellNum() - 1);
+				headerCell.setCellValue(output);
+			}
+		}
+		
 	}
 
 	/**
@@ -282,14 +295,14 @@ public class ExcelParser implements FileParser {
 			// Write the XLS file
 			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
 				workbook.write(fos);
-				System.out.println("XLS file saved successfully.");
+				log.info("XLS file saved successfully.");
 				return outputFile;
 			} catch (IOException e) {
-				System.err.println("Error saving XLS file: " + e.getMessage());
+				log.info("Error saving XLS file: " + e);
 				return null;
 			}
 		} catch (IOException e) {
-			System.err.println("Error converting workbook to XLS: " + e.getMessage());
+			log.info("Error converting workbook to XLS: " + e);
 			return null;
 		}
 	}
@@ -417,56 +430,75 @@ public class ExcelParser implements FileParser {
 			Cell cell = row.getCell(j);
 			Cell columnName = columnHeaderRow.getCell(j);
 			String name = findByValue(mappedValues, columnName.getStringCellValue());
-			String value;
 			if (attributeNameVsDataTypeMap.containsKey(name)) {
-				value = attributeNameVsDataTypeMap.get(name).toString();
-				switch (cell.getCellType()) {
-				case STRING:
-					String cellValue = cell.getStringCellValue();
-					if (j == indexOfBoundaryCode && !boundaryCodeList.contains(cellValue)) {
-						log.info("Boundary Code "+ cellValue+" is not present in boundary search. Code for row " + (row.getRowNum() + 1)
-								+ " and cell/column " + columnName);
+				Map<String, Object> mapOfAttributes = (Map<String, Object>) attributeNameVsDataTypeMap.get(name);
+				boolean isRequired = (mapOfAttributes.containsKey(ServiceConstants.ATTRIBUTE_IS_REQUIRED)
+						? (boolean) mapOfAttributes.get(ServiceConstants.ATTRIBUTE_IS_REQUIRED)
+						: false);
+				if (cell != null) {
+					switch (cell.getCellType()) {
+					case STRING:
+						String cellValue = cell.getStringCellValue();
+						if (j == indexOfBoundaryCode && !boundaryCodeList.contains(cellValue)) {
+							log.info("Boundary Code " + cellValue + " is not present in boundary search. Code for row "
+									+ (row.getRowNum() + 1) + " and cell/column " + columnName);
+							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+									"Boundary Code " + cellValue + " is not present in boundary search. Code for row "
+											+ (row.getRowNum() + 1) + " and cell/column " + columnName);
+						}
+						// "^[a-zA-Z0-9 .,()-]+$"
+						if (cellValue != null && !cellValue.isEmpty()
+								&& cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {
+							continue;
+						} else {
+							log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+									+ columnName);
+							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+									ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+						}
+					case NUMERIC:
+						String numricValue = Double.toString(cell.getNumericCellValue());
+						// "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$"
+						if (numricValue != null && !numricValue.isEmpty()
+								&& numricValue.matches(ServiceConstants.VALIDATE_NUMBER_REGX)) {
+							continue;
+						} else {
+							log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+									+ columnName);
+							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+									ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+						}
+					case BOOLEAN:
+						Boolean booleanvalue = cell.getBooleanCellValue();
+						// "^(?i)(true|false)$"
+						if (booleanvalue != null && !booleanvalue.toString().isEmpty()
+								&& booleanvalue.toString().matches(ServiceConstants.VALIDATE_BOOLEAN_REGX)) {
+							continue;
+						} else {
+							log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
+									+ columnName);
+							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+									ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+						}
+					case BLANK:
+						if (!isRequired) {
+							continue;
+						}else {
+							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+									ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell "
+											+ columnName);
+						}
+					default:
 						throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-								"Boundary Code "+ cellValue+" is not present in boundary search. Code for row " + (row.getRowNum() + 1)
-								+ " and cell/column " + columnName);
+								ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell "
+										+ columnName);
 					}
-					// "^[a-zA-Z0-9 .,()-]+$"
-					if (cellValue != null && !cellValue.isEmpty()
-							&& cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {
-						continue;
-					} else {
-						log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
-								+ columnName);
+				}else {
+					if(isRequired) {
 						throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-								ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
+								ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell "
+										+ columnName);
 					}
-				case NUMERIC:
-					String numricValue = Double.toString(cell.getNumericCellValue());
-					// "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$"
-					if (numricValue != null && !numricValue.isEmpty()
-							&& numricValue.matches(ServiceConstants.VALIDATE_NUMBER_REGX)) {
-						continue;
-					} else {
-						log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
-								+ columnName);
-						throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-								ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
-					}
-				case BOOLEAN:
-					Boolean booleanvalue = cell.getBooleanCellValue();
-					// "^(?i)(true|false)$"
-					if (booleanvalue != null && !booleanvalue.toString().isEmpty()
-							&& booleanvalue.toString().matches(ServiceConstants.VALIDATE_BOOLEAN_REGX)) {
-						continue;
-					} else {
-						log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
-								+ columnName);
-						throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-								ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
-					}
-				default:
-					throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-							ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell " + columnName);
 				}
 			}
 		}

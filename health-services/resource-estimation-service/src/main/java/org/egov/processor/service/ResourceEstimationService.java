@@ -50,7 +50,12 @@ public class ResourceEstimationService {
         CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
         Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
 				campaignRequest);
-        for(File file:planConfiguration.getFiles())
+        processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
+    }
+
+	private void processFiles(PlanConfigurationRequest planConfigurationRequest, PlanConfiguration planConfiguration,
+			Map<File.InputFileTypeEnum, FileParser> parserMap, Object campaignSearchResponse) {
+		for(File file:planConfiguration.getFiles())
         {
             if(file.getActive())
             {
@@ -62,7 +67,7 @@ public class ResourceEstimationService {
                 parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
             }
         }
-    }
+	}
 
     /**
      * Retrieves a map of input file types to their respective parsers.

@@ -84,6 +84,7 @@ public class CampaignIntegrationUtil {
 		} catch (Exception e) {
 			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_CAMPAIGN
 					+ planConfigurationRequest.getPlanConfiguration().getExecutionPlanId(), e);
+			throw new CustomException("Failed to update campaign details", e.toString());
 		}
 	}
 

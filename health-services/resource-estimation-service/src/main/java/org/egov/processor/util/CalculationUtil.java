@@ -7,6 +7,8 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.web.models.Assumption;
 import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -102,7 +104,7 @@ public class CalculationUtil {
                     String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
                     BigDecimal value;
                     // Handle scientific notation
-                    if (cellValue.contains("E")) {
+                    if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
                         value = new BigDecimal(cellValue);
                     } else {
                         String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");

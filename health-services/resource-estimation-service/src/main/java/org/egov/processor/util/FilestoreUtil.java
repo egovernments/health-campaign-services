@@ -1,28 +1,5 @@
 package org.egov.processor.util;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-import org.egov.processor.config.Configuration;
-import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.tracer.model.CustomException;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.mock.web.MockMultipartFile;
-
 import static org.egov.processor.config.ServiceConstants.FILES;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID_REPLACER;
@@ -33,6 +10,31 @@ import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MUL
 import static org.egov.processor.config.ServiceConstants.TENANTID;
 import static org.egov.processor.config.ServiceConstants.TENANTID_REPLACER;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.List;
+
+import org.egov.processor.config.Configuration;
+import org.egov.processor.repository.ServiceRequestRepository;
+import org.egov.tracer.model.CustomException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
+
 @Component
 @Slf4j
 public class FilestoreUtil {
@@ -41,15 +43,10 @@ public class FilestoreUtil {
 
     private ServiceRequestRepository serviceRequestRepository;
 
-    private ObjectMapper mapper;
 
-    private RestTemplate restTemplate;
-
-    public FilestoreUtil(Configuration config, ServiceRequestRepository serviceRequestRepository, ObjectMapper mapper, RestTemplate restTemplate) {
+    public FilestoreUtil(Configuration config, ServiceRequestRepository serviceRequestRepository) {
         this.config = config;
         this.serviceRequestRepository = serviceRequestRepository;
-        this.mapper = mapper;
-        this.restTemplate = restTemplate;
     }
 
     /**

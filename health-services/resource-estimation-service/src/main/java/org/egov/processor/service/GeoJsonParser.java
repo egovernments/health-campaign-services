@@ -56,7 +56,6 @@ public class GeoJsonParser implements FileParser {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         String geoJSON = parsingUtil.convertByteArrayToString(planConfig, fileStoreId);
 
-        ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = parsingUtil.parseJson(geoJSON, objectMapper);
 
         List<String> columnNamesList = parsingUtil.fetchAttributeNamesFromJson(jsonNode);
