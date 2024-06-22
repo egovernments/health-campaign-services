@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
+import { SHEET_COLUMN_WIDTH } from "../configs/constants";
 
-export const convertJsonToXlsx = async (jsonData, columnWithStyle) => {
+export const convertJsonToXlsx = async (jsonData, columnWithStyle, returnWorkbook = false) => {
   const workbook = new ExcelJS.Workbook();
 
   for (const [sheetName, data] of Object.entries(jsonData)) {
@@ -8,6 +9,7 @@ export const convertJsonToXlsx = async (jsonData, columnWithStyle) => {
     populateWorksheet(worksheet, data, columnWithStyle);
   }
 
+  if (returnWorkbook) return workbook;
   return await writeWorkbookToBuffer(workbook);
 };
 
@@ -20,7 +22,7 @@ const populateWorksheet = (worksheet, data, columnWithStyle) => {
   });
 
   styleHeaderRow(worksheet);
-  setColumnWidths(worksheet, data[0].length);
+  setColumnWidths(worksheet);
 };
 
 /**
@@ -52,14 +54,19 @@ const styleHeaderRow = (worksheet) => {
   }
 };
 
-const setColumnWidths = (worksheet, columnCount) => {
-  const columnWidth = 30;
-  for (let colIndex = 1; colIndex <= columnCount; colIndex++) {
-    worksheet.getColumn(colIndex).width = columnWidth;
-  }
+const setColumnWidths = (worksheet) => {
+  // Iterate over all rows in the worksheet
+  worksheet.eachRow((worksheetRow, rowNumber) => {
+    worksheetRow.eachCell((cell, colNumber) => {
+      // Update column width based on the length of the cell's text
+      const currentWidth = worksheet.getColumn(colNumber).width || SHEET_COLUMN_WIDTH; // Default width or current width
+      const newWidth = Math.max(currentWidth, cell.value.toString().length + 2); // Add padding
+      worksheet.getColumn(colNumber).width = newWidth;
+    });
+  });
 };
 
-const writeWorkbookToBuffer = async (workbook) => {
+export const writeWorkbookToBuffer = async (workbook) => {
   const buffer = await workbook.xlsx.writeBuffer({ compression: true });
   return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 };
