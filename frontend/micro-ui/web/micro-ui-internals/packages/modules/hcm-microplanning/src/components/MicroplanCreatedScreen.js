@@ -2,11 +2,12 @@ import React, { memo } from "react";
 import { ActionBar, ArrowForward, Banner } from "@egovernments/digit-ui-components";
 import { useTranslation } from "react-i18next";
 import { ArrowBack, FileDownload } from "@egovernments/digit-ui-svg-components";
-import { convertJsonToXlsx } from "../utils/jsonToExcelBlob";
+import { convertJsonToXlsx, writeWorkbookToBuffer } from "../utils/jsonToExcelBlob";
 import { Button } from "@egovernments/digit-ui-react-components";
 import { useHistory } from "react-router-dom";
 import { Link } from "react-router-dom/cjs/react-router-dom.min";
-import { PRIMARY_THEME_COLOR } from "../configs/constants";
+import { PRIMARY_THEME_COLOR, commonColumn } from "../configs/constants";
+import { colorHeaders } from "../utils/uploadUtils";
 
 const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
   const { t } = useTranslation();
@@ -16,12 +17,19 @@ const MicroplanCreatedScreen = memo(({ microplanData, ...props }) => {
     try {
       if (!microplanData?.microplanPreview) return;
       const data = _.cloneDeep(microplanData?.microplanPreview?.previewData);
+      const commonColumnIndex = data[0]?.findIndex((item) => item === commonColumn);
       data[0] = data[0].map((item) => t(item));
+
       for (const i in data) {
-        data[i] = data[i].map((item) => (item ? t(item) : t("NO_DATA")));
+        data[i] = data[i].map((item, index) =>
+          item ? (typeof item === "number" ? item : index === commonColumnIndex ? item : t(item)) : t("NO_DATA")
+        );
       }
 
-      const blob = await convertJsonToXlsx({ [microplanData?.microplanDetails?.name]: data });
+      const headers = data?.[0] || [];
+      const workbook = await convertJsonToXlsx({ [microplanData?.microplanDetails?.name]: data }, {}, true);
+      colorHeaders(workbook, headers, [], []);
+      const blob = await writeWorkbookToBuffer(workbook);
 
       if (!blob) {
         return;
