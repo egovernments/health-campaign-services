@@ -69,26 +69,23 @@ const Hypothesis = ({
   }, []);
 
   const fetchDataAndUpdateState = useCallback(() => {
-    const hypothesisAssumptions = state?.HypothesisAssumptions;
-    if (!hypothesisAssumptions) return;
+    const hypothesisAssumptions = state?.HypothesisAssumptions || [];
     const temp = hypothesisAssumptions.find((item) => item.campaignType === campaignType);
     if (!temp?.assumptions) return;
+
     const hypothesisAssumptionsList = Array.isArray(temp.assumptions) ? temp.assumptions : [];
     setOrignalHypothesisCount(hypothesisAssumptionsList.length);
     setExampleOption(hypothesisAssumptionsList.length !== 0 ? hypothesisAssumptionsList[0] : "");
 
-    const newAssumptions = setAutofillHypothesisData(
-      hypothesisAssumptionsList,
-      microplanData?.hypothesis ? microplanData?.hypothesis : assumptions,
-      setAssumptions
-    );
+    const currentHypothesis = microplanData?.hypothesis || assumptions;
+    const newAssumptions = setAutofillHypothesisData(hypothesisAssumptionsList, currentHypothesis, setAssumptions);
 
     const newHypothesislist = filterHypothesisList(
       newAssumptions.length !== 0 ? newAssumptions : microplanData.hypothesis,
       hypothesisAssumptionsList
     );
     setHypothesisAssumptionsList(newHypothesislist);
-  }, [campaignType, microplanData, setAutofillHypothesisData, filterHypothesisList, assumptions, setAssumptions]);
+  }, [campaignType, microplanData, state, assumptions, setAssumptions]);
 
   // UseEffect for checking completeness of data before moveing to next section
   useEffect(() => {
@@ -132,12 +129,11 @@ const Hypothesis = ({
           setCheckDataCompletion("false");
           return;
         }
-        const newAssumptions = assumptions.map((item) => {
+        let newAssumptions = assumptions.map((item) => {
           if (parseFloat(item.value) === 0) {
             return { ...item, value: 0.01 };
-          } else {
-            return item;
           }
+          return item;
         });
         setMicroplanData((previous) => ({ ...previous, hypothesis: newAssumptions }));
         setAssumptions(newAssumptions);
@@ -358,7 +354,7 @@ const InterractableSection = React.memo(
             ?.filter((item) => item.active)
             ?.map((item, index) => (
               <div
-                key={index}
+                key={item?.id || index}
                 className={`${index === 0 ? "select-and-input-wrapper-first" : "select-and-input-wrapper"} ${
                   index === assumptions?.filter((item) => item.active)?.length - 1 ? "last-container" : ""
                 } `}
@@ -502,7 +498,7 @@ const Select = React.memo(({ item, assumptions, setAssumptions, disabled = false
       });
 
       setOptions((previous) => {
-        const newOptions = previous.filter((item) => item !== e?.code);
+        let newOptions = previous.filter((item) => item !== e?.code);
         if (selected && !newOptions.includes(selected?.code)) newOptions.unshift(selected?.code);
         return newOptions;
       });
@@ -548,7 +544,7 @@ const Input = React.memo(({ item, setAssumptions, t, disabled = false }) => {
         } else if (numDecimals > 2) {
           value = value.substring(0, decimalIndex + 3);
         }
-      } else value = parseFloat(e.target.value);
+      } else value = Number.parseFloat(e.target.value);
 
       setInputValue(!Number.isNaN(value) ? value : "");
       const newDataSegment = {
@@ -590,7 +586,7 @@ const Input = React.memo(({ item, setAssumptions, t, disabled = false }) => {
 const setAutofillHypothesisData = (autofillHypothesis, assumptions, setAssumptions) => {
   if (assumptions?.length !== 0) return [];
   let newAssumptions = [];
-  for (const i in autofillHypothesis) {
+  for (let i in autofillHypothesis) {
     const uuid = uuidv4();
     newAssumptions.push({
       id: uuid,

@@ -41,9 +41,11 @@ export const JsonPreviewInExcelForm = (props) => {
           <table className="excel-table">
             <thead>
               <tr>
-                {sheetsData?.[currentSheetName]?.[0].map((header) => (
-                  <th key={header}>{t(header)}</th>
-                ))}
+                {sheetsData?.[currentSheetName]?.[0]
+                  ?.filter((header) => header)
+                  .map((header) => (
+                    <th key={header}>{t(header)}</th>
+                  ))}
               </tr>
             </thead>
             <tbody>

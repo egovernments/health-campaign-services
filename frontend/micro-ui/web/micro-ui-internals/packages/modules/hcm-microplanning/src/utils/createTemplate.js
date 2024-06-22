@@ -35,7 +35,7 @@ export const getFacilities = async (params, body) => {
       throw new Error("Network error while fetching facility data");
     }
     // Other errors
-    throw new Error("Error while fetching facility data: " + error.message);
+    throw new Error(`Error while fetching facility data: ${error.message}`);
   }
   return response;
 };
@@ -106,20 +106,21 @@ export const addBoundaryData = (xlsxData, boundaryData, hierarchyType) => {
 
   // Ensure all rows are of the same length by filling them with empty strings
   sortedBoundaryDataForXlsxSheet = sortedBoundaryDataForXlsxSheet.map((item, index) => {
+    let newItem = item;
     if (index !== 0) {
-      if (!item) {
-        item = [];
+      if (!newItem) {
+        newItem = [];
       }
-      const itemLength = item.length;
-      while (item.length <= topIndex) {
-        item.push("");
+      const itemLength = newItem.length;
+      while (newItem.length <= topIndex) {
+        newItem.push("");
       }
-      item.push(item[itemLength - 1]);
+      newItem.push(newItem[itemLength - 1]);
     } else {
-      item.push(commonColumn);
+      newItem.push(commonColumn);
     }
 
-    return item;
+    return newItem;
   });
 
   // Add the new sheet data to the original data
@@ -151,7 +152,7 @@ const generateLocalisationKeyForSchemaProperties = (code) => {
  */
 const addSchemaData = (xlsxData, schema, extraColumnsToAdd) => {
   if (!schema) return xlsxData;
-  const columnSchema = schema.schema?.Properties || {};
+  let columnSchema = schema.schema?.Properties || {};
   const newXlsxData = [];
   const columnList = [[], [], [], []]; // Initialize columnList with four empty arrays
 
@@ -192,96 +193,79 @@ const addSchemaData = (xlsxData, schema, extraColumnsToAdd) => {
  * @param {string} hierarchyLevelName
  */
 const devideXlsxDataHierarchyLevelWise = (xlsxData, hierarchyLevelName) => {
-  // If no hierarchyLevelName is provided, return the original data
-  if (!hierarchyLevelName) return xlsxData;
+  if (!hierarchyLevelName) return xlsxData; // Return original data if no hierarchy level name
 
-  // Initialize an array to hold the result
-  const result = [];
-
-  // Array to store the row with empty hierarchy level value
-  let emptyHierarchyRow = [];
+  const result = []; // Initialize result array
 
   // Iterate over each sheet in the xlsxData
   for (const sheet of xlsxData) {
     const sheetData = sheet.data;
-
-    // Find the index of the hierarchy level name in the header row
     const hierarchyLevelIndex = sheetData[0].indexOf(hierarchyLevelName);
 
-    // If the hierarchy level name is not found, skip this sheet
+    // If hierarchy level name not found, skip this sheet
     if (hierarchyLevelIndex === -1) {
       result.push(sheet);
-      return result;
+      continue;
     }
 
-    // Create a map to hold new sheets data based on hierarchy level values
-    const sheetsMap = {};
-    // Create a map to hold dangling data for each hierarchy value
-    const danglingDataMap = {};
-    // Flag to track if the last processed row had an empty hierarchy level value
-    let lastWasEmpty = true;
-
-    // Iterate through the sheet data starting from the second row (skipping header)
-    for (let i = 1; i < sheetData.length; i++) {
-      const row = sheetData[i];
-      const hierarchyValue = row[hierarchyLevelIndex];
-
-      // If the hierarchy value is not empty and there was previous empty data,
-      if (emptyHierarchyRow.length && hierarchyValue !== "") {
-        danglingDataMap[hierarchyValue] = emptyHierarchyRow;
-      }
-
-      // If hierarchy value is empty, store this row
-      if (hierarchyValue === "" && lastWasEmpty) {
-        emptyHierarchyRow.push(row);
-      } else {
-        // store the empty data in the danglingDataMap for the current hierarchy value
-        if (emptyHierarchyRow.length && hierarchyValue === "") {
-          emptyHierarchyRow = []; // Reset emptyHierarchyRow
-        }
-      }
-
-      // If this hierarchy value hasn't been seen before, create a new sheet for it
-      if (!sheetsMap[hierarchyValue] && hierarchyValue !== "") {
-        // Include all rows with empty hierarchy level data or different hierarchy values
-        sheetsMap[hierarchyValue] = {
-          sheetName: hierarchyValue,
-          data: [sheetData[0]], // Start with the header row
-        };
-      }
-
-      // Include the current row if its hierarchy level data matches the sheet's hierarchy value
-      if (hierarchyValue === row[hierarchyLevelIndex] && hierarchyValue !== "") {
-        sheetsMap[hierarchyValue].data.push(row);
-      }
-
-      // Update the lastWasEmpty flag
-      if (hierarchyValue === "" && !lastWasEmpty) {
-        lastWasEmpty = true;
-      } else if (hierarchyValue !== "") {
-        lastWasEmpty = false;
-      }
-    }
+    const { sheetsMap, danglingDataMap } = processSheetData(sheetData, hierarchyLevelIndex);
 
     // Combine danglingDataMap with sheetsMap
     for (const key of Object.keys(danglingDataMap)) {
       if (sheetsMap[key]) {
-        // Combine dangling data with existing sheet data
         sheetsMap[key].data = [sheetData[0], ...danglingDataMap[key], ...sheetsMap[key].data.slice(1)];
       } else {
-        // Create a new sheet for dangling data
         sheetsMap[key] = {
           sheetName: key,
-          data: [...danglingDataMap[key], sheetData[0]], // Include header row
+          data: [...danglingDataMap[key], sheetData[0]],
         };
       }
     }
 
-    // Convert the sheets map to an array of objects and add to the result
+    // Add sheetsMap values to result
     result.push(...Object.values(sheetsMap));
   }
 
-  return result || xlsxData;
+  return result.length > 0 ? result : xlsxData; // Return result or original data if result is empty
+};
+
+// Function to process sheet data and return sheetsMap and danglingDataMap
+const processSheetData = (sheetData, hierarchyLevelIndex) => {
+  const sheetsMap = {};
+  const danglingDataMap = {};
+  let emptyHierarchyRow = [];
+  let lastWasEmpty = true;
+
+  // Iterate through sheet data starting from the second row (skipping header)
+  for (let i = 1; i < sheetData.length; i++) {
+    const row = sheetData[i];
+    const hierarchyValue = row[hierarchyLevelIndex];
+
+    if (emptyHierarchyRow.length && hierarchyValue !== "") {
+      danglingDataMap[hierarchyValue] = emptyHierarchyRow;
+    }
+
+    if (hierarchyValue === "" && lastWasEmpty) {
+      emptyHierarchyRow.push(row);
+    } else {
+      emptyHierarchyRow = [];
+    }
+
+    if (!sheetsMap[hierarchyValue] && hierarchyValue !== "") {
+      sheetsMap[hierarchyValue] = {
+        sheetName: hierarchyValue,
+        data: [sheetData[0]],
+      };
+    }
+
+    if (hierarchyValue === row[hierarchyLevelIndex] && hierarchyValue !== "") {
+      sheetsMap[hierarchyValue].data.push(row);
+    }
+
+    lastWasEmpty = hierarchyValue === "";
+  }
+
+  return { sheetsMap, danglingDataMap };
 };
 
 export const filterBoundaries = (boundaryData, boundaryFilters) => {
@@ -394,17 +378,39 @@ const addFacilitySheet = (xlsxData, mapping, facilities, schema, t) => {
     sheetName: FACILITY_DATA_SHEET,
     data: arrayOfArrays,
   };
-  xlsxData = [facilitySheet, ...xlsxData];
+  const updatedXlsxData = [facilitySheet, ...xlsxData];
+  return updatedXlsxData;
+};
+
+const addReadMeSheet = (xlsxData, readMeData, readMeSheetName) => {
+  if (!readMeSheetName) return xlsxData;
+  const data = readMeData.reduce((acc, item) => {
+    if (item?.header) {
+      acc.push([item.header], ...(item.points || []).map((item) => [item]), [], [], [], []);
+    }
+    return acc;
+  }, []);
+
+  const readMeSheet = {
+    sheetName: readMeSheetName,
+    data: [["MICROPLAN_TEMPLATE_README_MAIN_HEADER"], [], [], [], ...data],
+  };
+  xlsxData.unshift(readMeSheet);
   return xlsxData;
 };
 
 /**
- *
- * @param {boolean} hierarchyLevelWiseSheets
- * @param {string} hierarchyLevelName , if district Wise is true, then this must be present,
- * @param {boolean} addFacilityData
- * @param {Object} schema
- *
+ * @param {Object} options
+ * @param {boolean} options.hierarchyLevelWiseSheets
+ * @param {string} options.hierarchyLevelName
+ * @param {boolean} options.addFacilityData
+ * @param {Object} options.schema
+ * @param {Object[]} options.boundaries
+ * @param {string} options.tenantId
+ * @param {string} options.hierarchyType
+ * @param {Object} options.readMeData
+ * @param {string} options.readMeSheetName
+ * @param {string} options.t // Assuming t is some context or translation object
  */
 export const createTemplate = async ({
   hierarchyLevelWiseSheets = true,
@@ -414,67 +420,66 @@ export const createTemplate = async ({
   boundaries,
   tenantId,
   hierarchyType,
+  readMeData,
+  readMeSheetName,
   t,
 }) => {
-  const rootBoundary = boundaries?.filter((boundary) => boundary.isRoot); // Retrieve session storage data once and store it in a variable
+  // Fetch or retrieve boundary data
+  const filteredBoundaries = await fetchFilteredBoundaries(boundaries, tenantId, hierarchyType);
+
+  // Initialize xlsxData array
+  let xlsxData = [];
+
+  // Add boundary data to xlsxData
+  xlsxData = addBoundaryData(xlsxData, filteredBoundaries, hierarchyType);
+
+  // Handle hierarchy level sheets
+  if (hierarchyLevelWiseSheets) {
+    xlsxData = devideXlsxDataHierarchyLevelWise(xlsxData, hierarchyLevelName);
+  }
+
+  // Handle facility data addition
+  if (addFacilityData) {
+    xlsxData = await addFacilityDataToSheets(xlsxData, schema, tenantId, t);
+  } else {
+    // If no facility data, add schema data directly
+    xlsxData = addSchemaData(xlsxData, schema);
+  }
+
+  // Add readme sheet data if provided
+  xlsxData = addReadMeSheet(xlsxData, readMeData, readMeSheetName);
+
+  return xlsxData;
+};
+
+// Function to fetch filtered boundaries
+const fetchFilteredBoundaries = async (boundaries, tenantId, hierarchyType) => {
+  const rootBoundary = boundaries?.find((boundary) => boundary.isRoot);
   const sessionData = Digit.SessionStorage.get("microplanHelperData") || {};
   let boundaryData = sessionData.filteredBoundaries;
-  let filteredBoundaries;
 
   if (!boundaryData) {
-    // Only fetch boundary data if not present in session storage
-    boundaryData = await fetchBoundaryData(tenantId, hierarchyType, rootBoundary?.[0]?.code);
-    filteredBoundaries = await filterBoundaries(boundaryData, boundaries);
-
-    // Update the session storage with the new filtered boundaries
+    boundaryData = await fetchBoundaryData(tenantId, hierarchyType, rootBoundary?.code);
+    const filteredBoundaries = await filterBoundaries(boundaryData, boundaries);
     Digit.SessionStorage.set("microplanHelperData", {
       ...sessionData,
       filteredBoundaries: filteredBoundaries,
     });
-  } else {
-    filteredBoundaries = boundaryData;
+    return filteredBoundaries;
   }
+  return boundaryData;
+};
 
-  // const filteredBoundaryData = boundaryData;
-  let xlsxData = [];
-  // adding boundary data to xlsxData
-  xlsxData = addBoundaryData(xlsxData, filteredBoundaries, hierarchyType);
-
-  if (hierarchyLevelWiseSheets) {
-    // district wise boundary Data sheets
-    xlsxData = devideXlsxDataHierarchyLevelWise(xlsxData, hierarchyLevelName);
-    if (addFacilityData) {
-      // adding facility sheet
-      const facilities = await getAllFacilities(tenantId);
-      if (schema?.template?.facilitySchemaApiMapping)
-        xlsxData = addFacilitySheet(xlsxData, schema?.template?.facilitySchemaApiMapping, facilities, schema, t);
-      else xlsxData = addSchemaData(xlsxData, schema);
-    } else {
-      // not adding facility sheet
-      // adding schema data to xlsxData
-      xlsxData = addSchemaData(xlsxData, schema);
-    }
-  } else {
-    // total boundary Data in one sheet
-    if (addFacilityData) {
-      // adding facility sheet
-      const facilities = await getAllFacilities(tenantId);
-      if (schema?.template?.facilitySchemaApiMapping)
-        xlsxData = addFacilitySheet(xlsxData, schema?.template?.facilitySchemaApiMapping, facilities, schema, t);
-      else {
-        let facilitySheet = {
-          sheetName: FACILITY_DATA_SHEET,
-          data: [],
-        };
-        facilitySheet = addSchemaData([facilitySheet], schema, [commonColumn]);
-        xlsxData = [...facilitySheet, ...xlsxData];
-      }
-    } else {
-      // not adding facility sheet
-
-      // adding schema data to xlsxData
-      xlsxData = addSchemaData(xlsxData, schema);
-    }
+// Function to add facility data to sheets
+const addFacilityDataToSheets = async (xlsxData, schema, tenantId, t) => {
+  const facilities = await getAllFacilities(tenantId);
+  if (schema?.template?.facilitySchemaApiMapping) {
+    return addFacilitySheet(xlsxData, schema.template.facilitySchemaApiMapping, facilities, schema, t);
   }
-  return xlsxData;
+  // If no specific facility schema mapping, add default facility data
+  const facilitySheet = {
+    sheetName: FACILITY_DATA_SHEET,
+    data: [],
+  };
+  return addSchemaData([facilitySheet], schema);
 };

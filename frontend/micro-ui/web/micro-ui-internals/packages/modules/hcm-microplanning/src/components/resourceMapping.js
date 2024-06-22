@@ -132,7 +132,6 @@ export const SpatialDataPropertyMapping = ({ uploadedData, resourceMapping, setR
         }}
         onClick={() => toggleExpand(index)}
         onKeyDown={() => toggleExpand(index)}
-        tabIndex="0"
       >
         <Dropdown
           variant="select-dropdown"

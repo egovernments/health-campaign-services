@@ -48,7 +48,7 @@ ModalHeading.propTypes = {
 
 export const CloseButton = ({ clickHandler, style = {} }) => {
   return (
-    <button type="button" className="microplan-close-button" onClick={clickHandler} style={style}>
+    <button type="button" aria-label="Close" className="microplan-close-button" onClick={clickHandler} style={style}>
       {" "}
       <Close width={"1.5rem"} height={"1.5rem"} fill={"#000000"} />
     </button>

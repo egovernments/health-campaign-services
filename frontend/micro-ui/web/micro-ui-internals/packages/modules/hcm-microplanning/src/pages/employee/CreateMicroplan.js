@@ -79,13 +79,13 @@ const CreateMicroplan = () => {
       },
     },
   };
-  const { isLoading: ishierarchyLoading, data: heirarchyData } = Digit.Hooks.useCustomAPIHook(reqCriteria);
+  const { isLoading: ishierarchyLoading, data: hierarchyData } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
   // useEffect to initialise the data from MDMS
   useEffect(() => {
     let temp;
     if (!state || !state.UIConfiguration) return;
-    let UIConfiguration = state.UIConfiguration;
+    const UIConfiguration = state?.UIConfiguration || {};
     if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
     if (!temp?.ruleConfigureOperators) return;
     setOperatorsObject(temp.ruleConfigureOperators);
@@ -107,7 +107,7 @@ const CreateMicroplan = () => {
       statusData[item.name] = false;
       if (item?.checkForCompleteness) toCheckCompletenesData.push(item.name);
     });
-    if (data?.status) {
+    if (data && data?.status) {
       if (Object.keys(data?.status) === 0) setMicroplanData({ ...data, status: statusData });
       else setMicroplanData({ ...data });
     }
@@ -127,7 +127,7 @@ const CreateMicroplan = () => {
       }));
 
       setCheckDataCompletion("false");
-      const body = Digit.Utils.microplan.mapDataForApi(
+      let body = Digit.Utils.microplan.mapDataForApi(
         microplanData,
         operatorsObject,
         microplanData?.microplanDetails?.name,
@@ -140,23 +140,29 @@ const CreateMicroplan = () => {
         return;
       }
       setLoaderActivation(true);
-      if (!microplanData?.planConfigurationId) {
-        await createPlanConfiguration(body, setCheckDataCompletion, setLoaderActivation);
-      } else if (microplanData?.planConfigurationId) {
-        await updatePlanConfiguration(body, setCheckDataCompletion, setLoaderActivation);
+      try {
+        if (!microplanData?.planConfigurationId) {
+          await createPlanConfiguration(body, setCheckDataCompletion, setLoaderActivation, state);
+        } else if (microplanData?.planConfigurationId) {
+          await updatePlanConfiguration(body, setCheckDataCompletion, setLoaderActivation, state);
+        }
+      } catch (error) {
+        console.error("Failed to create/update plan configuration:", error);
       }
     },
     [microplanData, UpdateMutate, CreateMutate]
   );
 
-  const createPlanConfiguration = async (body, setCheckDataCompletion, setLoaderActivation) => {
+  const createPlanConfiguration = async (body, setCheckDataCompletion, setLoaderActivation, state) => {
     await CreateMutate(body, {
       onSuccess: async (data) => {
+        const readMeConstant = state?.CommonConstants?.find((item) => item?.name === "readMeSheetName");
         const additionalProps = {
-          heirarchyData: heirarchyData,
+          hierarchyData: hierarchyData,
           t,
           campaignType,
           campaignData,
+          readMeSheetName: readMeConstant ? readMeConstant.value : undefined,
         };
         const computedSession = await updateSessionUtils.computeSessionObject(data?.PlanConfiguration[0], state, additionalProps);
         if (computedSession) {
@@ -182,16 +188,18 @@ const CreateMicroplan = () => {
     });
   };
 
-  const updatePlanConfiguration = async (body, setCheckDataCompletion, setLoaderActivation) => {
+  const updatePlanConfiguration = async (body, setCheckDataCompletion, setLoaderActivation, state) => {
     body.PlanConfiguration["id"] = microplanData?.planConfigurationId;
     body.PlanConfiguration["auditDetails"] = microplanData?.auditDetails;
     await UpdateMutate(body, {
       onSuccess: async (data) => {
+        const readMeConstant = state?.CommonConstants?.find((item) => item?.name === "readMeSheetName");
         const additionalProps = {
-          heirarchyData: heirarchyData,
+          hierarchyData: hierarchyData,
           t,
           campaignType,
           campaignData,
+          readMeSheetName: readMeConstant ? readMeConstant.value : undefined,
         };
         const computedSession = await updateSessionUtils.computeSessionObject(data?.PlanConfiguration[0], state, additionalProps);
         if (computedSession) {
@@ -223,8 +231,8 @@ const CreateMicroplan = () => {
         case "set": {
           let currentPage;
           const data = Digit.SessionStorage.get("microplanData");
-          if (data && data?.currentPage) currentPage = data.currentPage;
-          if (currentPage && props && props?.setCurrentPage && timeLineOptions.find((item) => item.id === currentPage?.id)) {
+          if (data?.currentPage) currentPage = data.currentPage;
+          if (currentPage && props?.setCurrentPage && timeLineOptions.find((item) => item.id === currentPage?.id)) {
             props.setCurrentPage(currentPage);
             return true;
           }

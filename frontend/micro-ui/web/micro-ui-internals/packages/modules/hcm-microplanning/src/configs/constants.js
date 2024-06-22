@@ -22,8 +22,8 @@ export const MapChoroplethGradientColors = [
 
 export const PRIMARY_THEME_COLOR = "#C84C0E";
 
-export const BOUNDARY_DATA_SHEET = "boundaryData";
-export const FACILITY_DATA_SHEET = "facilityData";
+export const BOUNDARY_DATA_SHEET = "MICROPLAN_BOUNDARY_DATA_SHEET";
+export const FACILITY_DATA_SHEET = "MICROPLAN_FACILITY_DATA_SHEET";
 
 export const FILE_STORE = "microplan";
 

@@ -10,37 +10,8 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
     reader.onload = async (event) => {
       try {
         const arrayBuffer = event.target.result;
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(arrayBuffer);
-
-        const jsonData = {};
-        workbook.eachSheet((worksheet, sheetId) => {
-          const jsonSheetData = [];
-          let headers = [];
-
-          worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
-            const rowData = row.values.slice(1); // Remove the first element (it's always undefined due to ExcelJS indexing from 1)
-            for (let i = 0; i < rowData.length; i++) {
-              if (typeof rowData[i] === "string") {
-                rowData[i] = rowData[i].trim();
-              }
-            }
-
-            if (options.header && rowNumber === 1) {
-              headers = rowData;
-            } else if (options.header && headers.length > 0) {
-              const rowObject = {};
-              headers.forEach((header, index) => {
-                rowObject[header] = rowData[index];
-              });
-              jsonSheetData.push(rowObject);
-            } else {
-              jsonSheetData.push(rowData);
-            }
-          });
-
-          if (jsonSheetData.length !== 0 && jsonSheetData?.[0].length !== 0) jsonData[worksheet.name] = jsonSheetData;
-        });
+        const workbook = await loadWorkbook(arrayBuffer);
+        const jsonData = processWorkbook(workbook, options);
         resolve(jsonData);
       } catch (error) {
         console.error(error);
@@ -57,41 +28,72 @@ export const parseXlsxToJsonMultipleSheets = async (file, options = {}) => {
   });
 };
 
-// export const parseXlsxToJsonMultipleSheetsForSessionUtil = (file, options, fileData) => {
-//   return new Promise((resolve, reject) => {
-//     const reader = new FileReader();
+const loadWorkbook = async (arrayBuffer) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(arrayBuffer);
+  return workbook;
+};
 
-//     reader.onload = function (event) {
-//       try {
-//         const arrayBuffer = event.target.result;
-//         const workbook = XLSX.read(arrayBuffer, { type: "arraybuffer" });
-//         const jsonData = {};
+const processWorkbook = (workbook, options) => {
+  const jsonData = {};
+  workbook.eachSheet((worksheet) => {
+    const jsonSheetData = processSheet(worksheet, options);
+    if (jsonSheetData.length !== 0 && jsonSheetData?.[0].length !== 0) {
+      jsonData[worksheet.name] = jsonSheetData;
+    }
+  });
+  return jsonData;
+};
 
-//         workbook.SheetNames.forEach((sheetName) => {
-//           const worksheet = workbook.Sheets[sheetName];
-//           // const options = { header: 1 };
-//           const jsonSheetData = XLSX.utils.sheet_to_json(worksheet, options);
-//           for (let i = 0; i < jsonSheetData.length; i++) {
-//             for (let j = 0; j < jsonSheetData[i].length; j++) {
-//               const cell = jsonSheetData[i][j];
-//               if (typeof cell === "string") {
-//                 jsonSheetData[i][j] = cell.trim();
-//               }
-//             }
-//           }
-//           if (jsonSheetData.length !== 0 && jsonSheetData?.[0].length !== 0) jsonData[sheetName] = jsonSheetData;
-//         });
+const processSheet = (worksheet, options) => {
+  const jsonSheetData = [];
+  let headers = [];
 
-//         resolve({ jsonData, file: fileData });
-//       } catch (error) {
-//         resolve({ error: true });
-//       }
-//     };
+  worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+    const rowData = cleanRowData(row.values);
+    if (options.header && rowNumber === 1) {
+      headers = rowData;
+    } else if (options.header && headers.length > 0) {
+      jsonSheetData.push(mapRowToHeaders(rowData, headers));
+    } else {
+      jsonSheetData.push(rowData);
+    }
+  });
 
-//     reader.onerror = function (error) {
-//       resolve({ error: true, details: error });
-//     };
+  removeTrailingEmptyRows(jsonSheetData);
+  return jsonSheetData;
+};
 
-//     reader.readAsArrayBuffer(file);
-//   });
-// };
+const cleanRowData = (rowData) => {
+  return rowData.slice(1).map((cell) => (typeof cell === "string" ? cell.trim() : cell));
+};
+
+const mapRowToHeaders = (rowData, headers) => {
+  const rowObject = {};
+  headers.forEach((header, index) => {
+    rowObject[header] = rowData[index];
+  });
+  return rowObject;
+};
+
+const removeTrailingEmptyRows = (data) => {
+  while (data.length > 0) {
+    const lastRow = data[data.length - 1];
+    const isEmptyRow = checkIfRowIsEmpty(lastRow);
+    if (isEmptyRow) {
+      data.pop();
+    } else {
+      break;
+    }
+  }
+};
+
+const checkIfRowIsEmpty = (row) => {
+  if (Array.isArray(row)) {
+    return row.filter((item) => item !== "").length === 0;
+  }
+  if (typeof row === "object" && row !== null) {
+    return Object.values(row).filter((item) => item !== "").length === 0;
+  }
+  return false;
+};

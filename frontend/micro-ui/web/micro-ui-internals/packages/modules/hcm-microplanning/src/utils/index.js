@@ -3,16 +3,17 @@ import { findChildren, findParent } from "../utils/processHierarchyAndData";
 import { EXCEL, LOCALITY, commonColumn } from "../configs/constants";
 
 const formatDates = (value, type) => {
-  if (type !== "EPOC" && (!value || Number.isNaN(Number(value)))) {
-    value = new Date();
+  let newValue = value;
+  if (type !== "EPOC" && (!newValue || Number.isNaN(Number(newValue)))) {
+    newValue = new Date();
   }
   switch (type) {
     case "date":
-      return new Date(value)?.toISOString?.()?.split?.("T")?.[0];
+      return new Date(newValue)?.toISOString?.()?.split?.("T")?.[0];
     case "datetime":
-      return new Date(value).toISOString();
+      return new Date(newValue).toISOString();
     case "EPOC":
-      return String(new Date(value)?.getTime());
+      return String(new Date(newValue)?.getTime());
   }
 };
 
@@ -61,11 +62,13 @@ const computeGeojsonWithMappedProperties = ({ campaignType, fileType, templateId
   const sortedSecondList = sortSecondListBasedOnFirstListOrder(schemaKeys, resourceMapping);
   // Creating a object with input data with MDMS keys
   const newFeatures = fileData.data["features"].map((item) => {
-    const newProperties = {};
-
-    sortedSecondList.forEach((e) => {
-      newProperties[e["mappedTo"]] = item["properties"][e["mappedFrom"]];
-    });
+    const newProperties = sortedSecondList.reduce(
+      (acc, e) => ({
+        ...acc,
+        [e["mappedTo"]]: item["properties"][e["mappedFrom"]],
+      }),
+      {}
+    );
     item["properties"] = newProperties;
     return item;
   });
@@ -120,7 +123,7 @@ const computeDifferences = (data1, data2) => {
   }
 
   for (const key in data2) {
-    if (!Object.hasOwn(data1, key)) {
+    if (!data1.hasOwnProperty(key)) {
       added[key] = data2[key];
       removed[key] = [];
     }
@@ -130,19 +133,10 @@ const computeDifferences = (data1, data2) => {
 };
 
 const extractNames = (data) => {
-  const names = [];
-
-  for (const key in data) {
-    if (Array.isArray(data[key])) {
-      data[key].forEach((item) => {
-        if (item.name) {
-          names.push(item.name);
-        }
-      });
-    }
-  }
-
-  return names;
+  return Object.values(data)
+    .flatMap((items) => items)
+    .filter((item) => item.name)
+    .map((item) => item.name);
 };
 // function that handles dropdown selection. used in: mapping and microplan preview
 const handleSelection = (e, boundaryType, boundarySelections, hierarchy, setBoundarySelections, boundaryData, setIsLoading) => {
@@ -167,156 +161,114 @@ const inputScrollPrevention = (e) => {
   e.target.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
 };
 
-// Construct api request body
 const mapDataForApi = (data, Operators, microplanName, campaignId, status, reqType = "update") => {
-  let files = [];
+  const files = extractFiles(data, reqType);
+  const resourceMapping = extractResourceMapping(data, reqType);
+  const assumptions = extractAssumptions(data, reqType);
+  const operations = extractOperations(data, Operators, reqType);
+
+  return createApiRequestBody(status, microplanName, campaignId, files, assumptions, operations, resourceMapping);
+};
+
+const extractFiles = (data, reqType) => {
+  const files = [];
+  if (data && data.upload) {
+    Object.values(data.upload).forEach((item) => {
+      if (isValidFile(item, reqType)) {
+        files.push(mapFile(item));
+      }
+    });
+  }
+  return files;
+};
+
+const isValidFile = (item, reqType) => {
+  if (!item || item.error || !item.filestoreId) return false;
+  if (reqType === "create" && !item.active) return false;
+  return true;
+};
+
+const mapFile = (item) => ({
+  active: item.active,
+  filestoreId: item.filestoreId,
+  inputFileType: item.fileType,
+  templateIdentifier: item.section,
+  id: item.fileId,
+});
+
+const extractResourceMapping = (data, reqType) => {
   let resourceMapping = [];
   if (data && data.upload) {
-    Object.values(data?.upload).forEach((item) => {
-      if (!item || item.error || !item.filestoreId) return;
-      if (reqType === "create" && !item?.active) return;
-      const data = {
-        active: item?.active,
-        filestoreId: item?.filestoreId,
-        inputFileType: item?.fileType,
-        templateIdentifier: item?.section,
-        id: item?.fileId,
-      };
-      files.push(data);
-    });
-    Object.values(data?.upload).forEach((item) => {
-      if (reqType === "create" && item.resourceMapping && item.resourceMapping.every((item) => item.active === false)) return;
-      if (
-        !item ||
-        !item.resourceMapping ||
-        item.error ||
-        !Array.isArray(item.resourceMapping) ||
-        !item.resourceMapping.every((item) => item.mappedFrom) ||
-        !item.resourceMapping.every((item) => item.mappedTo)
-      )
-        return;
-      resourceMapping.push(item?.resourceMapping);
+    Object.values(data.upload).forEach((item) => {
+      if (isValidResourceMapping(item, reqType)) {
+        resourceMapping.push(item.resourceMapping);
+      }
     });
     resourceMapping = resourceMapping.flat();
   }
-
-  // return a Create API body
-  return {
-    PlanConfiguration: {
-      status,
-      tenantId: Digit.ULBService.getStateId(),
-      name: microplanName,
-      executionPlanId: campaignId,
-      files,
-      assumptions: data?.hypothesis?.reduce((acc, item) => {
-        if (reqType === "create" && !item?.active) return acc;
-        if (item.key && item.value) {
-          acc.push(JSON.parse(JSON.stringify(item)));
-        }
-        return acc;
-      }, []),
-      operations: data?.ruleEngine?.reduce((acc, item) => {
-        if (reqType === "create" && !item?.active) return acc;
-        if (!item.active && !item.input) {
-          const data = { ...item };
-          const operator = Operators.find((e) => e.name === data.operator);
-          if (operator && operator.code) data.operator = operator?.code;
-          if (data?.oldInput) data.input = data.oldInput;
-          acc.push(data);
-          return acc;
-        }
-        if (!item.active && !item.operator && !item.output && !item.input && !item.assumptionValue) return acc;
-        const data = { ...item };
-        const operator = Operators.find((e) => e.name === data.operator);
-        if (operator && operator.code) data.operator = operator?.code;
-        acc.push(data);
-        // }
-        return acc;
-      }, []),
-      resourceMapping,
-    },
-  };
+  return resourceMapping;
 };
 
-const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, selectedFileType, fileDataToStore, t, translatedData = true) => {
-  let resourceMappingData = [];
-  let newFileData = {};
-  let toAddInResourceMapping;
+const isValidResourceMapping = (item, reqType) => {
+  if (reqType === "create" && item.resourceMapping && item.resourceMapping.every((i) => i.active === false)) return false;
+  if (!item || !item.resourceMapping || item.error || !Array.isArray(item.resourceMapping)) return false;
+  if (!item.resourceMapping.every((i) => i.mappedFrom && i.mappedTo)) return false;
+  return true;
+};
 
-  if (selectedFileType.id === EXCEL && fileDataToStore) {
-    // Extract all unique column names from the first row of each sheet in fileDataToStore for resource mapping
-    const columnForMapping = new Set(Object.values(fileDataToStore).flatMap((value) => value?.[0] || []));
-
-    if (schemaData?.schema?.["Properties"]) {
-      let toChange;
-      if (LOCALITY && hierarchy[hierarchy?.length - 1] !== LOCALITY) {
-        toChange = hierarchy[hierarchy?.length - 1];
-      }
-
-      // Get schema keys and hierarchy to map columns
-      const schemaKeys = Object.keys(schemaData.schema["Properties"]).concat(hierarchy);
-
-      schemaKeys.forEach((item) => {
-        // Check if the column is present in the file, either in translated form or original form based on translatedData flag
-        if ((translatedData && columnForMapping.has(t(item))) || (!translatedData && columnForMapping.has(item))) {
-          // Special case for LOCALITY
-          if (LOCALITY && toChange === item) {
-            toAddInResourceMapping = {
-              mappedFrom: t(item),
-              mappedTo: LOCALITY,
-            };
-          }
-          // Add the mapping information
-          resourceMappingData.push({
-            mappedFrom: t(item),
-            mappedTo: item,
-          });
-        }
-      });
+const extractAssumptions = (data, reqType) => {
+  if (!data || !data.hypothesis) return [];
+  return data.hypothesis.reduce((acc, item) => {
+    if (isValidAssumption(item, reqType)) {
+      acc.push({ ...item });
     }
-
-    // Filter and map the columns of fileDataToStore based on resource mapping
-    Object.entries(fileDataToStore).forEach(([key, value]) => {
-      let data = [];
-      let headers = [];
-      let toRemove = [];
-
-      if (value && value.length > 0) {
-        // Process header row
-        value[0].forEach((item, index) => {
-          // Find the corresponding mapped column name
-          const mappedTo = resourceMappingData.find((e) => (translatedData && e.mappedFrom === item) || (!translatedData && e.mappedFrom === t(item)))
-            ?.mappedTo;
-          if (!mappedTo) {
-            toRemove.push(index); // Mark column for removal if not mapped
-            return;
-          }
-          headers.push(mappedTo); // Add mapped column name to headers
-        });
-
-        // Process data rows
-        for (let i = 1; i < value?.length; i++) {
-          let temp = [];
-          for (let j = 0; j < value[i].length; j++) {
-            if (!toRemove.includes(j)) {
-              temp.push(value[i][j]); // Keep only the columns that are mapped
-            }
-          }
-          data.push(temp);
-        }
-      }
-
-      // Combine headers and data for each sheet
-      newFileData[key] = [headers, ...data];
-    });
-  }
-
-  // Finalize the resource mapping data
-  resourceMappingData.pop();
-  resourceMappingData.push(toAddInResourceMapping);
-
-  return { tempResourceMappingData: resourceMappingData, tempFileDataToStore: newFileData };
+    return acc;
+  }, []);
 };
+
+const isValidAssumption = (item, reqType) => {
+  if (reqType === "create" && !item.active) return false;
+  if (!item.key || !item.value) return false;
+  return true;
+};
+
+const extractOperations = (data, Operators, reqType) => {
+  if (!data || !data.ruleEngine) return [];
+  return data.ruleEngine.reduce((acc, item) => {
+    if (isValidOperation(item, reqType)) {
+      acc.push(mapOperation(item, Operators));
+    }
+    return acc;
+  }, []);
+};
+
+const isValidOperation = (item, reqType) => {
+  if (reqType === "create" && !item.active) return false;
+  if (!item.active && !item.input) return true;
+  if (!item.active && !item.operator && !item.output && !item.input && !item.assumptionValue) return false;
+  return true;
+};
+
+const mapOperation = (item, Operators) => {
+  const data = { ...item };
+  const operator = Operators.find((e) => e.name === data.operator);
+  if (operator && operator.code) data.operator = operator.code;
+  if (data.oldInput) data.input = data.oldInput;
+  return data;
+};
+
+const createApiRequestBody = (status, microplanName, campaignId, files, assumptions, operations, resourceMapping) => ({
+  PlanConfiguration: {
+    status,
+    tenantId: Digit.ULBService.getStateId(),
+    name: microplanName,
+    executionPlanId: campaignId,
+    files,
+    assumptions,
+    operations,
+    resourceMapping,
+  },
+});
 
 const addResourcesToFilteredDataToShow = (previewData, resources, hypothesisAssumptionsList, formulaConfiguration, userEditedResources, t) => {
   // Clone the preview data to avoid mutating the original data
@@ -381,9 +333,9 @@ const calculateResource = (resourceName, rowData, formulaConfiguration, headers,
 
   // Finding Input
   // check for Uploaded Data
-  let inputValue = findInputValue(formula, rowData, formulaConfiguration, headers, hypothesisAssumptionsList, t);
+  const inputValue = findInputValue(formula, rowData, formulaConfiguration, headers, hypothesisAssumptionsList, t);
   if (inputValue === undefined || inputValue === null) return null;
-  let assumptionValue = hypothesisAssumptionsList?.find((item) => item?.active && item?.key === formula?.assumptionValue)?.value;
+  const assumptionValue = hypothesisAssumptionsList?.find((item) => item?.active && item?.key === formula?.assumptionValue)?.value;
   if (assumptionValue === undefined) return null;
 
   return findResult(inputValue, assumptionValue, formula?.operator);
@@ -516,7 +468,6 @@ export default {
   inputScrollPrevention,
   handleSelection,
   convertGeojsonToExcelSingleSheet,
-  resourceMappingAndDataFilteringForExcelFiles,
   sortSecondListBasedOnFirstListOrder,
   addResourcesToFilteredDataToShow,
   calculateResource,

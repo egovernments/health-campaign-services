@@ -169,7 +169,6 @@ export const Search = {
       projectDetails: response?.Project ? projectDetails : [],
       response: response?.Project,
       processInstancesDetails: [],
-      applicationData: {},
       workflowDetails: [],
       applicationData: {},
       isNoDataFound: response?.Project?.length === 0,

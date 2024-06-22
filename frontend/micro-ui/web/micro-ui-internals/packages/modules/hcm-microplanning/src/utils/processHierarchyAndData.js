@@ -139,13 +139,25 @@ export const findChildren = (parents, hierarchy) => {
       tempData = {
         ...accumulator,
         ...hierarchy.reduce((data, item) => {
-          if (parents.includes(item?.name) && item?.children) Object.assign(data, item?.children);
+          if (parents.includes(item?.name) && item?.children) {
+            for (const key in item.children) {
+              if (!data[key]) {
+                data[key] = item.children[key];
+              }
+            }
+          }
           return data;
         }, {}),
       };
     else
       tempData = hierarchy.reduce((data, item) => {
-        if (parents.includes(item?.name) && item?.children) Object.assign(data, item?.children);
+        if (parents.includes(item?.name) && item?.children) {
+          for (const key in item.children) {
+            if (!data[key]) {
+              data[key] = item.children[key];
+            }
+          }
+        }
         return data;
       }, {});
     for (let parent of hierarchy) {
@@ -220,7 +232,7 @@ export const fetchDropdownValues = (boundaryData, hierarchy, boundarySelections,
 const findByBoundaryType = (boundaryType, hierarchy) => {
   for (let [key, value] of Object.entries(hierarchy)) {
     if (value?.boundaryType === boundaryType) return Object.keys(hierarchy).filter(Boolean);
-    else if (value?.children) return findByBoundaryType(boundaryType, value?.children);
+    if (value?.children) return findByBoundaryType(boundaryType, value?.children);
     return [];
   }
   return [];

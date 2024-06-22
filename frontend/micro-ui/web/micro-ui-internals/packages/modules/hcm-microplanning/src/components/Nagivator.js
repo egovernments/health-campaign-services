@@ -258,7 +258,7 @@ const handleNavigationEvent = (
 ) => {
   if (checkDataCompletion === "perform-action") {
     if (navigationEvent && navigationEvent.name === "next") {
-      if (currentPage?.id >= props.config.length - 1 && typeof props?.completeNavigation === "function") {
+      if (currentPage?.id === props.config.length - 1 && typeof props?.completeNavigation === "function") {
         return props?.completeNavigation();
       }
       nextStep();

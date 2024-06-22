@@ -1,48 +1,32 @@
 import React, { useState, useEffect, useMemo, Fragment, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { LoaderWithGap, Modal } from "@egovernments/digit-ui-react-components";
-import * as Icons from "@egovernments/digit-ui-svg-components";
-import { FileUploader } from "react-drag-drop-files";
-import { convertJsonToXlsx } from "../utils/jsonToExcelBlob";
-import { parseXlsxToJsonMultipleSheets } from "../utils/exceltojson";
 import { ModalWrapper } from "./Modal";
-import { checkForErrorInUploadedFileExcel } from "../utils/excelValidations";
-import { geojsonPropetiesValidation, geojsonValidations } from "../utils/geojsonValidations";
-import JSZip from "jszip";
+import { geojsonPropertiesValidation } from "../utils/geojsonValidations";
 import { SpatialDataPropertyMapping } from "./resourceMapping";
-import shp from "shpjs";
 import { JsonPreviewInExcelForm } from "./JsonPreviewInExcelForm";
 import { ButtonType1, ButtonType2, CloseButton, ModalHeading } from "./CommonComponents";
-import { InfoButton, InfoCard, Loader, Toast } from "@egovernments/digit-ui-components";
-import {
-  ACCEPT_HEADERS,
-  BOUNDARY_DATA_SHEET,
-  EXCEL,
-  FACILITY_DATA_SHEET,
-  FILE_STORE,
-  GEOJSON,
-  LOCALITY,
-  PRIMARY_THEME_COLOR,
-  SCHEMA_PROPERTIES_PREFIX,
-  SHAPEFILE,
-  SHEET_COLUMN_WIDTH,
-  SHEET_PASSWORD,
-  commonColumn,
-} from "../configs/constants";
+import { Loader } from "@egovernments/digit-ui-components";
+import { EXCEL, FILE_STORE, GEOJSON, PRIMARY_THEME_COLOR, SHAPEFILE } from "../configs/constants";
 import { tourSteps } from "../configs/tourSteps";
 import { useMyContext } from "../utils/context";
 import { v4 as uuidv4 } from "uuid";
-import { addBoundaryData, createTemplate, fetchBoundaryData, filterBoundaries } from "../utils/createTemplate";
-import XLSX from "xlsx";
-import ExcelJS from "exceljs";
 import {
-  freezeSheetValues,
-  freezeWorkbookValues,
-  hideUniqueIdentifierColumn,
-  performUnfreezeCells,
-  unfreezeColumnsByHeader,
-  updateFontNameToRoboto,
-} from "../utils/excelUtils";
+  handleExcelFile,
+  validateNamingConvention,
+  findReadMe,
+  downloadTemplate,
+  getSchema,
+  prepareExcelFileBlobWithErrors,
+  boundaryDataGeneration,
+  handleGeojsonFile,
+  handleShapefiles,
+  convertToSheetArray,
+  findGuideLine,
+  delay,
+} from "../utils/uploadUtils";
+import { UploadGuideLines, UploadedFile, FileUploadComponent, UploadComponents, UploadInstructions, UploadSection } from "./UploadHelperComponents";
+
 const page = "upload";
 
 const Upload = ({
@@ -69,7 +53,6 @@ const Upload = ({
   const [dataUpload, setDataUpload] = useState(false);
   const [loader, setLoader] = useState(false);
   const [fileData, setFileData] = useState();
-  // const [toast, setToast] = useState();
   const [uploadedFileError, setUploadedFileError] = useState();
   const [fileDataList, setFileDataList] = useState([]);
   const [validationSchemas, setValidationSchemas] = useState([]);
@@ -136,9 +119,6 @@ const Upload = ({
   // UseEffect for checking completeness of data before moveing to next section
   useEffect(() => {
     if (!fileDataList || checkDataCompletion !== "true" || !setCheckDataCompletion) return;
-    // uncomment to activate data change save check
-    // if (!microplanData?.upload || !_.isEqual(fileDataList, microplanData.upload)) setModal("data-change-check");
-    // else
     updateData(true);
   }, [checkDataCompletion]);
 
@@ -201,7 +181,7 @@ const Upload = ({
         if (
           valueList.length !== 0 &&
           sectionCheckList.every((item) => {
-            let filteredList = fileDataList?.filter((e) => e.active && e.templateIdentifier === item.id);
+            const filteredList = fileDataList?.filter((e) => e.active && e.templateIdentifier === item.id);
             if (filteredList?.length === 0) return false;
             return filteredList?.every((element) => element?.error === null) && fileDataList && !fileDataList.some((e) => e?.active && e?.error);
           })
@@ -257,9 +237,8 @@ const Upload = ({
   // Effect to update sections and selected section when data changes
   useEffect(() => {
     if (state) {
-      let uploadSections = state?.UploadConfiguration;
-      let schemas = state?.Schemas;
-      let UIConfiguration = state?.UIConfiguration;
+      const uploadSections = state?.UploadConfiguration;
+      const schemas = state?.Schemas;
       if (schemas) setValidationSchemas(schemas);
       if (uploadSections) {
         setSelectedSection(uploadSections.length > 0 ? uploadSections[0] : null);
@@ -336,7 +315,7 @@ const Upload = ({
     setModal("none");
     setDataUpload(true);
   };
-
+  const readMeConstant = state?.CommonConstants?.find((item) => item?.name === "readMeSheetName");
   const downloadTemplateHandler = () => {
     const downloadParams = {
       campaignType,
@@ -349,6 +328,8 @@ const Upload = ({
       HierarchyConfigurations: state?.HierarchyConfigurations,
       setLoader,
       hierarchy,
+      readMeData: state?.ReadMeData,
+      readMeSheetName: readMeConstant ? readMeConstant.value : undefined,
       t,
     };
     downloadTemplate(downloadParams);
@@ -410,18 +391,29 @@ const Upload = ({
         }
       }
       let resourceMappingData = [];
-
+      let additionalSheets = [];
       // Handling different filetypes
       switch (selectedFileType.id) {
         case EXCEL:
           // let response = handleExcelFile(file,schemaData);
           try {
-            response = await handleExcelFile(file, schemaData, hierarchy, selectedFileType, {}, setUploadedFileError, t, campaignData);
+            response = await handleExcelFile(
+              file,
+              schemaData,
+              hierarchy,
+              selectedFileType,
+              {},
+              setUploadedFileError,
+              t,
+              campaignData,
+              state?.CommonConstants?.find((item) => item?.name === "readMeSheetName")?.value
+            );
             check = response.check;
             errorMsg = response.errorMsg;
             errorLocationObject = response.errors;
             fileDataToStore = response.fileDataToStore;
-            resourceMappingData = response?.tempResourceMappingData;
+            resourceMappingData = response?.tempResourceMappingData || [];
+            additionalSheets = response?.additionalSheets;
             if (check === true) {
               if (response?.toast) setToast(response.toast);
               else setToast({ state: "success", message: t("FILE_UPLOADED_SUCCESSFULLY") });
@@ -502,13 +494,14 @@ const Upload = ({
           setToast({ state: "error", message: t("ERROR_UPLOADING_FILE") });
           setUploadedFileError(errorMsg);
           handleValidationErrorResponse(t("ERROR_UPLOADING_FILE"));
+          return;
         }
       }
 
       if (selectedFileType.id === EXCEL) {
         resourceMappingData = resourceMappingData.map((item) => ({ ...item, filestoreId }));
       }
-      let uuid = uuidv4();
+      const uuid = uuidv4();
       // creating a fileObject to save all the data collectively
       let fileObject = {
         id: uuid,
@@ -522,6 +515,7 @@ const Upload = ({
         filestoreId,
         resourceMapping: resourceMappingData,
         active: true,
+        additionalSheets,
         errorLocationObject, // contains location and type of error
       };
       setFileDataList((prevFileDataList) => {
@@ -558,23 +552,56 @@ const Upload = ({
     closeModal();
   };
 
+  const convertAndCombineFileData = () => {
+    let combinedData = fileData?.data ? Object.entries(fileData.data)?.map(([key, value]) => ({ sheetName: key, data: value })) : [];
+    if (fileData?.additionalSheets) {
+      for (const sheet of fileData.additionalSheets) {
+        if (sheet?.data && sheet.sheetName) {
+          const index = sheet?.position < combinedData.length && sheet.position !== -1 ? sheet.position : combinedData.length;
+          combinedData.splice(index, 0, sheet);
+        }
+      }
+    }
+    return combinedData;
+  };
+
   // Function for creating blob out of data
   const dataToBlob = async () => {
     try {
       let blob;
       const schema = getSchema(campaignType, selectedFileType.id, selectedSection.id, validationSchemas);
+      const filteredReadMeData = findReadMe(state?.ReadMeData, campaignType, selectedFileType.id, selectedSection.id);
+      let combinedData = convertAndCombineFileData();
+      const readMeSheetName = state?.CommonConstants?.find((item) => item?.name === "readMeSheetName")?.value;
       switch (fileData.fileType) {
         case EXCEL:
           if (fileData?.errorLocationObject?.length !== 0)
-            blob = await prepareExcelFileBlobWithErrors(fileData.data, fileData.errorLocationObject, schema, hierarchy, t);
+            blob = await prepareExcelFileBlobWithErrors(
+              combinedData,
+              fileData.errorLocationObject,
+              schema,
+              hierarchy,
+              filteredReadMeData,
+              readMeSheetName,
+              t
+            );
           else blob = fileData.file;
           break;
         case SHAPEFILE:
         case GEOJSON:
           if (fileData?.data) {
-            const result = Digit.Utils.microplan.convertGeojsonToExcelSingleSheet(fileData?.data?.features, fileData?.section);
+            const result = convertToSheetArray(Digit.Utils.microplan.convertGeojsonToExcelSingleSheet(fileData?.data?.features, fileData?.section));
+
             if (fileData?.errorLocationObject?.length !== 0)
-              blob = await prepareExcelFileBlobWithErrors(result, fileData.errorLocationObject, schema, hierarchy, t);
+              blob = await prepareExcelFileBlobWithErrors(
+                result,
+                fileData.errorLocationObject,
+                schema,
+                hierarchy,
+                filteredReadMeData,
+                readMeSheetName,
+                t
+              );
           }
           break;
       }
@@ -589,6 +616,7 @@ const Upload = ({
   const downloadFile = async () => {
     setLoader("LOADING");
     try {
+      await delay(100);
       let blob = await dataToBlob();
       if (blob) {
         // Crating a url object for the blob
@@ -732,7 +760,7 @@ const Upload = ({
   };
   const computeMappedDataAndItsValidations = (schemaData) => {
     const data = computeGeojsonWithMappedProperties();
-    const response = geojsonPropetiesValidation(data, schemaData.schema, fileData?.section, t);
+    const response = geojsonPropertiesValidation(data, schemaData.schema, fileData?.section, t);
     if (!response.valid) {
       handleValidationErrorResponse(response.message, response.errors);
       return { data: data, errors: response.errors, valid: response.valid };
@@ -961,7 +989,7 @@ const Upload = ({
               header={
                 <ModalHeading
                   style={{ fontSize: "1.5rem" }}
-                  label={t("HEADING_DOWNLOAD_TEMPLATE_FOR_" + selectedSection.code + "_" + selectedFileType.code)}
+                  label={t(`HEADING_DOWNLOAD_TEMPLATE_FOR_${selectedSection.code}_${selectedFileType.code}`)}
                 />
               }
               bodyText={t(`INSTRUCTIONS_DOWNLOAD_TEMPLATE_FOR_${selectedSection.code}_${selectedFileType.code}`)}
@@ -1104,1063 +1132,6 @@ const Upload = ({
       </div>
     </>
   );
-};
-
-//find guideline
-const findGuideLine = (campaignType, type, section, guidelineArray) => {
-  if (!guidelineArray) return guidelineArray;
-  return guidelineArray.find(
-    (guideline) =>
-      guideline.fileType === type && guideline.templateIdentifier === section && (!guideline.campaignType || guideline.campaignType === campaignType)
-  )?.guidelines;
-};
-
-// Component for rendering individual section option
-const UploadSection = ({ item, selected, setSelectedSection, uploadDone }) => {
-  const { t } = useTranslation();
-  // Handle click on section option
-  const handleClick = () => {
-    setSelectedSection(item);
-  };
-
-  return (
-    <div className={` ${selected ? "upload-section-options-active" : "upload-section-options-inactive"}`} onClick={handleClick}>
-      <div className="icon">
-        <CustomIcon Icon={Icons[item?.iconName]} height="26" color={selected ? PRIMARY_THEME_COLOR : "rgba(214, 213, 212, 1)"} />
-      </div>
-      <p>{t(item.code)}</p>
-      {uploadDone && (
-        <div className="icon end">
-          <CustomIcon Icon={Icons["TickMarkBackgroundFilled"]} width="26" color={PRIMARY_THEME_COLOR} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const UploadInstructions = ({ setModal, t }) => {
-  return (
-    <InfoCard
-      text={t("UPLOAD_GUIDELINE_INFO_CARD_INSTRUCTION")}
-      className={"information-description"}
-      style={{ margin: "1rem 0 0 0", width: "100%", maxWidth: "unset" }}
-      additionalElements={[
-        <div className="link-wrapper">
-          {t("REFER")}
-          <div className="link" onClick={setModal}>
-            {t("INFORMATION_DESCRIPTION_LINK")}
-          </div>
-        </div>,
-      ]}
-    />
-  );
-};
-
-// Component for rendering individual upload option
-const UploadComponents = ({ item, selected, uploadOptions, selectedFileType, selectFileTypeHandler }) => {
-  const { t } = useTranslation();
-  const title = item.code;
-
-  // Component for rendering individual upload option container
-  const UploadOptionContainer = ({ item, selectedFileType, selectFileTypeHandler }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const handleMouseEnter = () => {
-      setIsHovered(true);
-    };
-
-    const handleMouseLeave = () => {
-      setIsHovered(false);
-    };
-
-    return (
-      <div
-        key={item.id}
-        className="upload-option"
-        style={selectedFileType.id === item.id ? { border: `0.125rem solid ${PRIMARY_THEME_COLOR}`, color: PRIMARY_THEME_COLOR } : {}}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <CustomIcon
-          key={item.id}
-          Icon={Icons[item.iconName]}
-          width={"2.5rem"}
-          height={"3rem"}
-          color={selectedFileType.id === item.id || isHovered ? PRIMARY_THEME_COLOR : "rgba(80, 90, 95, 1)"}
-        />
-        <p style={{ color: selectedFileType.id === item.id || isHovered ? PRIMARY_THEME_COLOR : "rgba(80, 90, 95, 1)" }}>{t(item.code)}</p>
-        <button
-          className={selectedFileType && selectedFileType.id === item.id ? "selected-button" : "select-button"}
-          type="button"
-          id={item.id}
-          name={item.id}
-          onClick={selectFileTypeHandler}
-        >
-          {selectedFileType.id === item.id && (
-            <CustomIcon Icon={Icons["TickMarkBackgroundFilled"]} height={"2.5rem"} color={"rgba(255, 255, 255, 1)"} />
-          )}
-          {selectedFileType.id === item.id ? t("SELECTED") : t("SELECT")}
-        </button>
-      </div>
-    );
-  };
-
-  return (
-    <div key={item.id} className={`${selected ? "upload-component-active" : "upload-component-inactive"}`}>
-      <div>
-        <div className="heading">
-          <h2 className="h2-class">{t(`HEADING_UPLOAD_DATA_${title}`)}</h2>
-        </div>
-
-        <p>{t(`INSTRUCTIONS_DATA_UPLOAD_OPTIONS_${title}`)}</p>
-      </div>
-      <div className={selectedFileType.id === item.id ? " upload-option-container-selected" : "upload-option-container"}>
-        {uploadOptions &&
-          uploadOptions.map((item) => (
-            <UploadOptionContainer key={item.id} item={item} selectedFileType={selectedFileType} selectFileTypeHandler={selectFileTypeHandler} />
-          ))}
-      </div>
-    </div>
-  );
-};
-
-// Component for uploading file
-const FileUploadComponent = ({
-  selectedSection,
-  selectedFileType,
-  UploadFileToFileStorage,
-  section,
-  onTypeError,
-  downloadTemplateHandler,
-  showDownloadTemplate,
-}) => {
-  if (!selectedSection || !selectedFileType) return <div></div>;
-  const { t } = useTranslation();
-  let types;
-  section["UploadFileTypes"].forEach((item) => {
-    if (item.id === selectedFileType.id) types = item.fileExtension;
-  });
-  return (
-    <div key={selectedSection.id} className="upload-component-active">
-      <div>
-        <div className="heading">
-          <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          {showDownloadTemplate() && (
-            <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
-              <div className="icon">
-                <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
-              </div>
-              <p>{t("DOWNLOAD_TEMPLATE")}</p>
-            </button>
-          )}
-        </div>
-        <p>{t(`INSTRUCTIONS_FILE_UPLOAD_FROM_TEMPLATE_${selectedSection.code}`)}</p>
-        <FileUploader handleChange={UploadFileToFileStorage} label={"idk"} onTypeError={onTypeError} multiple={false} name="file" types={types}>
-          <div className="upload-file">
-            <CustomIcon Icon={Icons.FileUpload} width={"2.5rem"} height={"3rem"} color={"rgba(177, 180, 182, 1)"} />
-            <div className="browse-text-wrapper">
-              {t(`INSTRUCTIONS_UPLOAD_${selectedFileType.code}`)}&nbsp;<div className="browse-text">{t("INSTRUCTIONS_UPLOAD_BROWSE_FILES")}</div>
-            </div>
-          </div>
-        </FileUploader>
-      </div>
-    </div>
-  );
-};
-
-// Component to display uploaded file
-const UploadedFile = ({
-  selectedSection,
-  selectedFileType,
-  file,
-  ReuplaodFile,
-  DownloadFile,
-  DeleteFile,
-  error,
-  openDataPreview,
-  downloadTemplateHandler,
-  showDownloadTemplate,
-}) => {
-  const { t } = useTranslation();
-  const [errorList, setErrorList] = useState([]);
-  useEffect(() => {
-    let tempErrorList = [];
-    if (file?.errorLocationObject) {
-      for (const [sheetName, values] of Object.entries(file?.errorLocationObject)) {
-        for (const [row, columns] of Object.entries(values)) {
-          for (const [column, errors] of Object.entries(columns)) {
-            for (const error of errors) {
-              let convertedError;
-              if (typeof error === "object") {
-                let { error: actualError, ...otherProperties } = error;
-                convertedError = t(actualError, otherProperties?.values);
-              } else {
-                convertedError = t(error);
-              }
-              tempErrorList.push(
-                t("ERROR_UPLOAD_DATA_LOCATION_AND_MESSAGE", {
-                  rowNumber: row,
-                  columnName: t(column),
-                  error: convertedError,
-                  sheetName: sheetName,
-                })
-              );
-            }
-          }
-        }
-      }
-    }
-    if (tempErrorList.length !== 0) {
-      setErrorList(tempErrorList);
-    }
-  }, [file]);
-  return (
-    <div key={selectedSection.id} className="upload-component-active">
-      <div>
-        <div className="heading">
-          <h2 className="h2-class">{t(`HEADING_FILE_UPLOAD_${selectedSection.code}_${selectedFileType.code}`)}</h2>
-          {showDownloadTemplate() && (
-            <button type="button" className="download-template-button" onClick={downloadTemplateHandler} tabIndex="0">
-              <div className="icon">
-                <CustomIcon color={PRIMARY_THEME_COLOR} height={"24"} width={"24"} Icon={Icons.FileDownload} />
-              </div>
-              <p>{t("DOWNLOAD_TEMPLATE")}</p>
-            </button>
-          )}
-        </div>
-        <p>{t(`INSTRUCTIONS_FILE_UPLOAD_FROM_TEMPLATE_${selectedSection.code}`)}</p>
-
-        <div className="uploaded-file" onDoubleClick={openDataPreview}>
-          <div className="uploaded-file-details">
-            <div>
-              <CustomIcon Icon={Icons.File} width={"48"} height={"48"} color="rgba(80, 90, 95, 1)" />
-            </div>
-            <p>{file.fileName}</p>
-          </div>
-          <div className="uploaded-file-operations">
-            <button className="button" onClick={ReuplaodFile} tabIndex="0" type="button">
-              <CustomIcon Icon={Icons.FileUpload} width={"1.5rem"} height={"1.5rem"} color={PRIMARY_THEME_COLOR} />
-              <p>{t("Reupload")}</p>
-            </button>
-            <button className="button" onClick={DownloadFile} tabIndex="0" type="button">
-              <CustomIcon Icon={Icons.FileDownload} width={"1.5rem"} height={"1.5rem"} color={PRIMARY_THEME_COLOR} />
-              <p>{t("Download")}</p>
-            </button>
-            <button className="delete-button" onClick={DeleteFile} tabIndex="0" type="button">
-              <CustomIcon Icon={Icons.Trash} width={"0.8rem"} height={"1rem"} color={PRIMARY_THEME_COLOR} />
-              <p>{t("DELETE")}</p>
-            </button>
-          </div>
-        </div>
-      </div>
-      {error && Array.isArray(error) && (
-        <InfoCard
-          variant="error"
-          style={{ margin: "0.5rem 0" }}
-          label={t("ERROR_UPLOADED_FILE")}
-          additionalElements={[
-            <InfoButton infobuttontype="error" label={t("ERROR_VIEW_DETAIL_ERRORS")} onClick={openDataPreview} />,
-            <div className="file-upload-error-container">
-              {error?.map((item) => {
-                if (item !== "ERROR_REFER_UPLOAD_PREVIEW_TO_SEE_THE_ERRORS") {
-                  return <p>{t(item)}</p>;
-                }
-                return null;
-              })}
-              {errorList.length !== 0 && errorList.map((item) => <p>{item}</p>)}
-            </div>,
-          ]}
-        />
-      )}
-    </div>
-  );
-};
-
-// Function for checking the uploaded file for nameing conventions
-const validateNamingConvention = (file, namingConvention, setToast, t) => {
-  try {
-    let processedConvention = namingConvention.replace("$", ".[^.]*$");
-    const regx = new RegExp(processedConvention);
-
-    if (regx && !regx.test(file.name)) {
-      setToast({
-        state: "error",
-        message: t("ERROR_NAMING_CONVENSION"),
-      });
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error(error.message);
-    setToast({
-      state: "error",
-      message: t("ERROR_UNKNOWN"),
-    });
-  }
-};
-
-// Function for reading ancd checking geojson data
-const readGeojson = async (file, t) => {
-  return new Promise((resolve, reject) => {
-    if (!file) return resolve({ valid: false, toast: { state: "error", message: t("ERROR_PARSING_FILE") } });
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const geoJSONData = JSON.parse(e.target.result);
-        const trimmedGeoJSONData = trimJSON(geoJSONData);
-        resolve({ valid: true, geojsonData: trimmedGeoJSONData });
-      } catch (error) {
-        resolve({ valid: false, toast: { state: "error", message: t("ERROR_INCORRECT_FORMAT") } });
-      }
-    };
-    reader.onerror = (error) => {
-      resolve({ valid: false, toast: { state: "error", message: t("ERROR_CORRUPTED_FILE") } });
-    };
-
-    reader.readAsText(file);
-  });
-};
-
-// Function to recursively trim leading and trailing spaces from string values in a JSON object
-const trimJSON = (jsonObject) => {
-  if (typeof jsonObject !== "object") {
-    return jsonObject; // If not an object, return as is
-  }
-
-  if (Array.isArray(jsonObject)) {
-    return jsonObject.map((item) => trimJSON(item)); // If it's an array, recursively trim each item
-  }
-
-  const trimmedObject = {};
-  for (const key in jsonObject) {
-    if (Object.hasOwn(jsonObject, key)) {
-      const value = jsonObject[key];
-      // Trim string values, recursively trim objects
-      trimmedObject[key.trim()] = typeof value === "string" ? value.trim() : typeof value === "object" ? trimJSON(value) : value;
-    }
-  }
-  return trimmedObject;
-};
-// Function for reading and validating shape file data
-const readAndValidateShapeFiles = async (file, t, namingConvention) => {
-  return new Promise(async (resolve, reject) => {
-    if (!file) {
-      resolve({ valid: false, toast: { state: "error", message: t("ERROR_PARSING_FILE") } });
-    }
-    const fileRegex = new RegExp(namingConvention.replace("$", ".*$"));
-    // File Size Check
-    const fileSizeInBytes = file.size;
-    const maxSizeInBytes = 2 * 1024 * 1024 * 1024; // 2 GB
-
-    // Check if file size is within limit
-    if (fileSizeInBytes > maxSizeInBytes)
-      resolve({ valid: false, message: t("ERROR_FILE_SIZE"), toast: { state: "error", message: t("ERROR_FILE_SIZE") } });
-
-    try {
-      const zip = await JSZip.loadAsync(file);
-      const isEPSG4326 = await checkProjection(zip);
-      if (!isEPSG4326) {
-        resolve({ valid: false, message: t("ERROR_WRONG_PRJ"), toast: { state: "error", message: t("ERROR_WRONG_PRJ") } });
-      }
-      const files = Object.keys(zip.files);
-      const allFilesMatchRegex = files.every((fl) => {
-        return fileRegex.test(fl);
-      });
-      let regx = new RegExp(namingConvention.replace("$", "\\.shp$"));
-      const shpFile = zip.file(regx)[0];
-      regx = new RegExp(namingConvention.replace("$", "\\.shx$"));
-      const shxFile = zip.file(regx)[0];
-      regx = new RegExp(namingConvention.replace("$", "\\.dbf$"));
-      const dbfFile = zip.file(regx)[0];
-
-      let geojson;
-      if (shpFile && dbfFile) {
-        const shpArrayBuffer = await shpFile.async("arraybuffer");
-        const dbfArrayBuffer = await dbfFile.async("arraybuffer");
-
-        geojson = shp.combine([shp.parseShp(shpArrayBuffer), shp.parseDbf(dbfArrayBuffer)]);
-      }
-      if (shpFile && dbfFile && shxFile && allFilesMatchRegex) resolve({ valid: true, data: geojson });
-      else if (!allFilesMatchRegex)
-        resolve({
-          valid: false,
-          message: [t("ERROR_CONTENT_NAMING_CONVENSION")],
-          toast: { state: "error", data: geojson, message: t("ERROR_CONTENT_NAMING_CONVENSION") },
-        });
-      else if (!shpFile)
-        resolve({ valid: false, message: [t("ERROR_SHP_MISSING")], toast: { state: "error", data: geojson, message: t("ERROR_SHP_MISSING") } });
-      else if (!dbfFile)
-        resolve({ valid: false, message: [t("ERROR_DBF_MISSING")], toast: { state: "error", data: geojson, message: t("ERROR_DBF_MISSING") } });
-      else if (!shxFile)
-        resolve({ valid: false, message: [t("ERROR_SHX_MISSING")], toast: { state: "error", data: geojson, message: t("ERROR_SHX_MISSING") } });
-    } catch (error) {
-      resolve({ valid: false, toast: { state: "error", message: t("ERROR_PARSING_FILE") } });
-    }
-  });
-};
-
-// Function for projections check in case of shapefile data
-const checkProjection = async (zip) => {
-  const prjFile = zip.file(/.prj$/i)[0];
-  if (!prjFile) {
-    return "absent";
-  }
-
-  const prjText = await prjFile.async("text");
-
-  if (prjText.includes("GEOGCS") && prjText.includes("WGS_1984") && prjText.includes("DATUM") && prjText.includes("D_WGS_1984")) {
-    return "EPSG:4326";
-  }
-  return false;
-};
-
-// Function to handle the template download
-const downloadTemplate = async ({
-  campaignType,
-  type,
-  section,
-  setToast,
-  campaignData,
-  hierarchyType,
-  Schemas,
-  HierarchyConfigurations,
-  setLoader,
-  hierarchy,
-  t,
-}) => {
-  try {
-    setLoader("LOADING");
-    // Find the template based on the provided parameters
-    const schema = getSchema(campaignType, type, section, Schemas);
-    const hierarchyLevelName = HierarchyConfigurations?.find((item) => item.name === "devideBoundaryDataBy")?.value;
-    let template = await createTemplate({
-      hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
-      hierarchyLevelName,
-      addFacilityData: schema?.template?.includeFacilityData,
-      schema,
-      boundaries: campaignData?.boundaries,
-      tenantId: Digit.ULBService.getCurrentTenantId(),
-      hierarchyType,
-      t,
-    });
-    const translatedTemplate = translateTemplate(template, t);
-
-    // Create a new workbook
-    const workbook = new ExcelJS.Workbook();
-
-    formatTemplate(translatedTemplate, workbook);
-
-    // Color headers
-    colorHeaders(
-      workbook,
-      [...hierarchy.map((item) => t(item)), t(commonColumn)],
-      schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : [],
-      []
-    );
-    // protextData
-    await protectData({
-      workbook,
-      hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
-      addFacilityData: schema?.template?.includeFacilityData,
-      schema,
-      t,
-    });
-
-    // Write the workbook to a buffer
-    workbook.xlsx.writeBuffer({ compression: true }).then((buffer) => {
-      // Create a Blob from the buffer
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      // Create a URL for the Blob
-      const url = URL.createObjectURL(blob);
-      // Create a link element and simulate click to trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${t(section)}.xlsx`;
-      link.click();
-      // Revoke the URL to release the Blob
-      URL.revokeObjectURL(url);
-      setLoader(false);
-    });
-  } catch (error) {
-    setLoader(false);
-    console.error(error?.message);
-    setToast({ state: "error", message: t("ERROR_DOWNLOADING_TEMPLATE") });
-  }
-};
-
-const protectData = async ({ workbook, hierarchyLevelWiseSheets = true, addFacilityData = false, schema, t }) => {
-  if (hierarchyLevelWiseSheets) {
-    if (addFacilityData) {
-      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
-      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
-      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
-        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
-        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
-      }
-      if (schema?.template?.facilitySchemaApiMapping) {
-      } else {
-      }
-    } else {
-      await freezeWorkbookValues(workbook);
-      await unfreezeColumnsByHeader(
-        workbook,
-        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
-      );
-    }
-  } else {
-    // total boundary Data in one sheet
-    if (addFacilityData) {
-      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
-      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
-      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
-        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
-        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
-      }
-
-      if (schema?.template?.facilitySchemaApiMapping) {
-      } else {
-      }
-    } else {
-      await freezeWorkbookValues(workbook);
-      await unfreezeColumnsByHeader(
-        workbook,
-        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
-      );
-    }
-  }
-};
-
-const colorHeaders = async (workbook, headerList1, headerList2, headerList3) => {
-  try {
-    // Iterate through each sheet
-    workbook.eachSheet((sheet, sheetId) => {
-      // Get the first row
-      const firstRow = sheet.getRow(1);
-
-      // Iterate through each cell in the first row
-      firstRow.eachCell((cell, colNumber) => {
-        const cellValue = cell.value.toString();
-
-        // Check conditions and set colors
-        if (headerList1?.includes(cellValue)) {
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "ff9248" },
-          };
-        } else if (headerList2?.includes(cellValue)) {
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "93C47D" },
-          };
-        } else if (headerList3?.includes(cellValue)) {
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "CCCC00" },
-          };
-        }
-      });
-    });
-  } catch (error) {
-    console.error("Error coloring headers:", error);
-  }
-};
-
-const formatTemplate = (template, workbook) => {
-  template.forEach(({ sheetName, data }) => {
-    // Create a new worksheet with properties
-    const worksheet = workbook.addWorksheet(sheetName, {
-      // properties: {
-      //   outlineLevelCol: 1,
-      //   defaultRowHeight: 15,
-      // },
-    });
-    data?.forEach((row, index) => {
-      const worksheetRow = worksheet.addRow(row);
-
-      // Apply fill color to each cell in the first row and make cells bold
-      if (index === 0) {
-        worksheetRow.eachCell((cell, colNumber) => {
-          // // Set cell fill color
-          // cell.fill = {
-          //   type: "pattern",
-          //   pattern: "solid",
-          //   fgColor: {
-          //     argb: headerToColorwithColor1.includes(cell.value) ? "ff9248" : headerToColorwithColor2.includes(cell.value) ? "93C47D" : undefined,
-          //   },
-          // };
-
-          // Set font to bold
-          cell.font = { bold: true };
-
-          // Enable text wrapping
-          cell.alignment = { wrapText: true };
-
-          // Update column width based on the length of the cell's text
-          const currentWidth = worksheet.getColumn(colNumber).width || SHEET_COLUMN_WIDTH; // Default width or current width
-          const newWidth = Math.max(currentWidth, cell.value.toString().length + 2); // Add padding
-          worksheet.getColumn(colNumber).width = newWidth;
-        });
-      }
-    });
-    updateFontNameToRoboto(worksheet);
-  });
-};
-
-const translateTemplate = (template, t) => {
-  // Initialize an array to hold the transformed result
-  const transformedResult = [];
-
-  // Iterate over each sheet in the divided data
-  for (const sheet of template) {
-    const sheetData = sheet.data;
-
-    // Find the index of the boundaryCode column in the header row
-    const boundaryCodeIndex = sheetData[0].indexOf(commonColumn);
-
-    const sheetName = t(sheet.sheetName);
-    const transformedSheet = {
-      sheetName: sheetName.length > 31 ? sheetName.slice(0, 31) : sheetName,
-      data: [],
-    };
-
-    // Iterate over each row in the sheet data
-    for (const [rowIndex, row] of sheetData.entries()) {
-      // Transform each entity in the row using the transformFunction
-      const transformedRow = row.map((entity, index) => {
-        // Skip transformation for the boundaryCode column
-        if ((index === boundaryCodeIndex && rowIndex !== 0) || typeof entity === "number") {
-          return entity;
-        }
-        return t(entity);
-      });
-      transformedSheet.data.push(transformedRow);
-    }
-
-    // Add the transformed sheet to the transformed result
-    transformedResult.push(transformedSheet);
-  }
-
-  return transformedResult;
-};
-
-// get schema for validation
-const getSchema = (campaignType, type, section, schemas) => {
-  return schemas.find((schema) => {
-    if (!schema.campaignType) {
-      return schema.type === type && schema.section === section;
-    }
-    return schema.campaignType === campaignType && schema.type === type && schema.section === section;
-  });
-};
-
-// Uplaod GuideLines
-const UploadGuideLines = ({ uploadGuideLines, t }) => {
-  const formMsgFromObject = (item) => {
-    if (!item?.hasLink) {
-      return t(item?.name);
-    }
-    return (
-      <>
-        {t(item?.name)} <a href={item?.linkEndPoint}>{t(item?.linkName)}</a>{" "}
-      </>
-    );
-  };
-  return (
-    <div className="guidelines">
-      {uploadGuideLines?.map((item, index) => (
-        <div className="instruction-list-container">
-          <p key={index} className="instruction-list number">
-            {t(index + 1)}.
-          </p>
-          <div key={index} className="instruction-list text">
-            {formMsgFromObject(item)}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const CustomIcon = (props) => {
-  if (!props.Icon) return null;
-  return <props.Icon fill={props.color} {...props} />;
-};
-
-const generateLocalisationKeyForSchemaProperties = (code) => {
-  if (!code) return code;
-  return `${SCHEMA_PROPERTIES_PREFIX}_${code}`;
-};
-// Performs resource mapping and data filtering for Excel files based on provided schema data, hierarchy, and file data.
-const resourceMappingAndDataFilteringForExcelFiles = (schemaData, hierarchy, selectedFileType, fileDataToStore, t) => {
-  let resourceMappingData = [];
-  let newFileData = {};
-  let toAddInResourceMapping;
-  if (selectedFileType.id === EXCEL && fileDataToStore) {
-    // Extract all unique column names from fileDataToStore and then doing thir resource mapping
-    const columnForMapping = new Set(Object.values(fileDataToStore).flatMap((value) => value?.[0] || []));
-    if (schemaData?.schema?.["Properties"]) {
-      const schemaKeys = Object.keys(schemaData.schema["Properties"])
-        .map((item) => generateLocalisationKeyForSchemaProperties(item))
-        .concat([...hierarchy, commonColumn]);
-      schemaKeys.forEach((item) => {
-        if (columnForMapping.has(t(item))) {
-          resourceMappingData.push({
-            mappedFrom: t(item),
-            mappedTo: item,
-          });
-        }
-      });
-    }
-
-    // Filtering the columns with respect to the resource mapping and removing the columns that are not needed
-    Object.entries(fileDataToStore).forEach(([key, value]) => {
-      let data = [];
-      let headers = [];
-      let toRemove = [];
-      if (value && value.length > 0) {
-        value[0].forEach((item, index) => {
-          const mappedTo = resourceMappingData.find((e) => e.mappedFrom === item)?.mappedTo;
-          if (!mappedTo) {
-            toRemove.push(index);
-            return;
-          }
-          headers.push(revertLocalisationKey(mappedTo));
-          return;
-        });
-        for (let i = 1; i < value?.length; i++) {
-          let temp = [];
-          for (let j = 0; j < value[i].length; j++) {
-            if (!toRemove.includes(j)) {
-              temp.push(value[i][j]);
-            }
-          }
-          data.push(temp);
-        }
-      }
-      newFileData[key] = [headers, ...data];
-    });
-  }
-  return { tempResourceMappingData: resourceMappingData, tempFileDataToStore: newFileData };
-};
-const revertLocalisationKey = (localisedCode) => {
-  if (!localisedCode || !localisedCode.startsWith(SCHEMA_PROPERTIES_PREFIX + "_")) {
-    return localisedCode;
-  }
-  return localisedCode.substring(SCHEMA_PROPERTIES_PREFIX.length + 1);
-};
-const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, t) => {
-  let tempData = { ...data };
-  // Process each dataset within the data object
-  const processedData = {};
-  let headerList1 = [];
-  let headerList2 = [t("MICROPLAN_ERROR_COLUMN")];
-  const schemaCols = schema?.schema?.Properties ? Object.keys(schema.schema.Properties) : [];
-  for (const key in tempData) {
-    if (Object.hasOwn(tempData, key)) {
-      const dataset = [...tempData[key]];
-
-      // Add the 'error' column to the header
-      dataset[0] = dataset[0].map((item) => {
-        if (item !== commonColumn && schemaCols.includes(item)) {
-          return t(generateLocalisationKeyForSchemaProperties(item));
-        }
-        return t(item);
-      });
-      headerList1.push(...dataset[0]);
-      // Process each data row
-      if (errors) {
-        dataset[0].push(t("MICROPLAN_ERROR_COLUMN"));
-        let headerCount = 0;
-        for (let i = 1; i < dataset.length; i++) {
-          const row = dataset[i];
-          if (i === 1 && row) {
-            headerCount = row.length;
-          }
-
-          if (headerCount > row.length) {
-            row.push(...Array(headerCount - row.length).fill(""));
-          }
-
-          // Check if there are errors for the given commonColumnData
-          const errorInfo = errors?.[key]?.[i - 1];
-          if (errorInfo) {
-            let rowDataAddOn = Object.entries(errorInfo)
-              .map(([key, value]) => {
-                return `${t(key)}: ${value.map((item) => t(item)).join(", ")}`;
-              })
-              .join("\n");
-            row.push(rowDataAddOn);
-          } else {
-            row.push("");
-          }
-        }
-      }
-      processedData[key] = dataset;
-    }
-  }
-  const errorColumn = "MICROPLAN_ERROR_COLUMN";
-  const style = {
-    font: { color: { argb: "B91900" } },
-    border: {
-      top: { style: "thin", color: { argb: "B91900" } },
-      left: { style: "thin", color: { argb: "B91900" } },
-      bottom: { style: "thin", color: { argb: "B91900" } },
-      right: { style: "thin", color: { argb: "B91900" } },
-    },
-  };
-  const workbook = await convertToWorkBook(processedData, { errorColumn, style });
-  colorHeaders(
-    workbook,
-    [...hierarchy.map((item) => t(item)), t(commonColumn)],
-    schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : [],
-    []
-  );
-
-  // protextData
-  await protectData({
-    workbook,
-    hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
-    addFacilityData: schema?.template?.includeFacilityData,
-    schema,
-    t,
-  });
-  return await workbook.xlsx.writeBuffer({ compression: true }).then((buffer) => {
-    // Create a Blob from the buffer
-    return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  });
-  // return xlsxBlob;
-};
-const convertToWorkBook = async (jsonData, columnWithStyle) => {
-  const workbook = new ExcelJS.Workbook();
-
-  // Iterate over each sheet in jsonData
-  for (const [sheetName, data] of Object.entries(jsonData)) {
-    // Create a new worksheet
-    const worksheet = workbook.addWorksheet(sheetName);
-
-    // Convert data to worksheet
-    for (const row of data) {
-      const newRow = worksheet.addRow(row);
-      // Apply red font color to the errorColumn if it exists
-      const errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
-      if (columnWithStyle?.errorColumn && errorColumnIndex !== -1) {
-        const columnIndex = errorColumnIndex + 1;
-        if (columnIndex > 0) {
-          const newCell = newRow.getCell(columnIndex);
-          if (columnWithStyle.style && newCell) for (const key in columnWithStyle.style) newCell[key] = columnWithStyle.style[key];
-        }
-      }
-    }
-
-    // Make the first row bold
-    if (worksheet.getRow(1)) {
-      worksheet.getRow(1).font = { bold: true };
-    }
-
-    // Set column widths
-    const columnCount = data?.[0]?.length || 0;
-    const wscols = Array(columnCount).fill({ width: 30 });
-    wscols.forEach((col, colIndex) => {
-      worksheet.getColumn(colIndex + 1).width = col.width;
-    });
-  }
-  return workbook;
-};
-const boundaryDataGeneration = async (schemaData, campaignData, t) => {
-  let boundaryDataAgainstBoundaryCode = {};
-  if (schemaData && !schemaData.doHierarchyCheckInUploadedData) {
-    try {
-      const rootBoundary = campaignData?.boundaries?.filter((boundary) => boundary.isRoot); // Retrieve session storage data once and store it in a variable
-      const sessionData = Digit.SessionStorage.get("microplanHelperData") || {};
-      let boundaryData = sessionData.filteredBoundaries;
-      let filteredBoundaries;
-      if (!boundaryData) {
-        // Only fetch boundary data if not present in session storage
-        boundaryData = await fetchBoundaryData(Digit.ULBService.getCurrentTenantId(), campaignData?.hierarchyType, rootBoundary?.[0]?.code);
-        filteredBoundaries = filterBoundaries(boundaryData, campaignData?.boundaries);
-
-        // Update the session storage with the new filtered boundaries
-        Digit.SessionStorage.set("microplanHelperData", {
-          ...sessionData,
-          filteredBoundaries: filteredBoundaries,
-        });
-      } else {
-        filteredBoundaries = boundaryData;
-      }
-      const xlsxData = addBoundaryData([], filteredBoundaries, campaignData?.hierarchyType)?.[0]?.data;
-      xlsxData.forEach((item, i) => {
-        if (i === 0) return;
-        let boundaryCodeIndex = xlsxData?.[0]?.indexOf(commonColumn);
-        if (boundaryCodeIndex >= item.length) {
-          // If boundaryCodeIndex is out of bounds, return the item as is
-          boundaryDataAgainstBoundaryCode[item[boundaryCodeIndex]] = item.slice().map(t);
-        } else {
-          // Otherwise, remove the element at boundaryCodeIndex
-          boundaryDataAgainstBoundaryCode[item[boundaryCodeIndex]] = item
-            .slice(0, boundaryCodeIndex)
-            .concat(item.slice(boundaryCodeIndex + 1))
-            .map(t);
-        }
-      });
-      return boundaryDataAgainstBoundaryCode;
-    } catch (error) {
-      console.error(error?.message);
-    }
-  }
-};
-
-export const handleExcelFile = async (
-  file,
-  schemaData,
-  hierarchy,
-  selectedFileType,
-  boundaryDataAgainstBoundaryCode,
-  setUploadedFileError,
-  t,
-  campaignData
-) => {
-  try {
-    // Converting the file to preserve the sequence of columns so that it can be stored
-    let fileDataToStore = await parseXlsxToJsonMultipleSheets(file, { header: 0 });
-    if (fileDataToStore[t(BOUNDARY_DATA_SHEET)]) delete fileDataToStore[t(BOUNDARY_DATA_SHEET)];
-    let { tempResourceMappingData, tempFileDataToStore } = resourceMappingAndDataFilteringForExcelFiles(
-      schemaData,
-      hierarchy,
-      selectedFileType,
-      fileDataToStore,
-      t
-    );
-    fileDataToStore = await convertJsonToXlsx(tempFileDataToStore);
-    // Converting the input file to json format
-    let result = await parseXlsxToJsonMultipleSheets(fileDataToStore, { header: 1 });
-    if (result?.error) {
-      return {
-        check: false,
-        interruptUpload: true,
-        error: result.error,
-        fileDataToStore: {},
-        toast: { state: "error", message: t("ERROR_CORRUPTED_FILE") },
-      };
-    }
-    let extraColumns = [commonColumn];
-    // checking if the hierarchy and common column is present the  uploaded data
-    extraColumns = [...hierarchy, commonColumn];
-    let data = Object.values(tempFileDataToStore);
-    let errorMsg;
-    let errors; // object containing the location and type of error
-    let toast;
-    let hierarchyDataPresent = true;
-    let latLngColumns =
-      Object.entries(schemaData?.schema?.Properties || {}).reduce((acc, [key, value]) => {
-        if (value?.isLocationDataColumns) {
-          acc.push(key);
-        }
-        return acc;
-      }, []) || [];
-    data.forEach((item) => {
-      const keys = item[0];
-      if (keys?.length !== 0) {
-        if (!extraColumns?.every((e) => keys.includes(e))) {
-          if (schemaData && !schemaData.doHierarchyCheckInUploadedData) {
-            hierarchyDataPresent = false;
-          } else {
-            errorMsg = {
-              check: false,
-              interruptUpload: true,
-              error: t("ERROR_BOUNDARY_DATA_COLUMNS_ABSENT"),
-              fileDataToStore: {},
-              toast: { state: "error", message: t("ERROR_BOUNDARY_DATA_COLUMNS_ABSENT") },
-            };
-          }
-        }
-        if (!latLngColumns?.every((e) => keys.includes(e))) {
-          toast = { state: "warning", message: t("ERROR_UPLOAD_EXCEL_LOCATION_DATA_MISSING") };
-        }
-      }
-    });
-    if (errorMsg && !errorMsg?.check) return errorMsg;
-    // Running Validations for uploaded file
-    let response = await checkForErrorInUploadedFileExcel(result, schemaData.schema, t);
-    if (!response.valid) setUploadedFileError(response.message);
-    errorMsg = response.message;
-    errors = response.errors;
-    const missingProperties = response.missingProperties;
-    let check = response.valid;
-    try {
-      if (schemaData && !schemaData.doHierarchyCheckInUploadedData && !hierarchyDataPresent && boundaryDataAgainstBoundaryCode) {
-        let tempBoundaryDataAgainstBoundaryCode = (await boundaryDataGeneration(schemaData, campaignData, t)) || {};
-        for (const sheet in tempFileDataToStore) {
-          const commonColumnIndex = tempFileDataToStore[sheet]?.[0]?.indexOf(commonColumn);
-          if (commonColumnIndex !== -1)
-            tempFileDataToStore[sheet] = tempFileDataToStore[sheet].map((item, index) => [
-              ...(tempBoundaryDataAgainstBoundaryCode[item[commonColumnIndex]]
-                ? tempBoundaryDataAgainstBoundaryCode[item[commonColumnIndex]]
-                : index !== 0
-                ? new Array(hierarchy.length).fill("")
-                : []),
-              ...item,
-            ]);
-
-          tempFileDataToStore[sheet][0] = [...hierarchy, ...tempFileDataToStore[sheet][0]];
-        }
-      }
-    } catch (error) {
-      console.error("Error in boundary adding operaiton: ", error);
-    }
-    tempFileDataToStore = addMissingPropertiesToFileData(tempFileDataToStore, missingProperties);
-    return { check, errors, errorMsg, fileDataToStore: tempFileDataToStore, tempResourceMappingData, toast };
-  } catch (error) {
-    console.error("Error in handling Excel file:", error.message);
-  }
-};
-const addMissingPropertiesToFileData = (data, missingProperties) => {
-  if (!data || !missingProperties) return data;
-  let tempData = {};
-  Object.entries(data).forEach(([key, value], index) => {
-    const filteredMissingProperties = [...missingProperties]?.reduce((acc, item) => {
-      if (!value?.[0]?.includes(item)) {
-        acc.push(item);
-      }
-      return acc;
-    }, []);
-    const newTempHeaders = value?.[0].length !== 0 ? [...value[0], ...filteredMissingProperties] : [...filteredMissingProperties];
-    console.error(newTempHeaders);
-    tempData[key] = [newTempHeaders, ...value.slice(1)];
-  });
-  return tempData;
-};
-
-const handleGeojsonFile = async (file, schemaData, setUploadedFileError, t) => {
-  // Reading and checking geojson data
-  const data = await readGeojson(file, t);
-  if (!data.valid) {
-    return { check: false, stopUpload: true, toast: data.toast };
-  }
-
-  // Running geojson validaiton on uploaded file
-  let response = geojsonValidations(data.geojsonData, schemaData.schema, t);
-  if (!response.valid) setUploadedFileError(response.message);
-  let check = response.valid;
-  let error = response.message;
-  let fileDataToStore = data.geojsonData;
-  return { check, error, fileDataToStore };
-};
-
-const handleShapefiles = async (file, schemaData, setUploadedFileError, selectedFileType, setToast, t) => {
-  // Reading and validating the uploaded geojson file
-  let response = await readAndValidateShapeFiles(file, t, selectedFileType["namingConvention"]);
-  if (!response.valid) {
-    setUploadedFileError(response.message);
-    setToast(response.toast);
-  }
-  let check = response.valid;
-  let error = response.message;
-  let fileDataToStore = response.data;
-  return { check, error, fileDataToStore };
 };
 
 export default Upload;

@@ -14,9 +14,8 @@ const SearchCampaignConfig = async (body) => {
   } catch (error) {
     if (error?.response?.data?.Errors) {
       throw new Error(error.response.data.Errors[0].message);
-    } else {
-      throw new Error("An unknown error occurred");
     }
+    throw new Error("An unknown error occurred");
   }
 };
 

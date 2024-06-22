@@ -2,7 +2,7 @@ import React, { memo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 const ZoomControl = memo(({ map, t }) => {
-  if (!map) return <div className="loading-map">{t("LOADING_MAP")}</div>;
+  if (!map) return <div>{t("LOADING_MAP")}</div>;
 
   const zoomIn = useCallback(() => {
     map.zoomIn();

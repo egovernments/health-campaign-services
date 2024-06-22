@@ -1,44 +1,65 @@
 import ExcelJS from "exceljs";
 
 export const convertJsonToXlsx = async (jsonData, columnWithStyle) => {
-  // Create a new workbook
   const workbook = new ExcelJS.Workbook();
 
-  // Iterate over each sheet in jsonData
   for (const [sheetName, data] of Object.entries(jsonData)) {
-    // Create a new worksheet
     const worksheet = workbook.addWorksheet(sheetName);
-
-    // Convert data to worksheet
-    for (const row of data) {
-      const newRow = worksheet.addRow(row);
-      // Apply red font color to the errorColumn if it exists
-      const errorColumnIndex = data[0].indexOf(columnWithStyle?.errorColumn);
-      if (columnWithStyle?.errorColumn && errorColumnIndex !== -1) {
-        const columnIndex = errorColumnIndex + 1;
-        if (columnIndex > 0) {
-          const newCell = newRow.getCell(columnIndex);
-          if (columnWithStyle.style && newCell) for (const key in columnWithStyle.style) newCell[key] = columnWithStyle.style[key];
-        }
-      }
-    }
-
-    // Make the first row bold
-    if (worksheet.getRow(1)) {
-      worksheet.getRow(1).font = { bold: true };
-    }
-
-    // Set column widths
-    const columnCount = data?.[0]?.length || 0;
-    const wscols = Array(columnCount).fill({ width: 30 });
-    wscols.forEach((col, colIndex) => {
-      worksheet.getColumn(colIndex + 1).width = col.width;
-    });
+    populateWorksheet(worksheet, data, columnWithStyle);
   }
 
-  // Write the workbook to a buffer
-  return await workbook.xlsx.writeBuffer({ compression: true }).then((buffer) => {
-    // Create a Blob from the buffer
-    return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  return await writeWorkbookToBuffer(workbook);
+};
+
+const populateWorksheet = (worksheet, data, columnWithStyle) => {
+  data.forEach((row, rowIndex) => {
+    const newRow = worksheet.addRow(row);
+    if (columnWithStyle?.errorColumn && rowIndex > 0) {
+      applyStyleToColumn(newRow, data[0], columnWithStyle);
+    }
   });
+
+  styleHeaderRow(worksheet);
+  setColumnWidths(worksheet, data[0].length);
+};
+
+/**
+ * Applies a specified style to a column in a given row of a spreadsheet.
+ *
+ * @param {Object} newRow - The row object where the style will be applied.
+ * @param {Array} headerRow - The header row array containing column names.
+ * @param {Object} columnWithStyle - An object containing the column name and the style to be applied.
+ * @param {string} columnWithStyle.errorColumn - The name of the column where the style should be applied.
+ * @param {Object} columnWithStyle.style - The style properties to be applied to the cell.
+ */
+const applyStyleToColumn = (newRow, headerRow, columnWithStyle) => {
+  const errorColumnIndex = headerRow.indexOf(columnWithStyle.errorColumn);
+  if (errorColumnIndex !== -1) {
+    const columnIndex = errorColumnIndex + 1;
+    const newCell = newRow.getCell(columnIndex);
+    if (columnWithStyle.style && newCell) {
+      for (const key in columnWithStyle.style) {
+        newCell[key] = columnWithStyle.style[key];
+      }
+    }
+  }
+};
+
+const styleHeaderRow = (worksheet) => {
+  const headerRow = worksheet.getRow(1);
+  if (headerRow) {
+    headerRow.font = { bold: true };
+  }
+};
+
+const setColumnWidths = (worksheet, columnCount) => {
+  const columnWidth = 30;
+  for (let colIndex = 1; colIndex <= columnCount; colIndex++) {
+    worksheet.getColumn(colIndex).width = columnWidth;
+  }
+};
+
+const writeWorkbookToBuffer = async (workbook) => {
+  const buffer = await workbook.xlsx.writeBuffer({ compression: true });
+  return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 };
