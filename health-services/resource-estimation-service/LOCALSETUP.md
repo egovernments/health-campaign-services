@@ -5,11 +5,11 @@ To set up the Resource Estimation Service in your local system, clone the [Healt
 ## Dependencies
 
 - [x] Postgres DB
+- [ ] Redis
+- [ ] Elasticsearch
 - [x] Kafka
-- [X] Zookeeper
-- [x] Java
-- [x] Maven
-- [x] Git
+  - [x] Consumer
+  - [x] Producer
 
 
 ## Running Locally
@@ -36,4 +36,4 @@ To set up the Resource Estimation Service in your local system, clone the [Healt
 5. Update all dependency service host either on any unified-env or port-forward.
 6. Run spring boot main class
 
-> Note: After running the above, if a Kafka error occurs, ensure that Kafka and Zookeeper are running in the background. If a connection error with another microservice occurs, ensure that the URL mentioned in the external mapping of the data config is correct, or you can port-forward that particular service.
+> Note: After running the above steps, if you encounter a Kafka error, ensure that both Kafka and Zookeeper services are actively running. For connection errors with other microservices, verify the correctness of the URL in the external mapping of the data configuration or consider port-forwarding the problematic service for direct access.
