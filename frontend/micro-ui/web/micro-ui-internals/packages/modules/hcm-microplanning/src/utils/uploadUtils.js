@@ -85,7 +85,7 @@ export const trimJSON = (jsonObject) => {
 // Function for reading and validating shape file data
 export const readAndValidateShapeFiles = async (file, t, namingConvention) => {
   return new Promise((resolve, reject) => {
-    async () => {
+    const readAndValidate = async () => {
       if (!file) {
         resolve({ valid: false, toast: { state: "error", message: t("ERROR_PARSING_FILE") } });
       }
@@ -139,7 +139,8 @@ export const readAndValidateShapeFiles = async (file, t, namingConvention) => {
         resolve({ valid: false, toast: { state: "error", message: t("ERROR_PARSING_FILE") } });
       }
     };
-  })();
+    readAndValidate();
+  });
 };
 
 // Function for projections check in case of shapefile data
