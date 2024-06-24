@@ -1,43 +1,78 @@
-# Plan Service
 
-Plan service is a Health Microplanning Service that facilitates creation of micro plan configurations and micro plans. This functionality is exposed via REST API.
+Autocorrected to gettingConversation opened. 1 read message.
 
-### DB UML Diagram
+Skip to content
+Using eGovernments Foundation Mail with screen readers
+in:sent 
+1 of 40
+Please push to plan service
 
-<img width="586" alt="DB UML Diagram" src="">
+Nilesh S <nilesh.s@egovernments.org>
+Attachments
+1:01 PM (12 minutes ago)
+to Priyanka
 
-### Service Dependencies
-- MDMS Service
+Hi Priyanka , 
+I am facing issues while committing this change set can you please try.
+ 3 Attachments
+  •  Scanned by Gmail
+# Plan Service Documentation
 
-### Swagger API Contract
-[Link](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/DIGIT-Specs/grouped-service-contracts/Domain%20Services/Plan%20Service/plan-1.0.0.yaml) to the swagger API contract yaml and editor link
+## Overview
 
-### Service Details
+The PlanService is a tool designed for managing plan configurations and microplans. It supports various functionalities such as creating, updating, validating, and processing plan configurations, microplans, and related elements. This service can operate independently for micro planning or integrate with DIGIT HCM for campaign execution and monitoring.
 
-#### API Details
-BasePath `/plan-service`
+## Key Features
 
-Plan config APIs - contains create, update and search end point
+- **Data Upload for Microplanning**: Upload essential data in formats including .xlsx (Excel), Shapefiles, and GeoJSON.
+- **Assumptions Configuration**: Configure assumptions crucial for estimation processes.
+- **Formula Configuration**: Set up formulae to calculate estimated resources (e.g., human resources, commodities, budgets).
+- **Visualization**: Visualize microplans on a map layer using GIS technologies.
+- **Output Generation**: Generate, save, and print microplans.
 
-* POST `/plan-service/config/_create` - Create Project, This API is used to create/add a new Project.
+## Service Dependencies
 
-* POST `/plan-service/config/_update` - Update Project, This API is used to update the details of an existing Project.
+- **Mdms-service**: Dependency for managing Master Data Management System.
 
-* POST `/plan-service/config/_search` - Search Project, This API is used to search details of an existing Project.
+## API Documentation
 
+- **Swagger Link**: [Plan Service Swagger](https://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/DIGIT-Specs/grouped-service-contracts/Domain%20Services/Plan%20Service/plan-1.0.0.yaml)
 
-* POST `/plan-service/_create` - Create Project Beneficiary, This API is used to create/add a new beneficiary for Project.
+## Database and Persistence
 
-* POST `/plan-service/_update` - Update Project Beneficiary, This API is used to update beneficiary registration for Project.
+- **DB Diagrams**: Detailed diagrams for Microplan and Plan Configuration are available.
 
-* POST `/plan-service/_search` - Search Project Beneficiary, This API is used to search beneficiary registration for Project.
+## Configuration and Deployment
 
-### Kafka Consumers
-NA
+- **Persister Config**: Configuration for persistence can be found in [plan-service-persister.yml](https://github.com/egovernments/configs/blob/UNIFIED-QA/health/egov-persister/plan-service-persister.yml).
+- **Helm Chart**: Deployment details available in the [Helm chart](https://github.com/egovernments/DIGIT-DevOps/tree/unified-env/deploy-as-code/helm/charts/health-services/plan-service).
 
-### Kafka Producers
-- plan-config-create-topic
-- plan-config-update-topic
+## Role and Access Control
 
-- save-plan
-- update-plan
+- **Access Control Role**: Configure the role `MICROPLAN_ADMIN` in the ‘ACCESSCONTROL-ROLES’ module.
+- **Role-Action Mapping**: Map actions to role codes in the ‘ACCESSCONTROL-ROLEACTIONS’ module as per the provided mappings.
+
+### Role-Action Mappings (Dev Environment)
+
+- `/plan-service/plan/_create`: `MICROPLAN_ADMIN`
+- `/plan-service/plan/_search`: `MICROPLAN_ADMIN`
+- `/plan-service/plan/_update`: `MICROPLAN_ADMIN`
+- `/plan-service/config/_create`: `MICROPLAN_ADMIN`
+- `/plan-service/config/_search`: `MICROPLAN_ADMIN`
+- `/plan-service/config/_update`: `MICROPLAN_ADMIN`
+
+## Environment Variables
+
+- Configure environment variables such as `db-host`, `db-name`, `db-url`, `domain`, and other DIGIT core platform services configurations before deployment. Example configurations can be found in the [unified-qa.yaml](https://github.com/egovernments/DIGIT-DevOps/blob/unified-env/deploy-as-code/helm/environments/unified-qa.yaml).
+
+## MDMS Configuration
+
+- Configure MDMS data for Plan Service including UOM config, Metric config, Assumptions config, Input rules, Output rules, Campaign Based Schema, Microplan status, Map layers, Map filters, Preview Aggregates, and UI configs. Reference data can be found [here](https://github.com/egovernments/egov-mdms-data/tree/UNIFIED-QA/data/mz/health/hcm-microplanning).
+
+## Reference Documents
+
+- **MDMS Technical Document**: [Mdms service](https://core.digit.org/platform/core-services/mdms-master-data-management-service)
+- **Persister Technical Document**: [Persister service](https://core.digit.org/platform/core-services/persister-service)
+- **API Contract**: [API Contract](https://github.com/egovernments/SANITATION/blob/develop/API-CONTRACTS/pqm/PQM_API_ANOMALY_Contract.yaml)
+README.md
+Displaying README.md.
