@@ -33,7 +33,7 @@ To set up the Plan Service in your local system, clone the [Health Campaign Serv
 7. Install aws-iam-authenticator - [if the DIGIT development environment is in AWS](https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html)
 8. Install PostgreSQL v14 locally.
 9. Also update DB config values as per your local system config.
-10. Update all dependency service host either on any unified-env or port-forward.
+10. Update the host settings for all dependency services, either on any unified environment or by port-forwarding.
 11. Run spring boot main class
 
 > Note: After running the above, if a Kafka error occurs, ensure that Kafka and Zookeeper are running in the background. If a connection error with another microservice occurs, ensure that the URL mentioned in the external mapping of the data config is correct, or you can port-forward that particular service.
