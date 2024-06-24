@@ -271,8 +271,8 @@ config:
         
   - name: builds/health-campaign-services/frontend/microplan-ui
     build:
-      - work-dir: frontend/microplan-ui/
-        dockerfile: frontend/microplan-ui/web/microplan/Dockerfile
+      - work-dir: frontend/micro-ui/
+        dockerfile: frontend/micro-ui/web/microplan/Dockerfile
         image-name: microplan-ui
 
 #Utilities
