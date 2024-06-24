@@ -136,6 +136,8 @@ app.use(async (req, res, next) => {
             return;
         }
     }
+
+    next();
 });
 
 // Proxy request to Kibana if authentication is successful
