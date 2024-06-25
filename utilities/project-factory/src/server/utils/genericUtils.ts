@@ -441,10 +441,24 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
+function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+  const dropdowns = Object.entries(schema.properties)
+    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+    .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
+      const newKey: any = getLocalizedName(key, localizationMap);
+      result[newKey] = value.enum;
+      return result;
+    }, {});
+  logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
+  request.body.dropdowns = dropdowns;
+}
+
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
   const schema = await callMdmsTypeSchema(request, tenantId, "facility");
   const keys = schema?.columns;
+  setDropdownFromSchema(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -615,6 +629,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   addDataToSheet(facilitySheet, facilitySheetData, undefined, undefined, true);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
+  handledropdownthings(facilitySheet, request.body?.dropdowns);
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
@@ -626,8 +641,41 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
+async function handledropdownthings(facilitySheet: any, dropdowns: any) {
+  let dropdownColumnIndex = -1;
+  if (dropdowns) {
+    for (const key of Object.keys(dropdowns)) {
+      if (dropdowns[key]) {
+        // Iterate through each row to find the column index of "Boundary Code (Mandatory)"
+        await facilitySheet.eachRow({ includeEmpty: true }, (row: any) => {
+          row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+            if (cell.value === key) {
+              dropdownColumnIndex = colNumber;
+            }
+          });
+        });
 
-// Helper function to add data to a sheet
+        // If dropdown column index is found, set multi-select dropdown for subsequent rows
+        if (dropdownColumnIndex !== -1) {
+          facilitySheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
+            if (rowNumber > 1) {
+              // Set dropdown list with no typing allowed
+              cell.dataValidation = {
+                type: 'list',
+                formulae: [`"${dropdowns[key].join(',')}"`],
+                showDropDown: true, // Ensures dropdown is visible
+                error: 'Please select a value from the dropdown list.',
+                errorStyle: 'stop', // Prevents any input not in the list
+                showErrorMessage: true, // Ensures error message is shown
+                errorTitle: 'Invalid Entry'
+              };
+            }
+          });
+        }
+      }
+    }
+  }
+}
 
 
 
@@ -644,6 +692,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
+  handledropdownthings(userSheet, request.body?.dropdowns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
@@ -669,6 +718,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
   const schema = await callMdmsTypeSchema(request, tenantId, "user");
+  setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   // const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
