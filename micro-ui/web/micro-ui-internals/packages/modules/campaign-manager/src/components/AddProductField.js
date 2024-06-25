@@ -66,7 +66,7 @@ const AddProductField = ({ onSelect }) => {
         return (
           <Card className="add-new-product-container">
             <div className="heading-bar">
-              <CardText>Product {field?.key}</CardText>
+              <CardText>{t(`ES_ADD_PRODUCT_TITLE`)} {field?.key}</CardText>
               {productFieldData?.length > 1 && (
                 <div
                   onClick={() => deleteProductField(field.key)}

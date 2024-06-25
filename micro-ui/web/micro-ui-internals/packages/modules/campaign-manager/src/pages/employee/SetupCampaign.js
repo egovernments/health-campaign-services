@@ -74,8 +74,8 @@ function cycleDataRemap(data) {
   return uniqueCycleObjects.map((i, n) => {
     return {
       key: i.cycleNumber,
-      fromDate: i?.startDate ? new Date(i?.startDate)?.toISOString()?.split("T")?.[0] : null,
-      toDate: i?.endDate ? new Date(i?.endDate)?.toISOString()?.split("T")?.[0] : null,
+      fromDate: i?.startDate ? Digit.DateUtils.ConvertEpochToDate(i?.startDate)?.split("/")?.reverse()?.jon("-") : null,
+      toDate: i?.endDate ? Digit.DateUtils.ConvertEpochToDate(i?.endDate)?.split("/")?.reverse()?.jon("-") : null,
     };
   });
 }
@@ -351,8 +351,8 @@ const SetupCampaign = ({ hierarchyType }) => {
       },
       HCM_CAMPAIGN_DATE: {
         campaignDates: {
-          startDate: draftData?.startDate ? new Date(draftData?.startDate)?.toISOString()?.split("T")?.[0] : "",
-          endDate: draftData?.endDate ? new Date(draftData?.endDate)?.toISOString()?.split("T")?.[0] : "",
+          startDate: draftData?.startDate ? Digit.DateUtils.ConvertEpochToDate(draftData?.startDate)?.split("/")?.reverse()?.join("-") : "",
+          endDate: draftData?.endDate ? Digit.DateUtils.ConvertEpochToDate(draftData?.endDate)?.split("/")?.reverse()?.join("-") : "",
         },
       },
       HCM_CAMPAIGN_CYCLE_CONFIGURE: {
@@ -379,19 +379,22 @@ const SetupCampaign = ({ hierarchyType }) => {
         },
       },
       HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
-        uploadBoundary: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget"), 
-          isSuccess : draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget").length>0
+        uploadBoundary: {
+          uploadedFile: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget"),
+          isSuccess: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget").length > 0,
         },
       },
       HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
-        uploadFacility: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "facility") ,
-        isSuccess : draftData?.resources?.filter((i) => i?.type === "facility").length>0
-        }
+        uploadFacility: {
+          uploadedFile: draftData?.resources?.filter((i) => i?.type === "facility"),
+          isSuccess: draftData?.resources?.filter((i) => i?.type === "facility").length > 0,
+        },
       },
       HCM_CAMPAIGN_UPLOAD_USER_DATA: {
-        uploadUser: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "user") , 
-          isSuccess : draftData?.resources?.filter((i) => i?.type === "user").length>0
-         },
+        uploadUser: {
+          uploadedFile: draftData?.resources?.filter((i) => i?.type === "user"),
+          isSuccess: draftData?.resources?.filter((i) => i?.type === "user").length > 0,
+        },
       },
     };
     setParams({ ...restructureFormData });
@@ -496,8 +499,8 @@ const SetupCampaign = ({ hierarchyType }) => {
       cycle.deliveries.forEach((delivery, index) => {
         delivery.deliveryRules.forEach((rule) => {
           const restructuredRule = {
-            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key == cycle.cycleIndex)?.fromDate), // Hardcoded for now
-            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key == cycle?.cycleIndex)?.toDate), // Hardcoded for now
+            startDate: Digit.Utils.pt.convertDateToEpoch(dateData?.find((i) => i.key == cycle.cycleIndex)?.fromDate, "daystart"), // Hardcoded for now
+            endDate: Digit.Utils.pt.convertDateToEpoch(dateData?.find((i) => i?.key == cycle?.cycleIndex)?.toDate), // Hardcoded for now
             cycleNumber: parseInt(cycle.cycleIndex),
             deliveryNumber: parseInt(delivery.deliveryIndex),
             deliveryType: rule?.deliveryType,
@@ -585,10 +588,10 @@ const SetupCampaign = ({ hierarchyType }) => {
           let payloadData = { ...draftData };
           payloadData.hierarchyType = hierarchyType;
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+            ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate, "daystart")
             : null;
           payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+            ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
             : null;
           payloadData.tenantId = tenantId;
           payloadData.action = "create";
@@ -660,12 +663,12 @@ const SetupCampaign = ({ hierarchyType }) => {
           payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+              ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate, "daystart")
               : null;
           }
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) {
             payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+              ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
               : null;
           }
           payloadData.tenantId = tenantId;
@@ -717,12 +720,12 @@ const SetupCampaign = ({ hierarchyType }) => {
           payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+              ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate, "daystart")
               : null;
           }
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) {
             payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+              ? Digit.Utils.pt.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
               : null;
           }
           payloadData.tenantId = tenantId;
@@ -1089,7 +1092,6 @@ const SetupCampaign = ({ hierarchyType }) => {
             formData?.boundaryType?.selectedData,
             totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData
           );
-          console.log("HSHSHS", checkEqual);
           setFetchUpload(true);
           setRefetchGenerate(checkEqual === false ? true : false);
           return true;
@@ -1365,12 +1367,11 @@ const SetupCampaign = ({ hierarchyType }) => {
     const relatedSteps = campaignConfig?.[0]?.form.filter((step) => nonNullFormDataKeys.includes(step.name));
 
     const highestStep = relatedSteps.reduce((max, step) => Math.max(max, parseInt(step.stepCount)), 0);
-    if(isDraft == "true"){
+    if (isDraft == "true") {
       const filteredSteps = campaignConfig?.[0]?.form.find((item) => item.key === keyParam)?.stepCount;
       setActive(filteredSteps);
-    }
-    else{
-    setActive(highestStep);
+    } else {
+      setActive(highestStep);
     }
 
     // setActive(highestStep);

@@ -1137,6 +1137,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               onClick={() => {
                 downloadTemplate(), setShowPopUp(false);
               }}
+              title={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
             />,
           ]}
           sortFooterChildren={true}
