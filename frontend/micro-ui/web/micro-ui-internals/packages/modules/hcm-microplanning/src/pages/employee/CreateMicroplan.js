@@ -83,12 +83,14 @@ const CreateMicroplan = () => {
 
   // useEffect to initialise the data from MDMS
   useEffect(() => {
-    let temp;
-    if (!state || !state.UIConfiguration) return;
-    const UIConfiguration = state?.UIConfiguration || {};
-    if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (!temp?.ruleConfigureOperators) return;
-    setOperatorsObject(temp.ruleConfigureOperators);
+    if (!state || !state.RuleConfigureOperators) return;
+    const temp = state?.RuleConfigureOperators;
+    if (temp) {
+      setOperatorsObject(temp);
+    } else {
+      return;
+    }
+    setOperatorsObject(temp);
   }, []);
 
   // useEffect to store data in session storage
@@ -267,6 +269,8 @@ const CreateMicroplan = () => {
             setCurrentPageExternally={setCurrentPageExternally}
             completeNavigation={completeNavigation}
             setToast={setToast}
+            setMicroplanData={setMicroplanData}
+            status={microplanData?.status}
           />
         )}
         {toRender === "success-screen" && <MicroplanCreatedScreen microplanData={microplanData} />}

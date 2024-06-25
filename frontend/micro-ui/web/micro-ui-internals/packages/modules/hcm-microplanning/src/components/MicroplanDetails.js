@@ -135,6 +135,7 @@ const MicroplanDetails = ({
       };
       const response = await SearchPlanConfig(body);
       if (response?.PlanConfiguration?.length === 0) {
+        setLoader();
         return true;
       }
       if (response?.PlanConfiguration?.length === 1) {
@@ -194,7 +195,7 @@ const MicroplanDetails = ({
   //   setModal('none');
   // }, [setCheckDataCompletion, setModal]);
   function validateName(name) {
-    const microplanNamingRegxString = state?.UIConfiguration?.find((item) => item.name === "microplanNamingRegx")?.microplanNamingRegx;
+    const microplanNamingRegxString = state?.MicroplanNamingRegx?.[0]?.data;
     const namePattern = new RegExp(microplanNamingRegxString);
     return namePattern.test(name);
   }
@@ -274,7 +275,7 @@ const MicroplanDetails = ({
         style={{ margin: "1.5rem 0 0 0", width: "100%", maxWidth: "unset" }}
         additionalElements={[
           <div className="microplan-naming-conventions">
-            {state?.UIConfiguration?.find((item) => item.name === "microplanNamingConvention")?.microplanNamingConvention?.map((item, index) => (
+            {state?.MicroplanNamingConvention?.[0]?.data?.map((item, index) => (
               <div key={`container-${index}`} className="microplan-naming-convention-instruction-list-container">
                 <p key={`number-${index}`} className="microplan-naming-convention-instruction-list number">
                   {t(index + 1)}.

@@ -68,6 +68,7 @@ export const unfreezeColumnsByHeader = async (workbook, headers) => {
 
 export const freezeSheetValues = async (workbook, sheetName) => {
   const worksheet = workbook.getWorksheet(sheetName);
+  if (!worksheet) return;
   if (worksheet) {
     worksheet.eachRow((row) => {
       row.eachCell((cell) => {
@@ -89,6 +90,7 @@ export const freezeSheetValues = async (workbook, sheetName) => {
 
 export const freezeCellsWithData = async (workbook, sheetName) => {
   const worksheet = workbook.getWorksheet(sheetName);
+  if (!worksheet) return;
   if (worksheet) {
     worksheet.eachRow((row) => {
       row.eachCell((cell) => {
@@ -115,7 +117,7 @@ export const freezeCellsWithData = async (workbook, sheetName) => {
 };
 export const performUnfreezeCells = async (workbook, sheetName) => {
   const sheet = workbook.getWorksheet(sheetName);
-
+  if (!sheet) return;
   let lastFilledColumn = 1;
   sheet.getRow(1).eachCell((cell, colNumber) => {
     if (cell.value !== undefined && cell.value !== null && cell.value !== "") {
@@ -136,6 +138,7 @@ export const performUnfreezeCells = async (workbook, sheetName) => {
 
 export const hideUniqueIdentifierColumn = async (workbook, sheetName, column) => {
   const sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) return;
   for (const item of column) {
     let colIndex;
     sheet.getRow(1).eachCell((cell, colNumber) => {

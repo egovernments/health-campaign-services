@@ -57,12 +57,25 @@ const Navigator = memo((props) => {
     }
   }, [checkDataCompletion]);
 
+  const checkStatusTillPageToNavigate = (status) => {
+    let check = true;
+    if (navigationEvent?.step) {
+      const navigateTo = props.config?.[navigationEvent?.step]?.name;
+      for (const item of props.config) {
+        if (item.name === navigateTo) break;
+        check = check && status[item.name];
+      }
+    }
+    return check;
+  };
+
   // Effect to handle navigation events and transition between steps
   useEffect(() => {
     // if (checkDataCompletion !== "valid" || navigationEvent === undefined) return;
     if (
       checkDataCompletion === "valid" &&
-      ((navigationEvent.step && currentPage.id + 1 === navigationEvent.step) || currentPage.id > navigationEvent.step || !navigationEvent.step)
+      ((navigationEvent.step && navigationEvent.step <= activeSteps + 1) || !navigationEvent.step) &&
+      (!props?.status || checkStatusTillPageToNavigate(props?.status) || navigationEvent.step === currentPage.id + 1)
     ) {
       if (typeof props.nextEventAddon === "function") {
         if (LoadCustomComponent({ component: props.components[currentPage?.component] }) !== null)
@@ -119,7 +132,15 @@ const Navigator = memo((props) => {
     ) {
       setNavigationEvent({ name: "previousStep" });
       setCheckDataCompletion("true");
-    } else previousStep();
+    } else {
+      if (typeof props?.setMicroplanData === "function") {
+        props?.setMicroplanData((previous) => ({
+          ...previous,
+          status: { ...previous?.status, [currentPage?.name]: true },
+        }));
+      }
+      previousStep();
+    }
   }, [props.checkDataCompleteness, previousStep, setNavigationEvent]);
 
   // Function to handle next button click
@@ -131,7 +152,15 @@ const Navigator = memo((props) => {
     ) {
       setCheckDataCompletion("true");
       setNavigationEvent({ name: "next" });
-    } else nextStep();
+    } else {
+      if (typeof props?.setMicroplanData === "function") {
+        props?.setMicroplanData((previous) => ({
+          ...previous,
+          status: { ...previous?.status, [currentPage?.name]: true },
+        }));
+      }
+      nextStep();
+    }
   }, [props.checkDataCompleteness, nextStep, setNavigationEvent]);
 
   // Function to handle step click
@@ -148,6 +177,12 @@ const Navigator = memo((props) => {
         setCheckDataCompletion("true");
         setNavigationEvent({ name: "step", step: index });
       } else {
+        if (typeof props?.setMicroplanData === "function") {
+          props?.setMicroplanData((previous) => ({
+            ...previous,
+            status: { ...previous?.status, [currentPage?.name]: true },
+          }));
+        }
         onStepClick(index);
       }
     },

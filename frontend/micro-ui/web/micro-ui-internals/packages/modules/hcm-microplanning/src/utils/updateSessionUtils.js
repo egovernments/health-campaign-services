@@ -178,7 +178,7 @@ export const updateSessionUtils = {
     };
 
     const setMicroplanRuleEngine = () => {
-      const rulesList = state.UIConfiguration?.filter((item) => item.name === "ruleConfigure")?.[0]?.ruleConfigureOperators;
+      const rulesList = state?.RuleConfigureOperators || [];
       let sortedRules = sortRules(row.operations);
       if (row.operations.length > 0) {
         sessionObj.ruleEngine = sortedRules?.map((item) => {
@@ -391,9 +391,7 @@ export const updateSessionUtils = {
                   const response = await handleExcelFile(
                     file,
                     schemaData,
-                    additionalProps.hierarchyData.map(
-                      (item) => `${additionalProps.campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item)}`
-                    ),
+                    additionalProps.hierarchyData,
                     { id: inputFileType },
                     boundaryDataAgainstBoundaryCode,
                     () => {},

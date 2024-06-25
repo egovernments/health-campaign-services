@@ -80,7 +80,7 @@ export const JsonPreviewInExcelForm = (props) => {
                       >
                         {cellIndex === 0 && rowHasError && <div className="edited-row-marker" />}
 
-                        {rowData[cellIndex] || rowData[cellIndex] === 0 ? rowData[cellIndex] : ""}
+                        {rowData[cellIndex] || rowData[cellIndex] === 0 ? (typeof rowData[cellIndex] !== "object" ? rowData[cellIndex] : "") : ""}
                       </td>
                     );
                   })}

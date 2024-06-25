@@ -133,7 +133,11 @@ const SavedMicroplans = () => {
       },
     });
     if (response?.BoundaryHierarchy?.length) {
-      return response.BoundaryHierarchy[0].boundaryHierarchy.map((item) => item.boundaryType);
+      return (
+        response?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map(
+          (item) => `${hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`
+        ) || {}
+      );
     }
     console.error("Invalid response structure");
   };

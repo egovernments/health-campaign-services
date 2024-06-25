@@ -119,7 +119,7 @@ export const extractGeoData = (
   const processExcelFile = (fileData, latLngColumns, resources, formulaConfiguration, hypothesisAssumptionsList, schema, t) => {
     let dataAvailabilityCheck = "true";
     const columnList = Object.values(fileData?.data)?.[0]?.[0];
-    const check = latLngColumns.every((colName) => columnList.includes(t(colName)));
+    const check = latLngColumns?.every((colName) => columnList?.includes(t(colName)));
 
     if (!check) dataAvailabilityCheck = "partial";
 

@@ -7,7 +7,7 @@ import { SpatialDataPropertyMapping } from "./resourceMapping";
 import { JsonPreviewInExcelForm } from "./JsonPreviewInExcelForm";
 import { ButtonType1, ButtonType2, CloseButton, ModalHeading } from "./CommonComponents";
 import { Loader } from "@egovernments/digit-ui-components";
-import { EXCEL, FILE_STORE, GEOJSON, PRIMARY_THEME_COLOR, SHAPEFILE } from "../configs/constants";
+import { EXCEL, FILE_STORE, GEOJSON, PRIMARY_THEME_COLOR, SHAPEFILE, UPLOADED_DATA_ACTIVE } from "../configs/constants";
 import { tourSteps } from "../configs/tourSteps";
 import { useMyContext } from "../utils/context";
 import { v4 as uuidv4 } from "uuid";
@@ -570,9 +570,10 @@ const Upload = ({
     try {
       let blob;
       const schema = getSchema(campaignType, selectedFileType.id, selectedSection.id, validationSchemas);
-      const filteredReadMeData = findReadMe(state?.ReadMeData, campaignType, selectedFileType.id, selectedSection.id);
+      const filteredReadMeData = findReadMe(state?.ReadMeData, campaignType, selectedFileType.id, selectedSection.id)?.data || [];
       let combinedData = convertAndCombineFileData();
       const readMeSheetName = state?.CommonConstants?.find((item) => item?.name === "readMeSheetName")?.value;
+      const sectionIdList = sections?.map((item) => item.id);
       switch (fileData.fileType) {
         case EXCEL:
           if (fileData?.errorLocationObject?.length !== 0)
@@ -583,6 +584,7 @@ const Upload = ({
               hierarchy,
               filteredReadMeData,
               readMeSheetName,
+              sectionIdList,
               t
             );
           else blob = fileData.file;
@@ -600,6 +602,7 @@ const Upload = ({
                 hierarchy,
                 filteredReadMeData,
                 readMeSheetName,
+                sectionIdList,
                 t
               );
           }
@@ -686,6 +689,7 @@ const Upload = ({
       const schemaData = getSchema(campaignType, selectedFileType.id, selectedSection.id, validationSchemas);
       let error;
       if (!checkForSchemaData(schemaData)) return;
+
       const { data, valid, errors } = computeMappedDataAndItsValidations(schemaData);
       error = errors;
       if (!valid) return;
@@ -829,16 +833,26 @@ const Upload = ({
     if (schemaData?.schema?.["Properties"]) schemaKeys = hierarchy.concat(Object.keys(schemaData.schema["Properties"]));
     // Sorting the resourceMapping list inorder to maintain the column sequence
     const sortedSecondList = Digit.Utils.microplan.sortSecondListBasedOnFirstListOrder(schemaKeys, resourceMapping);
+
     // Creating a object with input data with MDMS keys
-    const newFeatures = fileData.data["features"].map((item) => {
+    const newFeatures = [];
+    for (const item of fileData.data["features"]) {
+      if (
+        schemaData?.activeInactiveField &&
+        schemaData?.schema?.Properties &&
+        Object.keys(schemaData.schema.Properties).includes(schemaData.activeInactiveField) &&
+        item?.properties?.[t(schemaData.activeInactiveField)] !== t(UPLOADED_DATA_ACTIVE)
+      ) {
+        break;
+      }
       let newProperties = {};
 
       sortedSecondList.forEach((e) => {
         newProperties[e["mappedTo"]] = item["properties"][e["mappedFrom"]];
       });
       item["properties"] = newProperties;
-      return item;
-    });
+      newFeatures.push(item);
+    }
     let data = fileData.data;
     data["features"] = newFeatures;
     return data;
@@ -891,7 +905,7 @@ const Upload = ({
         data = Digit.Utils.microplan.convertGeojsonToExcelSingleSheet(fileData?.data?.features, fileData?.section);
         break;
     }
-    if (!data || Object.keys(data).length === 0) {
+    if (!data || Object.keys(data).length === 0 || Object.values(data)?.[0]?.[0].length === 0) {
       setToast({
         state: "error",
         message: t("ERROR_DATA_NOT_PRESENT"),
@@ -1071,7 +1085,7 @@ const Upload = ({
               headerBarMain={<ModalHeading style={{ fontSize: "1.5rem" }} label={t("HEADING_SPATIAL_DATA_PROPERTY_MAPPING")} />}
               actionSaveOnSubmit={validationForMappingAndDataSaving}
               actionSaveLabel={t("COMPLETE_MAPPING")}
-              headerBarEnd={<CloseButton clickHandler={cancelUpload} style={{ margin: "0.4rem 0.8rem 0 0" }} />}
+              headerBarEnd={<CloseButton clickHandler={cancelUpload} style={{ margin: "0.4rem 0rem 0 0" }} />}
             >
               <div className="modal-body">
                 <p className="modal-main-body-p">{t("INSTRUCTION_SPATIAL_DATA_PROPERTY_MAPPING")}</p>

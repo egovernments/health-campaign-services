@@ -131,7 +131,6 @@ const RuleEngine = ({
     const hypothesisAssumptions = [];
     microplanData?.hypothesis?.filter((item) => item.active).forEach((item) => (item.key !== "" ? hypothesisAssumptions.push(item.key) : null));
     const ruleConfigureOutput = state?.RuleConfigureOutput;
-    const UIConfiguration = state?.UIConfiguration;
     const ruleConfigureInputs = getRuleConfigInputsFromSchema(campaignType, microplanData, schemas) || [];
     let AutoFilledRuleConfigurationsList = state?.AutoFilledRuleConfigurations;
     AutoFilledRuleConfigurationsList = AutoFilledRuleConfigurationsList.find((item) => item.campaignType === campaignType)?.data;
@@ -159,9 +158,9 @@ const RuleEngine = ({
 
     if (ruleConfigureInputs) setInputs(ruleConfigureInputs);
     let operator;
-    if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (temp?.ruleConfigureOperators) {
-      temp = temp.ruleConfigureOperators.map((item) => item.name);
+    temp = state?.RuleConfigureOperators;
+    if (temp) {
+      temp = temp.map((item) => item.name);
       operator = temp;
       setOperators(temp);
     }
@@ -176,10 +175,10 @@ const RuleEngine = ({
     }, []);
     const tempOutput = [...outputs, ...(ssnRuleOutputs ? ssnRuleOutputs : [])];
     setExampleOption({
-      output: tempOutput.length ? tempOutput[0] : "",
-      input: pureInputs.length ? pureInputs[0] : "",
-      operator: operator.length ? operator[0] : "",
-      assumptionValue: hypothesisAssumptions.length ? hypothesisAssumptions[0] : "",
+      output: tempOutput?.length ? tempOutput[0] : "",
+      input: pureInputs?.length ? pureInputs[0] : "",
+      operator: operator?.length ? operator[0] : "",
+      assumptionValue: hypothesisAssumptions?.length ? hypothesisAssumptions[0] : "",
     });
 
     let filteredRules = [];
@@ -578,7 +577,7 @@ const Example = ({ exampleOption, t }) => {
             <p className="heading">{t("RULE_ENGINE_VALUE_HELP_TEXT")}</p>
           </div>
 
-          <div className="equal-to-icon">
+          <div className="equal-to-icon example-equal-to">
             <p className="heading invisible">{"="}</p>
 
             <div className="equal-to-icon">=</div>

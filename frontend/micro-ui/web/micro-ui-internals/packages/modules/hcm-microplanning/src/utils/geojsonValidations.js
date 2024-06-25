@@ -182,10 +182,10 @@ export const geojsonPropertiesValidation = (data, schemaData, name, t) => {
 
       switch (hasDataErrors) {
         case "true":
-          errorMessages = { ...errorMessages, dataError: t("ERROR_REFER_UPLOAD_PREVIEW_TO_SEE_THE_ERRORS") };
+          errorMessages = { ...errorMessages, dataError: "ERROR_REFER_UPLOAD_PREVIEW_TO_SEE_THE_ERRORS" };
           break;
         case "unknown":
-          errorMessages = { ...errorMessages, unkown: t("ERROR_UNKNOWN") };
+          errorMessages = { ...errorMessages, unkown: "ERROR_UNKNOWN" };
           break;
         case "missing_properties":
           errorMessages = {

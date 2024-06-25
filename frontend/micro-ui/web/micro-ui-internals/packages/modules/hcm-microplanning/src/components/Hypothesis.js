@@ -34,7 +34,7 @@ const Hypothesis = ({
   const [autofillHypothesis, setAutofillHypothesis] = useState([]);
   const { state, dispatch } = useMyContext();
   const [orignalHypothesisCount, setOrignalHypothesisCount] = useState(0);
-
+  const [initialHypothesisData, setInitialHypothesisData] = useState([]);
   // Set TourSteps
   useEffect(() => {
     const tourData = tourSteps(t)?.[page] || {};
@@ -43,6 +43,10 @@ const Hypothesis = ({
       type: "SETINITDATA",
       state: { tourStateData: tourData },
     });
+  }, []);
+
+  useEffect(() => {
+    if (microplanData?.hypothesis) setInitialHypothesisData(microplanData?.hypothesis);
   }, []);
 
   const setModal = (modalString) => {
@@ -135,10 +139,19 @@ const Hypothesis = ({
           }
           return item;
         });
-        setMicroplanData((previous) => ({ ...previous, hypothesis: newAssumptions }));
+        if (!deepEqual(newAssumptions, initialHypothesisData)) {
+          setMicroplanData((previous) => ({
+            ...previous,
+            hypothesis: newAssumptions,
+            status: { ...previous?.status, FORMULA_CONFIGURATION: false },
+          }));
+        } else {
+          setMicroplanData((previous) => ({ ...previous, hypothesis: newAssumptions }));
+        }
         setAssumptions(newAssumptions);
         let checkValid = validateAssumptions(assumptions);
         checkValid = checkValid && assumptions.filter((subItem) => subItem?.active).length !== 0;
+
         if (checkValid) setCheckDataCompletion("valid");
         else setCheckDataCompletion("invalid");
       } else {
@@ -148,7 +161,7 @@ const Hypothesis = ({
         else setCheckDataCompletion("invalid");
       }
     },
-    [assumptions, setMicroplanData, microplanData, setCheckDataCompletion]
+    [assumptions, setMicroplanData, microplanData, setCheckDataCompletion, initialHypothesisData]
   );
 
   const validateAssumptions = useCallback((assumptions) => {
@@ -602,6 +615,17 @@ const setAutofillHypothesisData = (autofillHypothesis, assumptions, setAssumptio
 const filterHypothesisList = (assumptions, hypothesisList) => {
   let alreadySelectedHypothesis = assumptions.filter((item) => item?.active).map((item) => item?.key) || [];
   return hypothesisList.filter((item) => !alreadySelectedHypothesis.includes(item));
+};
+
+const deepEqual = (obj1, obj2) => {
+  if (obj1 === obj2) return true;
+  if (obj1 == null || obj2 == null || typeof obj1 !== "object" || typeof obj2 !== "object") return false;
+
+  const keys1 = Object.keys(obj1),
+    keys2 = Object.keys(obj2);
+  if (keys1.length !== keys2.length) return false;
+
+  return keys1.every((key) => keys2.includes(key) && deepEqual(obj1[key], obj2[key]));
 };
 
 export default Hypothesis;

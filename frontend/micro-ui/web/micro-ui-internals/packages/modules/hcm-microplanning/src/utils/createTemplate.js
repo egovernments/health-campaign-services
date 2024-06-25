@@ -384,7 +384,7 @@ const addFacilitySheet = (xlsxData, mapping, facilities, schema, t) => {
 
 const addReadMeSheet = (xlsxData, readMeData, readMeSheetName) => {
   if (!readMeSheetName) return xlsxData;
-  const data = readMeData.reduce((acc, item) => {
+  const data = (readMeData?.data || []).reduce((acc, item) => {
     if (item?.header) {
       acc.push([item.header], ...(item.points || []).map((item) => [item]), [], [], [], []);
     }
@@ -393,7 +393,7 @@ const addReadMeSheet = (xlsxData, readMeData, readMeSheetName) => {
 
   const readMeSheet = {
     sheetName: readMeSheetName,
-    data: [["MICROPLAN_TEMPLATE_README_MAIN_HEADER"], [], [], [], ...data],
+    data: [[readMeData?.mainHeader || "MICROPLAN_TEMPLATE_README_MAIN_HEADER"], [], [], [], ...data],
   };
   xlsxData.unshift(readMeSheet);
   return xlsxData;

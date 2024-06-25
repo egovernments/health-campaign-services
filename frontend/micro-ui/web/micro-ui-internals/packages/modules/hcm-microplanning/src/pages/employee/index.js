@@ -63,7 +63,6 @@ const App = ({ path }) => {
     "hcm-microplanning",
     [
       { name: "UploadConfiguration" },
-      { name: "UIConfiguration" },
       { name: "Schemas" },
       { name: "RuleConfigureOutput" },
       { name: "Resources" },
@@ -77,6 +76,10 @@ const App = ({ path }) => {
       { name: "UploadGuidelines" },
       { name: "ReadMeData" },
       { name: "CommonConstants" },
+      { name: "MappingOrigin" },
+      { name: "MicroplanNamingConvention" },
+      { name: "MicroplanNamingRegx" },
+      { name: "RuleConfigureOperators" },
     ],
     {
       select: (data) => {

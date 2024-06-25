@@ -42,7 +42,6 @@ const MicroplanPreview = ({
   const [hypothesisAssumptionsList, setHypothesisAssumptionsList] = useState([]);
   const [data, setData] = useState([]);
   const [dataToShow, setDataToShow] = useState([]);
-  const [joinByColumns, setJoinByColumns] = useState([]);
   const [validationSchemas, setValidationSchemas] = useState([]);
   const [resources, setResources] = useState([]);
   const [formulaConfiguration, setFormulaConfiguration] = useState([]);
@@ -131,7 +130,6 @@ const MicroplanPreview = ({
   // Fetch and assign MDMS data
   useEffect(() => {
     if (!state) return;
-    const UIConfiguration = state?.UIConfiguration;
     const schemas = state?.Schemas;
     let resourcelist = state?.Resources;
     let microplanPreviewAggregatesList = state?.MicroplanPreviewAggregates;
@@ -139,14 +137,8 @@ const MicroplanPreview = ({
     if (schemas) setValidationSchemas(schemas);
     resourcelist = resourcelist.find((item) => item.campaignType === campaignType)?.data;
     if (resourcelist) setResources(resourcelist);
-    if (UIConfiguration) {
-      const joinWithColumns = UIConfiguration.find((item) => item.name === "microplanPreview")?.joinWithColumns;
-      setJoinByColumns(joinWithColumns);
-    }
-    let temp;
-    if (UIConfiguration) temp = UIConfiguration.find((item) => item.name === "ruleConfigure");
-    if (temp?.ruleConfigureOperators) {
-      setOperatorsObject(temp.ruleConfigureOperators);
+    if (state?.RuleConfigureOperators) {
+      setOperatorsObject(state.RuleConfigureOperators);
     }
     if (microplanPreviewAggregatesList) setMicroplaPreviewAggregates(microplanPreviewAggregatesList);
   }, []);
