@@ -430,6 +430,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               if(error.keyword === "type" && error.message === "must be string"){
                 return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")} at ${sheetName}` 
               }
+              if(error.keyword === "maximum"){
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_MAXIMUM_VALUE")} at ${sheetName}` 
+              }
               let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
               if (error.keyword === "enum" && error.params && error.params.allowedValues) {
                 formattedError += `${t("HCM_DATA_ALLOWED_VALUES_ARE")} ${error.params.allowedValues.join("/ ")}`;
@@ -1137,7 +1140,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               onClick={() => {
                 downloadTemplate(), setShowPopUp(false);
               }}
-              title={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
             />,
           ]}
           sortFooterChildren={true}
