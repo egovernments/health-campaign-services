@@ -115,6 +115,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           return {
             text: t(desc.text),
             isStepRequired: desc.isStepRequired,
+            isBold: desc.isBold
           };
         }),
       };
@@ -314,8 +315,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 const missingProperty = error.params?.missingProperty || "";
                 return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} '${missingProperty}' ${t("HCM_DATA_SHOULD_NOT_BE_EMPTY")}`;
               }
-              if(error.keyword === "type" && error.message === "must be string"){
-                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")}` 
+              if (error.keyword === "type" && error.message === "must be string") {
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")}`;
               }
               let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
               if (error.keyword === "enum" && error.params && error.params.allowedValues) {
@@ -1088,8 +1089,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             <ul style={{ paddingLeft: 0 }}>
               {info?.descriptions.map((desc, i) => (
                 <li key={i} className="info-points">
-                  <p>{i + 1}. </p>
-                  <p>{desc.text}</p>
+                  {desc.isBold ? <h2>{desc.text}</h2> : <p>{desc.text}</p>}
                 </li>
               ))}
             </ul>
