@@ -12,7 +12,7 @@ public interface Constants {
     String PREFIX_ZERO = "0";
 
     String QUANTITY_WASTED = "quantityWasted";
-
+    String QUANTITY_UTILISED = "quantityUtilised";
     Double RE_ADMINISTERED_DOSES = 2.0;
 
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
