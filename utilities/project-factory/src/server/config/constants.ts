@@ -10,7 +10,8 @@ export const CONSTANTS: any = {
             INVALID_PAGINATION: "Invalid pagination",
             KAFKA_ERROR: "Some error occured in kafka",
             SCHEMA_ERROR: " Schema related error",
-            RESPONSE_NOT_FOUND_ERROR: "Response not found"
+            RESPONSE_NOT_FOUND_ERROR: "Response not found",
+            GENERATE_ERROR : "Error while generating user/facility/boundary"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",

@@ -637,21 +637,35 @@ async function getBoundarySheetData(
       headers
     );
   } else {
-    // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    const responseFromCampaignSearch =
-      await getCampaignSearchResponse(request);
-    const FiltersFromCampaignId = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
-    if (FiltersFromCampaignId?.Filters != null) {
+    let Filters :any= {};
+    if (request?.body?.Filters && request?.body?.Filters.boundaries && Array.isArray(request?.body?.Filters.boundaries) && request?.body?.Filters.boundaries.length > 0) {
+      Filters = {
+          Filters: {
+              boundaries: request.body.Filters.boundaries.map((boundary:any) => ({
+                  ...boundary,
+                  boundaryType: boundary.type // Adding boundaryType field
+              }))
+          }
+      };
+  }
+    else {
+      // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+      const responseFromCampaignSearch =
+        await getCampaignSearchResponse(request);
+      Filters = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
+    }
+    if (Filters?.Filters  && Filters.Filters.boundaries && Array.isArray(Filters.Filters.boundaries) && Filters.Filters.boundaries.length > 0) {
       const filteredBoundaryData = await generateFilteredBoundaryData(
         request,
-        FiltersFromCampaignId
+        Filters
       );
       return await getDataSheetReady(
         filteredBoundaryData,
         request,
         localizationMap
       );
-    } else {
+    }
+    else {
       return await getDataSheetReady(boundaryData, request, localizationMap);
     }
   }
