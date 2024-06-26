@@ -59,7 +59,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [convertedSchema, setConvertedSchema] = useState({});
   const [loader, setLoader] = useState(false);
 
-
   useEffect(() => {
     if (type === "facilityWithBoundary") {
       onSelect("uploadFacility", { uploadedFile, isError, isValidation, apiError, isSuccess });
@@ -115,7 +114,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           return {
             text: t(desc.text),
             isStepRequired: desc.isStepRequired,
-            isBold: desc.isBold
+            isBold: desc.isBold,
           };
         }),
       };
@@ -386,7 +385,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     let validate = ajv.compile(translatedSchema[type]);
     const errors = []; // Array to hold validation errors
 
-
     data.forEach((item, index) => {
       if (!validate(item)) {
         errors.push({ index: (item?.["!row#number!"] || item?.["__rowNum__"]) + 1, errors: validate.errors });
@@ -397,7 +395,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     //   const errorMessage = errors
     //     .map(({ index, errors }) => {
     //       const formattedErrors = errors.map((error) => {
-            
+
     //           let formattedError = `${error.instancePath}: ${error.message}`;
     //           if (error.keyword === "enum" && error.params && error.params.allowedValues) {
     //             formattedError += `. Allowed values are: ${error.params.allowedValues.join("/ ")}`;
@@ -426,13 +424,15 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }
               if (error.keyword === "required") {
                 const missingProperty = error.params?.missingProperty || "";
-                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} '${missingProperty}' ${t("HCM_DATA_SHOULD_NOT_BE_EMPTY")} at ${sheetName}`;
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} '${missingProperty}' ${t(
+                  "HCM_DATA_SHOULD_NOT_BE_EMPTY"
+                )} at ${sheetName}`;
               }
-              if(error.keyword === "type" && error.message === "must be string"){
-                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")} at ${sheetName}` 
+              if (error.keyword === "type" && error.message === "must be string") {
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_INVALID")} at ${sheetName}`;
               }
-              if(error.keyword === "maximum"){
-                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_MAXIMUM_VALUE")} at ${sheetName}` 
+              if (error.keyword === "maximum") {
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")} ${instancePath} ${t("HCM_IS_MAXIMUM_VALUE")} at ${sheetName}`;
               }
               let formattedError = `${t("HCM_IN_COLUMN")} '${instancePath}' ${error.message}`;
               if (error.keyword === "enum" && error.params && error.params.allowedValues) {
@@ -445,11 +445,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         })
         .join(", ");
 
-
-        setIsError(true);
-          targetError.push(errorMessage);
-          return false;
-    }else{
+      setIsError(true);
+      targetError.push(errorMessage);
+      return false;
+    } else {
       return true;
     }
   };
@@ -469,7 +468,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     const expectedHeaders = XLSX.utils.sheet_to_json(sheet, {
       header: 1,
     })[0];
-
 
     for (const header of mdmsHeaders) {
       if (!expectedHeaders.includes(t(header))) {
@@ -1064,12 +1062,15 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               <React.Fragment key={type}>
                 {errorsType[type] && (
                   <React.Fragment>
-                    {errorsType[type].split(",").slice(0,50).map((error, index) => (
-                      <React.Fragment key={index}>
-                        {index > 0 && <br />}
-                        {error.trim()}
-                      </React.Fragment>
-                    ))}
+                    {errorsType[type]
+                      .split(",")
+                      .slice(0, 50)
+                      .map((error, index) => (
+                        <React.Fragment key={index}>
+                          {index > 0 && <br />}
+                          {error.trim()}
+                        </React.Fragment>
+                      ))}
                   </React.Fragment>
                 )}
               </React.Fragment>,
@@ -1137,6 +1138,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               variation={"primary"}
               icon={"FileDownload"}
               label={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
+              title={t("HCM_CAMPAIGN_DOWNLOAD_TEMPLATE")}
               onClick={() => {
                 downloadTemplate(), setShowPopUp(false);
               }}
