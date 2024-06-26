@@ -27,14 +27,14 @@ import lombok.NoArgsConstructor;
 public class EnrichedBoundary {
 
 	 @JsonProperty("id")
-	    private String id = null;
+	    private String id;
 
 	    @JsonProperty("code")
 	    @NotNull
-	    private String code = null;
+	    private String code;
 
 	    @JsonProperty("boundaryType")
-	    private String boundaryType = null;
+	    private String boundaryType;
 
 	    @JsonProperty("children")
 	    @Valid

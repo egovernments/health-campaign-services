@@ -40,10 +40,10 @@ public class ServiceRequestRepository {
         try {
             response = restTemplate.postForObject(uri.toString(), request, Map.class);
         }catch(HttpClientErrorException e) {
-            log.error(EXTERNAL_SERVICE_EXCEPTION,e);
+        	log.error(SEARCHER_SERVICE_EXCEPTION, "Error occurred while fetching data: {}", e.getMessage());
             throw new ServiceCallException(e.getResponseBodyAsString());
         }catch(Exception e) {
-            log.error(SEARCHER_SERVICE_EXCEPTION,e);
+        	log.error(SEARCHER_SERVICE_EXCEPTION, "Error occurred while fetching data: {}", e.getMessage());
             throw new ServiceCallException(e.getMessage());
         }
 
@@ -55,10 +55,10 @@ public class ServiceRequestRepository {
         try {
             response = restTemplate.getForObject(uri.toString(), byte[].class);
         } catch (HttpClientErrorException e) {
-            log.error(EXTERNAL_SERVICE_EXCEPTION, e);
+        	log.error(SEARCHER_SERVICE_EXCEPTION, "Error occurred while fetching data: {}", e.getMessage());
             throw new ServiceCallException(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error(SEARCHER_SERVICE_EXCEPTION, e);
+        	log.error(SEARCHER_SERVICE_EXCEPTION, "Error occurred while fetching data: {}", e.getMessage());
             throw new ServiceCallException(e.getMessage());
         }
         return response;

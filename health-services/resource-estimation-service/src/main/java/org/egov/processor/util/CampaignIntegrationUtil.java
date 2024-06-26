@@ -84,7 +84,7 @@ public class CampaignIntegrationUtil {
 		} catch (Exception e) {
 			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_CAMPAIGN
 					+ planConfigurationRequest.getPlanConfiguration().getExecutionPlanId(), e);
-			throw new CustomException("Failed to update campaign details", e.toString());
+			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
 		}
 	}
 
@@ -138,7 +138,7 @@ public class CampaignIntegrationUtil {
 	public void updateCampaignBoundary(PlanConfiguration planConfig, JsonNode feature,
 			Map<String, BigDecimal> assumptionValueMap, Map<String, String> mappedValues,
 			Map<String, Integer> mapOfColumnNameAndIndex, List<Boundary> boundaryList,
-			Map<String, BigDecimal> resultMap) throws IOException {
+			Map<String, BigDecimal> resultMap) {
 		Integer indexOfType = null;
 		boolean validToAdd = false;
 		Integer indexValue = 0;

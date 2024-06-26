@@ -63,11 +63,9 @@ public class Campaign {
     private String projectId;
 	
 	@JsonProperty("startDate")
-    @Valid
     private long startDate;
 	
 	@JsonProperty("endDate")
-    @Valid
     private long endDate;
 	
 	@JsonProperty("additionalDetails")

@@ -30,7 +30,6 @@ public class Boundary {
     private String type;
 	
 	@JsonProperty("isRoot")
-	@Valid
     private boolean isRoot;
 	
 	@JsonProperty("parent")
@@ -38,6 +37,5 @@ public class Boundary {
     private String parent;
 	
 	@JsonProperty("includeAllChildren")
-	@Valid
     private boolean includeAllChildren;
 }

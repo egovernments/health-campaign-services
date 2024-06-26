@@ -120,6 +120,16 @@ public class CalculationUtil {
         }
     }
 
+    /**
+     * Calculates a result based on the provided operation and inputs.
+     *
+     * @param operation The operation object containing details like input, operator, and assumption value.
+     * @param feature   The JSON node representing additional features or parameters for calculation.
+     * @param mappedValues A map containing mappings for input keys to their corresponding values.
+     * @param assumptionValueMap A map containing assumption values referenced by keys.
+     * @param resultMap A map to store and update the calculated results.
+     * @return The calculated result as a BigDecimal.
+     */
     public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, String> mappedValues, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap)
     {
         String input = operation.getInput();

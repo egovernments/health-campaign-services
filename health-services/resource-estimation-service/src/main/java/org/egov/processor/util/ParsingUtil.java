@@ -54,15 +54,13 @@ public class ParsingUtil {
     {
         if(jsonNode.get("features") == null)
             throw new CustomException("No Features found in geojson", " ");
-        List<String> columnNames = new ArrayList<>();
-        if(jsonNode.get("features")!=null) {
+        List<String> columnNames = new ArrayList<>();       
         JsonNode propertiesNode = jsonNode.get("features").get(0).get("properties");
         Iterator<String> fieldNames = propertiesNode.fieldNames();
         while (fieldNames.hasNext()) {
             String columnName = fieldNames.next();
             columnNames.add(columnName);
-        }
-        }
+        }       
         return columnNames;
     }
     public void validateColumnNames(List<String> columnNamesList, PlanConfiguration planConfig, String fileStoreId ) {

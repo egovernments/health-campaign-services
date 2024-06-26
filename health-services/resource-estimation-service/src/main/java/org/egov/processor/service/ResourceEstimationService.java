@@ -47,26 +47,51 @@ public class ResourceEstimationService {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
-        CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
-        Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
-				campaignRequest);
+        Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
         processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
 
+    /**
+     * Performs a campaign search based on the provided plan configuration request.
+     * This method builds a campaign search request using the integration utility,
+     * fetches the search result from the service request repository, and returns it.
+     *
+     * @param planConfigurationRequest The request object containing configuration details for the campaign search.
+     * @return The response object containing the result of the campaign search.
+     */
+	private Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
+		CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
+        Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
+				campaignRequest);
+		return campaignSearchResponse;
+	}
+
+	/**
+	 * Processes files in the plan configuration by parsing active files and skipping inactive ones.
+	 * Uses the provided parser map to parse supported file types. If a file type is not supported,
+	 * throws an IllegalArgumentException. Skips files with a specific template identifier defined
+	 * in ServiceConstants.
+	 *
+	 * @param planConfigurationRequest The request object containing configuration details.
+	 * @param planConfiguration The plan configuration object containing files to process.
+	 * @param parserMap A map of supported file types to their respective parsers.
+	 * @param campaignSearchResponse The response object from a campaign search operation.
+	 */
 	private void processFiles(PlanConfigurationRequest planConfigurationRequest, PlanConfiguration planConfiguration,
 			Map<File.InputFileTypeEnum, FileParser> parserMap, Object campaignSearchResponse) {
-		for(File file:planConfiguration.getFiles())
-        {
-            if(file.getActive())
-            {
-                File.InputFileTypeEnum fileType = file.getInputFileType();
-                FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
-                    throw new IllegalArgumentException("Unsupported file type: " + ft);
-                });
-                if(!file.getTemplateIdentifier().equalsIgnoreCase(ServiceConstants.FILE_TEMPLATE))
-                parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
-            }
-        }
+		for (File file : planConfiguration.getFiles()) {
+		    if (!file.getActive()) {
+		        continue; 
+		    }
+		    File.InputFileTypeEnum fileType = file.getInputFileType();
+		    FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
+                throw new IllegalArgumentException("Unsupported file type: " + ft);
+            });
+		    if (!ServiceConstants.FILE_TEMPLATE.equalsIgnoreCase(file.getTemplateIdentifier())) {
+		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
+		    }
+		}
+
 	}
 
     /**

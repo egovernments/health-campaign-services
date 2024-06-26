@@ -121,7 +121,7 @@ public class MdmsUtil {
 	 * @throws JsonProcessingException if there's an issue processing JSON.
 	 */
 	public Map<String, Object> filterMasterData(String masterDataJson, File.InputFileTypeEnum fileType,
-			String templateIdentifier, String campaignType) throws JsonMappingException, JsonProcessingException {
+			String templateIdentifier, String campaignType) {
 		Map<String, Object> properties = new HashMap<>();
 		Map<String, Object> masterData = JsonUtils.parseJson(masterDataJson, Map.class);
 		Map<String, Object> planModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_PLAN_MODULE_NAME);

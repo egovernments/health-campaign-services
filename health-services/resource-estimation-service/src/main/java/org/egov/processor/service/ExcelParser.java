@@ -129,24 +129,22 @@ public class ExcelParser implements FileParser {
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
 
-			for (int sheetNumber = 0; sheetNumber < workbook.getNumberOfSheets(); sheetNumber++) {
-				Sheet sheet = workbook.getSheetAt(sheetNumber);
+			workbook.forEach(sheet -> {
 				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
-
 				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
-
-				// Assuming processRows handles processing for each sheet
 				processRows(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
-			}
-
+			});
 			File fileToUpload = convertWorkbookToXls(workbook);
 			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
 			if (config.isIntegrateWithAdminConsole()) {
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
+				if (fileToUpload != null && !fileToUpload.delete()) {
+					log.warn("Failed to delete temporary file: " + fileToUpload.getPath());
+				}
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
 			}
@@ -179,7 +177,7 @@ public class ExcelParser implements FileParser {
 	 */
 	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, Object campaignResponse,
-			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) throws IOException {
+			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
 		CampaignResponse campaign = null;
 		campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
@@ -202,7 +200,7 @@ public class ExcelParser implements FileParser {
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
 			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
-			Row firstRow) throws IOException {
+			Row firstRow)  {
 		for (Row row : sheet) {
 			if (row.getRowNum() == 0) {
 				firstRow = row;

@@ -104,7 +104,7 @@ public class ShapeFileParser implements FileParser {
 
             writeFeaturesToGeoJson(featureSource, geojsonFile);
         } catch (IOException e) {
-            throw new CustomException("CONVERSION_ERROR",e.getMessage());
+            throw new CustomException("ERROR_IN_SHAPE_FILE_PARSER_WHILE_CONVERTING_SHAPE_FILE_TO_GEOJSON_IN_METHOD_CONVERTSHAPEFILETOGEOJSON",e.getMessage());
         }
 
         return geojsonFile;
