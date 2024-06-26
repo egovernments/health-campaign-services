@@ -70,5 +70,11 @@ public class Configuration {
 
 	@Value("${egov.boundary.relationship.search.endpoint}")
 	private String egovBoundaryRelationshipSearchEndpoint;
+	
+	@Value("${egov.locale.service.host}")
+	private String egovLocaleServiceHost;
+		
+	@Value("${egov.locale.search.endpoint}")
+	private String egovLocaleSearchEndpoint;
 
 }

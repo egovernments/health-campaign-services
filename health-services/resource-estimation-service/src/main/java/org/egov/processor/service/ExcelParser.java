@@ -24,9 +24,12 @@ import org.egov.processor.util.BoundaryUtil;
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.CampaignIntegrationUtil;
 import org.egov.processor.util.FilestoreUtil;
+import org.egov.processor.util.LocaleUtil;
 import org.egov.processor.util.MdmsUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.util.PlanUtil;
+import org.egov.processor.web.models.Locale;
+import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfiguration.StatusEnum;
@@ -70,10 +73,12 @@ public class ExcelParser implements FileParser {
 	private MdmsUtil mdmsUtil;
 
 	private BoundaryUtil boundaryUtil;
+	
+	private LocaleUtil localeUtil;
 
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
 			CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-			Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil) {
+			Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil,LocaleUtil localeUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -83,6 +88,7 @@ public class ExcelParser implements FileParser {
 		this.config = config;
 		this.mdmsUtil = mdmsUtil;
 		this.boundaryUtil = boundaryUtil;
+		this.localeUtil = localeUtil;
 	}
 
 	/**
@@ -130,11 +136,13 @@ public class ExcelParser implements FileParser {
 			DataFormatter dataFormatter = new DataFormatter();
 
 			workbook.forEach(sheet -> {
+				if(isSheetAlloedToProcess(planConfigurationRequest,sheet.getSheetName())) {
 				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 				processRows(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
+				}
 			});
 			File fileToUpload = convertWorkbookToXls(workbook);
 			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
@@ -558,5 +566,30 @@ public class ExcelParser implements FileParser {
 			}
 		}
 		return boundaryList;
+	}
+	
+	/**
+	 * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
+	 * 
+	 * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
+	 * @param sheetName The name of the sheet to be processed.
+	 * @return true if the sheet is allowed to be processed, false otherwise.
+	 * @throws JsonMappingException If there's an issue mapping JSON response to Java objects.
+	 * @throws JsonProcessingException If there's an issue processing JSON during conversion.
+	 */
+	private boolean isSheetAlloedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName) {
+		Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+				planConfigurationRequest.getRequestInfo(),
+				planConfigurationRequest.getPlanConfiguration().getTenantId());
+		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
+		String value = (String) mdmsDataConstants.get("readMeSheetName");
+		for (Locale locale : localeResponse.getMessages()) {
+			if ((locale.getCode().equalsIgnoreCase(value))) {
+				if (sheetName.equals(locale.getMessage()))
+					return false;
+			}
+		}
+		return true;
+
 	}
 }

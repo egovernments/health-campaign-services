@@ -63,5 +63,9 @@ public class ServiceConstants {
     
     public static final String SCIENTIFIC_NOTATION_INDICATOR = "E";
     public static final String ATTRIBUTE_IS_REQUIRED ="isRequired";
+    
+    public static final String MDMS_LOCALE_SEARCH_MODULE ="rainmaker-microplanning,rainmaker-boundary-undefined,rainmaker-hcm-admin-schemas";
+    public static final String ERROR_WHILE_SEARCHING_LOCALE = "Exception occurred while searching locale. ";
+    public static final String MDMS_MASTER_COMMON_CONSTANTS = "CommonConstants";
 
 }
