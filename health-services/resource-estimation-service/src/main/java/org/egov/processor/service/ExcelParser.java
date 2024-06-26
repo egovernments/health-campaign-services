@@ -103,8 +103,9 @@ public class ExcelParser implements FileParser {
 		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
 		if (file == null || !file.exists()) {
-			log.info("FILE NOT FOUND");
-			return null;
+			log.error("File not found: {} in tenant: {}", fileStoreId, planConfig.getTenantId());
+			throw new CustomException("FileNotFound",
+					"The file with ID " + fileStoreId + " was not found in the tenant " + planConfig.getTenantId());
 		}
 		return processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
 	}
@@ -175,8 +176,12 @@ public class ExcelParser implements FileParser {
 			}
 			return uploadedFileStoreId;
 		} finally {
+			try {
 			if (fileToUpload != null && !fileToUpload.delete()) {
 				log.warn("Failed to delete temporary file: " + fileToUpload.getPath());
+			}
+			}catch(SecurityException e) {
+				 log.error("Security exception when attempting to delete file: " + e.getMessage());
 			}
 		}
 	}

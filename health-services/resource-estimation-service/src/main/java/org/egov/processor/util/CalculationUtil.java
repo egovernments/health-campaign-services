@@ -7,6 +7,7 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.web.models.Assumption;
@@ -56,11 +57,7 @@ public class CalculationUtil {
      * @return The map of assumptions.
      */
     public Map<String, BigDecimal> convertAssumptionsToMap(List<Assumption> assumptions) {
-        Map<String, BigDecimal> assumptionMap = new HashMap<>();
-        for (Assumption assumption : assumptions) {
-            assumptionMap.put(assumption.getKey(), assumption.getValue());
-        }
-        return assumptionMap;
+        return assumptions.stream().collect(Collectors.toMap(Assumption::getKey, Assumption::getValue));
     }
 
     /**
