@@ -37,7 +37,7 @@ const MicroplanningBreadCrumb = ({ location, defaultPath }) => {
     },
     {
       content: t(`SAVED_MICROPLANS_TEXT`),
-      show: pathVar === "saved-microplan",
+      show: pathVar === "saved-microplans",
     },
     {
       content: t(`CREATE_MICROPLAN`),
