@@ -75,7 +75,11 @@ const CreateMicroplan = () => {
     config: {
       enabled: !!campaignData?.hierarchyType,
       select: (data) => {
-        return data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map((item) => item?.boundaryType) || {};
+        return (
+          data?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.map(
+            (item) => `${campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item?.boundaryType)}`
+          ) || {}
+        );
       },
     },
   };
