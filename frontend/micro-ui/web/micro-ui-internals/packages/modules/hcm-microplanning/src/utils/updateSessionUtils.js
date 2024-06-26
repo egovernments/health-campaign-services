@@ -179,7 +179,7 @@ export const updateSessionUtils = {
 
     const setMicroplanRuleEngine = () => {
       const rulesList = state?.RuleConfigureOperators || [];
-      let sortedRules = sortRules(row.operations);
+      const sortedRules = sortRules(row.operations);
       if (row.operations.length > 0) {
         sessionObj.ruleEngine = sortedRules?.map((item) => {
           return {

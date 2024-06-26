@@ -7,7 +7,7 @@ import { SpatialDataPropertyMapping } from "./resourceMapping";
 import { JsonPreviewInExcelForm } from "./JsonPreviewInExcelForm";
 import { ButtonType1, ButtonType2, CloseButton, ModalHeading } from "./CommonComponents";
 import { Loader } from "@egovernments/digit-ui-components";
-import { EXCEL, FILE_STORE, GEOJSON, PRIMARY_THEME_COLOR, SHAPEFILE, UPLOADED_DATA_ACTIVE } from "../configs/constants";
+import { EXCEL, FILE_STORE, GEOJSON, PRIMARY_THEME_COLOR, SHAPEFILE, UPLOADED_DATA_ACTIVE_STATUS } from "../configs/constants";
 import { tourSteps } from "../configs/tourSteps";
 import { useMyContext } from "../utils/context";
 import { v4 as uuidv4 } from "uuid";
@@ -841,7 +841,7 @@ const Upload = ({
         schemaData?.activeInactiveField &&
         schemaData?.schema?.Properties &&
         Object.keys(schemaData.schema.Properties).includes(schemaData.activeInactiveField) &&
-        item?.properties?.[t(schemaData.activeInactiveField)] !== t(UPLOADED_DATA_ACTIVE)
+        item?.properties?.[t(schemaData.activeInactiveField)] !== t(UPLOADED_DATA_ACTIVE_STATUS)
       ) {
         break;
       }

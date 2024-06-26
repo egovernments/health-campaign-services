@@ -14,7 +14,7 @@ import {
   FACILITY_DATA_SHEET,
   SCHEMA_PROPERTIES_PREFIX,
   SHEET_COLUMN_WIDTH,
-  UPLOADED_DATA_ACTIVE,
+  UPLOADED_DATA_ACTIVE_STATUS,
   commonColumn,
 } from "../configs/constants";
 import shp from "shpjs";
@@ -307,45 +307,41 @@ export function formatWorksheet(worksheet, headerSet) {
   updateFontNameToRoboto(worksheet);
 }
 
-export const protectData = async ({ workbook, hierarchyLevelWiseSheets = true, addFacilityData = false, schema, readMeSheetName, t }) => {
+const freezeHierarchySheets = async ({ workbook, readMeSheetName, t }) => {
   await freezeSheetValues(workbook, readMeSheetName);
+};
+
+const processFacilityData = async ({ workbook, schema, t }) => {
+  await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
+  await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
+  if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
+    let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
+    await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
+  }
+  // Further processing based on facilitySchemaApiMapping can be done here if needed
+};
+
+const processBoundaryData = async ({ workbook, schema, t }) => {
+  await freezeWorkbookValues(workbook);
+  await unfreezeColumnsByHeader(
+    workbook,
+    schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
+  );
+};
+
+export const protectData = async ({ workbook, hierarchyLevelWiseSheets = true, addFacilityData = false, schema, readMeSheetName, t }) => {
+  await freezeHierarchySheets({ workbook, readMeSheetName, t });
   if (hierarchyLevelWiseSheets) {
     if (addFacilityData) {
-      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
-      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
-      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
-        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
-        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
-      }
-      if (schema?.template?.facilitySchemaApiMapping) {
-      } else {
-      }
+      await processFacilityData({ workbook, schema, t });
     } else {
-      await freezeWorkbookValues(workbook);
-      await unfreezeColumnsByHeader(
-        workbook,
-        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
-      );
+      await processBoundaryData({ workbook, schema, t });
     }
   } else {
-    // total boundary Data in one sheet
     if (addFacilityData) {
-      await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
-      await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
-      if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
-        let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
-        await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
-      }
-
-      if (schema?.template?.facilitySchemaApiMapping) {
-      } else {
-      }
+      await processFacilityData({ workbook, schema, t });
     } else {
-      await freezeWorkbookValues(workbook);
-      await unfreezeColumnsByHeader(
-        workbook,
-        schema?.schema?.Properties ? Object.keys(schema.schema.Properties).map((item) => t(generateLocalisationKeyForSchemaProperties(item))) : []
-      );
+      await processBoundaryData({ workbook, schema, t });
     }
   }
 };
@@ -528,63 +524,69 @@ export const revertLocalisationKey = (localisedCode) => {
   }
   return localisedCode.substring(SCHEMA_PROPERTIES_PREFIX.length + 1);
 };
-export const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, readMeData, readMeSheetName, sectionIdList, t) => {
-  let tempData = [...data];
-  // Process each dataset within the data object
-  const processedData = {};
-  const schemaCols = schema?.schema?.Properties ? Object.keys(schema.schema.Properties) : [];
-  for (const sheet of tempData) {
+// Function to process each dataset within the data object
+const processData = (data, schemaCols, errors, hierarchy, sectionIdList, readMeSheetName, t) => {
+  let processedData = {};
+  for (const sheet of data) {
     const dataset = [...sheet.data];
-
-    // Add the 'error' column to the header
     dataset[0] = dataset[0].map((item) => {
       if (item !== commonColumn && schemaCols.includes(item)) {
         return t(generateLocalisationKeyForSchemaProperties(item));
       }
       return t(item);
     });
-    if (sheet.sheetName !== t(BOUNDARY_DATA_SHEET) && sheet.sheetName !== t(readMeSheetName)) {
-      // Process each data row
-      if (errors) {
-        let headerCount = dataset[0].length;
-        dataset[0].push(t("MICROPLAN_ERROR_STATUS_COLUMN"), t("MICROPLAN_ERROR_COLUMN"));
-        for (let i = 1; i < dataset.length; i++) {
-          const row = dataset[i];
-          if (headerCount > row.length) {
-            row.push(...Array(headerCount - row.length).fill(""));
-          }
 
-          // Check if there are errors for the given commonColumnData
-          const errorInfo = errors?.[sheet.sheetName]?.[i - 1];
-          if (errorInfo) {
-            let rowDataAddOn = Object.entries(errorInfo)
-              .map(([key, value]) => {
-                return `${t(key)}: ${value.map((item) => t(item)).join(", ")}`;
-              })
-              .join(". ");
-            row.push(t("MICROPLAN_ERROR_STATUS_INVALID"), rowDataAddOn);
-          } else {
-            row.push("");
-          }
-        }
-      }
+    if (sheet.sheetName !== t(BOUNDARY_DATA_SHEET) && sheet.sheetName !== t(readMeSheetName)) {
+      processSheetErrors(dataset, sheet.sheetName, errors, t);
     }
+
     if (sheet.sheetName === t(FACILITY_DATA_SHEET) || sectionIdList.includes(sheet.sheetName)) {
-      dataset[0] = dataset[0]?.map((item) => {
+      dataset[0] = dataset[0].map((item) => {
         if (item === t(commonColumn)) {
           return t(generateLocalisationKeyForSchemaProperties(commonColumn));
         }
         return item;
       });
-      if (hierarchy.every((item) => dataset[0]?.includes(item))) {
+
+      if (hierarchy.every((item) => dataset[0].includes(item))) {
         for (let i = 0; i < dataset.length; i++) {
-          dataset[i] = dataset[i]?.slice(hierarchy?.length);
+          dataset[i] = dataset[i].slice(hierarchy.length);
         }
       }
     }
+
     processedData[sheet.sheetName] = dataset;
   }
-  const errorColumns = ["MICROPLAN_ERROR_STATUS_COLUMN", "MICROPLAN_ERROR_COLUMN"];
+  return processedData;
+};
+
+// Function to process errors for a sheet
+const processSheetErrors = (dataset, sheetName, errors, t) => {
+  let headerCount = dataset[0].length;
+  dataset[0].push(t("MICROPLAN_ERROR_STATUS_COLUMN"), t("MICROPLAN_ERROR_COLUMN"));
+
+  for (let i = 1; i < dataset.length; i++) {
+    const row = dataset[i];
+    if (headerCount > row.length) {
+      row.push(...Array(headerCount - row.length).fill(""));
+    }
+
+    const errorInfo = errors?.[sheetName]?.[i - 1];
+    if (errorInfo) {
+      let rowDataAddOn = Object.entries(errorInfo)
+        .map(([key, value]) => {
+          return `${t(key)}: ${value.map((item) => t(item)).join(", ")}`;
+        })
+        .join(". ");
+      row.push(t("MICROPLAN_ERROR_STATUS_INVALID"), rowDataAddOn);
+    } else {
+      row.push("");
+    }
+  }
+};
+
+// Function to style the workbook
+const styleWorkbook = (workbook, hierarchy, commonColumn, schema, t) => {
   const style = {
     font: { color: { argb: "B91900" } },
     border: {
@@ -602,16 +604,12 @@ export const prepareExcelFileBlobWithErrors = async (data, errors, schema, hiera
         t(generateLocalisationKeyForSchemaProperties(commonColumn)),
       ]
     : [];
-  const workbook = await convertToWorkBook(processedData, { errorColumns, style }, t);
 
   colorHeaders(workbook, header1, header2, [t("MICROPLAN_ERROR_STATUS_COLUMN"), t("MICROPLAN_ERROR_COLUMN")]);
-  formatAndColorReadMeFile(
-    workbook,
-    readMeData?.map((item) => t(item?.header)),
-    t(readMeSheetName)
-  );
+};
 
-  // protextData
+// Function to protect the workbook data
+const protectWorkbookData = async (workbook, schema, t) => {
   await protectData({
     workbook,
     hierarchyLevelWiseSheets: schema?.template?.hierarchyLevelWiseSheets,
@@ -619,12 +617,44 @@ export const prepareExcelFileBlobWithErrors = async (data, errors, schema, hiera
     schema,
     t,
   });
+};
+
+export const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, readMeData, readMeSheetName, sectionIdList, t) => {
+  const schemaCols = schema?.schema?.Properties ? Object.keys(schema.schema.Properties) : [];
+  const processedData = processData(data, schemaCols, errors, hierarchy, sectionIdList, readMeSheetName, t);
+
+  const workbook = await convertToWorkBook(
+    processedData,
+    {
+      errorColumns: ["MICROPLAN_ERROR_STATUS_COLUMN", "MICROPLAN_ERROR_COLUMN"],
+      style: {
+        font: { color: { argb: "B91900" } },
+        border: {
+          top: { style: "thin", color: { argb: "B91900" } },
+          left: { style: "thin", color: { argb: "B91900" } },
+          bottom: { style: "thin", color: { argb: "B91900" } },
+          right: { style: "thin", color: { argb: "B91900" } },
+        },
+      },
+    },
+    t
+  );
+
+  styleWorkbook(workbook, hierarchy, commonColumn, schema, t);
+
+  formatAndColorReadMeFile(
+    workbook,
+    readMeData?.map((item) => t(item?.header)),
+    t(readMeSheetName)
+  );
+
+  await protectWorkbookData(workbook, schema, t);
+
   return await workbook.xlsx.writeBuffer({ compression: true }).then((buffer) => {
-    // Create a Blob from the buffer
     return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   });
-  // return xlsxBlob;
 };
+
 export const convertToWorkBook = async (jsonData, columnWithStyle, t) => {
   const workbook = new ExcelJS.Workbook();
 
@@ -736,33 +766,37 @@ export const boundaryDataGeneration = async (schemaData, campaignData, t) => {
 };
 
 const filterDataWithActiveInactiveStatus = (result, activeInactiveField, dataInObject, t) => {
-  const filteredData = [];
-  if (result?.[t(FACILITY_DATA_SHEET)]) {
-    if (dataInObject) {
-      for (const item of result[t(FACILITY_DATA_SHEET)]) {
-        if (item?.[activeInactiveField] === t(UPLOADED_DATA_ACTIVE)) {
-          filteredData.push(item);
-        }
-      }
-    } else {
-      const activeInactiveFieldIndex = result[t(FACILITY_DATA_SHEET)]?.[0].findIndex((item) => item === activeInactiveField);
-      if (activeInactiveFieldIndex !== -1) {
-        for (let index = 0; index < result[t(FACILITY_DATA_SHEET)].length; index++) {
-          const item = result[t(FACILITY_DATA_SHEET)][index];
-          if (index === 0) {
-            filteredData.push(item);
-            continue;
-          }
-          if (item?.[activeInactiveFieldIndex] === t(UPLOADED_DATA_ACTIVE)) {
-            filteredData.push(item);
-          }
-        }
-      }
+  const facilityDataSheetKey = t(FACILITY_DATA_SHEET);
+  const uploadedDataActiveStatus = t(UPLOADED_DATA_ACTIVE_STATUS);
+
+  if (!result?.[facilityDataSheetKey]) {
+    return result;
+  }
+
+  const facilityDataSheet = result[facilityDataSheetKey];
+
+  const filterDataInObject = () => {
+    return facilityDataSheet.filter((item) => item?.[activeInactiveField] === uploadedDataActiveStatus);
+  };
+
+  const filterDataInArray = () => {
+    const activeInactiveFieldIndex = facilityDataSheet[0]?.findIndex((item) => item === activeInactiveField);
+
+    if (activeInactiveFieldIndex === -1) {
+      return facilityDataSheet;
     }
 
-    return { [t(FACILITY_DATA_SHEET)]: filteredData };
-  }
-  return result;
+    return facilityDataSheet.filter((item, index) => {
+      if (index === 0) {
+        return true; // Include header
+      }
+      return item?.[activeInactiveFieldIndex] === uploadedDataActiveStatus;
+    });
+  };
+
+  const filteredData = dataInObject ? filterDataInObject() : filterDataInArray();
+
+  return { [facilityDataSheetKey]: filteredData };
 };
 
 export const handleExcelFile = async (
