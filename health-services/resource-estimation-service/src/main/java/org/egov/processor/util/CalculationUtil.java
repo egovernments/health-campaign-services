@@ -41,7 +41,7 @@ public class CalculationUtil {
         return switch (operator) {
             case PLUS -> input.add(assumptionValue);
             case MINUS -> input.subtract(assumptionValue);
-            case SLASH -> input.divide(assumptionValue,2,RoundingMode.DOWN).setScale(2);
+            case SLASH -> input.divide(assumptionValue,ServiceConstants.DEFAULT_SCALE,RoundingMode.DOWN).setScale(ServiceConstants.DEFAULT_SCALE);
             case STAR -> input.multiply(assumptionValue);
             case PERCENT -> input.remainder(assumptionValue);
             case _U -> input.pow(assumptionValue.intValue());
@@ -111,7 +111,7 @@ public class CalculationUtil {
                         value = new BigDecimal(cleanedValue);
                     }
                     return value;
-                } catch (RuntimeException e) {
+                } catch (NumberFormatException | NullPointerException e) {
                     return BigDecimal.ZERO;
                 }
             } else {

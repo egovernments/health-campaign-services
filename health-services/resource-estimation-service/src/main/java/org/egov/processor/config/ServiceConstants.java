@@ -63,5 +63,6 @@ public class ServiceConstants {
     
     public static final String SCIENTIFIC_NOTATION_INDICATOR = "E";
     public static final String ATTRIBUTE_IS_REQUIRED ="isRequired";
+    public static final int DEFAULT_SCALE=2;
 
 }

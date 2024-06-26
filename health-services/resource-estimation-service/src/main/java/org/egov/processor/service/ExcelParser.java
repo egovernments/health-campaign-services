@@ -1,6 +1,7 @@
 package org.egov.processor.service;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -133,7 +134,13 @@ public class ExcelParser implements FileParser {
 			String uploadedFileStoreId = uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
 					planConfig, workbook, campaignBoundaryList, campaignResourcesList);
 			return uploadedFileStoreId;
-		} catch (IOException | InvalidFormatException e) {
+		} catch (FileNotFoundException e) {
+			log.error("File not found: {}", e.getMessage());
+			throw new CustomException("FileNotFound", "The specified file was not found.");
+		} catch (InvalidFormatException e) {
+			log.error("Invalid format: {}", e.getMessage());
+			throw new CustomException("InvalidFormat", "The file format is not supported.");
+		} catch (IOException e) {
 			log.error("Error processing Excel file: {}", e);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 					"Error processing Excel file");
@@ -154,19 +161,24 @@ public class ExcelParser implements FileParser {
 	private String uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
 			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
-		File fileToUpload = convertWorkbookToXls(workbook);
-		String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+		File fileToUpload = null;
+		try {
+			fileToUpload = convertWorkbookToXls(workbook);
+			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
-		if (config.isIntegrateWithAdminConsole()) {
-			campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
-					fileToUpload.getName());
+			if (config.isIntegrateWithAdminConsole()) {
+				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
+						fileToUpload.getName());
+
+				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
+						campaignBoundaryList, campaignResourcesList);
+			}
+			return uploadedFileStoreId;
+		} finally {
 			if (fileToUpload != null && !fileToUpload.delete()) {
 				log.warn("Failed to delete temporary file: " + fileToUpload.getPath());
 			}
-			campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
-					campaignBoundaryList, campaignResourcesList);
 		}
-		return uploadedFileStoreId;
 	}
 
 	/**
@@ -217,25 +229,82 @@ public class ExcelParser implements FileParser {
 	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, Object campaignResponse,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
-		CampaignResponse campaign = null;
-		campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();		
+		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(planConfigurationRequest,
+				fileStoreId, campaign, planConfig);		
+		List<String> boundaryCodeList = getBoundaryCodeList(planConfigurationRequest, campaign, planConfig);
+		Row firstRow = null;
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList,
+				planConfig, attributeNameVsDataTypeMap, boundaryCodeList, firstRow);
+	}
+
+	/**
+	 * Retrieves a list of boundary codes based on the given plan configuration, campaign details, and request information.
+	 *
+	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param campaign The campaign response object containing campaign details.
+	 * @param planConfig The configuration details specific to the plan.
+	 * @return A list of boundary codes corresponding to the specified hierarchy type and tenant ID.
+	 */
+	private List<String> getBoundaryCodeList(PlanConfigurationRequest planConfigurationRequest,
+			CampaignResponse campaign, PlanConfiguration planConfig) {
+		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfig.getTenantId(),
+				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
+		List<String> boundaryList = new ArrayList<>();
+		List<String> boundaryCodeList = getAllBoundaryPresentforHierarchyType(
+				boundarySearchResponse.getTenantBoundary().get(0).getBoundary(), boundaryList);
+		return boundaryCodeList;
+	}
+
+	/**
+	 * Prepares a mapping of attribute names to their corresponding indices or data types based on configuration and MDMS data.
+	 *
+	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param fileStoreId The ID of the uploaded file in the file store.
+	 * @param campaign The campaign response object containing campaign details.
+	 * @param planConfig The configuration details specific to the plan.
+	 * @return A map of attribute names to their corresponding indices or data types.
+	 */
+	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
+			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig) {
 		Object mdmsData = mdmsUtil.fetchMdmsData(planConfigurationRequest.getRequestInfo(),
 				planConfigurationRequest.getPlanConfiguration().getTenantId());
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
 		Map<String, Object> attributeNameVsDataTypeMap = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
 				file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
-		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfig.getTenantId(),
-				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
-		List<String> boundaryList = new ArrayList<>();
-		List<String> boundaryCodeList = getAllBoundaryPresentforHierarchyType(
-				boundarySearchResponse.getTenantBoundary().get(0).getBoundary(), boundaryList);
-		Row firstRow = null;
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList,
-				planConfig, attributeNameVsDataTypeMap, boundaryCodeList, firstRow);
+		return attributeNameVsDataTypeMap;
 	}
 
+	
+	/**
+	 * Parses an object representing campaign response into a CampaignResponse object.
+	 * 
+	 * @param campaignResponse The object representing campaign response to be parsed.
+	 * @return CampaignResponse object parsed from the campaignResponse.
+	 */
+	private CampaignResponse parseCampaignResponse(Object campaignResponse) {
+		CampaignResponse campaign = null;
+		campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
+		return campaign;
+	}
+
+	/**
+	 * Performs row-level calculations and processing on each row in the sheet.
+	 * Validates rows, maps resource values, converts assumptions, creates feature nodes,
+	 * calculates operations results, updates campaign boundaries, and creates plan entities.
+	 *
+	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param sheet The sheet from which rows are processed.
+	 * @param dataFormatter The data formatter for formatting cell values.
+	 * @param fileStoreId The ID of the uploaded file in the file store.
+	 * @param campaignBoundaryList List of boundary objects related to the campaign.
+	 * @param planConfig The configuration details specific to the plan.
+	 * @param attributeNameVsDataTypeMap Mapping of attribute names to their data types.
+	 * @param boundaryCodeList List of boundary codes.
+	 * @param firstRow The first row of the sheet.
+	 */
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
 			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
@@ -270,6 +339,18 @@ public class ExcelParser implements FileParser {
 		}
 	}
 
+	/**
+	 * Performs calculations on operations for a specific row in the sheet.
+	 * Calculates results based on plan configuration operations, updates result map, and sets cell values.
+	 *
+	 * @param sheet The sheet where calculations are performed.
+	 * @param planConfig The configuration details for the plan.
+	 * @param row The row in the sheet where calculations are applied.
+	 * @param resultMap The map to store calculation results.
+	 * @param mappedValues Mapping of values needed for calculations.
+	 * @param assumptionValueMap Map of assumption values used in calculations.
+	 * @param feature JSON node containing additional features or data for calculations.
+	 */
 	private void performCalculationsOnOperations(Sheet sheet, PlanConfiguration planConfig, Row row,
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues,
 			Map<String, BigDecimal> assumptionValueMap, JsonNode feature) {
@@ -337,7 +418,11 @@ public class ExcelParser implements FileParser {
 			} catch (IOException e) {
 				log.info("Error saving XLS file: " + e);
 				return null;
-			}
+			}finally {
+			    if (outputFile != null && !outputFile.delete()) {
+				       log.warn("Failed to delete temporary file: " + outputFile.getPath());
+				    }
+			    }
 		} catch (IOException e) {
 			log.info("Error converting workbook to XLS: " + e);
 			return null;
