@@ -402,7 +402,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private void enrichSkills(List<Individual> individuals, Map<String, Object> paramsMap,
         Boolean includeDeleted) {
         String individualSkillQuery = getQuery(
-            "SELECT * FROM individual_skill WHERE individualId IN (:individualId)",
+            "SELECT * FROM individual_skill WHERE individualId IN (:individuals)",
             includeDeleted);
         List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, paramsMap,
             new SkillRowMapper());
