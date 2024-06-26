@@ -165,7 +165,10 @@ export const extractGeoData = (
     const keys = [...Object.keys(fileData?.data.features[0].properties), "feature"];
     const values = fileData?.data.features.map((feature) => keys.map((key) => (key === "feature" ? feature : feature.properties[key] || null)));
 
-    const dataWithResources = [[...keys, ...resources], ...values];
+    let dataWithResources = [[...keys], ...values];
+    if (resources && formulaConfiguration && hypothesisAssumptionsList) {
+      dataWithResources = addResourcesToFilteredData(dataWithResources, resources, hypothesisAssumptionsList, formulaConfiguration, microplanData, t);
+    }
     const processedDataWithResources = dataWithResources.map((item, index) => {
       if (index === 0) return item;
       const newProperties = keys.reduce((acc, key, i) => (key !== "feature" ? { ...acc, [key]: item[i] } : acc), {});

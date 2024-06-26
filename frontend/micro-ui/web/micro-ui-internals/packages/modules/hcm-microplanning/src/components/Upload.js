@@ -833,18 +833,9 @@ const Upload = ({
     if (schemaData?.schema?.["Properties"]) schemaKeys = hierarchy.concat(Object.keys(schemaData.schema["Properties"]));
     // Sorting the resourceMapping list inorder to maintain the column sequence
     const sortedSecondList = Digit.Utils.microplan.sortSecondListBasedOnFirstListOrder(schemaKeys, resourceMapping);
-
     // Creating a object with input data with MDMS keys
     const newFeatures = [];
     for (const item of fileData.data["features"]) {
-      if (
-        schemaData?.activeInactiveField &&
-        schemaData?.schema?.Properties &&
-        Object.keys(schemaData.schema.Properties).includes(schemaData.activeInactiveField) &&
-        item?.properties?.[t(schemaData.activeInactiveField)] !== t(UPLOADED_DATA_ACTIVE_STATUS)
-      ) {
-        continue;
-      }
       let newProperties = {};
 
       sortedSecondList.forEach((e) => {
@@ -853,8 +844,20 @@ const Upload = ({
       item["properties"] = newProperties;
       newFeatures.push(item);
     }
+    let filteredFeature = [];
+    for (const item of newFeatures) {
+      if (
+        schemaData?.activeInactiveField &&
+        schemaData?.schema?.Properties &&
+        Object.keys(schemaData.schema.Properties).includes(schemaData.activeInactiveField) &&
+        item?.properties?.[schemaData.activeInactiveField] !== t(UPLOADED_DATA_ACTIVE_STATUS)
+      ) {
+        continue;
+      }
+      filteredFeature.push(item);
+    }
     let data = fileData.data;
-    data["features"] = newFeatures;
+    data["features"] = filteredFeature;
     return data;
   };
 
