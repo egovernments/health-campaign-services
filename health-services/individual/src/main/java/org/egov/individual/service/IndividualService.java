@@ -313,7 +313,7 @@ public class IndividualService {
             long endTime5 = System.nanoTime();
             long duration5 = endTime5 - startTime5; // Duration in nanoseconds
             double durationInMillis5 = duration5 / 1_000_000.0;
-            log.info("IndividualApiController ::: individualV1SearchPost ::: findById ::: {}",durationInMillis5);
+            log.info("IndividualService ::: individualV1SearchPost ::: findById ::: {}",durationInMillis5);
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))

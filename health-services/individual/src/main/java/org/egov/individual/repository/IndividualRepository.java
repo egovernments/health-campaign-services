@@ -1,10 +1,12 @@
 package org.egov.individual.repository;
 
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.EgovModel;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.Identifier;
@@ -82,7 +84,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         log.info("IndividualRepository ::: findById ::: individualsQuery ::: {}",durationInMillis2);
 
         long startTime = System.nanoTime();
-        enrichIndividuals(individuals, includeDeleted);
+        enrichIndividualsV2(individuals, includeDeleted);
         long endTime = System.nanoTime();
         long duration = endTime - startTime; // Duration in nanoseconds
         double durationInMillis = duration / 1_000_000.0;
@@ -106,7 +108,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
-                enrichIndividuals(individuals, includeDeleted);
+                enrichIndividualsV2(individuals, includeDeleted);
             }
             long endTime = System.nanoTime();
             long duration = endTime - startTime; // Duration in nanoseconds
@@ -207,7 +209,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                     paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
-                enrichIndividuals(individuals, includeDeleted);
+                enrichIndividualsV2(individuals, includeDeleted);
             }
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         }
@@ -354,15 +356,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
+
                 List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
-                String individualIdentifierQuery = getQuery("SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId",
-                        includeDeleted);
-                List<Identifier> identifiers = this.namedParameterJdbcTemplate
-                        .query(individualIdentifierQuery, indServerGenIdParamMap,
-                                new IdentifierRowMapper());
-                enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                 individual.setAddress(addresses);
-                individual.setIdentifiers(identifiers);
                 long endTime = System.nanoTime();
                 long duration = endTime - startTime; // Duration in nanoseconds
                 double durationInMillis = duration / 1_000_000.0;
@@ -373,6 +369,58 @@ public class IndividualRepository extends GenericRepository<Individual> {
             double durationInMillis1 = duration1 / 1_000_000.0;
             log.info("IndividualRepository ::: enrichIndividuals ::: enrichIndividuals1 ::: {}",durationInMillis1);
         }
+    }
+
+    private void enrichIndividualsV2(List<Individual> individuals, Boolean includeDeleted) {
+        if (!individuals.isEmpty()) {
+            List<List<Individual>> individualBatches = getBatches(individuals, 50);
+            individualBatches.parallelStream().forEach(listOfIndividuals -> {
+                Map<String, Object> paramsMap = new HashMap<>();
+                paramsMap.put("individuals", listOfIndividuals.parallelStream()
+                    .map(EgovModel::getId).collect(Collectors.toList()));
+                paramsMap.put("isDeleted", includeDeleted);
+                enrichIdentifiers(listOfIndividuals, paramsMap, includeDeleted);
+                enrichSkills(listOfIndividuals, paramsMap, includeDeleted);
+            });
+        }
+    }
+
+    private void enrichIdentifiers(List<Individual> individuals, Map<String, Object> paramsMap,
+        Boolean includeDeleted) {
+        String individualIdentifierQuery = getQuery(
+            "SELECT * FROM individual_identifier ii WHERE ii.individualId IN (:individuals)",
+            includeDeleted);
+        List<Identifier> identifiers = this.namedParameterJdbcTemplate
+            .query(individualIdentifierQuery, paramsMap, new IdentifierRowMapper());
+
+        Map<String, List<Identifier>> identifierMap = identifiers.parallelStream()
+            .collect(Collectors.groupingByConcurrent(Identifier::getIndividualId));
+        individuals.parallelStream().forEach(
+                individual -> individual.setIdentifiers(identifierMap.get(individual.getId())));
+    }
+
+    private void enrichSkills(List<Individual> individuals, Map<String, Object> paramsMap,
+        Boolean includeDeleted) {
+        String individualSkillQuery = getQuery(
+            "SELECT * FROM individual_skill WHERE individualId IN (:individualId)",
+            includeDeleted);
+        List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, paramsMap,
+            new SkillRowMapper());
+
+        Map<String, List<Skill>> skillsMap = skills.parallelStream()
+            .collect(Collectors.groupingByConcurrent(Skill::getIndividualId));
+        individuals.parallelStream().forEach(
+            individual -> individual.setSkills(skillsMap.get(individual.getId())));
+    }
+
+    public <T> List<List<T>> getBatches(List<T> list, int batchSize) {
+        if (list == null || batchSize <= 0) {
+            throw new IllegalArgumentException("List cannot be null and batch size must be greater than 0");
+        }
+
+        return IntStream.range(0, (list.size() + batchSize - 1) / batchSize)
+            .mapToObj(i -> list.subList(i * batchSize, Math.min(list.size(), (i + 1) * batchSize)))
+            .collect(Collectors.toList());
     }
 
     private String getQuery(String baseQuery, Boolean includeDeleted) {
