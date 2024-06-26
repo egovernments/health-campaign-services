@@ -16,6 +16,8 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  excludeHierarchyTypeFromBoundaryCodes:false,
+  excludeBoundaryNameAtLastFromBoundaryCodes:false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
