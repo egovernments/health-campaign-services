@@ -111,7 +111,7 @@ public class CalculationUtil {
                         value = new BigDecimal(cleanedValue);
                     }
                     return value;
-                } catch (NumberFormatException e) {
+                } catch (RuntimeException e) {
                     return BigDecimal.ZERO;
                 }
             } else {

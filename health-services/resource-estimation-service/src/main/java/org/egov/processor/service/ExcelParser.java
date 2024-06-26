@@ -128,32 +128,71 @@ public class ExcelParser implements FileParser {
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
-
-			workbook.forEach(sheet -> {
-				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
-				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
-				processRows(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignResponse,
-						campaignBoundaryList, campaignResourcesList);
-			});
-			File fileToUpload = convertWorkbookToXls(workbook);
-			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-
-			if (config.isIntegrateWithAdminConsole()) {
-				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
-						fileToUpload.getName());
-				if (fileToUpload != null && !fileToUpload.delete()) {
-					log.warn("Failed to delete temporary file: " + fileToUpload.getPath());
-				}
-				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
-						campaignBoundaryList, campaignResourcesList);
-			}
+			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, planConfig, workbook,
+					campaignBoundaryList, campaignResourcesList, dataFormatter);
+			String uploadedFileStoreId = uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
+					planConfig, workbook, campaignBoundaryList, campaignResourcesList);
 			return uploadedFileStoreId;
 		} catch (IOException | InvalidFormatException e) {
 			log.error("Error processing Excel file: {}", e);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 					"Error processing Excel file");
 		}
+	}
+
+	/**
+	 * Uploads a converted file and integrates campaign details if configured to do so.
+	 * 
+	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param campaignResponse The response object containing campaign details.
+	 * @param planConfig The configuration details specific to the plan.
+	 * @param workbook The workbook containing data to be uploaded and integrated.
+	 * @param campaignBoundaryList List of boundary objects related to the campaign.
+	 * @param campaignResourcesList List of campaign resources to be integrated.
+	 * @return The ID of the uploaded file in the file store.
+	 */
+	private String uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
+			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
+			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
+		File fileToUpload = convertWorkbookToXls(workbook);
+		String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+
+		if (config.isIntegrateWithAdminConsole()) {
+			campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
+					fileToUpload.getName());
+			if (fileToUpload != null && !fileToUpload.delete()) {
+				log.warn("Failed to delete temporary file: " + fileToUpload.getPath());
+			}
+			campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
+					campaignBoundaryList, campaignResourcesList);
+		}
+		return uploadedFileStoreId;
+	}
+
+	/**
+	 * Processes each sheet in the workbook for plan configuration data.
+	 * Validates column names, processes rows, and integrates campaign details.
+	 * 
+	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param fileStoreId The ID of the uploaded file in the file store.
+	 * @param campaignResponse The response object containing campaign details.
+	 * @param planConfig The configuration details specific to the plan.
+	 * @param workbook The workbook containing sheets to be processed.
+	 * @param campaignBoundaryList List of boundary objects related to the campaign.
+	 * @param campaignResourcesList List of campaign resources to be integrated.
+	 * @param dataFormatter The data formatter for formatting cell values.
+	 */
+	private void processSheets(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
+			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
+			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList,
+			DataFormatter dataFormatter) {
+		workbook.forEach(sheet -> {
+			Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+			List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
+			parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
+			processRows(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignResponse,
+					campaignBoundaryList, campaignResourcesList);
+		});
 	}
 
 	/**
