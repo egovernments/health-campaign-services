@@ -167,7 +167,7 @@ const SavedMicroplans = () => {
         Digit.SessionStorage.set("microplanData", computedSession);
 
         setShowLoader(false);
-        history.push(`/${window.contextPath}/employee/microplanning/create-microplan?id=${row?.original?.executionPlanId}`);
+        history.push(`/${window.contextPath}/employee/microplanning/edit-saved-microplan?id=${row?.original?.executionPlanId}`);
       } catch (error) {
         console.error(`Failed to process the request: ${error.message}`);
         setShowLoader(false);

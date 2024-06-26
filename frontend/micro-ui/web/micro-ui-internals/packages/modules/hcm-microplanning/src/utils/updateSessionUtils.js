@@ -196,7 +196,7 @@ export const updateSessionUtils = {
     };
 
     const fetchBoundaryDataWrapper = async (schemaData) => {
-      let boundaryDataAgainstBoundaryCode = {};
+      const boundaryDataAgainstBoundaryCode = {};
       // if (!schemaData?.doHierarchyCheckInUploadedData) {
       try {
         const rootBoundary = additionalProps.campaignData?.boundaries?.filter((boundary) => boundary.isRoot); // Retrieve session storage data once and store it in a variable
@@ -329,10 +329,10 @@ export const updateSessionUtils = {
             !mappedToList.includes(`${additionalProps.campaignData?.hierarchyType}_${Digit.Utils.microplan.transformIntoLocalisationCode(item)}`)
         )
       ) {
-        let boundaryDataAgainstBoundaryCode = await fetchBoundaryDataWrapper(schema);
+        const boundaryDataAgainstBoundaryCode = await fetchBoundaryDataWrapper(schema);
         upload.data.features.forEach((feature) => {
           const boundaryCode = feature.properties.boundaryCode;
-          let additionalDetails = {};
+          const additionalDetails = {};
           for (let i = 0; i < additionalProps.hierarchyData?.length; i++) {
             if (boundaryDataAgainstBoundaryCode[boundaryCode]?.[i] || boundaryDataAgainstBoundaryCode[boundaryCode]?.[i] === "") {
               additionalDetails[additionalProps.hierarchyData?.[i]] = boundaryDataAgainstBoundaryCode[boundaryCode][i];

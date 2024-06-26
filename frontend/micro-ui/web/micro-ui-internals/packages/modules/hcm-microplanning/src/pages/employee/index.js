@@ -13,7 +13,6 @@ const MicroplanningBreadCrumb = ({ location, defaultPath }) => {
   const { t } = useTranslation();
   const pathVar = location.pathname.replace(`${defaultPath}/`, "").split("?")?.[0];
   const { masterName, moduleName, uniqueIdentifier } = Digit.Hooks.useQueryParams();
-
   const crumbs = [
     {
       path: `/${window?.contextPath}/employee`,
@@ -34,15 +33,19 @@ const MicroplanningBreadCrumb = ({ location, defaultPath }) => {
     // },
     {
       content: t(`CREATE_MICROPLAN`),
-      show: pathVar.includes("create-microplan"),
+      show: pathVar === "create-microplan",
     },
     {
       content: t(`SAVED_MICROPLANS_TEXT`),
-      show: pathVar.includes("saved-microplan"),
+      show: pathVar === "saved-microplan",
     },
     {
       content: t(`CREATE_MICROPLAN`),
-      show: pathVar.includes("select-campaign"),
+      show: pathVar === "select-campaign",
+    },
+    {
+      content: t(`EDIT_MICROPLANS_TEXT`),
+      show: pathVar === "edit-saved-microplan",
     },
   ];
   return <BreadCrumb className="workbench-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
@@ -96,8 +99,8 @@ const App = ({ path }) => {
   //destroying session
   useEffect(() => {
     const pathVar = location.pathname.replace(`${path}/`, "").split("?")?.[0];
-    Digit.Utils.microplan.destroySessionHelper(pathVar, ["create-microplan"], "microplanData");
-    Digit.Utils.microplan.destroySessionHelper(pathVar, ["create-microplan"], "microplanHelperData");
+    Digit.Utils.microplan.destroySessionHelper(pathVar, ["create-microplan", "edit-saved-microplan"], "microplanData");
+    Digit.Utils.microplan.destroySessionHelper(pathVar, ["create-microplan", "edit-saved-microplan"], "microplanHelperData");
     Digit.Utils.microplan.destroySessionHelper(pathVar, ["select-campaign"], "SELECT_CAMPAIGN_SESSION");
     Digit.Utils.microplan.destroySessionHelper(pathVar, ["saved-microplans"], "SAVED_MICROPLAN_SESSION");
   }, [location]);
@@ -122,6 +125,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/create-microplan`} component={() => <CreateMicroplan parentRoute={path} />} />
           <PrivateRoute path={`${path}/saved-microplans`} component={() => <SavedMicroplans parentRoute={path} />} />
           <PrivateRoute path={`${path}/select-campaign`} component={() => <SelectCampaign parentRoute={path} />} />
+          <PrivateRoute path={`${path}/edit-saved-microplan`} component={() => <CreateMicroplan parentRoute={path} />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

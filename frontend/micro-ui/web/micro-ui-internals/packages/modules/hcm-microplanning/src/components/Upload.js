@@ -705,12 +705,12 @@ const Upload = ({
       }
       setResourceMapping([]);
 
-      let boundaryDataAgainstBoundaryCode = (await boundaryDataGeneration(schemaData, campaignData, t)) || {};
+      const boundaryDataAgainstBoundaryCode = (await boundaryDataGeneration(schemaData, campaignData, t)) || {};
       const mappedToList = resourceMappingData.map((item) => item.mappedTo);
       if (hierarchy.every((item) => !mappedToList.includes(t(item)))) {
         data.features.forEach((feature) => {
           const boundaryCode = feature.properties.boundaryCode;
-          let additionalDetails = {};
+          const additionalDetails = {};
           for (let i = 0; i < hierarchy.length; i++) {
             if (boundaryDataAgainstBoundaryCode[boundaryCode]?.[i] || boundaryDataAgainstBoundaryCode[boundaryCode]?.[i] === "") {
               additionalDetails[hierarchy[i]] = boundaryDataAgainstBoundaryCode[boundaryCode][i];

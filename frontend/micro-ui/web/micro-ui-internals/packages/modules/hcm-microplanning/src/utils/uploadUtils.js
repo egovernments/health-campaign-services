@@ -562,7 +562,7 @@ const processData = (data, schemaCols, errors, hierarchy, sectionIdList, readMeS
 
 // Function to process errors for a sheet
 const processSheetErrors = (dataset, sheetName, errors, t) => {
-  let headerCount = dataset[0].length;
+  const headerCount = dataset[0].length;
   dataset[0].push(t("MICROPLAN_ERROR_STATUS_COLUMN"), t("MICROPLAN_ERROR_COLUMN"));
 
   for (let i = 1; i < dataset.length; i++) {
@@ -573,7 +573,7 @@ const processSheetErrors = (dataset, sheetName, errors, t) => {
 
     const errorInfo = errors?.[sheetName]?.[i - 1];
     if (errorInfo) {
-      let rowDataAddOn = Object.entries(errorInfo)
+      const rowDataAddOn = Object.entries(errorInfo)
         .map(([key, value]) => {
           return `${t(key)}: ${value.map((item) => t(item)).join(", ")}`;
         })
@@ -724,7 +724,7 @@ export const convertToWorkBook = async (jsonData, columnWithStyle, t) => {
   return workbook;
 };
 export const boundaryDataGeneration = async (schemaData, campaignData, t) => {
-  let boundaryDataAgainstBoundaryCode = {};
+  const boundaryDataAgainstBoundaryCode = {};
   if (schemaData && !schemaData.doHierarchyCheckInUploadedData) {
     try {
       const rootBoundary = campaignData?.boundaries?.filter((boundary) => boundary.isRoot); // Retrieve session storage data once and store it in a variable
