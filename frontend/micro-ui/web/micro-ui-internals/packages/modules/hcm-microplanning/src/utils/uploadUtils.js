@@ -627,7 +627,7 @@ export const prepareExcelFileBlobWithErrors = async (dataInput, errors, schema, 
   const workbook = await convertToWorkBook(
     processedData,
     {
-      errorColumns: ["MICROPLAN_ERROR_STATUS_COLUMN", "MICROPLAN_ERROR_COLUMN"],
+      errorColumns: [t("MICROPLAN_ERROR_STATUS_COLUMN"), t("MICROPLAN_ERROR_COLUMN")],
       style: {
         font: { color: { argb: "B91900" } },
         border: {
