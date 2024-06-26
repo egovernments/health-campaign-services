@@ -381,8 +381,29 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 paramsMap.put("isDeleted", includeDeleted);
                 enrichIdentifiers(listOfIndividuals, paramsMap, includeDeleted);
                 enrichSkills(listOfIndividuals, paramsMap, includeDeleted);
+                enrichIndividualWithAddress(listOfIndividuals, paramsMap, includeDeleted);
             });
         }
+    }
+
+
+    private void enrichIndividualWithAddress(List<Individual> individuals, Map<String, Object> paramsMap, Boolean includeDeleted) {
+        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
+            " FROM (" +
+            "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
+            "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
+            "    FROM individual_address" +
+            "    WHERE individualId IN (:individuals)" +
+            " ) AS ia" +
+            " JOIN address AS a ON ia.addressId = a.id" +
+            " WHERE ia.rn = 1 ", includeDeleted, "ia");
+        List<Address> addressList = this.namedParameterJdbcTemplate.query(addressQuery, paramsMap, new AddressRowMapper());
+
+        Map<String, List<Address>> addressMap = addressList.parallelStream()
+            .collect(Collectors.groupingByConcurrent(Address::getIndividualId));
+        individuals.parallelStream().forEach(
+            individual -> individual.setAddress(addressMap.get(individual.getId())));
+
     }
 
     private void enrichIdentifiers(List<Individual> individuals, Map<String, Object> paramsMap,
