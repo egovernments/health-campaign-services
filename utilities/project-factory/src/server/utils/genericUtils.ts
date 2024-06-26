@@ -240,16 +240,14 @@ async function generateActivityMessage(tenantId: any, requestBody: any, requestP
 /* Fetches data from the database */
 async function searchGeneratedResources(request: any) {
   try {
-    const { type, tenantId, hierarchyType, id, status } = request.query;
+    const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
     let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
-
     if (id) {
       queryConditions.push(`id = $${queryValues.length + 1}`);
       queryValues.push(id);
     }
-
     if (type) {
       queryConditions.push(`type = $${queryValues.length + 1}`);
       queryValues.push(type);
@@ -259,12 +257,14 @@ async function searchGeneratedResources(request: any) {
       queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
       queryValues.push(hierarchyType);
     }
-
     if (tenantId) {
       queryConditions.push(`tenantId = $${queryValues.length + 1}`);
       queryValues.push(tenantId);
     }
-
+    if (campaignId) {
+      queryConditions.push(`campaignId = $${queryValues.length + 1}`);
+      queryValues.push(campaignId);
+    }
     if (status) {
       const statusArray = status.split(',').map((s: any) => s.trim());
       const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
