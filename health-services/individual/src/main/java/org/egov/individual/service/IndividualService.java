@@ -293,17 +293,10 @@ public class IndividualService {
                                              Boolean includeDeleted,
                                              RequestInfo requestInfo) {
         SearchResponse<Individual> searchResponse = null;
-
-        long startTime = System.nanoTime();
         String idFieldName = getIdFieldName(individualSearch);
-        long endTime = System.nanoTime();
-        long duration = endTime - startTime; // Duration in nanoseconds
-        double durationInMillis = duration / 1_000_000.0;
-        log.info("IndividualService ::: search ::: getIdFieldName ::: {}",durationInMillis);
-
         List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
-            long startTime4 = System.nanoTime();
+
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
                     individualSearch);
@@ -315,6 +308,7 @@ public class IndividualService {
             double durationInMillis5 = duration5 / 1_000_000.0;
             log.info("IndividualService ::: individualV1SearchPost ::: findById ::: {}",durationInMillis5);
 
+            long startTime4 = System.nanoTime();
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -331,7 +325,7 @@ public class IndividualService {
             long endTime4 = System.nanoTime();
             long duration4= endTime4 - startTime4; // Duration in nanoseconds
             double durationInMillis4 = duration4 / 1_000_000.0;
-            log.info("IndividualApiController ::: individualV1SearchPost ::: isSearchByIdOnly ::: {}",durationInMillis4);
+            log.info("IndividualService ::: search ::: decryptedIndividualList ::: {}",durationInMillis4);
 
             return searchResponse;
         }
@@ -356,11 +350,16 @@ public class IndividualService {
 
 
         try {
+            long startTime = System.nanoTime();
             searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                     lastChangedSince, includeDeleted);
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
+            long endTime = System.nanoTime();
+            long duration = endTime - startTime; // Duration in nanoseconds
+            double durationInMillis = duration / 1_000_000.0;
+            log.info("IndividualService ::: search ::: find ::: {}",durationInMillis);
         } catch (Exception exception) {
             log.error("database error occurred", exception);
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
