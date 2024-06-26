@@ -181,6 +181,7 @@ function groupByType(data) {
   };
 }
 
+
 function groupByTypeRemap(data) {
   if (!data) return null;
 
@@ -189,28 +190,30 @@ function groupByTypeRemap(data) {
   data.forEach((item) => {
     const type = item?.type;
     const boundaryType = item?.type;
-    const parentCode = item?.parent;
-    const obj = {
-      parentCode,
-      boundaryTypeData: {
-        TenantBoundary: [
-          {
-            boundary: [{ ...item, boundaryType }],
-          },
-        ],
-      },
-    };
-
-    if (result[type]) {
-      result[type][0].boundaryTypeData.TenantBoundary[0].boundary.push(item);
-    } else {
-      result[type] = [obj];
+    const parentCode = item?.parent !== undefined ? item.parent : null;
+    
+    if (!result[type]) {
+      result[type] = {};
     }
+    
+    if (!result[type][parentCode]) {
+      result[type][parentCode] = {
+        parentCode,
+        boundaryTypeData: {
+          TenantBoundary: [
+            {
+              boundary: [],
+            },
+          ],
+        },
+      };
+    }
+
+    const targetBoundaryArray = result[type][parentCode].boundaryTypeData.TenantBoundary[0].boundary;
+    targetBoundaryArray.push({ ...item, boundaryType });
+  
   });
-
-  return result;
 }
-
 // Example usage:
 // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
 function updateUrlParams(params) {

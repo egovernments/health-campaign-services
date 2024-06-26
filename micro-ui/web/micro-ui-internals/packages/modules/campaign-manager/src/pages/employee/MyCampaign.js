@@ -47,7 +47,7 @@ const MyCampaign = () => {
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
         break;
       case "CAMPAIGN_DRAFTS":
-        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}&fetchBoundary=${true}`);
+        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}&fetchBoundary=${true}&draftBoundary=${true}`);
         break;
       case "CAMPAIGN_FAILED":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
