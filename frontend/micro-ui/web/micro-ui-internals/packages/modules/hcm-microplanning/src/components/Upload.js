@@ -843,7 +843,7 @@ const Upload = ({
         Object.keys(schemaData.schema.Properties).includes(schemaData.activeInactiveField) &&
         item?.properties?.[t(schemaData.activeInactiveField)] !== t(UPLOADED_DATA_ACTIVE_STATUS)
       ) {
-        break;
+        continue;
       }
       let newProperties = {};
 

@@ -315,7 +315,7 @@ const processFacilityData = async ({ workbook, schema, t }) => {
   await freezeSheetValues(workbook, t(BOUNDARY_DATA_SHEET));
   await performUnfreezeCells(workbook, t(FACILITY_DATA_SHEET));
   if (schema?.template?.propertiesToHide && Array.isArray(schema.template.propertiesToHide)) {
-    let tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
+    const tempPropertiesToHide = schema?.template?.propertiesToHide.map((item) => t(generateLocalisationKeyForSchemaProperties(item)));
     await hideUniqueIdentifierColumn(workbook, t(FACILITY_DATA_SHEET), tempPropertiesToHide);
   }
   // Further processing based on facilitySchemaApiMapping can be done here if needed
@@ -526,7 +526,7 @@ export const revertLocalisationKey = (localisedCode) => {
 };
 // Function to process each dataset within the data object
 const processData = (data, schemaCols, errors, hierarchy, sectionIdList, readMeSheetName, t) => {
-  let processedData = {};
+  const processedData = {};
   for (const sheet of data) {
     const dataset = [...sheet.data];
     dataset[0] = dataset[0].map((item) => {
@@ -619,7 +619,8 @@ const protectWorkbookData = async (workbook, schema, t) => {
   });
 };
 
-export const prepareExcelFileBlobWithErrors = async (data, errors, schema, hierarchy, readMeData, readMeSheetName, sectionIdList, t) => {
+export const prepareExcelFileBlobWithErrors = async (dataInput, errors, schema, hierarchy, readMeData, readMeSheetName, sectionIdList, t) => {
+  const data = _.cloneDeep(dataInput);
   const schemaCols = schema?.schema?.Properties ? Object.keys(schema.schema.Properties) : [];
   const processedData = processData(data, schemaCols, errors, hierarchy, sectionIdList, readMeSheetName, t);
 

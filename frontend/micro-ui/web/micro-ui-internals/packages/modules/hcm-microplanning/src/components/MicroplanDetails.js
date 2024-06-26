@@ -276,7 +276,7 @@ const MicroplanDetails = ({
         additionalElements={[
           <div className="microplan-naming-conventions">
             {state?.MicroplanNamingConvention?.[0]?.data?.map((item, index) => (
-              <div key={item} className="microplan-naming-convention-instruction-list-container">
+              <div key={`container-${item}`} className="microplan-naming-convention-instruction-list-container">
                 <p key={`number-${index}`} className="microplan-naming-convention-instruction-list number">
                   {t(index + 1)}.
                 </p>
