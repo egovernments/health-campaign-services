@@ -45,22 +45,33 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             for (const data of dataFromSheet) {
                 const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
                 const code = data[uniqueCodeColumn];
-                // Extract boundary codes
-                const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
-                if (boundaryCode) {
-                    // Split boundary codes if they have comma separated values
-                    const boundaryCodesArray = boundaryCode.split(',');
-                    boundaryCodesArray.forEach((bc: string) => {
-                        // Trim any leading or trailing spaces
-                        const trimmedBC = bc.trim();
-                        if (!boundaryCodes[resource?.type]) {
-                            boundaryCodes[resource?.type] = {};
-                        }
-                        if (!boundaryCodes[resource?.type][trimmedBC]) {
-                            boundaryCodes[resource?.type][trimmedBC] = [];
-                        }
-                        boundaryCodes[resource?.type][trimmedBC].push(code);
-                    });
+                if (code) {
+                    // Extract boundary codes
+                    const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
+                    var active: any = "Active";
+                    if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
+                        var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
+                        active = data[activeColumn];
+                    }
+                    if (boundaryCode && active == "Active") {
+                        // Split boundary codes if they have comma separated values
+                        const boundaryCodesArray = boundaryCode.split(',');
+                        boundaryCodesArray.forEach((bc: string) => {
+                            // Trim any leading or trailing spaces
+                            const trimmedBC = bc.trim();
+                            if (!boundaryCodes[resource?.type]) {
+                                boundaryCodes[resource?.type] = {};
+                            }
+                            if (!boundaryCodes[resource?.type][trimmedBC]) {
+                                boundaryCodes[resource?.type][trimmedBC] = [];
+                            }
+                            boundaryCodes[resource?.type][trimmedBC].push(code);
+                            logger.info(`Boundary code ${trimmedBC} mapped to resource ${resource?.type} with code ${code}`)
+                        });
+                    }
+                }
+                else {
+                    logger.info(`Code ${code} is somehow null or empty for resource ${resource?.type} for uniqueCodeColumn ${uniqueCodeColumn}`)
                 }
             }
         }
@@ -85,7 +96,7 @@ async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject
     }
     logger.info("params : " + JSON.stringify(params));
     logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
-    const response = await httpRequest(config.host.projectHost + "health-project/v1/_search", projectSearchBody, params);
+    const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, projectSearchBody, params);
     await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
     logger.debug(`boundaryWise Project mapping : ${getFormattedStringForDebug(boundaryWithProject)}`);
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
@@ -101,14 +112,14 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
             const pvarIds = getPvarIds(messageObject);
-            if (pvarIds) {
+            if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                 resources.push({
                     type: "resource",
                     resourceIds: pvarIds
                 })
             }
             for (const type of Object.keys(boundaryCodes)) {
-                if (boundaryCodes[type][key]) {
+                if (boundaryCodes[type][key] && Array.isArray(boundaryCodes[type][key]) && boundaryCodes[type][key].length > 0) {
                     resources.push({
                         type: type == "user" ? "staff" : type,
                         resourceIds: [...boundaryCodes[type][key]]
@@ -137,9 +148,12 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     const boundaryCodes: any = {};
 
     await enrichBoundaryCodes(resources, messageObject, boundaryCodes, sheetName);
+    logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
     var boundaryWithProject: any = {};
     await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
+    logger.info("boundaryWithProject : " + JSON.stringify(boundaryWithProject));
     const projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
+    logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
     logger.info("projectMapping started ");
     const projectMappingResponse: any = await createCampaignService(projectMappingBody);
     logger.info("Project Mapping Response received");
@@ -191,7 +205,7 @@ async function processCampaignMapping(messageObject: any) {
         var completedResources: any = []
         var resources = [];
         for (const resourceDetailId of resourceDetailsIds) {
-            var retry = 30;
+            var retry = 75;
             while (retry--) {
                 const response = await searchResourceDetailsById(resourceDetailId, messageObject);
                 logger.info(`response for resourceDetailId: ${resourceDetailId}`);
@@ -212,6 +226,7 @@ async function processCampaignMapping(messageObject: any) {
                     break;
                 }
                 else {
+                    logger.info(`Waiting for 20 seconds for resource with id ${resourceDetailId} on retry ${retry}`);
                     await new Promise(resolve => setTimeout(resolve, 20000));
                 }
             }

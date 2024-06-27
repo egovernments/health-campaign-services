@@ -22,8 +22,10 @@
     "publish:css": "cd packages/css && yarn && npm publish --tag workbench-1.0",
     "dev:example": "cd example && yarn start",
     "dev:campaign": "cd packages/modules/campaign-manager && yarn start",
+    "dev:hcmmicroplan": "cd packages/modules/hcm-microplanning && yarn start",
     "build": "run-p build:**",
     "build:campaign": "cd packages/modules/campaign-manager && yarn build",
+    "build:hcmmicroplan": "cd packages/modules/hcm-microplanning && yarn build",
     "deploy:jenkins": "./scripts/jenkins.sh",
     "clean": "rm -rf node_modules"
   },
@@ -42,11 +44,11 @@
     "*.{js,css,md}": "prettier --write"
   },
   "dependencies": {
-    "ajv": "^8.12.0",
+    "ajv": "8.12.0",
     "lodash": "4.17.21",
     "microbundle-crl": "0.13.11",
-    "@egovernments/digit-ui-react-components": "1.8.1-beta.24",
-    "@egovernments/digit-ui-components": "0.0.1-beta.31",
+    "@egovernments/digit-ui-react-components": "1.8.2-beta.6",
+    "@egovernments/digit-ui-components": "0.0.2-beta.1",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "react-hook-form": "6.15.8",

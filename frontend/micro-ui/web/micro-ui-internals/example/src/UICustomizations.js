@@ -16,6 +16,56 @@ const inboxModuleNameMap = {
   "muster-roll-approval": "muster-roll-service",
 };
 
+function filterUniqueByKey(arr, key) {
+  const uniqueValues = new Set();
+  const result = [];
+
+  arr.forEach((obj) => {
+    const value = obj[key];
+    if (!uniqueValues.has(value)) {
+      uniqueValues.add(value);
+      result.push(obj);
+    }
+  });
+
+  return result;
+}
+
+const epochTimeForTomorrow12 = () => {
+  const now = new Date();
+
+  // Create a new Date object for tomorrow at 12:00 PM
+  const tomorrowNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12, 0, 0, 0);
+
+  // Format the date as "YYYY-MM-DD"
+  const year = tomorrowNoon.getFullYear();
+  const month = String(tomorrowNoon.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  const day = String(tomorrowNoon.getDate()).padStart(2, "0");
+
+  return Digit.Utils.date.convertDateToEpoch(`${year}-${month}-${day}`);
+};
+
+function cleanObject(obj) {
+  for (const key in obj) {
+    if (Object.hasOwn(obj, key)) {
+      if (Array.isArray(obj[key])) {
+        if (obj[key].length === 0) {
+          delete obj[key];
+        }
+      } else if (
+        obj[key] === undefined ||
+        obj[key] === null ||
+        obj[key] === false ||
+        obj[key] === "" || // Check for empty string
+        (typeof obj[key] === "object" && Object.keys(obj[key]).length === 0)
+      ) {
+        delete obj[key];
+      }
+    }
+  }
+  return obj;
+}
+
 export const UICustomizations = {
   businessServiceMap,
   updatePayload: (applicationDetails, data, action, businessService) => {
@@ -435,70 +485,61 @@ export const UICustomizations = {
 
       const searchParams = new URLSearchParams(location.search);
       const paths = {
-        "SearchProjectConfig": {
-          basePath: "Projects", 
+        SearchProjectConfig: {
+          basePath: "Projects",
           pathConfig: {
             // id: "id[0]",
             tenantId: "tenantId",
           },
           dateConfig: {
             endDate: "dayend",
-            startDate: "daystart"
+            startDate: "daystart",
           },
-          selectConfig: {
-          },
-          textConfig :["id", "tenantId", "name", "projectNumber", "projectSubType" , "projectType"]
+          selectConfig: {},
+          textConfig: ["id", "tenantId", "name", "projectNumber", "projectSubType", "projectType"],
         },
-        "SearchProductConfig": {
-          basePath: "Product", 
+        SearchProductConfig: {
+          basePath: "Product",
           pathConfig: {
             id: "id[0]",
           },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig :["id", "manufacturer", "name", "type"]
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: ["id", "manufacturer", "name", "type"],
         },
-        "SearchHouseholdConfig": {
-          basePath: "Household", 
+        SearchHouseholdConfig: {
+          basePath: "Household",
+          pathConfig: {
+            id: "id[0]",
+            clientReferenceId: "clientReferenceId[0]",
+          },
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: ["boundaryCode", "clientReferenceId", "id"],
+        },
+        SearchProductVariantConfig: {
+          basePath: "ProductVariant",
+          pathConfig: {
+            id: "id[0]",
+          },
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: ["productId", "sku", "variation"],
+        },
+        SearchProjectBeneficiaryConfig: {
+          basePath: "ProjectBeneficiary",
           pathConfig: {
             id: "id[0]",
             clientReferenceId: "clientReferenceId[0]",
           },
           dateConfig: {
+            dateOfRegistration: "daystart",
           },
-          selectConfig: {
-          },
-          textConfig :["boundaryCode", "clientReferenceId", "id"]
+          selectConfig: {},
+          textConfig: ["beneficiaryId", "projectId"],
         },
-        "SearchProductVariantConfig": {
-          basePath: "ProductVariant", 
-          pathConfig: {
-            id: "id[0]",
-          },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig :["productId", "sku", "variation"]
-        },
-        "SearchProjectBeneficiaryConfig": {
-          basePath: "ProjectBeneficiary", 
-          pathConfig: {
-            id: "id[0]",
-            clientReferenceId: "clientReferenceId[0]",
-
-          },
-          dateConfig: {
-            dateOfRegistration: "daystart"
-          },
-          selectConfig: {
-          },
-          textConfig :["beneficiaryId", "projectId"]
-        },
-        "SearchProjectStaffConfig": {
-          basePath: "ProjectStaff", 
+        SearchProjectStaffConfig: {
+          basePath: "ProjectStaff",
           pathConfig: {
             id: "id[0]",
           },
@@ -506,23 +547,20 @@ export const UICustomizations = {
             startDate: "daystart",
             endDate: "dayend",
           },
-          selectConfig: {
-          },
-          textConfig :["projectId", "userId"]
+          selectConfig: {},
+          textConfig: ["projectId", "userId"],
         },
-        "SearchProjectResourceConfig": {
-          basePath: "ProjectResource", 
+        SearchProjectResourceConfig: {
+          basePath: "ProjectResource",
           pathConfig: {
-            id: "id[0]"
+            id: "id[0]",
           },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig : []
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: [],
         },
-        "SearchProjectTaskConfig": {
-          basePath: "Task", 
+        SearchProjectTaskConfig: {
+          basePath: "Task",
           pathConfig: {
             id: "id[0]",
             clientReferenceId: "clientReferenceId[0]",
@@ -533,49 +571,44 @@ export const UICustomizations = {
             actualEndDate: "dayend",
             actualStartDate: "daystart",
           },
-          selectConfig: {
-          },
-          textConfig :["projectId","localityCode", "projectBeneficiaryId", "status"]
+          selectConfig: {},
+          textConfig: ["projectId", "localityCode", "projectBeneficiaryId", "status"],
         },
-        "SearchFacilityConfig": {
-          basePath: "Facility", 
+        SearchFacilityConfig: {
+          basePath: "Facility",
           pathConfig: {
-            id: "id[0]"
+            id: "id[0]",
           },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig :["faciltyUsage","localityCode", "storageCapacity","id"]
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: ["faciltyUsage", "localityCode", "storageCapacity", "id"],
         },
-        "SearchProjectFacilityConfig": {
-          basePath: "ProjectFacility", 
+        SearchProjectFacilityConfig: {
+          basePath: "ProjectFacility",
           pathConfig: {
             id: "id[0]",
             projectId: "projectId[0]",
-            facilityId: "facilityId[0]"
+            facilityId: "facilityId[0]",
           },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig :[]
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: [],
         },
-      }
-     
-      const id = searchParams.get("config")|| masterName;
-      
-      if(!paths||!paths?.[id]){
+      };
+
+      const id = searchParams.get("config") || masterName;
+
+      if (!paths || !paths?.[id]) {
         return data;
       }
       let requestBody = { ...data.body[paths[id]?.basePath] };
       const pathConfig = paths[id]?.pathConfig;
       const dateConfig = paths[id]?.dateConfig;
       const selectConfig = paths[id]?.selectConfig;
-      const textConfig = paths[id]?.textConfig
+      const textConfig = paths[id]?.textConfig;
 
-      if(paths[id].basePath == "Projects"){
-        data.state.searchForm={...data.state.searchForm,tenantId:"mz"}
+      if (paths[id].basePath == "Projects") {
+        data.state.searchForm = { ...data.state.searchForm, tenantId: "mz" };
       }
       let Product = Object.keys(requestBody)
         .map((key) => {
@@ -599,12 +632,10 @@ export const UICustomizations = {
           }
           return acc;
         }, {});
-      
-      if(paths[id].basePath == "Projects"){
-        
-        data.body[paths[id].basePath] = [{ ...Product}];
-      }
-      else data.body[paths[id].basePath] = { ...Product};
+
+      if (paths[id].basePath == "Projects") {
+        data.body[paths[id].basePath] = [{ ...Product }];
+      } else data.body[paths[id].basePath] = { ...Product };
       return data;
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
@@ -613,13 +644,9 @@ export const UICustomizations = {
       //first we can identify which column it belongs to then we can return relevant result
       switch (key) {
         case "ID":
-          
           return (
             <span className="link">
-              <Link
-                to={`/${window.contextPath}/employee/workbench/mdms-view?tenantId=${tenantId}&projectNumber=${masterName}`}
-              >
-              </Link>
+              <Link to={`/${window.contextPath}/employee/workbench/mdms-view?tenantId=${tenantId}&projectNumber=${masterName}`}></Link>
             </span>
           );
 
@@ -659,5 +686,104 @@ export const UICustomizations = {
         return data[keys.start] && data[keys.end] ? () => new Date(data[keys.start]).getTime() <= new Date(data[keys.end]).getTime() : true;
       }
     },
-  }
+  },
+  SearchCampaign: {
+    preProcess: (data, additionalDetails) => {
+      const { campaignName = "", endDate = "", projectType = "", startDate = "" } = data?.state?.searchForm || {};
+      data.body.CampaignDetails = {};
+      data.body.CampaignDetails.pagination = data?.state?.tableForm;
+      data.body.CampaignDetails.tenantId = Digit.ULBService.getCurrentTenantId();
+      // data.body.CampaignDetails.boundaryCode = boundaryCode;
+      data.body.CampaignDetails.createdBy = Digit.UserService.getUser().info.uuid;
+      data.body.CampaignDetails.campaignName = campaignName;
+      data.body.CampaignDetails.status = ["drafted"];
+      if (startDate) {
+        data.body.CampaignDetails.startDate = Digit.Utils.date.convertDateToEpoch(startDate);
+      } else {
+        data.body.CampaignDetails.startDate = epochTimeForTomorrow12();
+      }
+      if (endDate) {
+        data.body.CampaignDetails.endDate = Digit.Utils.date.convertDateToEpoch(endDate);
+      }
+      data.body.CampaignDetails.projectType = projectType?.[0]?.code;
+
+      cleanObject(data.body.CampaignDetails);
+
+      return data;
+    },
+    populateProjectType: () => {
+      const tenantId = Digit.ULBService.getCurrentTenantId();
+
+      return {
+        url: "/egov-mdms-service/v1/_search",
+        params: { tenantId },
+        body: {
+          MdmsCriteria: {
+            tenantId,
+            moduleDetails: [
+              {
+                moduleName: "HCM-PROJECT-TYPES",
+                masterDetails: [
+                  {
+                    name: "projectTypes",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        changeQueryName: "projectType",
+        config: {
+          enabled: true,
+          select: (data) => {
+            const dropdownData = filterUniqueByKey(data?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes, "code").map((row) => {
+              return {
+                ...row,
+                i18nKey: Digit.Utils.locale.getTransformedLocale(`CAMPAIGN_TYPE_${row.code}`),
+              };
+            });
+            return dropdownData;
+          },
+        },
+      };
+    },
+    customValidationCheck: (data) => {
+      //checking if both to and from date are present then they should be startDate<=endDate
+      const { startDate, endDate } = data;
+      const startDateEpoch = Digit.Utils.date.convertDateToEpoch(startDate);
+      const endDateEpoch = Digit.Utils.date.convertDateToEpoch(endDate);
+
+      if (startDate && endDate && startDateEpoch > endDateEpoch) {
+        return { warning: true, label: "ES_COMMON_ENTER_DATE_RANGE" };
+      }
+      return false;
+    },
+    additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      if (key === "CAMPAIGN_DATE") {
+        return `${Digit.DateUtils.ConvertEpochToDate(value)} - ${Digit.DateUtils.ConvertEpochToDate(row?.endDate)}`;
+      }
+    },
+  },
+  SearchMicroplan: {
+    preProcess: (data, additionalDetails) => {
+      const { name, status } = data?.state?.searchForm || {};
+
+      data.body.PlanConfigurationSearchCriteria = {};
+      data.body.PlanConfigurationSearchCriteria.limit = data?.state?.tableForm?.limit;
+      // data.body.PlanConfigurationSearchCriteria.limit = 10
+      data.body.PlanConfigurationSearchCriteria.offset = data?.state?.tableForm?.offset;
+      data.body.PlanConfigurationSearchCriteria.name = name;
+      data.body.PlanConfigurationSearchCriteria.tenantId = Digit.ULBService.getCurrentTenantId();
+      data.body.PlanConfigurationSearchCriteria.userUuid = Digit.UserService.getUser().info.uuid;
+      // delete data.body.PlanConfigurationSearchCriteria.pagination
+      data.body.PlanConfigurationSearchCriteria.status = status?.status;
+      cleanObject(data.body.PlanConfigurationSearchCriteria);
+      return data;
+    },
+    additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      if (key === "CAMPAIGN_DATE") {
+        return `${Digit.DateUtils.ConvertEpochToDate(value)} - ${Digit.DateUtils.ConvertEpochToDate(row?.CampaignDetails?.endDate)}`;
+      }
+    },
+  },
 };

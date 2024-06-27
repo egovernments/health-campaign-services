@@ -18,6 +18,8 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   const saved = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
   const selectedProjectType = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_TYPE?.projectType?.code;
   const tenantId = Digit.ULBService.getCurrentTenantId();
+  const searchParams = new URLSearchParams(location.search);
+  const activeCycle = searchParams.get("activeCycle");
   const { isLoading: deliveryConfigLoading, data: filteredDeliveryConfig } = Digit.Hooks.useCustomMDMS(
     tenantId,
     "HCM-ADMIN-CONSOLE",
@@ -46,7 +48,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
     if (!saved || saved?.length === 0) {
       return [...Array(tabs)].map((_, tabIndex) => ({
         cycleIndex: `${tabIndex + 1}`,
-        active: tabIndex === 0 ? true : false,
+        active: activeCycle == tabIndex + 1 ? true : tabIndex === 0 ? true : false,
         deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
           deliveryIndex: `${subTabIndex + 1}`,
           active: subTabIndex === 0 ? true : false,
@@ -89,6 +91,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     return {
                       ruleKey: index + 1,
                       delivery: {},
+                      deliveryType: item?.deliveryType,
                       attributes: item?.attributeConfig
                         ? item?.attributeConfig?.map((i, c) => {
                             if (i?.operatorValue === "IN_BETWEEN") {
@@ -119,6 +122,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     return {
                       ruleKey: index + 1,
                       delivery: {},
+                      deliveryType: null,
                       attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
                       products: [],
                     };
@@ -147,7 +151,12 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
     }
     // if no change
     if (saved && saved?.length == tabs && saved?.[0]?.deliveries?.length === subTabs) {
-      return [...saved];
+      return saved.map((i, n) => {
+        return {
+          ...i,
+          active: activeCycle ? (activeCycle == n + 1 ? true : false) : n === 0 ? true : false,
+        };
+      });
     }
     // if cycle number decrease
     if (saved?.length > tabs) {
@@ -205,6 +214,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                       return {
                         ruleKey: index + 1,
                         delivery: {},
+                        deliveryType: item?.deliveryType,
                         attributes: item?.attributeConfig
                           ? item?.attributeConfig?.map((i, c) => {
                               if (i?.operatorValue === "IN_BETWEEN") {
@@ -235,6 +245,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                       return {
                         ruleKey: index + 1,
                         delivery: {},
+                        deliveryType: null,
                         attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
                         products: [],
                       };
@@ -244,6 +255,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                     {
                       ruleKey: 1,
                       delivery: {},
+                      deliveryType: null,
                       attributes:
                         // filteredDeliveryConfig?.projectType === "MR-DN"
                         //   ? filteredDeliveryConfig?.attributeConfig?.map((i, c) => ({

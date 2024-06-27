@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect ,Fragment} from "react";
 import { Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
@@ -51,6 +51,7 @@ const CampaignName = ({ onSelect, formData, control, formState, ...props }) => {
           error={error?.message ? t(error?.message) : ""}
           style={{ width: "40rem", marginBottom: "0" }}
           populators={{ name: "campaignName" }}
+          placeholder={t("HCM_CAMPAIGN_NAME_EXAMPLE")}
           value={name}
           onChange={(event) => {
             setStartValidation(true);
