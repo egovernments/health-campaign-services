@@ -479,12 +479,12 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     }
     produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
-    if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
+    if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
         logger.info("Activities to persist : ")
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        produceModifiedMessages(request?.body, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
 
