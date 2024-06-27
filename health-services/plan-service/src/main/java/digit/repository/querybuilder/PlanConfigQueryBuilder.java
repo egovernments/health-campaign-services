@@ -51,7 +51,7 @@ public class PlanConfigQueryBuilder {
 
         addActiveWhereClause(builder, preparedStmtList);
 
-        return builder.toString();
+        return QueryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     /**
