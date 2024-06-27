@@ -23,8 +23,8 @@ export const UICustomizations = {
         status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: true,
-        startDate: Date.now(),
-        endDate: Date.now(),
+        startDate: Digit.Utils.pt.convertDateToEpoch(new Date().toISOString().split("T")[0], "daystart"),
+        endDate: Digit.Utils.pt.convertDateToEpoch(new Date().toISOString().split("T")[0]),
         pagination: {
           sortBy: "createdTime",
           sortOrder: "desc",
@@ -114,7 +114,7 @@ export const UICustomizations = {
       data.body.CampaignDetails = {
         tenantId: tenantId,
         status: ["creating", "created"],
-        endDate: Date.now() - 24 * 60 * 60 * 1000,
+        endDate: Digit.Utils.pt.convertDateToEpoch(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
         createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
           sortBy: "createdTime",
@@ -207,7 +207,7 @@ export const UICustomizations = {
         status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: false,
-        startDate: Date.now() + 24 * 60 * 60 * 1000,
+        startDate: Digit.Utils.pt.convertDateToEpoch(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0], "daystart"),
         pagination: {
           sortBy: "createdTime",
           sortOrder: "desc",

@@ -887,42 +887,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     fetchData();
   }, [errorsType]);
 
-  const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
-    type: "facilityWithBoundary",
-    hierarchyType: params?.hierarchyType,
-    campaignId: id,
-    // config: {
-    //   enabled: setTimeout(fetchUpload || (fetchBoundary && currentKey > 6)),
-    // },
-    config: {
-      enabled: enabled,
-    },
-  });
-
-  const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
-    type: "boundary",
-    hierarchyType: params?.hierarchyType,
-    campaignId: id,
-    // config: {
-    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
-    // },
-    config: {
-      enabled: enabled,
-    },
-  });
-
-  const { data: userId, isLoading: isUserLoading, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
-    type: "userWithBoundary",
-    hierarchyType: params?.hierarchyType,
-    campaignId: id,
-    // config: {
-    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
-    // },
-    config: {
-      enabled: enabled,
-    },
-  });
-
   const Template = {
     url: "/project-factory/v1/data/_download",
     params: {
@@ -935,35 +899,35 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const mutation = Digit.Hooks.useCustomAPIMutationHook(Template);
 
   const downloadTemplate = async () => {
-    if (type === "boundary" && params?.isBoundaryLoading) {
-      setDownloadError(true);
-      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
-      return;
-    }
-    if (type === "facilityWithBoundary" && params?.isFacilityLoading) {
-      setDownloadError(true);
-      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
-      return;
-    }
-    if (type === "userWithBoundary" && params?.isUserLoading) {
-      setDownloadError(true);
-      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
-      return;
-    }
-    if (!params?.boundaryId || !params?.facilityId || !params?.userId) {
-      setEnabled(true);
+    // if (type === "boundary" && params?.isBoundaryLoading) {
+    //   setDownloadError(true);
+    //   setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+    //   return;
+    // }
+    // if (type === "facilityWithBoundary" && params?.isFacilityLoading) {
+    //   setDownloadError(true);
+    //   setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+    //   return;
+    // }
+    // if (type === "userWithBoundary" && params?.isUserLoading) {
+    //   setDownloadError(true);
+    //   setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+    //   return;
+    // }
+    // if (!params?.boundaryId || !params?.facilityId || !params?.userId) {
+    //   setEnabled(true);
 
-      setDownloadError(true);
-      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
-      return;
-    }
+    //   setDownloadError(true);
+    //   setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+    //   return;
+    // }
     await mutation.mutate(
       {
         params: {
           tenantId: tenantId,
           type: type,
           hierarchyType: params?.hierarchyType,
-          id: type === "boundary" ? params?.boundaryId : type === "facilityWithBoundary" ? params?.facilityId : params?.userId,
+          campaignId: id,
         },
       },
       {
@@ -971,6 +935,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           if (result?.GeneratedResource?.[0]?.status === "failed") {
             setDownloadError(true);
             setShowToast({ key: "error", label: t("ERROR_WHILE_DOWNLOADING") });
+            return;
+          }
+          if (result?.GeneratedResource?.[0]?.status === "inprogress") {
+            setDownloadError(true);
+            setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
             return;
           }
           if (!result?.GeneratedResource?.[0]?.fileStoreid || result?.GeneratedResource?.length == 0) {
