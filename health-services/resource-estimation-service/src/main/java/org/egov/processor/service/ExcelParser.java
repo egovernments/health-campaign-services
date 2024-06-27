@@ -423,11 +423,7 @@ public class ExcelParser implements FileParser {
 			} catch (IOException e) {
 				log.info("Error saving XLS file: " + e);
 				return null;
-			}finally {
-			    if (outputFile != null && !outputFile.delete()) {
-				       log.warn("Failed to delete temporary file: " + outputFile.getPath());
-				    }
-			    }
+			}
 		} catch (IOException e) {
 			log.info("Error converting workbook to XLS: " + e);
 			return null;
