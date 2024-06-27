@@ -206,16 +206,16 @@ public class ExcelParser implements FileParser {
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
 	private void processSheets(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
+			Object campaignResponse, PlanConfiguration planConfig, Workbook excelWorkbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList,
 			DataFormatter dataFormatter) {
-		workbook.forEach(sheet -> {
-			if(isSheetAlloedToProcess(planConfigurationRequest,sheet.getSheetName())) {
-			Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-			List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
-			parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
-			processRows(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignResponse,
-					campaignBoundaryList, campaignResourcesList);
+		excelWorkbook.forEach(excelWorkbookSheet -> {
+			if (isSheetAlloedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName())) {
+				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(excelWorkbookSheet);
+				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
+				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
+				processRows(planConfigurationRequest, excelWorkbookSheet, dataFormatter, fileStoreId, campaignResponse,
+						campaignBoundaryList, campaignResourcesList);
 			}
 		});
 	}

@@ -74,7 +74,7 @@ public class MdmsUtil {
 		if (result == null || ObjectUtils.isEmpty(result)) {
 			log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
 			throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE,
-					NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
+					"no data found for the given tenantid "+tenantId + " for master name "+ServiceConstants.MDMS_MASTER_SCHEMAS);
 		}
 		return result;
 	}
@@ -192,7 +192,7 @@ public class MdmsUtil {
 		if (result == null || ObjectUtils.isEmpty(result)) {
 			log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
 			throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE,
-					NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
+					"no data found for the given tenantid "+tenantId + " for master name "+ServiceConstants.MDMS_MASTER_COMMON_CONSTANTS);
 		}
 		return filterMasterDataForLocale(result.toString());
 	}
