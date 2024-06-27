@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdList;
@@ -55,7 +56,11 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         query = query.replace("id IN (:id)", "pt.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "pt.clientReferenceId IN (:clientReferenceId)");
 
-        query = query + " and pt.tenantId=:tenantId ";
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where pt.tenantId=:tenantId ";
+        } else {
+            query = query + " and pt.tenantId=:tenantId ";
+        }
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";
         }
