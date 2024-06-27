@@ -7,9 +7,10 @@ import { correctParentValues, findMapValue, generateActivityMessage, getBoundary
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 import { validateMappingId } from '../utils/campaignMappingUtils';
-import { campaignStatuses } from '../config/constants';
+import { campaignStatuses, processTracks } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { persistTrack } from "../utils/processTrackUtils";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -862,6 +863,7 @@ async function createRelatedResouce(requestBody: any) {
   if (campaignDetails?.status == campaignStatuses.inprogress) {
     logger.info("Campaign Already In Progress and Mapped");
   } else {
+    persistTrack(id, processTracks.resourceMappingStarted.type, processTracks.resourceMappingStarted.status);
     sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
     correctParentValues(requestBody?.Campaign?.CampaignDetails);
     // Create related resources
@@ -882,6 +884,7 @@ async function createRelatedResouce(requestBody: any) {
         endDate,
         resouceBody
       );
+      persistTrack(id, processTracks.resourceMappingDone.type, processTracks.resourceMappingDone.status);
     }
   }
 }

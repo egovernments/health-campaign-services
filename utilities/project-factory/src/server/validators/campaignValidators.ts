@@ -1207,9 +1207,14 @@ function validateAllDistrictTabsPresentOrNot(dataFromSheet: any, localizationMap
                 throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tab ${tab} not present in the Target Sheet Uploaded`);
             }
         }
-
     }
 
+}
+
+function validateSearchProcessTracksRequest(request: any) {
+    if (!request?.query?.campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignId is required in params");
+    }
 }
 
 
@@ -1227,5 +1232,6 @@ export {
     validateDownloadRequest,
     validateTargetSheetData,
     immediateValidationForTargetSheet,
-    validateBoundaryOfResouces
+    validateBoundaryOfResouces,
+    validateSearchProcessTracksRequest
 }

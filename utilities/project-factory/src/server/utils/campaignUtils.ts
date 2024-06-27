@@ -12,12 +12,13 @@ import { enrichProjectDetailsFromCampaignDetails } from "./transforms/projectTyp
 import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
-import { campaignStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
+import { campaignStatuses, headingMapping, processTracks, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
 import { callGenerateIfBoundariesDiffer } from "./generateUtils";
+import { persistTrack } from "./processTrackUtils";
 const _ = require('lodash');
 
 
@@ -540,6 +541,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     }
     const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(requestBody, topic);
+    persistTrack(requestBody?.CampaignDetails?.id, processTracks.error.type, String((error?.message + " : " + error?.description) || error), { error: String((error?.message + " : " + error?.description) || error) });
     delete requestBody.CampaignDetails.campaignDetails
 }
 
@@ -625,6 +627,7 @@ function getCreateResourceIds(resources: any[]) {
 }
 
 async function persistForCampaignProjectMapping(request: any, createResourceDetailsIds: any, localizationMap?: any) {
+    persistTrack(request.body.CampaignDetails.id, processTracks.sentForProjectMapping.type, processTracks.sentForProjectMapping.status);
     if (createResourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
         var requestBody: any = {
             RequestInfo: request?.body?.RequestInfo,
@@ -1292,6 +1295,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
     logger.info("Create Projects started for the given Campaign")
     var { tenantId, boundaries, projectType, projectId } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
+        persistTrack(request.body.CampaignDetails.id, processTracks.projectCreationStarted.type, processTracks.projectCreationStarted.status);
         const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
         var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse?.filter((types: any) => types?.code == projectType)?.[0]);
         const projectCreateBody = {
@@ -1320,12 +1324,16 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             ]
             await projectCreate(projectCreateBody, request)
         }
+        persistTrack(request.body.CampaignDetails.id, processTracks.projectCreationDone.type, processTracks.projectCreationDone.status);
     }
 }
 
 
 async function processAfterPersist(request: any, actionInUrl: any) {
     try {
+        logger.info("Waiting for 2 second to persist process tracks...")
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        persistTrack(request.body.CampaignDetails.id, processTracks.uuidAssigned.type, processTracks.uuidAssigned.status);
         const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
         if (request?.body?.CampaignDetails?.action == "create") {
             await createProjectCampaignResourcData(request);

@@ -3,10 +3,25 @@ import { produceModifiedMessages } from '../kafka/Listener';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
 
-async function getProcessDetails(id: any): Promise<any> {
-    const query = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME} WHERE id = $1`;
+async function getProcessDetails(id: any, getNew: any = false): Promise<any> {
+    const query = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME} WHERE campaignid = $1`;
     const values = [id];
     const queryResponse = await executeQuery(query, values);
+    const currentTime = Date.now()
+    if (queryResponse.rows.length === 0 && getNew) {
+        if (getNew) {
+            return {
+                id: uuidv4(),
+                campaignId: id,
+                details: {},
+                additionalDetails: {},
+                createdTime: currentTime,
+                lastModifiedTime: currentTime,
+                isNew: true
+            }
+        }
+        else return {};
+    }
     return queryResponse.rows[0]; // Assuming only one row is expected
 }
 
@@ -15,38 +30,26 @@ async function persistTrack(
     type: any,
     status: any,
     details?: any,
-    additionalDetails?: any,
-    id?: any
+    additionalDetails?: any
 ): Promise<void> {
     let processDetails: any;
 
-    if (id) {
-        processDetails = await getProcessDetails(id);
-        details = { ...processDetails?.details, ...details };
-        additionalDetails = { ...processDetails?.additionalDetails, ...additionalDetails };
+    if (campaignId) {
+        processDetails = await getProcessDetails(campaignId, true);
     }
 
-    const processId = id || uuidv4();
-    const createdTime = Date.now();
     const lastModifiedTime = Date.now();
-
-    processDetails = {
-        id: processId,
-        campaignId,
-        type,
-        status,
-        details,
-        additionalDetails,
-        createdTime,
-        lastModifiedTime
-    };
-
+    processDetails.lastModifiedTime = processDetails.isNew ? processDetails.lastModifiedTime : lastModifiedTime;
+    processDetails.details = { ...processDetails?.details, ...details } || {};
+    processDetails.additionalDetails = { ...processDetails?.additionalDetails, ...additionalDetails } || {};
+    processDetails.type = type;
+    processDetails.status = status;
     const produceObject: any = {
         processDetails
     };
 
-    const topic = id ? config?.kafka?.KAFKA_UPDATE_PROCESS_TRACK_TOPIC : config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC;
+    const topic = processDetails.isNew ? config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC : config?.kafka?.KAFKA_UPDATE_PROCESS_TRACK_TOPIC;
     produceModifiedMessages(produceObject, topic);
 }
 
-export { persistTrack };
+export { persistTrack, getProcessDetails };

@@ -12,6 +12,8 @@ import { produceModifiedMessages } from "../kafka/Listener";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { persistTrack } from "../utils/processTrackUtils";
+import { processTracks } from "../config/constants";
 
 
 
@@ -855,6 +857,7 @@ async function processCreate(request: any, localizationMap?: any) {
 async function createProjectCampaignResourcData(request: any) {
   // Create resources for a project campaign
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
+    persistTrack(request.body.CampaignDetails.id, processTracks.projectResourceCreationStarted.type, processTracks.projectResourceCreationStarted.status);
     for (const resource of request?.body?.CampaignDetails?.resources) {
       if (resource.type != "boundaryWithTarget") {
         const resourceDetails = {

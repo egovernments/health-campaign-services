@@ -5,8 +5,9 @@ import { getFormattedStringForDebug, logger } from "./logger";
 import { httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Listener";
 import { getLocalizedName } from "./campaignUtils";
-import { campaignStatuses, resourceDataStatuses } from "../config/constants";
+import { campaignStatuses, processTracks, resourceDataStatuses } from "../config/constants";
 import { createCampaignService } from "../service/campaignManageService";
+import { persistTrack } from "./processTrackUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -139,6 +140,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
 }
 
 async function fetchAndMap(resources: any[], messageObject: any) {
+
     const localizationMap = messageObject?.localizationMap;
     const sheetName: any = {
         "user": getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap),
@@ -204,6 +206,7 @@ async function processCampaignMapping(messageObject: any) {
     else {
         var completedResources: any = []
         var resources = [];
+        persistTrack(id, processTracks.confirmingResourceCreation.type, processTracks.confirmingResourceCreation.status);
         for (const resourceDetailId of resourceDetailsIds) {
             var retry = 75;
             while (retry--) {
@@ -237,6 +240,7 @@ async function processCampaignMapping(messageObject: any) {
         if (uncompletedResourceIds?.length > 0) {
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + JSON.stringify(uncompletedResourceIds) + " is not validated after long wait. Check file");
         }
+        persistTrack(id, processTracks.allResourceCreationConfirmed.type, processTracks.allResourceCreationConfirmed.status);
         await fetchAndMap(resources, messageObject);
     }
 }
