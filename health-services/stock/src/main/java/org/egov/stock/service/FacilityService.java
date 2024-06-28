@@ -69,7 +69,7 @@ public class FacilityService {
                     FacilityBulkResponse.class);
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching facility list: {}", ExceptionUtils.getStackTrace(e));
             entities.forEach( stockEntity -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(stockEntity, error, errorDetailsMap);
@@ -126,7 +126,7 @@ public class FacilityService {
 							Collectors.mapping(projectFacility -> projectFacility.getFacilityId(), Collectors.toList())));
 
         } catch (Exception e) {
-            log.error("error while fetching project facility list", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching project facility list: {}", ExceptionUtils.getStackTrace(e));
             entities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

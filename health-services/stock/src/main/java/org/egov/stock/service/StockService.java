@@ -108,7 +108,7 @@ public class StockService {
                 stockRepository.save(validTasks, configuration.getCreateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
         }
 
@@ -138,7 +138,7 @@ public class StockService {
                 stockRepository.save(validTasks, configuration.getUpdateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
         }
 
@@ -168,7 +168,7 @@ public class StockService {
                 stockRepository.save(validTasks, configuration.getDeleteStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
         }
 

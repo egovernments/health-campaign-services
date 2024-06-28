@@ -1,5 +1,11 @@
 package org.egov.stock.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
@@ -7,6 +13,7 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationRequest;
+import org.egov.common.models.stock.StockReconciliationSearchRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
@@ -20,15 +27,8 @@ import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrReferenceIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
-import org.egov.common.models.stock.StockReconciliationSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -108,7 +108,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -140,7 +140,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -173,7 +173,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 

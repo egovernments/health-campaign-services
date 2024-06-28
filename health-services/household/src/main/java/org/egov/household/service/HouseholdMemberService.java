@@ -128,7 +128,7 @@ public class HouseholdMemberService {
                 log.info("household members data saved successfully");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating household members: ", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while creating household members: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -163,7 +163,7 @@ public class HouseholdMemberService {
             return householdMemberRepository.find(householdMemberSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (Exception e) {
-            log.error("error in building query for household member search", ExceptionUtils.getStackTrace(e));
+            log.error("error in building query for household member search: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
@@ -194,7 +194,7 @@ public class HouseholdMemberService {
                 log.info("household member data updated successfully");
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -226,7 +226,7 @@ public class HouseholdMemberService {
                 log.info("deleted Household Members: {}", validHouseholdMembers);
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting household members", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while deleting household members: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
