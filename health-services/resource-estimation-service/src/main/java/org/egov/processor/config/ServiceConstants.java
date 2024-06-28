@@ -53,7 +53,7 @@ public class ServiceConstants {
     
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     
-    public static final String VALIDATE_STRING_REGX = "^[a-zA-Z0-9 .,()_\\-`~!@#\\$%^&*\\+=\\\\|{}\\[\\]:;\"'<>,.?/]*$";    
+    public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
     public static final String VALIDATE_BOOLEAN_REGX = "^(?i)(true|false)$";
     

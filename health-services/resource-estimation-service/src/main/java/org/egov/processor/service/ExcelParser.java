@@ -209,8 +209,10 @@ public class ExcelParser implements FileParser {
 			Object campaignResponse, PlanConfiguration planConfig, Workbook excelWorkbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList,
 			DataFormatter dataFormatter) {
+		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
+
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (isSheetAlloedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName())) {
+			if (isSheetAlloedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName(),localeResponse)) {
 				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(excelWorkbookSheet);
 				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
@@ -339,7 +341,7 @@ public class ExcelParser implements FileParser {
 			Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
 					campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
-					planConfigurationRequest, boundaryCodeList);
+					planConfigurationRequest, boundaryCodeList, sheet);
 			JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
 			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
 					assumptionValueMap, feature);
@@ -519,24 +521,24 @@ public class ExcelParser implements FileParser {
 	 */
 	public void validateRows(Integer indexOfBoundaryCode, Row row, Row columnHeaderRow, Map<String, Object> attributeNameVsDataTypeMap,
 			Map<String, String> mappedValues, Map<String, Integer> mapOfColumnNameAndIndex,
-			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList) {
+			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList, Sheet sheet) {
 
 		try {
 			validateTillBoundaryCode(indexOfBoundaryCode, row, columnHeaderRow);
 			validateAttributes(attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex, row, columnHeaderRow, indexOfBoundaryCode,
 					boundaryCodeList);
 		} catch (JsonProcessingException e) {
-			log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1));
+			log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " at sheet - " + sheet);
 			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
 			planUtil.update(planConfigurationRequest);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum());
+					ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " at sheet - " + sheet);
 		} catch (CustomException customException) {
-			log.info(customException.toString());
+			log.info(customException.toString()+ "at sheet - " + sheet.getSheetName());
 			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
 			planUtil.update(planConfigurationRequest);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					customException.getMessage());
+					customException.getMessage()+ "at sheet - " + sheet.getSheetName());
 		}
 	}
 
@@ -702,11 +704,10 @@ public class ExcelParser implements FileParser {
 	 * @throws JsonMappingException If there's an issue mapping JSON response to Java objects.
 	 * @throws JsonProcessingException If there's an issue processing JSON during conversion.
 	 */
-	private boolean isSheetAlloedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName) {
+	private boolean isSheetAlloedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName,LocaleResponse localeResponse) {
 		Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
 				planConfigurationRequest.getRequestInfo(),
 				planConfigurationRequest.getPlanConfiguration().getTenantId());
-		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
 		String value = (String) mdmsDataConstants.get("readMeSheetName");
 		for (Locale locale : localeResponse.getMessages()) {
 			if ((locale.getCode().equalsIgnoreCase(value))) {
