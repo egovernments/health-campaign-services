@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -134,7 +135,7 @@ public class ProjectTaskService {
                 log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
-            log.error("error occurred while creating project tasks: {}", exception.getMessage());
+            log.error("error occurred while creating project tasks: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -166,7 +167,7 @@ public class ProjectTaskService {
                 log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project tasks", exception);
+            log.error("error occurred while updating project tasks", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -196,7 +197,7 @@ public class ProjectTaskService {
                 projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -245,7 +246,7 @@ public class ProjectTaskService {
             return projectTaskRepository.find(taskSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
-            log.error("error in building query", e);
+            log.error("error in building query", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }

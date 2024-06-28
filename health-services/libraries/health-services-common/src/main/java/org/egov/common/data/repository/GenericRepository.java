@@ -1,6 +1,7 @@
 package org.egov.common.data.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
@@ -201,7 +202,7 @@ public abstract class GenericRepository<T> {
                 redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
             }
         } catch (Exception exception) {
-            log.warn("Error while saving to cache: {}", exception.getMessage());
+            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 

@@ -18,14 +18,19 @@ import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.project.BeneficiaryBulkResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.transformer.models.boundary.BoundarySearchResponse;
 import org.egov.transformer.models.boundary.EnrichedBoundary;
 import org.springframework.stereotype.Component;
@@ -186,7 +191,7 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
@@ -216,11 +221,40 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for id: " + projectId);
         }
         return response.getProject();
+    }
+
+    public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
+        BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectBeneficiary( ProjectBeneficiarySearch.builder().
+                        clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
+                .build();
+        BeneficiaryBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectBeneficiarySearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    BeneficiaryBulkResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching beneficiary", ExceptionUtils.getStackTrace(e));
+            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
+                    "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
+        }
+        return response.getProjectBeneficiaries();
     }
 
     public List<String> getProducts(String tenantId, String projectTypeId) {
