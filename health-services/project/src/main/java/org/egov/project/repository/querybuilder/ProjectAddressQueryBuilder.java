@@ -81,6 +81,12 @@ public class ProjectAddressQueryBuilder {
                 preparedStmtList.add(project.getProjectNumber());
             }
 
+            if(StringUtils.isNotBlank(project.getParent())){
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.parent =? ");
+                preparedStmtList.add(project.getParent());
+            }
+
             if (StringUtils.isNotBlank(project.getName())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.name LIKE ? ");
@@ -97,6 +103,12 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" addr.boundary=? ");
                 preparedStmtList.add(project.getAddress().getBoundary());
+            }
+
+            if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundaryType())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" addr.boundaryType=? ");
+                preparedStmtList.add(project.getAddress().getBoundaryType());
             }
 
             if (StringUtils.isNotBlank(project.getProjectSubType())) {
