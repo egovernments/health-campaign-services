@@ -25,6 +25,13 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
+/**
+ *
+ * Validator for checking row version mismatch in HFReferral entities during bulk processing.
+ * Ensures that the row version of existing entities matches the row version in the request.
+ *
+ * @author kanishq-egov
+ */
 @Component
 @Order(value = 5)
 @Slf4j
@@ -37,10 +44,15 @@ public class HfrRowVersionValidator implements Validator<HFReferralBulkRequest, 
         this.hfReferralRepository = hfReferralRepository;
     }
 
-
+    /**
+     * Validates row version for HFReferral entities in a bulk request.
+     *
+     * @param request The HFReferralBulkRequest containing a list of HFReferral entities
+     * @return A Map containing HFReferral entities as keys and lists of errors as values
+     */
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
-        log.info("validating row version");
+        log.info("Validating row version");
         Map<HFReferral, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getHfReferrals());
         Map<String, HFReferral> iMap = getIdToObjMap(request.getHfReferrals().stream()

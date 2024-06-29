@@ -3,10 +3,13 @@ package org.egov.individual.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.individual.Individual;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
+import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.IndividualSearch;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,8 +17,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
+
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.times;
@@ -46,6 +53,11 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
+        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
+                        .withId("some-id")
+                        .build())).build());
+
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
@@ -60,9 +72,18 @@ class IndividualServiceSearchTest {
                 .byNullId()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
+
         when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+
+        when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
+                any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder()
+                .totalCount(1L)
+                .response(Collections.singletonList(IndividualTestBuilder.builder()
+                .withId("some-id")
+                .build())).build());
+
         individualService.search(individualSearch, 0, 10,
-                "default", null, false,requestInfo);
+                "default", null, false, requestInfo);
 
         verify(individualRepository, times(0)).findById(anyList(),
                 eq("id"), anyBoolean());
@@ -75,6 +96,11 @@ class IndividualServiceSearchTest {
                 .byClientReferenceId()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
+
+        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder().response(Collections.singletonList(IndividualTestBuilder.builder()
+                        .withId("some-id")
+                        .build())).build());
 
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
@@ -92,7 +118,12 @@ class IndividualServiceSearchTest {
                 .build();
 
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
+
+        when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(), any(), anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder().build());
+
         when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
@@ -109,6 +140,12 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
         when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+
+        when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
+                any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
+                .withId("some-id")
+                .build())).build());
+
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 

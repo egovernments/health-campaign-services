@@ -3,3 +3,84 @@ frontend/micro-ui-internals/node_modules/*
 .idea
 index.lock
 /health-services/stock/stock.iml
+# Ignore target directories
+**/target/
+
+# Ignore IDE-specific files
+*.iml
+*.classpath
+*.project
+*.settings/
+
+# Ignore gitignore files
+**/.gitignore
+
+# Ignore compiled binaries and libraries
+*.jar
+*.war
+*.ear
+bin/
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+# Ignore target directories
+**/target/
+
+# Ignore IDE-specific files
+*.iml
+*.classpath
+*.project
+*.settings/
+
+# Ignore gitignore files
+**/.gitignore
+
+# Ignore compiled binaries and libraries
+*.jar
+*.war
+*.ear
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+# Ignore target directories
+**/target/
+
+# Ignore IDE-specific files
+*.iml
+*.classpath
+*.project
+*.settings/
+
+# Ignore gitignore files
+**/.gitignore
+
+# Ignore compiled binaries and libraries
+*.jar
+*.war
+*.ear
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+# Ignore target directories
+**/target/
+
+# Ignore IDE-specific files
+*.iml
+*.classpath
+*.project
+*.settings/
+
+# Ignore gitignore files
+**/.gitignore
+
+# Ignore compiled binaries and libraries
+*.jar
+*.war
+*.ear
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db

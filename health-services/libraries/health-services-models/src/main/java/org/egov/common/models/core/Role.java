@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class Role {
     private static final String CITIZEN = "CITIZEN";
     private String name;

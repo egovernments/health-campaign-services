@@ -15,11 +15,22 @@ import org.springframework.stereotype.Component;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
+/**
+ * Validator for checking the 'isDeleted' field in HFReferral entities.
+ *
+ * Author: kanishq-egov
+ */
 @Component
 @Order(2)
 @Slf4j
 public class HfrIsDeletedValidator implements Validator<HFReferralBulkRequest, HFReferral> {
 
+    /**
+     * Validates the 'isDeleted' field for each HFReferral entity in the bulk request.
+     *
+     * @param request The HFReferralBulkRequest containing a list of HFReferral entities
+     * @return A Map containing HFReferral entities as keys and lists of errors as values
+     */
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
         log.info("validating isDeleted field");

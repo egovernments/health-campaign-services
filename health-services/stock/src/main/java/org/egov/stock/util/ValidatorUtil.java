@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
+import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.service.UserService;
@@ -64,17 +65,13 @@ public class ValidatorUtil {
 	}
 
 	/**
-	 * 
-	 * Non generic method used for validating sender/receiver (parties) against
-	 * facility or staff based on the type
-	 * 
-	 * @param <R>
-	 * @param <T>
-	 * @param stockRequest
+	 * Non-generic method used for validating sender/receiver (parties) against facility or staff based on the type
+	 *
+	 * @param requestInfo
 	 * @param errorDetailsMap
-	 * @param validEntities
-	 * @param getId
+	 * @param validStockEntities
 	 * @param facilityService
+	 * @param userService
 	 * @return
 	 */
 	public static <R, T> Map<T, List<Error>> validateStockTransferParties(RequestInfo requestInfo,
@@ -94,17 +91,14 @@ public class ValidatorUtil {
 	}
 
 	/**
-	 * validates the list of party-ids (facility and staff) against the respective
-	 * APIs and enriches the invalid ids list for both parties
-	 * 
-	 * @param <T>
-	 * @param stockRequest
+	 * Validates the list of party-ids (facility and staff) against the respective APIs and enriches the invalid ids list for both parties.
+	 *
+	 * @param requestInfo
 	 * @param errorDetailsMap
 	 * @param validStockEntities
 	 * @param facilityService
-	 * @param facilityIds
-	 * @param InvalidStaffId
-	 * @param invalidFacilityIds
+	 * @param userService
+	 * @return A tuple containing lists of invalid facility ids and invalid staff ids
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T> Tuple<List<String>, List<String>> validateAndEnrichInvalidPartyIds(RequestInfo requestInfo,
@@ -158,18 +152,18 @@ public class ValidatorUtil {
 
 		for (Stock stock : validStockEntities) {
 
-			if (stock.getSenderType().equalsIgnoreCase(WAREHOUSE)) {
+			if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && stock.getSenderId() != null) {
 				facilityIds.add(stock.getSenderId());
-			}
-			if (stock.getSenderType().equalsIgnoreCase(STAFF)) {
+			} else if (SenderReceiverType.STAFF.equals(stock.getSenderType()) && stock.getSenderId() != null) {
 				staffIds.add(stock.getSenderId());
 			}
-			if (stock.getReceiverType().equalsIgnoreCase(WAREHOUSE)) {
+
+			if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && stock.getReceiverId() != null) {
 				facilityIds.add(stock.getReceiverId());
-			}
-			if (stock.getReceiverType().equalsIgnoreCase(STAFF)) {
+			} else if (SenderReceiverType.STAFF.equals(stock.getReceiverType()) && stock.getReceiverId() != null) {
 				staffIds.add(stock.getReceiverId());
 			}
+
 		}
 	}
 
@@ -179,7 +173,7 @@ public class ValidatorUtil {
 	 * 
 	 * @param errorDetailsMap
 	 * @param validStockEntities
-	 * @param InvalidStaffId
+	 * @param invalidStaffIds
 	 * @param invalidFacilityIds
 	 */
 	@SuppressWarnings("unchecked")
@@ -195,16 +189,16 @@ public class ValidatorUtil {
 			String senderId = stock.getSenderId();
 			String recieverId = stock.getReceiverId();
 
-			if ((stock.getSenderType().equalsIgnoreCase(WAREHOUSE) && invalidFacilityIds.contains(senderId))
+			if ((SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && invalidFacilityIds.contains(senderId))
 
-					|| (stock.getSenderType().equalsIgnoreCase(STAFF) && invalidStaffIds.contains(senderId))) {
+					|| (SenderReceiverType.STAFF.equals(stock.getSenderType()) && invalidStaffIds.contains(senderId))) {
 
 				getIdForErrorFromMethod(errorDetailsMap, (T) stock, senderIdMethod);
 			}
 
-			if ((stock.getReceiverType().equalsIgnoreCase(WAREHOUSE) && invalidFacilityIds.contains(recieverId))
+			if ((SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && invalidFacilityIds.contains(recieverId))
 
-					|| (stock.getReceiverType().equalsIgnoreCase(STAFF) && invalidStaffIds.contains(recieverId))) {
+					|| (SenderReceiverType.STAFF.equals(stock.getReceiverType()) && invalidStaffIds.contains(recieverId))) {
 
 				getIdForErrorFromMethod(errorDetailsMap, (T) stock, recieverIdMethod);
 			}
@@ -232,7 +226,7 @@ public class ValidatorUtil {
 	 * @param request
 	 * @param errorDetailsMap
 	 * @param validEntities
-	 * @param getId
+	 * @param getReferenceId
 	 * @param facilityService
 	 * @return
 	 */
@@ -279,11 +273,11 @@ public class ValidatorUtil {
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
 			if (!CollectionUtils.isEmpty(facilityIds)) {
 
-				if (stock.getSenderType().equalsIgnoreCase("WAREHOUSE") && !facilityIds.contains(senderId)) {
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
 					populateErrorForStock(stock, senderId, errorDetailsMap);
 				}
 
-				if (stock.getReceiverType().equalsIgnoreCase("WAREHOUSE") && !facilityIds.contains(receiverId))
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId))
 					populateErrorForStock(stock, receiverId, errorDetailsMap);
 			} else {
 				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);

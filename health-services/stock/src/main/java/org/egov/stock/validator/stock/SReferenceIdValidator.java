@@ -2,6 +2,8 @@ package org.egov.stock.validator.stock;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.stock.ReferenceIdType;
+import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.validator.Validator;
@@ -37,11 +39,11 @@ public class SReferenceIdValidator implements Validator<StockBulkRequest, Stock>
 
         List<Stock> validEntities = request.getStock().stream()
                 .filter(notHavingErrors())
-                .filter(entity -> PROJECT.equals(entity.getReferenceIdType()))
+                .filter(entity -> ReferenceIdType.PROJECT.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
         
-        long countOfWareHouseInStock = request.getStock().stream().filter(stock -> 
-        	stock.getReceiverType().equalsIgnoreCase("WAREHOUSE") || stock.getSenderType().equalsIgnoreCase("WAREHOUSE")
+        long countOfWareHouseInStock = request.getStock().stream().filter(stock ->
+                SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) || SenderReceiverType.WAREHOUSE.equals(stock.getSenderType())
         ).count();
         if(countOfWareHouseInStock == 0)
         	return errorDetailsMap;

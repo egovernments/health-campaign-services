@@ -8,10 +8,10 @@ import java.util.Arrays;
 
 public class ReferralTestBuilder {
 
-    private Referral.ReferralBuilder builder;
+    private Referral.ReferralBuilder<Referral, ?> builder;
 
     public ReferralTestBuilder() {
-        this.builder = Referral.builder();
+        this.builder = (Referral.ReferralBuilder<Referral, ?>) Referral.builder();
     }
 
     public static ReferralTestBuilder builder() {
