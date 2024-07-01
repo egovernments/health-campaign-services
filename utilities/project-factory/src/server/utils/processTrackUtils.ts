@@ -22,7 +22,18 @@ async function getProcessDetails(id: any, getNew: any = false): Promise<any> {
         }
         else return {};
     }
-    return queryResponse.rows[0]; // Assuming only one row is expected
+    else {
+        const result = queryResponse.rows[0];
+        result.campaignId = result.campaignid;
+        delete result.campaignid;
+        result.additionalDetails = result.additionaldetails;
+        delete result.additionaldetails;
+        result.createdTime = result.createdtime;
+        delete result.createdtime;
+        result.lastModifiedTime = result.lastmodifiedtime;
+        delete result.lastmodifiedtime;
+        return result;
+    }
 }
 
 async function persistTrack(
