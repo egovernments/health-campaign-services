@@ -131,10 +131,7 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                for (Task entity : validTasks) {
-                    projectTaskRepository.save(Collections.singletonList(entity),
-                            projectConfiguration.getCreateProjectTaskTopic());
-                }
+                projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
                 log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
