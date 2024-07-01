@@ -100,21 +100,21 @@ public class StockReconciliationService {
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<StockReconciliation> validTasks = tuple.getX();
+        List<StockReconciliation> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.create(validEntities, request);
+                stockRepository.save(validEntities, configuration.getCreateStockReconciliationTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for stock reconciliation");
-        return validTasks;
+        return validEntities;
     }
 
     public StockReconciliation update(StockReconciliationRequest request) {
@@ -132,22 +132,22 @@ public class StockReconciliationService {
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<StockReconciliation> validTasks = tuple.getX();
+        List<StockReconciliation> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.update(validEntities, request);
+                stockRepository.save(validEntities, configuration.getUpdateStockReconciliationTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         log.info("completed update method for stock reconciliation");
-        return validTasks;
+        return validEntities;
     }
 
     public StockReconciliation delete(StockReconciliationRequest request) {
@@ -165,21 +165,21 @@ public class StockReconciliationService {
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<StockReconciliation> validTasks = tuple.getX();
+        List<StockReconciliation> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.delete(validEntities, request);
+                stockRepository.save(validEntities, configuration.getDeleteStockReconciliationTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed delete method for stock reconciliation");
-        return validTasks;
+        return validEntities;
     }
 
     public List<StockReconciliation> search(StockReconciliationSearchRequest request,
