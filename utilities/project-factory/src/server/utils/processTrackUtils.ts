@@ -28,9 +28,9 @@ async function getProcessDetails(id: any, getNew: any = false): Promise<any> {
         delete result.campaignid;
         result.additionalDetails = result.additionaldetails;
         delete result.additionaldetails;
-        result.createdTime = result.createdtime;
+        result.createdTime = parseInt(result.createdtime);
         delete result.createdtime;
-        result.lastModifiedTime = result.lastmodifiedtime;
+        result.lastModifiedTime = parseInt(result.lastmodifiedtime);
         delete result.lastmodifiedtime;
         return result;
     }
