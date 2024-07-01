@@ -1333,7 +1333,9 @@ async function processAfterPersist(request: any, actionInUrl: any) {
     try {
         logger.info("Waiting for 2 second to persist process tracks...")
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        persistTrack(request.body.CampaignDetails.id, processTracks.uuidAssigned.type, processTracks.uuidAssigned.status);
+        if (actionInUrl == "create") {
+            persistTrack(request.body.CampaignDetails.id, processTracks.uuidAssigned.type, processTracks.uuidAssigned.status);
+        }
         const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
         if (request?.body?.CampaignDetails?.action == "create") {
             await createProjectCampaignResourcData(request);
