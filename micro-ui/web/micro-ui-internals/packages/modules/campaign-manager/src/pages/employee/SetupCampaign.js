@@ -74,8 +74,8 @@ function cycleDataRemap(data) {
   return uniqueCycleObjects.map((i, n) => {
     return {
       key: i.cycleNumber,
-      fromDate: i?.startDate ? Digit.DateUtils.ConvertEpochToDate(i?.startDate)?.split("/")?.reverse()?.jon("-") : null,
-      toDate: i?.endDate ? Digit.DateUtils.ConvertEpochToDate(i?.endDate)?.split("/")?.reverse()?.jon("-") : null,
+      fromDate: i?.startDate ? Digit.DateUtils.ConvertEpochToDate(i?.startDate)?.split("/")?.reverse()?.join("-") : null,
+      toDate: i?.endDate ? Digit.DateUtils.ConvertEpochToDate(i?.endDate)?.split("/")?.reverse()?.join("-") : null,
     };
   });
 }
@@ -181,7 +181,6 @@ function groupByType(data) {
   };
 }
 
-
 function groupByTypeRemap(data) {
   if (!data) return null;
 
@@ -191,11 +190,11 @@ function groupByTypeRemap(data) {
     const type = item?.type;
     const boundaryType = item?.type;
     const parentCode = item?.parent !== undefined ? item.parent : null;
-    
+
     if (!result[type]) {
       result[type] = {};
     }
-    
+
     if (!result[type][parentCode]) {
       result[type][parentCode] = {
         parentCode,
@@ -211,7 +210,6 @@ function groupByTypeRemap(data) {
 
     const targetBoundaryArray = result[type][parentCode].boundaryTypeData.TenantBoundary[0].boundary;
     targetBoundaryArray.push({ ...item, boundaryType });
-  
   });
 }
 // Example usage:
@@ -270,9 +268,8 @@ const SetupCampaign = ({ hierarchyType }) => {
 
   // const lowestHierarchy = hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.[0]?.lowestHierarchy;
   const lowestHierarchy = useMemo(() => {
-    return hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.find(item => item.isActive)?.lowestHierarchy;
+    return hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.find((item) => item.isActive)?.lowestHierarchy;
   }, [hierarchyConfig]);
-  
 
   const reqCriteria = {
     url: `/boundary-service/boundary-hierarchy-definition/_search`,
@@ -484,7 +481,7 @@ const SetupCampaign = ({ hierarchyType }) => {
     setIsSubmitting(false);
     if (currentKey === 10 && isSummary !== "true") {
       updateUrlParams({ key: currentKey, summary: true });
-    } else {
+    } else if (currentKey !== 10 && isSummary === "true") {
       updateUrlParams({ key: currentKey, summary: false });
       setSummaryErrors(null);
     }
