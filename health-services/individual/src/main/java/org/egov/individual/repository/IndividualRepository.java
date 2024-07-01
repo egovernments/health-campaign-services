@@ -1,6 +1,17 @@
 package org.egov.individual.repository;
 
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
@@ -23,17 +34,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
-
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -73,7 +73,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 }
             }
         }catch (Exception e){
-            log.info("Error occurred while reading from cache",e);
+            log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
         String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
