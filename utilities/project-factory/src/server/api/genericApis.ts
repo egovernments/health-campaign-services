@@ -1040,7 +1040,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
           logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
 
           const newRequestBody = JSON.parse(JSON.stringify(request.body));
-          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
+          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, `${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, response?.statusCode));
         } catch (error) {
           // Log the error and rethrow to be caught by the outer try...catch block
           logger.error(`Error creating boundary relationship for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} :: `, error);
