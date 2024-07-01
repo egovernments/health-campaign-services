@@ -2,7 +2,6 @@ package org.egov.transformer.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.enums.Operation;
@@ -38,7 +37,7 @@ public class StockConsumer {
                             Stock[].class));
             transformationHandler.handle(payloadList, Operation.STOCK);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in stock consumer bulk create", exception);
         }
     }
 }
