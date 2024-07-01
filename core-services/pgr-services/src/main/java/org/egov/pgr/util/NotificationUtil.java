@@ -3,7 +3,6 @@ package org.egov.pgr.util;
 import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.producer.Producer;
@@ -98,7 +97,7 @@ public class NotificationUtil {
                 message = messageObj.get(0);
             }
         } catch (Exception e) {
-            log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace(e));
+            log.warn("Fetching from localization failed", e);
         }
 
         return message;
@@ -124,7 +123,7 @@ public class NotificationUtil {
                 message = messageObj.get(0);
             }
         } catch (Exception e) {
-            log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace(e));
+            log.warn("Fetching from localization failed", e);
         }
 
         return message;
@@ -191,7 +190,7 @@ public class NotificationUtil {
                 message = messageObj.get(0);
             }
         } catch (Exception e) {
-            log.warn("Fetching from localization for placeholder failed", ExceptionUtils.getStackTrace((e));
+            log.warn("Fetching from localization for placeholder failed", e);
         }
         return message;
     }
