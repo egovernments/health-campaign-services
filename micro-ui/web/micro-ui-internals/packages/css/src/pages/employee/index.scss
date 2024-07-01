@@ -2,9 +2,14 @@
 @import "./coreOverride.scss";
 @import "../../typography.scss";
 
+.digit-topbar-container {
+  width: 100%;
+}
+
 .wbh-header-container {
   margin-top: 1.5rem;
 }
+
 .main.digit-home-main {
   margin-left: 92px;
   .employee-app-wrapper.digit-home-app-wrapper {
