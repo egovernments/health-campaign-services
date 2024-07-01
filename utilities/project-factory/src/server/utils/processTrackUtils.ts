@@ -22,7 +22,7 @@ async function getProcessDetails(id: any, getNew: any = false): Promise<any> {
         }
         else return {};
     }
-    else {
+    else if (queryResponse.rows.length > 0) {
         const result = queryResponse.rows[0];
         result.campaignId = result.campaignid;
         delete result.campaignid;
@@ -34,6 +34,7 @@ async function getProcessDetails(id: any, getNew: any = false): Promise<any> {
         delete result.lastmodifiedtime;
         return result;
     }
+    return {};
 }
 
 async function persistTrack(
