@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,21 +55,25 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
-        List<Individual> objFound;
-        objFound = findInCache(ids);
-        if (!includeDeleted) {
-            objFound = objFound.stream()
-                    .filter(entity -> entity.getIsDeleted().equals(false))
-                    .collect(Collectors.toList());
-        }
-        if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound, idColumn);
-            ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .collect(Collectors.toList()));
-            if (ids.isEmpty()) {
-                return SearchResponse.<Individual>builder().totalCount(Long.valueOf(objFound.size())).response(objFound).build();
+        List<Individual> objFound = new ArrayList<>();
+        try {
+            objFound = findInCache(ids);
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> entity.getIsDeleted().equals(false))
+                        .collect(Collectors.toList());
             }
+            if (!objFound.isEmpty()) {
+                Method idMethod = getIdMethod(objFound, idColumn);
+                ids.removeAll(objFound.stream()
+                        .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                        .collect(Collectors.toList()));
+                if (ids.isEmpty()) {
+                    return SearchResponse.<Individual>builder().totalCount(Long.valueOf(objFound.size())).response(objFound).build();
+                }
+            }
+        }catch (Exception e){
+            log.info("Error occurred while reading from cache",e);
         }
 
         String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
