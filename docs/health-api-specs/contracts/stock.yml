@@ -504,6 +504,7 @@ definitions:
       - LOST_IN_TRANSIT
       - DAMAGED_IN_STORAGE
       - DAMAGED_IN_TRANSIT
+    description: This field accepts values from enum and if an invalid value is provided, it will default to null.
   wayBillNumber:
     type: string
     minLength: 2
@@ -588,7 +589,10 @@ definitions:
       facilityId:
         $ref: '#/definitions/facilityId'
       productVariantId:
-        $ref: '#/definitions/productVariantId'
+#        $ref: '#/definitions/productVariantId'
+        type: array
+        items:
+          type: string
       referenceId:
         $ref: '#/definitions/referenceId'
       referenceIdType:
@@ -602,8 +606,10 @@ definitions:
       transactingPartyType:
         $ref: '#/definitions/transactingPartyType'
       wayBillNumber:
-        $ref: '#/definitions/wayBillNumber'
-
+#        $ref: '#/definitions/wayBillNumber'
+        type: array
+        items:
+          type: string
   StockReconciliation:
     type: object
     required:
@@ -656,9 +662,16 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       facilityId:
-        $ref: '#/definitions/facilityId'
+#        $ref: '#/definitions/facilityId'
+        type: array
+        items:
+          type: string
+          example: FacilityA
       productVariantId:
-        $ref: '#/definitions/productVariantId'
+#        $ref: '#/definitions/productVariantId'
+        type: array
+        items:
+          type: string
 
 
   StockRequest:

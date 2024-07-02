@@ -7,7 +7,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -77,7 +77,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             String projectName = parts[0];
             String supervisorLevel = parts[2];
             String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
-            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
             return Collections.singletonList(ServiceIndexV1.builder()

@@ -7,8 +7,10 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
@@ -19,6 +21,7 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.SideEffectRepository;
 import org.egov.referralmanagement.service.enrichment.SideEffectEnrichmentService;
+import org.egov.referralmanagement.validator.sideeffect.SeExistentEntityValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeIsDeletedValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
@@ -58,6 +61,7 @@ public class SideEffectService {
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
             validator.getClass().equals(SeProjectTaskIdValidator.class)
+                || validator.getClass().equals(SeExistentEntityValidator.class)
                 || validator.getClass().equals(SeProjectBeneficiaryIdValidator.class);
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForUpdate = validator ->
@@ -122,7 +126,7 @@ public class SideEffectService {
                 log.info("successfully created side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating side effects: {}", exception.getMessage());
+            log.error("error occurred while creating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -167,7 +171,7 @@ public class SideEffectService {
                 log.info("successfully updated bulk side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating side effects", exception);
+            log.error("error occurred while updating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -187,12 +191,12 @@ public class SideEffectService {
      * @return
      * @throws Exception
      */
-    public List<SideEffect> search(SideEffectSearchRequest sideEffectSearchRequest,
-                                   Integer limit,
-                                   Integer offset,
-                                   String tenantId,
-                                   Long lastChangedSince,
-                                   Boolean includeDeleted) {
+    public SearchResponse<SideEffect> search(SideEffectSearchRequest sideEffectSearchRequest,
+                                             Integer limit,
+                                             Integer offset,
+                                             String tenantId,
+                                             Long lastChangedSince,
+                                             Boolean includeDeleted) {
         log.info("received request to search side effects");
         String idFieldName = getIdFieldName(sideEffectSearchRequest.getSideEffect());
         if (isSearchByIdOnly(sideEffectSearchRequest.getSideEffect(), idFieldName)) {
@@ -201,11 +205,12 @@ public class SideEffectService {
                             .singletonList(sideEffectSearchRequest.getSideEffect())),
                     sideEffectSearchRequest.getSideEffect());
             log.info("fetching side effects with ids: {}", ids);
-            return sideEffectRepository.findById(ids, includeDeleted, idFieldName).stream()
+            List<SideEffect> sideEffectList = sideEffectRepository.findById(ids, includeDeleted, idFieldName);
+            return SearchResponse.<SideEffect>builder().response(sideEffectList.stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList())).build();
         }
         log.info("searching side effects using criteria");
         return sideEffectRepository.find(sideEffectSearchRequest.getSideEffect(),
@@ -250,7 +255,7 @@ public class SideEffectService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }

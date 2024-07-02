@@ -8,36 +8,26 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  * StockReconciliation
  */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockReconciliation {
-    @JsonProperty("id")
-    @Size(min=2, max=64)
-    private String id = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min=2, max=64)
-    private String clientReferenceId = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2, max=1000)
-    private String tenantId = null;
+public class StockReconciliation extends EgovOfflineModel {
 
     @JsonProperty("facilityId")
     @NotNull
@@ -68,25 +58,9 @@ public class StockReconciliation {
     @JsonProperty("dateOfReconciliation")
     private Long dateOfReconciliation = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
 }
 

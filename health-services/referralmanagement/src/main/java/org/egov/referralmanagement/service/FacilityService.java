@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -76,7 +77,7 @@ public class FacilityService {
             // Extract and return valid facility IDs from the response.
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", e);
+            log.error("error while fetching facility list: {}", ExceptionUtils.getStackTrace(e));
 
             // Handle errors by associating errors with the respective entities.
             entities.forEach( entity -> {

@@ -48,7 +48,7 @@ public class HNonExsistentEntityValidator implements Validator<HouseholdBulkRequ
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<Household> existingEntities = householdRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false).getY();
+                    getIdFieldName(idMethod), false).getResponse();
             List<Household> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
             nonExistentEntities.forEach(task -> {

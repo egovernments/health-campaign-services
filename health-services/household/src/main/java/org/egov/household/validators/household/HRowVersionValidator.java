@@ -45,7 +45,7 @@ public class HRowVersionValidator implements Validator<HouseholdBulkRequest, Hou
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<Household> existingEntities = repository.findById(entityIds,
-                    getIdFieldName(idMethod), false).getY();
+                    getIdFieldName(idMethod), false).getResponse();
             List<Household> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
             entitiesWithMismatchedRowVersion.forEach(individual -> {

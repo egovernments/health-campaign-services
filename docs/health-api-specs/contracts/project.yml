@@ -1438,12 +1438,16 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ID form Project
       beneficiaryId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ID of Household/Individual being added as beneficiary
@@ -1533,13 +1537,17 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ProjectId
       projectBeneficiaryId:
-        type: string
-        example: "R-ID-1"
+        type: array
+        items:
+          type: string
+          example: "R-ID-1"
       plannedStartDate:
         type: integer
         format: int64
@@ -1622,12 +1630,16 @@ definitions:
       id:
         $ref: '#/definitions/idForSearch'
       staffId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Unique userId defined using user service
         minLength: 2
         maxLength: 64
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Project Id
         minLength: 2
         maxLength: 64
@@ -1730,7 +1742,9 @@ definitions:
       id:
         $ref: '#/definitions/idForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Unique Project Id defined in Project Service
         minLength: 2
         maxLength: 64

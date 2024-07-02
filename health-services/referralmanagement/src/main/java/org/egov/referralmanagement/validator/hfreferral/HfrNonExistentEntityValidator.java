@@ -12,14 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.HFReferralRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -28,6 +29,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.referralmanagement.Constants.GET_ID;
 
+/**
+ * Validator for checking the existence of entities referred in HFReferral entities.
+ *
+ * Author: kanishq-egov
+ */
 @Component
 @Order(value = 4)
 @Slf4j
@@ -43,7 +49,12 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         this.objectMapper = objectMapper;
     }
 
-
+    /**
+     * Validates the existence of entities referred in HFReferral entities.
+     *
+     * @param request The HFReferralBulkRequest containing a list of HFReferral entities
+     * @return A Map containing HFReferral entities as keys and lists of errors as values
+     */
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
         log.info("validating for existence of entity");
@@ -53,10 +64,30 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, HFReferral> iMap = getIdToObjMap(hfReferrals
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        // Lists to store IDs and client reference IDs
+        List<String> idList = new ArrayList<>();
+        List<String> clientReferenceIdList = new ArrayList<>();
+        // Extract IDs and client reference IDs from HfReferral entities
+        hfReferrals.forEach(entity -> {
+            idList.add(entity.getId());
+            clientReferenceIdList.add(entity.getClientReferenceId());
+        });
         if (!iMap.isEmpty()) {
-            List<String> referralIds = new ArrayList<>(iMap.keySet());
-            List<HFReferral> existingReferrals = hfReferralRepository
-                    .findById(referralIds, false, getIdFieldName(idMethod));
+            HFReferralSearch hfReferralSearch = HFReferralSearch.builder()
+                    .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
+                    .build();
+
+            List<HFReferral> existingReferrals;
+            try {
+                // Query the repository to find existing entities
+                existingReferrals = hfReferralRepository.find(hfReferralSearch, hfReferrals.size(), 0,
+                        hfReferrals.get(0).getTenantId(), null, false);
+            } catch (Exception e) {
+                // Handle query builder exception
+                log.error("Search failed for HFReferral with error: {}", e.getMessage(), e);
+                throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral, " + e.getMessage()); 
+            }
             List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);
             nonExistentReferrals.forEach(sideEffect -> {
@@ -68,4 +99,3 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         return errorDetailsMap;
     }
 }
-
