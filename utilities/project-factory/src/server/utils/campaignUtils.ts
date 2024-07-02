@@ -670,7 +670,9 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
-    createProcessTracks(request.body.CampaignDetails.id)
+    if (request?.body?.CampaignDetails?.action == "create") {
+        createProcessTracks(request.body.CampaignDetails.id)
+    }
 }
 
 
