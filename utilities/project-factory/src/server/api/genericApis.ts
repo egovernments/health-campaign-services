@@ -7,7 +7,7 @@ import { correctParentValues, findMapValue, generateActivityMessage, getBoundary
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 import { validateMappingId } from '../utils/campaignMappingUtils';
-import { campaignStatuses, processTracks } from '../config/constants';
+import { campaignStatuses, processTrackStatuses, processTrackTypes } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { persistTrack } from "../utils/processTrackUtils";
@@ -829,7 +829,8 @@ async function createRelatedEntity(
   projectId: any,
   startDate: any,
   endDate: any,
-  resouceBody: any
+  resouceBody: any,
+  campaignId: any
 ) {
   // Array to hold all promises
   const promises = [];
@@ -840,16 +841,22 @@ async function createRelatedEntity(
     for (const resourceId of resource?.resourceIds) {
       logger.info(`creating project ${type} mapping for project : ${projectId} and resourceId ${resourceId}`);
       if (type === "staff") {
+        await persistTrack(campaignId, processTrackTypes.campaignStaffCreation, processTrackStatuses.inprogress);
         promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
       } else if (type === "resource") {
+        await persistTrack(campaignId, processTrackTypes.campaignResourceCreation, processTrackStatuses.inprogress);
         promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
       } else if (type === "facility") {
+        await persistTrack(campaignId, processTrackTypes.facilityLinkToCamapaign, processTrackStatuses.inprogress);
         promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
       }
     }
   }
   // Wait for all promises to complete
   await Promise.all(promises);
+  await persistTrack(campaignId, processTrackTypes.campaignStaffCreation, processTrackStatuses.completed);
+  await persistTrack(campaignId, processTrackTypes.campaignResourceCreation, processTrackStatuses.completed);
+  await persistTrack(campaignId, processTrackTypes.facilityLinkToCamapaign, processTrackStatuses.completed);
 }
 
 
@@ -863,7 +870,6 @@ async function createRelatedResouce(requestBody: any) {
   if (campaignDetails?.status == campaignStatuses.inprogress) {
     logger.info("Campaign Already In Progress and Mapped");
   } else {
-    persistTrack(id, processTracks.resourceMappingStarted.type, processTracks.resourceMappingStarted.status);
     sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
     correctParentValues(requestBody?.Campaign?.CampaignDetails);
     // Create related resources
@@ -882,9 +888,10 @@ async function createRelatedResouce(requestBody: any) {
         projectId,
         startDate,
         endDate,
-        resouceBody
+        resouceBody,
+        id
       );
-      persistTrack(id, processTracks.resourceMappingDone.type, processTracks.resourceMappingDone.status);
+      await persistTrack(id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
     }
   }
 }

@@ -13,7 +13,7 @@ import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { persistTrack } from "../utils/processTrackUtils";
-import { processTracks } from "../config/constants";
+import { processTrackStatuses, processTrackTypes } from "../config/constants";
 
 
 
@@ -788,7 +788,7 @@ async function handleResouceDetailsError(request: any, error: any) {
     }
     produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
-  if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
+  if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
     logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
     produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
@@ -810,6 +810,12 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     }
     else if (request.body.ResourceDetails.status == "invalid") {
       await generateProcessedFileAndPersist(request, localizationMap);
+    }
+    if (request?.body?.ResourceDetails?.type == "facility") {
+      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.facilityCreation, processTrackStatuses.completed);
+    }
+    else if (request?.body?.ResourceDetails?.type == "user") {
+      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.userCreation, processTrackStatuses.completed);
     }
   } catch (error: any) {
     console.log(error)
@@ -833,11 +839,13 @@ async function processCreate(request: any, localizationMap?: any) {
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
     if (type == "facility") {
+      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.facilityCreation, processTrackStatuses.inprogress);
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
     else if (type == "user") {
+      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.userCreation, processTrackStatuses.inprogress);
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
@@ -857,7 +865,6 @@ async function processCreate(request: any, localizationMap?: any) {
 async function createProjectCampaignResourcData(request: any) {
   // Create resources for a project campaign
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
-    persistTrack(request.body.CampaignDetails.id, processTracks.projectResourceCreationStarted.type, processTracks.projectResourceCreationStarted.status);
     for (const resource of request?.body?.CampaignDetails?.resources) {
       if (resource.type != "boundaryWithTarget") {
         const resourceDetails = {
