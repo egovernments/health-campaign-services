@@ -61,7 +61,7 @@ async function searchProcessTracksService(
     logger.info("VALIDATED THE PROCESS SEARCH REQUEST");
 
     // Search and return related process tracks
-    return await getProcessDetails(request?.query?.campaignId)
+    return await getProcessDetails(request?.query?.campaignId as string)
 };
 
 

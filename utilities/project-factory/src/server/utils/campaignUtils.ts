@@ -537,11 +537,11 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     }
     requestBody.CampaignDetails.additionalDetails = {
         ...requestBody?.CampaignDetails?.additionalDetails,
-        error: String((error?.message + " : " + error?.description) || error)
+        error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error)
     }
     const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(requestBody, topic);
-    await persistTrack(requestBody?.CampaignDetails?.id, processTrackTypes.error, processTrackStatuses.failed, { error: String((error?.message + " : " + error?.description) || error) });
+    await persistTrack(requestBody?.CampaignDetails?.id, processTrackTypes.error, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
     delete requestBody.CampaignDetails.campaignDetails
 }
 

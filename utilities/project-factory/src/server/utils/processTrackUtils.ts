@@ -5,61 +5,52 @@ import { executeQuery } from './db';
 import { processTrackStatuses, processTrackTypes } from '../config/constants';
 import { logger } from './logger';
 
-async function getProcessDetails(id: any, type?: any): Promise<any> {
+async function getProcessDetails(id: string, type?: string): Promise<any[]> {
     let query: string;
-    let values: any[];
+    const values: any[] = [id];
 
     logger.info(`Fetching process details for campaignId: ${id}${type ? `, type: ${type}` : ''}`);
 
-    if (type !== undefined) {
-        // If type is provided, include it in the query
+    if (type) {
         query = `
             SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
             WHERE campaignid = $1 AND type = $2
             ORDER BY lastmodifiedtime ASC;
         `;
-        values = [id, type];
+        values.push(type);
     } else {
-        // If type is not provided, only filter by campaignid
         query = `
             SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
             WHERE campaignid = $1
             ORDER BY lastmodifiedtime ASC;
         `;
-        values = [id];
     }
 
     const queryResponse = await executeQuery(query, values);
-
 
     if (queryResponse.rows.length === 0) {
         logger.info('No process details found');
         return [];
     }
 
-    const filteredRows = queryResponse.rows
-        .filter((result: any) => !(result.type == processTrackTypes.error && result.status === processTrackStatuses.toBeCompleted))
-        .map((result: any) => ({
-            id: result.id,
-            campaignId: result.campaignid,
-            type: result.type,
-            status: result.status,
-            details: result.details,
-            additionalDetails: result.additionaldetails,
-            createdTime: parseInt(result.createdtime, 10),
-            lastModifiedTime: parseInt(result.lastmodifiedtime, 10)
-        }));
-
-
-    return filteredRows;
+    return queryResponse.rows.map((result: any) => ({
+        id: result.id,
+        campaignId: result.campaignid,
+        type: result.type,
+        status: result.status,
+        details: result.details,
+        additionalDetails: result.additionaldetails,
+        createdTime: parseInt(result.createdtime, 10),
+        lastModifiedTime: parseInt(result.lastmodifiedtime, 10),
+    }));
 }
 
 async function persistTrack(
-    campaignId: any,
-    type: any,
-    status: any,
-    details?: any,
-    additionalDetails?: any
+    campaignId: string,
+    type: string,
+    status: string,
+    details?: Record<string, any>,
+    additionalDetails?: Record<string, any>
 ): Promise<void> {
     if (!campaignId) {
         logger.info('campaignId is missing, aborting persistTrack');
@@ -68,90 +59,77 @@ async function persistTrack(
 
     logger.info(`Persisting track for campaignId: ${campaignId}, type: ${type}, status: ${status}`);
 
-    let processDetailsArray: any[] = [];
     if (status === processTrackStatuses.failed) {
-        processDetailsArray = await getProcessDetails(campaignId);
+        const currentTime = Date.now();
+        const processDetail: any = {
+            id: uuidv4(),
+            campaignId,
+            type,
+            status,
+            createdTime: currentTime,
+            lastModifiedTime: currentTime,
+            details: details || {},
+            additionalDetails: additionalDetails || {},
+        };
+
+        updateProcessDetails(processDetail, type, status, details, additionalDetails);
+        const produceMessage: any = { processDetails: [processDetail] };
+        produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC);
     } else {
-        processDetailsArray = await getProcessDetails(campaignId, type);
-    }
+        const processDetailsArray = await getProcessDetails(campaignId, type);
 
-    if (processDetailsArray.length === 0) {
-        logger.info('No process details found, nothing to persist');
-        return;
-    }
-
-    let processDetails: any | undefined;
-
-    if (status === processTrackStatuses.failed) {
-        const inProgressArray = processDetailsArray.filter(
-            (pd: any) => pd.status === processTrackStatuses.inprogress
-        );
-        if (inProgressArray.length > 0) {
-            processDetails = inProgressArray[inProgressArray.length - 1];
-            logger.info(`Using last in-progress process detail for failed status`);
-        } else {
-            const errorProcessArray = processDetailsArray.filter(
-                (pd: any) => pd.type === processTrackTypes.error
-            );
-            if (errorProcessArray.length > 0) {
-                processDetails = errorProcessArray[0];
-                logger.info(`Using first error process detail for failed status`);
-            }
+        if (processDetailsArray.length === 0) {
+            logger.info('No process details found, nothing to persist');
+            return;
         }
-    } else {
-        processDetails = processDetailsArray[0];
-    }
 
-    if (processDetails) {
+        const processDetails = processDetailsArray[0];
         updateProcessDetails(processDetails, type, status, details, additionalDetails);
-        const produceObject: any = { processDetails };
-        const topic = config?.kafka?.KAFKA_UPDATE_PROCESS_TRACK_TOPIC;
-        produceModifiedMessages(produceObject, topic);
+        const produceMessage: any = { processDetails };
+        produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROCESS_TRACK_TOPIC);
     }
 }
 
 function updateProcessDetails(
     processDetails: any,
-    type: any,
-    status: any,
+    type: string,
+    status: string,
     details?: any,
     additionalDetails?: any
 ) {
     processDetails.lastModifiedTime = Date.now();
-    processDetails.details = { ...processDetails.details, ...details } || {};
-    processDetails.additionalDetails = { ...processDetails.additionalDetails, ...additionalDetails } || {};
+    processDetails.details = { ...processDetails.details, ...details };
+    processDetails.additionalDetails = { ...processDetails.additionalDetails, ...additionalDetails };
     processDetails.type = type;
     processDetails.status = status;
 }
 
-function createProcessTracks(
-    campaignId: any,
-) {
+function createProcessTracks(campaignId: string) {
     logger.info(`Creating process tracks for campaignId: ${campaignId}`);
 
-    const processDetailsArray = [];
+    const processDetailsArray: any[] = [];
     const currentTime = Date.now();
-    const processTrackTypesAny: any = processTrackTypes;
 
-    for (const key of Object.keys(processTrackTypes)) {
-        const processDetail: any = {
-            id: uuidv4(),
-            campaignId,
-            type: processTrackTypesAny?.[key],
-            status: processTrackStatuses.toBeCompleted,
-            createdTime: currentTime,
-            lastModifiedTime: currentTime,
-            details: {},
-            additionalDetails: {}
-        };
-        processDetailsArray.push(processDetail);
-    }
+    Object.keys(processTrackTypes).forEach(key => {
+        const type: any = (processTrackTypes as any)[key];
+        if (type != processTrackTypes.error) {
+            const processDetail: any = {
+                id: uuidv4(),
+                campaignId,
+                type,
+                status: processTrackStatuses.toBeCompleted,
+                createdTime: currentTime,
+                lastModifiedTime: currentTime,
+                details: {},
+                additionalDetails: {}
+            };
+            processDetailsArray.push(processDetail);
+        }
+    });
 
     logger.info(`Created ${processDetailsArray.length} process tracks`);
-
-    const processDetails: any = { processDetails: processDetailsArray };
-    const topic = config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC;
-    produceModifiedMessages(processDetails, topic);
+    const produceMessage: any = { processDetails: processDetailsArray }
+    produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC);
 }
 
 export { persistTrack, getProcessDetails, createProcessTracks };
