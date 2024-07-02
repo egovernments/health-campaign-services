@@ -27,6 +27,7 @@ import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValid
 import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeProjectTaskIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeRowVersionValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,11 +69,13 @@ public class SideEffectService {
                 || validator.getClass().equals(SeNullIdValidator.class)
                 || validator.getClass().equals(SeIsDeletedValidator.class)
                 || validator.getClass().equals(SeUniqueEntityValidator.class)
-                || validator.getClass().equals(SeNonExistentEntityValidator.class);
+                || validator.getClass().equals(SeNonExistentEntityValidator.class)
+                || validator.getClass().equals(SeRowVersionValidator.class);
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForDelete = validator ->
             validator.getClass().equals(SeNullIdValidator.class)
-                || validator.getClass().equals(SeNonExistentEntityValidator.class);
+                || validator.getClass().equals(SeNonExistentEntityValidator.class)
+                || validator.getClass().equals(SeRowVersionValidator.class);
     
     @Autowired
     public SideEffectService(
