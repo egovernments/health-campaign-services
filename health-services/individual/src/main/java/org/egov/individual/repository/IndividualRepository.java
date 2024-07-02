@@ -396,7 +396,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private void enrichIndividualsV2(List<Individual> individuals, Boolean includeDeleted) {
         if (!individuals.isEmpty()) {
             long startTime1 = System.nanoTime();
-            List<List<Individual>> individualBatches = getBatches(individuals, 50);
+            List<List<Individual>> individualBatches = getBatches(individuals, 100);
             individualBatches.forEach(listOfIndividuals -> {
                 Map<String, Object> paramsMap = new HashMap<>();
                 paramsMap.put("individuals", listOfIndividuals.parallelStream()
