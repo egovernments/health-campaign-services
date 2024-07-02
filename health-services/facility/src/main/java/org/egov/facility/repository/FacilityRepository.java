@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
@@ -35,9 +36,12 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     public List<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Facility> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<Facility> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
@@ -67,7 +71,11 @@ public class FacilityRepository extends GenericRepository<Facility> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "f.id IN (:id)");
 
-        query = query + " and f.tenantId=:tenantId ";
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where f.tenantId=:tenantId ";
+        } else {
+            query = query + " and f.tenantId=:tenantId ";
+        }
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";
         }

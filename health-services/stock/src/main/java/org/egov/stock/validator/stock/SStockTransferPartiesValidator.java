@@ -23,14 +23,14 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @Order(value = 7)
 @Slf4j
-public class StocktransferPartiesValidator implements Validator<StockBulkRequest, Stock> {
+public class SStockTransferPartiesValidator implements Validator<StockBulkRequest, Stock> {
 
 	private final FacilityService facilityService;
 
 	private UserService userService;
 
 	@Autowired
-	public StocktransferPartiesValidator(FacilityService facilityService, UserService userService) {
+	public SStockTransferPartiesValidator(FacilityService facilityService, UserService userService) {
 		this.facilityService = facilityService;
 		this.userService = userService;
 	}

@@ -2,6 +2,7 @@ package org.egov.project.validator.staff;
 
 import digit.models.coremodels.UserSearchRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.User;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -101,7 +102,7 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
                     }
                 }
             } catch (Exception exception) {
-                log.error("error while validating users", exception);
+                log.error("error while validating users", ExceptionUtils.getStackTrace(exception));
                 entities.stream().filter(notHavingErrors()).forEach(b -> {
                     Error error = getErrorForEntityWithNetworkError();
                     populateErrorDetails(b, error, errorDetailsMap);

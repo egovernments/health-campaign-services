@@ -57,7 +57,6 @@ import jakarta.validation.constraints.Size;
 
     @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-    @DecimalMax("10000")
     private Double locationAccuracy = null;
 
     @JsonProperty("type")

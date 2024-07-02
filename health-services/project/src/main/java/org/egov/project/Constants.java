@@ -54,4 +54,6 @@ public interface Constants {
 
     String PROJECT_ID = "projectId";
 
+    String TASK_QUANTITY = "taskQuantity";
+
 }

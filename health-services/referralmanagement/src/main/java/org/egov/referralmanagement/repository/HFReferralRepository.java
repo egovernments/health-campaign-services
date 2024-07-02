@@ -118,9 +118,12 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
      */
     public List<HFReferral> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         // Find objects in the cache based on the provided IDs.
-        List<HFReferral> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<HFReferral> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
 
         // If objects are found in the cache, check if there are any IDs remaining to be retrieved.
         if (!objFound.isEmpty()) {

@@ -1,6 +1,7 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.ProjectFacility;
@@ -121,7 +122,7 @@ public class ProjectFacilityService {
                 log.info("successfully created project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project facility: {}", exception.getMessage());
+            log.error("error occurred while creating project facility: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -155,7 +156,7 @@ public class ProjectFacilityService {
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project facility", exception);
+            log.error("error occurred while updating project facility", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -187,7 +188,7 @@ public class ProjectFacilityService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
