@@ -1,6 +1,7 @@
 package org.egov.common.data.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
@@ -126,9 +127,11 @@ public abstract class GenericRepository<T> {
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             Method isDeleted = getMethod("getIsDeleted", getObjClass(objFound));
-            objFound = objFound.stream()
-                    .filter(entity -> Objects.equals(ReflectionUtils.invokeMethod(isDeleted, entity), includeDeleted))
-                    .collect(Collectors.toList());
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> Objects.equals(ReflectionUtils.invokeMethod(isDeleted, entity), false))
+                        .collect(Collectors.toList());
+            }
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
@@ -201,7 +204,7 @@ public abstract class GenericRepository<T> {
                 redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
             }
         } catch (Exception exception) {
-            log.warn("Error while saving to cache: {}", exception.getMessage());
+            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 

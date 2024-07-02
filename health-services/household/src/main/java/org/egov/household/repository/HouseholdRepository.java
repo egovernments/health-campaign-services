@@ -44,9 +44,12 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public SearchResponse<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Household> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<Household> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
