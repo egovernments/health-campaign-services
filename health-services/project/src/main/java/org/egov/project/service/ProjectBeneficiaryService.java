@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -127,7 +128,7 @@ public class ProjectBeneficiaryService {
                 log.info("successfully created project beneficiaries");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project beneficiaries: {}", exception.getMessage());
+            log.error("error occurred while creating project beneficiaries: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
@@ -160,7 +161,7 @@ public class ProjectBeneficiaryService {
                 log.info("successfully updated bulk project beneficiaries");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project beneficiaries", exception);
+            log.error("error occurred while updating project beneficiaries", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
@@ -223,7 +224,7 @@ public class ProjectBeneficiaryService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }

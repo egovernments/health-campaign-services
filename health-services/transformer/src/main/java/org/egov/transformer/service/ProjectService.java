@@ -123,7 +123,7 @@ public class ProjectService {
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
             // Throw a custom exception if an error occurs during boundary search
-            throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+            throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
         }
 
         return boundaries.stream()
@@ -233,6 +233,36 @@ public class ProjectService {
         JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 transformerProperties.getMdmsModule(), filter);
         return convertToProjectTypeList(response);
+    }
+
+    /**
+     * Retrieves the beneficiary type for a given project ID and tenant ID.
+     *
+     * @param projectId The ID of the project.
+     * @param tenantId  The ID of the tenant.
+     * @return The beneficiary type as a String. If not found, returns an empty string.
+     */
+    public String getBeneficiaryType(String projectId, String tenantId) {
+        // Fetch the project details using the provided project ID and tenant ID
+        Project project = getProject(projectId, tenantId);
+
+        // Construct a JSONPath filter to locate the beneficiary type within the project details
+        String filter = "$[?(@.id == '" + project.getProjectTypeId() + "')].beneficiaryType";
+
+        // Create a RequestInfo object with user information for making the MDMS request
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+
+        // Fetch the MDMS response based on the constructed filter
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                transformerProperties.getMdmsModule(), filter);
+
+        // Convert the MDMS response to a list of beneficiary types
+        List<String> beneficiaryTypeList = convertToProjectTypeList(response);
+
+        // Return the first beneficiary type if the list is not empty; otherwise, return an empty string
+        return !CollectionUtils.isEmpty(beneficiaryTypeList) ? beneficiaryTypeList.get(0) : "";
     }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,

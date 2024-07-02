@@ -104,6 +104,9 @@ public class ServiceRequestValidator {
 
         // Validate if value being passed is consistent in terms of data type provided as part of service definition
         service.getAttributes().forEach(attributeValue -> {
+            if (attributeValue.getValue() == null && !setOfRequiredAttributes.contains(attributeValue.getAttributeCode())) {
+                return;
+            }
             if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.NUMBER)){
                 if(!(attributeValue.getValue() instanceof Number)){
                     throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_NUMBER_VALUE_MSG);
@@ -135,6 +138,9 @@ public class ServiceRequestValidator {
 
         // Validate if value provided against attribute definition of single value list and multi value list is the same as the list of values provided during creation
         service.getAttributes().forEach(attributeValue -> {
+            if (attributeValue.getValue() == null && !setOfRequiredAttributes.contains(attributeValue.getAttributeCode())) {
+                return;
+            }
             if(attributeCodeVsValues.containsKey(attributeValue.getAttributeCode())){
                 if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)){
                     if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(attributeValue.getValue())){

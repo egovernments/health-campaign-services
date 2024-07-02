@@ -6,6 +6,7 @@ import digit.models.coremodels.RequestInfoWrapper;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.tracer.model.CustomException;
@@ -64,7 +65,7 @@ public class BoundaryUtil {
                 response = Optional.ofNullable(serviceRequestRepository.fetchResult(uri,
                         RequestInfoWrapper.builder().requestInfo(requestInfo).build(), LinkedHashMap.class));
             } catch (Exception e) {
-                log.error("error while calling boundary service", e);
+                log.error("error while calling boundary service", ExceptionUtils.getStackTrace(e));
                 throw new CustomException("BOUNDARY_ERROR", "error while calling boundary service");
             }
 

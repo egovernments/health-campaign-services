@@ -7,6 +7,9 @@ All notable changes to this module will be documented in this file.
 - Upgraded to health models 1.0.20 and health common 1.0.16
 - Boundary v2 Integration
 - MDMS v2 integration
+- Upgraded PostgresSQL Driver version to 42.7.1
+- Upgraded Flyway base image version to 10.7.1 for DB Migration
+- Upgraded Flyway-Core to 9.22.3
 
 ## 1.0.1 - 2024-02-28
 - Added functionality for referrals handled by health facilities, referred to as "hfreferral".
