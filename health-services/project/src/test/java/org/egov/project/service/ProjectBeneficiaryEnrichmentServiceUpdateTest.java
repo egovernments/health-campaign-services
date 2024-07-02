@@ -1,5 +1,6 @@
 package org.egov.project.service;
 
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
@@ -66,9 +67,9 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
     private void mockFindById() {
         lenient().when(projectBeneficiaryRepository.findById(
                 eq(projectBeneficiaryIds),
-                eq(false),
-                anyString())
-        ).thenReturn(request.getProjectBeneficiaries());
+                anyString(),
+                eq(false))
+        ).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(request.getProjectBeneficiaries()).build());
     }
 
     @Test
@@ -98,7 +99,7 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
     void shouldFetchExistingRecordsUsingId() throws Exception {
         mockFindById();
         projectBeneficiaryEnrichmentService.update(request.getProjectBeneficiaries(), request);
-        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), eq(false), anyString());
+        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), anyString(), eq(false));
     }
 
     @Test

@@ -48,9 +48,9 @@ public class FacilityRepository extends GenericRepository<Facility> {
             }
         }
 
-        String query = String.format("SELECT * FROM facility f LEFT JOIN address a ON f.addressid = a.id WHERE f.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id WHERE f.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM facility f LEFT JOIN address a ON f.addressid = a.id  WHERE f.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id  WHERE f.%s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
@@ -61,7 +61,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     public List<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT * FROM facility f LEFT JOIN address a ON f.addressid = a.id";
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();

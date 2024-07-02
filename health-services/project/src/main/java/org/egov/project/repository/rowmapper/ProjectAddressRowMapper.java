@@ -87,6 +87,10 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
                 .boundary(address_boundary)
                 .build();
 
+        if (address_id == null) {
+            return null;
+        }
+
         return address;
     }
 

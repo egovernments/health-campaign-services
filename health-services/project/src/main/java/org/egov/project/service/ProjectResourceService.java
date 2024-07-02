@@ -19,7 +19,7 @@ import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.validator.resource.PrRowVersionValidator;
 import org.egov.project.validator.resource.PrUniqueCombinationValidator;
 import org.egov.project.validator.resource.PrUniqueEntityValidator;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
+import org.egov.common.models.project.ProjectResourceSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 

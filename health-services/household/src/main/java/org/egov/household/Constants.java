@@ -5,6 +5,8 @@ public interface Constants {
 
     String GET_ID = "getId";
 
+    String GET_CLIENT_REFERENCE_ID = "getClientReferenceId";
+
     String GET_INDIVIDUAL_ID = "getIndividualId";
 
     String GET_INDIVIDUAL_CLIENT_REFERENCE_ID = "getIndividualClientReferenceId";
