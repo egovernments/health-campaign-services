@@ -28,6 +28,8 @@ public class HouseholdMemberIndexV1  {
     private Integer age;
     @JsonProperty("gender")
     private String gender;
+    @JsonProperty("identifierType")
+    private String identifierType;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("nameOfUser")

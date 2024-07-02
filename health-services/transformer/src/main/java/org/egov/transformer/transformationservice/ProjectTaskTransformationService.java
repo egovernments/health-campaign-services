@@ -179,7 +179,7 @@ public class ProjectTaskTransformationService {
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
     private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }

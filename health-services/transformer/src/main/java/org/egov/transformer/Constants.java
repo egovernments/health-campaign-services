@@ -60,6 +60,8 @@ public interface Constants {
 
     String CITY = "city";
     String INDIVIDUAL_ID = "individualId";
+    String GEO_POINT = "geoPoint";
+    String INDIVIDUAL_IDENTIFIER_TYPE = "identifierType";
     String ADDRESS_CODE = "addressLocalityCode";
     String CHILDREN_PRESENTED_US = "childrenPresentedUS";
     String MALARIA_POSITIVE_US = "malariaPositiveUS";

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.StockIndexV1;
@@ -15,6 +16,7 @@ import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -60,9 +62,6 @@ public class StockTransformationService {
     private StockIndexV1 transform(Stock stock) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
         String tenantId = stock.getTenantId();
-        String projectId = stock.getReferenceId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
         Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
         Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
@@ -86,9 +85,19 @@ public class StockTransformationService {
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        if (stock.getAdditionalFields() != null && stock.getAdditionalFields().getFields() != null
+                && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
+            additionalDetails = additionalFieldsToDetails(stock.getAdditionalFields().getFields());
+        }
+        if (!additionalDetails.has(CYCLE_INDEX)) {
+            String projectId = stock.getReferenceId();
+            Project project = projectService.getProject(projectId, tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        }
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -128,5 +137,15 @@ public class StockTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         return stockIndexV1;
+    }
+
+    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        fields.forEach(
+                field -> {
+                    additionalDetails.put(field.getKey(), field.getValue());
+                }
+        );
+        return additionalDetails;
     }
 }

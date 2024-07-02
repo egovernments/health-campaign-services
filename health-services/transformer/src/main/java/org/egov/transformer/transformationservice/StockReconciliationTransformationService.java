@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
@@ -85,6 +86,14 @@ public class StockReconciliationTransformationService {
         if (stockReconciliation.getAdditionalFields() != null && stockReconciliation.getAdditionalFields().getFields() != null
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
+        }
+
+        if (!additionalDetails.has(CYCLE_INDEX)) {
+            String projectId = stockReconciliation.getReferenceId();
+            Project project = projectService.getProject(projectId, tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
