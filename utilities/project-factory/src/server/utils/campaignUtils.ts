@@ -1349,7 +1349,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
     } catch (error: any) {
         console.log(error)
         logger.error(error)
-        enrichAndPersistCampaignWithError(request?.body, error)
+        await enrichAndPersistCampaignWithError(request?.body, error)
     }
 }
 

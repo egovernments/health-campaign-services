@@ -44,7 +44,7 @@ export function listener() {
             } catch (error: any) {
                 console.log(error)
                 logger.error(error)
-                enrichAndPersistCampaignWithError(messageObject, error)
+                await enrichAndPersistCampaignWithError(messageObject, error)
             }
             logger.info(`KAFKA :: LISTENER :: Received a message`);
             logger.debug(`KAFKA :: LISTENER :: message ${getFormattedStringForDebug(messageObject)}`);
