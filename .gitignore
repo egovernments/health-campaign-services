@@ -1,5 +1,4 @@
 .DS_Store
-frontend/micro-ui-internals/node_modules/*
 .idea
 index.lock
 /health-services/stock/stock.iml
@@ -84,3 +83,6 @@ Thumbs.db
 # Ignore system-specific files
 .DS_Store
 Thumbs.db
+
+utilities/project-factory/node_modules/*
+frontend/micro-ui/web/micro-ui-internals/node_modules/*

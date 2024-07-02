@@ -8,6 +8,7 @@ import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.Skill;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,10 +67,13 @@ public class NonExistentEntityValidatorTest {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         List<Individual> existingIndividuals = new ArrayList<>();
         existingIndividuals.add(individual);
-        lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<Individual>builder()
-                .totalCount(Long.valueOf(existingIndividuals.size()))
-                .response(existingIndividuals)
-                .build());
+        lenient().when(individualRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
+                .thenReturn(
+                    SearchResponse.<Individual>builder()
+                            .totalCount(Long.valueOf(existingIndividuals.size()))
+                            .response(existingIndividuals)
+                            .build()
+                );
         assertTrue(nonExistentEntityValidator.validate(individualBulkRequest).isEmpty());
 
     }
@@ -80,7 +85,8 @@ public class NonExistentEntityValidatorTest {
                         .withId("some-id")
                         .build())
                 .build();
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder().build());
+        when(individualRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
+                .thenReturn(SearchResponse.<Individual>builder().build());
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         errorDetailsMap = nonExistentEntityValidator.validate(individualBulkRequest);
         List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());

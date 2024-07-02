@@ -1,21 +1,13 @@
 package org.egov.referralmanagement.service;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -41,7 +33,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
  * @author kanishq-egov
@@ -123,7 +123,7 @@ public class SideEffectService {
                 log.info("successfully created side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating side effects: {}", exception.getMessage());
+            log.error("error occurred while creating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -168,7 +168,7 @@ public class SideEffectService {
                 log.info("successfully updated bulk side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating side effects", exception);
+            log.error("error occurred while updating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -252,7 +252,7 @@ public class SideEffectService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }

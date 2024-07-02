@@ -148,6 +148,8 @@ public class EmployeeValidator {
 				log.info("successfully fetch boundary");
 			} catch (Exception e) {
 				log.error("error while fetching boundary");
+				log.error("Error while fetching boundaries from Boundary Service", e);
+				throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error while fetching boundaries from Boundary Service : " + e.getMessage());
 			}
 		}
 

@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
@@ -23,6 +26,9 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
  * This validator checks if the provided household entities already exist in the database based on their client reference IDs.
  * @author kanishq-egov
  */
+@Component
+@Order(value = 1)
+@Slf4j
 public class HExistentEntityValidator implements Validator<HouseholdBulkRequest, Household> {
 
     private final HouseholdRepository householdRepository;

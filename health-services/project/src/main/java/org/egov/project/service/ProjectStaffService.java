@@ -1,6 +1,7 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.ProjectStaff;
@@ -131,7 +132,7 @@ public class ProjectStaffService {
                 log.info("successfully created project staff");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project staff: {}", exception.getMessage());
+            log.error("error occurred while creating project staff: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 
@@ -165,7 +166,7 @@ public class ProjectStaffService {
                 log.info("successfully updated bulk project staff");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project staff", exception);
+            log.error("error occurred while updating project staff", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 
@@ -197,7 +198,7 @@ public class ProjectStaffService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 

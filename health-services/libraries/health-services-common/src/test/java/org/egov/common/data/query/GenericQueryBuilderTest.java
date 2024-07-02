@@ -88,7 +88,7 @@ class GenericQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .dummyStringList(strings)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData ";
+        String expectedQuery = "SELECT * FROM dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -102,7 +102,7 @@ class GenericQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .dummyStringList(null)
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData ";
+        String expectedQuery = "SELECT * FROM dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -135,7 +135,7 @@ class GenericQueryBuilderTest {
     void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData ";
+        String expectedQuery = "SELECT * FROM dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);

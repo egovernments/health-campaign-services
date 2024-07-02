@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.SideEffectRepository;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
@@ -24,6 +27,9 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
  *
  * @author kanishq-egov
  */
+@Component
+@Order(value = 1)
+@Slf4j
 public class SeExistentEntityValidator implements Validator<SideEffectBulkRequest, SideEffect> {
 
     private final SideEffectRepository sideEffectRepository;

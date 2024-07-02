@@ -6,7 +6,7 @@ All notable changes to this module will be documented in this file.
 - Integrated Core 2.9LTS
 - Refactored existing code to utilize new reusable functions, reducing redundancy.
 - Improved overall code structure for more efficient execution and easier future modifications.
-
+- Changed Dockerfile, base image required for Java 17.
 
 ## 1.0.12
 - The exception was replaced with CustomException in the service request client.
