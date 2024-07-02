@@ -966,7 +966,7 @@ function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: 
     const rowData = Object.values(data);
     const districtValue = data[differentTabsBasedOnLevel];
     const districtIndex = districtValue !== '' ? rowData.indexOf(districtValue) : -1;
-
+    // replaced '_' with '#' to avoid errors caused by underscores in boundary codes.
     if (districtIndex != -1) {
       const districtLevelRow = rowData.slice(0, districtIndex + 1);
       const districtKey = districtLevelRow.join('#');
