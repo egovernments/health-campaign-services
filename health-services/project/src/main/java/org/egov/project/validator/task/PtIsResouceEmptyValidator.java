@@ -36,17 +36,42 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
         List<Task> entities = request.getTasks();
         if(!entities.isEmpty()) {
             entities.forEach(task -> {
-                if(CollectionUtils.isEmpty(task.getResources()) && !ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())) {
+                if(CollectionUtils.isEmpty(task.getResources()) &&
+                        !(ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
                     /**
                      *  If the task resource is empty or null and task status is not BENEFICIARY_REFUSED it is invalid
                      */
                     Error error = Error.builder()
-                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE + ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)
+                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE +
+                                    ProjectConstants.TaskStatus.BENEFICIARY_REFUSED +
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE +
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_SICK +
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)
                             .errorCode(TASK_NOT_ALLOWED)
                             .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(TASK_NOT_ALLOWED, ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE + ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)).build();
+                            .exception(new CustomException(TASK_NOT_ALLOWED,
+                                    ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE +
+                                            ProjectConstants.TaskStatus.BENEFICIARY_REFUSED +
+                                            ProjectConstants.OR +
+                                            ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE +
+                                            ProjectConstants.OR +
+                                            ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
+                                            ProjectConstants.OR +
+                                            ProjectConstants.TaskStatus.BENEFICIARY_SICK +
+                                            ProjectConstants.OR +
+                                            ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)).build();
                     populateErrorDetails(task, error, errorDetailsMap);
-                } else if (!CollectionUtils.isEmpty(task.getResources()) && ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())) {
+                } else if (!CollectionUtils.isEmpty(task.getResources()) &&
+                        (ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
                     /**
                      *  If the task resource is not empty and task status is BENEFICIARY_REFUSED
                       */

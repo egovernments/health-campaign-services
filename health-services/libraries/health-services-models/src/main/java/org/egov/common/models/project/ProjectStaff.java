@@ -1,9 +1,11 @@
 package org.egov.common.models.project;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovModel;
 import org.springframework.validation.annotation.Validated;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -22,23 +24,14 @@ import lombok.NoArgsConstructor;
 */
 @ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectStaff {
-
-    @JsonProperty("id")
-    @Size(min=2,max=64)
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2,max=1000)
-    private String tenantId = null;
+public class ProjectStaff extends EgovModel {
 
     @JsonProperty("userId")
     @NotNull
@@ -60,22 +53,9 @@ public class ProjectStaff {
     @Size(min=2,max=64)
     private String channel = null;
 
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
 
 }
 

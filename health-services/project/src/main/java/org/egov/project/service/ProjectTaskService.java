@@ -1,10 +1,18 @@
 package org.egov.project.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskRequest;
@@ -17,8 +25,10 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.validator.task.PtExistentEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
+import org.egov.project.validator.task.PtIsResouceEmptyValidator;
 import org.egov.project.validator.task.PtNonExistentEntityValidator;
 import org.egov.project.validator.task.PtNullIdValidator;
 import org.egov.project.validator.task.PtProductVariantIdValidator;
@@ -32,12 +42,6 @@ import org.egov.project.validator.task.PtUniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -71,6 +75,7 @@ public class ProjectTaskService {
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtExistentEntityValidator.class)
                     || validator.getClass().equals(PtIsResouceEmptyValidator.class)
                     || validator.getClass().equals(PtResourceQuantityValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
@@ -134,7 +139,7 @@ public class ProjectTaskService {
                 log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
-            log.error("error occurred while creating project tasks: {}", exception.getMessage());
+            log.error("error occurred while creating project tasks: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -166,7 +171,7 @@ public class ProjectTaskService {
                 log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project tasks", exception);
+            log.error("error occurred while updating project tasks", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -196,7 +201,7 @@ public class ProjectTaskService {
                 projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -219,8 +224,8 @@ public class ProjectTaskService {
         return new Tuple<>(validTasks, errorDetailsMap);
     }
 
-    public List<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
-                             Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
+                                 Long lastChangedSince, Boolean includeDeleted) {
 
         log.info("received request to search project task");
 
@@ -231,12 +236,13 @@ public class ProjectTaskService {
                             .singletonList(taskSearch)),
                     taskSearch);
             log.info("fetching project tasks with ids: {}", ids);
-            return projectTaskRepository.findById(ids,
-                            idFieldName, includeDeleted).stream()
+            SearchResponse<Task> searchResponse = projectTaskRepository.findById(ids,
+                            idFieldName, includeDeleted);
+            return SearchResponse.<Task>builder().response(searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList())).totalCount(searchResponse.getTotalCount()).build();
         }
 
         try {
@@ -244,7 +250,7 @@ public class ProjectTaskService {
             return projectTaskRepository.find(taskSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
-            log.error("error in building query", e);
+            log.error("error in building query", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }

@@ -1,5 +1,19 @@
 All notable changes to this module will be documented in this file.
 
+
+## 1.1.5 - 2024-05-29
+- Integrated Core 2.9LTS
+- Client reference ID validation added
+- Upgraded to health models 1.0.20 and health common 1.0.16
+- Boundary v2 Integration
+- MDMS v2 integration
+- Upgraded PostgresSQL Driver version to 42.7.1
+- Upgraded Flyway base image version to 10.7.1 for DB Migration
+- Upgraded Flyway-Core to 9.22.3
+
+## 1.1.4 - 2024-05-10
+- Integrated Boundary v2 functionality
+- 
 ## 1.1.3 
 - Added ability to search by user UUID for individual search.
 

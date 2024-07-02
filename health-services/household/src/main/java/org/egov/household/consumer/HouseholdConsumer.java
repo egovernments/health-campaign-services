@@ -2,6 +2,7 @@ package org.egov.household.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.household.service.HouseholdService;
@@ -38,7 +39,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk create", exception);
+            log.error("error in household consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -50,7 +51,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk update", exception);
+            log.error("error in household consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -62,7 +63,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk delete", exception);
+            log.error("error in household consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

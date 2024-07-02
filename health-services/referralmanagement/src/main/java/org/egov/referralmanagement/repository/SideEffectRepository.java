@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.repository;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
@@ -16,6 +17,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
@@ -25,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -67,7 +70,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         return idToObjMap;
     }
 
-    public List<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
+    public SearchResponse<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) {
     	
         String query = "SELECT * FROM side_effect ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
@@ -78,7 +81,11 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         query = query.replace("id IN (:id)", "ae.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "ae.clientReferenceId IN (:clientReferenceId)");
 
-        query = query + " and ae.tenantId=:tenantId ";
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where ae.tenantId=:tenantId ";
+        } else {
+            query = query + " and ae.tenantId=:tenantId ";
+        }
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and ae.isDeleted=:isDeleted ";
         }
@@ -86,20 +93,27 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         if (lastChangedSince != null) {
             query = query + "and as.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY ae.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+
+        query = query + "ORDER BY ae.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
+
         List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        return sideEffectList;
+        return SearchResponse.<SideEffect>builder().response(sideEffectList).totalCount(totalCount).build();
     }
 
     public List<SideEffect> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<SideEffect> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<SideEffect> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
