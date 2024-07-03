@@ -1775,6 +1775,7 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
 }
 
 async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any) {
+    // assigning fileStoreId of a single district tab if criteria for multiple tabs are not met
     var boundaryDataGeneratedAfterDifferentTabSeparation: any = boundaryDataGeneratedBeforeDifferentTabSeparation;
     const boundaryData = await getBoundaryDataAfterGeneration(boundaryDataGeneratedBeforeDifferentTabSeparation, request, localizationMap);
     const differentTabsBasedOnLevel = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
