@@ -1775,7 +1775,7 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
 }
 
 async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any) {
-    var boundaryDataGeneratedAfterDifferentTabSeparation: any;
+    var boundaryDataGeneratedAfterDifferentTabSeparation: any = boundaryDataGeneratedBeforeDifferentTabSeparation;
     const boundaryData = await getBoundaryDataAfterGeneration(boundaryDataGeneratedBeforeDifferentTabSeparation, request, localizationMap);
     const differentTabsBasedOnLevel = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
     logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
