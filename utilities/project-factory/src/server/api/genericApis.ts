@@ -53,7 +53,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
         }
       }
       if (Object.keys(rowData).length > 0) {
-        if (getRow) rowData["!row#number!"] = i;
+        if (getRow) rowData["!row#number!"] = i + 1;
         if (getSheetName) rowData["!sheet#name!"] = sheetName;
         jsonData.push(rowData);
       }
@@ -92,6 +92,25 @@ function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, loca
   }
 }
 
+function getSheetDataFromWorksheet(worksheet: any) {
+  var sheetData: any[][] = [];
+
+  worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+    const rowData: any[] = [];
+
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+      const cellValue = getRawCellValue(cell);
+      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+    });
+
+    // Push non-empty row only
+    if (rowData.some(value => value !== null && value !== undefined)) {
+      sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
+    }
+  });
+  return sheetData;
+}
+
 // Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (
   fileUrl: string,
@@ -110,22 +129,7 @@ const getSheetData = async (
   validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
 
   // Collect sheet data by iterating through rows and cells
-  const sheetData: any[][] = [];
-
-  worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
-    const rowData: any[] = [];
-
-    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
-      const cellValue = getRawCellValue(cell);
-      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
-    });
-
-    // Push non-empty row only
-    if (rowData.some(value => value !== null && value !== undefined)) {
-      sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
-    }
-  });
-
+  const sheetData = getSheetDataFromWorksheet(worksheet);
   const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
 };
@@ -170,22 +174,7 @@ const getTargetSheetData = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    // Collect sheet data by iterating through rows and cells
-    const sheetData: any[][] = [];
-
-    worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
-      const rowData: any[] = [];
-
-      row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
-        const cellValue = getRawCellValue(cell);
-        rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
-      });
-
-      // Push non-empty row only
-      if (rowData.some(value => value !== null && value !== undefined)) {
-        sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
-      }
-    });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
     workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
   return workbookData;
@@ -209,7 +198,7 @@ const getTargetSheetDataAfterCode = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[1];
@@ -1281,5 +1270,6 @@ export {
   getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsTypeSchema
+  callMdmsTypeSchema,
+  getSheetDataFromWorksheet
 }
