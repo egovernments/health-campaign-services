@@ -39,9 +39,9 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
 
 function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
-  const headers = sheetData[1]; // Extract the headers from the first row
+  const headers = sheetData[0]; // Extract the headers from the first row
 
-  for (let i = 2; i < sheetData.length; i++) {
+  for (let i = 1; i < sheetData.length; i++) {
     const rowData: any = {};
     const row = sheetData[i];
     if (row) {
@@ -100,19 +100,57 @@ const getSheetData = async (
   createAndSearchConfig?: any,
   localizationMap?: { [key: string]: string }
 ) => {
-  // Retrieve workbook using the getTargetWorkbook function
+  // Retrieve workbook using the getExcelWorkbookFromFileURL function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
   const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
-
   // If parsing array configuration is provided, validate first row of each column
   validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
 
-  const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+  // Collect sheet data by iterating through rows and cells
+  const sheetData: any[][] = [];
+
+  worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+    const rowData: any[] = [];
+
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+      const cellValue = getRawCellValue(cell);
+      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+    });
+
+    // Push non-empty row only
+    if (rowData.some(value => value !== null && value !== undefined)) {
+      sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
+    }
+  });
+
   const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
+};
+
+// Helper function to extract raw cell value
+function getRawCellValue(cell: any) {
+  if (cell.value && typeof cell.value === 'object') {
+    if ('richText' in cell.value) {
+      // Handle rich text
+      return cell.value.richText.map((rt: any) => rt.text).join('');
+    } else if ('formula' in cell.value) {
+      // Get the result of the formula
+      return cell.value.result;
+    } else if ('error' in cell.value) {
+      // Get the error value
+      return cell.value.error;
+    } else if (cell.value instanceof Date) {
+      // Handle date values
+      return cell.value.toISOString();
+    } else {
+      // Return as-is for other object types
+      return cell.value;
+    }
+  }
+  return cell.value; // Return raw value for plain strings, numbers, etc.
 }
 
 const getTargetSheetData = async (
