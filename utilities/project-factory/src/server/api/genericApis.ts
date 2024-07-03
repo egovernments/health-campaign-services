@@ -170,7 +170,22 @@ const getTargetSheetData = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    // Collect sheet data by iterating through rows and cells
+    const sheetData: any[][] = [];
+
+    worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+      const rowData: any[] = [];
+
+      row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+        const cellValue = getRawCellValue(cell);
+        rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+      });
+
+      // Push non-empty row only
+      if (rowData.some(value => value !== null && value !== undefined)) {
+        sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
+      }
+    });
     workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
   return workbookData;
