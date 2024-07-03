@@ -81,7 +81,7 @@ class IndividualRepositoryTest {
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IndividualRowMapper.class));
 
-         verify(namedParameterJdbcTemplate, times(1))
+        verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(AddressRowMapper.class));
 
         verify(namedParameterJdbcTemplate, times(1))
@@ -117,8 +117,8 @@ class IndividualRepositoryTest {
 
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IndividualRowMapper.class));
-        //verify(namedParameterJdbcTemplate, times(1))
-          //      .query(anyString(), anyMap(), any(AddressRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(AddressRowMapper.class));
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
         verify(namedParameterJdbcTemplate, times(1))

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -36,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @Validated
-@Slf4j
 public class IndividualApiController {
 
     private final IndividualService individualService;

@@ -293,10 +293,10 @@ public class IndividualService {
                                              Boolean includeDeleted,
                                              RequestInfo requestInfo) {
         SearchResponse<Individual> searchResponse = null;
+
         String idFieldName = getIdFieldName(individualSearch);
         List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
-
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
                     individualSearch);
@@ -319,6 +319,7 @@ public class IndividualService {
             return searchResponse;
         }
         //encrypt search criteria
+
         IndividualSearch encryptedIndividualSearch;
         if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
             encryptedIndividualSearch = individualEncryptionService
@@ -330,7 +331,6 @@ public class IndividualService {
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchEncrypt");
         }
-
         try {
             searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                     lastChangedSince, includeDeleted);
@@ -341,7 +341,6 @@ public class IndividualService {
             log.error("database error occurred", exception);
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
-
         //decrypt
         List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
                 ? individualEncryptionService.decrypt(encryptedIndividualList,
