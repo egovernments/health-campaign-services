@@ -287,11 +287,6 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
-        if(!StringUtils.isEmpty(searchObject.getType())){
-            query = query + "AND type = :type ";
-            paramsMap.put("type", searchObject.getType());
-        }
-
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
       
         paramsMap.put("tenantId", tenantId);

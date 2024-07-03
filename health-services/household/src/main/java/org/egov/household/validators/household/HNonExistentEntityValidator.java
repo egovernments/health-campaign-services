@@ -15,6 +15,7 @@ import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -88,7 +89,8 @@ public class HNonExistentEntityValidator implements Validator<HouseholdBulkReque
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                throw new RuntimeException(e);
+                log.error("Search failed for Household with error: {}", e.getMessage(), e);
+                throw new CustomException("HOUSEHOLD_SEARCH_FAILED", "Search Failed for Household, " + e.getMessage()); 
             }
             // Check for non-existent entities
             List<Household> nonExistentEntities = checkNonExistentEntities(eMap,
