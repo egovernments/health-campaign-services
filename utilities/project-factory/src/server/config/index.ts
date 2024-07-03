@@ -16,6 +16,7 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: false,
   excludeBoundaryNameAtLastFromBoundaryCodes: false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",

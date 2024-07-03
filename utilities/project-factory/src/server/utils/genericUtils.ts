@@ -6,7 +6,7 @@ import { produceModifiedMessages } from "../kafka/Listener";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
-import { getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
@@ -1081,7 +1081,10 @@ async function getConfigurableColumnHeadersFromSchemaForTargetSheet(request: any
 
 async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: any) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
+  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+  let campaignType = campaignObject.projectType;
+  const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+  campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
   const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
 }

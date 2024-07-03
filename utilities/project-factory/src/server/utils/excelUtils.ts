@@ -163,7 +163,7 @@ function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D
 
         // Update column width based on the length of the cell's text
         const currentWidth = sheet.getColumn(colNumber).width || columnWidth; // Default width or current width
-        const newWidth = Math.max(currentWidth, cell.value.toString().length + 2); // Add padding
+        const newWidth = Math.max(currentWidth, cell.value.toString().length*1.5); // Add padding
         sheet.getColumn(colNumber).width = newWidth;
       });
 
