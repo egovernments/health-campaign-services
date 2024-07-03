@@ -2,7 +2,7 @@ import createAndSearch from "../config/createAndSearch";
 import config from "../config";
 import { getDataFromSheet, throwError } from "./genericUtils";
 import { getFormattedStringForDebug, logger } from "./logger";
-import { httpRequest } from "./request";
+import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Listener";
 import { getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
@@ -36,8 +36,107 @@ function getPvarIds(messageObject: any) {
     return Array.from(uniquePvarIds); // Convert Set to array before returning
 }
 
+function trimBoundaryCodes(root: any) {
+    if (root) {
+        root.code = root.code.trim(); // Trim the code
+
+        // Recursively trim the codes in the children
+        for (const child of root.children) {
+            trimBoundaryCodes(child);
+        }
+    }
+}
+
+async function getAllBoundaries(messageObject: any, tenantId: any, rootBoundary: any, hierarchyType: any) {
+    const BoundarySearchBody = {
+        RequestInfo: messageObject?.RequestInfo,
+    }
+    const params = {
+        tenantId,
+        codes: rootBoundary,
+        hierarchyType,
+        includeChildren: true
+    }
+    const header = {
+        ...defaultheader,
+        cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
+    const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, BoundarySearchBody, params, undefined, undefined, header);
+    trimBoundaryCodes(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]);
+    return boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]
+}
+
+// Function to find the path to a given boundary code
+function findPath(root: any, code: string, path: any[] = []) {
+    if (root.code === code) {
+        return [...path, root];
+    }
+    for (const child of root.children) {
+        const result: any = findPath(child, code, [...path, root]);
+        if (result) return result;
+    }
+    return null;
+}
+
+// Function to find the common parent for multiple codes
+function findCommonParent(codes: string[], root: any) {
+    if (codes.length === 0) return null;
+
+    // Find paths for all codes
+    const paths = codes.map(code => findPath(root, code)).filter(path => path !== null);
+
+    if (paths.length === 0) return null;
+
+    // Compare paths to find the common ancestor
+    let commonParent: any = null;
+
+    for (let i = 0; i < Math.min(...paths.map(path => path.length)); i++) {
+        const currentParent = paths[0][i];
+        if (paths.every(path => path[i] && path[i].code === currentParent.code)) {
+            commonParent = currentParent;
+        } else {
+            break;
+        }
+    }
+
+    return commonParent?.code;
+}
+
+function mapBoundaryCodes(resource: any, code: string, boundaryCode: string, boundaryCodes: any, allBoundaries: any) {
+    // Split boundary codes if they have comma separated values
+    const boundaryCodesArray = boundaryCode.split(',').map((bc: string) => bc.trim());
+    if (resource?.type == "user" && boundaryCodesArray?.length > 1 && config.user.mapUserViaCommonParent) {
+        const commonParent = findCommonParent(boundaryCodesArray, allBoundaries);
+        if (commonParent) {
+            logger.info(`Boundary Codes Array ${boundaryCodesArray.join(",")} for resource ${resource?.type} has common parent ${commonParent}`)
+            if (!boundaryCodes[resource?.type]) {
+                boundaryCodes[resource?.type] = {};
+            }
+            if (!boundaryCodes[resource?.type][commonParent]) {
+                boundaryCodes[resource?.type][commonParent] = [];
+            }
+            boundaryCodes[resource?.type][commonParent].push(code);
+            logger.info(`Common Parent Boundary code ${commonParent} mapped to resource ${resource?.type} with code ${code}`)
+        }
+    }
+    else {
+        boundaryCodesArray.forEach((trimmedBC: string) => {
+            // Trim any leading or trailing spaces
+            if (!boundaryCodes[resource?.type]) {
+                boundaryCodes[resource?.type] = {};
+            }
+            if (!boundaryCodes[resource?.type][trimmedBC]) {
+                boundaryCodes[resource?.type][trimmedBC] = [];
+            }
+            boundaryCodes[resource?.type][trimmedBC].push(code);
+            logger.info(`Boundary code ${trimmedBC} mapped to resource ${resource?.type} with code ${code}`)
+        });
+    }
+}
+
 async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
     const localizationMap: any = messageObject?.localizationMap
+    const allBoundaries = await getAllBoundaries(messageObject, messageObject?.Campaign?.tenantId, messageObject?.Campaign?.boundaryCode, messageObject?.Campaign?.hierarchyType);
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
         if (processedFilestoreId) {
@@ -54,20 +153,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                         active = data[activeColumn];
                     }
                     if (boundaryCode && active == "Active") {
-                        // Split boundary codes if they have comma separated values
-                        const boundaryCodesArray = boundaryCode.split(',');
-                        boundaryCodesArray.forEach((bc: string) => {
-                            // Trim any leading or trailing spaces
-                            const trimmedBC = bc.trim();
-                            if (!boundaryCodes[resource?.type]) {
-                                boundaryCodes[resource?.type] = {};
-                            }
-                            if (!boundaryCodes[resource?.type][trimmedBC]) {
-                                boundaryCodes[resource?.type][trimmedBC] = [];
-                            }
-                            boundaryCodes[resource?.type][trimmedBC].push(code);
-                            logger.info(`Boundary code ${trimmedBC} mapped to resource ${resource?.type} with code ${code}`)
-                        });
+                        mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
                     }
                 }
                 else {

@@ -16,8 +16,8 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
-  excludeHierarchyTypeFromBoundaryCodes:false,
-  excludeBoundaryNameAtLastFromBoundaryCodes:false,
+  excludeHierarchyTypeFromBoundaryCodes: false,
+  excludeBoundaryNameAtLastFromBoundaryCodes: false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
   masterNameForSplitBoundariesOn: "hierarchyConfig",
   boundary: {
@@ -38,6 +38,7 @@ const config = {
     userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
+    mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
