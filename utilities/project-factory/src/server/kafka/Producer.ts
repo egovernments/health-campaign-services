@@ -1,6 +1,7 @@
 import config from '../config'; // Importing configuration settings
 import { Producer, KafkaClient } from 'kafka-node'; // Importing Producer and KafkaClient from 'kafka-node' library
 import { logger } from "../utils/logger";
+import { shutdownGracefully } from '../utils/genericUtils';
 
 // Creating a new Kafka client instance using the configured Kafka broker host
 const kafkaClient = new KafkaClient({
@@ -20,6 +21,7 @@ producer.on('ready', () => {
 producer.on('error', (err) => {
     logger.error('Producer is in error state'); // Log message indicating producer is in error state
     console.error(err.stack || err); // Log the error stack or message
+    shutdownGracefully();
 });
 
 export { producer }; // Exporting the producer instance for external use

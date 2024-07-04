@@ -51,6 +51,12 @@ const throwErrorViaRequest = (message: any = "Internal Server Error") => {
   }
 };
 
+function shutdownGracefully() {
+  logger.info('Shutting down gracefully...');
+  // Perform any cleanup tasks here, like closing database connections
+  process.exit(1); // Exit with a non-zero code to indicate an error
+}
+
 function capitalizeFirstLetter(str: string | undefined) {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -1136,7 +1142,8 @@ export {
   changeFirstRowColumnColour,
   getConfigurableColumnHeadersFromSchemaForTargetSheet,
   createBoundaryDataMainSheet,
-  getMdmsDataBasedOnCampaignType
+  getMdmsDataBasedOnCampaignType,
+  shutdownGracefully
 };
 
 

@@ -4,7 +4,7 @@ import { getFormattedStringForDebug, logger } from '../utils/logger'; // Importi
 import { producer } from './Producer'; // Importing producer from the Producer module
 import { processCampaignMapping } from '../utils/campaignMappingUtils';
 import { enrichAndPersistCampaignWithError } from '../utils/campaignUtils';
-import { throwError } from '../utils/genericUtils';
+import { shutdownGracefully, throwError } from '../utils/genericUtils';
 
 
 
@@ -58,6 +58,7 @@ export function listener() {
     // Set up error event handlers
     consumerGroup.on('error', (err) => {
         console.error(`Consumer Error: ${err}`);
+        shutdownGracefully();
     });
 
     consumerGroup.on('offsetOutOfRange', (err) => {
