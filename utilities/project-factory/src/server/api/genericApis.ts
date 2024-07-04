@@ -201,7 +201,7 @@ const getTargetSheetDataAfterCode = async (
     const sheetData = getSheetDataFromWorksheet(worksheet);
 
     // Find the target column index where the first row value matches codeColumnName
-    const firstRow = sheetData[1];
+    const firstRow = sheetData[0];
     let targetColumnIndex = -1;
     for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
       if (firstRow[colIndex] === codeColumnName) {
@@ -745,8 +745,7 @@ async function createStaff(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Staff mapping created");
   logger.debug(
@@ -774,8 +773,7 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.debug("Project Resource Created");
   logger.debug(
@@ -803,8 +801,7 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Facility Created");
   logger.debug(
