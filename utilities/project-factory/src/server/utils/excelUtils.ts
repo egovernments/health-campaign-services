@@ -136,46 +136,71 @@ function performFreezeWholeSheet(sheet: any) {
   sheet.protect('passwordhere', { selectLockedCells: true });
 }
 
-function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D', columnWidth = 40, frozeCells = false, frozeWholeSheet = false) {
+// Function to add data to the sheet
+function addDataToSheet(sheet: any, sheetData: any, firstRowColor: string = '93C47D', columnWidth: number = 40, frozeCells: boolean = false, frozeWholeSheet: boolean = false) {
   sheetData?.forEach((row: any, index: number) => {
     const worksheetRow = sheet.addRow(row);
 
-    // Apply fill color to each cell in the first row and make cells bold
     if (index === 0) {
-      worksheetRow.eachCell((cell: any, colNumber: number) => {
-        // Set cell fill color
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: firstRowColor } // Green color
-        };
-
-        // Set font to bold
-        cell.font = { bold: true };
-
-        // Enable text wrapping
-        cell.alignment = { wrapText: true };
-
-        // Optionally lock the cell
-        if (frozeCells) {
-          cell.protection = { locked: true };
-        }
-
-        // Update column width based on the length of the cell's text
-        const currentWidth = sheet.getColumn(colNumber).width || columnWidth; // Default width or current width
-        const newWidth = Math.max(currentWidth, cell.value.toString().length*1.5); // Add padding
-        sheet.getColumn(colNumber).width = newWidth;
-      });
-
+      formatFirstRow(worksheetRow, sheet, firstRowColor, columnWidth, frozeCells);
+    } else {
+      formatOtherRows(worksheetRow, frozeCells);
     }
-    worksheetRow.eachCell((cell: any) => {
-      if (frozeCells) {
-        cell.protection = { locked: true };
-      }
-    });
   });
 
-  // Protect the entire sheet to enable cell protection settings
+  finalizeSheet(sheet, frozeCells, frozeWholeSheet);
+}
+
+// Function to format the first row
+function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {
+  row.eachCell((cell: any, colNumber: number) => {
+    setFirstRowCellStyles(cell, firstRowColor, frozeCells);
+    adjustColumnWidth(sheet, colNumber, columnWidth);
+    adjustRowHeight(row, cell, columnWidth);
+  });
+}
+
+// Function to set styles for the first row's cells
+function setFirstRowCellStyles(cell: any, firstRowColor: string, frozeCells: boolean) {
+  cell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: firstRowColor }
+  };
+
+  cell.font = { bold: true };
+
+  if (frozeCells) {
+    cell.protection = { locked: true };
+  }
+
+  cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+}
+
+// Function to adjust column width
+function adjustColumnWidth(sheet: any, colNumber: number, columnWidth: number) {
+  sheet.getColumn(colNumber).width = columnWidth;
+}
+
+// Function to adjust row height based on content
+function adjustRowHeight(row: any, cell: any, columnWidth: number) {
+  const text = cell.value ? cell.value.toString() : '';
+  const lines = Math.ceil(text.length / (columnWidth - 2)); // Approximate number of lines
+  row.height = Math.max(row.height ?? 0, lines * 15);
+}
+
+// Function to format cells in other rows
+function formatOtherRows(row: any, frozeCells: boolean) {
+  row.eachCell((cell: any) => {
+    if (frozeCells) {
+      cell.protection = { locked: true };
+    }
+    cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  });
+}
+
+// Function to finalize the sheet settings
+function finalizeSheet(sheet: any, frozeCells: boolean, frozeWholeSheet: boolean) {
   if (frozeCells) {
     performUnfreezeCells(sheet);
   }
@@ -183,7 +208,11 @@ function addDataToSheet(sheet: any, sheetData: any, firstRowColor: any = '93C47D
     performFreezeWholeSheet(sheet);
   }
   updateFontNameToRoboto(sheet);
+  sheet.views = [{ state: 'frozen', ySplit: 1, zoomScale: 110 }];
 }
+
+
+
 
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
