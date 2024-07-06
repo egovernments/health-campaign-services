@@ -74,12 +74,17 @@ public class IndividualService {
             if (individual.getAdditionalFields() != null) {
                 addIndividualAdditionalDetails(individual.getAdditionalFields(), individualDetails);
             }
+            if (individual.getIdentifiers() != null && !CollectionUtils.isEmpty(individual.getIdentifiers())) {
+                String identifierType = individual.getIdentifiers().get(0).getIdentifierType();
+                individualDetails.put(INDIVIDUAL_IDENTIFIER_TYPE, identifierType);
+            }
             return individualDetails;
         } else {
             individualDetails.put(AGE, null);
             individualDetails.put(GENDER, null);
             individualDetails.put(DATE_OF_BIRTH, null);
             individualDetails.put(INDIVIDUAL_ID, null);
+            individualDetails.put(INDIVIDUAL_IDENTIFIER_TYPE, null);
         }
 
         return individualDetails;

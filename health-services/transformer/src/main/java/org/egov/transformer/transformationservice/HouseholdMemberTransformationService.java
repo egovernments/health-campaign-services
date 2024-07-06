@@ -106,6 +106,7 @@ public class HouseholdMemberTransformationService {
                 .userAddress(userInfoMap.get(CITY))
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                .identifierType(individualDetails.containsKey(INDIVIDUAL_IDENTIFIER_TYPE) ? (String) individualDetails.get(INDIVIDUAL_IDENTIFIER_TYPE) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .geoPoint(geoPoint)
                 .localityCode(localityCode)
