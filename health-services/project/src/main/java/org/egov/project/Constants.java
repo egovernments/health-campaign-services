@@ -53,4 +53,7 @@ public interface Constants {
     String PIPE = "||";
 
     String PROJECT_ID = "projectId";
+
+    String TASK_QUANTITY = "taskQuantity";
+
 }

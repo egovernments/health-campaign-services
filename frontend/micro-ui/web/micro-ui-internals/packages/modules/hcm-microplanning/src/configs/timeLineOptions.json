@@ -1,0 +1,40 @@
+{
+  "timeLineOptions": [
+    {
+      "id": 0,
+      "name": "MICROPLAN_DETAILS",
+      "component": "MicroplanDetails",
+      "checkForCompleteness": true
+    },
+    {
+      "id": 1,
+      "name": "UPLOAD_DATA",
+      "component": "Upload",
+      "checkForCompleteness": true
+    },
+    {
+      "id": 2,
+      "name": "HYPOTHESIS",
+      "component": "Hypothesis",
+      "checkForCompleteness": true
+    },
+    {
+      "id": 3,
+      "name": "FORMULA_CONFIGURATION",
+      "component": "RuleEngine",
+      "checkForCompleteness": true
+    },
+    {
+      "id": 4,
+      "name": "MAPPING",
+      "component": "Mapping",
+      "checkForCompleteness": false
+    },
+    {
+      "id": 5,
+      "name": "MICROPLAN_GENERATION",
+      "component": "MicroplanPreview",
+      "checkForCompleteness": false
+    }
+  ]
+}

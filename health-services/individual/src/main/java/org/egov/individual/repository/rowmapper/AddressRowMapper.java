@@ -3,7 +3,7 @@ package org.egov.individual.repository.rowmapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Boundary;
+import org.egov.common.models.core.Boundary;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
