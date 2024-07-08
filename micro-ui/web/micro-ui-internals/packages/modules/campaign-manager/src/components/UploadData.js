@@ -45,7 +45,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   //   { name: "Boundary" },
   // ]);
 
-  const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }]);
+  const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }] , {} ,{schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"});
 
   const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "ReadMeConfig" }]);
   const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeout" }]);
@@ -177,14 +177,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   }, [uploadedFile]);
 
   useEffect(async () => {
-    if (Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
-      const facility = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility")?.[0]);
+    if (Schemas) {
+      const facility = await convertIntoSchema(Schemas?.filter((item) => item.title === "facility" && item.campaignType === "all")?.[0]);
       const boundary = await convertIntoSchema(
-        Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
+        Schemas?.filter(
           (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
         )?.[0]
       );
-      const user = await convertIntoSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user")?.[0]);
+      const user = await convertIntoSchema(Schemas?.filter((item) => item.title === "user" && item.campaignType === "all")?.[0]);
       const schema = {
         boundary: boundary,
         facilityWithBoundary: facility,
@@ -193,7 +193,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       setConvertedSchema(schema);
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"]?.adminSchema, type]);
+  }, [Schemas, type]);
+
 
   useEffect(async () => {
     if (convertedSchema && Object.keys(convertedSchema).length > 0) {

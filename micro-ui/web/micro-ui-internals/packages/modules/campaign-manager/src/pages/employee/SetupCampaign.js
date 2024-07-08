@@ -481,7 +481,7 @@ const SetupCampaign = ({ hierarchyType }) => {
     setIsSubmitting(false);
     if (currentKey === 10 && isSummary !== "true") {
       updateUrlParams({ key: currentKey, summary: true });
-    } else if (currentKey !== 10 && isSummary === "true") {
+    } else if (currentKey !== 10 ) {
       updateUrlParams({ key: currentKey, summary: false });
       setSummaryErrors(null);
     }
