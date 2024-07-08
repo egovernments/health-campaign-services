@@ -57,7 +57,6 @@ public class Address {
 
     @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-    @DecimalMax("10000")
     private Double locationAccuracy = null;
 
     @JsonProperty("type")

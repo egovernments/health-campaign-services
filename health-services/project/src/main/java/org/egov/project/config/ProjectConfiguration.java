@@ -177,6 +177,9 @@ public class ProjectConfiguration {
     @Value("${project.mdms.module}")
     private String mdmsModule;
 
+    @Value("${task.mdms.module}")
+    private String taskMdmsModule;
+
     @Value("${egov.location.hierarchy.type}")
     private String locationHierarchyType;
 

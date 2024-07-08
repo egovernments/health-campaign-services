@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -29,6 +30,7 @@ import org.egov.referralmanagement.validator.RmNullIdValidator;
 import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.RmRecipientIdValidator;
 import org.egov.referralmanagement.validator.RmReferrerIdValidator;
+import org.egov.referralmanagement.validator.RmRowVersionValidator;
 import org.egov.referralmanagement.validator.RmSideEffectIdValidator;
 import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -64,7 +66,8 @@ public class ReferralManagementService {
                 || validator.getClass().equals(RmExistentEntityValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
-                || validator.getClass().equals(RmSideEffectIdValidator.class);
+                || validator.getClass().equals(RmSideEffectIdValidator.class)
+                || validator.getClass().equals(RmRowVersionValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
@@ -74,7 +77,8 @@ public class ReferralManagementService {
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)
-                || validator.getClass().equals(RmNonExistentEntityValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class)
+                || validator.getClass().equals(RmRowVersionValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForDelete = validator ->
             validator.getClass().equals(RmNullIdValidator.class)
@@ -113,7 +117,7 @@ public class ReferralManagementService {
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating referrals: {}", exception.getMessage());
+            log.error("error occurred while creating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -146,7 +150,7 @@ public class ReferralManagementService {
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating referrals", exception);
+            log.error("error occurred while updating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -207,7 +211,7 @@ public class ReferralManagementService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }

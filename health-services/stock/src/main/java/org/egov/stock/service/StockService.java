@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.stock.Stock;
@@ -26,7 +27,7 @@ import org.egov.stock.validator.stock.SReferenceIdValidator;
 import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.validator.stock.StocktransferPartiesValidator;
+import org.egov.stock.validator.stock.SStockTransferPartiesValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -60,7 +61,7 @@ public class StockService {
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
                     || validator.getClass().equals(SExistentEntityValidator.class)
                     || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
-                    || validator.getClass().equals(StocktransferPartiesValidator.class)
+                    || validator.getClass().equals(SStockTransferPartiesValidator.class)
                     || validator.getClass().equals(SReferenceIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
@@ -72,7 +73,7 @@ public class StockService {
             || validator.getClass().equals(SUniqueEntityValidator.class)
             || validator.getClass().equals(SReferenceIdValidator.class)
             || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
-            || validator.getClass().equals(StocktransferPartiesValidator.class);
+            || validator.getClass().equals(SStockTransferPartiesValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
@@ -99,21 +100,21 @@ public class StockService {
                 isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.create(validEntities, request);
+                stockRepository.save(validEntities, configuration.getCreateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public Stock update(StockRequest request) {
@@ -129,21 +130,21 @@ public class StockService {
                 isApplicableForUpdate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.update(validEntities, request);
+                stockRepository.save(validEntities, configuration.getUpdateStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed update method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public Stock delete(StockRequest request) {
@@ -159,21 +160,21 @@ public class StockService {
                 isApplicableForDelete, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.delete(validEntities, request);
+                stockRepository.save(validEntities, configuration.getDeleteStockTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed delete method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public List<Stock> search(StockSearchRequest stockSearchRequest,

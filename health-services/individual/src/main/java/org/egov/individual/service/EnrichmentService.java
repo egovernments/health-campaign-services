@@ -1,5 +1,14 @@
 package org.egov.individual.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
@@ -13,14 +22,6 @@ import org.egov.individual.config.IndividualProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -229,6 +230,7 @@ public class EnrichmentService {
             log.info("enriching individual with system generated identifier");
             List<Identifier> identifiers = new ArrayList<>();
             identifiers.add(Identifier.builder()
+                    .clientReferenceId(UUID.randomUUID().toString())
                     .identifierType(SYSTEM_GENERATED)
                     .identifierId(individual.getId())
                     .build());

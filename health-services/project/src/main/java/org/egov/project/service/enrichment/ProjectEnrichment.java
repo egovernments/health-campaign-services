@@ -3,6 +3,7 @@ package org.egov.project.service.enrichment;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
@@ -301,7 +302,7 @@ public class ProjectEnrichment {
         try {
             return idGenService.getIdList(requestInfo, tenantId, idKey, idformat, count);
         } catch (Exception exception) {
-            log.error("error while calling id gen service", exception);
+            log.error("error while calling id gen service", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("IDGEN_ERROR",
                     String.format("error while calling id gen service for %s", idformat));
         }

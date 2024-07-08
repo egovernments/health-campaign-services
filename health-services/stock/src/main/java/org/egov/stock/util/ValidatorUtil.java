@@ -1,23 +1,12 @@
 package org.egov.stock.util;
 
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
-import static org.egov.common.utils.CommonUtils.getTenantId;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.stock.Constants.GET_REQUEST_INFO;
-import static org.egov.stock.Constants.NO_PROJECT_FACILITY_MAPPING_EXISTS;
-import static org.egov.stock.Constants.STAFF;
-import static org.egov.stock.Constants.WAREHOUSE;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
@@ -30,7 +19,15 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import digit.models.coremodels.UserSearchRequest;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
+import static org.egov.stock.Constants.GET_REQUEST_INFO;
+import static org.egov.stock.Constants.NO_PROJECT_FACILITY_MAPPING_EXISTS;
 
 public class ValidatorUtil {
 
@@ -49,7 +46,8 @@ public class ValidatorUtil {
 				List<String> entityIds = new ArrayList<>(eMap.keySet());
 				List<String> existingFacilityIds = facilityService.validateFacilityIds(entityIds, validEntities,
 						tenantId, errorDetailsMap, requestInfo);
-				List<T> invalidEntities = validEntities.stream().filter(notHavingErrors())
+				List<T> invalidEntities = validEntities.stream()
+						.filter(notHavingErrors())
 						.filter(entity -> !existingFacilityIds
 								.contains((String) ReflectionUtils.invokeMethod(idMethod, entity)))
 						.collect(Collectors.toList());
