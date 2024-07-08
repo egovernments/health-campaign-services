@@ -104,7 +104,7 @@ public class ProjectService {
         projectValidator.validateUpdateProjectRequest(project);
         log.info("Update project request validated");
         //Search projects based on project ids
-        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(project.getProjects(), project.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), project.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
+        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(project.getProjects(), project.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), project.getProjects().get(0).getTenantId(), null, false, true, true, null, null);
         log.info("Fetched projects for update request");
         //Validate Update project request against projects fetched form database
         projectValidator.validateUpdateAgainstDB(project.getProjects(), projectsFromDB);
@@ -112,7 +112,6 @@ public class ProjectService {
         log.info("Enriched with project Number, Ids and AuditDetails");
         producer.push(projectConfiguration.getUpdateProjectTopic(), project);
         log.info("Pushed to kafka");
-
         return project;
     }
 
