@@ -195,7 +195,6 @@ function formatOtherRows(row: any, frozeCells: boolean) {
     if (frozeCells) {
       cell.protection = { locked: true };
     }
-    cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   });
 }
 
