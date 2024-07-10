@@ -54,5 +54,8 @@ public class TaskSearch extends EgovOfflineSearchModel {
     @JsonProperty("boundaryCode")
     private String boundaryCode = null;
 
+    @JsonProperty("action")
+    private List<TaskAction> action;
+
 }
 

@@ -189,4 +189,43 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
+
+    // closed household task
+    @Value("${project.task.closed.household.kafka.create.topic}")
+    private String createClosedHouseholdTaskTopic;
+
+    @Value("${project.task.closed.household.consumer.bulk.create.topic}")
+    private String bulkCreateClosedHouseholdTaskTopic;
+
+    @Value("${project.task.closed.household.kafka.update.topic}")
+    private String updateClosedHouseholdTaskTopic;
+
+    @Value("${project.task.closed.household.consumer.bulk.update.topic}")
+    private String bulkUpdateClosedHouseholdTaskTopic;
+
+    @Value("${project.task.closed.household.kafka.delete.topic}")
+    private String deleteClosedHouseholdTaskTopic;
+
+    @Value("${project.task.closed.household.consumer.bulk.delete.topic}")
+    private String bulkDeleteClosedHouseholdTaskTopic;
+
+    // track task activity
+    @Value("${project.task.track.activity.kafka.create.topic}")
+    private String createTrackActivityTaskTopic;
+
+    @Value("${project.task.track.activity.consumer.bulk.create.topic}")
+    private String bulkCreateTrackActivityTaskTopic;
+
+    @Value("${project.task.track.activity.kafka.update.topic}")
+    private String updateTrackActivityTaskTopic;
+
+    @Value("${project.task.track.activity.consumer.bulk.update.topic}")
+    private String bulkUpdateTrackActivityTaskTopic;
+
+    @Value("${project.task.track.activity.kafka.delete.topic}")
+    private String deleteTrackActivityTaskTopic;
+
+    @Value("${project.task.track.activity.consumer.bulk.delete.topic}")
+    private String bulkDeleteTrackActivityTaskTopic;
+
 }

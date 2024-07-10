@@ -77,6 +77,9 @@ public class Task extends EgovOfflineModel {
     @JsonProperty("status")
     private String status = null;
 
+    @JsonProperty("action")
+    private TaskAction action;
+
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);
         return this;
