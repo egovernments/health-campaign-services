@@ -212,7 +212,6 @@ public class ProjectEnrichment {
                   if (isDescendant) {
                     ((ObjectNode) descendantOrAncestorCycleNode).put("startDate", requestStartDate);
                     ((ObjectNode) descendantOrAncestorCycleNode).put("endDate", requestEndDate);
-                    System.out.println(descendantOrAncestor);
                   } else {
                     ((ObjectNode) descendantOrAncestorCycleNode).put("startDate",
                         Math.min(requestStartDate, currentStartDate));
