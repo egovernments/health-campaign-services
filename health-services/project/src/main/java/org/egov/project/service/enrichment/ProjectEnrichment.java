@@ -147,8 +147,7 @@ public class ProjectEnrichment {
     if (descendantProjectsFromDb != null) {
       for (Project descendant : descendantProjectsFromDb) {
         updateDescendantProjectDates(descendant, startDate, endDate);
-        updateCycles(descendant, projectRequest);
-        System.out.println(descendantProjectsFromDb+"iiiiiiiiiiiiiiiiii");
+        updateCycles(descendant, projectRequest,true);
         modifiedDescendantProjectsFromDb.add(descendant);
       }
       pushDescendantProjects(modifiedDescendantProjectsFromDb);
@@ -163,10 +162,9 @@ public class ProjectEnrichment {
       for (Project ancestor : ancestorProjectsFromDb) {
         ancestor.setStartDate(Math.min(startDate, ancestor.getStartDate()));
         ancestor.setEndDate(Math.max(endDate, ancestor.getEndDate()));
-        updateCycles(ancestor, projectRequest);
+        updateCycles(ancestor, projectRequest,false);
         modifiedAncestorProjectsFromDb.add(ancestor);
       }
-      System.out.println(projectFromDB+"qqqqqqqqqqqqqq");
       pushAncestorProjects(modifiedAncestorProjectsFromDb);
     }
   }
@@ -178,73 +176,62 @@ public class ProjectEnrichment {
   }
 
 
-  private void updateCycles(Project descendantOrAncestor, Project projectRequest) {
+  private void updateCycles(Project descendantOrAncestor, Project projectRequest, boolean isDescendant) {
     if (descendantOrAncestor.getAdditionalDetails() == null) {
       return;
     }
 
     ObjectMapper objectMapper = new ObjectMapper();
-    try {
-      // Extract additional details from descendant and request projects
-      JsonNode descendantOrAncestorAdditionalDetails = objectMapper.valueToTree(
-          descendantOrAncestor.getAdditionalDetails());
-      JsonNode descendantOrAncestorProjectTypeNode = descendantOrAncestorAdditionalDetails.get(
-          "projectType");
+    // Extract additional details from descendant and request projects
+    JsonNode descendantOrAncestorAdditionalDetails = objectMapper.valueToTree(
+        descendantOrAncestor.getAdditionalDetails());
+    JsonNode descendantOrAncestorProjectTypeNode = descendantOrAncestorAdditionalDetails.get(
+        "projectType");
 
-      if (descendantOrAncestorProjectTypeNode != null) {
-        JsonNode descendantOrAncestorCyclesNode = descendantOrAncestorProjectTypeNode.get("cycles");
+    if (descendantOrAncestorProjectTypeNode != null) {
+      JsonNode descendantOrAncestorCyclesNode = descendantOrAncestorProjectTypeNode.get("cycles");
 
-        if (descendantOrAncestorCyclesNode != null && descendantOrAncestorCyclesNode.isArray()) {
-          // Extract cycles from the request project
-          JsonNode requestAdditionalDetails = objectMapper.valueToTree(
-              projectRequest.getAdditionalDetails());
-          JsonNode requestProjectTypeNode = requestAdditionalDetails.get("projectType");
+      if (descendantOrAncestorCyclesNode != null && descendantOrAncestorCyclesNode.isArray()) {
+        // Extract cycles from the request project
+        JsonNode requestAdditionalDetails = objectMapper.valueToTree(
+            projectRequest.getAdditionalDetails());
+        JsonNode requestProjectTypeNode = requestAdditionalDetails.get("projectType");
 
-          if (requestProjectTypeNode != null) {
-            JsonNode requestCyclesNode = requestProjectTypeNode.get("cycles");
+        if (requestProjectTypeNode != null) {
+          JsonNode requestCyclesNode = requestProjectTypeNode.get("cycles");
 
-            if (requestCyclesNode != null && requestCyclesNode.isArray()) {
-              System.out.println("Before updating cycles: " + objectMapper.writeValueAsString(
-                  descendantOrAncestor));
-              // Iterate over descendant cycles and update as necessary
-              for (JsonNode descendantOrAncestorCycleNode : descendantOrAncestorCyclesNode) {
-                String descendantOrAncestorCycleId = descendantOrAncestorCycleNode.get("id")
-                    .asText();
+          if (requestCyclesNode != null && requestCyclesNode.isArray()) {
+            // Iterate over descendant cycles and update as necessary
+            for (JsonNode descendantOrAncestorCycleNode : descendantOrAncestorCyclesNode) {
+              String descendantOrAncestorCycleId = descendantOrAncestorCycleNode.get("id").asText();
 
-                for (JsonNode requestCycleNode : requestCyclesNode) {
-                  String requestCycleId = requestCycleNode.get("id").asText();
+              for (JsonNode requestCycleNode : requestCyclesNode) {
+                String requestCycleId = requestCycleNode.get("id").asText();
 
-                  if (descendantOrAncestorCycleId.equals(requestCycleId)) {
-                    // Update start and end dates of descendant cycle node
-                    long requestStartDate = requestCycleNode.get("startDate").asLong();
-                    long requestEndDate = requestCycleNode.get("endDate").asLong();
-
+                if (descendantOrAncestorCycleId.equals(requestCycleId)) {
+                  // Update start and end dates of descendant cycle node
+                  long requestStartDate = requestCycleNode.get("startDate").asLong();
+                  long requestEndDate = requestCycleNode.get("endDate").asLong();
+                  long currentStartDate = descendantOrAncestorCycleNode.get("startDate").asLong();
+                  long currentEndDate = descendantOrAncestorCycleNode.get("endDate").asLong();
+                  if(isDescendant) {
                     ((ObjectNode) descendantOrAncestorCycleNode).put("startDate", requestStartDate);
                     ((ObjectNode) descendantOrAncestorCycleNode).put("endDate", requestEndDate);
-                    System.out.println(
-                        "Updated cycle " + descendantOrAncestorCycleId + " with startDate: "
-                            + requestStartDate + " and endDate: " + requestEndDate);
-                    break; // Once updated, exit the loop for this descendantCycleNode
+                    System.out.println(descendantOrAncestor);
+                  }else{
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("startDate", Math.min(requestStartDate,currentStartDate));
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("endDate", Math.max(requestEndDate,currentEndDate));
                   }
+                  break; // Once updated, exit the loop for this descendantCycleNode
                 }
               }
-              System.out.println("After updating cycles: " + objectMapper.writeValueAsString(
-                  descendantOrAncestor));
-            } else {
-              System.out.println("No cycles array found in request project type node.");
             }
-          } else {
-            System.out.println("No project type node found in request additional details.");
+            Map<String, Object> updatedAdditionalDetails = objectMapper.convertValue(
+                descendantOrAncestorAdditionalDetails, new TypeReference<Map<String, Object>>() {});
+            descendantOrAncestor.setAdditionalDetails(updatedAdditionalDetails);
           }
-        } else {
-          System.out.println("No cycles array found in descendant or ancestor project type node.");
         }
-      } else {
-        System.out.println(
-            "No project type node found in descendant or ancestor additional details.");
       }
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
     }
   }
 
