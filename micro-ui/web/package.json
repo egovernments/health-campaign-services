@@ -16,10 +16,10 @@
   "dependencies": {
     "@egovernments/digit-ui-libraries": "1.8.1-beta.4",
     "@egovernments/digit-ui-module-workbench": "1.0.1-beta.16",
-    "@egovernments/digit-ui-module-core": "1.8.2-beta.2",
+    "@egovernments/digit-ui-module-core": "1.8.2-beta.5",
     "@egovernments/digit-ui-module-hrms": "1.8.0-beta.2",
-    "@egovernments/digit-ui-react-components": "1.8.2-beta.6",
-    "@egovernments/digit-ui-components": "0.0.2-beta.10",
+    "@egovernments/digit-ui-react-components": "1.8.2-beta.11",
+    "@egovernments/digit-ui-components": "0.0.2-beta.13",
     "@egovernments/digit-ui-module-dss": "1.8.0-beta",
     "@egovernments/digit-ui-module-common": "1.8.0-beta",
     "@egovernments/digit-ui-module-utilities": "1.0.0-beta",
