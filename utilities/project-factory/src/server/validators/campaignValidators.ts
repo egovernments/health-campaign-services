@@ -83,75 +83,75 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-// Compares unique boundaries with response boundaries and throws error for missing codes.
-function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
-    // Extracts boundary codes from response boundaries
-    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
+// // Compares unique boundaries with response boundaries and throws error for missing codes.
+// function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
+//     // Extracts boundary codes from response boundaries
+//     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
 
-    // Finds missing codes from unique boundaries
-    const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
+//     // Finds missing codes from unique boundaries
+//     const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
 
-    // Throws error if missing codes exist
-    if (missingCodes.length > 0) {
-        throwError(
-            "COMMON",
-            400,
-            "VALIDATION_ERROR",
-            `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
-        );
-    }
-}
+//     // Throws error if missing codes exist
+//     if (missingCodes.length > 0) {
+//         throwError(
+//             "COMMON",
+//             400,
+//             "VALIDATION_ERROR",
+//             `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
+//         );
+//     }
+// }
 
 // Validates unique boundaries against the response boundaries.
-async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
-    // Fetches response boundaries in chunks
-    const responseBoundaries = await fetchBoundariesInChunks(request);
+// async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
+//     // Fetches response boundaries in chunks
+//     const responseBoundaries = await fetchBoundariesInChunks(request);
 
-    // Compares unique boundaries with response boundaries
-    compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
-}
-
-
+//     // Compares unique boundaries with response boundaries
+//     compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
+// }
 
 
-async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap: any) {
-    const boundarySet = new Set(); // Create a Set to store unique boundaries
-    logger.info("validating for the boundary data")
-    const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
-    const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap) : null;
-    if (activeColumnName && uniqueIdentifierColumnName) {
-        data = data.filter((item: any) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
-        data.forEach((item: any) => item[activeColumnName] = "Active");
-    }
-    if (data.length == 0) {
-        if (request?.body?.ResourceDetails?.type == "facility") {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "All facilities are set to Inactive for this campaign. Please set at least one facility to Active for this campaign or add a new facility for this campaign");
-        }
-        else {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Data is empty for this campaign, add atleast one data row");
-        }
-    }
-    data.forEach((element) => {
-        const boundaries = element[boundaryColumn];
-        if (!boundaries) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!']}`);
-        }
 
-        const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-        if (boundaryList.length === 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!']}`);
-        }
 
-        for (const boundary of boundaryList) {
-            if (!boundary) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!']}. Put it with one comma between boundary codes`);
-            }
-            boundarySet.add(boundary); // Add boundary to the set
-        }
-    });
-    const uniqueBoundaries = Array.from(boundarySet);
-    await validateUniqueBoundaries(uniqueBoundaries, request);
-}
+// async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap: any) {
+//     const boundarySet = new Set(); // Create a Set to store unique boundaries
+//     logger.info("validating for the boundary data")
+//     const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+//     const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap) : null;
+//     if (activeColumnName && uniqueIdentifierColumnName) {
+//         data = data.filter((item: any) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
+//         data.forEach((item: any) => item[activeColumnName] = "Active");
+//     }
+//     if (data.length == 0) {
+//         if (request?.body?.ResourceDetails?.type == "facility") {
+//             throwError("COMMON", 400, "VALIDATION_ERROR", "All facilities are set to Inactive for this campaign. Please set at least one facility to Active for this campaign or add a new facility for this campaign");
+//         }
+//         else {
+//             throwError("COMMON", 400, "VALIDATION_ERROR", "Data is empty for this campaign, add atleast one data row");
+//         }
+//     }
+//     data.forEach((element) => {
+//         const boundaries = element[boundaryColumn];
+//         if (!boundaries) {
+//             throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!']}`);
+//         }
+
+//         const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
+//         if (boundaryList.length === 0) {
+//             throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!']}`);
+//         }
+
+//         for (const boundary of boundaryList) {
+//             if (!boundary) {
+//                 throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!']}. Put it with one comma between boundary codes`);
+//             }
+//             boundarySet.add(boundary); // Add boundary to the set
+//         }
+//     });
+//     const uniqueBoundaries = Array.from(boundarySet);
+//     await validateUniqueBoundaries(uniqueBoundaries, request);
+// }
 
 // async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[], localizationMap?: any) {
 //     // const responseBoundaries = await fetchBoundariesInChunks(request);
@@ -411,10 +411,6 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
 
 async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any, localizationMap?: { [key: string]: string }) {
     await validateViaSchema(data, schema, request, localizationMap);
-    if (boundaryValidation) {
-        const localisedBoundaryCode = getLocalizedName(boundaryValidation?.column, localizationMap)
-        await validateBoundaryData(data, request, localisedBoundaryCode, localizationMap);
-    }
 }
 
 async function validateTargetSheetData(data: any, request: any, boundaryValidation: any, localizationMap?: any) {
@@ -712,7 +708,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const resourceBoundaryCodesArray: any[] = [];
     var activeColumnName: any = null;
     if (createAndSearch?.[resource.type]?.activeColumn && createAndSearch?.[resource.type]?.activeColumnName) {
-        activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumn, localizationMap);
+        activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumnName, localizationMap);
     }
     datas.forEach((data: any) => {
         const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
@@ -730,7 +726,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
         var missingBoundaries = rowData.boundaryCodes.filter((code: any) => !boundaryCodesArray.includes(code));
         if (missingBoundaries.length > 0) {
             const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
-            errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
+            errors.push({ status: "BOUNDARYERROR", rowNumber: rowData.rowNumber, errorDetails: errorString })
         }
     }
     if (errors?.length > 0) {

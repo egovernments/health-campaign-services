@@ -12,8 +12,8 @@ import { produceModifiedMessages } from "../kafka/Listener";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { persistTrack } from "../utils/processTrackUtils";
 import { processTrackStatuses, processTrackTypes } from "../config/constants";
+import { persistTrack } from "../utils/processTrackUtils";
 
 
 
@@ -795,7 +795,17 @@ async function handleResouceDetailsError(request: any, error: any) {
   }
 }
 
+async function persistCreationProcess(request: any, status: any) {
+  if (request?.body?.ResourceDetails?.type == "facility") {
+    await persistTrack(request?.body?.ResourceDetails?.campaignId, processTrackTypes.facilityCreation, status);
+  }
+  else if (request?.body?.ResourceDetails?.type == "user") {
+    await persistTrack(request?.body?.ResourceDetails?.campaignId, processTrackTypes.staffCreation, status);
+  }
+}
+
 async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any, localizationMap?: { [key: string]: string }) {
+  await persistCreationProcess(request, processTrackStatuses.inprogress)
   try {
     const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
     request.body.dataToCreate = typeData.createData;
@@ -811,16 +821,12 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     else if (request.body.ResourceDetails.status == "invalid") {
       await generateProcessedFileAndPersist(request, localizationMap);
     }
-    if (request?.body?.ResourceDetails?.type == "facility") {
-      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.facilityCreation, processTrackStatuses.completed);
-    }
-    else if (request?.body?.ResourceDetails?.type == "user") {
-      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.userCreation, processTrackStatuses.completed);
-    }
   } catch (error: any) {
     console.log(error)
+    await persistCreationProcess(request, processTrackStatuses.failed)
     await handleResouceDetailsError(request, error)
   }
+  await persistCreationProcess(request, processTrackStatuses.completed)
 }
 
 /**
@@ -839,13 +845,11 @@ async function processCreate(request: any, localizationMap?: any) {
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
     if (type == "facility") {
-      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.facilityCreation, processTrackStatuses.inprogress);
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
     else if (type == "user") {
-      await persistTrack(request.body.ResourceDetails.campaignId, processTrackTypes.userCreation, processTrackStatuses.inprogress);
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
@@ -863,33 +867,41 @@ async function processCreate(request: any, localizationMap?: any) {
  * @param request The HTTP request object.
  */
 async function createProjectCampaignResourcData(request: any) {
-  // Create resources for a project campaign
-  if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
-    for (const resource of request?.body?.CampaignDetails?.resources) {
-      if (resource.type != "boundaryWithTarget") {
-        const resourceDetails = {
-          type: resource.type,
-          fileStoreId: resource.filestoreId,
-          tenantId: request?.body?.CampaignDetails?.tenantId,
-          action: "create",
-          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-          additionalDetails: {},
-          campaignId: request?.body?.CampaignDetails?.id
-        };
-        logger.info(`Creating the resources for type ${resource.type}`)
-        logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
-        const createRequestBody = {
-          RequestInfo: request.body.RequestInfo,
-          ResourceDetails: resourceDetails
-        }
-        const req = replicateRequest(request, createRequestBody)
-        const res: any = await createDataService(req)
-        if (res?.id) {
-          resource.createResourceId = res?.id
+  await persistTrack(request.body.CampaignDetails.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.inprogress);
+  try {
+    // Create resources for a project campaign
+    if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
+      for (const resource of request?.body?.CampaignDetails?.resources) {
+        if (resource.type != "boundaryWithTarget") {
+          const resourceDetails = {
+            type: resource.type,
+            fileStoreId: resource.filestoreId,
+            tenantId: request?.body?.CampaignDetails?.tenantId,
+            action: "create",
+            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+            additionalDetails: {},
+            campaignId: request?.body?.CampaignDetails?.id
+          };
+          logger.info(`Creating the resources for type ${resource.type}`)
+          logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
+          const createRequestBody = {
+            RequestInfo: request.body.RequestInfo,
+            ResourceDetails: resourceDetails
+          }
+          const req = replicateRequest(request, createRequestBody)
+          const res: any = await createDataService(req)
+          if (res?.id) {
+            resource.createResourceId = res?.id
+          }
         }
       }
     }
+  } catch (error: any) {
+    console.log(error)
+    await persistTrack(request?.body?.CampaignDetails?.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+    throw new Error(error)
   }
+  await persistTrack(request.body.CampaignDetails.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.completed);
 }
 
 async function confirmProjectParentCreation(request: any, projectId: any) {

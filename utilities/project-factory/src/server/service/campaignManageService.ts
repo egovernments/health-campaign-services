@@ -5,7 +5,7 @@ import { validateProjectCampaignRequest, validateSearchProcessTracksRequest, val
 import { validateCampaignRequest } from "../validators/genericValidator";
 import { createRelatedResouce } from "../api/genericApis";
 import { enrichCampaign } from "../api/campaignApis";
-import { getProcessDetails } from "../utils/processTrackUtils";
+import { getProcessDetails, modifyProcessDetails } from "../utils/processTrackUtils";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -61,7 +61,12 @@ async function searchProcessTracksService(
     logger.info("VALIDATED THE PROCESS SEARCH REQUEST");
 
     // Search and return related process tracks
-    return await getProcessDetails(request?.query?.campaignId as string)
+    const processDetailsArray = await getProcessDetails(request?.query?.campaignId as string)
+
+    // sort and modify process details so that details with status as toBeCompleted comes in last
+    const resultArray = modifyProcessDetails(processDetailsArray)
+
+    return resultArray
 };
 
 

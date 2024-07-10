@@ -4,9 +4,12 @@ import { getDataFromSheet, throwError } from "./genericUtils";
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Listener";
-import { getLocalizedName } from "./campaignUtils";
+import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { createCampaignService } from "../service/campaignManageService";
+import { persistTrack } from "./processTrackUtils";
+import { processTrackTypes, processTrackStatuses } from "../config/constants";
+import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -220,35 +223,37 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     }
     return {
         RequestInfo: messageObject?.RequestInfo,
-        Campaign: Campaign
+        Campaign: Campaign,
+        CampaignDetails: messageObject?.CampaignDetails
     }
 }
 
 async function fetchAndMap(resources: any[], messageObject: any) {
+    await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.inprogress)
+    try {
+        const localizationMap = messageObject?.localizationMap;
+        const sheetName: any = {
+            "user": getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap),
+            "facility": getLocalizedName(createAndSearch?.facility?.parseArrayConfig?.sheetName, localizationMap)
+        }
+        // Object to store boundary codes
+        const boundaryCodes: any = {};
 
-    const localizationMap = messageObject?.localizationMap;
-    const sheetName: any = {
-        "user": getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap),
-        "facility": getLocalizedName(createAndSearch?.facility?.parseArrayConfig?.sheetName, localizationMap)
+        await enrichBoundaryCodes(resources, messageObject, boundaryCodes, sheetName);
+        logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
+        var boundaryWithProject: any = {};
+        await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
+        logger.info("boundaryWithProject : " + JSON.stringify(boundaryWithProject));
+        var projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
+        logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
+        logger.info("projectMapping started ");
+    } catch (error: any) {
+        console.log(error)
+        await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+        throw new Error(error)
     }
-    // Object to store boundary codes
-    const boundaryCodes: any = {};
-
-    await enrichBoundaryCodes(resources, messageObject, boundaryCodes, sheetName);
-    logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
-    var boundaryWithProject: any = {};
-    await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
-    logger.info("boundaryWithProject : " + JSON.stringify(boundaryWithProject));
-    const projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
-    logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
-    logger.info("projectMapping started ");
-    const projectMappingResponse: any = await createCampaignService(projectMappingBody);
-    logger.info("Project Mapping Response received");
-    if (projectMappingResponse) {
-        logger.info("Campaign Mapping done")
-        messageObject.CampaignDetails.status = campaignStatuses.inprogress
-        produceModifiedMessages(messageObject, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
-    }
+    await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.completed)
+    await createCampaignService(projectMappingBody);
 }
 
 async function searchResourceDetailsById(resourceDetailId: string, messageObject: any) {
@@ -289,42 +294,144 @@ async function processCampaignMapping(messageObject: any) {
         logger.info("Campaign Already In Progress and Mapped");
     }
     else {
-        var completedResources: any = []
-        var resources = [];
-        for (const resourceDetailId of resourceDetailsIds) {
-            var retry = 75;
-            while (retry--) {
-                const response = await searchResourceDetailsById(resourceDetailId, messageObject);
-                logger.info(`response for resourceDetailId: ${resourceDetailId}`);
-                logger.debug(` response : ${getFormattedStringForDebug(response)}`)
-                if (response?.status == "invalid") {
-                    logger.error(`resource with id ${resourceDetailId} is invalid`);
-                    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
-                    break;
-                }
-                else if (response?.status == resourceDataStatuses.failed) {
-                    logger.error(`resource with id ${resourceDetailId} is ${resourceDataStatuses.failed}`);
-                    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `resource with id ${resourceDetailId} is ${resourceDataStatuses.failed} : with errorlog ${response?.additionalDetails?.error}`);
-                    break;
-                }
-                else if (response?.status == resourceDataStatuses.completed) {
-                    completedResources.push(resourceDetailId);
-                    resources.push(response);
-                    break;
-                }
-                else {
-                    logger.info(`Waiting for 20 seconds for resource with id ${resourceDetailId} on retry ${retry}`);
-                    await new Promise(resolve => setTimeout(resolve, 20000));
+        await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.inprogress);
+        try {
+            var completedResources: any = []
+            var resources = [];
+            for (const resourceDetailId of resourceDetailsIds) {
+                var retry = 75;
+                while (retry--) {
+                    const response = await searchResourceDetailsById(resourceDetailId, messageObject);
+                    logger.info(`response for resourceDetailId: ${resourceDetailId}`);
+                    logger.debug(` response : ${getFormattedStringForDebug(response)}`)
+                    if (response?.status == "invalid") {
+                        logger.error(`resource type ${response?.type} is invalid`);
+                        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Data File for resource type " + response?.type + " is invalid");
+                        break;
+                    }
+                    else if (response?.status == resourceDataStatuses.failed) {
+                        logger.error(`resource type ${response?.type} is ${resourceDataStatuses.failed}`);
+                        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `Resource creation of type ${response?.type} failed : with errorlog ${response?.additionalDetails?.error}`);
+                        break;
+                    }
+                    else if (response?.status == resourceDataStatuses.completed) {
+                        completedResources.push(resourceDetailId);
+                        resources.push(response);
+                        break;
+                    }
+                    else {
+                        logger.info(`Waiting for 20 seconds for resource with id ${resourceDetailId} on retry ${retry}`);
+                        await new Promise(resolve => setTimeout(resolve, 20000));
+                    }
                 }
             }
+            var uncompletedResourceIds = resourceDetailsIds?.filter((x: any) => !completedResources.includes(x));
+            logger.info("uncompletedResourceIds " + JSON.stringify(uncompletedResourceIds));
+            logger.info("completedResources " + JSON.stringify(completedResources));
+            if (uncompletedResourceIds?.length > 0) {
+                throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + JSON.stringify(uncompletedResourceIds) + " is not completed after long wait. Check file");
+            }
+        } catch (error: any) {
+            console.log(error)
+            await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+            throw new Error(error)
         }
-        var uncompletedResourceIds = resourceDetailsIds?.filter((x: any) => !completedResources.includes(x));
-        logger.info("uncompletedResourceIds " + JSON.stringify(uncompletedResourceIds));
-        logger.info("completedResources " + JSON.stringify(completedResources));
-        if (uncompletedResourceIds?.length > 0) {
-            throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + JSON.stringify(uncompletedResourceIds) + " is not validated after long wait. Check file");
-        }
+        await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.completed);
         await fetchAndMap(resources, messageObject);
+    }
+}
+
+export async function handleCampaignMapping(messageObject: any) {
+    try {
+        logger.info("Received a message for campaign mapping");
+        logger.debug("Message Object of campaign mapping: " + getFormattedStringForDebug(messageObject));
+        await processCampaignMapping(messageObject);
+    } catch (error) {
+        logger.error("Error in campaign mapping: " + error);
+        await enrichAndPersistCampaignWithError(messageObject, error);
+    }
+}
+
+export async function handleStaffMapping(mappingArray: any[], campaignId: string, messageObject: any) {
+    await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.inprogress);
+    try {
+        const promises = []
+        logger.debug("Array of staff mapping: " + getFormattedStringForDebug(mappingArray));
+        for (const staffMapping of mappingArray) {
+            const { resource, projectId, resouceBody, tenantId, startDate, endDate } = staffMapping;
+            for (const resourceId of resource?.resourceIds) {
+                promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate))
+            }
+        }
+        await Promise.all(promises);
+    } catch (error: any) {
+        logger.error("Error in staff mapping: " + error);
+        await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+        await enrichAndPersistCampaignWithError(messageObject, error);
+        throw new Error(error)
+    }
+    await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.completed);
+}
+
+export async function handleResourceMapping(mappingArray: any, campaignId: any, messageObject: any) {
+    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.inprogress);
+    try {
+        const promises = []
+        logger.debug("Arrray of resource mapping: " + getFormattedStringForDebug(mappingArray));
+        for (const mapping of mappingArray) {
+            const { resource, projectId, resouceBody, tenantId, startDate, endDate } = mapping;
+            for (const resourceId of resource?.resourceIds) {
+                promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+            }
+        }
+        await Promise.all(promises);
+    } catch (error: any) {
+        logger.error("Error in resource mapping: " + error);
+        await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+        await enrichAndPersistCampaignWithError(messageObject, error);
+        throw new Error(error)
+    }
+    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.completed);
+}
+
+export async function handleFacilityMapping(mappingArray: any, campaignId: any, messageObject: any) {
+    await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.inprogress);
+    try {
+        const promises = []
+        logger.debug("Array of facility mapping: " + getFormattedStringForDebug(mappingArray));
+        for (const mapping of mappingArray) {
+            const { resource, projectId, resouceBody, tenantId } = mapping;
+            for (const resourceId of resource?.resourceIds) {
+                promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
+            }
+        }
+        await Promise.all(promises);
+    } catch (error: any) {
+        logger.error("Error in facility mapping: " + error);
+        await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+        await enrichAndPersistCampaignWithError(messageObject, error);
+        throw new Error(error)
+    }
+    await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.completed);
+}
+
+export async function processMapping(messageObject: any) {
+    try {
+        if (messageObject?.mappingArray && Array.isArray(messageObject?.mappingArray) && messageObject?.mappingArray?.length > 0) {
+            const resourceMappingArray = messageObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "resource");
+            const facilityMappingArray = messageObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "facility");
+            const staffMappingArray = messageObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "staff");
+            await handleResourceMapping(resourceMappingArray, messageObject?.CampaignDetails?.id, messageObject);
+            await handleFacilityMapping(facilityMappingArray, messageObject?.CampaignDetails?.id, messageObject);
+            await handleStaffMapping(staffMappingArray, messageObject?.CampaignDetails?.id, messageObject);
+        }
+        logger.info("Mapping completed successfully for campaign: " + messageObject?.CampaignDetails?.id);
+        messageObject.CampaignDetails.status = campaignStatuses.inprogress
+        produceModifiedMessages(messageObject, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
+        await persistTrack(messageObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed)
+    } catch (error) {
+        logger.error("Error in campaign mapping: " + error);
+        await enrichAndPersistCampaignWithError(messageObject, error);
     }
 }
 

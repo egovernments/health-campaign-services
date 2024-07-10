@@ -540,6 +540,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
         error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error)
     }
     const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    // wait for 2 seconds
+    logger.info(`Waiting for 2 seconds to persist errors`);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     produceModifiedMessages(requestBody, topic);
     await persistTrack(requestBody?.CampaignDetails?.id, processTrackTypes.error, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
     delete requestBody.CampaignDetails.campaignDetails
@@ -1294,40 +1297,46 @@ async function getCodesTarget(request: any, localizationMap?: any) {
 }
 
 async function createProject(request: any, actionUrl: any, localizationMap?: any) {
-    logger.info("Create Projects started for the given Campaign")
-    var { tenantId, boundaries, projectType, projectId } = request?.body?.CampaignDetails;
-    if (boundaries && projectType && !projectId) {
-        await persistTrack(request.body.CampaignDetails.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.inprogress);
-        const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
-        var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse?.filter((types: any) => types?.code == projectType)?.[0]);
-        const projectCreateBody = {
-            RequestInfo: request?.body?.RequestInfo,
-            Projects
-        }
-        await reorderBoundaries(request, localizationMap)
-        boundaries = request?.body?.CampaignDetails?.boundaries;
-        for (const boundary of boundaries) {
-            Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
-            if (request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent) {
-                const parent = request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent
-                await confirmProjectParentCreation(request, request?.body?.boundaryProjectMapping?.[parent]?.projectId)
-                Projects[0].parent = request?.body?.boundaryProjectMapping?.[parent]?.projectId
+    await persistTrack(request.body.CampaignDetails.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.inprogress);
+    try {
+        logger.info("Create Projects started for the given Campaign")
+        var { tenantId, boundaries, projectType, projectId } = request?.body?.CampaignDetails;
+        if (boundaries && projectType && !projectId) {
+            const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
+            var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse?.filter((types: any) => types?.code == projectType)?.[0]);
+            const projectCreateBody = {
+                RequestInfo: request?.body?.RequestInfo,
+                Projects
             }
-            else {
-                Projects[0].parent = null
-            }
-            Projects[0].referenceID = request?.body?.CampaignDetails?.id
-            Projects[0].targets = [
-                {
-                    beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
-                    totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code],
-                    targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]
+            await reorderBoundaries(request, localizationMap)
+            boundaries = request?.body?.CampaignDetails?.boundaries;
+            for (const boundary of boundaries) {
+                Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
+                if (request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent) {
+                    const parent = request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent
+                    await confirmProjectParentCreation(request, request?.body?.boundaryProjectMapping?.[parent]?.projectId)
+                    Projects[0].parent = request?.body?.boundaryProjectMapping?.[parent]?.projectId
                 }
-            ]
-            await projectCreate(projectCreateBody, request)
+                else {
+                    Projects[0].parent = null
+                }
+                Projects[0].referenceID = request?.body?.CampaignDetails?.id
+                Projects[0].targets = [
+                    {
+                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code],
+                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]
+                    }
+                ]
+                await projectCreate(projectCreateBody, request)
+            }
         }
-        await persistTrack(request.body.CampaignDetails.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.completed);
+    } catch (error: any) {
+        console.log(error)
+        await persistTrack(request?.body?.CampaignDetails?.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+        throw new Error(error)
     }
+    await persistTrack(request?.body?.CampaignDetails?.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.completed);
 }
 
 

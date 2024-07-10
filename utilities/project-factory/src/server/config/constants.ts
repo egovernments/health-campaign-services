@@ -33,7 +33,8 @@ export const CONSTANTS: any = {
             CAMPAIGN_NOT_FOUND: "Campaign not found",
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
-            CAMPAIGN_NAME_ERROR: "Campaign name already exists"
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -111,12 +112,16 @@ export const generatedResourceStatuses: any = {
 
 export const processTrackTypes = {
     validation: "validation",
+    triggerResourceCreation: "triggerResourceCreation",
     facilityCreation: "facilityCreation",
-    userCreation: "userCreation",
+    staffCreation: "staffCreation",
     targetAndDeliveryRulesCreation: "targetAndDeliveryRulesCreation",
-    facilityLinkToCamapaign: "facilityLinkToCampaign",
-    campaignStaffCreation: "campaignStaffCreation",
-    campaignResourceCreation: "campaignResourceCreation",
+    confirmingResouceCreation: "confirmingResouceCreation",
+    prepareResourceForMapping: "prepareResourceForMapping",
+    validateMappingResource: "validateMappingResource",
+    staffMapping: "staffMapping",
+    resourceMapping: "resourceMapping",
+    facilityMapping: "facilityMapping",
     campaignCreation: "campaignCreation",
     error: "error"
 }
