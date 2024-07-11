@@ -463,7 +463,14 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const tenantId = request?.query?.tenantId;
-  const schema = await callMdmsTypeSchema(request, tenantId, "facility");
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  let schema: any;
+  if (isSourceMicroplan) {
+    schema = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+  } else {
+    schema = await callMdmsTypeSchema(request, tenantId, "facility");
+  }
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
