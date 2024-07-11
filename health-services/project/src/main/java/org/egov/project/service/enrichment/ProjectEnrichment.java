@@ -1,6 +1,9 @@
 package org.egov.project.service.enrichment;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -9,9 +12,12 @@ import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.Target;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectServiceUtil;
+import org.egov.project.web.models.AncestorProjects;
+import org.egov.project.web.models.DescendantProjects;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,20 +27,28 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static org.egov.project.util.ProjectConstants.PROJECT_PARENT_HIERARCHY_SEPERATOR;
 
 @Service
 @Slf4j
 public class ProjectEnrichment {
 
-    @Autowired
-    private ProjectServiceUtil projectServiceUtil;
+  @Autowired
+  private ProjectConfiguration projectConfiguration;
 
-    @Autowired
-    private IdGenService idGenService;
+  @Autowired
+  private Producer producer;
 
-    @Autowired
-    private ProjectConfiguration config;
+  @Autowired
+  private ProjectServiceUtil projectServiceUtil;
+
+  @Autowired
+  private IdGenService idGenService;
+
+  @Autowired
+  private ProjectConfiguration config;
 
     /* Enrich Project on Create Request */
     public void enrichProjectOnCreate(ProjectRequest request, List<Project> parentProjects) {
@@ -99,12 +113,47 @@ public class ProjectEnrichment {
                 enrichProjectTargetOnUpdate(project, projectFromDB, requestInfo);
                 log.info("Enriched target in update project request");
 
-                //Add new document if id is empty or update lastModifiedTime and lastModifiedBy if id exists
-                enrichProjectDocumentOnUpdate(project, projectFromDB, requestInfo);
-                log.info("Enriched document in update project request");
-            }
-        }
+        //Add new document if id is empty or update lastModifiedTime and lastModifiedBy if id exists
+        enrichProjectDocumentOnUpdate(project, projectFromDB, requestInfo);
+        log.info("Enriched document in update project request");
+
+        enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
+            projectFromDB, requestInfo);
+      }
     }
+  }
+
+  private void enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(
+      Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
+
+    long startDate = projectRequest.getStartDate();
+    long endDate = projectRequest.getEndDate();
+
+    // Update descendants
+    List<Project> descendantProjectsFromDb = projectFromDB.getDescendants();
+    if (descendantProjectsFromDb != null) {
+      for (Project descendant : descendantProjectsFromDb) {
+        descendant.setStartDate(startDate);
+        descendant.setEndDate(endDate);
+      }
+      DescendantProjects descendantProjects = DescendantProjects.builder()
+          .Projects(descendantProjectsFromDb).build();
+      producer.push(projectConfiguration.getUpdateProjectTopic(), descendantProjects);
+    }
+
+    // If you have ancestor projects and need to update them too, you can add similar logic for ancestors
+    List<Project> ancestorProjectsFromDb = projectFromDB.getAncestors();
+    if (ancestorProjectsFromDb != null) {
+      for (Project ancestor : ancestorProjectsFromDb) {
+        ancestor.setStartDate(min(startDate,ancestor.getStartDate()));
+        ancestor.setEndDate(max(endDate,ancestor.getEndDate()));
+      }
+      AncestorProjects ancestorProjects = AncestorProjects.builder()
+          .Projects(ancestorProjectsFromDb) // yourDescendantProjectsList is the List<Project>
+          .build();
+      producer.push(projectConfiguration.getUpdateProjectTopic(), ancestorProjects);
+    }
+  }
 
     /* Enrich Project with id and audit details */
     private void enrichProjectRequestOnCreate(Project projectRequest, RequestInfo requestInfo, List<Project> parentProjects) {
