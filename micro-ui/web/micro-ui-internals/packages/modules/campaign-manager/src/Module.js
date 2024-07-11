@@ -28,6 +28,10 @@ import ConfigureApp from "./pages/employee/ConfigureApp";
 import SideEffects from "./components/ConfigureApp/SideEffect";
 import SideEffectType from "./components/ConfigureApp/SideEffectType";
 import { DSSCard } from "./components/DSSCard";
+import UpdateDatesWithBoundaries from "./pages/employee/UpdateDatesWithBoundaries";
+import DateWithBoundary from "./components/DateWithBoundary";
+import BoundaryWithDate from "./components/BoundaryWithDate";
+import DateAndCycleUpdate from "./pages/employee/DateAndCycleUpdate";
 
 /**
  * The CampaignModule function fetches store data based on state code, module code, and language, and
@@ -90,6 +94,10 @@ const componentsToRegister = {
   SideEffects,
   SideEffectType,
   DSSCard,
+  UpdateDatesWithBoundaries,
+  DateWithBoundary,
+  BoundaryWithDate,
+  DateAndCycleUpdate
 };
 
 const overrideHooks = () => {

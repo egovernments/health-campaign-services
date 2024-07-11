@@ -245,6 +245,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const isDraft = searchParams.get("draft");
   const isSkip = searchParams.get("skip");
   const keyParam = searchParams.get("key");
+  const isChangeDates = searchParams.get("changeDates");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
@@ -577,7 +578,66 @@ const SetupCampaign = ({ hierarchyType }) => {
   //API CALL
   useEffect(async () => {
     if (shouldUpdate === true) {
-      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall && !id) {
+      if (isChangeDates === "true") {
+        const reqCreate = async () => {
+          let payloadData = { ...draftData };
+          payloadData.hierarchyType = hierarchyType;
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
+            payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+              : null;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) {
+            payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+              : null;
+          }
+          payloadData.tenantId = tenantId;
+          payloadData.action = "changeDates";
+          if (totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure) {
+            payloadData.additionalDetails.cycleData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+          } else {
+            payloadData.additionalDetails.cycleData = {};
+          }
+          if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+            const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+            payloadData.deliveryRules = temp;
+          } else {
+            payloadData.deliveryRules = [];
+          }
+          if (!payloadData?.startDate && !payloadData?.endDate) {
+            delete payloadData?.startDate;
+            delete payloadData?.endDate;
+          }
+          if (compareIdentical(draftData, payloadData) === false) {
+            await updateCampaign(payloadData, {
+              onError: (error, variables) => {
+                console.log(error);
+                if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.mandatoryOnAPI) {
+                  setShowToast({ key: "error", label: error?.message ? error?.message : error });
+                }
+              },
+              onSuccess: async (data) => {
+                updateUrlParams({ id: data?.CampaignDetails?.id });
+                draftRefetch();
+                if (currentKey == 5) {
+                  setCurrentKey(10);
+                } else {
+                  setCurrentKey(currentKey + 1);
+                }
+              },
+            });
+          } else {
+            if (currentKey == 5) {
+              setCurrentKey(10);
+            } else {
+              setCurrentKey(currentKey + 1);
+            }
+          }
+        };
+
+        reqCreate();
+      } else if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall && !id) {
         return;
       } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
@@ -1291,6 +1351,9 @@ const SetupCampaign = ({ hierarchyType }) => {
     ) {
       setShouldUpdate(true);
     }
+    if (isChangeDates === "true" && currentKey == 5) {
+      setCurrentKey(10);
+    }
 
     if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);
@@ -1463,13 +1526,23 @@ const SetupCampaign = ({ hierarchyType }) => {
         })}
         onSubmit={onSubmit}
         showSecondaryLabel={currentKey > 1 ? true : false}
-        secondaryLabel={noAction === "false" ? null : t("HCM_BACK")}
+        secondaryLabel={isChangeDates === "true" && currentKey == 5 ? t("HCM_BACK") : noAction === "false" ? null : t("HCM_BACK")}
         actionClassName={"actionBarClass"}
         className="setup-campaign"
         cardClassName="setup-campaign-card"
         noCardStyle={currentKey === 4 || currentStep === 7 || currentStep === 0 ? false : true}
         onSecondayActionClick={onSecondayActionClick}
-        label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
+        label={
+          isChangeDates === "true" && currentKey == 10
+            ? t("HCM_UPDATE_DATE")
+            : isChangeDates === "true"
+            ? t("HCM_UPDATE")
+            : noAction === "false"
+            ? null
+            : filteredConfig?.[0]?.form?.[0]?.isLast === true
+            ? t("HCM_SUBMIT")
+            : t("HCM_NEXT")
+        }
       />
       {showToast && (
         <Toast

@@ -175,7 +175,6 @@ const DynamicDSSCard = () => {
       link: "/digit-ui/employee/utilities/iframe/elastic/district?query=true"
     })
     links = [...links, ...generateLinks("district","DISTRICT_SUPERVISOR")]
-    console.log(links)
   }
   else if(isHealthFacilitySupervisor){
     links.push({

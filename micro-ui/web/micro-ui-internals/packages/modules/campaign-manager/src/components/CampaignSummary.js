@@ -141,6 +141,7 @@ const CampaignSummary = (props) => {
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const noAction = searchParams.get("action");
+  const isChangeDates = searchParams.get("changeDates");
   const [showToast, setShowToast] = useState(null);
   const [userCredential, setUserCredential] = useState(null);
   const [deliveryErrors, setDeliveryErrors] = useState(null);
@@ -225,12 +226,29 @@ const CampaignSummary = (props) => {
                 {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                  cardSecondaryAction: noAction !== "false" && (
-                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
-                      <span>{t(`CAMPAIGN_EDIT`)}</span>
-                      <EditIcon />
-                    </div>
-                  ),
+                  cardSecondaryAction:
+                    isChangeDates === "true" ? (
+                      <div
+                        className="campaign-preview-edit-container"
+                        onClick={() =>
+                          history.push(`/${window.contextPath}/employee/campaign/update-dates-boundary?id=${id}`, {
+                            name: data?.[0]?.campaignName,
+                            projectId: data?.[0]?.projectId,
+                            data: data?.[0],
+                          })
+                        }
+                      >
+                        <span>{t(`CAMPAIGN_UPDATE_DATES`)}</span>
+                        <EditIcon />
+                      </div>
+                    ) : (
+                      noAction !== "false" && (
+                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
+                          <span>{t(`CAMPAIGN_EDIT`)}</span>
+                          <EditIcon />
+                        </div>
+                      )
+                    ),
                   values: [
                     {
                       key: "CAMPAIGN_TYPE",
@@ -353,15 +371,15 @@ const CampaignSummary = (props) => {
                       key: "CAMPAIGN_NO_OF_CYCLES",
                       value:
                         data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.cycleNumber)?.length > 0
-                        ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.cycleNumber))
-                        : t("CAMPAIGN_SUMMARY_NA"),
+                          ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.cycleNumber))
+                          : t("CAMPAIGN_SUMMARY_NA"),
                     },
                     {
                       key: "CAMPAIGN_NO_OF_DELIVERIES",
                       value:
                         data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.deliveryNumber)?.length > 0
-                        ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.deliveryNumber))
-                        : t("CAMPAIGN_SUMMARY_NA"),
+                          ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.deliveryNumber))
+                          : t("CAMPAIGN_SUMMARY_NA"),
                     },
                   ],
                 },

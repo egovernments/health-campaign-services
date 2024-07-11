@@ -1,7 +1,7 @@
 import { Link, useHistory } from "react-router-dom";
 import _ from "lodash";
 import React from "react";
-
+import { Button } from "@egovernments/digit-ui-components";
 //create functions here based on module name set in mdms(eg->SearchProjectConfig)
 //how to call these -> Digit?.Customizations?.[masterName]?.[moduleName]
 // these functions will act as middlewares
@@ -10,6 +10,27 @@ import React from "react";
 const businessServiceMap = {};
 
 const inboxModuleNameMap = {};
+
+const onActionSelect = (value, row) => {
+  switch (value?.code) {
+    case "ACTION_LABEL_UPDATE_DATES":
+      window.history.pushState(
+        {
+          name: row?.campaignName,
+          data: row,
+          projectId: row?.projectId,
+        },
+        "",
+        `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
+      );
+      window.location.href = `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`;
+
+      break;
+    default:
+      console.log(value);
+      break;
+  }
+};
 
 export const UICustomizations = {
   MyCampaignConfigOngoing: {
@@ -91,6 +112,20 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <Button
+              className="campaign-action-button"
+              type="actionButton"
+              variation="secondary"
+              label={"Action"}
+              options={[{ code: "ACTION_LABEL_VIEW_TIMELINE" }, { code: "ACTION_LABEL_CONFIGURE_APP" }, { code: "ACTION_LABEL_UPDATE_DATES" }]}
+              optionsKey="code"
+              showBottom={true}
+              isSearchable={false}
+              onOptionSelect={(item) => onActionSelect(item, row)}
+            />
+          );
         default:
           return "case_not_found";
       }
@@ -274,6 +309,20 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <Button
+              className="campaign-action-button"
+              type="actionButton"
+              variation="secondary"
+              label={"Action"}
+              options={[{ code: "ACTION_LABEL_VIEW_TIMELINE" }, { code: "ACTION_LABEL_CONFIGURE_APP" }, { code: "ACTION_LABEL_UPDATE_DATES" }]}
+              optionsKey="code"
+              showBottom={true}
+              isSearchable={false}
+              onOptionSelect={(item) => onActionSelect(item, row)}
+            />
+          );
         default:
           return "case_not_found";
       }

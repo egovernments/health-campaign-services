@@ -20,6 +20,7 @@ const MyCampaign = () => {
   const tenant = Digit.ULBService.getStateId();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [config, setConfig] = useState(myCampaignConfig?.myCampaignConfig?.[0]);
+  const changeDatesEnabled = true;
   const [tabData, setTabData] = useState(
     myCampaignConfig?.myCampaignConfig?.map((configItem, index) => ({ key: index, label: configItem.label, active: index === 0 ? true : false }))
   );
@@ -44,7 +45,10 @@ const MyCampaign = () => {
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
         break;
       case "CAMPAIGN_UPCOMING":
-        history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`);
+        const changeDates = row?.status === "created" && changeDatesEnabled ? true : false;
+        history.push(
+          `/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}&changeDates=${changeDates}`
+        );
         break;
       case "CAMPAIGN_DRAFTS":
         history.push(`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}&fetchBoundary=${true}&draftBoundary=${true}`);

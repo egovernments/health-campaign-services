@@ -57,6 +57,7 @@ const App = ({ path, BOUNDARY_HIERARCHY_TYPE }) => {
   const CampaignSummary = Digit?.ComponentRegistryService?.getComponent("CampaignSummary");
   const Response = Digit?.ComponentRegistryService?.getComponent("Response");
   const AddProduct = Digit?.ComponentRegistryService?.getComponent("AddProduct");
+  const UpdateDatesWithBoundaries = Digit?.ComponentRegistryService?.getComponent("UpdateDatesWithBoundaries");
 
   useEffect(() => {
     if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
@@ -95,6 +96,7 @@ const App = ({ path, BOUNDARY_HIERARCHY_TYPE }) => {
           <PrivateRoute path={`${path}/selecting-boundary`} component={() => <SelectingBoundaries />} />
           <PrivateRoute path={`${path}/add-product`} component={() => <AddProduct />} />
           <PrivateRoute path={`${path}/configure-app`} component={() => <ConfigureApp />} />
+          <PrivateRoute path={`${path}/update-dates-boundary`} component={() => <UpdateDatesWithBoundaries />} />
         </AppContainer>
       </Switch>
     </React.Fragment>
