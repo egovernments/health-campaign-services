@@ -119,18 +119,21 @@ public class ProjectEnrichment {
         enrichProjectDocumentOnUpdate(project, projectFromDB, requestInfo);
         log.info("Enriched document in update project request");
 
-        // update project's descendant and ancestor project dates when updated the start and end date of given project
-        enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
-            projectFromDB, requestInfo);
       }
     }
   }
 
+
+  public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB)
+  {
+    enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
+            projectFromDB);
+  }
+
   private void enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(
-      Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
+      Project projectRequest, Project projectFromDB) {
     long startDate = projectRequest.getStartDate();
     long endDate = projectRequest.getEndDate();
-
     updateDescendantProjects(projectRequest, projectFromDB, startDate, endDate);
     updateAncestorProjects(projectRequest, projectFromDB, startDate, endDate);
   }
