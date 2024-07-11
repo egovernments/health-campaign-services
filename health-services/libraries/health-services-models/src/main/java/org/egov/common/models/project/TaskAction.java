@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum TaskAction {
     CLOSED_HOUSEHOLD("CLOSED_HOUSEHOLD"),
-    STAFF_ACTIVITY("STAFF_ACTIVITY"),
+    LOCATION_CAPTURE("LOCATION_CAPTURE"),
     OTHER("OTHER");
 
     private String value;

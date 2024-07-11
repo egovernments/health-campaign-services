@@ -56,4 +56,6 @@ public interface Constants {
 
     String TASK_QUANTITY = "taskQuantity";
 
+    String HOUSEHOLD_ID = "HouseholdId";
+
 }

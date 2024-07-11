@@ -1,7 +1,5 @@
 package org.egov.project.web.controllers;
 
-import java.util.List;
-
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -17,7 +15,7 @@ import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.ProjectTaskService;
+import org.egov.project.service.ClosedHouseholdTaskService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -34,7 +32,7 @@ public class ClosedHouseholdController {
 
     private final HttpServletRequest httpServletRequest;
 
-    private final ProjectTaskService projectTaskService;
+    private final ClosedHouseholdTaskService closedHouseholdTaskService;
     
     private final Producer producer;
 
@@ -42,13 +40,13 @@ public class ClosedHouseholdController {
 
 
     public ClosedHouseholdController(
-            HttpServletRequest httpServletRequest,
-            ProjectTaskService projectTaskService,
+            HttpServletRequest httpServletRequest, 
+            ClosedHouseholdTaskService closedHouseholdTaskService,
             Producer producer,
             ProjectConfiguration projectConfiguration
     ) {
         this.httpServletRequest = httpServletRequest;
-        this.projectTaskService = projectTaskService;
+        this.closedHouseholdTaskService = closedHouseholdTaskService;
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
     }
@@ -56,7 +54,7 @@ public class ClosedHouseholdController {
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> closedHouseholdTaskV1CreatePost(@ApiParam(value = "Capture linkage of Project and Closed Household Task.", required = true) @Valid @RequestBody TaskRequest request) {
 
-        Task task = projectTaskService.create(request);
+        Task task = closedHouseholdTaskService.create(request);
         TaskResponse response = TaskResponse.builder()
                 .task(task)
                 .responseInfo(ResponseInfoFactory
@@ -80,7 +78,7 @@ public class ClosedHouseholdController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project Closed Household Task.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest
     ) throws Exception {
-        SearchResponse<Task> tasks = projectTaskService.search(
+        SearchResponse<Task> tasks = closedHouseholdTaskService.search(
                 taskSearchRequest.getTask(),
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -101,7 +99,7 @@ public class ClosedHouseholdController {
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> closedHouseholdTaskV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Closed Household Task.", required = true) @Valid @RequestBody TaskRequest closedHouseholdTaskUpdateRequest) {
 
-        Task task = projectTaskService.update(closedHouseholdTaskUpdateRequest);
+        Task task = closedHouseholdTaskService.update(closedHouseholdTaskUpdateRequest);
         TaskResponse response = TaskResponse.builder()
                 .task(task)
                 .responseInfo(ResponseInfoFactory
@@ -123,7 +121,7 @@ public class ClosedHouseholdController {
     @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> closedHouseholdTaskV1DeletePost(@ApiParam(value = "Capture linkage of Project and Closed Household Task.", required = true) @Valid @RequestBody TaskRequest closedHouseholdTaskUpdateRequest) {
 
-        Task tasks = projectTaskService.delete(closedHouseholdTaskUpdateRequest);
+        Task tasks = closedHouseholdTaskService.delete(closedHouseholdTaskUpdateRequest);
         TaskResponse response = TaskResponse.builder()
                 .task(tasks)
                 .responseInfo(ResponseInfoFactory
