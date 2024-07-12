@@ -177,14 +177,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   }, [uploadedFile]);
 
   useEffect(async () => {
-    if (Schemas) {
-      const facility = await convertIntoSchema(Schemas?.filter((item) => item.title === "facility" && item.campaignType === "all")?.[0]);
+    if (Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
+      const facility = await convertIntoSchema(Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility" && item.campaignType === "all")?.[0]);
       const boundary = await convertIntoSchema(
-        Schemas?.filter(
+        Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
           (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
         )?.[0]
       );
-      const user = await convertIntoSchema(Schemas?.filter((item) => item.title === "user" && item.campaignType === "all")?.[0]);
+      const user = await convertIntoSchema(Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user" && item.campaignType === "all")?.[0]);
       const schema = {
         boundary: boundary,
         facilityWithBoundary: facility,
