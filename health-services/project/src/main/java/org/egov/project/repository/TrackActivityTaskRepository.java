@@ -1,7 +1,6 @@
 package org.egov.project.repository;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +15,6 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskResource;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.CommonUtils;
@@ -28,7 +26,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
@@ -37,24 +34,25 @@ public class TrackActivityTaskRepository extends GenericRepository<Task> {
 
     @Autowired
     protected TrackActivityTaskRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder, TrackActivityTaskRowMapper rowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("staff_activity"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("LOCATION_TRACKING"));
     }
 
     public SearchResponse<Task> find(TaskSearch searchObject, Integer limit, Integer offset, String tenantId,
                                      Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM staff_activity sa  LEFT JOIN address a ON sa.addressid = a.id";
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM LOCATION_TRACKING lt  LEFT JOIN address a ON lt.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id IN (:id)", "sa.id IN (:id)");
-        query = query.replace("clientReferenceId IN (:clientReferenceId)", "sa.clientReferenceId IN (:clientReferenceId)");
+        query = query.replace("id IN (:id)", "lt.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "lt.clientReferenceId IN (:clientReferenceId)");
 
         if(CollectionUtils.isEmpty(whereFields)) {
-            query = query + " where sa.tenantId=:tenantId ";
+            query = query + " where lt.tenantId=:tenantId ";
         } else {
-            query = query + " and sa.tenantId=:tenantId ";
+            query = query + " and lt.tenantId=:tenantId ";
         }
+
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";
         }
@@ -68,7 +66,7 @@ public class TrackActivityTaskRepository extends GenericRepository<Task> {
 
         Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        query = query + "ORDER BY sa.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY lt.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
@@ -94,9 +92,9 @@ public class TrackActivityTaskRepository extends GenericRepository<Task> {
             }
         }
 
-        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM staff_activity sa LEFT JOIN address a ON sa.addressid = a.id WHERE sa.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM LOCATION_TRACKING lt LEFT JOIN address a ON lt.addressid = a.id WHERE lt.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM staff_activity sa LEFT JOIN address a ON sa.addressid = a.id  WHERE sa.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM LOCATION_TRACKING lt LEFT JOIN address a ON lt.addressid = a.id  WHERE lt.%s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);

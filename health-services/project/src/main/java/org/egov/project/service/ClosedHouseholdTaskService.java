@@ -56,8 +56,6 @@ public class ClosedHouseholdTaskService {
 
     private final ServiceRequestClient serviceRequestClient;
 
-    private final ClosedHouseholdTaskService closedHouseholdTaskService;
-
     private final ProjectConfiguration projectConfiguration;
 
     private final ProjectTaskEnrichmentService enrichmentService;
@@ -81,18 +79,24 @@ public class ClosedHouseholdTaskService {
                     || validator.getClass().equals(PtNonExistentEntityValidator.class);
 
     @Autowired
-    public ClosedHouseholdTaskService(IdGenService idGenService, ClosedHouseholdTaskRepository closedHouseholdTaskRepository, ServiceRequestClient serviceRequestClient, ClosedHouseholdTaskService closedHouseholdTaskService, ProjectConfiguration projectConfiguration, ProjectTaskEnrichmentService enrichmentService, List<Validator<TaskBulkRequest, Task>> validators) {
+    public ClosedHouseholdTaskService(
+            IdGenService idGenService,
+            ClosedHouseholdTaskRepository closedHouseholdTaskRepository,
+            ServiceRequestClient serviceRequestClient,
+            ProjectConfiguration projectConfiguration,
+            ProjectTaskEnrichmentService enrichmentService,
+            List<Validator<TaskBulkRequest, Task>> validators
+    ) {
         this.idGenService = idGenService;
         this.closedHouseholdTaskRepository = closedHouseholdTaskRepository;
         this.serviceRequestClient = serviceRequestClient;
-        this.closedHouseholdTaskService = closedHouseholdTaskService;
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
         this.validators = validators;
     }
 
     public Task create(TaskRequest request) {
-        log.info("received request to create tasks");
+        log.info("received request to create closed household task");
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
         log.info("creating bulk request");
@@ -102,9 +106,7 @@ public class ClosedHouseholdTaskService {
 
     public List<Task> create(TaskBulkRequest request, boolean isBulk) {
         log.info("received request to create bulk closed household tasks");
-        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request,
-                isBulk);
+        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
         Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Task> validTasks = tuple.getX();
         try {
@@ -134,9 +136,7 @@ public class ClosedHouseholdTaskService {
 
     public List<Task> update(TaskBulkRequest request, boolean isBulk) {
         log.info("received request to update bulk closed household tasks");
-        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request,
-                isBulk);
+        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators, isApplicableForUpdate, request, isBulk);
         Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Task> validTasks = tuple.getX();
         try {
@@ -236,11 +236,4 @@ public class ClosedHouseholdTaskService {
         closedHouseholdTaskRepository.putInCache(tasks);
         log.info("successfully put closed household tasks in cache");
     }
-
-
-
-
-
-
-
 }

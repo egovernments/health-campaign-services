@@ -20,12 +20,6 @@ CREATE TABLE IF NOT EXISTS LOCATION_TRACKING (
     CONSTRAINT uq_location_tracking_clientReferenceId UNIQUE (clientReferenceId)
 );
 
-CREATE INDEX IF NOT EXISTS idx_location_tracking_projectId ON LOCATION_TRACKING (projectId)
-CREATE INDEX IF NOT EXISTS idx_location_tracking_clientReferenceId ON LOCATION_TRACKING (clientReferenceId)
-CREATE INDEX IF NOT EXISTS idx_location_tracking_clientCreatedBy ON LOCATION_TRACKING (clientCreatedBy)
-CREATE INDEX IF NOT EXISTS idx_location_tracking_status ON LOCATION_TRACKING (status)
-
-
 CREATE TABLE IF NOT EXISTS LOCATION_POINTS (
     id                      CHARACTER VARYING(64),
     locationTrackingId      CHARACTER VARYING(64),
@@ -45,5 +39,10 @@ CREATE TABLE IF NOT EXISTS LOCATION_POINTS (
         REFERENCES LOCATION_TRACKING(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_location_points_locationTrackingId ON LOCATION_POINTS (locationTrackingId)
-CREATE INDEX IF NOT EXISTS idx_location_points_clientCreatedBy ON LOCATION_POINTS (clientCreatedBy)
+CREATE INDEX IF NOT EXISTS idx_location_tracking_projectId ON LOCATION_TRACKING (projectId);
+CREATE INDEX IF NOT EXISTS idx_location_tracking_clientReferenceId ON LOCATION_TRACKING (clientReferenceId);
+CREATE INDEX IF NOT EXISTS idx_location_tracking_clientCreatedBy ON LOCATION_TRACKING (clientCreatedBy);
+CREATE INDEX IF NOT EXISTS idx_location_tracking_status ON LOCATION_TRACKING (status);
+
+CREATE INDEX IF NOT EXISTS idx_location_points_locationTrackingId ON LOCATION_POINTS (locationTrackingId);
+CREATE INDEX IF NOT EXISTS idx_location_points_clientCreatedBy ON LOCATION_POINTS (clientCreatedBy);

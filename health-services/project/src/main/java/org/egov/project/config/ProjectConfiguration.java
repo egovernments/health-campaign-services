@@ -228,4 +228,10 @@ public class ProjectConfiguration {
     @Value("${project.task.track.activity.consumer.bulk.delete.topic}")
     private String bulkDeleteTrackActivityTaskTopic;
 
+    @Value("${project.task.track.activity.location.point.consumer.bulk.create.topic}")
+    private String bulkCreateTrackActivityTaskLocationPointTopic;
+
+    @Value("${project.task.track.activity.location.point.kafka.create.topic}")
+    private String createTrackActivityTaskLocationPointTopic;
+
 }
