@@ -643,7 +643,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   addDataToSheet(facilitySheet, facilitySheetData, undefined, undefined, true);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
-  handledropdownthings(facilitySheet, request.body?.dropdowns);
+  await handledropdownthings(facilitySheet, request.body?.dropdowns);
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
@@ -706,7 +706,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
-  handledropdownthings(userSheet, request.body?.dropdowns);
+  await handledropdownthings(userSheet, request.body?.dropdowns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
