@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS CLOSED_HOUSEHOLD (
     clientLastModifiedBy                character varying(64),
     rowVersion                          bigint,
     isDeleted                           boolean,
+    action                              CHARACTER VARYING(256),
     CONSTRAINT uk_closed_household_id PRIMARY KEY (id),
     CONSTRAINT uk_closed_household_clientReference_id UNIQUE (clientReferenceId)
 );

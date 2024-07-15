@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
+import org.egov.common.models.project.TaskAction;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
@@ -23,23 +24,25 @@ public class LocationPoint extends EgovOfflineModel {
     @JsonProperty("latitude")
     @DecimalMin("-90")
     @DecimalMax("90")
-    private Double latitude = null;
+    private Double latitude;
 
     @JsonProperty("longitude")
     @DecimalMin("-180")
     @DecimalMax("180")
-    private Double longitude = null;
+    private Double longitude;
 
     @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-    private Double locationAccuracy = null;
+    private Double locationAccuracy;
 
-    @JsonProperty("locationTrackingId")
-    @Size(min = 2, max = 64)
-    private String locationTrackingId = null;
+    @JsonProperty("boundaryCode")
+    private String boundaryCode;
 
-    @JsonProperty("locationTrackingClientReferenceId")
+    @JsonProperty("projectId")
     @Size(min = 2, max = 64)
-    private String locationTrackingClientReferenceId = null;
+    private String projectId;
+
+    @JsonProperty("action")
+    private TaskAction action;
 
 }
