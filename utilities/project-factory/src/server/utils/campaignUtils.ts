@@ -1402,6 +1402,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             mainSheet.columns = columnWidths.map(width => ({ width }));
             // mainSheetData.forEach(row => mainSheet.addRow(row));
             addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30, false, true);
+            mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
         await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy);
