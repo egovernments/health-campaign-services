@@ -13,7 +13,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.project.Task;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -34,14 +33,15 @@ public class LocationPointBulkRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Tasks")
+    @JsonProperty("LocationPoints")
     @NotNull
     @Valid
     @Size(min=1)
-    private List<Task> tasks = new ArrayList<>();
+    @Builder.Default
+    private List<LocationPoint> locationPoints = new ArrayList<>();
 
-    public LocationPointBulkRequest addTaskItem(Task taskItem) {
-        this.tasks.add(taskItem);
+    public LocationPointBulkRequest addTaskItem(LocationPoint locationPoint) {
+        this.locationPoints.add(locationPoint);
         return this;
     }
 }

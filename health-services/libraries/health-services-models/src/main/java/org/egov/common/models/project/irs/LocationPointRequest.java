@@ -30,9 +30,9 @@ public class LocationPointRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Task")
+    @JsonProperty("LocationPoint")
     @NotNull
     @Valid
-    private Task task = null;
+    private LocationPoint locationPoint = null;
 }
 

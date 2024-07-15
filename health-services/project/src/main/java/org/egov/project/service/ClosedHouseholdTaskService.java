@@ -113,7 +113,7 @@ public class ClosedHouseholdTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
+                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getCreateClosedHouseholdTaskTopic());
                 log.info("successfully created closed household tasks");
             }
         } catch (Exception exception) {
@@ -143,7 +143,7 @@ public class ClosedHouseholdTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
+                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getUpdateClosedHouseholdTaskTopic());
                 log.info("successfully updated bulk closed household tasks");
             }
         } catch (Exception exception) {
@@ -174,7 +174,7 @@ public class ClosedHouseholdTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
+                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getDeleteClosedHouseholdTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));

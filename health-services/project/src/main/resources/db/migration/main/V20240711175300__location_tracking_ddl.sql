@@ -20,20 +20,21 @@ CREATE TABLE IF NOT EXISTS LOCATION_TRACKING (
     CONSTRAINT uq_location_tracking_clientReferenceId UNIQUE (clientReferenceId)
 );
 
-CREATE TABLE IF NOT EXISTS LOCATION_POINTS (
-    id                      CHARACTER VARYING(64),
-    locationTrackingId      CHARACTER VARYING(64),
-    latitude                DOUBLE PRECISION,
-    longitude               DOUBLE PRECISION,
-    locationAccuracy        INTEGER,
-    createdBy               CHARACTER VARYING(64),
-    createdTime             BIGINT,
-    lastModifiedBy          CHARACTER VARYING(64),
-    lastModifiedTime        BIGINT,
-    clientCreatedTime       BIGINT,
-    clientLastModifiedTime  BIGINT,
-    clientCreatedBy         CHARACTER VARYING(64),
-    clientLastModifiedBy    CHARACTER VARYING(64),
+CREATE TABLE IF NOT EXISTS LOCATION_POINT (
+    id                                  CHARACTER VARYING(64),
+    locationTrackingId                  CHARACTER VARYING(64),
+    locationTrackingClientReferenceId   CHARACTER VARYING(64),
+    latitude                            DOUBLE PRECISION,
+    longitude                           DOUBLE PRECISION,
+    locationAccuracy                    INTEGER,
+    createdBy                           CHARACTER VARYING(64),
+    createdTime                         BIGINT,
+    lastModifiedBy                      CHARACTER VARYING(64),
+    lastModifiedTime                    BIGINT,
+    clientCreatedTime                   BIGINT,
+    clientLastModifiedTime              BIGINT,
+    clientCreatedBy                     CHARACTER VARYING(64),
+    clientLastModifiedBy                CHARACTER VARYING(64),
     CONSTRAINT pk_location_points PRIMARY KEY (id),
     CONSTRAINT fk_location_points FOREIGN KEY (locationTrackingId)
         REFERENCES LOCATION_TRACKING(id) ON DELETE CASCADE

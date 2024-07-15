@@ -144,9 +144,11 @@ public class TrackActivityController {
     }
 
     @RequestMapping(value = "/location-point/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> trackActivityLocationPointV1BulkCreatePost(@ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody LocationPointBulkRequest request) {
+    public ResponseEntity<ResponseInfo> trackActivityLocationPointV1BulkCreatePost(
+            @ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody LocationPointBulkRequest request
+    ) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getBulkCreateTrackActivityTaskTopic(), request);
+        producer.push(projectConfiguration.getBulkCreateTrackActivityTaskLocationPointTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

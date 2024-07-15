@@ -17,10 +17,13 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskRequest;
 import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.project.irs.LocationPoint;
+import org.egov.common.models.project.irs.LocationPointBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
+import org.egov.project.repository.LocationPointRepository;
 import org.egov.project.repository.TrackActivityTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.egov.project.validator.task.PtExistentEntityValidator;
@@ -54,6 +57,8 @@ public class TrackActivityTaskService {
 
     private final TrackActivityTaskRepository trackActivityTaskRepository;
 
+    private final LocationPointRepository locationPointRepository;
+
     private final ServiceRequestClient serviceRequestClient;
 
     private final ProjectConfiguration projectConfiguration;
@@ -81,6 +86,7 @@ public class TrackActivityTaskService {
     public TrackActivityTaskService(
             IdGenService idGenService,
             TrackActivityTaskRepository trackActivityTaskRepository,
+            LocationPointRepository locationPointRepository,
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
             ProjectTaskEnrichmentService enrichmentService,
@@ -88,6 +94,7 @@ public class TrackActivityTaskService {
     ) {
         this.idGenService = idGenService;
         this.trackActivityTaskRepository = trackActivityTaskRepository;
+        this.locationPointRepository = locationPointRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
@@ -112,7 +119,7 @@ public class TrackActivityTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                trackActivityTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
+                trackActivityTaskRepository.save(validTasks, projectConfiguration.getCreateTrackActivityTaskTopic());
                 log.info("successfully created location tracking tasks");
             }
         } catch (Exception exception) {
@@ -144,7 +151,7 @@ public class TrackActivityTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                trackActivityTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
+                trackActivityTaskRepository.save(validTasks, projectConfiguration.getUpdateTrackActivityTaskTopic());
                 log.info("successfully updated bulk location tracking tasks");
             }
         } catch (Exception exception) {
@@ -175,7 +182,7 @@ public class TrackActivityTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                trackActivityTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
+                trackActivityTaskRepository.save(validTasks, projectConfiguration.getDeleteTrackActivityTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
@@ -236,5 +243,20 @@ public class TrackActivityTaskService {
         log.info("putting {} location tracking tasks in cache", tasks.size());
         trackActivityTaskRepository.putInCache(tasks);
         log.info("successfully put location tracking tasks in cache");
+    }
+
+    public List<LocationPoint> createLocationPoints(LocationPointBulkRequest request, boolean bulk) {
+        List<LocationPoint> validEntities = request.getLocationPoints();
+
+        try {
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                locationPointRepository.save(validEntities, projectConfiguration.getCreateTrackActivityTaskLocationPointTopic());
+            }
+        } catch (Exception exception) {
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
+        }
+
+        return validEntities;
     }
 }

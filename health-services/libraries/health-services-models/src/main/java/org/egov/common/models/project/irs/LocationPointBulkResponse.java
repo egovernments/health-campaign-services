@@ -12,7 +12,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.project.Task;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -38,16 +37,16 @@ public class LocationPointBulkResponse {
     @Builder.Default
     private Long totalCount = 0L;
 
-    @JsonProperty("Tasks")
+    @JsonProperty("LocationPoints")
     @NotNull
     @Valid
-    private List<Task> tasks = null;
+    private List<LocationPoint> locationPoints = null;
 
-    public LocationPointBulkResponse addIndividualItem(Task taskItem) {
-        if (this.tasks == null) {
-            this.tasks = new ArrayList<>();
+    public LocationPointBulkResponse addIndividualItem(LocationPoint locationPointItem) {
+        if (this.locationPoints == null) {
+            this.locationPoints = new ArrayList<>();
         }
-        this.tasks.add(taskItem);
+        this.locationPoints.add(locationPointItem);
         return this;
     }
 
