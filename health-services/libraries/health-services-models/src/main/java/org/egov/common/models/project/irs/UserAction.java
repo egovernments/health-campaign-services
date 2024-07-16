@@ -19,7 +19,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class LocationPoint extends EgovOfflineModel {
+public class UserAction extends EgovOfflineModel {
 
     @JsonProperty("latitude")
     @DecimalMin("-90")
@@ -44,5 +44,11 @@ public class LocationPoint extends EgovOfflineModel {
 
     @JsonProperty("action")
     private TaskAction action;
+
+    @JsonProperty("beneficiaryTag")
+    private String beneficiaryTag;
+
+    @JsonProperty("resourceTag")
+    private String resourceTag;
 
 }

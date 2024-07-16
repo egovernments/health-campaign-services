@@ -209,29 +209,29 @@ public class ProjectConfiguration {
     @Value("${project.task.closed.household.consumer.bulk.delete.topic}")
     private String bulkDeleteClosedHouseholdTaskTopic;
 
-    // track task activity
-    @Value("${project.task.track.activity.kafka.create.topic}")
-    private String createTrackActivityTaskTopic;
+    // location capture task topics
+//    @Value("${project.task.track.activity.kafka.create.topic}")
+//    private String createTrackActivityTaskTopic;
+//
+//    @Value("${project.task.track.activity.consumer.bulk.create.topic}")
+//    private String bulkCreateTrackActivityTaskTopic;
+//
+//    @Value("${project.task.track.activity.kafka.update.topic}")
+//    private String updateTrackActivityTaskTopic;
+//
+//    @Value("${project.task.track.activity.consumer.bulk.update.topic}")
+//    private String bulkUpdateTrackActivityTaskTopic;
+//
+//    @Value("${project.task.track.activity.kafka.delete.topic}")
+//    private String deleteTrackActivityTaskTopic;
+//
+//    @Value("${project.task.track.activity.consumer.bulk.delete.topic}")
+//    private String bulkDeleteTrackActivityTaskTopic;
 
-    @Value("${project.task.track.activity.consumer.bulk.create.topic}")
-    private String bulkCreateTrackActivityTaskTopic;
+    @Value("${project.location.capture.task.consumer.bulk.create.topic}")
+    private String bulkCreateTrackActivityTaskLocationCaptureTopic;
 
-    @Value("${project.task.track.activity.kafka.update.topic}")
-    private String updateTrackActivityTaskTopic;
-
-    @Value("${project.task.track.activity.consumer.bulk.update.topic}")
-    private String bulkUpdateTrackActivityTaskTopic;
-
-    @Value("${project.task.track.activity.kafka.delete.topic}")
-    private String deleteTrackActivityTaskTopic;
-
-    @Value("${project.task.track.activity.consumer.bulk.delete.topic}")
-    private String bulkDeleteTrackActivityTaskTopic;
-
-    @Value("${project.task.track.activity.location.point.consumer.bulk.create.topic}")
-    private String bulkCreateTrackActivityTaskLocationPointTopic;
-
-    @Value("${project.task.track.activity.location.point.kafka.create.topic}")
-    private String createTrackActivityTaskLocationPointTopic;
+    @Value("${project.location.capture.task.kafka.create.topic}")
+    private String createLocationCaptureTaskTopic;
 
 }

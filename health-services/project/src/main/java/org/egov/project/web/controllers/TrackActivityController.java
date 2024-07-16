@@ -12,11 +12,11 @@ import org.egov.common.models.project.TaskBulkResponse;
 import org.egov.common.models.project.TaskRequest;
 import org.egov.common.models.project.TaskResponse;
 import org.egov.common.models.project.TaskSearchRequest;
-import org.egov.common.models.project.irs.LocationPointBulkRequest;
+import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.TrackActivityTaskService;
+import org.egov.project.service.LocationCaptureTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +34,7 @@ public class TrackActivityController {
 
     private final HttpServletRequest httpServletRequest;
 
-    private final TrackActivityTaskService trackActivityTaskService;
+    private final LocationCaptureTaskService locationCaptureTaskService;
 
     private final Producer producer;
 
@@ -43,12 +43,12 @@ public class TrackActivityController {
     @Autowired
     public TrackActivityController(
             HttpServletRequest httpServletRequest,
-            TrackActivityTaskService trackActivityTaskService,
+            LocationCaptureTaskService locationCaptureTaskService,
             Producer producer,
             ProjectConfiguration projectConfiguration
     ) {
         this.httpServletRequest = httpServletRequest;
-        this.trackActivityTaskService = trackActivityTaskService;
+        this.locationCaptureTaskService = locationCaptureTaskService;
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
     }
@@ -56,7 +56,7 @@ public class TrackActivityController {
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> trackActivityTaskV1CreatePost(@ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody TaskRequest request) {
 
-        Task task = trackActivityTaskService.create(request);
+        Task task = locationCaptureTaskService.create(request);
         TaskResponse response = TaskResponse.builder()
                 .task(task)
                 .responseInfo(ResponseInfoFactory
@@ -80,7 +80,7 @@ public class TrackActivityController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project Track Activity Task.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest
     ) throws Exception {
-        SearchResponse<Task> tasks = trackActivityTaskService.search(
+        SearchResponse<Task> tasks = locationCaptureTaskService.search(
                 taskSearchRequest.getTask(),
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -101,7 +101,7 @@ public class TrackActivityController {
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> trackActivityTaskV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody TaskRequest trackActivityTaskUpdateRequest) {
 
-        Task task = trackActivityTaskService.update(trackActivityTaskUpdateRequest);
+        Task task = locationCaptureTaskService.update(trackActivityTaskUpdateRequest);
         TaskResponse response = TaskResponse.builder()
                 .task(task)
                 .responseInfo(ResponseInfoFactory
@@ -123,7 +123,7 @@ public class TrackActivityController {
     @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> trackActivityTaskV1DeletePost(@ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody TaskRequest trackActivityTaskUpdateRequest) {
 
-        Task tasks = trackActivityTaskService.delete(trackActivityTaskUpdateRequest);
+        Task tasks = locationCaptureTaskService.delete(trackActivityTaskUpdateRequest);
         TaskResponse response = TaskResponse.builder()
                 .task(tasks)
                 .responseInfo(ResponseInfoFactory
@@ -145,10 +145,10 @@ public class TrackActivityController {
 
     @RequestMapping(value = "/location-point/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> trackActivityLocationPointV1BulkCreatePost(
-            @ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody LocationPointBulkRequest request
+            @ApiParam(value = "Capture linkage of Project and Track Activity Task.", required = true) @Valid @RequestBody LocationCaptureBulkRequest request
     ) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getBulkCreateTrackActivityTaskLocationPointTopic(), request);
+        producer.push(projectConfiguration.getBulkCreateTrackActivityTaskLocationCaptureTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

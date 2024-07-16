@@ -1,0 +1,14 @@
+package org.egov.common.models.project.irs;
+
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.egov.common.models.core.EgovOfflineSearchModel;
+
+public class LocationCaptureSearch extends EgovOfflineSearchModel {
+    @JsonProperty("projectId")
+    private List<String> projectId;
+
+    @JsonProperty("boundaryCode")
+    private List<String> boundaryCode;
+}

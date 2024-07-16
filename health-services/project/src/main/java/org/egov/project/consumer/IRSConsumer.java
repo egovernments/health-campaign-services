@@ -10,10 +10,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskAction;
 import org.egov.common.models.project.TaskBulkRequest;
-import org.egov.common.models.project.irs.LocationPoint;
-import org.egov.common.models.project.irs.LocationPointBulkRequest;
+import org.egov.common.models.project.irs.LocationCapture;
+import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
 import org.egov.project.service.ClosedHouseholdTaskService;
-import org.egov.project.service.TrackActivityTaskService;
+import org.egov.project.service.LocationCaptureTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -26,14 +26,14 @@ public class IRSConsumer {
 
     private final ClosedHouseholdTaskService closedHouseholdTaskService;
 
-    private final TrackActivityTaskService trackActivityTaskService;
+    private final LocationCaptureTaskService locationCaptureTaskService;
 
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public IRSConsumer(ClosedHouseholdTaskService closedHouseholdTaskService, TrackActivityTaskService trackActivityTaskService, ObjectMapper objectMapper) {
+    public IRSConsumer(ClosedHouseholdTaskService closedHouseholdTaskService, LocationCaptureTaskService locationCaptureTaskService, ObjectMapper objectMapper) {
         this.closedHouseholdTaskService = closedHouseholdTaskService;
-        this.trackActivityTaskService = trackActivityTaskService;
+        this.locationCaptureTaskService = locationCaptureTaskService;
         this.objectMapper = objectMapper;
     }
 
@@ -44,7 +44,7 @@ public class IRSConsumer {
         try {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return request.getTasks().stream().anyMatch(task -> task.getAction() == TaskAction.CLOSED_HOUSEHOLD) ?
-                    closedHouseholdTaskService.create(request, true) : trackActivityTaskService.create(request, true);
+                    closedHouseholdTaskService.create(request, true) : locationCaptureTaskService.create(request, true);
         }  catch (Exception exception) {
             log.error("error in "+ taskType +" consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
@@ -58,7 +58,7 @@ public class IRSConsumer {
         try {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return request.getTasks().stream().anyMatch(task -> task.getAction() == TaskAction.CLOSED_HOUSEHOLD) ?
-                    closedHouseholdTaskService.update(request, true) : trackActivityTaskService.update(request, true);
+                    closedHouseholdTaskService.update(request, true) : locationCaptureTaskService.update(request, true);
         } catch (Exception exception) {
             log.error("error in "+ taskType +" consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
@@ -72,19 +72,19 @@ public class IRSConsumer {
         try {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return request.getTasks().stream().anyMatch(task -> task.getAction() == TaskAction.CLOSED_HOUSEHOLD) ?
-                    closedHouseholdTaskService.delete(request, true) : trackActivityTaskService.delete(request, true);
+                    closedHouseholdTaskService.delete(request, true) : locationCaptureTaskService.delete(request, true);
         } catch (Exception exception) {
             log.error("error in "+ taskType +" consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
 
-    @KafkaListener(topics = "${project.task.track.activity.location.point.consumer.bulk.create.topic}")
-    public List<LocationPoint>  builkCreateLocationPoint(Map<String, Object> consumerRecord,
-                                                         @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+    @KafkaListener(topics = "${project.task.track.activity.location.capture.consumer.bulk.create.topic}")
+    public List<LocationCapture>  builkCreateLocationCapture(Map<String, Object> consumerRecord,
+                                                           @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            LocationPointBulkRequest request = objectMapper.convertValue(consumerRecord, LocationPointBulkRequest.class);
-            return trackActivityTaskService.createLocationPoints(request, true);
+            LocationCaptureBulkRequest request = objectMapper.convertValue(consumerRecord, LocationCaptureBulkRequest.class);
+            return locationCaptureTaskService.createLocationCaptures(request, true);
         } catch (Exception exception) {
             log.error("error in location points consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();

@@ -15,7 +15,7 @@ import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* LocationPointResponse
+* LocationCaptureResponse
 */
 @Validated
 
@@ -25,7 +25,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class LocationPointBulkResponse {
+public class LocationCaptureBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
@@ -37,16 +37,16 @@ public class LocationPointBulkResponse {
     @Builder.Default
     private Long totalCount = 0L;
 
-    @JsonProperty("LocationPoints")
+    @JsonProperty("locationCaptures")
     @NotNull
     @Valid
-    private List<LocationPoint> locationPoints = null;
+    private List<LocationCapture> locationCaptures = null;
 
-    public LocationPointBulkResponse addIndividualItem(LocationPoint locationPointItem) {
-        if (this.locationPoints == null) {
-            this.locationPoints = new ArrayList<>();
+    public LocationCaptureBulkResponse addIndividualItem(LocationCapture locationCaptureItem) {
+        if (this.locationCaptures == null) {
+            this.locationCaptures = new ArrayList<>();
         }
-        this.locationPoints.add(locationPointItem);
+        this.locationCaptures.add(locationCaptureItem);
         return this;
     }
 

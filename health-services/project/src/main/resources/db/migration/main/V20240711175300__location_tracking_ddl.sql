@@ -14,9 +14,7 @@ CREATE TABLE IF NOT EXISTS LOCATION_CAPTURE (
     clientCreatedBy                     CHARACTER VARYING(64),
     clientLastModifiedBy                CHARACTER VARYING(64),
     action                              CHARACTER VARYING(256),
-    CONSTRAINT pk_location_points PRIMARY KEY (id),
-    CONSTRAINT fk_location_points FOREIGN KEY (locationTrackingId)
-        REFERENCES LOCATION_TRACKING(id) ON DELETE CASCADE
+    CONSTRAINT pk_location_capture PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_location_points_clientCreatedBy ON LOCATION_CAPTURE (clientCreatedBy);
+CREATE INDEX IF NOT EXISTS idx_location_capture_clientCreatedBy ON LOCATION_CAPTURE (clientCreatedBy);
