@@ -1418,6 +1418,25 @@ const SetupCampaign = ({ hierarchyType }) => {
     return false;
   };
 
+  const draftFilterStep = (totalFormData) => {
+    const stepFind = (name) => {
+      const step = campaignConfig?.[0]?.form.find((step) => step.name === name);
+      return step ? parseInt(step.stepCount, 10) : null;
+    };
+    let v = [];
+    if (totalFormData?.HCM_CAMPAIGN_NAME?.campaignName) v.push(stepFind("HCM_CAMPAIGN_NAME"));
+    if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.selectedData?.length) v.push(stepFind("HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA"));
+    if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate && totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) v.push(stepFind("HCM_CAMPAIGN_DATE"));
+    if (totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleData?.length) v.push(stepFind("HCM_CAMPAIGN_CYCLE_CONFIGURE"));
+    if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule?.length) v.push(stepFind("HCM_CAMPAIGN_DELIVERY_DATA"));
+    if (totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length) v.push(stepFind("HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA"));
+    if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.length) v.push(stepFind("HCM_CAMPAIGN_UPLOAD_FACILITY_DATA"));
+    if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.length) v.push(stepFind("HCM_CAMPAIGN_UPLOAD_USER_DATA"));
+
+    const highestNumber = Math.max(...v);
+    return highestNumber;
+  };
+
   const findHighestStepCount = () => {
     const totalFormDataKeys = Object.keys(totalFormData);
 
@@ -1427,13 +1446,11 @@ const SetupCampaign = ({ hierarchyType }) => {
 
     const highestStep = relatedSteps.reduce((max, step) => Math.max(max, parseInt(step.stepCount)), 0);
     if (isDraft == "true") {
-      const filteredSteps = campaignConfig?.[0]?.form.find((item) => item.key === keyParam)?.stepCount;
-      setActive(filteredSteps);
+      const filteredStep = draftFilterStep(totalFormData);
+      setActive(filteredStep);
     } else {
       setActive(highestStep);
     }
-
-    // setActive(highestStep);
   };
 
   useEffect(() => {
