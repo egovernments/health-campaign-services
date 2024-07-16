@@ -1395,7 +1395,8 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
         const [mainSheetData, uniqueDistrictsForMainSheet, districtLevelRowBoundaryCodeMap] = createBoundaryDataMainSheet(request, boundaryData, differentTabsBasedOnLevel, hierarchy, localizationMap)
         const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-        const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+        const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+        const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
         if (!(isSourceMicroplan)) {
             const mainSheet = workbook.addWorksheet(getLocalizedName(getBoundaryTabName(), localizationMap));
             const columnWidths = Array(12).fill(30);
@@ -1405,7 +1406,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
-        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy);
+        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject);
         logger.info("Sheet with different tabs generated successfully");
         return workbook;
     } catch (error) {
@@ -1415,8 +1416,8 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
 }
 
 
-async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any) {
-    const configurableColumnHeadersFromSchemaForTargetSheet = await getConfigurableColumnHeadersFromSchemaForTargetSheet(request, hierarchy, boundaryData, differentTabsBasedOnLevel, localizationMap);
+async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any, campaignObject: any) {
+    const configurableColumnHeadersFromSchemaForTargetSheet = await getConfigurableColumnHeadersFromSchemaForTargetSheet(request, hierarchy, boundaryData, differentTabsBasedOnLevel, campaignObject, localizationMap);
     for (const uniqueData of uniqueDistrictsForMainSheet) {
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
         logger.info(`generating the boundary data for ${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel}`)
@@ -1431,19 +1432,24 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
                 }
                 newSheetData.push(rowData);
             }
-            await createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet);
+            await createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet, campaignObject);
             logger.info(`${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel} boundary data generation completed`)
         }
     }
 }
 
-
-async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any) {
+async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
     addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
+    let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
-    const mdmsResponse = await getMdmsDataBasedOnCampaignType(request, localizationMap)
-    const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
+    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate) {
+        columnsNotToBeFreezed = localizedHeaders.slice(boundaryCodeColumnIndex + 1);
+    }
+    else {
+        const mdmsResponse = await getMdmsDataBasedOnCampaignType(request, localizationMap)
+        columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
+    }
     const localizedColumnsNotToBeFreezed = getLocalizedHeaders(columnsNotToBeFreezed, localizationMap);
     lockTargetFields(newSheet, localizedColumnsNotToBeFreezed, boundaryCodeColumnIndex);
 }
