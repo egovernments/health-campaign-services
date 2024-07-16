@@ -191,45 +191,21 @@ public class ProjectConfiguration {
 
 
     // closed household task
-    @Value("${project.task.closed.household.kafka.create.topic}")
-    private String createClosedHouseholdTaskTopic;
+    @Value("${project.user.action.task.kafka.create.topic}")
+    private String createUserActionTaskTopic;
 
-    @Value("${project.task.closed.household.consumer.bulk.create.topic}")
-    private String bulkCreateClosedHouseholdTaskTopic;
+    @Value("${project.user.action.task.kafka.update.topic}")
+    private String bulkCreateUserActionTaskTopic;
 
-    @Value("${project.task.closed.household.kafka.update.topic}")
-    private String updateClosedHouseholdTaskTopic;
+    @Value("${project.user.action.task.consumer.bulk.create.topic}")
+    private String updateUserActionTaskTopic;
 
-    @Value("${project.task.closed.household.consumer.bulk.update.topic}")
-    private String bulkUpdateClosedHouseholdTaskTopic;
+    @Value("${project.user.action.task.consumer.bulk.update.topic}")
+    private String bulkUpdateUserActionTaskTopic;
 
-    @Value("${project.task.closed.household.kafka.delete.topic}")
-    private String deleteClosedHouseholdTaskTopic;
-
-    @Value("${project.task.closed.household.consumer.bulk.delete.topic}")
-    private String bulkDeleteClosedHouseholdTaskTopic;
-
-    // location capture task topics
-//    @Value("${project.task.track.activity.kafka.create.topic}")
-//    private String createTrackActivityTaskTopic;
-//
-//    @Value("${project.task.track.activity.consumer.bulk.create.topic}")
-//    private String bulkCreateTrackActivityTaskTopic;
-//
-//    @Value("${project.task.track.activity.kafka.update.topic}")
-//    private String updateTrackActivityTaskTopic;
-//
-//    @Value("${project.task.track.activity.consumer.bulk.update.topic}")
-//    private String bulkUpdateTrackActivityTaskTopic;
-//
-//    @Value("${project.task.track.activity.kafka.delete.topic}")
-//    private String deleteTrackActivityTaskTopic;
-//
-//    @Value("${project.task.track.activity.consumer.bulk.delete.topic}")
-//    private String bulkDeleteTrackActivityTaskTopic;
 
     @Value("${project.location.capture.task.consumer.bulk.create.topic}")
-    private String bulkCreateTrackActivityTaskLocationCaptureTopic;
+    private String bulkCreateLocationCaptureTaskTopic;
 
     @Value("${project.location.capture.task.kafka.create.topic}")
     private String createLocationCaptureTaskTopic;

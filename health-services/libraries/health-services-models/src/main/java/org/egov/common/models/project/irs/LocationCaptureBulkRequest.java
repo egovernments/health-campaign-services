@@ -16,7 +16,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* TaskRequest
+* LocationCaptureBulkRequest
 */
 @Validated
 

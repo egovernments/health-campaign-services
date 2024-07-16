@@ -8,28 +8,22 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskBulkRequest;
-import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.irs.LocationCapture;
 import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
+import org.egov.common.models.project.irs.LocationCaptureSearch;
+import org.egov.common.models.project.irs.LocationCaptureSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.validator.task.PtExistentEntityValidator;
-import org.egov.project.validator.task.PtIsDeletedValidator;
-import org.egov.project.validator.task.PtNonExistentEntityValidator;
-import org.egov.project.validator.task.PtNullIdValidator;
-import org.egov.project.validator.task.PtProjectIdValidator;
-import org.egov.project.validator.task.PtRowVersionValidator;
+import org.egov.project.validator.irs.LcProjectIdValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,11 +31,12 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.project.Constants.SET_TASKS;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -59,22 +54,11 @@ public class LocationCaptureTaskService {
 
     private final ProjectTaskEnrichmentService enrichmentService;
 
-    private final List<Validator<TaskBulkRequest, Task>> validators;
+    private final List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators;
 
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
-                    || validator.getClass().equals(PtExistentEntityValidator.class);
-
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
-                    || validator.getClass().equals(PtNullIdValidator.class)
-                    || validator.getClass().equals(PtIsDeletedValidator.class)
-                    || validator.getClass().equals(PtNonExistentEntityValidator.class)
-                    || validator.getClass().equals(PtRowVersionValidator.class);
-
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForDelete = validator ->
-            validator.getClass().equals(PtNullIdValidator.class)
-                    || validator.getClass().equals(PtNonExistentEntityValidator.class);
+    private final Predicate<Validator<LocationCaptureBulkRequest, LocationCapture>> isApplicableForCreate = validator ->
+            validator.getClass().equals(LcProjectIdValidator.class)
+                    || validator.getClass().equals(LcProjectIdValidator.class);
 
     @Autowired
     public LocationCaptureTaskService(
@@ -83,7 +67,7 @@ public class LocationCaptureTaskService {
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
             ProjectTaskEnrichmentService enrichmentService,
-            List<Validator<TaskBulkRequest, Task>> validators
+            List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators
     ) {
         this.idGenService = idGenService;
         this.locationCaptureRepository = locationCaptureRepository;
@@ -93,162 +77,73 @@ public class LocationCaptureTaskService {
         this.validators = validators;
     }
 
-//    public Task create(TaskRequest request) {
-//        log.info("received request to create tasks");
-//        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-//                .tasks(Collections.singletonList(request.getTask())).build();
-//        log.info("creating bulk request");
-//        List<Task> tasks = create(bulkRequest, false);
-//        return tasks.get(0);
-//    }
-//
-//    public List<Task> create(TaskBulkRequest request, boolean isBulk) {
-//        log.info("received request to create bulk location tracking tasks");
-//        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
-//        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-//        List<Task> validTasks = tuple.getX();
-//        try {
-//            if (!validTasks.isEmpty()) {
-//                log.info("processing {} valid entities", validTasks.size());
-//                enrichmentService.create(validTasks, request);
-//                locationCaptureRepository.save(validTasks, projectConfiguration.getCreateTrackActivityTaskTopic());
-//                log.info("successfully created location tracking tasks");
-//            }
-//        } catch (Exception exception) {
-//            log.error("error occurred while creating location tracking tasks: {}", ExceptionUtils.getStackTrace(exception));
-//            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
-//        }
-//
-//        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-//
-//        return validTasks;
-//    }
-//
-//    public Task update(TaskRequest request) {
-//        log.info("received request to update location tracking tasks");
-//        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-//                .tasks(Collections.singletonList(request.getTask())).build();
-//        log.info("creating bulk request");
-//        return update(bulkRequest, false).get(0);
-//    }
-//
-//    public List<Task> update(TaskBulkRequest request, boolean isBulk) {
-//        log.info("received request to update bulk location tracking tasks");
-//        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
-//                isApplicableForUpdate, request,
-//                isBulk);
-//        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-//        List<Task> validTasks = tuple.getX();
-//        try {
-//            if (!validTasks.isEmpty()) {
-//                log.info("processing {} valid entities", validTasks.size());
-//                enrichmentService.update(validTasks, request);
-//                trackActivityTaskRepository.save(validTasks, projectConfiguration.getUpdateTrackActivityTaskTopic());
-//                log.info("successfully updated bulk location tracking tasks");
-//            }
-//        } catch (Exception exception) {
-//            log.error("error occurred while updating location tracking tasks", ExceptionUtils.getStackTrace(exception));
-//            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
-//        }
-//
-//        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-//
-//        return validTasks;
-//    }
-//
-//    public Task delete(TaskRequest request) {
-//        log.info("received request to delete a project task");
-//        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-//                .tasks(Collections.singletonList(request.getTask())).build();
-//        log.info("creating bulk request");
-//        return delete(bulkRequest, false).get(0);
-//    }
-//
-//    public List<Task> delete(TaskBulkRequest request, boolean isBulk) {
-//        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
-//                isApplicableForDelete, request,
-//                isBulk);
-//        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-//        List<Task> validTasks = tuple.getX();
-//        try {
-//            if (!validTasks.isEmpty()) {
-//                log.info("processing {} valid entities", validTasks.size());
-//                enrichmentService.delete(validTasks, request);
-//                trackActivityTaskRepository.save(validTasks, projectConfiguration.getDeleteTrackActivityTaskTopic());
-//            }
-//        } catch (Exception exception) {
-//            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
-//            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
-//        }
-//
-//        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-//        return validTasks;
-//    }
+    public List<LocationCapture> create(LocationCaptureBulkRequest request, boolean isBulk) {
+        log.info("received request to create bulk location capture tasks");
+        Tuple<List<LocationCapture>, Map<LocationCapture, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
+        Map<LocationCapture, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<LocationCapture> validLocationCaptures = tuple.getX();
+        try {
+            if (!validLocationCaptures.isEmpty()) {
+                log.info("processing {} valid entities", validLocationCaptures.size());
+//                enrichmentService.create(validLocationCaptures, request); TODO
+                locationCaptureRepository.save(validLocationCaptures, projectConfiguration.getCreateLocationCaptureTaskTopic());
+                log.info("successfully created location capture tasks");
+            }
+        } catch (Exception exception) {
+            log.error("error occurred while creating location capture tasks: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validLocationCaptures, exception, SET_TASKS);
+        }
 
-    private Tuple<List<Task>, Map<Task, ErrorDetails>> validate(List<Validator<TaskBulkRequest, Task>> validators,
-                                                                Predicate<Validator<TaskBulkRequest, Task>> applicableValidators,
-                                                                TaskBulkRequest request, boolean isBulk) {
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+
+        return validLocationCaptures;
+    }
+
+    private Tuple<List<LocationCapture>, Map<LocationCapture, ErrorDetails>> validate(List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators,
+                                                                Predicate<Validator<LocationCaptureBulkRequest, LocationCapture>> applicableValidators,
+                                                                LocationCaptureBulkRequest request, boolean isBulk) {
         log.info("validating request");
-        Map<Task, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
+        Map<LocationCapture, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
                 SET_TASKS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<Task> validTasks = request.getTasks().stream()
+        List<LocationCapture> validLocationCaptures = request.getLocationCaptures().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        return new Tuple<>(validTasks, errorDetailsMap);
+        return new Tuple<>(validLocationCaptures, errorDetailsMap);
     }
 
-    public SearchResponse<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
-                                       Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<LocationCapture> search(LocationCaptureSearchRequest locationCaptureSearchRequest, URLParams urlParams) {
 
         log.info("received request to search project task");
-
-        String idFieldName = getIdFieldName(taskSearch);
-        if (isSearchByIdOnly(taskSearch, idFieldName)) {
-            log.info("searching project task by id");
-            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
-                            .singletonList(taskSearch)),
-                    taskSearch);
-            log.info("fetching location tracking tasks with ids: {}", ids);
-            SearchResponse<Task> searchResponse = trackActivityTaskRepository.findById(ids,
-                    idFieldName, includeDeleted);
-            return SearchResponse.<Task>builder().response(searchResponse.getResponse().stream()
-                    .filter(lastChangedSince(lastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList())).totalCount(searchResponse.getTotalCount()).build();
+        LocationCaptureSearch locationCaptureSearch = locationCaptureSearchRequest.getLocationCapture();
+        String idFieldName = getIdFieldName(locationCaptureSearch);
+        if (isSearchByIdOnly(locationCaptureSearch, idFieldName)) {
+            log.info("searching location capture by id");
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(
+                    getIdMethod(Collections.singletonList(locationCaptureSearch)),
+                    locationCaptureSearch
+            );
+            log.info("fetching location capture tasks with ids: {}", ids);
+            SearchResponse<LocationCapture> searchResponse = locationCaptureRepository.findById(ids, idFieldName);
+            return SearchResponse.<LocationCapture>builder()
+                    .response(searchResponse.getResponse().stream()
+                        .filter(lastChangedSince(urlParams.getLastChangedSince()))
+                        .filter(havingTenantId(urlParams.getTenantId()))
+                        .collect(Collectors.toList())
+                    )
+                    .totalCount(searchResponse.getTotalCount()).build();
         }
 
-        try {
-            log.info("searching project beneficiaries using criteria");
-            return trackActivityTaskRepository.find(taskSearch, limit, offset,
-                    tenantId, lastChangedSince, includeDeleted);
-        } catch (QueryBuilderException e) {
-            log.error("error in building query", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("ERROR_IN_QUERY", e.getMessage());
-        }
+        log.info("searching project beneficiaries using criteria");
+        return locationCaptureRepository.find(locationCaptureSearch, urlParams);
     }
 
-    public void putInCache(List<Task> tasks) {
-        log.info("putting {} location tracking tasks in cache", tasks.size());
-        trackActivityTaskRepository.putInCache(tasks);
+    public void putInCache(List<LocationCapture> locationCaptures) {
+        log.info("putting {} location tracking tasks in cache", locationCaptures.size());
+        locationCaptureRepository.putInCache(locationCaptures);
         log.info("successfully put location tracking tasks in cache");
     }
 
-    public List<LocationCapture> createLocationCaptures(LocationCaptureBulkRequest request, boolean bulk) {
-        List<LocationCapture> validEntities = request.getLocationCaptures();
-
-        try {
-            if (!validEntities.isEmpty()) {
-                log.info("processing {} valid entities", validEntities.size());
-                locationCaptureRepository.save(validEntities, projectConfiguration.getCreateTrackActivityTaskLocationCaptureTopic());
-            }
-        } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
-        }
-
-        return validEntities;
-    }
 }
