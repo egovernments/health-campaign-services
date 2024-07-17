@@ -1,19 +1,13 @@
 package org.egov.common.models.referralmanagement.hfreferral;
 
-import jakarta.validation.Valid;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
-import org.egov.common.models.project.AdditionalFields;
 
 @Data
 @NoArgsConstructor
