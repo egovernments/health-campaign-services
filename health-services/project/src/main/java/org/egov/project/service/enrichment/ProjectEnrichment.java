@@ -1,6 +1,12 @@
 package org.egov.project.service.enrichment;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
+import java.util.ArrayList;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -9,9 +15,12 @@ import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.Target;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectServiceUtil;
+import org.egov.project.web.models.AncestorProjects;
+import org.egov.project.web.models.DescendantProjects;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,8 +36,13 @@ import static org.egov.project.util.ProjectConstants.PROJECT_PARENT_HIERARCHY_SE
 @Slf4j
 public class ProjectEnrichment {
 
-    @Autowired
-    private ProjectServiceUtil projectServiceUtil;
+  @Autowired
+  private Producer producer;
+  @Autowired
+  private ProjectConfiguration projectConfiguration;
+
+  @Autowired
+  private ProjectServiceUtil projectServiceUtil;
 
     @Autowired
     private IdGenService idGenService;
@@ -73,9 +87,9 @@ public class ProjectEnrichment {
             enrichProjectDocumentOnCreate(projects.get(i), requestInfo);
             log.info("Enriched documents with id and Audit details");
 
-        }
-
     }
+
+  }
 
     /* Enrich Project on Update Request */
     public void enrichProjectOnUpdate(ProjectRequest request, List<Project> projectsFromDB) {
@@ -105,6 +119,131 @@ public class ProjectEnrichment {
             }
         }
     }
+
+
+  public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB)
+  {
+    enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
+            projectFromDB);
+  }
+
+  private void enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(
+      Project projectRequest, Project projectFromDB) {
+    long startDate = projectRequest.getStartDate();
+    long endDate = projectRequest.getEndDate();
+    updateDescendantProjects(projectRequest, projectFromDB, startDate, endDate);
+    updateAncestorProjects(projectRequest, projectFromDB, startDate, endDate);
+  }
+
+  private void updateDescendantProjects(Project projectRequest, Project projectFromDB,
+      long startDate, long endDate) {
+    List<Project> descendantProjectsFromDb = projectFromDB.getDescendants();
+    List<Project> modifiedDescendantProjectsFromDb = new ArrayList<>();
+    if (descendantProjectsFromDb != null) {
+      for (Project descendant : descendantProjectsFromDb) {
+        updateDescendantProjectDates(descendant, startDate, endDate);
+        updateCycles(descendant, projectRequest, true);
+        modifiedDescendantProjectsFromDb.add(descendant);
+      }
+      pushDescendantProjects(modifiedDescendantProjectsFromDb);
+    }
+  }
+
+  private void updateAncestorProjects(Project projectRequest, Project projectFromDB, long startDate,
+      long endDate) {
+    List<Project> ancestorProjectsFromDb = projectFromDB.getAncestors();
+    List<Project> modifiedAncestorProjectsFromDb = new ArrayList<>();
+    if (ancestorProjectsFromDb != null) {
+      for (Project ancestor : ancestorProjectsFromDb) {
+        ancestor.setStartDate(Math.min(startDate, ancestor.getStartDate()));
+        ancestor.setEndDate(Math.max(endDate, ancestor.getEndDate()));
+        updateCycles(ancestor, projectRequest, false);
+        modifiedAncestorProjectsFromDb.add(ancestor);
+      }
+      pushAncestorProjects(modifiedAncestorProjectsFromDb);
+    }
+  }
+
+  private void updateDescendantProjectDates(Project project, long startDate, long endDate) {
+    project.setStartDate(startDate);
+    project.setEndDate(endDate);
+  }
+
+
+  private void updateCycles(Project descendantOrAncestor, Project projectRequest,
+      boolean isDescendant) {
+    if (descendantOrAncestor.getAdditionalDetails() == null) {
+      return;
+    }
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    // Extract additional details from descendant and request projects
+    JsonNode descendantOrAncestorAdditionalDetails = objectMapper.valueToTree(
+        descendantOrAncestor.getAdditionalDetails());
+    JsonNode descendantOrAncestorProjectTypeNode = descendantOrAncestorAdditionalDetails.get(
+        "projectType");
+
+    if (descendantOrAncestorProjectTypeNode != null) {
+      JsonNode descendantOrAncestorCyclesNode = descendantOrAncestorProjectTypeNode.get("cycles");
+
+      if (descendantOrAncestorCyclesNode != null && descendantOrAncestorCyclesNode.isArray()) {
+        // Extract cycles from the request project
+        JsonNode requestAdditionalDetails = objectMapper.valueToTree(
+            projectRequest.getAdditionalDetails());
+        JsonNode requestProjectTypeNode = requestAdditionalDetails.get("projectType");
+
+        if (requestProjectTypeNode != null) {
+          JsonNode requestCyclesNode = requestProjectTypeNode.get("cycles");
+
+          if (requestCyclesNode != null && requestCyclesNode.isArray()) {
+            // Iterate over descendant cycles and update as necessary
+            for (JsonNode descendantOrAncestorCycleNode : descendantOrAncestorCyclesNode) {
+              String descendantOrAncestorCycleId = descendantOrAncestorCycleNode.get("id").asText();
+
+              for (JsonNode requestCycleNode : requestCyclesNode) {
+                String requestCycleId = requestCycleNode.get("id").asText();
+
+                if (descendantOrAncestorCycleId.equals(requestCycleId)) {
+                  // Update start and end dates of descendant cycle node
+                  long requestStartDate = requestCycleNode.get("startDate").asLong();
+                  long requestEndDate = requestCycleNode.get("endDate").asLong();
+                  long currentStartDate = descendantOrAncestorCycleNode.get("startDate").asLong();
+                  long currentEndDate = descendantOrAncestorCycleNode.get("endDate").asLong();
+                  if (isDescendant) {
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("startDate", requestStartDate);
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("endDate", requestEndDate);
+                  } else {
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("startDate",
+                        Math.min(requestStartDate, currentStartDate));
+                    ((ObjectNode) descendantOrAncestorCycleNode).put("endDate",
+                        Math.max(requestEndDate, currentEndDate));
+                  }
+                  break; // Once updated, exit the loop for this descendantCycleNode
+                }
+              }
+            }
+            Map<String, Object> updatedAdditionalDetails = objectMapper.convertValue(
+                descendantOrAncestorAdditionalDetails, new TypeReference<Map<String, Object>>() {
+                });
+            descendantOrAncestor.setAdditionalDetails(updatedAdditionalDetails);
+          }
+        }
+      }
+    }
+  }
+
+  private void pushDescendantProjects(List<Project> descendantProjectsFromDb) {
+    DescendantProjects descendantProjects = DescendantProjects.builder()
+        .Projects(descendantProjectsFromDb).build();
+    producer.push(projectConfiguration.getUpdateProjectTopic(), descendantProjects);
+  }
+
+  private void pushAncestorProjects(List<Project> ancestorProjectsFromDb) {
+    AncestorProjects ancestorProjects = AncestorProjects.builder().Projects(ancestorProjectsFromDb)
+        .build();
+    producer.push(projectConfiguration.getUpdateProjectTopic(), ancestorProjects);
+  }
+
 
     /* Enrich Project with id and audit details */
     private void enrichProjectRequestOnCreate(Project projectRequest, RequestInfo requestInfo, List<Project> parentProjects) {
