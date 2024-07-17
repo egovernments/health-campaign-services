@@ -7,17 +7,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
-import org.egov.common.models.core.Boundary;
-import org.egov.common.models.project.Address;
-import org.egov.common.models.project.AddressType;
-import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskAction;
+import org.egov.common.models.project.irs.UserAction;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ClosedHouseholdTaskRowMapper implements RowMapper<Task> {
-
+public class UserActionRowMapper implements RowMapper<UserAction> {
+//TODO
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -27,7 +24,7 @@ public class ClosedHouseholdTaskRowMapper implements RowMapper<Task> {
      * @throws SQLException
      */
     @Override
-    public Task mapRow(ResultSet resultSet, int rowNum) throws SQLException {
+    public UserAction mapRow(ResultSet resultSet, int rowNum) throws SQLException {
         try {
             AuditDetails auditDetails = AuditDetails.builder()
                     .createdBy(resultSet.getString("createdBy"))
@@ -41,43 +38,21 @@ public class ClosedHouseholdTaskRowMapper implements RowMapper<Task> {
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
                     .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
-            Task task = Task.builder()
+            UserAction userAction = UserAction.builder()
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
-                    .isDeleted(resultSet.getBoolean("isDeleted"))
+//                    .isDeleted(resultSet.getBoolean("isDeleted"))
                     .tenantId(resultSet.getString("tenantId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .projectId(resultSet.getString("projectId"))
                     .status(resultSet.getString("status"))
-                    .action(TaskAction.CLOSED_HOUSEHOLD)
+                    .action(TaskAction.fromValue(resultSet.getString("action")))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
-                    .address(Address.builder()
-                            .id(resultSet.getString("aid"))
-                            .tenantId(resultSet.getString("atenantid"))
-                            .clientReferenceId(resultSet.getString("aclientreferenceid"))
-                            .doorNo(resultSet.getString("doorNo"))
-                            .latitude(resultSet.getDouble("latitude"))
-                            .longitude(resultSet.getDouble("longitude"))
-                            .locationAccuracy(resultSet.getDouble("locationAccuracy"))
-                            .type(AddressType.fromValue(resultSet.getString("type")))
-                            .addressLine1(resultSet.getString("addressLine1"))
-                            .addressLine2(resultSet.getString("addressLine2"))
-                            .landmark(resultSet.getString("landmark"))
-                            .city(resultSet.getString("city"))
-                            .pincode(resultSet.getString("pinCode"))
-                            .buildingName(resultSet.getString("buildingName"))
-                            .street(resultSet.getString("street"))
-                            .locality(resultSet.getString("localityCode") != null ?
-                                    Boundary.builder().code(resultSet.getString("localityCode")).build() : null)
-                            .build())
                     .build();
-            if (task.getAddress().getId() == null) {
-                task.setAddress(null);
-            }
-            return task;
+            return userAction;
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
         }

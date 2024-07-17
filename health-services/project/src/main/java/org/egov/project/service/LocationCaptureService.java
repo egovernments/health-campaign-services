@@ -42,7 +42,7 @@ import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
-public class LocationCaptureTaskService {
+public class LocationCaptureService {
 
     private final IdGenService idGenService;
 
@@ -61,7 +61,7 @@ public class LocationCaptureTaskService {
                     || validator.getClass().equals(LcProjectIdValidator.class);
 
     @Autowired
-    public LocationCaptureTaskService(
+    public LocationCaptureService(
             IdGenService idGenService,
             LocationCaptureRepository locationCaptureRepository,
             ServiceRequestClient serviceRequestClient,

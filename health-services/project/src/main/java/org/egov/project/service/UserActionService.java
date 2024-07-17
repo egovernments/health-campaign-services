@@ -13,15 +13,19 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskBulkRequest;
-import org.egov.common.models.project.TaskRequest;
 import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.project.TaskSearchRequest;
+import org.egov.common.models.project.irs.UserAction;
+import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.irs.UserActionSearch;
+import org.egov.common.models.project.irs.UserActionSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.repository.ClosedHouseholdTaskRepository;
+import org.egov.project.repository.UserActionRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.egov.project.validator.closedhousehold.ChStatusValidator;
 import org.egov.project.validator.task.PtExistentEntityValidator;
@@ -49,10 +53,10 @@ import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
-public class ClosedHouseholdTaskService {
+public class UserActionService {
     private final IdGenService idGenService;
 
-    private final ClosedHouseholdTaskRepository closedHouseholdTaskRepository;
+    private final UserActionRepository userActionTaskRepository;
 
     private final ServiceRequestClient serviceRequestClient;
 
@@ -60,13 +64,13 @@ public class ClosedHouseholdTaskService {
 
     private final ProjectTaskEnrichmentService enrichmentService;
 
-    private final List<Validator<TaskBulkRequest, Task>> validators;
+    private final List<Validator<UserActionBulkRequest, UserAction>> validators;
 
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
+    private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForCreate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
                     || validator.getClass().equals(PtExistentEntityValidator.class);
 
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
+    private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
                     || validator.getClass().equals(PtNullIdValidator.class)
                     || validator.getClass().equals(PtIsDeletedValidator.class)
@@ -74,46 +78,33 @@ public class ClosedHouseholdTaskService {
                     || validator.getClass().equals(PtRowVersionValidator.class)
                     || validator.getClass().equals(ChStatusValidator.class);
 
-    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForDelete = validator ->
-            validator.getClass().equals(PtNullIdValidator.class)
-                    || validator.getClass().equals(PtNonExistentEntityValidator.class);
-
     @Autowired
-    public ClosedHouseholdTaskService(
+    public UserActionService(
             IdGenService idGenService,
-            ClosedHouseholdTaskRepository closedHouseholdTaskRepository,
+            UserActionRepository userActionTaskRepository,
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
             ProjectTaskEnrichmentService enrichmentService,
-            List<Validator<TaskBulkRequest, Task>> validators
+            List<Validator<UserActionBulkRequest, UserAction>> validators
     ) {
         this.idGenService = idGenService;
-        this.closedHouseholdTaskRepository = closedHouseholdTaskRepository;
+        this.userActionTaskRepository = userActionTaskRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
         this.validators = validators;
     }
 
-    public Task create(TaskRequest request) {
-        log.info("received request to create closed household task");
-        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-                .tasks(Collections.singletonList(request.getTask())).build();
-        log.info("creating bulk request");
-        List<Task> tasks = create(bulkRequest, false);
-        return tasks.get(0);
-    }
-
-    public List<Task> create(TaskBulkRequest request, boolean isBulk) {
+    public List<UserAction> create(UserActionBulkRequest request, boolean isBulk) {
         log.info("received request to create bulk closed household tasks");
-        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
-        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Task> validTasks = tuple.getX();
+        Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
+        Map<UserAction, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<UserAction> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getCreateClosedHouseholdTaskTopic());
+//                enrichmentService.create(validTasks, request);
+                userActionTaskRepository.save(validTasks, projectConfiguration.getCreateUserActionTaskTopic());
                 log.info("successfully created closed household tasks");
             }
         } catch (Exception exception) {
@@ -126,24 +117,16 @@ public class ClosedHouseholdTaskService {
         return validTasks;
     }
 
-    public Task update(TaskRequest request) {
-        log.info("received request to update closed household tasks");
-        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-                .tasks(Collections.singletonList(request.getTask())).build();
-        log.info("creating bulk request");
-        return update(bulkRequest, false).get(0);
-    }
-
-    public List<Task> update(TaskBulkRequest request, boolean isBulk) {
+    public List<UserAction> update(UserActionBulkRequest request, boolean isBulk) {
         log.info("received request to update bulk closed household tasks");
-        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators, isApplicableForUpdate, request, isBulk);
-        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Task> validTasks = tuple.getX();
+        Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForUpdate, request, isBulk);
+        Map<UserAction, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<UserAction> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.update(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getUpdateClosedHouseholdTaskTopic());
+//                enrichmentService.update(validTasks, request);
+                userActionTaskRepository.save(validTasks, projectConfiguration.getUpdateUserActionTaskTopic());
                 log.info("successfully updated bulk closed household tasks");
             }
         } catch (Exception exception) {
@@ -156,84 +139,55 @@ public class ClosedHouseholdTaskService {
         return validTasks;
     }
 
-    public Task delete(TaskRequest request) {
-        log.info("received request to delete a project task");
-        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
-                .tasks(Collections.singletonList(request.getTask())).build();
-        log.info("creating bulk request");
-        return delete(bulkRequest, false).get(0);
-    }
-
-    public List<Task> delete(TaskBulkRequest request, boolean isBulk) {
-        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request,
-                isBulk);
-        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Task> validTasks = tuple.getX();
-        try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.delete(validTasks, request);
-                closedHouseholdTaskRepository.save(validTasks, projectConfiguration.getDeleteClosedHouseholdTaskTopic());
-            }
-        } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
-        }
-
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-        return validTasks;
-    }
-
-    private Tuple<List<Task>, Map<Task, ErrorDetails>> validate(List<Validator<TaskBulkRequest, Task>> validators,
-                                                                Predicate<Validator<TaskBulkRequest, Task>> applicableValidators,
-                                                                TaskBulkRequest request, boolean isBulk) {
+    private Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> validate(List<Validator<UserActionBulkRequest, UserAction>> validators,
+                                                                Predicate<Validator<UserActionBulkRequest, UserAction>> applicableValidators,
+                                                                UserActionBulkRequest request, boolean isBulk) {
         log.info("validating request");
-        Map<Task, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
+        Map<UserAction, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
                 SET_TASKS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<Task> validTasks = request.getTasks().stream()
+        List<UserAction> validTasks = request.getUserActions().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         return new Tuple<>(validTasks, errorDetailsMap);
     }
 
-    public SearchResponse<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
-                                       Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<UserAction> search(UserActionSearchRequest request, URLParams urlParams) {
 
-        log.info("received request to search project task");
+        log.info("received request to search project UserAction");
 
-        String idFieldName = getIdFieldName(taskSearch);
-        if (isSearchByIdOnly(taskSearch, idFieldName)) {
-            log.info("searching project task by id");
+        UserActionSearch userActionSearch = request.getUserAction();
+
+        String idFieldName = getIdFieldName(userActionSearch);
+        if (isSearchByIdOnly(userActionSearch, idFieldName)) {
+            log.info("searching project UserAction by id");
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
-                            .singletonList(taskSearch)),
-                    taskSearch);
+                            .singletonList(userActionSearch)),
+                    userActionSearch);
             log.info("fetching closed household tasks with ids: {}", ids);
-            SearchResponse<Task> searchResponse = closedHouseholdTaskRepository.findById(ids,
-                    idFieldName, includeDeleted);
-            return SearchResponse.<Task>builder().response(searchResponse.getResponse().stream()
-                    .filter(lastChangedSince(lastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
+            SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(ids,
+                    idFieldName, urlParams.getIncludeDeleted());
+            return SearchResponse.<UserAction>builder().response(searchResponse.getResponse().stream()
+                    .filter(lastChangedSince(urlParams.getLastChangedSince()))
+                    .filter(havingTenantId(urlParams.getTenantId()))
+                    .filter(includeDeleted(urlParams.getIncludeDeleted()))
                     .collect(Collectors.toList())).totalCount(searchResponse.getTotalCount()).build();
         }
 
         try {
             log.info("searching project beneficiaries using criteria");
-            return closedHouseholdTaskRepository.find(taskSearch, limit, offset,
-                    tenantId, lastChangedSince, includeDeleted);
+            return userActionTaskRepository.find(userActionSearch, urlParams);
         } catch (QueryBuilderException e) {
             log.error("error in building query", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
 
-    public void putInCache(List<Task> tasks) {
+    public void putInCache(List<UserAction> tasks) {
         log.info("putting {} closed household tasks in cache", tasks.size());
-        closedHouseholdTaskRepository.putInCache(tasks);
+        userActionTaskRepository.putInCache(tasks);
         log.info("successfully put closed household tasks in cache");
     }
 }

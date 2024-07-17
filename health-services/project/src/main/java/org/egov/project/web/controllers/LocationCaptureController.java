@@ -13,7 +13,7 @@ import org.egov.common.models.project.irs.LocationCaptureSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.LocationCaptureTaskService;
+import org.egov.project.service.LocationCaptureService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +31,7 @@ public class LocationCaptureController {
 
     private final HttpServletRequest httpServletRequest;
 
-    private final LocationCaptureTaskService locationCaptureTaskService;
+    private final LocationCaptureService locationCaptureService;
 
     private final Producer producer;
 
@@ -40,12 +40,12 @@ public class LocationCaptureController {
     @Autowired
     public LocationCaptureController(
             HttpServletRequest httpServletRequest,
-            LocationCaptureTaskService locationCaptureTaskService,
+            LocationCaptureService locationCaptureService,
             Producer producer,
             ProjectConfiguration projectConfiguration
     ) {
         this.httpServletRequest = httpServletRequest;
-        this.locationCaptureTaskService = locationCaptureTaskService;
+        this.locationCaptureService = locationCaptureService;
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
     }
@@ -65,13 +65,10 @@ public class LocationCaptureController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody LocationCaptureSearchRequest locationCaptureSearchRequest
             ) throws Exception {
-        SearchResponse<LocationCapture> tasks = locationCaptureTaskService.search(
-                locationCaptureSearchRequest,
-                urlParams
-        );
+        SearchResponse<LocationCapture> locationCaptureSearchResponse = locationCaptureService.search(locationCaptureSearchRequest, urlParams);
         LocationCaptureBulkResponse response = LocationCaptureBulkResponse.builder()
-                .locationCaptures(tasks.getResponse())
-                .totalCount(tasks.getTotalCount())
+                .locationCaptures(locationCaptureSearchResponse.getResponse())
+                .totalCount(locationCaptureSearchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), true))
                 .build();
