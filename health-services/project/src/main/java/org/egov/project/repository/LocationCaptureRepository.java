@@ -28,42 +28,38 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
-/**
- *  TODO add columns in select queries and update the row mapper accordingly
- */
-
 @Repository
 @Slf4j
 public class LocationCaptureRepository extends GenericRepository<LocationCapture> {
 
     @Autowired
     protected LocationCaptureRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder, LocationCaptureRowMapper locationCaptureRowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, locationCaptureRowMapper, Optional.of("LOCATION_CAPTURE"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, locationCaptureRowMapper, Optional.of("user_location"));
     }
 
     public SearchResponse<LocationCapture> find(LocationCaptureSearch searchObject, URLParams urlParams) {
-        String query = "SELECT * FROM location_capture lc ";
+        String query = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id IN (:id)", "lc.id IN (:id)");
-        query = query.replace("clientReferenceId IN (:clientReferenceId)", "lc.clientReferenceId IN (:clientReferenceId)");
+        query = query.replace("id IN (:id)", "ul.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "ul.clientReferenceId IN (:clientReferenceId)");
 
         if(CollectionUtils.isEmpty(whereFields)) {
-            query = query + " where lc.tenantId=:tenantId ";
+            query = query + " where ul.tenantId=:tenantId ";
         } else {
-            query = query + " and lc.tenantId=:tenantId ";
+            query = query + " and ul.tenantId=:tenantId ";
         }
 
         if (urlParams.getLastChangedSince() != null) {
-            query = query + "and lc.lastModifiedTime>=:lastModifiedTime ";
+            query = query + "and ul.lastModifiedTime>=:lastModifiedTime ";
         }
         paramsMap.put("tenantId", urlParams.getTenantId());
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
         Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        query = query + "ORDER BY lc.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY ul.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", urlParams.getLimit());
         paramsMap.put("offset", urlParams.getOffset());
 
@@ -84,7 +80,7 @@ public class LocationCaptureRepository extends GenericRepository<LocationCapture
             }
         }
 
-        String query = String.format("SELECT * FROM location_capture lc WHERE lc.%s IN (:ids)", columnName);
+        String query = String.format("SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul WHERE ul.%s IN (:ids)", columnName);
 
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);

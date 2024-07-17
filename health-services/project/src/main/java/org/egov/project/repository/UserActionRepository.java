@@ -41,7 +41,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
     }
 
     public SearchResponse<UserAction> find(UserActionSearch searchObject, URLParams urlParams) throws QueryBuilderException {
-        String query = "SELECT * FROM user_action ua";
+        String query = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM user_action ua";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -90,10 +90,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
             }
         }
 
-        String query = String.format("SELECT * FROM user_action ua WHERE ua.%s IN (:ids) AND isDeleted = false", columnName);
-        if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM user_action ua WHERE ua.%s IN (:ids)", columnName);
-        }
+        String query = String.format("SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM user_action ua WHERE ua.%s IN (:ids) ", columnName);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
         List<UserAction> userActionList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);

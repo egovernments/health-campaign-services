@@ -21,6 +21,10 @@ import org.springframework.validation.annotation.Validated;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserAction extends EgovOfflineModel {
 
+    @JsonProperty("projectId")
+    @Size(min = 2, max = 64)
+    private String projectId;
+
     @JsonProperty("latitude")
     @DecimalMin("-90")
     @DecimalMax("90")
@@ -38,17 +42,15 @@ public class UserAction extends EgovOfflineModel {
     @JsonProperty("boundaryCode")
     private String boundaryCode;
 
-    @JsonProperty("projectId")
-    @Size(min = 2, max = 64)
-    private String projectId;
-
     @JsonProperty("action")
     private TaskAction action;
 
     @JsonProperty("beneficiaryTag")
+    @Size(min = 2, max = 64)
     private String beneficiaryTag;
 
     @JsonProperty("resourceTag")
+    @Size(min = 2, max = 64)
     private String resourceTag;
 
 }

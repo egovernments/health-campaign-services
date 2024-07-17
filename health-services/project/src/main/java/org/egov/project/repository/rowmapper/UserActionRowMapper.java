@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UserActionRowMapper implements RowMapper<UserAction> {
-//TODO
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -32,21 +32,29 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
                     .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                     .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                     .build();
+
             AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdTime(resultSet.getLong("clientCreatedTime"))
                     .createdBy(resultSet.getString("clientCreatedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
                     .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
+
             UserAction userAction = UserAction.builder()
                     .id(resultSet.getString("id"))
-                    .rowVersion(resultSet.getInt("rowVersion"))
-//                    .isDeleted(resultSet.getBoolean("isDeleted"))
                     .tenantId(resultSet.getString("tenantId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .projectId(resultSet.getString("projectId"))
+                    .latitude(resultSet.getDouble("latitude"))
+                    .longitude(resultSet.getDouble("longitude"))
+                    .locationAccuracy(resultSet.getDouble("locationAccuracy"))
+                    .boundaryCode(resultSet.getString("boundaryCode"))
+                    .action(TaskAction.fromValue(resultSet.getString("action")))
                     .status(resultSet.getString("status"))
                     .action(TaskAction.fromValue(resultSet.getString("action")))
+                    .beneficiaryTag(resultSet.getString("beneficiaryTag"))
+                    .resourceTag(resultSet.getString("resourceTag"))
+                    .rowVersion(resultSet.getInt("rowVersion"))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper

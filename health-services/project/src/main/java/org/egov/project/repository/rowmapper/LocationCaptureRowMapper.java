@@ -17,9 +17,6 @@ public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    //TODO fix this after you fix the repository select query
-
-
     /**
      * @param resultSet
      * @param rowNum
@@ -28,35 +25,42 @@ public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
      */
     @Override
     public LocationCapture mapRow(ResultSet resultSet, int rowNum) throws SQLException {
+
+        AuditDetails auditDetails = AuditDetails.builder()
+                .createdBy(resultSet.getString("createdBy"))
+                .createdTime(resultSet.getLong("createdTime"))
+                .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                .build();
+
+        AuditDetails clientAuditDetails = AuditDetails.builder()
+                .createdTime(resultSet.getLong("clientCreatedTime"))
+                .createdBy(resultSet.getString("clientCreatedBy"))
+                .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
+                .build();
+
+        LocationCapture locationCapture = null;
         try {
-            AuditDetails auditDetails = AuditDetails.builder()
-                    .createdBy(resultSet.getString("createdBy"))
-                    .createdTime(resultSet.getLong("createdTime"))
-                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                    .build();
-            AuditDetails clientAuditDetails = AuditDetails.builder()
-                    .createdTime(resultSet.getLong("clientCreatedTime"))
-                    .createdBy(resultSet.getString("clientCreatedBy"))
-                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
-                    .build();
-            LocationCapture locationCapture = LocationCapture.builder()
+            locationCapture = LocationCapture.builder()
                     .id(resultSet.getString("id"))
-                    .rowVersion(resultSet.getInt("rowVersion"))
                     .tenantId(resultSet.getString("tenantId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .projectId(resultSet.getString("projectId"))
-                    .status(resultSet.getString("status"))
-                    .action(TaskAction.LOCATION_CAPTURE)
+                    .latitude(resultSet.getDouble("latitude"))
+                    .longitude(resultSet.getDouble("longitude"))
+                    .locationAccuracy(resultSet.getDouble("locationAccuracy"))
+                    .boundaryCode(resultSet.getString("boundaryCode"))
+                    .action(TaskAction.fromValue(resultSet.getString("action")))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .build();
-            return locationCapture;
         } catch (JsonProcessingException e) {
-            throw new SQLException(e);
+            throw new RuntimeException(e);
         }
+
+        return locationCapture;
     }
 }

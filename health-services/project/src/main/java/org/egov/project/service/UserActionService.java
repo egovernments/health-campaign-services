@@ -14,9 +14,6 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskSearch;
-import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.common.models.project.irs.UserAction;
 import org.egov.common.models.project.irs.UserActionBulkRequest;
 import org.egov.common.models.project.irs.UserActionSearch;
@@ -26,7 +23,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.UserActionRepository;
-import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.service.enrichment.UserActionEnrichmentService;
 import org.egov.project.validator.closedhousehold.ChStatusValidator;
 import org.egov.project.validator.task.PtExistentEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
@@ -48,7 +45,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.project.Constants.SET_TASKS;
+import static org.egov.project.Constants.SET_USER_ACTION;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
@@ -62,7 +59,7 @@ public class UserActionService {
 
     private final ProjectConfiguration projectConfiguration;
 
-    private final ProjectTaskEnrichmentService enrichmentService;
+    private final UserActionEnrichmentService userActionEnrichmentService;
 
     private final List<Validator<UserActionBulkRequest, UserAction>> validators;
 
@@ -84,59 +81,59 @@ public class UserActionService {
             UserActionRepository userActionTaskRepository,
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
-            ProjectTaskEnrichmentService enrichmentService,
+            UserActionEnrichmentService userActionEnrichmentService,
             List<Validator<UserActionBulkRequest, UserAction>> validators
     ) {
         this.idGenService = idGenService;
         this.userActionTaskRepository = userActionTaskRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
-        this.enrichmentService = enrichmentService;
+        this.userActionEnrichmentService = userActionEnrichmentService;
         this.validators = validators;
     }
 
     public List<UserAction> create(UserActionBulkRequest request, boolean isBulk) {
-        log.info("received request to create bulk closed household tasks");
+        log.info("received request to create bulk closed household userActions");
         Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
         Map<UserAction, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<UserAction> validTasks = tuple.getX();
+        List<UserAction> validUserActions = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-//                enrichmentService.create(validTasks, request);
-                userActionTaskRepository.save(validTasks, projectConfiguration.getCreateUserActionTaskTopic());
-                log.info("successfully created closed household tasks");
+            if (!validUserActions.isEmpty()) {
+                log.info("processing {} valid entities", validUserActions.size());
+                userActionEnrichmentService.create(validUserActions, request);
+                userActionTaskRepository.save(validUserActions, projectConfiguration.getCreateUserActionTaskTopic());
+                log.info("successfully created closed household userActions");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating closed household tasks: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
+            log.error("error occurred while creating closed household userActions: {}", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validUserActions, exception, SET_USER_ACTION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        return validTasks;
+        return validUserActions;
     }
 
     public List<UserAction> update(UserActionBulkRequest request, boolean isBulk) {
-        log.info("received request to update bulk closed household tasks");
+        log.info("received request to update bulk closed household userActions");
         Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForUpdate, request, isBulk);
         Map<UserAction, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<UserAction> validTasks = tuple.getX();
+        List<UserAction> validUserActions = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-//                enrichmentService.update(validTasks, request);
-                userActionTaskRepository.save(validTasks, projectConfiguration.getUpdateUserActionTaskTopic());
-                log.info("successfully updated bulk closed household tasks");
+            if (!validUserActions.isEmpty()) {
+                log.info("processing {} valid entities", validUserActions.size());
+                userActionEnrichmentService.update(validUserActions, request);
+                userActionTaskRepository.save(validUserActions, projectConfiguration.getUpdateUserActionTaskTopic());
+                log.info("successfully updated bulk closed household userActions");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating closed household tasks", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
+            log.error("error occurred while updating closed household userActions", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validUserActions, exception, SET_USER_ACTION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        return validTasks;
+        return validUserActions;
     }
 
     private Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> validate(List<Validator<UserActionBulkRequest, UserAction>> validators,
@@ -145,13 +142,13 @@ public class UserActionService {
         log.info("validating request");
         Map<UserAction, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
-                SET_TASKS);
+                SET_USER_ACTION);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<UserAction> validTasks = request.getUserActions().stream()
+        List<UserAction> validUserActions = request.getUserActions().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        return new Tuple<>(validTasks, errorDetailsMap);
+        return new Tuple<>(validUserActions, errorDetailsMap);
     }
 
     public SearchResponse<UserAction> search(UserActionSearchRequest request, URLParams urlParams) {
@@ -166,7 +163,7 @@ public class UserActionService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(userActionSearch)),
                     userActionSearch);
-            log.info("fetching closed household tasks with ids: {}", ids);
+            log.info("fetching closed household userActions with ids: {}", ids);
             SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(ids,
                     idFieldName, urlParams.getIncludeDeleted());
             return SearchResponse.<UserAction>builder().response(searchResponse.getResponse().stream()
@@ -185,9 +182,9 @@ public class UserActionService {
         }
     }
 
-    public void putInCache(List<UserAction> tasks) {
-        log.info("putting {} closed household tasks in cache", tasks.size());
-        userActionTaskRepository.putInCache(tasks);
-        log.info("successfully put closed household tasks in cache");
+    public void putInCache(List<UserAction> userActions) {
+        log.info("putting {} closed household userActions in cache", userActions.size());
+        userActionTaskRepository.putInCache(userActions);
+        log.info("successfully put closed household userActions in cache");
     }
 }

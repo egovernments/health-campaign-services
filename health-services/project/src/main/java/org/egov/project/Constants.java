@@ -58,4 +58,12 @@ public interface Constants {
 
     String HOUSEHOLD_ID = "HouseholdId";
 
+    String SET_USER_ACTION = "setActions";
+
+    String GET_USER_ACTION = "getActions";
+
+    String SET_LOCATION_CAPTURE = "setLocationCaptures";
+
+    String GET_LOCATION_CAPTURE = "getLocationCaptures";
+
 }

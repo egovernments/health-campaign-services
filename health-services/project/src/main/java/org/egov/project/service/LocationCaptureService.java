@@ -22,7 +22,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
-import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.service.enrichment.LocationCaptureEnrichmentService;
 import org.egov.project.validator.irs.LcProjectIdValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.project.Constants.SET_TASKS;
+import static org.egov.project.Constants.SET_LOCATION_CAPTURE;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
@@ -52,7 +52,7 @@ public class LocationCaptureService {
 
     private final ProjectConfiguration projectConfiguration;
 
-    private final ProjectTaskEnrichmentService enrichmentService;
+    private final LocationCaptureEnrichmentService locationCaptureEnrichmentService;
 
     private final List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators;
 
@@ -66,14 +66,14 @@ public class LocationCaptureService {
             LocationCaptureRepository locationCaptureRepository,
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
-            ProjectTaskEnrichmentService enrichmentService,
+            LocationCaptureEnrichmentService locationCaptureEnrichmentService,
             List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators
     ) {
         this.idGenService = idGenService;
         this.locationCaptureRepository = locationCaptureRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
-        this.enrichmentService = enrichmentService;
+        this.locationCaptureEnrichmentService = locationCaptureEnrichmentService;
         this.validators = validators;
     }
 
@@ -85,13 +85,13 @@ public class LocationCaptureService {
         try {
             if (!validLocationCaptures.isEmpty()) {
                 log.info("processing {} valid entities", validLocationCaptures.size());
-//                enrichmentService.create(validLocationCaptures, request); TODO
+                locationCaptureEnrichmentService.create(validLocationCaptures, request);
                 locationCaptureRepository.save(validLocationCaptures, projectConfiguration.getCreateLocationCaptureTaskTopic());
                 log.info("successfully created location capture tasks");
             }
         } catch (Exception exception) {
             log.error("error occurred while creating location capture tasks: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validLocationCaptures, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validLocationCaptures, exception, SET_LOCATION_CAPTURE);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -105,7 +105,7 @@ public class LocationCaptureService {
         log.info("validating request");
         Map<LocationCapture, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
-                SET_TASKS);
+                SET_LOCATION_CAPTURE);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
