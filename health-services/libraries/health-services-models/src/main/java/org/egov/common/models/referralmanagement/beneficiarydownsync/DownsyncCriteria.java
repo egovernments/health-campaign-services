@@ -1,6 +1,7 @@
 package org.egov.common.models.referralmanagement.beneficiarydownsync;
 
 import jakarta.validation.constraints.NotNull;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;

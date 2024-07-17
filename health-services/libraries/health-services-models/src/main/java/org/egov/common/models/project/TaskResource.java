@@ -2,7 +2,7 @@ package org.egov.common.models.project;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.egov.tracer.model.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
