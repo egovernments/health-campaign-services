@@ -45,7 +45,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   //   { name: "Boundary" },
   // ]);
 
-  const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "adminSchema" }] , {} ,{schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"});
+  const { data: Schemas, isLoading: isThisLoading } = Digit.Hooks.useCustomMDMS(
+    tenantId,
+    "HCM-ADMIN-CONSOLE",
+    [{ name: "adminSchema" }],
+    {},
+    { schemaCode: "HCM-ADMIN-CONSOLE.adminSchema" }
+  );
 
   const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "ReadMeConfig" }]);
   const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeout" }]);
@@ -178,13 +184,17 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(async () => {
     if (Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema) {
-      const facility = await convertIntoSchema(Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility" && item.campaignType === "all")?.[0]);
+      const facility = await convertIntoSchema(
+        Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "facility" && item.campaignType === "all")?.[0]
+      );
       const boundary = await convertIntoSchema(
         Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter(
           (item) => item.title === "boundaryWithTarget" && item.campaignType === totalData?.HCM_CAMPAIGN_TYPE?.projectType?.code
         )?.[0]
       );
-      const user = await convertIntoSchema(Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user" && item.campaignType === "all")?.[0]);
+      const user = await convertIntoSchema(
+        Schemas?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.adminSchema?.filter((item) => item.title === "user" && item.campaignType === "all")?.[0]
+      );
       const schema = {
         boundary: boundary,
         facilityWithBoundary: facility,

@@ -150,6 +150,7 @@ const CampaignSummary = (props) => {
   const [userErrors, setUserErrors] = useState(null);
   const [cycleDatesError, setCycleDatesError] = useState(null);
   const [summaryErrors, setSummaryErrors] = useState(null);
+  const isPreview = searchParams.get("preview");
   const handleRedirect = (step, activeCycle) => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get("id");
@@ -221,6 +222,22 @@ const CampaignSummary = (props) => {
         const cycleData = reverseDeliveryRemap(target, t);
         return {
           cards: [
+            isPreview
+              ?
+            {
+              name: "timeline",
+              sections: [
+                {
+                  name: "timeline",
+                  type: "COMPONENT",
+                  component: "TimelineComponent",
+                  props: {
+                    campaignId: data?.[0]?.id,
+                  },
+                  cardHeader: { value: t("TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                },
+              ],
+            }: {},
             {
               sections: [
                 {

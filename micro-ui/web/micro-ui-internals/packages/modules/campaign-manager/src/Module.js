@@ -27,6 +27,7 @@ import CampaignResourceDocuments from "./components/CampaignResourceDocuments";
 import ConfigureApp from "./pages/employee/ConfigureApp";
 import SideEffects from "./components/ConfigureApp/SideEffect";
 import SideEffectType from "./components/ConfigureApp/SideEffectType";
+import TimelineComponent from "./components/TimelineComponent";
 import { DSSCard } from "./components/DSSCard";
 import UpdateDatesWithBoundaries from "./pages/employee/UpdateDatesWithBoundaries";
 import DateWithBoundary from "./components/DateWithBoundary";
@@ -97,7 +98,8 @@ const componentsToRegister = {
   UpdateDatesWithBoundaries,
   DateWithBoundary,
   BoundaryWithDate,
-  DateAndCycleUpdate
+  DateAndCycleUpdate,
+  TimelineComponent
 };
 
 const overrideHooks = () => {

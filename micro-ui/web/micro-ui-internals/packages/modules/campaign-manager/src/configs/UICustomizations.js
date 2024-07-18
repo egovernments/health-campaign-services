@@ -11,7 +11,17 @@ const businessServiceMap = {};
 
 const inboxModuleNameMap = {};
 
+
+function updateUrlParams(params) {
+  const url = new URL(window.location.href);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  window.history.replaceState({}, "", url);
+}
+
 const onActionSelect = (value, row) => {
+  console.log("values", value , row);
   switch (value?.code) {
     case "ACTION_LABEL_UPDATE_DATES":
       window.history.pushState(
@@ -26,6 +36,9 @@ const onActionSelect = (value, row) => {
       window.location.href = `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`;
 
       break;
+      // case "ACTION_LABEL_VIEW_TIMELINE":
+      //   Digit.SessionStorage.set("HCM_TIMELINE_POPUP", true);
+      // break;
     default:
       console.log(value);
       break;
@@ -98,6 +111,7 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timelinePopup, setTimeLinePopUp] = React.useState(Digit.SessionStorage.get("HCM_TIMELINE_POPUP") || {});
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
