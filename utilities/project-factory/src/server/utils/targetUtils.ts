@@ -1,4 +1,4 @@
-import config from '../../server/config/index'
+import config from '../config/index'
 import { getLocalizedName } from './campaignUtils';
 function modifyDeliveryConditions(dataa: any[]): any {
     let resultSet = new Set<string>();
