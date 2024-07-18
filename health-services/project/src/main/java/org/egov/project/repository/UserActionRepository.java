@@ -78,7 +78,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
 
     
 
-    public SearchResponse<UserAction> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+    public SearchResponse<UserAction> findById(List<String> ids, String columnName) {
         List<UserAction> objFound = findInCache(ids);
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);

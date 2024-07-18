@@ -33,7 +33,7 @@ public class LocationCaptureBulkRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("locationCaptures")
+    @JsonProperty("LocationCaptures")
     @NotNull
     @Valid
     @Size(min=1)

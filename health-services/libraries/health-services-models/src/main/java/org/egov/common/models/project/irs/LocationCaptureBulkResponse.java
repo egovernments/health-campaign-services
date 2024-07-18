@@ -37,7 +37,7 @@ public class LocationCaptureBulkResponse {
     @Builder.Default
     private Long totalCount = 0L;
 
-    @JsonProperty("locationCaptures")
+    @JsonProperty("LocationCaptures")
     @NotNull
     @Valid
     private List<LocationCapture> locationCaptures = null;

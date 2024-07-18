@@ -39,12 +39,11 @@ public class IRSConsumer {
     @KafkaListener(topics = "${project.user.action.task.consumer.bulk.create.topic}")
     public List<UserAction> bulkCreateUserAction(Map<String, Object> consumerRecord,
                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        String taskType = "project task";
         try {
             UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             return userActionService.create(request, true);
         }  catch (Exception exception) {
-            log.error("error in "+ taskType +" consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in user action consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -52,12 +51,11 @@ public class IRSConsumer {
     @KafkaListener(topics = "${project.user.action.task.consumer.bulk.update.topic}")
     public List<UserAction> bulkUpdateUserAction(Map<String, Object> consumerRecord,
                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        String taskType = "project task";
         try {
             UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             return userActionService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in "+ taskType +" consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in user action consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -65,12 +63,11 @@ public class IRSConsumer {
     @KafkaListener(topics = "${project.location.capture.task.consumer.bulk.create.topic}")
     public List<LocationCapture> bulkCreateLocationCapture(Map<String, Object> consumerRecord,
                                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        String taskType = "project task";
         try {
             LocationCaptureBulkRequest request = objectMapper.convertValue(consumerRecord, LocationCaptureBulkRequest.class);
             return locationCaptureService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in "+ taskType +" consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in locatin capture consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

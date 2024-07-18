@@ -25,6 +25,8 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.UserActionRepository;
 import org.egov.project.service.enrichment.UserActionEnrichmentService;
 import org.egov.project.validator.closedhousehold.ChStatusValidator;
+import org.egov.project.validator.irs.UaExistentEntityValidator;
+import org.egov.project.validator.irs.UaProjectIdValidator;
 import org.egov.project.validator.task.PtExistentEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
 import org.egov.project.validator.task.PtNonExistentEntityValidator;
@@ -64,11 +66,11 @@ public class UserActionService {
     private final List<Validator<UserActionBulkRequest, UserAction>> validators;
 
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
-                    || validator.getClass().equals(PtExistentEntityValidator.class);
+            validator.getClass().equals(UaProjectIdValidator.class)
+                    || validator.getClass().equals(UaExistentEntityValidator.class);
 
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(PtProjectIdValidator.class)
+            validator.getClass().equals(UaProjectIdValidator.class)
                     || validator.getClass().equals(PtNullIdValidator.class)
                     || validator.getClass().equals(PtIsDeletedValidator.class)
                     || validator.getClass().equals(PtNonExistentEntityValidator.class)
@@ -164,8 +166,7 @@ public class UserActionService {
                             .singletonList(userActionSearch)),
                     userActionSearch);
             log.info("fetching closed household userActions with ids: {}", ids);
-            SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(ids,
-                    idFieldName, urlParams.getIncludeDeleted());
+            SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(ids, idFieldName);
             return SearchResponse.<UserAction>builder().response(searchResponse.getResponse().stream()
                     .filter(lastChangedSince(urlParams.getLastChangedSince()))
                     .filter(havingTenantId(urlParams.getTenantId()))
