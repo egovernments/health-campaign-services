@@ -12,8 +12,11 @@ function UpdateDatesWithBoundaries() {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [showToast, setShowToast] = useState(null);
   const { state } = useLocation();
-  const DateWithBoundary = true;
-
+  const { isLoading: DateWithBoundaryLoading, data: DateWithBoundary } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "dateWithBoundary" }], {
+    select: (data) => {
+      return data?.["HCM-ADMIN-CONSOLE"]?.dateWithBoundary;
+    },
+  });
   const closeToast = () => {
     setShowToast(null);
   };
