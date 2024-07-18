@@ -194,15 +194,14 @@ public class ProjectConfiguration {
     @Value("${project.user.action.task.kafka.create.topic}")
     private String createUserActionTaskTopic;
 
-    @Value("${project.user.action.task.kafka.update.topic}")
+    @Value("${project.user.action.task.consumer.bulk.create.topic}")
     private String bulkCreateUserActionTaskTopic;
 
-    @Value("${project.user.action.task.consumer.bulk.create.topic}")
+    @Value("${project.user.action.task.kafka.update.topic}")
     private String updateUserActionTaskTopic;
 
     @Value("${project.user.action.task.consumer.bulk.update.topic}")
     private String bulkUpdateUserActionTaskTopic;
-
 
     @Value("${project.location.capture.task.consumer.bulk.create.topic}")
     private String bulkCreateLocationCaptureTaskTopic;
