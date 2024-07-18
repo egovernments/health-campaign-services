@@ -6,6 +6,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -44,5 +45,9 @@ public class LocationCapture extends EgovOfflineModel {
 
     @JsonProperty("action")
     private TaskAction action;
+
+    @JsonProperty("isDeleted")
+    @Builder.Default
+    private Boolean isDeleted = false;
 
 }
