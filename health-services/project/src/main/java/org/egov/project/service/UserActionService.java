@@ -24,15 +24,12 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.UserActionRepository;
 import org.egov.project.service.enrichment.UserActionEnrichmentService;
-import org.egov.project.validator.closedhousehold.ChStatusValidator;
 import org.egov.project.validator.irs.UaExistentEntityValidator;
+import org.egov.project.validator.irs.UaNonExistentEntityValidator;
+import org.egov.project.validator.irs.UaNullIdValidator;
 import org.egov.project.validator.irs.UaProjectIdValidator;
-import org.egov.project.validator.task.PtExistentEntityValidator;
-import org.egov.project.validator.task.PtIsDeletedValidator;
-import org.egov.project.validator.task.PtNonExistentEntityValidator;
-import org.egov.project.validator.task.PtNullIdValidator;
-import org.egov.project.validator.task.PtProjectIdValidator;
-import org.egov.project.validator.task.PtRowVersionValidator;
+import org.egov.project.validator.irs.UaRowVersionValidator;
+import org.egov.project.validator.irs.UaStatusValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -71,11 +68,10 @@ public class UserActionService {
 
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForUpdate = validator ->
             validator.getClass().equals(UaProjectIdValidator.class)
-                    || validator.getClass().equals(PtNullIdValidator.class)
-                    || validator.getClass().equals(PtIsDeletedValidator.class)
-                    || validator.getClass().equals(PtNonExistentEntityValidator.class)
-                    || validator.getClass().equals(PtRowVersionValidator.class)
-                    || validator.getClass().equals(ChStatusValidator.class);
+                    || validator.getClass().equals(UaNullIdValidator.class)
+                    || validator.getClass().equals(UaNonExistentEntityValidator.class)
+                    || validator.getClass().equals(UaRowVersionValidator.class)
+                    || validator.getClass().equals(UaStatusValidator.class);
 
     @Autowired
     public UserActionService(
