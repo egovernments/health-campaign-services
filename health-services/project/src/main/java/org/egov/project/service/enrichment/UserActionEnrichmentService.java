@@ -42,7 +42,7 @@ public class UserActionEnrichmentService {
         log.info("generating IDs using UUID");
         List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
         log.info("enriching UserActions with generated IDs");
-        enrichForCreate(entities, idList, request.getRequestInfo());
+        enrichForCreate(entities, idList, request.getRequestInfo(),false);
         log.info("enrichment done");
     }
 
