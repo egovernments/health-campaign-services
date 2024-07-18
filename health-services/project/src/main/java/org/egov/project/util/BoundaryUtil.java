@@ -24,22 +24,21 @@ import java.util.Optional;
 
 @Component
 @Slf4j
-@Deprecated
 public class BoundaryUtil {
 
-
+    @Value("${egov.location.host}")
     private String locationHost;
 
-
+    @Value("${egov.location.context.path}")
     private String locationContextPath;
 
-
+    @Value("${egov.location.endpoint}")
     private String locationEndpoint;
 
-
+    @Value("${egov.location.code.query.param:codes}")
     private String codeQueryParam;
 
-
+    @Autowired
     private ServiceRequestClient serviceRequestRepository;
 
     /* Takes map of locations with boundaryType as key and list of boundaries as its values, tenantId, requestInfo and hierarchyType.
