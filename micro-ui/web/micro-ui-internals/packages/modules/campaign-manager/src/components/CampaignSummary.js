@@ -233,8 +233,9 @@ const CampaignSummary = (props) => {
                   component: "TimelineComponent",
                   props: {
                     campaignId: data?.[0]?.id,
+                    resourceId: resourceIdArr
                   },
-                  cardHeader: { value: t("TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                  cardHeader: { value: t("HCM_TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                 },
               ],
             }: {},
@@ -491,7 +492,7 @@ const CampaignSummary = (props) => {
     <>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Header className="summary-header">{t("ES_TQM_SUMMARY_HEADING")}</Header>
-        {userCredential && (
+        {/* {userCredential && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
             variation="secondary"
@@ -500,7 +501,7 @@ const CampaignSummary = (props) => {
             className="campaign-download-template-btn hover"
             onButtonClick={downloadUserCred}
           />
-        )}
+        )} */}
       </div>
       <div className="campaign-summary-container">
         <ViewComposer data={data} cardErrors={summaryErrors} />

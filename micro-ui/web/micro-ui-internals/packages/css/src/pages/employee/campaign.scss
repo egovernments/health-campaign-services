@@ -83,9 +83,6 @@
 .headerWrapperClassName {
   display: none;
 }
-.popup-close-svg {
-  display: none;
-}
 .whoLogo {
   margin-top: -1rem;
   margin-bottom: -1rem;
@@ -119,4 +116,9 @@
 }
 .digit-error{
   z-index: 900;
+}
+.timeline-user{
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
 }
