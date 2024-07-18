@@ -764,7 +764,7 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
 
 async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, filteredBoundary?: any) {
   request.body.generatedResource = newEntryResponse;
-  fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, filteredBoundary);
+  await fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, filteredBoundary);
   return request.body.generatedResource;
 }
 
