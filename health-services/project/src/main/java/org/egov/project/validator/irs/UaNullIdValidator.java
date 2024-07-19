@@ -12,7 +12,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.validateForNullId;
-import static org.egov.project.Constants.GET_TASKS;
+import static org.egov.project.Constants.GET_USER_ACTION;
 
 @Component
 @Order(value = 1)
@@ -22,6 +22,6 @@ public class UaNullIdValidator implements Validator<UserActionBulkRequest, UserA
     @Override
     public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
         log.info("validating for null id");
-        return validateForNullId(request, GET_TASKS);
+        return validateForNullId(request, GET_USER_ACTION);
     }
 }

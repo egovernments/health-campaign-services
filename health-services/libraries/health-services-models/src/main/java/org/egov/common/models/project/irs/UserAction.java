@@ -46,6 +46,7 @@ public class UserAction extends EgovOfflineModel {
     private String boundaryCode;
 
     @JsonProperty("action")
+    @NotNull
     private TaskAction action;
 
     @JsonProperty("beneficiaryTag")

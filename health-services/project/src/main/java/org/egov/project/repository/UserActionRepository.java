@@ -54,9 +54,9 @@ public class UserActionRepository extends GenericRepository<UserAction> {
         } else {
             query = query + " and ua.tenantId=:tenantId ";
         }
-        if (Boolean.FALSE.equals(urlParams.getIncludeDeleted())) {
-            query = query + "and isDeleted=:isDeleted ";
-        }
+//        if (Boolean.FALSE.equals(urlParams.getIncludeDeleted())) {
+//            query = query + "and isDeleted=:isDeleted ";
+//        }
 
         if (urlParams.getLastChangedSince() != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
