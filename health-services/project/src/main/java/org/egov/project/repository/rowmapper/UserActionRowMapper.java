@@ -9,13 +9,19 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
 import org.egov.common.models.project.irs.UserAction;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
 @Component
 public class UserActionRowMapper implements RowMapper<UserAction> {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    public UserActionRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * @param resultSet

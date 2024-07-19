@@ -9,13 +9,19 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
 import org.egov.common.models.project.irs.LocationCapture;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    public LocationCaptureRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * @param resultSet
