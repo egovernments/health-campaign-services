@@ -76,6 +76,7 @@ const reducer = (state, action) => {
 const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
   const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+  const today = Digit.Utils.date.getDate(Date.now());
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { state } = useLocation();
   const historyState = window.history.state;
@@ -138,6 +139,9 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   }, [isLoading, projectData]);
 
   const handleDateChange = ({ date, endDate = false, cycleDate = false, cycleIndex }) => {
+    if (!date || date <= today) {
+      return null;
+    }
     if (!endDate) {
       dateReducerDispatch({
         type: "START_DATE",
@@ -154,6 +158,9 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   };
 
   const handleCycleDateChange = ({ date, endDate = false, cycleIndex }) => {
+    if (!date || date <= today) {
+      return null;
+    }
     if (!endDate) {
       dateReducerDispatch({
         type: "CYCLE_START_DATE",
@@ -185,13 +192,17 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
             withoutLabel={true}
             type="date"
             value={startDate}
+            nonEditable={today >= startDate ? true : false}
             placeholder={t("HCM_START_DATE")}
-            populators={{
-              validation: {
-                min: Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS),
-              },
-            }}
-            min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
+            populators={
+              today >= startDate
+                ? {}
+                : {
+                    validation: {
+                      min: Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS),
+                    },
+                  }
+            }
             onChange={(d) => {
               handleDateChange({
                 date: d,
@@ -202,18 +213,19 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
             withoutLabel={true}
             type="date"
             value={endDate}
+            nonEditable={today >= endDate ? true : false}
             placeholder={t("HCM_END_DATE")}
-            populators={{
-              validation: {
-                min: startDate
-                  ? Digit.Utils.date.getDate(new Date(startDate).getTime() + 2 * ONE_DAY_IN_MS)
-                  : Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS),
-              },
-            }}
-            min={
-              startDate
-                ? Digit.Utils.date.getDate(new Date(startDate).getTime() + 2 * ONE_DAY_IN_MS)
-                : Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS)
+            populators={
+              today >= endDate
+                ? {}
+                : {
+                    validation: {
+                      min:
+                        startDate && startDate > today
+                          ? Digit.Utils.date.getDate(new Date(startDate).getTime() + 2 * ONE_DAY_IN_MS)
+                          : Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS),
+                    },
+                  }
             }
             onChange={(d) => {
               handleDateChange({
@@ -229,7 +241,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
           {cycleDates?.map((item, index) => (
             <LabelFieldPair style={{ display: "grid", gridTemplateColumns: "13rem 2fr", alignItems: "start" }}>
               <div className="campaign-dates">
-                <p>{t(`CYCLE ${item?.cycleIndex}`)}</p>
+                <p>{`${t(`CYCLE`)} ${item?.cycleIndex}`}</p>
                 <span className="mandatory-date">*</span>
               </div>
               <div className="date-field-container">
@@ -237,18 +249,23 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
                   withoutLabel={true}
                   type="date"
                   value={item?.startDate}
+                  nonEditable={today >= item?.startDate ? true : false}
                   placeholder={t("HCM_START_DATE")}
-                  populators={{
-                    validation: {
-                      min:
-                        index > 0
-                          ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index)?.endDate)?.getTime() + 86400000)
-                              ?.toISOString()
-                              ?.split("T")?.[0]
-                          : startDate,
-                      max: endDate,
-                    },
-                  }}
+                  populators={
+                    today >= item?.startDate
+                      ? {}
+                      : {
+                          validation: {
+                            min:
+                              index > 0
+                                ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index)?.endDate)?.getTime() + 86400000)
+                                    ?.toISOString()
+                                    ?.split("T")?.[0]
+                                : startDate,
+                            max: endDate,
+                          },
+                        }
+                  }
                   onChange={(d) => {
                     // setStartValidation(true);
                     handleCycleDateChange({
@@ -261,17 +278,22 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
+                  nonEditable={today >= item?.endDate ? true : false}
                   placeholder={t("HCM_END_DATE")}
-                  populators={{
-                    validation: {
-                      min: cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate
-                        ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + 86400000)
-                            ?.toISOString()
-                            ?.split("T")?.[0]
-                        : null,
-                      max: endDate,
-                    },
-                  }}
+                  populators={
+                    today >= item?.endDate
+                      ? {}
+                      : {
+                          validation: {
+                            min: cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate
+                              ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + 86400000)
+                                  ?.toISOString()
+                                  ?.split("T")?.[0]
+                              : null,
+                            max: endDate,
+                          },
+                        }
+                  }
                   onChange={(d) => {
                     handleCycleDateChange({
                       date: d,
