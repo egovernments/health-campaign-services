@@ -209,4 +209,9 @@ public class ProjectConfiguration {
     @Value("${project.location.capture.task.kafka.create.topic}")
     private String createLocationCaptureTaskTopic;
 
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
 }

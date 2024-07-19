@@ -31,18 +31,22 @@ public class UserAction extends EgovOfflineModel {
     @JsonProperty("latitude")
     @DecimalMin("-90")
     @DecimalMax("90")
+    @NotNull
     private Double latitude;
 
     @JsonProperty("longitude")
     @DecimalMin("-180")
     @DecimalMax("180")
+    @NotNull
     private Double longitude;
 
     @JsonProperty("locationAccuracy")
     @DecimalMin("0")
+    @NotNull
     private Double locationAccuracy;
 
     @JsonProperty("boundaryCode")
+    @NotNull
     private String boundaryCode;
 
     @JsonProperty("action")
