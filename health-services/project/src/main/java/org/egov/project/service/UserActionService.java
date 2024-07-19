@@ -24,6 +24,7 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.UserActionRepository;
 import org.egov.project.service.enrichment.UserActionEnrichmentService;
+import org.egov.project.validator.irs.UaBoundaryValidator;
 import org.egov.project.validator.irs.UaExistentEntityValidator;
 import org.egov.project.validator.irs.UaNonExistentEntityValidator;
 import org.egov.project.validator.irs.UaNullIdValidator;
@@ -64,14 +65,16 @@ public class UserActionService {
 
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForCreate = validator ->
             validator.getClass().equals(UaProjectIdValidator.class)
-                    || validator.getClass().equals(UaExistentEntityValidator.class);
+                    || validator.getClass().equals(UaExistentEntityValidator.class)
+                    || validator.getClass().equals(UaBoundaryValidator.class);
 
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForUpdate = validator ->
             validator.getClass().equals(UaProjectIdValidator.class)
                     || validator.getClass().equals(UaNullIdValidator.class)
                     || validator.getClass().equals(UaNonExistentEntityValidator.class)
                     || validator.getClass().equals(UaRowVersionValidator.class)
-                    || validator.getClass().equals(UaStatusValidator.class);
+                    || validator.getClass().equals(UaStatusValidator.class)
+                    || validator.getClass().equals(UaBoundaryValidator.class);
 
     @Autowired
     public UserActionService(

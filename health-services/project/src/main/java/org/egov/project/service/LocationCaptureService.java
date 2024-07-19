@@ -23,6 +23,8 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
 import org.egov.project.service.enrichment.LocationCaptureEnrichmentService;
+import org.egov.project.validator.irs.LcBoundaryValidator;
+import org.egov.project.validator.irs.LcExistentEntityValidator;
 import org.egov.project.validator.irs.LcProjectIdValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +60,8 @@ public class LocationCaptureService {
 
     private final Predicate<Validator<LocationCaptureBulkRequest, LocationCapture>> isApplicableForCreate = validator ->
             validator.getClass().equals(LcProjectIdValidator.class)
-                    || validator.getClass().equals(LcProjectIdValidator.class);
+                    || validator.getClass().equals(LcExistentEntityValidator.class)
+                    || validator.getClass().equals(LcBoundaryValidator.class);
 
     @Autowired
     public LocationCaptureService(
