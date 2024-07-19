@@ -1,5 +1,25 @@
-import config from '../config/index'
-import { getLocalizedName } from './campaignUtils';
+import config from '../../server/config/index'
+import { getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
+import _ from 'lodash';
+import { replicateRequest } from './genericUtils';
+import { callGenerate } from './generateUtils';
+
+
+async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
+    let headerColumnsAfterHierarchy: any;
+    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate) {
+
+        const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
+        headerColumnsAfterHierarchy = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
+
+    }
+    else {
+        headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request);
+    }
+    return headerColumnsAfterHierarchy;
+}
+
+
 function modifyDeliveryConditions(dataa: any[]): any {
     let resultSet = new Set<string>();
     dataa.forEach((delivery) => {
@@ -43,7 +63,7 @@ function modifyDeliveryConditions(dataa: any[]): any {
 
 
 function generateTargetColumnsBasedOnDeliveryConditions(uniqueDeliveryConditions: any, localizationMap?: any) {
-    const targetColumnsBasedOnDeliveryConditions: string[] = [config?.boundary?.boundaryCode];
+    const targetColumnsBasedOnDeliveryConditions: string[] = [];
 
     uniqueDeliveryConditions.forEach((str: any) => {
         const uniqueDeliveryConditionsObject = JSON.parse(str); // Parse JSON string into object
@@ -69,7 +89,38 @@ function createTargetString(uniqueDeliveryConditionsObject: any, localizationMap
     return targetString;
 }
 
+async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any) {
+    const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    if (existingCampaignDetails) {
+        if (config?.isCallGenerateWhenDeliveryConditionsDiffer && !_.isEqual(existingCampaignDetails?.deliveryRules, request?.body?.CampaignDetails?.deliveryRules)) {
+            const newRequestBody = {
+                RequestInfo: request?.body?.RequestInfo,
+                Filters: {
+                    boundaries: request?.body?.CampaignDetails?.boundaries
+                }
+            };
+
+            const { query } = request;
+            const params = {
+                tenantId: request?.body?.CampaignDetails?.tenantId,
+                forceUpdate: 'true',
+                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+                campaignId: request?.body?.CampaignDetails?.id
+            };
+
+            const newParamsBoundary = { ...query, ...params, type: "boundary" };
+            const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
+            await callGenerate(newRequestBoundary, "boundary");
+        }
+    }
+}
+
+
+
+
 export {
     modifyDeliveryConditions,
-    generateTargetColumnsBasedOnDeliveryConditions
+    generateTargetColumnsBasedOnDeliveryConditions,
+    generateDynamicTargetHeaders,
+    updateTargetColumnsIfDeliveryConditionsDifferForSMC,
 };

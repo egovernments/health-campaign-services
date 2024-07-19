@@ -19,6 +19,7 @@ import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
 import { callGenerateIfBoundariesDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
+import { generateDynamicTargetHeaders, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 const _ = require('lodash');
 
 
@@ -589,6 +590,7 @@ function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: a
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     callGenerateIfBoundariesDiffer(request);
+    updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     var updatedInnerCampaignDetails = {}
     enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
@@ -1805,9 +1807,11 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     const index = localizedHierarchy.indexOf(getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap));
     const expectedHeadersForTargetSheetUptoHierarchy = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
-    const columnFromSchemaOfTargetTemplate = await getConfigurableColumnHeadersBasedOnCampaignType(request);
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    const columnFromSchemaOfTargetTemplate = await generateDynamicTargetHeaders(request, campaignObject, localizationMap);
     const localizedcolumnFromSchemaOfTargetTemplate = getLocalizedHeaders(columnFromSchemaOfTargetTemplate, localizationMap)
-    const expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheetUptoHierarchy, ...localizedcolumnFromSchemaOfTargetTemplate];
+    const expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheetUptoHierarchy, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), ...localizedcolumnFromSchemaOfTargetTemplate];
     return expectedHeadersForTargetSheet;
 }
 

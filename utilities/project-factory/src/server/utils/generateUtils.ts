@@ -81,4 +81,4 @@ async function callGenerate(request: any, type: any) {
 
 
 
-export { callGenerateIfBoundariesDiffer }
+export { callGenerateIfBoundariesDiffer, callGenerate }
