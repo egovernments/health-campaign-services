@@ -2,11 +2,11 @@ package org.egov.common.models.individual;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.user.enums.UserType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.user.enums.UserType;
 import org.egov.common.models.core.Role;
 
 import jakarta.validation.Valid;
