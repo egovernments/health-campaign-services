@@ -317,6 +317,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           const formattedErrors = errors
             .map((error) => {
               let instancePath = error.instancePath || ""; // Assign an empty string if dataPath is not available
+              if (error.instancePath ===  "/Phone Number (Mandatory)" ) {
+                return `${t("HCM_DATA_AT_ROW")} ${index} ${t("HCM_IN_COLUMN")}  ${t("HCM_DATA_SHOULD_BE_10_DIGIT")}`;
+              }
               if (instancePath.startsWith("/")) {
                 instancePath = instancePath.slice(1);
               }

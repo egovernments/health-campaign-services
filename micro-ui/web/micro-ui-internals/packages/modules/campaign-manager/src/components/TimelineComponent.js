@@ -131,7 +131,7 @@ const TimelineComponent = ({campaignId, resourceId}) => {
       {userCredential && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
-            variation="secondary"
+            variation="primary"
             icon={"DownloadIcon"}
             type="button"
             className="campaign-download-template-btn hover"

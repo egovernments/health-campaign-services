@@ -464,7 +464,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             })
             .map((boundary, index) =>
               boundary?.parentBoundaryType == null ? (
-                <LabelFieldPair key={index}>
+                <LabelFieldPair key={index} style={{ alignItems: 'flex-start' }}>
                   <CardLabel>
                     {/* {t(`${hierarchy}_${boundary?.boundaryType}`?.toUpperCase())} */}
                     {t((hierarchy + "_" + boundary?.boundaryType).toUpperCase())}
@@ -484,11 +484,14 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
+                      config={{
+                        isDropdownWithChip: true, 
+                      }}
                     />
                   </div>
                 </LabelFieldPair>
               ) : (
-                <LabelFieldPair key={index}>
+                <LabelFieldPair key={index} style={{ alignItems: 'flex-start' }}>
                   <CardLabel>
                     {t((hierarchy + "_" + boundary?.boundaryType).toUpperCase())}
                     <span className="mandatory-span">*</span>
@@ -512,6 +515,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                       optionsKey={"code"}
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
+                      }}
+                      config={{
+                        isDropdownWithChip: true, 
                       }}
                       selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType) || []}
                       addCategorySelectAllCheck={true}
