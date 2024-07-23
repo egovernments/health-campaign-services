@@ -424,10 +424,10 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
     await validateViaSchema(data, schema, request, localizationMap);
 }
 
-async function validateTargetSheetData(data: any, request: any, boundaryValidation: any, localizationMap?: any) {
+async function validateTargetSheetData(data: any, request: any, boundaryValidation: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     try {
         const errors: any[] = [];
-        await validateHeadersOfTargetSheet(request, localizationMap);
+        await validateHeadersOfTargetSheet(request, differentTabsBasedOnLevel, localizationMap);
         if (boundaryValidation) {
             // const localizedBoundaryValidationColumn = getLocalizedName(boundaryValidation?.column, localizationMap)
             // await validateTargetBoundaryData(data, request, localizedBoundaryValidationColumn, errors, localizationMap);
@@ -447,11 +447,11 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
 }
 
 
-async function validateHeadersOfTargetSheet(request: any, localizationMap?: any) {
+async function validateHeadersOfTargetSheet(request: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     const fileUrl = await validateFile(request);
     const targetWorkbook: any = await getTargetWorkbook(fileUrl);
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, localizationMap);
+    const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, differentTabsBasedOnLevel, localizationMap);
     logger.info("finalValidHeadersForTargetSheetAsPerCampaignType :" + JSON.stringify(finalValidHeadersForTargetSheetAsPerCampaignType));
     logger.info("validating headers of target sheet started")
     validateHeadersOfTabsWithTargetInTargetSheet(targetWorkbook, finalValidHeadersForTargetSheetAsPerCampaignType);
@@ -1166,9 +1166,9 @@ async function validateDownloadRequest(request: any) {
     await validateHierarchyType(request, hierarchyType, tenantId);
 }
 
-async function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: any) {
+async function immediateValidationForTargetSheet(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap: any) {
     logger.info("validating all district tabs present started")
-    validateAllDistrictTabsPresentOrNot(dataFromSheet, localizationMap);
+    await validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
     logger.info("validation of all district tabs present completed")
     for (const key in dataFromSheet) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -1177,7 +1177,7 @@ async function immediateValidationForTargetSheet(dataFromSheet: any, localizatio
                 if (dataArray.length === 0) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", `The Target Sheet ${key} you have uploaded is empty`)
                 }
-                const root = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
+                const root = getLocalizedName(differentTabsBasedOnLevel, localizationMap);
                 for (const boundaryRow of dataArray) {
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
@@ -1194,10 +1194,9 @@ async function immediateValidationForTargetSheet(dataFromSheet: any, localizatio
 }
 
 
-function validateAllDistrictTabsPresentOrNot(dataFromSheet: any, localizationMap?: any) {
+async function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     let tabsIndex = 2;
     logger.info("target sheet getting validated for different districts");
-    const differentTabsBasedOnLevel = getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap);
     const tabsOfDistrict = getDifferentDistrictTabs(dataFromSheet[getLocalizedName(config?.boundary?.boundaryTab, localizationMap)], differentTabsBasedOnLevel);
     logger.info("found " + tabsOfDistrict?.length + " districts");
     logger.debug("actual districts in boundary data sheet : " + getFormattedStringForDebug(tabsOfDistrict));
