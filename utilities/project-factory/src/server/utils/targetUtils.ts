@@ -1,4 +1,4 @@
-import config from '../../server/config/index'
+import config from '../config'
 import { getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
 import _ from 'lodash';
 import { replicateRequest } from './genericUtils';
