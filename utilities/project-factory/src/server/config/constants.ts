@@ -112,17 +112,17 @@ export const generatedResourceStatuses: any = {
 
 export const processTrackTypes = {
     validation: "validation",
-    triggerResourceCreation: "triggerResourceCreation",
-    facilityCreation: "facilityCreation",
-    staffCreation: "staffCreation",
-    targetAndDeliveryRulesCreation: "targetAndDeliveryRulesCreation",
-    confirmingResouceCreation: "confirmingResouceCreation",
-    prepareResourceForMapping: "prepareResourceForMapping",
-    validateMappingResource: "validateMappingResource",
-    staffMapping: "staffMapping",
-    resourceMapping: "resourceMapping",
-    facilityMapping: "facilityMapping",
-    campaignCreation: "campaignCreation",
+    triggerResourceCreation: "trigger-resource-creation",
+    facilityCreation: "facility-creation",
+    staffCreation: "staff-creation",
+    targetAndDeliveryRulesCreation: "target-and-delivery-rules-creation",
+    confirmingResourceCreation: "confirming-resource-creation",
+    prepareResourceForMapping: "prepare-resource-for-mapping",
+    validateMappingResource: "validate-mapping-resource",
+    staffMapping: "staff-mapping",
+    resourceMapping: "resource-mapping",
+    facilityMapping: "facility-mapping",
+    campaignCreation: "campaign-creation",
     error: "error"
 }
 

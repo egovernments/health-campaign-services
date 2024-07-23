@@ -294,7 +294,7 @@ async function processCampaignMapping(messageObject: any) {
         logger.info("Campaign Already In Progress and Mapped");
     }
     else {
-        await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.inprogress);
+        await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.inprogress);
         try {
             var completedResources: any = []
             var resources = [];
@@ -333,10 +333,10 @@ async function processCampaignMapping(messageObject: any) {
             }
         } catch (error: any) {
             console.log(error)
-            await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+            await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
             throw new Error(error)
         }
-        await persistTrack(id, processTrackTypes.confirmingResouceCreation, processTrackStatuses.completed);
+        await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.completed);
         await fetchAndMap(resources, messageObject);
     }
 }
