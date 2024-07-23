@@ -1,6 +1,6 @@
 package org.egov.individual.repository.rowmapper;
 
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.individual.Skill;
 import org.springframework.jdbc.core.RowMapper;
 
