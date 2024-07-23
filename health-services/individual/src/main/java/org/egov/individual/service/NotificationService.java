@@ -1,8 +1,8 @@
 package org.egov.individual.service;
 
 import com.jayway.jsonpath.JsonPath;
-import digit.models.coremodels.RequestInfoWrapper;
-import digit.models.coremodels.SMSRequest;
+import org.egov.common.contract.models.RequestInfoWrapper;
+import org.egov.common.models.core.SMSRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
