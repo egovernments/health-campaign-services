@@ -1168,7 +1168,7 @@ async function validateDownloadRequest(request: any) {
 
 async function immediateValidationForTargetSheet(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap: any) {
     logger.info("validating all district tabs present started")
-    await validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
+    validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
     logger.info("validation of all district tabs present completed")
     for (const key in dataFromSheet) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -1194,7 +1194,7 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
 }
 
 
-async function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
+function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     let tabsIndex = 2;
     logger.info("target sheet getting validated for different districts");
     const tabsOfDistrict = getDifferentDistrictTabs(dataFromSheet[getLocalizedName(config?.boundary?.boundaryTab, localizationMap)], differentTabsBasedOnLevel);
