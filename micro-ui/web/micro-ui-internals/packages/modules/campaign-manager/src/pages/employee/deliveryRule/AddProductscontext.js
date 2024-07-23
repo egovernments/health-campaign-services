@@ -15,7 +15,7 @@ const DustbinIcon = () => (
     />
   </svg>
 );
-function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
+function AddProducts({ stref, selectedDelivery, showToast, closeToast, selectedProducts }) {
   const { t } = useTranslation();
   const oldSessionData = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
   const { campaignData, dispatchCampaignData } = useContext(CycleContext);
@@ -39,6 +39,25 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
     },
   ]);
   const data = Digit.Hooks.campaign.useProductList(tenantId);
+  useEffect(() => {
+    const updatedProducts = selectedProducts.map((selectedProduct, index) => {
+     
+      const id = selectedProduct?.value;
+      return {
+        key: index + 1,
+        count: selectedProduct?.count || 1,
+        // value: selectedProduct.additionalData,
+        value: {
+          displayName: selectedProduct.name,
+          id: id,
+        },
+        name: selectedProduct.name,
+      };
+    });
+
+    setProducts(updatedProducts);
+  }, [selectedProducts]);
+
 
   const filteredData = data?.filter((item) => !selectedDelivery?.products?.some((entry) => entry?.value === item?.id));
   const temp = filteredData?.filter((item) => !products?.some((entry) => entry?.value?.id === item?.id));

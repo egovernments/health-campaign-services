@@ -448,7 +448,11 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
       case "UPDATE_ATTRIBUTE":
         return action.payload;
       case "ADD_PRODUCT":
-        const prodTemp = action.payload.productData.map((i) => ({ ...i, value: i?.value?.id, name: i?.value?.displayName }));
+        const prodTemp = action.payload.productData.map((i) => ({
+          ...i,
+          value: i?.value?.id,
+          name: i?.value?.displayName,
+        }));
         const updatedState = state.map((cycle) => {
           if (cycle.active) {
             const updatedDeliveries = cycle.deliveries.map((dd) => {
@@ -457,7 +461,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                   if (rule.ruleKey === action.payload.delivery.ruleKey) {
                     return {
                       ...rule,
-                      products: [...rule.products, ...prodTemp],
+                      products: [...prodTemp],
                     };
                   }
                   return rule;
