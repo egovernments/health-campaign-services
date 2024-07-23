@@ -8,7 +8,7 @@
     <artifactId>health-services-common</artifactId>
     <packaging>jar</packaging>
     <name>health-services-common</name>
-    <version>1.0.17-SNAPSHOT</version>
+    <version>1.0.18-SNAPSHOT</version>
     <description>Shared classes among services</description>
 
     <parent>
@@ -84,11 +84,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.egov.services</groupId>
-            <artifactId>digit-models</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.egov.services</groupId>
