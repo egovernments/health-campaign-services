@@ -1,13 +1,14 @@
 import config from '../config'
-import { getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
 import _ from 'lodash';
 import { replicateRequest } from './genericUtils';
 import { callGenerate } from './generateUtils';
 
 
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
+    const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
     let headerColumnsAfterHierarchy: any;
-    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate) {
+    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate && !isSourceMicroplan) {
 
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
         headerColumnsAfterHierarchy = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
