@@ -126,6 +126,19 @@ export const processTrackTypes = {
     error: "error"
 }
 
+export const processTrackForUi = [
+    processTrackTypes.facilityCreation,
+    processTrackTypes.staffCreation,
+    processTrackTypes.targetAndDeliveryRulesCreation,
+    processTrackTypes.confirmingResourceCreation,
+    processTrackTypes.staffMapping,
+    processTrackTypes.resourceMapping,
+    processTrackTypes.facilityMapping,
+    processTrackTypes.campaignCreation,
+    processTrackTypes.error
+];
+
+
 export const processTrackStatuses = {
     inprogress: "inprogress",
     completed: "completed",

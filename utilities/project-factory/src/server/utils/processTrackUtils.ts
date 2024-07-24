@@ -2,7 +2,7 @@ import config from './../config';
 import { produceModifiedMessages } from '../kafka/Listener';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
-import { processTrackStatuses, processTrackTypes } from '../config/constants';
+import { processTrackForUi, processTrackStatuses, processTrackTypes } from '../config/constants';
 import { logger } from './logger';
 
 async function getProcessDetails(id: string, type?: string): Promise<any[]> {
@@ -32,12 +32,13 @@ async function getProcessDetails(id: string, type?: string): Promise<any[]> {
         logger.info('No process details found');
         return [];
     }
-
+    const uiSet = new Set(processTrackForUi.map((item: any) => item));
     return queryResponse.rows.map((result: any) => ({
         id: result.id,
         campaignId: result.campaignid,
         type: result.type,
         status: result.status,
+        showInUi: uiSet.has(result.type),
         details: result.details,
         additionalDetails: result.additionaldetails,
         createdTime: parseInt(result.createdtime, 10),
