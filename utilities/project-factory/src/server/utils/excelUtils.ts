@@ -71,8 +71,8 @@ function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
 
 function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
   // Add empty rows after the main header
-  worksheet.addRow([]);
-  worksheet.addRow([]);
+  // worksheet.addRow([]);
+  // worksheet.addRow([]);
   worksheet.addRow([]);
 
   // Add the data rows with text wrapping

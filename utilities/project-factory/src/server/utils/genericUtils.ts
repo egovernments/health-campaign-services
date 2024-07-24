@@ -521,13 +521,15 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
   const headerSet = new Set();
 
 
-  const datas = readMeConfig.texts.flatMap((text: any) => {
-    const descriptions = text.descriptions.map((description: any) => {
-      return getLocalizedName(description.text, localizationMap);
+  const datas = readMeConfig.texts
+    .filter((text: any) => text?.inSheet) // Filter out texts with inSheet set to false
+    .flatMap((text: any) => {
+      const descriptions = text.descriptions.map((description: any) => {
+        return getLocalizedName(description.text, localizationMap);
+      });
+      headerSet.add(getLocalizedName(text.header, localizationMap));
+      return [getLocalizedName(text.header, localizationMap), ...descriptions, ""];
     });
-    headerSet.add(getLocalizedName(text.header, localizationMap));
-    return [getLocalizedName(text.header, localizationMap), ...descriptions, "", "", "", ""];
-  });
 
   // Create the worksheet and add the main header
   const worksheet = workbook.addWorksheet(getLocalizedName("HCM_README_SHEETNAME", localizationMap));
