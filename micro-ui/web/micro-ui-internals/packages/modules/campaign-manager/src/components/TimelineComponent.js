@@ -37,6 +37,7 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const searchParams = new URLSearchParams(location.search);
   const [userCredential , setUserCredential] = useState(null);
+  const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeOut" }]);
 
   const formatLabel = (label) => {
     return `HCM_${label.replace(/-/g, "_").toUpperCase()}`;
@@ -80,13 +81,6 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   };
   // use refetch interval in this
   const { data: progessTrack , refetch} = Digit.Hooks.useCustomAPIHook(reqCriteria);
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      refetch();
-    }, 60000); // 60000ms = 1 minute
-
-    return () => clearInterval(intervalId); 
-  }, [refetch]);
 
   const lastCompletedProcess = progessTrack?.processTrack
     .filter((process) => process.status === "completed")
@@ -96,6 +90,23 @@ const TimelineComponent = ({campaignId, resourceId}) => {
       }
       return latestProcess;
     }, null);
+
+    useEffect(() => {
+      let intervalId;
+    
+      if (lastCompletedProcess?.type !== 'campaign-creation') {
+        intervalId = setInterval(() => {
+          refetch();
+        }, baseTimeOut?.["HCM-ADMIN-CONSOLE"]?.baseTimeOut?.[0]?.timelineRefetch);
+      }
+    
+      return () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    }, [lastCompletedProcess]);
+
 
     const completedProcesses = progessTrack?.processTrack
     .filter(process => process.status === 'completed')
@@ -123,21 +134,49 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   ? upcomingProcesses.map(process => `${t(formatLabel(process.type))} , ${epochToDateTime(process.lastModifiedTime)}`)
   : [];
 
+  // useEffect(()=>{
+  //   const lastCompletedProcess = progessTrack?.processTrack
+  //   .filter((process) => process.status === "completed")
+  //   .reduce((latestProcess, currentProcess) => {
+  //     if (!latestProcess || currentProcess.lastModifiedTime > latestProcess.lastModifiedTime) {
+  //       return currentProcess;
+  //     }
+  //     return latestProcess;
+  //   }, null);
+  //   setLastCompletedProgress(lastCompletedProcess);
+
+  //   const completedProcesses = progessTrack?.processTrack
+  //   .filter(process => process.status === 'completed')
+  //   .sort((a, b) => b.lastModifiedTime - a.lastModifiedTime)
+  //   .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
+  //   setCompletedProgress(completedProcesses);
+
+
+  //   const completedTimelines = completedProcesses?.map(process => ({
+  //     label:  t(formatLabel(process.type)),
+  //     subElements: [epochToDateTime(process.lastModifiedTime)],
+  //   }));
+  //   setCompletedTimeline(completedTimelines);
+
+  //   const inprogressProcesses = progessTrack?.processTrack
+  //   .filter(process => process.status === 'inprogress')
+  //   .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
+
+  //   setinprogressProcesses(inprogressProcesses);
+
+  //   const upcomingProcesses = progessTrack?.processTrack
+  //   .filter(process => process.status === "toBeCompleted")
+  //   .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
+
+  //   setupcomingProcesses(upcomingProcesses);
+
+  // }, [progessTrack])
+
 
 
   return (
     <React.Fragment>
       <div className="timeline-user">
-      {userCredential && (
-          <Button
-            label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
-            variation="primary"
-            icon={"DownloadIcon"}
-            type="button"
-            className="campaign-download-template-btn hover"
-            onClick={downloadUserCred}
-          />
-        )}
       {
         (subElements.length > 0 || subElements2.length > 0) ? (
           <TimelineMolecule >
@@ -172,6 +211,16 @@ const TimelineComponent = ({campaignId, resourceId}) => {
           </TimelineMolecule>
         )
       }
+       {userCredential && (
+          <Button
+            label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
+            variation="primary"
+            icon={"DownloadIcon"}
+            type="button"
+            className="campaign-download-template-btn hover"
+            onClick={downloadUserCred}
+          />
+        )}
       </div>
     </React.Fragment>
   );

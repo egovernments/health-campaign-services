@@ -475,18 +475,19 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       expectedHeaders = XLSX.utils.sheet_to_json(sheet, { header: 1 })[0];
     }
 
-    for (const header of mdmsHeaders) {
-      if (!expectedHeaders.includes(t(header))) {
-        const errorMessage = t("HCM_BOUNDARY_INVALID_SHEET");
-        setErrorsType((prevErrors) => ({
-          ...prevErrors,
-          [type]: errorMessage,
-        }));
-        setIsError(true);
-        isValid = false;
-        break;
-      }
-    }
+
+    // for (const header of mdmsHeaders) {
+    //   if (!expectedHeaders.includes(t(header))) {
+    //     const errorMessage = t("HCM_BOUNDARY_INVALID_SHEET");
+    //     setErrorsType((prevErrors) => ({
+    //       ...prevErrors,
+    //       [type]: errorMessage,
+    //     }));
+    //     setIsError(true);
+    //     isValid = false;
+    //     break;
+    //   }
+    // }
 
     if (!isValid) return isValid;
 
@@ -505,16 +506,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       })[0];
 
       // Check if headers match the expected headers
-      if (!arraysEqual(headersToValidate, expectedHeaders)) {
-        const errorMessage = t("HCM_MISSING_HEADERS");
-        setErrorsType((prevErrors) => ({
-          ...prevErrors,
-          [type]: errorMessage,
-        }));
-        setIsError(true);
-        isValid = false;
-        break;
-      }
+      // if (!arraysEqual(headersToValidate, expectedHeaders)) {
+      //   const errorMessage = t("HCM_MISSING_HEADERS");
+      //   setErrorsType((prevErrors) => ({
+      //     ...prevErrors,
+      //     [type]: errorMessage,
+      //   }));
+      //   setIsError(true);
+      //   isValid = false;
+      //   break;
+      // }
     }
 
     if (!isValid) return isValid;
@@ -536,6 +537,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       })[0];
 
       const jsonData = XLSX.utils.sheet_to_json(sheet, { blankrows: true });
+      
+      if(jsonData.length == 0) continue;
 
       const boundaryCodeIndex = headersToValidate.indexOf(t("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
 
