@@ -16,6 +16,7 @@ async function generateDynamicTargetHeaders(request: any, campaignObject: any, l
     }
     else {
         headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request);
+        headerColumnsAfterHierarchy.shift();
     }
     return headerColumnsAfterHierarchy;
 }
