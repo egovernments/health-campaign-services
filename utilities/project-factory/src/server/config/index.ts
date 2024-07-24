@@ -16,7 +16,7 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
-  isCallGenerateWhenDeliveryConditionsDiffer:true,
+  isCallGenerateWhenDeliveryConditionsDiffer: true,
   enableDynamicTargetTemplate: true,
   prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: false,
@@ -62,6 +62,7 @@ const config = {
     KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
     KAFKA_SAVE_PROCESS_TRACK_TOPIC: process.env.KAFKA_SAVE_PROCESS_TRACK_TOPIC || "save-process-track",
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
+    KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
   // Database configuration

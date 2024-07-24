@@ -12,9 +12,33 @@ const kafkaClient = new KafkaClient({
 // Creating a new Kafka producer instance using the Kafka client
 const producer = new Producer(kafkaClient, { partitionerType: 2 }); // Using partitioner type 2
 
+// Function to send a test message to check broker availability
+const checkBrokerAvailability = () => {
+    const payloads = [
+        {
+            topic: config.kafka.KAFKA_TEST_TOPIC,
+            messages: JSON.stringify({ message: 'Test message to check broker availability' }),
+        },
+    ];
+
+    producer.send(payloads, (err, data) => {
+        if (err) {
+            if (err.message && err.message.toLowerCase().includes('broker not available')) {
+                logger.error('Broker not available. Shutting down the service.');
+                shutdownGracefully();
+            } else {
+                logger.error('Error sending test message:', err);
+            }
+        } else {
+            logger.info('Test message sent successfully:', data);
+        }
+    });
+};
+
 // Event listener for 'ready' event, indicating that the producer is ready to send messages
 producer.on('ready', () => {
     logger.info('Producer is ready'); // Log message indicating producer is ready
+    checkBrokerAvailability(); // Check broker availability by sending a test message
 });
 
 // Event listener for 'error' event, indicating that the producer encountered an error

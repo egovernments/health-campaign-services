@@ -17,7 +17,8 @@ const kafkaConfig: ConsumerGroupOptions = {
 // Topic Names
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
-    config.kafka.KAFKA_PROCESS_CAMPAIGN_MAPPING_TOPIC
+    config.kafka.KAFKA_PROCESS_CAMPAIGN_MAPPING_TOPIC,
+    config.kafka.KAFKA_TEST_TOPIC
 ];
 
 // Consumer Group Initialization
