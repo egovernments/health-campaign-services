@@ -14,6 +14,7 @@ function extractProperties(obj: any) {
 }
 
 function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
+    if (!existingBoundaries || !currentBoundaries) return false;
     if (existingBoundaries.length !== currentBoundaries.length) return false;
     const existingSetOfBoundaries = new Set(existingBoundaries.map((exboundary: any) => JSON.stringify(extractProperties(exboundary))));
     const currentSetOfBoundaries = new Set(currentBoundaries.map((currboundary: any) => JSON.stringify(extractProperties(currboundary))));
