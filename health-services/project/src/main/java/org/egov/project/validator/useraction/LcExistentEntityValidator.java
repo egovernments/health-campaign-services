@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.HashMap;
 import java.util.List;
@@ -7,9 +7,9 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
-import org.egov.common.models.project.irs.LocationCaptureSearch;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserActionSearch;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.LocationCaptureRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Order(value = 1)
 @Slf4j
-public class LcExistentEntityValidator implements Validator<LocationCaptureBulkRequest, LocationCapture> {
+public class LcExistentEntityValidator implements Validator<UserActionBulkRequest, UserAction> {
     private LocationCaptureRepository locationCaptureRepository;
 
     @Autowired
@@ -38,24 +38,24 @@ public class LcExistentEntityValidator implements Validator<LocationCaptureBulkR
      * @return
      */
     @Override
-    public Map<LocationCapture, List<Error>> validate(LocationCaptureBulkRequest request) {
+    public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
         // Map to hold LocationCapture entities and their error details
-        Map<LocationCapture, List<Error>> errorDetailsMap = new HashMap<>();
+        Map<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
         // Get the list of LocationCapture entities from the request
-        List<LocationCapture> entities = request.getLocationCaptures();
+        List<UserAction> entities = request.getUserActions();
         // Extract client reference IDs from LocationCapture entities without errors
         List<String> clientReferenceIdList = entities.stream()
                 .filter(notHavingErrors())
-                .map(LocationCapture::getClientReferenceId)
+                .map(UserAction::getClientReferenceId)
                 .collect(Collectors.toList());
         // Create a search object for querying entities by client reference IDs
-        LocationCaptureSearch locationCaptureSearch = LocationCaptureSearch.builder()
+        UserActionSearch locationCaptureSearch = UserActionSearch.builder()
                 .clientReferenceId(clientReferenceIdList)
                 .build();
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<LocationCapture> existentEntities = locationCaptureRepository.findById(
+            List<UserAction> existentEntities = locationCaptureRepository.findById(
                     clientReferenceIdList,
                     getIdFieldName(locationCaptureSearch)
             ).getResponse();

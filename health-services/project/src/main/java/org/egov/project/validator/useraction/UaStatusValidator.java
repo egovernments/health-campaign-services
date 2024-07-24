@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.HashMap;
 import java.util.List;
@@ -9,8 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.Field;
-import org.egov.common.models.project.irs.UserAction;
-import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.util.ProjectConstants;
 import org.egov.tracer.model.CustomException;

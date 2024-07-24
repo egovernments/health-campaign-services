@@ -1,4 +1,4 @@
-package org.egov.common.models.project.irs;
+package org.egov.common.models.project.useraction;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

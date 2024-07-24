@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,8 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.Boundary;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.web.models.boundary.BoundaryResponse;
@@ -24,12 +24,12 @@ import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
- * Validator class for validating locationCapture boundaries.
+ * Validator class for validating userAction boundaries.
  */
 @Component
 @Order(value = 4)
 @Slf4j
-public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest, LocationCapture> {
+public class UaBoundaryValidator implements Validator<UserActionBulkRequest, UserAction> {
 
     private final ServiceRequestClient serviceRequestClient;
 
@@ -39,40 +39,40 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
      * Constructor to initialize the HBoundaryValidator.
      *
      * @param serviceRequestClient   Service request client for making HTTP requests
-     * @param projectConfiguration Configuration properties for the locationCapture module
+     * @param projectConfiguration Configuration properties for the userAction module
      */
-    public LcBoundaryValidator(ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
+    public UaBoundaryValidator(ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
     }
 
     /**
-     * Validates the locationCaptures' boundaries.
+     * Validates the userActions' boundaries.
      *
-     * @param request the bulk request containing locationCaptures
-     * @return a map containing locationCaptures with their corresponding list of errors
+     * @param request the bulk request containing userActions
+     * @return a map containing userActions with their corresponding list of errors
      */
     @Override
-    public Map<LocationCapture, List<Error>> validate(LocationCaptureBulkRequest request) {
-        log.debug("Validating locationCaptures boundaries.");
-        // Create a HashMap to store error details for each locationCapture
-        HashMap<LocationCapture, List<Error>> errorDetailsMap = new HashMap<>();
+    public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
+        log.debug("Validating userActions boundaries.");
+        // Create a HashMap to store error details for each userAction
+        HashMap<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
 
-        // Filter locationCaptures with non-null addresses
-        List<LocationCapture> entitiesWithValidBoundaries = request.getLocationCaptures().parallelStream()
-                .filter(locationCapture -> Objects.nonNull(locationCapture.getBoundaryCode())) // Exclude null boundary codes
+        // Filter userActions with non-null addresses
+        List<UserAction> entitiesWithValidBoundaries = request.getUserActions().parallelStream()
+                .filter(userAction -> Objects.nonNull(userAction.getBoundaryCode())) // Exclude null boundary codes
                 .collect(Collectors.toList());
 
-        Map<String, List<LocationCapture>> tenantIdLocationCaptureMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(LocationCapture::getTenantId));
+        Map<String, List<UserAction>> tenantIdUserActionMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(UserAction::getTenantId));
 
-        tenantIdLocationCaptureMap.forEach((tenantId, locationCaptures) -> {
-            // Group locationCaptures by locality code
-            Map<String, List<LocationCapture>> boundaryCodeLocationCapturesMap = locationCaptures.stream()
+        tenantIdUserActionMap.forEach((tenantId, userActions) -> {
+            // Group userActions by locality code
+            Map<String, List<UserAction>> boundaryCodeUserActionsMap = userActions.stream()
                     .collect(Collectors.groupingBy(
-                            locationCapture -> locationCapture.getBoundaryCode() // Group by boundary code
+                            userAction -> userAction.getBoundaryCode() // Group by boundary code
                     ));
 
-            List<String> boundaries = new ArrayList<>(boundaryCodeLocationCapturesMap.keySet());
+            List<String> boundaries = new ArrayList<>(boundaryCodeUserActionsMap.keySet());
             if(!CollectionUtils.isEmpty(boundaries)) {
                 try {
                     // Fetch boundary details from the service
@@ -94,23 +94,23 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
                             .collect(Collectors.toList())
                     );
 
-                    // Filter out locationCaptures with invalid boundary codes
-                    List<LocationCapture> locationCapturesWithInvalidBoundaries = boundaryCodeLocationCapturesMap.entrySet().stream()
+                    // Filter out userActions with invalid boundary codes
+                    List<UserAction> userActionsWithInvalidBoundaries = boundaryCodeUserActionsMap.entrySet().stream()
                             .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
-                            .flatMap(entry -> entry.getValue().stream()) // Flatten the list of locationCaptures
+                            .flatMap(entry -> entry.getValue().stream()) // Flatten the list of userActions
                             .collect(Collectors.toList());
 
 
-                    locationCapturesWithInvalidBoundaries.forEach(locationCapture -> {
-                        // Create an error object for locationCaptures with invalid boundaries
+                    userActionsWithInvalidBoundaries.forEach(userAction -> {
+                        // Create an error object for userActions with invalid boundaries
                         Error error = Error.builder()
                                 .errorMessage("Boundary code does not exist in db")
                                 .errorCode("NON_EXISTENT_ENTITY")
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
                                 .build();
-                        // Populate error details for the locationCapture
-                        populateErrorDetails(locationCapture, error, errorDetailsMap);
+                        // Populate error details for the userAction
+                        populateErrorDetails(userAction, error, errorDetailsMap);
                     });
 
                 } catch (Exception e) {

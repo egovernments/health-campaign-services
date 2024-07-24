@@ -6,10 +6,10 @@ import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
-import org.egov.common.models.project.irs.LocationCaptureBulkResponse;
-import org.egov.common.models.project.irs.LocationCaptureSearchRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserActionBulkResponse;
+import org.egov.common.models.project.useraction.UserActionSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
@@ -51,7 +51,7 @@ public class LocationCaptureController {
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> locationCaptureTaskV1BulkCreatePost(@ApiParam(value = "Create Location Capture LocationCapture.", required = true) @Valid @RequestBody LocationCaptureBulkRequest request) {
+    public ResponseEntity<ResponseInfo> locationCaptureTaskV1BulkCreatePost(@ApiParam(value = "Create Location Capture LocationCapture.", required = true) @Valid @RequestBody UserActionBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkCreateLocationCaptureTaskTopic(), request);
 
@@ -61,13 +61,13 @@ public class LocationCaptureController {
 
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<LocationCaptureBulkResponse> locationCaptureTaskV2SearchPost(
+    public ResponseEntity<UserActionBulkResponse> locationCaptureTaskV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
-            @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody LocationCaptureSearchRequest locationCaptureSearchRequest
+            @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody UserActionSearchRequest locationCaptureSearchRequest
             ) throws Exception {
-        SearchResponse<LocationCapture> locationCaptureSearchResponse = locationCaptureService.search(locationCaptureSearchRequest, urlParams);
-        LocationCaptureBulkResponse response = LocationCaptureBulkResponse.builder()
-                .locationCaptures(locationCaptureSearchResponse.getResponse())
+        SearchResponse<UserAction> locationCaptureSearchResponse = locationCaptureService.search(locationCaptureSearchRequest, urlParams);
+        UserActionBulkResponse response = UserActionBulkResponse.builder()
+                .userActions(locationCaptureSearchResponse.getResponse())
                 .totalCount(locationCaptureSearchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), true))
