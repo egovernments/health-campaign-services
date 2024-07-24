@@ -8,8 +8,7 @@ import { callGenerate } from './generateUtils';
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
     const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
     let headerColumnsAfterHierarchy: any;
-    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate && !isSourceMicroplan) {
-
+    if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && !isSourceMicroplan) {
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
         headerColumnsAfterHierarchy = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
 
@@ -78,7 +77,7 @@ function generateTargetColumnsBasedOnDeliveryConditions(uniqueDeliveryConditions
 
 function createTargetString(uniqueDeliveryConditionsObject: any, localizationMap?: any) {
     let targetString: any;
-    const prefix = getLocalizedName("HCM_ADMIN_CONSOLE_TARGET", localizationMap);
+    const prefix = getLocalizedName("HCM_ADMIN_CONSOLE_TARGET_SMC", localizationMap);
     const attributeCode = getLocalizedName(uniqueDeliveryConditionsObject.attribute.code.toUpperCase(), localizationMap);
     const operatorMessage = getLocalizedName(uniqueDeliveryConditionsObject.operator.code, localizationMap);
     const localizedFROM = getLocalizedName("FROM", localizationMap);
@@ -94,7 +93,7 @@ function createTargetString(uniqueDeliveryConditionsObject: any, localizationMap
 async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any) {
     const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
     if (existingCampaignDetails) {
-        if (config?.isCallGenerateWhenDeliveryConditionsDiffer && !_.isEqual(existingCampaignDetails?.deliveryRules, request?.body?.CampaignDetails?.deliveryRules)) {
+        if (isDynamicTargetTemplateForProjectType(request?.body?.CampaignDetails?.projectType) && config?.isCallGenerateWhenDeliveryConditionsDiffer && !_.isEqual(existingCampaignDetails?.deliveryRules, request?.body?.CampaignDetails?.deliveryRules)) {
             const newRequestBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Filters: {
@@ -117,6 +116,12 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
     }
 }
 
+function isDynamicTargetTemplateForProjectType(projectType: string) {
+    const projectTypesFromConfig = config?.enableDynamicTemplateFor;
+    return projectTypesFromConfig?.includes(projectType) ?? false;
+}
+
+
 
 
 
@@ -125,4 +130,5 @@ export {
     generateTargetColumnsBasedOnDeliveryConditions,
     generateDynamicTargetHeaders,
     updateTargetColumnsIfDeliveryConditionsDifferForSMC,
+    isDynamicTargetTemplateForProjectType
 };

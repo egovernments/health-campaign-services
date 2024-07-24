@@ -19,7 +19,7 @@ import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
 import { callGenerateIfBoundariesDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
-import { generateDynamicTargetHeaders, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
+import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 const _ = require('lodash');
 
 
@@ -1445,7 +1445,7 @@ async function createNewSheet(request: any, workbook: any, newSheetData: any, un
     addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
-    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate) {
+    if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
         columnsNotToBeFreezed = localizedHeaders.slice(boundaryCodeColumnIndex + 1);
     }
     else {

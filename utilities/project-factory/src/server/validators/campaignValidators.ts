@@ -20,7 +20,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
-import { generateTargetColumnsBasedOnDeliveryConditions, modifyDeliveryConditions } from "../utils/targetUtils";
+import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 
 
 
@@ -220,7 +220,7 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
     let columnsToValidate: any;
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    if (campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && config?.enableDynamicTargetTemplate) {
+    if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
 
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
         columnsToValidate = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);

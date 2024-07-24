@@ -16,8 +16,8 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  enableDynamicTemplateFor: ["MR-DN"],
   isCallGenerateWhenDeliveryConditionsDiffer: true,
-  enableDynamicTargetTemplate: true,
   prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: false,
   excludeBoundaryNameAtLastFromBoundaryCodes: false,
