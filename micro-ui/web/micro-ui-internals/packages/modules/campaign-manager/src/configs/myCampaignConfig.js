@@ -251,6 +251,12 @@ export const myCampaignConfig = {
                 additionalCustomization: true,
                 // disableSortBy: true,
               },
+              {
+                label: "CAMPAIGN_ACTIONS",
+                jsonPath: "actions",
+                additionalCustomization: true,
+                // disableSortBy: true,
+              },
             ],
             enableGlobalSearch: false,
             enableColumnSort: true,
@@ -647,6 +653,12 @@ export const myCampaignConfig = {
               {
                 label: "CAMPAIGN_END_DATE",
                 jsonPath: "endDate",
+                additionalCustomization: true,
+                // disableSortBy: true,
+              },
+              {
+                label: "CAMPAIGN_ACTIONS",
+                jsonPath: "actions",
                 additionalCustomization: true,
                 // disableSortBy: true,
               },

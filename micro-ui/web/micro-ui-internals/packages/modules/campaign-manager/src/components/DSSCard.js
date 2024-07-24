@@ -59,6 +59,11 @@ const NDSSCard = () => {
 
 const DSSCard = () => {
   const STADMIN = Digit.UserService.hasAccess("STADMIN");
+  const isNationalSupervisor = Digit.UserService.hasAccess(["NATIONAL_SUPERVISOR"]);
+  const isProvincialSupervisor = Digit.UserService.hasAccess(["PROVINCIAL_SUPERVISOR"]);
+  const isDistrictSupervisor = Digit.UserService.hasAccess(["DISTRICT_SUPERVISOR"]);
+  const isHealthFacilitySupervisor = Digit.UserService.hasAccess(["HEALTH_FACILITY_SUPERVISOR"]);
+  const isCommunitySupervisor = Digit.UserService.hasAccess(["COMMUNITY_SUPERVISOR"]);
   const { t } = useTranslation();
 
   const { data: tenantData } = Digit.Hooks.dss.useMDMS(Digit.ULBService.getStateId(), "tenant", ["tenants"], {
@@ -69,13 +74,20 @@ const DSSCard = () => {
     enabled: true,
   });
 
+  if (
+    !STADMIN ||
+    !isNationalSupervisor ||
+    !isProvincialSupervisor ||
+    !isDistrictSupervisor ||
+    !isHealthFacilitySupervisor ||
+    !isCommunitySupervisor
+  ) {
+    return null;
+  }
+
   const shouldInvokeProjectService = tenantData?.integrateProjectService || false;
   if (shouldInvokeProjectService) {
     return <DynamicDSSCard />;
-  }
-
-  if (!STADMIN) {
-    return null;
   }
 
   let links = Object.values(nationalScreenURLs)

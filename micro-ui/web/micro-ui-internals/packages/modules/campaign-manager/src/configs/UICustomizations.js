@@ -250,6 +250,17 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -264,6 +275,32 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[{ key: 1, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") }]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }
@@ -578,6 +615,17 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -592,6 +640,32 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[{ key: 1, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") }]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }

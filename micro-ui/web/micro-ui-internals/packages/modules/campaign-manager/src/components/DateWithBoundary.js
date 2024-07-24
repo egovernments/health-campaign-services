@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment, useReducer } from "react";
+import React, { useState, useEffect, Fragment, useReducer, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { LabelFieldPair, Header } from "@egovernments/digit-ui-react-components";
@@ -106,6 +106,10 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
       return data?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.find((item) => item.isActive)?.hierarchy;
     },
   });
+  const { isLoading, data: hierarchyConfig } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "hierarchyConfig" }]);
+  const lowestHierarchy = useMemo(() => {
+    return hierarchyConfig?.["HCM-ADMIN-CONSOLE"]?.hierarchyConfig?.find((item) => item.isActive)?.lowestHierarchy;
+  }, [hierarchyConfig]);
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [filteredBoundaries, setFilteredBoundaries] = useState([]);
@@ -170,11 +174,17 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
         return sortedHierarchy;
       };
 
-      const sortedHierarchy = sortHierarchy(hierarchyDefinition.boundaryHierarchy);
+      const temp = sortHierarchy(hierarchyDefinition.boundaryHierarchy);
+      const sortedHierarchy = temp.filter((boundary, index, array) => {
+        // Find the index of the lowest hierarchy
+        const lowestIndex = array.findIndex((b) => b.boundaryType === lowestHierarchy);
+        // Include only those boundaries that are above or equal to the lowest hierarchy
+        return index <= lowestIndex;
+      });
       const sortedHierarchyWithLocale = sortedHierarchy.map((i) => {
         return {
           ...i,
-          i18nKey: BOUNDARY_HIERARCHY_TYPE + "_" + i?.boundaryType,
+          i18nKey: (BOUNDARY_HIERARCHY_TYPE + "_" + i?.boundaryType).toUpperCase(),
         };
       });
       setHierarchyTypeDataresult(sortedHierarchyWithLocale);

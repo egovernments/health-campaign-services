@@ -1,4 +1,15 @@
-import { Loader, FormComposerV2, Header, MultiUploadWrapper, Button, Close, LogoutIcon } from "@egovernments/digit-ui-react-components";
+import {
+  Loader,
+  FormComposerV2,
+  Header,
+  MultiUploadWrapper,
+  Button,
+  Close,
+  LogoutIcon,
+  Menu,
+  ActionBar,
+  SubmitBar,
+} from "@egovernments/digit-ui-react-components";
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useParams } from "react-router-dom";
@@ -246,6 +257,7 @@ const SetupCampaign = ({ hierarchyType }) => {
   const isSkip = searchParams.get("skip");
   const keyParam = searchParams.get("key");
   const isChangeDates = searchParams.get("changeDates");
+  const actionBar = searchParams.get("actionBar");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
@@ -254,7 +266,7 @@ const SetupCampaign = ({ hierarchyType }) => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
   });
-
+  const [displayMenu, setDisplayMenu] = useState(null);
   // const [lowest, setLowest] = useState(null);
   const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
@@ -482,7 +494,7 @@ const SetupCampaign = ({ hierarchyType }) => {
     setIsSubmitting(false);
     if (currentKey === 10 && isSummary !== "true") {
       updateUrlParams({ key: currentKey, summary: true });
-    } else if (currentKey !== 10 ) {
+    } else if (currentKey !== 10) {
       updateUrlParams({ key: currentKey, summary: false });
       setSummaryErrors(null);
     }
@@ -1426,7 +1438,8 @@ const SetupCampaign = ({ hierarchyType }) => {
     let v = [];
     if (totalFormData?.HCM_CAMPAIGN_NAME?.campaignName) v.push(stepFind("HCM_CAMPAIGN_NAME"));
     if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.selectedData?.length) v.push(stepFind("HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA"));
-    if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate && totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) v.push(stepFind("HCM_CAMPAIGN_DATE"));
+    if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate && totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+      v.push(stepFind("HCM_CAMPAIGN_DATE"));
     if (totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleData?.length) v.push(stepFind("HCM_CAMPAIGN_CYCLE_CONFIGURE"));
     if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule?.length) v.push(stepFind("HCM_CAMPAIGN_DELIVERY_DATA"));
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.length) v.push(stepFind("HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA"));
@@ -1516,6 +1529,17 @@ const SetupCampaign = ({ hierarchyType }) => {
     return <Loader />;
   }
 
+  function onActionSelect(action) {
+    setDisplayMenu(false);
+    switch (action) {
+      case "UPDATE_DATES":
+        history.push(`/${window.contextPath}/employee/campaign/update-dates-boundary?id=${id}`);
+        break;
+      default:
+        break;
+    }
+  }
+
   return (
     <React.Fragment>
       {noAction !== "false" && (
@@ -1553,7 +1577,7 @@ const SetupCampaign = ({ hierarchyType }) => {
           isChangeDates === "true" && currentKey == 10
             ? t("HCM_UPDATE_DATE")
             : isChangeDates === "true"
-            ? t("HCM_UPDATE")
+            ? null
             : noAction === "false"
             ? null
             : filteredConfig?.[0]?.form?.[0]?.isLast === true
@@ -1561,6 +1585,12 @@ const SetupCampaign = ({ hierarchyType }) => {
             : t("HCM_NEXT")
         }
       />
+      {actionBar === "true" && (
+        <ActionBar style={{ zIndex: "19" }}>
+          {displayMenu ? <Menu options={["UPDATE_DATES", "CONFIGURE_APP"]} t={t} onSelect={onActionSelect} /> : null}
+          <SubmitBar label={t("ES_COMMON_TAKE_ACTION")} onSubmit={() => setDisplayMenu(!displayMenu)} />
+        </ActionBar>
+      )}
       {showToast && (
         <Toast
           type={showToast?.key === "error" ? "error" : showToast?.key === "info" ? "info" : showToast?.key === "warning" ? "warning" : "success"}

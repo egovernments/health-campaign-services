@@ -141,7 +141,6 @@ const CampaignSummary = (props) => {
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const noAction = searchParams.get("action");
-  const isChangeDates = searchParams.get("changeDates");
   const [showToast, setShowToast] = useState(null);
   const [userCredential, setUserCredential] = useState(null);
   const [deliveryErrors, setDeliveryErrors] = useState(null);
@@ -223,50 +222,33 @@ const CampaignSummary = (props) => {
         return {
           cards: [
             isPreview
-              ?
-            {
-              name: "timeline",
-              sections: [
-                {
+              ? {
                   name: "timeline",
-                  type: "COMPONENT",
-                  component: "TimelineComponent",
-                  props: {
-                    campaignId: data?.[0]?.id,
-                    resourceId: resourceIdArr
-                  },
-                  cardHeader: { value: t("HCM_TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                },
-              ],
-            }: {},
+                  sections: [
+                    {
+                      name: "timeline",
+                      type: "COMPONENT",
+                      component: "TimelineComponent",
+                      props: {
+                        campaignId: data?.[0]?.id,
+                        resourceId: resourceIdArr,
+                      },
+                      cardHeader: { value: t("HCM_TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                    },
+                  ],
+                }
+              : {},
             {
               sections: [
                 {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                  cardSecondaryAction:
-                    isChangeDates === "true" ? (
-                      <div
-                        className="campaign-preview-edit-container"
-                        onClick={() =>
-                          history.push(`/${window.contextPath}/employee/campaign/update-dates-boundary?id=${id}`, {
-                            name: data?.[0]?.campaignName,
-                            projectId: data?.[0]?.projectId,
-                            data: data?.[0],
-                          })
-                        }
-                      >
-                        <span>{t(`CAMPAIGN_UPDATE_DATES`)}</span>
-                        <EditIcon />
-                      </div>
-                    ) : (
-                      noAction !== "false" && (
-                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
-                          <span>{t(`CAMPAIGN_EDIT`)}</span>
-                          <EditIcon />
-                        </div>
-                      )
-                    ),
+                  cardSecondaryAction: noAction !== "false" && (
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
+                      <EditIcon />
+                    </div>
+                  ),
                   values: [
                     {
                       key: "CAMPAIGN_TYPE",

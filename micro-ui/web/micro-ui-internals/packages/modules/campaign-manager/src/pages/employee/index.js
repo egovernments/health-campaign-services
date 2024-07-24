@@ -35,6 +35,11 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
       content: t("CREATE_NEW_CAMPAIGN"),
       show: pathVar === "setup-campaign" ? true : false,
     },
+    {
+      path: pathVar === "update-dates-boundary" ? "" : `/${window?.contextPath}/employee/campaign/my-campaign`,
+      content: t("UPDATE_DATE_CHANGE"),
+      show: pathVar === "update-dates-boundary" ? true: false,
+    },
   ];
 
   return <BreadCrumb className="campaign-breadcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;

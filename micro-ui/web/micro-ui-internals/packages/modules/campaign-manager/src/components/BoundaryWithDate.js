@@ -161,7 +161,7 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch }) => 
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
-                  nonEditable={today >= item?.endDate ? true : false}
+                  nonEditable={today >= item?.endDate && today >= cycleDates?.[index + 1]?.startDate ? true : false}
                   placeholder={t("HCM_END_DATE")}
                   populators={
                     today >= item?.endDate
