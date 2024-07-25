@@ -8,7 +8,7 @@ import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryD
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { produceModifiedMessages } from "../kafka/Listener";
+import { processMapping } from "../utils/campaignMappingUtils";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -884,8 +884,8 @@ async function createRelatedEntity(
       mappingArray.push(mappingObject)
     }
   }
-  const produceMessage: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo }
-  produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_CAMPAIGN_MAPPING_TOPIC)
+  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo }
+  await processMapping(mappingObject)
 }
 
 
