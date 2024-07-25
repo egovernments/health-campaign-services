@@ -16,6 +16,7 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  cacheTime : 300,
   enableDynamicTemplateFor: ["MR-DN"],
   isCallGenerateWhenDeliveryConditionsDiffer: true,
   prefixForMicroplanCampaigns: "MP",

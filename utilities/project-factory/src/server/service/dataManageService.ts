@@ -3,12 +3,15 @@ import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, processDataSearchRequest } from "../utils/campaignUtils";
 import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
 import { getLocalisationModuleName } from "../utils/localisationUtils";
 import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
+import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
+import config from '../config/index'
+
 
 
 const generateDataService = async (request: express.Request) => {
@@ -38,23 +41,46 @@ const downloadDataService = async (request: express.Request) => {
 }
 
 const getBoundaryDataService = async (
-    request: express.Request) => {
+    request: express.Request, enableCaching = false) => {
     try {
+        const { hierarchyType, campaignId } = request?.query;
+        const cacheTTL = config?.cacheTime; // TTL in seconds (5 minutes)
+        const cacheKey = `${campaignId}-${hierarchyType}`;
+        let isRedisConnected = false;
+        let cachedData: any = null;
+        if (cacheKey && enableCaching) {
+            isRedisConnected = await checkRedisConnection();
+            cachedData = await redis.get(cacheKey); // Get cached data
+        }
+        if (cachedData) {
+            logger.info("CACHE HIT :: " + cacheKey);
+            logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
+
+            // Reset the TTL for the cache key
+            if (config.cacheValues.resetCache) {
+                await redis.expire(cacheKey, cacheTTL);
+            }
+
+            return JSON.parse(cachedData); // Return parsed cached data if available
+        } else {
+            logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
+        }
         const workbook = getNewExcelWorkbook();
-        const { hierarchyType } = request?.query;
         const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
         const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         // Retrieve boundary sheet data
         const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
         addDataToSheet(boundarySheet, boundarySheetData);
-        const BoundaryFileDetails: any = await createAndUploadFile(workbook, request);
+        const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
         // Return boundary file details
         logger.info("RETURNS THE BOUNDARY RESPONSE");
-        return BoundaryFileDetails;
+        if (cacheKey && isRedisConnected) {
+            await redis.set(cacheKey, JSON.stringify(boundaryFileDetails), "EX", cacheTTL); // Cache the response data with TTL
+        }
+        return boundaryFileDetails;
     } catch (e: any) {
         console.log(e)
         logger.error(String(e))

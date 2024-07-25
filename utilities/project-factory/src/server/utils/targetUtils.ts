@@ -111,7 +111,7 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
 
             const newParamsBoundary = { ...query, ...params, type: "boundary" };
             const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-            await callGenerate(newRequestBoundary, "boundary");
+            await callGenerate(newRequestBoundary, "boundary", true);
         }
     }
 }

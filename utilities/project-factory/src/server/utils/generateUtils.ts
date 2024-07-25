@@ -62,7 +62,7 @@ async function callGenerateIfBoundariesDiffer(request: any) {
     }
 }
 
-async function callGenerate(request: any, type: any) {
+async function callGenerate(request: any, type: any, enableCaching = false) {
     logger.info(`calling generate api for type ${type}`);
     if (type === "facilityWithBoundary" || type == "userWithBoundary") {
         const { hierarchyType } = request.query;
@@ -74,12 +74,12 @@ async function callGenerate(request: any, type: any) {
         const localizationMapModule = await getLocalizedMessagesHandler(request, request.query.tenantId);
         const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         const filteredBoundary = await getBoundarySheetData(request, localizationMap);
-        await processGenerate(request, filteredBoundary);
+        await processGenerate(request, enableCaching, filteredBoundary);
     } else {
-        await processGenerate(request);
+        await processGenerate(request, enableCaching);
     }
 }
 
 
 
-export { callGenerateIfBoundariesDiffer, callGenerate }
+export { callGenerateIfBoundariesDiffer, callGenerate, areBoundariesSame }
