@@ -1533,7 +1533,11 @@ const SetupCampaign = ({ hierarchyType }) => {
     setDisplayMenu(false);
     switch (action) {
       case "UPDATE_DATES":
-        history.push(`/${window.contextPath}/employee/campaign/update-dates-boundary?id=${id}`);
+        history.push(`/${window.contextPath}/employee/campaign/update-dates-boundary?id=${id}`, {
+          name: draftData?.campaignName,
+          projectId: draftData?.projectId,
+          data: draftData,
+        });
         break;
       default:
         break;
