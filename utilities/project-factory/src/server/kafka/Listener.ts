@@ -81,6 +81,7 @@ async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
         // Send payloads to the Kafka producer
         producer.send(payloads, (err: any) => {
             if (err) {
+                console.error(err);
                 logger.info('KAFKA :: PRODUCER :: Some Error Occurred ');
                 logger.error(`KAFKA :: PRODUCER :: Error :  ${JSON.stringify(err)}`);
             } else {
@@ -88,6 +89,7 @@ async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
             }
         });
     } catch (error) {
+        console.error(error);
         logger.error(`KAFKA :: PRODUCER :: Exception caught: ${JSON.stringify(error)}`);
         throwError("COMMON", 400, "KAKFA_ERROR", "Some error occured in kafka"); // Re-throw the error after logging it
     }
