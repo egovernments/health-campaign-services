@@ -4,38 +4,11 @@ package org.egov.project.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.project.BeneficiaryBulkRequest;
-import org.egov.common.models.project.BeneficiaryBulkResponse;
-import org.egov.common.models.project.BeneficiaryRequest;
-import org.egov.common.models.project.BeneficiaryResponse;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.ProjectFacility;
-import org.egov.common.models.project.ProjectFacilityBulkRequest;
-import org.egov.common.models.project.ProjectFacilityBulkResponse;
-import org.egov.common.models.project.ProjectFacilityRequest;
-import org.egov.common.models.project.ProjectFacilityResponse;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectResponse;
-import org.egov.common.models.project.ProjectStaff;
-import org.egov.common.models.project.ProjectStaffBulkRequest;
-import org.egov.common.models.project.ProjectStaffBulkResponse;
-import org.egov.common.models.project.ProjectStaffRequest;
-import org.egov.common.models.project.ProjectStaffResponse;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskBulkRequest;
-import org.egov.common.models.project.TaskBulkResponse;
-import org.egov.common.models.project.TaskRequest;
-import org.egov.common.models.project.TaskResponse;
-import org.egov.common.models.project.TaskSearchRequest;
+import org.egov.common.models.project.*;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.ProjectBeneficiaryService;
-import org.egov.project.service.ProjectFacilityService;
-import org.egov.project.service.ProjectService;
-import org.egov.project.service.ProjectStaffService;
-import org.egov.project.service.ProjectTaskService;
+import org.egov.project.service.*;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.ProjectFacilitySearchRequest;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
@@ -215,6 +188,7 @@ public class ProjectApiController {
                                                                                    @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
                                                                                    @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                                    @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+        limit = 2000;
         List<ProjectFacility> projectFacilities = projectFacilityService.search(
                 projectFacilitySearchRequest,
                 limit,

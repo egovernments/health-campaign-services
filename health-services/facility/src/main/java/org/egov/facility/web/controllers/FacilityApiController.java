@@ -4,12 +4,7 @@ package org.egov.facility.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.facility.Facility;
-import org.egov.common.models.facility.FacilityBulkRequest;
-import org.egov.common.models.facility.FacilityBulkResponse;
-import org.egov.common.models.facility.FacilityRequest;
-import org.egov.common.models.facility.FacilityResponse;
-import org.egov.common.models.facility.FacilitySearchRequest;
+import org.egov.common.models.facility.*;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.facility.config.FacilityConfiguration;
@@ -115,6 +110,7 @@ public class FacilityApiController {
     @Min(0)
     @Max(2000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                                  @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+        limit = 2000;
         List<Facility> facilities = facilityService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).facilities(facilities).build();
