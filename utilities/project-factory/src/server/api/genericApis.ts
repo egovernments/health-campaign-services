@@ -61,11 +61,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
 }
 
 function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-  if (
-    createAndSearchConfig &&
-    createAndSearchConfig.parseArrayConfig &&
-    createAndSearchConfig.parseArrayConfig.parseLogic
-  ) {
+  if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
     // Iterate over each column configuration
     for (const columnConfig of parseLogic) {

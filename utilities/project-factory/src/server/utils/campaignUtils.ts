@@ -1843,8 +1843,8 @@ async function getBoundaryOnWhichWeSplit(request: any) {
 }
 
 
-function checkIfSourceIsMicroplan(campaignObject: any): boolean {
-    return campaignObject?.additionalDetails?.source === 'microplan';
+function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
+    return objectWithAdditionalDetails?.additionalDetails?.source === 'microplan';
 }
 
 
