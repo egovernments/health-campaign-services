@@ -313,7 +313,10 @@ public class DownsyncService {
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         List<String> taskIds;
-        List<Integer> cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
+        List<Integer> cycleIndicesForTaskDownload = null;
+
+        if(projectType.containsKey("cycles"))
+            cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
 
         /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
         if (!CollectionUtils.isEmpty(cycleIndicesForTaskDownload))
