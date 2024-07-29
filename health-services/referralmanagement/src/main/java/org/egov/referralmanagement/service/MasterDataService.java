@@ -100,7 +100,7 @@ public class MasterDataService {
 			throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
 		}
 
-		return (LinkedHashMap<String, Object>)projectTypeRes.get(1); //FIXME hardcoded because of duplicates in MDMS impel DEMO
+		return (LinkedHashMap<String, Object>) projectTypeRes.get(0);
 
 	}
 
