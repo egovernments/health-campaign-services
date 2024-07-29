@@ -120,13 +120,14 @@ public class DownsyncService {
 
         String beneficiaryType = (String) projectType.get("beneficiaryType");
 
-        List<String> benefinicaryClientRefIds = individualClientRefIds;
+        beneficiaryClientRefIds = individualClientRefIds;
 
         if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
             beneficiaryClientRefIds = downsync.getHouseholds().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
-        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(benefinicaryClientRefIds)) {
-            beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+        //fetch beneficiary in the db
+        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+            beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, beneficiaryClientRefIds);
         }
 
         /* search tasks using beneficiary uuids */
@@ -257,18 +258,22 @@ public class DownsyncService {
      *
      * @param downsyncRequest
      * @param downsync
-     * @param individualClientRefIds
+     * @param beneficiaryClientRefIds
      * @return clientreferenceid of beneficiary object
      */
     private List<String> searchBeneficiaries(DownsyncRequest downsyncRequest, Downsync downsync,
-                                             List<String> individualClientRefIds) {
+                                             List<String> beneficiaryClientRefIds) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         Long lastChangedSince =criteria.getLastSyncedTime();
 
-        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of beneficiary ids*/
-        List<String> beneficiaryIds = getPrimaryIds(individualClientRefIds, "beneficiaryclientreferenceid","PROJECT_BENEFICIARY",lastChangedSince);
+        List<String> beneficiaryIds = getPrimaryIds(
+                beneficiaryClientRefIds,
+                "beneficiaryclientreferenceid",
+                "PROJECT_BENEFICIARY",
+                lastChangedSince
+        );
 
         if(CollectionUtils.isEmpty(beneficiaryIds))
             return Collections.emptyList();
@@ -276,7 +281,7 @@ public class DownsyncService {
         StringBuilder url = new StringBuilder(configs.getProjectHost())
                 .append(configs.getProjectBeneficiarySearchUrl());
 
-        url = appendUrlParams(url, criteria, 0, individualClientRefIds.size(),false);
+        url = appendUrlParams(url, criteria, 0, beneficiaryClientRefIds.size(),false);
 
         ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
                 .id(beneficiaryIds)
