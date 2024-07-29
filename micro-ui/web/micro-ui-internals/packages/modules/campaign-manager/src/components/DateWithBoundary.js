@@ -2,7 +2,7 @@ import React, { useState, useEffect, Fragment, useReducer, useMemo } from "react
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { LabelFieldPair, Header } from "@egovernments/digit-ui-react-components";
-import { Button, Card, Dropdown, MultiSelectDropdown } from "@egovernments/digit-ui-components";
+import { Button, Card, Dropdown, MultiSelectDropdown, Toast } from "@egovernments/digit-ui-components";
 import BoundaryWithDate from "./BoundaryWithDate";
 
 const initialState = (projectData) => {
@@ -88,6 +88,9 @@ const reducer = (state, action) => {
         return item;
       });
       break;
+    case "DELETE_BOUNDARY":
+      return state.filter((item) => item?.id !== action?.item?.id);
+      break;
     default:
       return state;
       break;
@@ -116,6 +119,7 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
   const [targetBoundary, setTargetBoundary] = useState([]);
   const [projectData, setProjectData] = useState(null);
   const [dateReducer, dateReducerDispatch] = useReducer(reducer, initialState(projectData));
+  const [showToast, setShowToast] = useState(null);
 
   useEffect(() => {
     onSelect("dateWithBoundary", dateReducer);
@@ -149,6 +153,10 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
   };
   const { data: hierarchyDefinition } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
+  useEffect(() => {
+    const timer = showToast && setTimeout(() => setShowToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [showToast]);
   //hierarchy level
   useEffect(() => {
     if (hierarchyDefinition) {
@@ -214,6 +222,9 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
   };
 
   const selectBoundary = async () => {
+    if (!targetBoundary || targetBoundary?.length === 0) {
+      setShowToast({ isError: true, label: "SELECT_HIERARCHY_AND_BOUNDARY_ERROR" });
+    }
     const temp = await Digit.Hooks.campaign.useProjectSearchWithBoundary({
       name: state?.name ? state.name : historyState?.name,
       tenantId: tenantId,
@@ -222,6 +233,12 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
     setProjectData(temp);
   };
 
+  const onDeleteBoundary = (item, index) => {
+    dateReducerDispatch({
+      type: "DELETE_BOUNDARY",
+      item: item,
+    });
+  };
   return (
     <>
       <Card className={"campaign-update-container"}>
@@ -269,7 +286,24 @@ const DateWithBoundary = ({ onSelect, formData, ...props }) => {
           </div>
         </Card>
       </Card>
-      {dateReducer?.length > 0 && dateReducer?.map((item, index) => <BoundaryWithDate project={item} dateReducerDispatch={dateReducerDispatch} />)}
+      {dateReducer?.length > 0 &&
+        dateReducer?.map((item, index) => (
+          <BoundaryWithDate
+            project={item}
+            dateReducerDispatch={dateReducerDispatch}
+            canDelete={dateReducer?.length > 1}
+            onDeleteCard={() => onDeleteBoundary(item, index)}
+          />
+        ))}
+      {showToast && (
+        <Toast
+          type={showToast?.isError ? "error" : "success"}
+          // error={showToast?.isError}
+          label={t(showToast?.label)}
+          isDleteBtn={"true"}
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </>
   );
 };

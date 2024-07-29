@@ -39,10 +39,6 @@ const MyCampaign = () => {
     window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
   }, []);
 
-  // useEffect(() => {
-  //   console.log("ppp");
-  // }, [session , Digit.SessionStorage.get("HCM_TIMELINE_POPUP")]);
-
   useEffect(() => {
     const handleStorageChange = () => {
       const newSession = Digit.SessionStorage.get("HCM_TIMELINE_POPUP");

@@ -33,6 +33,10 @@ function UpdateDatesWithBoundaries() {
   }, [showToast]);
 
   const onSubmit = async (formData) => {
+    if (!formData?.dateWithBoundary || formData?.dateWithBoundary?.length === 0) {
+      setShowToast({ isError: true, label: "SELECT_BOUNDARY_LEVEL_ERROR" });
+      return;
+    }
     setShowPopUp(formData);
   };
 
