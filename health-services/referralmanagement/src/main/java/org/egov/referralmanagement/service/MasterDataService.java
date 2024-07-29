@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 import static org.egov.referralmanagement.Constants.HCM_MASTER_PROJECTTYPE;
 import static org.egov.referralmanagement.Constants.HCM_MDMS_PROJECTTYPE_RES_PATH;
 import static org.egov.referralmanagement.Constants.HCM_MDMS_PROJECT_MODULE_NAME;
-import static org.egov.referralmanagement.Constants.HCM_PT_FILTER_CODE;
+import static org.egov.referralmanagement.Constants.HCM_PROJECT_TYPE_FILTER_CODE;
 
 @Slf4j
 @Service
@@ -73,7 +73,7 @@ public class MasterDataService {
 		 */
 		MasterDetail masterDetail = MasterDetail.builder()
 				.name(HCM_MASTER_PROJECTTYPE)
-				.filter(String.format(HCM_PT_FILTER_CODE, projectCode)) // projectCode FIXME
+				.filter(String.format(HCM_PROJECT_TYPE_FILTER_CODE, projectCode)) // projectCode FIXME
 				.build();
 
 		ModuleDetail moduleDetail = ModuleDetail.builder()

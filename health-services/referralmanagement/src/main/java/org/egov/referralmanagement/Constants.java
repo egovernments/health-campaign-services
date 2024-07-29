@@ -18,7 +18,7 @@ public interface Constants {
 
     public static final String HCM_MASTER_PROJECTTYPE = "projectTypes";
     public static final String HCM_MDMS_PROJECT_MODULE_NAME = "HCM-PROJECT-TYPES";
-    public static final String HCM_PT_FILTER_CODE = "$.[?(@.code=='%s')]";
+    public static final String HCM_PROJECT_TYPE_FILTER_CODE = "$.[?(@.code=='%s')]";
     public static final String HCM_MDMS_PROJECTTYPE_RES_PATH = "$.MdmsRes." + HCM_MDMS_PROJECT_MODULE_NAME + "." + HCM_MASTER_PROJECTTYPE + ".*";
 
     String INVALID_RECIPIENT_TYPE = "Invalid Recipient Type";
