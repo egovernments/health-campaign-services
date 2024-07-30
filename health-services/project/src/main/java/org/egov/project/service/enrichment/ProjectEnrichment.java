@@ -1,6 +1,12 @@
 package org.egov.project.service.enrichment;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
+import java.util.Map;
+import java.util.ArrayList;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -9,9 +15,12 @@ import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.Target;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectServiceUtil;
+import org.egov.project.web.models.AncestorProjects;
+import org.egov.project.web.models.DescendantProjects;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +38,11 @@ public class ProjectEnrichment {
 
     @Autowired
     private ProjectServiceUtil projectServiceUtil;
+
+    @Autowired
+    private Producer producer;
+    @Autowired
+    private ProjectConfiguration projectConfiguration;
 
     @Autowired
     private IdGenService idGenService;
@@ -124,6 +138,134 @@ public class ProjectEnrichment {
         projectRequest.setAuditDetails(auditDetails);
         log.info("Enriched project audit details for project " + projectRequest.getId());
     }
+    public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB)
+    {
+        enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
+            projectFromDB);
+    }
+
+    private void enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(
+        Project projectRequest, Project projectFromDB) {
+        long startDate = projectRequest.getStartDate();
+        long endDate = projectRequest.getEndDate();
+        // update both cycle dates and project start and end dates of descendants
+        updateDescendantProjects(projectRequest, projectFromDB, startDate, endDate);
+        // update both cycle dates and project start and end dates of descendants in a way like start date = min(current,existing) and end date = max(current,existing)
+        updateAncestorProjects(projectRequest, projectFromDB, startDate, endDate);
+    }
+
+    private void updateDescendantProjects(Project projectRequest, Project projectFromDB,
+        long startDate, long endDate) {
+        List<Project> descendantProjectsFromDb = projectFromDB.getDescendants();
+        List<Project> modifiedDescendantProjectsFromDb = new ArrayList<>();
+        if (descendantProjectsFromDb != null) {
+            for (Project descendant : descendantProjectsFromDb) {
+                updateDescendantProjectDates(descendant, startDate, endDate);
+                updateCycles(descendant, projectRequest, true);
+                modifiedDescendantProjectsFromDb.add(descendant);
+            }
+            // modifiedDescendantProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
+            pushDescendantProjects(modifiedDescendantProjectsFromDb);
+        }
+    }
+
+    private void updateAncestorProjects(Project projectRequest, Project projectFromDB, long startDate,
+        long endDate) {
+        List<Project> ancestorProjectsFromDb = projectFromDB.getAncestors();
+        List<Project> modifiedAncestorProjectsFromDb = new ArrayList<>();
+        if (ancestorProjectsFromDb != null) {
+            for (Project ancestor : ancestorProjectsFromDb) {
+                ancestor.setStartDate(Math.min(startDate, ancestor.getStartDate()));
+                ancestor.setEndDate(Math.max(endDate, ancestor.getEndDate()));
+                // update cycles date
+                updateCycles(ancestor, projectRequest, false);
+                modifiedAncestorProjectsFromDb.add(ancestor);
+            }
+            // modifiedAncestorProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
+            pushAncestorProjects(modifiedAncestorProjectsFromDb);
+        }
+    }
+
+    private void updateDescendantProjectDates(Project project, long startDate, long endDate) {
+        project.setStartDate(startDate);
+        project.setEndDate(endDate);
+    }
+
+
+    private void updateCycles(Project descendantOrAncestor, Project projectRequest,
+        boolean isDescendant) {
+        if (descendantOrAncestor.getAdditionalDetails() == null) {
+            return;
+        }
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        // Extract additional details from descendant and request projects
+        JsonNode descendantOrAncestorAdditionalDetails = objectMapper.valueToTree(
+            descendantOrAncestor.getAdditionalDetails());
+        JsonNode descendantOrAncestorProjectTypeNode = descendantOrAncestorAdditionalDetails.get(
+            "projectType");
+
+        if (descendantOrAncestorProjectTypeNode != null) {
+            JsonNode descendantOrAncestorCyclesNode = descendantOrAncestorProjectTypeNode.get("cycles");
+
+            if (descendantOrAncestorCyclesNode != null && descendantOrAncestorCyclesNode.isArray()) {
+                // Extract cycles from the request project
+                JsonNode requestAdditionalDetails = objectMapper.valueToTree(
+                    projectRequest.getAdditionalDetails());
+                JsonNode requestProjectTypeNode = requestAdditionalDetails.get("projectType");
+
+                if (requestProjectTypeNode != null) {
+                    JsonNode requestCyclesNode = requestProjectTypeNode.get("cycles");
+
+                    if (requestCyclesNode != null && requestCyclesNode.isArray()) {
+                        // Iterate over descendant cycles and update as necessary
+                        for (JsonNode descendantOrAncestorCycleNode : descendantOrAncestorCyclesNode) {
+                            String descendantOrAncestorCycleId = descendantOrAncestorCycleNode.get("id").asText();
+
+                            for (JsonNode requestCycleNode : requestCyclesNode) {
+                                String requestCycleId = requestCycleNode.get("id").asText();
+
+                                if (descendantOrAncestorCycleId.equals(requestCycleId)) {
+                                    // Update start and end dates of descendant cycle node
+                                    long requestStartDate = requestCycleNode.get("startDate").asLong();
+                                    long requestEndDate = requestCycleNode.get("endDate").asLong();
+                                    long currentStartDate = descendantOrAncestorCycleNode.get("startDate").asLong();
+                                    long currentEndDate = descendantOrAncestorCycleNode.get("endDate").asLong();
+                                    if (isDescendant) {
+                                        ((ObjectNode) descendantOrAncestorCycleNode).put("startDate", requestStartDate);
+                                        ((ObjectNode) descendantOrAncestorCycleNode).put("endDate", requestEndDate);
+                                    } else {
+                                        ((ObjectNode) descendantOrAncestorCycleNode).put("startDate",
+                                            Math.min(requestStartDate, currentStartDate));
+                                        ((ObjectNode) descendantOrAncestorCycleNode).put("endDate",
+                                            Math.max(requestEndDate, currentEndDate));
+                                    }
+                                    break; // Once updated, exit the loop for this descendantCycleNode
+                                }
+                            }
+                        }
+                        Map<String, Object> updatedAdditionalDetails = objectMapper.convertValue(
+                            descendantOrAncestorAdditionalDetails, new TypeReference<Map<String, Object>>() {
+                            });
+                        descendantOrAncestor.setAdditionalDetails(updatedAdditionalDetails);
+                    }
+                }
+            }
+        }
+    }
+
+    private void pushDescendantProjects(List<Project> descendantProjectsFromDb) {
+        DescendantProjects descendantProjects = DescendantProjects.builder()
+            .Projects(descendantProjectsFromDb).build();
+        producer.push(projectConfiguration.getUpdateProjectTopic(), descendantProjects);
+    }
+
+    private void pushAncestorProjects(List<Project> ancestorProjectsFromDb) {
+        AncestorProjects ancestorProjects = AncestorProjects.builder().Projects(ancestorProjectsFromDb)
+            .build();
+        producer.push(projectConfiguration.getUpdateProjectTopic(), ancestorProjects);
+    }
+
 
     //Enrich Project with Parent Hierarchy. If parent Project hierarchy is not present then add parent locality at the beginning of project hierarchy, if present add Parent project's project hierarchy
     private void enrichProjectHierarchy(Project projectRequest, List<Project> parentProjects) {

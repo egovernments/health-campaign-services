@@ -109,11 +109,30 @@ public class ProjectService {
         //Validate Update project request against projects fetched form database
         projectValidator.validateUpdateAgainstDB(project.getProjects(), projectsFromDB);
         projectEnrichment.enrichProjectOnUpdate(project, projectsFromDB);
+        // check if project end dates and start dates are changed , if changed and flag isEnableCascadingProjectDateUpdates=true  then update ancestor and descendant project dates accordingly
+        checkAndEnrichCascadingProjectDates(project);
         log.info("Enriched with project Number, Ids and AuditDetails");
         producer.push(projectConfiguration.getUpdateProjectTopic(), project);
         log.info("Pushed to kafka");
-
         return project;
+    }
+
+    private void checkAndEnrichCascadingProjectDates(ProjectRequest request) {
+        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, true, true, null, null);
+        List<Project> projectsFromRequest = request.getProjects();
+        for (Project project : projectsFromRequest) {
+            String projectId = String.valueOf(project.getId());
+            Project projectFromDB = projectsFromDB.stream()
+                .filter(p -> projectId.equals(String.valueOf(p.getId()))).findFirst().orElse(null);
+            if (projectFromDB != null) {
+                if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
+                    !project.getEndDate().equals(projectFromDB.getEndDate())) {
+                    if (projectConfiguration.isEnableCascadingProjectDateUpdates()) {
+                        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project,projectFromDB);
+                    }
+                }
+            }
+        }
     }
 
     /* Search for parent projects based on "parent" field and returns parent projects  */
