@@ -131,7 +131,9 @@ public class ProjectEnrichment {
       Project projectRequest, Project projectFromDB) {
     long startDate = projectRequest.getStartDate();
     long endDate = projectRequest.getEndDate();
+    // update both cycle dates and project start and end dates of descendants
     updateDescendantProjects(projectRequest, projectFromDB, startDate, endDate);
+    // update both cycle dates and project start and end dates of descendants in a way like start date = min(current,existing) and end date = max(current,existing)
     updateAncestorProjects(projectRequest, projectFromDB, startDate, endDate);
   }
 
@@ -145,6 +147,7 @@ public class ProjectEnrichment {
         updateCycles(descendant, projectRequest, true);
         modifiedDescendantProjectsFromDb.add(descendant);
       }
+      // modifiedDescendantProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
       pushDescendantProjects(modifiedDescendantProjectsFromDb);
     }
   }
@@ -157,9 +160,11 @@ public class ProjectEnrichment {
       for (Project ancestor : ancestorProjectsFromDb) {
         ancestor.setStartDate(Math.min(startDate, ancestor.getStartDate()));
         ancestor.setEndDate(Math.max(endDate, ancestor.getEndDate()));
+        // update cycles date
         updateCycles(ancestor, projectRequest, false);
         modifiedAncestorProjectsFromDb.add(ancestor);
       }
+      // modifiedAncestorProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
       pushAncestorProjects(modifiedAncestorProjectsFromDb);
     }
   }

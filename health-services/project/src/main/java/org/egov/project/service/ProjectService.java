@@ -109,11 +109,11 @@ public class ProjectService {
         //Validate Update project request against projects fetched form database
         projectValidator.validateUpdateAgainstDB(project.getProjects(), projectsFromDB);
         projectEnrichment.enrichProjectOnUpdate(project, projectsFromDB);
+        // check if project end dates and start dates are changed , if changed and flag isEnableCascadingProjectDateUpdates=true  then update ancestor and descendant project dates accordingly
         checkAndEnrichCascadingProjectDates(project);
         log.info("Enriched with project Number, Ids and AuditDetails");
         producer.push(projectConfiguration.getUpdateProjectTopic(), project);
         log.info("Pushed to kafka");
-
         return project;
     }
 
