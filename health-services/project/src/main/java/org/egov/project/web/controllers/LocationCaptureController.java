@@ -59,7 +59,6 @@ public class LocationCaptureController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<UserActionBulkResponse> locationCaptureTaskV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,

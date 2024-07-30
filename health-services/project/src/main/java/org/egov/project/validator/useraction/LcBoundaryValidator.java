@@ -24,7 +24,7 @@ import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
- * Validator class for validating locationCapture boundaries.
+ * Validator class for validating locationCaptureUserAction boundaries.
  */
 @Component
 @Order(value = 4)
@@ -39,7 +39,7 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
      * Constructor to initialize the HBoundaryValidator.
      *
      * @param serviceRequestClient   Service request client for making HTTP requests
-     * @param projectConfiguration Configuration properties for the locationCapture module
+     * @param projectConfiguration Configuration properties for the locationCaptureUserAction module
      */
     public LcBoundaryValidator(ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
@@ -55,12 +55,12 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
     @Override
     public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
         log.debug("Validating locationCaptures boundaries.");
-        // Create a HashMap to store error details for each locationCapture
+        // Create a HashMap to store error details for each locationCaptureUserAction
         HashMap<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
 
         // Filter locationCaptures with non-null addresses
         List<UserAction> entitiesWithValidBoundaries = request.getUserActions().parallelStream()
-                .filter(locationCapture -> Objects.nonNull(locationCapture.getBoundaryCode())) // Exclude null boundary codes
+                .filter(locationCaptureUserAction -> Objects.nonNull(locationCaptureUserAction.getBoundaryCode())) // Exclude null boundary codes
                 .collect(Collectors.toList());
 
         Map<String, List<UserAction>> tenantIdLocationCaptureMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(UserAction::getTenantId));
@@ -69,7 +69,7 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
             // Group locationCaptures by locality code
             Map<String, List<UserAction>> boundaryCodeLocationCapturesMap = locationCaptures.stream()
                     .collect(Collectors.groupingBy(
-                            locationCapture -> locationCapture.getBoundaryCode() // Group by boundary code
+                            locationCaptureUserAction -> locationCaptureUserAction.getBoundaryCode() // Group by boundary code
                     ));
 
             List<String> boundaries = new ArrayList<>(boundaryCodeLocationCapturesMap.keySet());
@@ -101,7 +101,7 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
                             .collect(Collectors.toList());
 
 
-                    locationCapturesWithInvalidBoundaries.forEach(locationCapture -> {
+                    locationCapturesWithInvalidBoundaries.forEach(locationCaptureUserAction -> {
                         // Create an error object for locationCaptures with invalid boundaries
                         Error error = Error.builder()
                                 .errorMessage("Boundary code does not exist in db")
@@ -109,8 +109,8 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
                                 .build();
-                        // Populate error details for the locationCapture
-                        populateErrorDetails(locationCapture, error, errorDetailsMap);
+                        // Populate error details for the locationCaptureUserAction
+                        populateErrorDetails(locationCaptureUserAction, error, errorDetailsMap);
                     });
 
                 } catch (Exception e) {

@@ -46,9 +46,9 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                 .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                 .build();
 
-        UserAction locationCapture = null;
+        UserAction locationCaptureUserAction = null;
         try {
-            locationCapture = UserAction.builder()
+            locationCaptureUserAction = UserAction.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
@@ -67,6 +67,6 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
             throw new RuntimeException(e);
         }
 
-        return locationCapture;
+        return locationCaptureUserAction;
     }
 }

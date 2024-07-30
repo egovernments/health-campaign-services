@@ -56,9 +56,9 @@ public class LcProjectIdValidator implements Validator<UserActionBulkRequest, Us
             List<UserAction> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                             !existingProjectIds.contains(entity.getProjectId()))
                     .collect(Collectors.toList());
-            invalidEntities.forEach(locationCapture -> {
-                Error error = getErrorForNonExistentRelatedEntity(locationCapture.getProjectId());
-                populateErrorDetails(locationCapture, error, errorDetailsMap);
+            invalidEntities.forEach(locationCaptureUserAction -> {
+                Error error = getErrorForNonExistentRelatedEntity(locationCaptureUserAction.getProjectId());
+                populateErrorDetails(locationCaptureUserAction, error, errorDetailsMap);
             });
         }
 
