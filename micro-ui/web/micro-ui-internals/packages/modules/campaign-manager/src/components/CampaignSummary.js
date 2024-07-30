@@ -221,7 +221,7 @@ const CampaignSummary = (props) => {
         const cycleData = reverseDeliveryRemap(target, t);
         return {
           cards: [
-            isPreview
+            isPreview === "true"
               ? {
                   name: "timeline",
                   sections: [

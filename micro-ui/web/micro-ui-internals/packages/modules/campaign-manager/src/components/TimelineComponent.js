@@ -40,6 +40,7 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeOut" }]);
 
   const formatLabel = (label) => {
+    if(!label) return null;
     return `HCM_${label.replace(/-/g, "_").toUpperCase()}`;
   };
 
@@ -83,7 +84,7 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   const { data: progessTrack , refetch} = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
   const lastCompletedProcess = progessTrack?.processTrack
-    .filter((process) => process.status === "completed")
+    .filter((process) => process.status === "completed" && process.showInUi === true)
     .reduce((latestProcess, currentProcess) => {
       if (!latestProcess || currentProcess.lastModifiedTime > latestProcess.lastModifiedTime) {
         return currentProcess;
@@ -109,29 +110,29 @@ const TimelineComponent = ({campaignId, resourceId}) => {
 
 
     const completedProcesses = progessTrack?.processTrack
-    .filter(process => process.status === 'completed')
+    .filter(process => process.status === 'completed'  && process.showInUi === true)
     .sort((a, b) => b.lastModifiedTime - a.lastModifiedTime)
     .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
 
     const completedTimelines = completedProcesses?.map(process => ({
-      label:  t(formatLabel(process.type)),
+      label:  t(formatLabel(process?.type)),
       subElements: [epochToDateTime(process.lastModifiedTime)],
     }));
 
   const inprogressProcesses = progessTrack?.processTrack
-    .filter(process => process.status === 'inprogress')
+    .filter(process => process.status === 'inprogress' && process.showInUi === true)
     .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
 
   const subElements = inprogressProcesses?.length > 0 
-  ? inprogressProcesses.map(process => `${t(formatLabel(process.type))} , ${epochToDateTime(process.lastModifiedTime)}`)
+  ? inprogressProcesses.map(process => `${t(formatLabel(process?.type))} , ${epochToDateTime(process.lastModifiedTime)}`)
   : [];
 
   const upcomingProcesses = progessTrack?.processTrack
-    .filter(process => process.status === "toBeCompleted")
+    .filter(process => process.status === "toBeCompleted" && process.showInUi === true)
     .map(process => ({ type: process.type, lastModifiedTime: process.lastModifiedTime }));
 
   const subElements2 = upcomingProcesses?.length > 0 
-  ? upcomingProcesses.map(process => `${t(formatLabel(process.type))} , ${epochToDateTime(process.lastModifiedTime)}`)
+  ? upcomingProcesses.map(process => `${t(formatLabel(process?.type))} , ${epochToDateTime(process.lastModifiedTime)}`)
   : [];
 
   // useEffect(()=>{
@@ -183,7 +184,9 @@ const TimelineComponent = ({campaignId, resourceId}) => {
             <Timeline label={t("HCM_UPCOMING")}
               variant="upcoming" 
               subElements={subElements2}
+              className = {"upcoming-timeline"}
               showConnector={true} />
+              
             <Timeline
               label={t("HCM_CURRENT")}
               subElements={subElements}
@@ -211,7 +214,7 @@ const TimelineComponent = ({campaignId, resourceId}) => {
           </TimelineMolecule>
         )
       }
-       {userCredential && (
+       {userCredential && lastCompletedProcess?.type === "campaign-creation" && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
             variation="primary"
