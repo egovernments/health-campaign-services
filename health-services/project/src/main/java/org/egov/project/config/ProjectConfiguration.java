@@ -189,4 +189,8 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
+    @Value("${enable.cascading.project.date.updates}")
+    private boolean enableCascadingProjectDateUpdates;
+
+
 }
