@@ -193,12 +193,21 @@ const TimelineComponent = ({campaignId, resourceId}) => {
               variant="inprogress"
               showConnector={true}
             />
-            <Timeline
+            {/* <Timeline
               label={ t(formatLabel(lastCompletedProcess?.type))}  
               subElements={[epochToDateTime(lastCompletedProcess?.lastModifiedTime)]}
               variant="completed"
               showConnector={true}
-            />
+            /> */}
+            {completedTimelines?.map((timeline, index) => (
+              <Timeline
+                key={index}
+                label={timeline?.label}
+                subElements={timeline?.subElements}
+                variant="completed"
+                showConnector={true}
+              />
+            ))}
           </TimelineMolecule>
         ) : (
           <TimelineMolecule initialVisibleCount={1} hideFutureLabel ={true}>
