@@ -32,9 +32,41 @@ function UpdateDatesWithBoundaries() {
     }
   }, [showToast]);
 
+  const checkValid = (data) => {
+    if (DateWithBoundary) {
+      const temp = data?.dateWithBoundary;
+      const allCycleDateValid = temp
+        .map((i) => i.additionalDetails.projectType.cycles.every((j) => j.startDate && j.endDate))
+        .every((k) => k === true);
+      const allDateValid = temp.every((i) => i.startDate && i.endDate);
+
+      if (allCycleDateValid && allDateValid) {
+        return true;
+      }
+      return false;
+    } else if (!DateWithBoundary) {
+      const cycleDateValid = data?.dateAndCycle?.additionalDetails?.projectType?.cycles?.every((item) => item?.startDate && item?.endDate);
+      if (data?.dateAndCycle?.startDate && data?.dateAndCycle?.endDate && cycleDateValid) {
+        return true;
+      }
+      return false;
+    }
+  };
   const onSubmit = async (formData) => {
-    if (!formData?.dateWithBoundary || formData?.dateWithBoundary?.length === 0) {
-      setShowToast({ isError: true, label: "SELECT_BOUNDARY_LEVEL_ERROR" });
+    if (DateWithBoundary) {
+      if (!formData?.dateWithBoundary || !Array.isArray(formData?.dateWithBoundary) || formData?.dateWithBoundary?.length === 0) {
+        setShowToast({ isError: true, label: "SELECT_BOUNDARY_LEVEL_ERROR" });
+        return;
+      }
+    } else if (!DateWithBoundary) {
+      if (!formData?.dateAndCycle) {
+        setShowToast({ isError: true, label: "SELECT_DATE_CHANGE_MANDATORY_ERROR" });
+        return;
+      }
+    }
+    let isValid = checkValid(formData);
+    if (!isValid) {
+      setShowToast({ isError: true, label: "UPDATE_DATE_MANDATORY_FIELDS_MISSING" });
       return;
     }
     setShowPopUp(formData);
@@ -44,7 +76,24 @@ function UpdateDatesWithBoundaries() {
     setShowPopUp(null);
     try {
       if (DateWithBoundary) {
-        const temp = await Digit.Hooks.campaign.useProjectUpdateWithBoundary({ formData: formData?.dateWithBoundary });
+        // updating the endDate by +1 sec and -1 sec so that backend logic for ancestor update work
+        const payload = formData?.dateWithBoundary?.map((item) => {
+          let itemEndDate = item?.endDate;
+          let endDate = new Date(item?.endDate);
+          let endSecond = endDate?.getSeconds();
+          if (endSecond < 59) {
+            return {
+              ...item,
+              endDate: itemEndDate + 1000,
+            };
+          } else {
+            return {
+              ...item,
+              endDate: itemEndDate - 1000,
+            };
+          }
+        });
+        const temp = await Digit.Hooks.campaign.useProjectUpdateWithBoundary({ formData: payload });
         // setShowToast({ isError: false, label: "DATE_UPDATED_SUCCESSFULLY" });
         history.push(`/${window.contextPath}/employee/campaign/response?isSuccess=${true}`, {
           message: t("ES_CAMPAIGN_DATE_CHANGE_WITH_BOUNDARY_SUCCESS"),

@@ -62,7 +62,7 @@ const reducer = (state, action) => {
         return item;
       });
       break;
-    case "CYCYLE_END_DATE":
+    case "CYCLE_END_DATE":
       const cycleEndRemap = action?.cycles?.map((item, index) => {
         if (item?.id === action?.cycleIndex) {
           return {

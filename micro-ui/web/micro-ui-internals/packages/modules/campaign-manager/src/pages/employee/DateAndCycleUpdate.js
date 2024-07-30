@@ -30,7 +30,7 @@ const reducer = (state, action) => {
         if (item?.id === action?.cycleIndex) {
           return {
             ...item,
-            startDate: Digit.Utils.pt.convertDateToEpoch(action?.date, "dayStart"),
+            startDate: Digit.Utils.pt.convertDateToEpoch(typeof action?.date === "string" ? action?.date : null, "dayStart"),
           };
         }
         return item;
@@ -46,7 +46,7 @@ const reducer = (state, action) => {
         },
       };
       break;
-    case "CYCYLE_END_DATE":
+    case "CYCLE_END_DATE":
       const cycleEndRemap = action?.cycles?.map((item, index) => {
         if (item?.id === action?.cycleIndex) {
           return {
@@ -116,14 +116,16 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
 
   useEffect(() => {
     if (dateReducer) {
-      setStartDate(Digit.Utils.date.getDate(dateReducer?.startDate));
-      setEndDate(Digit.Utils.date.getDate(dateReducer?.endDate));
+      setStartDate(dateReducer?.startDate ? Digit.Utils.date.getDate(dateReducer?.startDate) : "");
+      setEndDate(dateReducer?.endDate ? Digit.Utils.date.getDate(dateReducer?.endDate) : "");
       if (dateReducer?.additionalDetails?.projectType?.cycles?.length > 0) {
-        const cycleDateData = dateReducer?.additionalDetails?.projectType?.cycles?.map((cycle) => ({
-          cycleIndex: cycle.id,
-          startDate: Digit.Utils.date.getDate(cycle.startDate),
-          endDate: Digit.Utils.date.getDate(cycle.endDate),
-        }));
+        const cycleDateData = dateReducer?.additionalDetails?.projectType?.cycles?.map((cycle) => {
+          return {
+            cycleIndex: cycle.id,
+            startDate: cycle.startDate ? Digit.Utils.date.getDate(cycle.startDate) : "",
+            endDate: cycle.endDate ? Digit.Utils.date.getDate(cycle.endDate) : "",
+          };
+        });
         setCycleDates(cycleDateData);
       }
     }
@@ -139,7 +141,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   }, [isLoading, projectData]);
 
   const handleDateChange = ({ date, endDate = false, cycleDate = false, cycleIndex }) => {
-    if (!date || date <= today) {
+    if (typeof date === "undefined") {
       return null;
     }
     if (!endDate) {
@@ -158,7 +160,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   };
 
   const handleCycleDateChange = ({ date, endDate = false, cycleIndex }) => {
-    if (!date || date <= today) {
+    if (typeof date === "undefined") {
       return null;
     }
     if (!endDate) {
@@ -171,7 +173,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
       });
     } else {
       dateReducerDispatch({
-        type: "CYCYLE_END_DATE",
+        type: "CYCLE_END_DATE",
         date: date,
         item: dateReducer,
         cycleIndex: cycleIndex,
@@ -182,17 +184,18 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   return (
     <Card className={"boundary-with-container"}>
       <Header className="header">{t(`UPDATE_DATE_AND_CYCLE_HEADER`)}</Header>
-      <LabelFieldPair style={{ display: "grid", gridTemplateColumns: "13rem 2fr", alignItems: "start" }}>
+      <LabelFieldPair style={{ display: "grid", gridTemplateColumns: "13rem 2fr", alignItems: "start", gap: "1rem" }}>
         <div className="campaign-dates">
           <p>{t(`HCM_CAMPAIGN_DATES`)}</p>
           <span className="mandatory-date">*</span>
         </div>
         <div className="date-field-container">
           <FieldV1
+            required={true}
             withoutLabel={true}
             type="date"
             value={startDate}
-            nonEditable={today >= startDate ? true : false}
+            nonEditable={startDate && startDate?.length > 0 && today >= startDate ? true : false}
             placeholder={t("HCM_START_DATE")}
             populators={
               today >= startDate
@@ -205,31 +208,28 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
             }
             onChange={(d) => {
               handleDateChange({
-                date: d,
+                date: d?.target?.value,
               });
             }}
           />
           <FieldV1
+            required={true}
             withoutLabel={true}
             type="date"
             value={endDate}
-            nonEditable={today >= endDate ? true : false}
+            nonEditable={endDate && endDate?.length > 0 && today >= endDate ? true : false}
             placeholder={t("HCM_END_DATE")}
-            populators={
-              today >= endDate
-                ? {}
-                : {
-                    validation: {
-                      min:
-                        startDate && startDate > today
-                          ? Digit.Utils.date.getDate(new Date(startDate).getTime() + 2 * ONE_DAY_IN_MS)
-                          : Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS),
-                    },
-                  }
-            }
+            populators={{
+              validation: {
+                min:
+                  startDate && startDate > today
+                    ? Digit.Utils.date.getDate(new Date(startDate).getTime() + 2 * ONE_DAY_IN_MS)
+                    : Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS),
+              },
+            }}
             onChange={(d) => {
               handleDateChange({
-                date: d,
+                date: d?.target?.value,
                 endDate: true,
               });
             }}
@@ -246,57 +246,55 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
               </div>
               <div className="date-field-container">
                 <FieldV1
+                  required={true}
                   withoutLabel={true}
                   type="date"
                   value={item?.startDate}
-                  nonEditable={today >= item?.startDate ? true : false}
+                  nonEditable={item?.startDate && item?.startDate?.length > 0 && today >= item?.startDate ? true : false}
                   placeholder={t("HCM_START_DATE")}
-                  populators={
-                    today >= item?.startDate
-                      ? {}
-                      : {
-                          validation: {
-                            min:
-                              index > 0
-                                ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index)?.endDate)?.getTime() + 86400000)
-                                    ?.toISOString()
-                                    ?.split("T")?.[0]
-                                : startDate,
-                            max: endDate,
-                          },
-                        }
-                  }
+                  populators={{
+                    validation: {
+                      min:
+                        index > 0 && !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index)?.endDate)?.getTime())
+                          ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index)?.endDate)?.getTime() + ONE_DAY_IN_MS)
+                              ?.toISOString()
+                              ?.split("T")?.[0]
+                          : today >= startDate
+                          ? today
+                          : startDate,
+                      max: endDate,
+                    },
+                  }}
                   onChange={(d) => {
                     // setStartValidation(true);
                     handleCycleDateChange({
-                      date: d,
+                      date: d?.target?.value,
                       cycleIndex: item?.cycleIndex,
                     });
                   }}
                 />
                 <FieldV1
+                  required={true}
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
-                  nonEditable={today >= item?.endDate ? true : false}
+                  nonEditable={item?.endDate && item?.endDate?.length > 0 && today >= item?.endDate ? true : false}
                   placeholder={t("HCM_END_DATE")}
-                  populators={
-                    today >= item?.endDate
-                      ? {}
-                      : {
-                          validation: {
-                            min: cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate
-                              ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + 86400000)
-                                  ?.toISOString()
-                                  ?.split("T")?.[0]
-                              : null,
-                            max: endDate,
-                          },
-                        }
-                  }
+                  populators={{
+                    validation: {
+                      min: !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime())
+                        ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS)
+                            ?.toISOString()
+                            ?.split("T")?.[0]
+                        : today >= startDate
+                        ? today
+                        : startDate,
+                      max: endDate,
+                    },
+                  }}
                   onChange={(d) => {
                     handleCycleDateChange({
-                      date: d,
+                      date: d?.target?.value,
                       endDate: true,
                       cycleIndex: item?.cycleIndex,
                     });
