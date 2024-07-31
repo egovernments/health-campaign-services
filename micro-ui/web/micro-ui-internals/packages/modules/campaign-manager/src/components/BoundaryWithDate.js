@@ -10,6 +10,7 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
   // const { t } = useTranslation();
   const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
   const today = Digit.Utils.date.getDate(Date.now());
+  const tomorrow = Digit.Utils.date.getDate(new Date(today).getTime() + ONE_DAY_IN_MS);
   const [startDate, setStartDate] = useState(project?.startDate ? Digit.Utils.date.getDate(project?.startDate) : ""); // Set default start date to today
   const [endDate, setEndDate] = useState(project?.endDate ? Digit.Utils.date.getDate(project?.endDate) : ""); // Default end date
   const [cycleDates, setCycleDates] = useState(null);
@@ -152,7 +153,7 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
                               ?.toISOString()
                               ?.split("T")?.[0]
                           : today >= startDate
-                          ? today
+                          ? tomorrow
                           : startDate,
                       max: endDate,
                     },
@@ -173,13 +174,16 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
                   placeholder={t("HCM_END_DATE")}
                   populators={{
                     validation: {
-                      min: !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime())
-                        ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS)
-                            ?.toISOString()
-                            ?.split("T")?.[0]
-                        : today >= startDate
-                        ? today
-                        : startDate,
+                      min:
+                        !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime()) &&
+                        Digit.Utils.date.getDate(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS) >
+                          today
+                          ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS)
+                              ?.toISOString()
+                              ?.split("T")?.[0]
+                          : today >= startDate
+                          ? tomorrow
+                          : startDate,
                       max: endDate,
                     },
                   }}
