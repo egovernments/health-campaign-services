@@ -19,8 +19,6 @@ import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectServiceUtil;
-import org.egov.project.web.models.AncestorProjects;
-import org.egov.project.web.models.DescendantProjects;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -165,7 +163,7 @@ public class ProjectEnrichment {
                 modifiedDescendantProjectsFromDb.add(descendant);
             }
             // modifiedDescendantProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
-            pushDescendantProjects(modifiedDescendantProjectsFromDb);
+            pushProjectsToKafka(modifiedDescendantProjectsFromDb);
         }
     }
 
@@ -182,7 +180,7 @@ public class ProjectEnrichment {
                 modifiedAncestorProjectsFromDb.add(ancestor);
             }
             // modifiedAncestorProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
-            pushAncestorProjects(modifiedAncestorProjectsFromDb);
+            pushProjectsToKafka(modifiedAncestorProjectsFromDb);
         }
     }
 
@@ -254,16 +252,11 @@ public class ProjectEnrichment {
         }
     }
 
-    private void pushDescendantProjects(List<Project> descendantProjectsFromDb) {
-        DescendantProjects descendantProjects = DescendantProjects.builder()
-            .Projects(descendantProjectsFromDb).build();
-        producer.push(projectConfiguration.getUpdateProjectTopic(), descendantProjects);
-    }
-
-    private void pushAncestorProjects(List<Project> ancestorProjectsFromDb) {
-        AncestorProjects ancestorProjects = AncestorProjects.builder().Projects(ancestorProjectsFromDb)
+    private void pushProjectsToKafka(List<Project> projects) {
+        ProjectRequest projectRequest = ProjectRequest.builder()
+            .projects(projects)
             .build();
-        producer.push(projectConfiguration.getUpdateProjectTopic(), ancestorProjects);
+        producer.push(projectConfiguration.getUpdateProjectTopic(), projectRequest);
     }
 
 
