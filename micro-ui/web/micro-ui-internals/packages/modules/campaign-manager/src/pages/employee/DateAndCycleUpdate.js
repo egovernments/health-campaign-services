@@ -77,6 +77,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
   const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
   const today = Digit.Utils.date.getDate(Date.now());
+  const tomorrow = Digit.Utils.date.getDate(new Date(today).getTime() + ONE_DAY_IN_MS);
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { state } = useLocation();
   const historyState = window.history.state;
@@ -260,7 +261,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
                               ?.toISOString()
                               ?.split("T")?.[0]
                           : today >= startDate
-                          ? today
+                          ? tomorrow
                           : startDate,
                       max: endDate,
                     },
@@ -278,17 +279,27 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
-                  nonEditable={item?.endDate && item?.endDate?.length > 0 && today >= item?.endDate ? true : false}
+                  nonEditable={
+                    item?.endDate &&
+                    item?.endDate?.length > 0 &&
+                    today >= item?.endDate &&
+                    (cycleDates?.[index + 1] ? today >= cycleDates?.[index + 1]?.startDate : true)
+                      ? true
+                      : false
+                  }
                   placeholder={t("HCM_END_DATE")}
                   populators={{
                     validation: {
-                      min: !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime())
-                        ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS)
-                            ?.toISOString()
-                            ?.split("T")?.[0]
-                        : today >= startDate
-                        ? today
-                        : startDate,
+                      min:
+                        !isNaN(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime()) &&
+                        Digit.Utils.date.getDate(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS) >
+                          today
+                          ? new Date(new Date(cycleDates?.find((j) => j.cycleIndex == index + 1)?.startDate)?.getTime() + ONE_DAY_IN_MS)
+                              ?.toISOString()
+                              ?.split("T")?.[0]
+                          : today >= startDate
+                          ? tomorrow
+                          : startDate,
                       max: endDate,
                     },
                   }}
