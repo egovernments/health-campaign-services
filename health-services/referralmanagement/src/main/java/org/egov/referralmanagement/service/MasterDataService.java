@@ -104,6 +104,7 @@ public class MasterDataService {
 
 	}
 
+	//todo remove
 	public List<Integer> getCycleIndicesForTask(LinkedHashMap<String, Object> projectType) {
 
 		@SuppressWarnings("unchecked")

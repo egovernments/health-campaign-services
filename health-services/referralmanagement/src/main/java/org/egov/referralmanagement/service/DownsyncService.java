@@ -299,6 +299,8 @@ public class DownsyncService {
         return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
     }
 
+
+
     /**
      *
      * @param downsyncRequest
@@ -312,25 +314,14 @@ public class DownsyncService {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-        List<String> taskIds;
-        List<Integer> cycleIndicesForTaskDownload = null;
-
-        if(projectType.containsKey("cycles"))
-            cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
-
-        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-        if (!CollectionUtils.isEmpty(cycleIndicesForTaskDownload))
-            taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK_CYCLE_INDEX_MATERIALIZED_VIEW",
-                    criteria.getLastSyncedTime(), cycleIndicesForTaskDownload);
-        else
-            taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
-                    criteria.getLastSyncedTime());
+        List<String> taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+                criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(taskIds))
             return Collections.emptyList();
 
         StringBuilder url = new StringBuilder(configs.getProjectHost())
-                .append(configs.getProjectTaskSearchUrl());
+                 .append(configs.getProjectTaskSearchUrl());
 
         url = appendUrlParams(url, criteria, 0, taskIds.size(), false);
 
@@ -466,6 +457,7 @@ public class DownsyncService {
      * @param idListFieldName
      * @param tableName
      * @param lastChangedSince
+     * @param cycleIndices
      * @return
      */
     private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince, List<Integer> cycleIndices) {
