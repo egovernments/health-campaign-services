@@ -46,14 +46,30 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
+        // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
+
+        // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);
+
+        // Validate the filestore ID in the plan configuration's request mappings
         validateFilestoreId(planConfiguration);
+
+        // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
+
+        // Validate that the inputs for operations in the request match those in the MDMS data
         validateOperationsInputAgainstMDMS(request, mdmsData);
+
+        // Validate that the resource mappings in the request match those in the MDMS data
         validateResourceMappingAgainstMDMS(request, mdmsData);
+
+        // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+
+        // Validate the user information in the request
         validateUserInfo(request);
+
     }
 
     /**
@@ -297,17 +313,36 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
-        // Validate plan existence
+        // Validate the existence of the plan configuration in the request
         validatePlanConfigExistence(request);
+
+        // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
+
+        // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);
+
+        // Validate the filestore ID in the plan configuration's request mappings
         validateFilestoreId(planConfiguration);
+
+        // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
+
+        // Validate that the inputs for operations in the request match those in the MDMS data
         validateOperationsInputAgainstMDMS(request, mdmsData);
+
+        // Validate the dependencies between operations in the plan configuration
         validateOperationDependencies(planConfiguration);
+
+        // Validate that the resource mappings in the request match those in the MDMS data
         validateResourceMappingAgainstMDMS(request, mdmsData);
+
+        // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+
+        // Validate the user information in the request
         validateUserInfo(request);
+
     }
 
     /**
