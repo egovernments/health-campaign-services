@@ -5,6 +5,7 @@ import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -16,17 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_CODE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
-import static digit.config.ServiceConstants.MDMS_MASTER_METRIC;
-import static digit.config.ServiceConstants.MDMS_MASTER_UOM;
-import static digit.config.ServiceConstants.MDMS_PLAN_MODULE_NAME;
-import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_MESSAGE;
-import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanValidator {
@@ -37,10 +28,13 @@ public class PlanValidator {
 
     private MdmsUtil mdmsUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil) {
+    private MultiStateInstanceUtil centralInstanceUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
+        this.centralInstanceUtil = centralInstanceUtil;
     }
 
     /**
@@ -48,7 +42,7 @@ public class PlanValidator {
      * @param request
      */
     public void validatePlanCreate(PlanRequest request) {
-        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate activities
@@ -252,7 +246,7 @@ public class PlanValidator {
         // Validate plan existence
         validatePlanExistence(request);
 
-        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate activities
@@ -290,41 +284,60 @@ public class PlanValidator {
 
     }
 
+    /**
+     * Validates that all target UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the targets to be validated
+     * @throws CustomException if any target UUIDs are not unique
+     */
     private void validateTargetUuidUniqueness(PlanRequest request) {
-        // Collect all target uuids
+        // Collect all target UUIDs
         Set<String> targetUuids = request.getPlan().getTargets().stream()
                 .map(Target::getId)
                 .collect(Collectors.toSet());
 
-        // If target uuids are not unique, throw an exception
-        if(targetUuids.size() != request.getPlan().getTargets().size()) {
-            throw new CustomException("DUPLICATE_TARGET_UUIDS", "Target uuids should be unique");
+        // If target UUIDs are not unique, throw an exception
+        if (targetUuids.size() != request.getPlan().getTargets().size()) {
+            throw new CustomException("DUPLICATE_TARGET_UUIDS", "Target UUIDs should be unique");
         }
     }
 
+    /**
+     * Validates that all resource UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the resources to be validated
+     * @throws CustomException if any resource UUIDs are not unique
+     */
     private void validateResourceUuidUniqueness(PlanRequest request) {
-        // Collect all resource uuids
+        // Collect all resource UUIDs
         Set<String> resourceUuids = request.getPlan().getResources().stream()
                 .map(Resource::getId)
                 .collect(Collectors.toSet());
 
-        // If resource uuids are not unique, throw an exception
-        if(resourceUuids.size() != request.getPlan().getResources().size()) {
-            throw new CustomException("DUPLICATE_RESOURCE_UUIDS", "Resource uuids should be unique");
+        // If resource UUIDs are not unique, throw an exception
+        if (resourceUuids.size() != request.getPlan().getResources().size()) {
+            throw new CustomException("DUPLICATE_RESOURCE_UUIDS", "Resource UUIDs should be unique");
         }
     }
 
+    /**
+     * Validates that all activity UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the activities to be validated
+     * @throws CustomException if any activity UUIDs are not unique
+     */
     private void validateActivitiesUuidUniqueness(PlanRequest request) {
-        // Collect all activity uuids
+        // Collect all activity UUIDs
         Set<String> activityUuids = request.getPlan().getActivities().stream()
                 .map(Activity::getId)
                 .collect(Collectors.toSet());
 
-        // If activity uuids are not unique, throw an exception
-        if(activityUuids.size() != request.getPlan().getActivities().size()) {
-            throw new CustomException("DUPLICATE_ACTIVITY_UUIDS", "Activity uuids should be unique");
+        // If activity UUIDs are not unique, throw an exception
+        if (activityUuids.size() != request.getPlan().getActivities().size()) {
+            throw new CustomException("DUPLICATE_ACTIVITY_UUIDS", "Activity UUIDs should be unique");
         }
     }
+
 
     /**
      * This method validates if the plan id provided in the update request exists
@@ -335,10 +348,21 @@ public class PlanValidator {
         if(CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
                 .build()))) {
-            throw new CustomException("INVALID_PLAN_ID", "Plan id provided is invalid");
+            throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
         }
     }
 
+    /**
+     * Validates the target metrics within the provided PlanRequest against MDMS data.
+     *
+     * This method checks each target metric in the plan to ensure it exists in the MDMS data.
+     * If a metric is not found, it throws a CustomException.
+     *
+     * @param request the PlanRequest containing the plan and target metrics to be validated
+     * @param mdmsData the MDMS data against which the target metrics are validated
+     * @throws CustomException if there is an error reading the MDMS data using JsonPath
+     *                         or if any target metric is not found in the MDMS data
+     */
     public void validateTargetMetrics(PlanRequest request, Object mdmsData) {
         Plan plan = request.getPlan();
         final String jsonPathForMetric = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_METRIC + ".*.code";
@@ -351,13 +375,28 @@ public class PlanValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        for (Target target : plan.getTargets()) {
-            if (!metricListFromMDMS.contains(target.getMetric())) {
-                throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
-            }
-        }
+        List<Object> finalMetricListFromMDMS = metricListFromMDMS;
+        plan.getTargets().stream()
+                .map(Target::getMetric)
+                .filter(metric -> !finalMetricListFromMDMS.contains(metric))
+                .findAny()
+                .ifPresent(metric -> {
+                    throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
+                });
+
     }
 
+    /**
+     * Validates the metric unit details within the provided PlanRequest against MDMS data.
+     *
+     * This method extracts metric details from the plan and checks if each metric unit
+     * is present in the MDMS data. If a metric unit is not found, it throws a CustomException.
+     *
+     * @param request the PlanRequest containing the plan and metric details to be validated
+     * @param mdmsData the MDMS data against which the metric units are validated
+     * @throws CustomException if there is an error reading the MDMS data using JsonPath
+     *                         or if any metric unit is not found in the MDMS data
+     */
     public void validateMetricDetailUnit(PlanRequest request, Object mdmsData) {
         Plan plan = request.getPlan();
 
@@ -365,7 +404,7 @@ public class PlanValidator {
                 .map(Target::getMetricDetail)
                 .toList();
 
-        List<Object> metricUnitListFromMDMS = null;
+        List<Object> metricUnitListFromMDMS;
         final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.code";
         try {
             metricUnitListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetricUnit);
@@ -373,11 +412,14 @@ public class PlanValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        for (MetricDetail metricDetail : metricDetails) {
-            if (!metricUnitListFromMDMS.contains(metricDetail.getMetricUnit())) {
-                throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
-            }
-        }
+        metricDetails.stream()
+                .map(MetricDetail::getMetricUnit)
+                .filter(metricUnit -> !metricUnitListFromMDMS.contains(metricUnit))
+                .findAny()
+                .ifPresent(metricUnit -> {
+                    throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
+                });
+
     }
 
 }

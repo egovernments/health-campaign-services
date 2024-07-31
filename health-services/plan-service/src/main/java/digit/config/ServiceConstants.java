@@ -23,25 +23,25 @@ public class ServiceConstants {
     public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in active assumptions list ";
 
     public static final String FILESTORE_ID_INVALID_CODE = "FILESTORE_ID_INVALID";
-    public static final String FILESTORE_ID_INVALID_MESSAGE = "Resource mapping does not have a Valid File Store Id ";
+    public static final String FILESTORE_ID_INVALID_MESSAGE = " Resource mapping does not have a Valid File Store Id ";
 
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
-    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
+    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS ";
 
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
-    public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS";
+    public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS ";
 
     public static final String REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE = "REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND";
-    public static final String REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE = "Required Template Identifier is not present in Files";
+    public static final String REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE = "Required Template Identifier is not present in Files ";
 
     public static final String ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE = "ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER";
-    public static final String ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE = "Only one file of the required template identifier should be present.";
+    public static final String ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE = "Only one file of the required template identifier should be present ";
 
     public static final String INPUT_KEY_NOT_FOUND_CODE = "INPUT_KEY_NOT_FOUND";
-    public static final String INPUT_KEY_NOT_FOUND_MESSAGE = "Operation's Input key not present in MDMS";
+    public static final String INPUT_KEY_NOT_FOUND_MESSAGE = "Operation's Input key not present in MDMS ";
 
     public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE = "LOCALITY_NOT_PRESENT_IN_MAPPED_TO";
-    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE = "Resource Mapping's MappedTo must contain 'Locality'";
+    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE = "Resource Mapping's MappedTo must contain 'Locality' ";
 
     public static final String DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE = "DUPLICATE_MAPPED_TO_VALIDATION_ERROR";
     public static final String DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE = "Duplicate MappedTo found in Resource Mapping";
@@ -76,6 +76,8 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
 
+    public static final String INVALID_PLAN_ID_CODE = "INVALID_PLAN_ID";
+    public static final String INVALID_PLAN_ID_MESSAGE = "Plan id provided is invalid";
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";

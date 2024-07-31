@@ -27,23 +27,13 @@ public class EnrichmentService {
 
     /**
      * Enriches the PlanConfigurationRequest for creating a new plan configuration.
-     * This method enriches the plan configuration with generated IDs, validates user information, and enriches audit details for create operation.
+     * Enriches the given plan configuration with generated IDs for plan, files, assumptions, operations, and resource mappings,
+     * validates user information, and enriches audit details for create operation.
      * @param request The PlanConfigurationRequest to be enriched.
      * @throws CustomException if user information is missing in the request.
      */
     public void enrichCreate(PlanConfigurationRequest request) {
-        enrichPlanConfiguration(request.getPlanConfiguration());
-        if(ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo()))
-            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
-
-        enrichAuditDetails(request, Boolean.TRUE);
-    }
-
-    /**
-     * Enriches the given plan configuration with generated IDs for plan, files, assumptions, operations, and resource mappings.
-     * @param planConfiguration The PlanConfiguration to be enriched.
-     */
-    public void enrichPlanConfiguration(PlanConfiguration planConfiguration) {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
         log.info("Enriching plan config with generated IDs");
 
         // Generate id for plan configuration
@@ -64,6 +54,8 @@ public class EnrichmentService {
 
         // Generate id for resource mappings
         planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id"));
+
+        enrichAuditDetails(request, Boolean.TRUE);
     }
 
     /**
@@ -85,9 +77,6 @@ public class EnrichmentService {
      */
     public void enrichUpdate(PlanConfigurationRequest request) {
         enrichPlanConfigurationForUpdate(request);
-        if (request.getRequestInfo().getUserInfo() == null)
-            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
-
         enrichAuditDetails(request, Boolean.FALSE);
     }
 
@@ -138,11 +127,9 @@ public class EnrichmentService {
     public void enrichActiveForResourceMapping(File file, List<ResourceMapping> resourceMappings) {
         if (!file.getActive()) {
             // Set all corresponding resource mappings to inactive
-            for (ResourceMapping mapping : resourceMappings) {
-                if (mapping.getFilestoreId().equals(file.getFilestoreId())) {
-                    mapping.setActive(false);
-                }
-            }
+            resourceMappings.stream()
+                    .filter(mapping -> mapping.getFilestoreId().equals(file.getFilestoreId()))
+                    .forEach(mapping -> mapping.setActive(false));
         }
     }
 
