@@ -130,7 +130,6 @@ export const processTrackForUi = [
     processTrackTypes.facilityCreation,
     processTrackTypes.staffCreation,
     processTrackTypes.targetAndDeliveryRulesCreation,
-    processTrackTypes.confirmingResourceCreation,
     processTrackTypes.staffMapping,
     processTrackTypes.resourceMapping,
     processTrackTypes.facilityMapping,
