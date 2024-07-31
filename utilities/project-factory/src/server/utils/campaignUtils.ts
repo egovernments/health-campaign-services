@@ -478,14 +478,14 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     if (request?.body?.ResourceDetails?.action == "create") {
         persistMessage.ResourceDetails.additionalDetails = {}
     }
-    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
     if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
         logger.info("Activities to persist : ")
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        produceModifiedMessages(request?.body, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        await produceModifiedMessages(request?.body, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
 
@@ -544,7 +544,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     // wait for 2 seconds
     logger.info(`Waiting for 2 seconds to persist errors`);
     await new Promise(resolve => setTimeout(resolve, 2000));
-    produceModifiedMessages(requestBody, topic);
+    await produceModifiedMessages(requestBody, topic);
     await persistTrack(requestBody?.CampaignDetails?.id, processTrackTypes.error, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
     delete requestBody.CampaignDetails.campaignDetails
 }
@@ -576,7 +576,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     }
     const topic = firstPersist ? config?.kafka?.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     delete request.body.CampaignDetails.codesTargetMapping
-    produceModifiedMessages(request?.body, topic);
+    await produceModifiedMessages(request?.body, topic);
     delete request.body.CampaignDetails.campaignDetails
 }
 
@@ -622,7 +622,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
         request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
     delete request.body.CampaignDetails.codesTargetMapping
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+    await produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
 }
@@ -662,7 +662,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         requestBody.localizationMap = localizationMap
         logger.info("Persisting CampaignProjectMapping...");
         logger.debug(`CampaignProjectMapping: ${getFormattedStringForDebug(requestBody)}`);
-        produceModifiedMessages(requestBody, config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
+        await produceModifiedMessages(requestBody, config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
     }
 }
 
@@ -681,7 +681,7 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
-        createProcessTracks(request.body.CampaignDetails.id)
+        await createProcessTracks(request.body.CampaignDetails.id)
     }
 }
 

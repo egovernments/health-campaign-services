@@ -535,7 +535,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
     logger.info("target sheet format validation started");
     await immediateValidationForTargetSheet(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
     logger.info("target sheet format validation completed and starts with data validation");
-    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, differentTabsBasedOnLevel,localizationMap);
+    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, differentTabsBasedOnLevel, localizationMap);
   }
 
   else {
@@ -788,12 +788,12 @@ async function handleResouceDetailsError(request: any, error: any) {
     if (request?.body?.ResourceDetails?.action == "create") {
       persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
     }
-    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
     logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+    await produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
 }
 
@@ -870,7 +870,7 @@ async function processCreate(request: any, localizationMap?: any) {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
-    else if(type == "facilityMicroplan") {
+    else if (type == "facilityMicroplan") {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
       schema = mdmsResponse
       logger.info("Appending project type to capacity for microplan " + campaignType);

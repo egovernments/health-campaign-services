@@ -430,7 +430,7 @@ export async function processMapping(mappingObject: any) {
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
         }
-        produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
+        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
         await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed)
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);

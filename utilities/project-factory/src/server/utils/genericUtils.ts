@@ -367,14 +367,14 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     generatedResource = { generatedResource: newEntryResponse }
     // send message to create toppic
     logger.info(`processing the generate request for type ${type}`)
-    produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
+    await produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request,enableCaching);
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       logger.info("generating different tabs logic ")
@@ -383,19 +383,19 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       // send to update topic
-      produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary);
       const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
-      produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
   } catch (error: any) {
     console.log(error)
-    handleGenerateError(newEntryResponse, generatedResource, error);
+    await handleGenerateError(newEntryResponse, generatedResource, error);
   }
 }
 
@@ -791,7 +791,7 @@ async function processGenerateForNew(request: any, generatedResource: any, newEn
   return request.body.generatedResource;
 }
 
-function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
+async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
   newEntryResponse.map((item: any) => {
     item.status = generatedResourceStatuses.failed, item.additionalDetails = {
       ...item.additionalDetails, error: {
@@ -804,7 +804,7 @@ function handleGenerateError(newEntryResponse: any, generatedResource: any, erro
   })
   generatedResource = { generatedResource: newEntryResponse };
   logger.error(String(error));
-  produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
+  await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
 }
 
 async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, enableCaching = false, filteredBoundary?: any) {
@@ -814,7 +814,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
   if (forceUpdateBool && responseData.length > 0) {
     generatedResource = { generatedResource: oldEntryResponse };
     // send message to update topic 
-    produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
+    await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
@@ -862,7 +862,7 @@ async function enrichResourceDetails(request: any) {
     request.body.ResourceDetails.campaignId = null;
   }
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
-  produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
 }
 
 function getFacilityIds(data: any) {
