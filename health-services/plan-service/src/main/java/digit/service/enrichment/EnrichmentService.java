@@ -76,18 +76,9 @@ public class EnrichmentService {
      * @throws CustomException if user information is missing in the request.
      */
     public void enrichUpdate(PlanConfigurationRequest request) {
-        enrichPlanConfigurationForUpdate(request);
-        enrichAuditDetails(request, Boolean.FALSE);
-    }
-
-    /**
-     * Enriches the plan configuration for update by generating IDs for files, assumptions, operations, and resource mappings if they are empty.
-     * @param request The PlanConfigurationRequest to be enriched for update operation.
-     */
-    public void enrichPlanConfigurationForUpdate(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-        // For Files
+        // Generate id for Files
         planConfiguration.getFiles().forEach(file -> {
             if (ObjectUtils.isEmpty(file.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
@@ -95,27 +86,28 @@ public class EnrichmentService {
             enrichActiveForResourceMapping(file, request.getPlanConfiguration().getResourceMapping());
         });
 
-        // For Assumptions
+        // Generate id for Assumptions
         planConfiguration.getAssumptions().forEach(assumption -> {
             if (ObjectUtils.isEmpty(assumption.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id");
             }
         });
 
-        // For Operations
+        // Generate id for Operations
         planConfiguration.getOperations().forEach(operation -> {
             if (ObjectUtils.isEmpty(operation.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(operation, "id");
             }
         });
 
-        // For ResourceMappings
+        // Generate id for ResourceMappings
         planConfiguration.getResourceMapping().forEach(resourceMapping -> {
             if (ObjectUtils.isEmpty(resourceMapping.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id");
             }
         });
 
+        enrichAuditDetails(request, Boolean.FALSE);
     }
 
     /**
