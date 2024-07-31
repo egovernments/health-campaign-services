@@ -41,7 +41,10 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                 || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
+                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.ADMINISTRATION_FAILED.toString().equals(task.getStatus())
+                        )
+                ) {
                     /**
                      *  If the task resource is empty or null and task status is not BENEFICIARY_REFUSED it is invalid
                      */
@@ -51,7 +54,9 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE +
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_SICK +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_ABSENT +
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.ADMINISTRATION_FAILED
+                            )
                             .errorCode(TASK_NOT_ALLOWED)
                             .type(Error.ErrorType.NON_RECOVERABLE)
                             .exception(new CustomException(TASK_NOT_ALLOWED,
@@ -64,14 +69,20 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                             ProjectConstants.OR +
                                             ProjectConstants.TaskStatus.BENEFICIARY_SICK +
                                             ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)).build();
+                                            ProjectConstants.TaskStatus.BENEFICIARY_ABSENT +
+                                            ProjectConstants.OR +
+                                            ProjectConstants.TaskStatus.ADMINISTRATION_FAILED
+                            )).build();
                     populateErrorDetails(task, error, errorDetailsMap);
                 } else if (!CollectionUtils.isEmpty(task.getResources()) &&
                         (ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
+                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.ADMINISTRATION_FAILED.toString().equals(task.getStatus())
+                        )
+                ) {
                     /**
                      *  If the task resource is not empty and task status is BENEFICIARY_REFUSED
                       */
