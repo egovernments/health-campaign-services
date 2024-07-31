@@ -42,7 +42,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                 || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.ADMINISTRATION_FAILED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.ADMINISTERED_FAILED.toString().equals(task.getStatus())
                         )
                 ) {
                     /**
@@ -55,7 +55,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_SICK +
                                     ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_ABSENT +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.ADMINISTRATION_FAILED
+                                    ProjectConstants.OR + ProjectConstants.TaskStatus.ADMINISTERED_FAILED
                             )
                             .errorCode(TASK_NOT_ALLOWED)
                             .type(Error.ErrorType.NON_RECOVERABLE)
@@ -71,7 +71,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                             ProjectConstants.OR +
                                             ProjectConstants.TaskStatus.BENEFICIARY_ABSENT +
                                             ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.ADMINISTRATION_FAILED
+                                            ProjectConstants.TaskStatus.ADMINISTERED_FAILED
                             )).build();
                     populateErrorDetails(task, error, errorDetailsMap);
                 } else if (!CollectionUtils.isEmpty(task.getResources()) &&
@@ -80,7 +80,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                                 || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
                                 || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.ADMINISTRATION_FAILED.toString().equals(task.getStatus())
+                                || ProjectConstants.TaskStatus.ADMINISTERED_FAILED.toString().equals(task.getStatus())
                         )
                 ) {
                     /**
