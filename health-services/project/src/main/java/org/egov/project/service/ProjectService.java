@@ -14,6 +14,7 @@ import org.egov.common.producer.Producer;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.service.enrichment.ProjectEnrichment;
+import org.egov.project.util.ProjectServiceUtil;
 import org.egov.project.validator.project.ProjectValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,15 +37,18 @@ public class ProjectService {
 
     private final Producer producer;
 
+    private final ProjectServiceUtil projectServiceUtil;
+
     @Autowired
     public ProjectService(
             ProjectRepository projectRepository,
-            ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer) {
+            ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer,ProjectServiceUtil projectServiceUtil) {
         this.projectRepository = projectRepository;
         this.projectValidator = projectValidator;
         this.projectEnrichment = projectEnrichment;
         this.projectConfiguration = projectConfiguration;
         this.producer = producer;
+        this.projectServiceUtil = projectServiceUtil;
     }
 
     public List<String> validateProjectIds(List<String> productIds) {
@@ -119,28 +123,63 @@ public class ProjectService {
         return project;
     }
 
+    /**
+     * Checks and enriches cascading project dates.
+     *
+     * @param request The project request containing projects and request information.
+     */
     private void checkAndEnrichCascadingProjectDates(ProjectRequest request) {
-        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
+        // Retrieve tenant ID from the first project in the request
+        String tenantId = request.getProjects().get(0).getTenantId();
         List<Project> projectsFromRequest = request.getProjects();
-        // Create a map of projects from db without ancestors and descendants in search response
-        Map<String, Project> projectMap = projectsFromDB.stream()
-            .collect(Collectors.toMap(p -> String.valueOf(p.getId()), Function.identity()));
+
+        // Fetch projects from the database without ancestors and descendants
+        List<Project> projectsFromDB = searchProject(
+            getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
+            projectConfiguration.getMaxLimit(),
+            projectConfiguration.getDefaultOffset(),
+            tenantId,
+            null,
+            false,
+            false,
+            false,
+            null,
+            null
+        );
+
+        // Create a map of projects from the database for quick lookup
+        Map<String, Project> projectMap = projectServiceUtil.createProjectMap(projectsFromDB);
+
         for (Project project : projectsFromRequest) {
             String projectId = String.valueOf(project.getId());
             Project projectFromDB = projectMap.get(projectId);
-            if (projectFromDB != null) {
-                // if project from request and project from db start and end date don't match
-                if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
-                    !project.getEndDate().equals(projectFromDB.getEndDate())) {
-                    if (projectConfiguration.isEnableCascadingProjectDateUpdates()) {
-                        List<Project> projectsFromDbWithAncestorsAndDescendants = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, true, true, null, null);
-                        // create a map of projects from db with ancestors and descendants in response for cascadically updating ancestors and descendants
-                        Map<String, Project> projectFromDbWithAncestorsAndDescendantsMap = projectsFromDbWithAncestorsAndDescendants.stream()
-                            .collect(Collectors.toMap(p -> String.valueOf(p.getId()), Function.identity()));
-                        Project projectFromDbWithAncestorsAndDescendants = projectFromDbWithAncestorsAndDescendantsMap.get(projectId);
-                        // send project from request and projects from db with ancestors and descendants in response to update the dates
-                        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project,projectFromDbWithAncestorsAndDescendants);
-                    }
+
+            // Check if the project exists in the database and if dates need updating
+            if (projectFromDB != null && (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
+                !project.getEndDate().equals(projectFromDB.getEndDate()))) {
+
+                // If cascading project date updates are enabled, perform additional processing
+                if (projectConfiguration.isEnableCascadingProjectDateUpdates()) {
+                    // Fetch projects from the database with ancestors and descendants
+                    List<Project> projectsFromDbWithAncestorsAndDescendants = searchProject(
+                        getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
+                        projectConfiguration.getMaxLimit(),
+                        projectConfiguration.getDefaultOffset(),
+                        tenantId,
+                        null,
+                        false,
+                        true,
+                        true,
+                        null,
+                        null
+                    );
+
+                    // Create a map of projects from the database with ancestors and descendants
+                    Map<String, Project> projectFromDbWithAncestorsAndDescendantsMap = projectServiceUtil.createProjectMap(projectsFromDbWithAncestorsAndDescendants);
+                    Project projectFromDbWithAncestorsAndDescendants = projectFromDbWithAncestorsAndDescendantsMap.get(projectId);
+
+                    // Enrich project cascading dates based on the retrieved data
+                    projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants);
                 }
             }
         }
