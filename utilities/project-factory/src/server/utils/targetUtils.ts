@@ -65,13 +65,15 @@ function modifyDeliveryConditions(dataa: any[]): any {
 
 function generateTargetColumnsBasedOnDeliveryConditions(uniqueDeliveryConditions: any, localizationMap?: any) {
     const targetColumnsBasedOnDeliveryConditions: string[] = [];
-
-    uniqueDeliveryConditions.forEach((str: any) => {
+    uniqueDeliveryConditions.forEach((str: any, index: number) => {
         const uniqueDeliveryConditionsObject = JSON.parse(str); // Parse JSON string into object
         const targetColumnString = createTargetString(uniqueDeliveryConditionsObject, localizationMap);
         targetColumnsBasedOnDeliveryConditions.push(targetColumnString);
     });
-
+    if (targetColumnsBasedOnDeliveryConditions.length > 18) {
+        targetColumnsBasedOnDeliveryConditions.splice(18);
+        targetColumnsBasedOnDeliveryConditions.push(getLocalizedName("OTHER_TARGETS", localizationMap));
+    }
     return targetColumnsBasedOnDeliveryConditions;
 }
 
