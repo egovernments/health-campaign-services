@@ -120,7 +120,8 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
 
 function isDynamicTargetTemplateForProjectType(projectType: string) {
     const projectTypesFromConfig = config?.enableDynamicTemplateFor;
-    return projectTypesFromConfig?.includes(projectType) ?? false;
+    const projectTypesArray = projectTypesFromConfig ? projectTypesFromConfig.split(',') : [];
+    return projectTypesArray.includes(projectType);
 }
 
 
