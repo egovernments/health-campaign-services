@@ -158,7 +158,7 @@ public class ProjectService {
     }
 
     /* Construct Project Request object for search which contains project id and tenantId */
-    public ProjectRequest getSearchProjectRequest(List<Project> projects, RequestInfo requestInfo, Boolean isParentProjectSearch) {
+    private ProjectRequest getSearchProjectRequest(List<Project> projects, RequestInfo requestInfo, Boolean isParentProjectSearch) {
         List<Project> projectList = new ArrayList<>();
 
         for (Project project: projects) {
