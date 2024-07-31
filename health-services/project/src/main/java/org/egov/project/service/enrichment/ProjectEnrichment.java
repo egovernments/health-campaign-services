@@ -18,6 +18,7 @@ import org.egov.common.models.project.Target;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
+import org.egov.project.service.ProjectService;
 import org.egov.project.util.ProjectServiceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,6 +139,7 @@ public class ProjectEnrichment {
     }
     public void enrichProjectCascadingDatesOnUpdate(Project project, Project projectFromDB)
     {
+        // enrich project start and end dates along with ancestors and descendants
         enrichProjectStartAndEnDDateOFBothAncestorsAndDescendantsIfFoundAccordingly(project,
             projectFromDB);
     }
@@ -146,47 +148,34 @@ public class ProjectEnrichment {
         Project projectRequest, Project projectFromDB) {
         long startDate = projectRequest.getStartDate();
         long endDate = projectRequest.getEndDate();
-        // update both cycle dates and project start and end dates of descendants
-        updateDescendantProjects(projectRequest, projectFromDB, startDate, endDate);
-        // update both cycle dates and project start and end dates of descendants in a way like start date = min(current,existing) and end date = max(current,existing)
-        updateAncestorProjects(projectRequest, projectFromDB, startDate, endDate);
+        // update both cycle dates and project start and end dates of Descendants
+        updateProjects(projectRequest, projectFromDB, startDate, endDate,true);
+        // update both cycle dates and project start and end dates of Ancestors in a way like start date = min(current,existing) and end date = max(current,existing)
+        updateProjects(projectRequest, projectFromDB, startDate, endDate,false);
     }
 
-    private void updateDescendantProjects(Project projectRequest, Project projectFromDB,
-        long startDate, long endDate) {
-        List<Project> descendantProjectsFromDb = projectFromDB.getDescendants();
-        List<Project> modifiedDescendantProjectsFromDb = new ArrayList<>();
-        if (descendantProjectsFromDb != null) {
-            for (Project descendant : descendantProjectsFromDb) {
-                updateDescendantProjectDates(descendant, startDate, endDate);
-                updateCycles(descendant, projectRequest, true);
-                modifiedDescendantProjectsFromDb.add(descendant);
+    private void updateProjects(Project projectRequest, Project projectFromDB, long startDate, long endDate, boolean isDescendant) {
+        List<Project> projectsFromDb = isDescendant ? projectFromDB.getDescendants() : projectFromDB.getAncestors();
+        List<Project> modifiedProjectsFromDb = new ArrayList<>();
+
+        if (projectsFromDb != null) {
+            for (Project project : projectsFromDb) {
+                updateProjectDates(project, startDate, endDate, isDescendant);
+                updateCycles(project, projectRequest, isDescendant);
+                modifiedProjectsFromDb.add(project);
             }
-            // modifiedDescendantProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
-            pushProjectsToKafka(modifiedDescendantProjectsFromDb);
+            pushProjectsToKafka(modifiedProjectsFromDb);
         }
     }
 
-    private void updateAncestorProjects(Project projectRequest, Project projectFromDB, long startDate,
-        long endDate) {
-        List<Project> ancestorProjectsFromDb = projectFromDB.getAncestors();
-        List<Project> modifiedAncestorProjectsFromDb = new ArrayList<>();
-        if (ancestorProjectsFromDb != null) {
-            for (Project ancestor : ancestorProjectsFromDb) {
-                ancestor.setStartDate(Math.min(startDate, ancestor.getStartDate()));
-                ancestor.setEndDate(Math.max(endDate, ancestor.getEndDate()));
-                // update cycles date
-                updateCycles(ancestor, projectRequest, false);
-                modifiedAncestorProjectsFromDb.add(ancestor);
-            }
-            // modifiedAncestorProjectsFromDb is  a list of Projects to be sent to updateProjectTopic
-            pushProjectsToKafka(modifiedAncestorProjectsFromDb);
+    private void updateProjectDates(Project project, long startDate, long endDate, boolean isDescendant) {
+        if (isDescendant) {
+            project.setStartDate(startDate);
+            project.setEndDate(endDate);
+        } else {
+            project.setStartDate(Math.min(startDate, project.getStartDate()));
+            project.setEndDate(Math.max(endDate, project.getEndDate()));
         }
-    }
-
-    private void updateDescendantProjectDates(Project project, long startDate, long endDate) {
-        project.setStartDate(startDate);
-        project.setEndDate(endDate);
     }
 
 

@@ -1,6 +1,8 @@
 package org.egov.project.service;
 
 import jakarta.validation.Valid;
+import java.util.Map;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -118,17 +120,26 @@ public class ProjectService {
     }
 
     private void checkAndEnrichCascadingProjectDates(ProjectRequest request) {
-        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, true, true, null, null);
+        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
         List<Project> projectsFromRequest = request.getProjects();
+        // Create a map of projects from db without ancestors and descendants in search response
+        Map<String, Project> projectMap = projectsFromDB.stream()
+            .collect(Collectors.toMap(p -> String.valueOf(p.getId()), Function.identity()));
         for (Project project : projectsFromRequest) {
             String projectId = String.valueOf(project.getId());
-            Project projectFromDB = projectsFromDB.stream()
-                .filter(p -> projectId.equals(String.valueOf(p.getId()))).findFirst().orElse(null);
+            Project projectFromDB = projectMap.get(projectId);
             if (projectFromDB != null) {
+                // if project from request and project from db start and end date don't match
                 if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
                     !project.getEndDate().equals(projectFromDB.getEndDate())) {
                     if (projectConfiguration.isEnableCascadingProjectDateUpdates()) {
-                        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project,projectFromDB);
+                        List<Project> projectsFromDbWithAncestorsAndDescendants = searchProject(getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), request.getProjects().get(0).getTenantId(), null, false, true, true, null, null);
+                        // create a map of projects from db with ancestors and descendants in response for cascadically updating ancestors and descendants
+                        Map<String, Project> projectFromDbWithAncestorsAndDescendantsMap = projectsFromDbWithAncestorsAndDescendants.stream()
+                            .collect(Collectors.toMap(p -> String.valueOf(p.getId()), Function.identity()));
+                        Project projectFromDbWithAncestorsAndDescendants = projectFromDbWithAncestorsAndDescendantsMap.get(projectId);
+                        // send project from request and projects from db with ancestors and descendants in response to update the dates
+                        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project,projectFromDbWithAncestorsAndDescendants);
                     }
                 }
             }
@@ -147,7 +158,7 @@ public class ProjectService {
     }
 
     /* Construct Project Request object for search which contains project id and tenantId */
-    private ProjectRequest getSearchProjectRequest(List<Project> projects, RequestInfo requestInfo, Boolean isParentProjectSearch) {
+    public ProjectRequest getSearchProjectRequest(List<Project> projects, RequestInfo requestInfo, Boolean isParentProjectSearch) {
         List<Project> projectList = new ArrayList<>();
 
         for (Project project: projects) {
