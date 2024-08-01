@@ -1,4 +1,4 @@
-package org.egov.common.models.project.irs;
+package org.egov.common.models.project.useraction;
 
 import java.util.ArrayList;
 import java.util.List;

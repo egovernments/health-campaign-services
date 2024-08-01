@@ -1,12 +1,12 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.irs.UserAction;
-import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

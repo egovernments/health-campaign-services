@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,8 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.Boundary;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.web.models.boundary.BoundaryResponse;
@@ -24,12 +24,12 @@ import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
- * Validator class for validating locationCapture boundaries.
+ * Validator class for validating locationCaptureUserAction boundaries.
  */
 @Component
 @Order(value = 4)
 @Slf4j
-public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest, LocationCapture> {
+public class LcBoundaryValidator implements Validator<UserActionBulkRequest, UserAction> {
 
     private final ServiceRequestClient serviceRequestClient;
 
@@ -39,7 +39,7 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
      * Constructor to initialize the HBoundaryValidator.
      *
      * @param serviceRequestClient   Service request client for making HTTP requests
-     * @param projectConfiguration Configuration properties for the locationCapture module
+     * @param projectConfiguration Configuration properties for the locationCaptureUserAction module
      */
     public LcBoundaryValidator(ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
@@ -53,23 +53,23 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
      * @return a map containing locationCaptures with their corresponding list of errors
      */
     @Override
-    public Map<LocationCapture, List<Error>> validate(LocationCaptureBulkRequest request) {
+    public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
         log.debug("Validating locationCaptures boundaries.");
-        // Create a HashMap to store error details for each locationCapture
-        HashMap<LocationCapture, List<Error>> errorDetailsMap = new HashMap<>();
+        // Create a HashMap to store error details for each locationCaptureUserAction
+        HashMap<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
 
         // Filter locationCaptures with non-null addresses
-        List<LocationCapture> entitiesWithValidBoundaries = request.getLocationCaptures().parallelStream()
-                .filter(locationCapture -> Objects.nonNull(locationCapture.getBoundaryCode())) // Exclude null boundary codes
+        List<UserAction> entitiesWithValidBoundaries = request.getUserActions().parallelStream()
+                .filter(locationCaptureUserAction -> Objects.nonNull(locationCaptureUserAction.getBoundaryCode())) // Exclude null boundary codes
                 .collect(Collectors.toList());
 
-        Map<String, List<LocationCapture>> tenantIdLocationCaptureMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(LocationCapture::getTenantId));
+        Map<String, List<UserAction>> tenantIdLocationCaptureMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(UserAction::getTenantId));
 
         tenantIdLocationCaptureMap.forEach((tenantId, locationCaptures) -> {
             // Group locationCaptures by locality code
-            Map<String, List<LocationCapture>> boundaryCodeLocationCapturesMap = locationCaptures.stream()
+            Map<String, List<UserAction>> boundaryCodeLocationCapturesMap = locationCaptures.stream()
                     .collect(Collectors.groupingBy(
-                            locationCapture -> locationCapture.getBoundaryCode() // Group by boundary code
+                            locationCaptureUserAction -> locationCaptureUserAction.getBoundaryCode() // Group by boundary code
                     ));
 
             List<String> boundaries = new ArrayList<>(boundaryCodeLocationCapturesMap.keySet());
@@ -95,13 +95,13 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
                     );
 
                     // Filter out locationCaptures with invalid boundary codes
-                    List<LocationCapture> locationCapturesWithInvalidBoundaries = boundaryCodeLocationCapturesMap.entrySet().stream()
+                    List<UserAction> locationCapturesWithInvalidBoundaries = boundaryCodeLocationCapturesMap.entrySet().stream()
                             .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
                             .flatMap(entry -> entry.getValue().stream()) // Flatten the list of locationCaptures
                             .collect(Collectors.toList());
 
 
-                    locationCapturesWithInvalidBoundaries.forEach(locationCapture -> {
+                    locationCapturesWithInvalidBoundaries.forEach(locationCaptureUserAction -> {
                         // Create an error object for locationCaptures with invalid boundaries
                         Error error = Error.builder()
                                 .errorMessage("Boundary code does not exist in db")
@@ -109,8 +109,8 @@ public class LcBoundaryValidator implements Validator<LocationCaptureBulkRequest
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
                                 .build();
-                        // Populate error details for the locationCapture
-                        populateErrorDetails(locationCapture, error, errorDetailsMap);
+                        // Populate error details for the locationCaptureUserAction
+                        populateErrorDetails(locationCaptureUserAction, error, errorDetailsMap);
                     });
 
                 } catch (Exception e) {

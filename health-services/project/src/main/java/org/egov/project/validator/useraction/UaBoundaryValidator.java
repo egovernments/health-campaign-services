@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,8 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.Boundary;
-import org.egov.common.models.project.irs.UserAction;
-import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.web.models.boundary.BoundaryResponse;

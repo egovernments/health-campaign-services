@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
-import org.egov.common.models.project.irs.UserAction;
+import org.egov.common.models.project.useraction.UserAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;

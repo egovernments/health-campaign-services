@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.project.BeneficiaryBulkRequest;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.project.config.ProjectConfiguration;
@@ -46,7 +44,7 @@ public class LocationCaptureEnrichmentService {
         this.locationCaptureRepository = locationCaptureRepository;
     }
 
-    public void create(List<LocationCapture> entities, LocationCaptureBulkRequest request) throws Exception {
+    public void create(List<UserAction> entities, UserActionBulkRequest request) throws Exception {
         log.info("starting the enrichment for create LocationCaptures");
         log.info("generating IDs using UUID");
         List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());

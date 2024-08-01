@@ -13,19 +13,19 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
-import org.egov.common.models.project.irs.LocationCaptureSearch;
-import org.egov.common.models.project.irs.LocationCaptureSearchRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserActionSearch;
+import org.egov.common.models.project.useraction.UserActionSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
 import org.egov.project.service.enrichment.LocationCaptureEnrichmentService;
-import org.egov.project.validator.irs.LcBoundaryValidator;
-import org.egov.project.validator.irs.LcExistentEntityValidator;
-import org.egov.project.validator.irs.LcProjectIdValidator;
+import org.egov.project.validator.useraction.LcBoundaryValidator;
+import org.egov.project.validator.useraction.LcExistentEntityValidator;
+import org.egov.project.validator.useraction.LcProjectIdValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -56,9 +56,9 @@ public class LocationCaptureService {
 
     private final LocationCaptureEnrichmentService locationCaptureEnrichmentService;
 
-    private final List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators;
+    private final List<Validator<UserActionBulkRequest, UserAction>> validators;
 
-    private final Predicate<Validator<LocationCaptureBulkRequest, LocationCapture>> isApplicableForCreate = validator ->
+    private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForCreate = validator ->
             validator.getClass().equals(LcProjectIdValidator.class)
                     || validator.getClass().equals(LcExistentEntityValidator.class)
                     || validator.getClass().equals(LcBoundaryValidator.class);
@@ -70,7 +70,7 @@ public class LocationCaptureService {
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
             LocationCaptureEnrichmentService locationCaptureEnrichmentService,
-            List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators
+            List<Validator<UserActionBulkRequest, UserAction>> validators
     ) {
         this.idGenService = idGenService;
         this.locationCaptureRepository = locationCaptureRepository;
@@ -80,11 +80,11 @@ public class LocationCaptureService {
         this.validators = validators;
     }
 
-    public List<LocationCapture> create(LocationCaptureBulkRequest request, boolean isBulk) {
+    public List<UserAction> create(UserActionBulkRequest request, boolean isBulk) {
         log.info("received request to create bulk location capture tasks");
-        Tuple<List<LocationCapture>, Map<LocationCapture, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
-        Map<LocationCapture, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<LocationCapture> validLocationCaptures = tuple.getX();
+        Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
+        Map<UserAction, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<UserAction> validLocationCaptures = tuple.getX();
         try {
             if (!validLocationCaptures.isEmpty()) {
                 log.info("processing {} valid entities", validLocationCaptures.size());
@@ -102,25 +102,25 @@ public class LocationCaptureService {
         return validLocationCaptures;
     }
 
-    private Tuple<List<LocationCapture>, Map<LocationCapture, ErrorDetails>> validate(List<Validator<LocationCaptureBulkRequest, LocationCapture>> validators,
-                                                                Predicate<Validator<LocationCaptureBulkRequest, LocationCapture>> applicableValidators,
-                                                                LocationCaptureBulkRequest request, boolean isBulk) {
+    private Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> validate(List<Validator<UserActionBulkRequest, UserAction>> validators,
+                                                                Predicate<Validator<UserActionBulkRequest, UserAction>> applicableValidators,
+                                                                            UserActionBulkRequest request, boolean isBulk) {
         log.info("validating request");
-        Map<LocationCapture, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
+        Map<UserAction, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
                 SET_LOCATION_CAPTURE);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<LocationCapture> validLocationCaptures = request.getLocationCaptures().stream()
+        List<UserAction> validLocationCaptures = request.getUserActions().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         return new Tuple<>(validLocationCaptures, errorDetailsMap);
     }
 
-    public SearchResponse<LocationCapture> search(LocationCaptureSearchRequest locationCaptureSearchRequest, URLParams urlParams) {
+    public SearchResponse<UserAction> search(UserActionSearchRequest locationCaptureSearchRequest, URLParams urlParams) {
 
         log.info("received request to search project task");
-        LocationCaptureSearch locationCaptureSearch = locationCaptureSearchRequest.getLocationCapture();
+        UserActionSearch locationCaptureSearch = locationCaptureSearchRequest.getUserAction();
         String idFieldName = getIdFieldName(locationCaptureSearch);
         if (isSearchByIdOnly(locationCaptureSearch, idFieldName)) {
             log.info("searching location capture by id");
@@ -129,8 +129,8 @@ public class LocationCaptureService {
                     locationCaptureSearch
             );
             log.info("fetching location capture tasks with ids: {}", ids);
-            SearchResponse<LocationCapture> searchResponse = locationCaptureRepository.findById(ids, idFieldName);
-            return SearchResponse.<LocationCapture>builder()
+            SearchResponse<UserAction> searchResponse = locationCaptureRepository.findById(ids, idFieldName);
+            return SearchResponse.<UserAction>builder()
                     .response(searchResponse.getResponse().stream()
                         .filter(lastChangedSince(urlParams.getLastChangedSince()))
                         .filter(havingTenantId(urlParams.getTenantId()))
@@ -143,7 +143,7 @@ public class LocationCaptureService {
         return locationCaptureRepository.find(locationCaptureSearch, urlParams);
     }
 
-    public void putInCache(List<LocationCapture> locationCaptures) {
+    public void putInCache(List<UserAction> locationCaptures) {
         log.info("putting {} location tracking tasks in cache", locationCaptures.size());
         locationCaptureRepository.putInCache(locationCaptures);
         log.info("successfully put location tracking tasks in cache");

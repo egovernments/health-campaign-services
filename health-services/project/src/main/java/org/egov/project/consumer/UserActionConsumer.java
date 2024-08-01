@@ -7,10 +7,8 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.models.project.irs.LocationCapture;
-import org.egov.common.models.project.irs.LocationCaptureBulkRequest;
-import org.egov.common.models.project.irs.UserAction;
-import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.project.service.LocationCaptureService;
 import org.egov.project.service.UserActionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +19,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class IRSConsumer {
+public class UserActionConsumer {
 
     private final UserActionService userActionService;
 
@@ -30,7 +28,7 @@ public class IRSConsumer {
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public IRSConsumer(UserActionService userActionService, LocationCaptureService locationCaptureService, ObjectMapper objectMapper) {
+    public UserActionConsumer(UserActionService userActionService, LocationCaptureService locationCaptureService, ObjectMapper objectMapper) {
         this.userActionService = userActionService;
         this.locationCaptureService = locationCaptureService;
         this.objectMapper = objectMapper;
@@ -61,10 +59,10 @@ public class IRSConsumer {
     }
 
     @KafkaListener(topics = "${project.location.capture.task.consumer.bulk.create.topic}")
-    public List<LocationCapture> bulkCreateLocationCapture(Map<String, Object> consumerRecord,
+    public List<UserAction> bulkCreateLocationCapture(Map<String, Object> consumerRecord,
                                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            LocationCaptureBulkRequest request = objectMapper.convertValue(consumerRecord, LocationCaptureBulkRequest.class);
+            UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             return locationCaptureService.create(request, true);
         } catch (Exception exception) {
             log.error("error in locatin capture consumer bulk create", ExceptionUtils.getStackTrace(exception));

@@ -8,13 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
-import org.egov.common.models.project.irs.LocationCapture;
+import org.egov.common.models.project.useraction.UserAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
+public class LocationCaptureRowMapper implements RowMapper<UserAction> {
 
     private final ObjectMapper objectMapper;
 
@@ -30,7 +30,7 @@ public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
      * @throws SQLException
      */
     @Override
-    public LocationCapture mapRow(ResultSet resultSet, int rowNum) throws SQLException {
+    public UserAction mapRow(ResultSet resultSet, int rowNum) throws SQLException {
 
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(resultSet.getString("createdBy"))
@@ -46,9 +46,9 @@ public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
                 .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                 .build();
 
-        LocationCapture locationCapture = null;
+        UserAction locationCaptureUserAction = null;
         try {
-            locationCapture = LocationCapture.builder()
+            locationCaptureUserAction = UserAction.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
@@ -67,6 +67,6 @@ public class LocationCaptureRowMapper implements RowMapper<LocationCapture> {
             throw new RuntimeException(e);
         }
 
-        return locationCapture;
+        return locationCaptureUserAction;
     }
 }

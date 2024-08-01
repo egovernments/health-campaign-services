@@ -1,4 +1,4 @@
-package org.egov.project.validator.irs;
+package org.egov.project.validator.useraction;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.irs.UserAction;
-import org.egov.common.models.project.irs.UserActionBulkRequest;
+import org.egov.common.models.project.useraction.UserAction;
+import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.UserActionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
