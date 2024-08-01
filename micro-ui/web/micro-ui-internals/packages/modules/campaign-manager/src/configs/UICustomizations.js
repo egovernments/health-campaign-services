@@ -1,4 +1,4 @@
-import { Link, useHistory } from "react-router-dom";
+import { Link } from "react-router-dom";
 import _ from "lodash";
 import React from "react";
 import { Fragment } from "react";
@@ -118,8 +118,8 @@ export const UICustomizations = {
               "",
               `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
             );
-            window.location.href = `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`;
-
+            const navEvent = new PopStateEvent("popstate");
+            window.dispatchEvent(navEvent);
             break;
           case "ACTION_LABEL_VIEW_TIMELINE":
             setTimeline(true);
@@ -393,8 +393,8 @@ export const UICustomizations = {
               "",
               `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
             );
-            window.location.href = `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`;
-
+            const navEvent = new PopStateEvent("popstate");
+            window.dispatchEvent(navEvent);
             break;
           case "ACTION_LABEL_VIEW_TIMELINE":
             setTimeline(true);

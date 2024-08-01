@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useLocation } from "react-router-dom";
 import { dateChangeBoundaryConfig, dateChangeConfig } from "../../configs/dateChangeBoundaryConfig";
-import { Button, PopUp, Toast } from "@egovernments/digit-ui-components";
+import { Button, InfoCard, PopUp, Toast } from "@egovernments/digit-ui-components";
 
 function UpdateDatesWithBoundaries() {
   const { t } = useTranslation();
@@ -151,6 +151,17 @@ function UpdateDatesWithBoundaries() {
         onFormValueChange={onFormValueChange}
         actionClassName={"dateUpdateAction"}
         noCardStyle={true}
+      />
+      <InfoCard
+        className={"infoClass"}
+        populators={{
+          name: "infocard",
+        }}
+        variant="default"
+        style={{ marginBottom: "1.5rem", marginTop: "1.5rem", marginLeft: "0rem", maxWidth: "100%" }}
+        additionalElements={[<span style={{ color: "#505A5F" }}>{t(`UPDATE_DATE_CHANGE_INFO_TEXT`)}</span>]}
+        label={"Info"}
+        headerClassName={"headerClassName"}
       />
       {showPopUp && (
         <PopUp

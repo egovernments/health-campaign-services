@@ -28,7 +28,7 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
   }, [project]);
 
   const handleDateChange = ({ date, endDate = false, cycleDate = false, cycleIndex }) => {
-    if (typeof date === "undefined") {
+    if (typeof date === "undefined" || date <= today) {
       return null;
     }
     if (!endDate) {
@@ -47,7 +47,7 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
   };
 
   const handleCycleDateChange = ({ date, endDate = false, cycleIndex }) => {
-    if (typeof date === "undefined") {
+    if (typeof date === "undefined" || date <= today) {
       return null;
     }
     if (!endDate) {
@@ -169,7 +169,13 @@ const BoundaryWithDate = ({ project, props, onSelect, dateReducerDispatch, canDe
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
-                  nonEditable={item?.endDate?.length > 0 && today >= item?.endDate && today >= cycleDates?.[index + 1]?.startDate ? true : false}
+                  nonEditable={
+                    item?.endDate?.length > 0 &&
+                    today >= item?.endDate &&
+                    (cycleDates?.[index + 1] ? today >= cycleDates?.[index + 1]?.startDate : true)
+                      ? true
+                      : false
+                  }
                   placeholder={t("HCM_END_DATE")}
                   populators={{
                     validation: {

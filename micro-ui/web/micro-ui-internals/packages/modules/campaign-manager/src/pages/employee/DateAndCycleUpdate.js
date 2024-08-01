@@ -160,7 +160,7 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
   };
 
   const handleCycleDateChange = ({ date, endDate = false, cycleIndex }) => {
-    if (typeof date === "undefined") {
+    if (typeof date === "undefined" || date <= today) {
       return null;
     }
     if (!endDate) {
@@ -278,7 +278,14 @@ const DateAndCycleUpdate = ({ onSelect, formData, ...props }) => {
                   withoutLabel={true}
                   type="date"
                   value={item?.endDate}
-                  nonEditable={item?.endDate && item?.endDate?.length > 0 && today >= item?.endDate ? true : false}
+                  nonEditable={
+                    item?.endDate &&
+                    item?.endDate?.length > 0 &&
+                    today >= item?.endDate &&
+                    (cycleDates?.[index + 1] ? today >= cycleDates?.[index + 1]?.startDate : true)
+                      ? true
+                      : false
+                  }
                   placeholder={t("HCM_END_DATE")}
                   populators={{
                     validation: {
