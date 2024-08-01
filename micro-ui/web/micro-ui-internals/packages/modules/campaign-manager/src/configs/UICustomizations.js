@@ -168,7 +168,7 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
                 </PopUp>
               )}
             </>
@@ -296,7 +296,7 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
                 </PopUp>
               )}
             </>
@@ -443,7 +443,7 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
                 </PopUp>
               )}
             </>
@@ -661,7 +661,7 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.resourceId]} />
+                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
                 </PopUp>
               )}
             </>
