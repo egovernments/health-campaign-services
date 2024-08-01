@@ -36,10 +36,9 @@ public class ProjectConstants {
         REFUSED("REFUSED"),
         HOUSE_CLOSED("HOUSE CLOSED"),
         INELIGIBLE("INELIGIBLE"),
-        RESOLVED("RESOLVED"), /* RESOLVED */
-
-        LOCATION_CAPTURE("LOCATION CAPTURE");
-
+        RESOLVED("RESOLVED"),
+        LOCATION_CAPTURE("LOCATION CAPTURE"),
+        ADMINISTERED_FAILED("ADMINISTERED_FAILED");
         private String value;
 
         TaskStatus(String value) {
