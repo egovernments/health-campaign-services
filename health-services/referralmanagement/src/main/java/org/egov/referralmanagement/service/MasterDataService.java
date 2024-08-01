@@ -104,68 +104,6 @@ public class MasterDataService {
 
 	}
 
-	//todo remove
-	public List<Integer> getCycleIndicesForTask(LinkedHashMap<String, Object> projectType) {
-
-		@SuppressWarnings("unchecked")
-		List<LinkedHashMap<String, Object>> cycleList = (List<LinkedHashMap<String, Object>>) projectType.get("cycles");
-		Map<Integer, LinkedHashMap<String, Object>> map = cycleList.stream()
-				.collect(Collectors.toMap(entry -> (Integer) entry.get("id"), Function.identity()));
-
-		List<Integer> cycleIndicesToBeDownloaded = new ArrayList<>();
-
-		for (Integer cycleIndex : map.keySet()) {
-
-			LinkedHashMap<String, Object> currentCycle = map.get(cycleIndex);
-			Long startDate = (Long) currentCycle.get("startDate");
-			Long endDate = (Long) currentCycle.get("endDate");
-
-			Long currentTime = System.currentTimeMillis();
-
-			/*
-			 * If the current time falls in-between the current cycle date
-			 *
-			 * then the tasks to be download is of the current cycle and the previous cycle
-			 */
-			if (currentTime >= startDate && currentTime <= endDate) {
-
-				if (cycleIndex < 3)
-					break;
-				else {
-					cycleIndicesToBeDownloaded.add(cycleIndex - 1);
-					cycleIndicesToBeDownloaded.add(cycleIndex);
-				}
-			}
-
-			/*
-			 * If the current time is less than the start date of current cycle
-			 *
-			 * then the cycle to be executed will be the current cycle
-			 *
-			 * So the Task(delivery) data to be download is of last cycle
-			 */
-			else if (currentTime < startDate) {
-
-				if (cycleIndex < 3)
-					break;
-				else {
-					cycleIndicesToBeDownloaded.add(cycleIndex - 1);
-				}
-			}
-
-			/*
-			 * If the current time is greater than the end date of last cycle in the project
-			 * then the delivery download will be of the last cycle itself not the
-			 * previous cycle
-			 */
-			else if (cycleIndex.equals(map.size())) {
-				cycleIndicesToBeDownloaded.add(cycleIndex);
-			}
-
-		}
-
-		return cycleIndicesToBeDownloaded;
-	}
 
 	private Project getProject(DownsyncCriteria downsyncCriteria, RequestInfo info, String projectId) {
 

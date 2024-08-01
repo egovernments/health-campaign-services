@@ -24,22 +24,31 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
+/**
+ * Controller for handling user action-related requests.
+ * Provides endpoints for creating, updating, and searching user actions.
+ */
 @Controller
 @RequestMapping("/user-action")
 @Validated
 public class UserActionController {
 
     private final HttpServletRequest httpServletRequest;
-
     private final UserActionService userActionService;
-    
     private final Producer producer;
-
     private final ProjectConfiguration projectConfiguration;
 
+    /**
+     * Constructor for injecting dependencies into the UserActionController.
+     *
+     * @param httpServletRequest       The HttpServletRequest to capture request details.
+     * @param userActionService        The service for handling user action logic.
+     * @param producer                 The producer for sending messages to Kafka topics.
+     * @param projectConfiguration     Configuration properties related to the project.
+     */
     @Autowired
     public UserActionController(
-            HttpServletRequest httpServletRequest, 
+            HttpServletRequest httpServletRequest,
             UserActionService userActionService,
             Producer producer,
             ProjectConfiguration projectConfiguration
@@ -50,43 +59,76 @@ public class UserActionController {
         this.projectConfiguration = projectConfiguration;
     }
 
+    /**
+     * Endpoint for creating user actions in bulk.
+     * Receives a UserActionBulkRequest object, processes it, and sends it to the appropriate Kafka topic.
+     *
+     * @param request The bulk request containing user actions to be created.
+     * @return A ResponseEntity containing the response info with HTTP status ACCEPTED.
+     */
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> userActionV1BulkCreatePost(
             @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody UserActionBulkRequest request
     ) {
+        // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+
+        // Send the request to the Kafka topic for bulk creation.
         producer.push(projectConfiguration.getBulkCreateUserActionTaskTopic(), request);
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true));
+        // Create and return a ResponseInfo object with HTTP status ACCEPTED.
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true)
+        );
     }
 
-
+    /**
+     * Endpoint for searching user actions based on given search criteria.
+     * Receives a UserActionSearchRequest object and returns the search results.
+     *
+     * @param urlParams                  URL parameters for the search.
+     * @param request                    The request containing search criteria for user actions.
+     * @return A ResponseEntity containing the search results with HTTP status OK.
+     */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<UserActionBulkResponse> userActionV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody UserActionSearchRequest request
     ) {
+        // Perform the search using the userActionService.
         SearchResponse<UserAction> userActions = userActionService.search(request, urlParams);
+
+        // Build the response object with the search results and response info.
         UserActionBulkResponse response = UserActionBulkResponse.builder()
                 .userActions(userActions.getResponse())
                 .totalCount(userActions.getTotalCount())
-                .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(request.getRequestInfo(), true))
+                .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
                 .build();
 
+        // Return the response with HTTP status OK.
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    /**
+     * Endpoint for updating user actions in bulk.
+     * Receives a UserActionBulkRequest object, processes it, and sends it to the appropriate Kafka topic.
+     *
+     * @param request The bulk request containing user actions to be updated.
+     * @return A ResponseEntity containing the response info with HTTP status ACCEPTED.
+     */
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> userActionV1BulkUpdatePost(
             @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody UserActionBulkRequest request
     ) {
+        // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+
+        // Send the request to the Kafka topic for bulk update.
         producer.push(projectConfiguration.getBulkUpdateUserActionTaskTopic(), request);
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true));
+        // Create and return a ResponseInfo object with HTTP status ACCEPTED.
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(
+                ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true)
+        );
     }
-
 }

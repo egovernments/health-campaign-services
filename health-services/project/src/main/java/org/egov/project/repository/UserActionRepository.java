@@ -37,66 +37,103 @@ public class UserActionRepository extends GenericRepository<UserAction> {
     protected UserActionRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                    RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
                                    UserActionRowMapper rowMapper) {
+        // Initialize the repository with producer, JDBC template, Redis template, query builder, and row mapper
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("user_action"));
     }
 
+    /**
+     * Finds user actions based on search criteria and URL parameters.
+     *
+     * @param searchObject The search criteria for user actions.
+     * @param urlParams    The URL parameters including pagination and filtering information.
+     * @return A SearchResponse containing the list of user actions and the total count.
+     * @throws QueryBuilderException If there is an error building the query.
+     */
     public SearchResponse<UserAction> find(UserActionSearch searchObject, URLParams urlParams) throws QueryBuilderException {
+        // Base query for selecting user actions
         String query = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM user_action ua";
+
+        // Map to hold query parameters
         Map<String, Object> paramsMap = new HashMap<>();
+
+        // Generate the WHERE clause based on searchObject fields with non-null values
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
+
+        // Build the final query
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
+
+        // Adjust query for specific conditions
         query = query.replace("id IN (:id)", "ua.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "ua.clientReferenceId IN (:clientReferenceId)");
 
-        if(CollectionUtils.isEmpty(whereFields)) {
-            query = query + " where ua.tenantId=:tenantId ";
+        // Append tenantId condition
+        if (CollectionUtils.isEmpty(whereFields)) {
+            query = query + " WHERE ua.tenantId=:tenantId ";
         } else {
-            query = query + " and ua.tenantId=:tenantId ";
+            query = query + " AND ua.tenantId=:tenantId ";
         }
-//        if (Boolean.FALSE.equals(urlParams.getIncludeDeleted())) {
-//            query = query + "and isDeleted=:isDeleted ";
-//        }
 
+        // Append conditions for lastModifiedTime and includeDeleted
         if (urlParams.getLastChangedSince() != null) {
-            query = query + "and lastModifiedTime>=:lastModifiedTime ";
+            query = query + " AND lastModifiedTime>=:lastModifiedTime ";
         }
         paramsMap.put("tenantId", urlParams.getTenantId());
         paramsMap.put("isDeleted", urlParams.getIncludeDeleted());
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
+        // Construct total count CTE and return the result
         Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        query = query + "ORDER BY ua.id ASC LIMIT :limit OFFSET :offset";
+        // Add pagination and ordering to the query
+        query = query + " ORDER BY ua.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", urlParams.getLimit());
         paramsMap.put("offset", urlParams.getOffset());
 
+        // Execute the query and retrieve the user actions
         List<UserAction> userActionList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
 
+        // Build and return the search response with the list of user actions and total count
         return SearchResponse.<UserAction>builder().response(userActionList).totalCount(totalCount).build();
     }
 
-    
-
+    /**
+     * Finds user actions by their IDs, first checking the cache before querying the database.
+     *
+     * @param ids         The list of IDs to search for.
+     * @param columnName  The name of the column to search by.
+     * @return A SearchResponse containing the list of user actions found.
+     */
     public SearchResponse<UserAction> findById(List<String> ids, String columnName) {
+        // Check cache first
         List<UserAction> objFound = findInCache(ids);
+
+        // Remove found IDs from the list
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
+
+            // If no IDs left to search, return the cached results
             if (ids.isEmpty()) {
                 return SearchResponse.<UserAction>builder().response(objFound).build();
             }
         }
 
+        // Build query to find remaining user actions by IDs
         String query = String.format("SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM user_action ua WHERE ua.%s IN (:ids) ", columnName);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+
+        // Execute the query and retrieve the user actions
         List<UserAction> userActionList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
+        // Add the newly found user actions to the cache
         objFound.addAll(userActionList);
         putInCache(objFound);
+
+        // Return the search response with the list of user actions
         return SearchResponse.<UserAction>builder().response(objFound).build();
     }
 }

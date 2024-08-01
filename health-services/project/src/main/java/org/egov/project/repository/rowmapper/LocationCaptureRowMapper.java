@@ -13,25 +13,37 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
+/**
+ * RowMapper implementation for mapping rows of a ResultSet to UserAction objects.
+ * This class is used to map the result of a SQL query to UserAction instances.
+ */
 @Component
 public class LocationCaptureRowMapper implements RowMapper<UserAction> {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * Constructor for dependency injection of ObjectMapper.
+     *
+     * @param objectMapper The ObjectMapper used for converting JSON strings to objects.
+     */
     @Autowired
     public LocationCaptureRowMapper(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     /**
-     * @param resultSet
-     * @param rowNum
-     * @return
-     * @throws SQLException
+     * Map a single row of the ResultSet to a UserAction object.
+     *
+     * @param resultSet The ResultSet containing data from the database.
+     * @param rowNum    The number of the current row.
+     * @return A UserAction object populated with data from the current row of the ResultSet.
+     * @throws SQLException If there is an issue accessing the ResultSet data.
      */
     @Override
     public UserAction mapRow(ResultSet resultSet, int rowNum) throws SQLException {
 
+        // Creating AuditDetails object with information from the ResultSet
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(resultSet.getString("createdBy"))
                 .createdTime(resultSet.getLong("createdTime"))
@@ -39,6 +51,7 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                 .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                 .build();
 
+        // Creating client-specific AuditDetails object with information from the ResultSet
         AuditDetails clientAuditDetails = AuditDetails.builder()
                 .createdTime(resultSet.getLong("clientCreatedTime"))
                 .createdBy(resultSet.getString("clientCreatedBy"))
@@ -46,8 +59,9 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                 .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                 .build();
 
-        UserAction locationCaptureUserAction = null;
+        UserAction locationCaptureUserAction;
         try {
+            // Building the UserAction object with data from the ResultSet
             locationCaptureUserAction = UserAction.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantId"))
@@ -64,6 +78,7 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .build();
         } catch (JsonProcessingException e) {
+            // Throwing a RuntimeException if there's an error processing JSON
             throw new RuntimeException(e);
         }
 

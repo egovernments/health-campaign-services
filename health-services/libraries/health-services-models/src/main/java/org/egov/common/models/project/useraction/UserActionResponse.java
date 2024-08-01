@@ -12,11 +12,10 @@ import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* UserActionResponse
-*/
+ * The UserActionResponse class is used for handling responses that involve a single user action.
+ * It contains a ResponseInfo object and a UserAction object.
+ */
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,15 +23,24 @@ import org.springframework.validation.annotation.Validated;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserActionResponse {
 
+    /**
+     * The ResponseInfo object containing metadata about the response.
+     * This field is mandatory and must be valid.
+     */
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
+    /**
+     * The UserAction object representing the user action in the response.
+     * This field is mandatory and must be valid.
+     */
     @JsonProperty("UserAction")
     @NotNull
     @Valid
     private UserAction userAction = null;
 
 }
+
 

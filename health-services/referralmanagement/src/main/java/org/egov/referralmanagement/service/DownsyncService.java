@@ -452,53 +452,6 @@ public class DownsyncService {
     }
 
     /**
-     * common method to fetch Ids with list of relation Ids like id of member with householdIds
-     * @param idList
-     * @param idListFieldName
-     * @param tableName
-     * @param lastChangedSince
-     * @param cycleIndices
-     * @return
-     */
-    private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince, List<Integer> cycleIndices) {
-
-        /**
-         * Adding lastShangedSince to id query to avoid load on API search for members
-         */
-        boolean isAndRequired = false;
-        Map<String, Object> paramMap = new HashMap<>();
-        StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
-
-
-        if (!CollectionUtils.isEmpty(idList)) {
-
-            memberIdsquery.append("%s IN (:%s)");
-            paramMap.put(idListFieldName, idList);
-            isAndRequired = true;
-        }
-
-        if (null != lastChangedSince) {
-            if(isAndRequired)
-                memberIdsquery.append(" AND ");
-            isAndRequired = true;
-            memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
-            paramMap.put("lastChangedSince", lastChangedSince);
-        }
-
-        if(!CollectionUtils.isEmpty(cycleIndices)) {
-            if(isAndRequired)
-                memberIdsquery.append(" AND ");
-            memberIdsquery.append(" cycleindex IN (:cycleIndices)");
-            paramMap.put("cycleIndices", cycleIndices);
-        }
-
-        String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
-        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
-        List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
-        return memberids;
-    }
-
-    /**
      * append url params
      *
      * @param url
