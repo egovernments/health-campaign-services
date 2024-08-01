@@ -38,7 +38,7 @@ public class ProjectConstants {
         INELIGIBLE("INELIGIBLE"),
         RESOLVED("RESOLVED"),
         LOCATION_CAPTURE("LOCATION CAPTURE"),
-        ADMINISTERED_FAILED("ADMINISTERED_FAILED");
+        ADMINISTRATION_FAILED("ADMINISTRATION_FAILED");
         private String value;
 
         TaskStatus(String value) {
