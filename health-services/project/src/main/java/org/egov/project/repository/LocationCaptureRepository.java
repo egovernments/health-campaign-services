@@ -1,6 +1,7 @@
 package org.egov.project.repository;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,19 +77,26 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramsMap.put("tenantId", urlParams.getTenantId());
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
-        // Construct total count CTE and return the result
-        Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+        try {
+            // Construct total count CTE and return the result
+            Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        // Add pagination and ordering to the query
-        query = query + " ORDER BY ul.id ASC LIMIT :limit OFFSET :offset";
-        paramsMap.put("limit", urlParams.getLimit());
-        paramsMap.put("offset", urlParams.getOffset());
+            // Add pagination and ordering to the query
+            query = query + " ORDER BY ul.id ASC LIMIT :limit OFFSET :offset";
+            paramsMap.put("limit", urlParams.getLimit());
+            paramsMap.put("offset", urlParams.getOffset());
 
-        // Execute the query and retrieve the user locations
-        List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+            // Execute the query and retrieve the user locations
+            List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
 
-        // Build and return the search response with the list of user locations and total count
-        return SearchResponse.<UserAction>builder().response(locationCaptureList).totalCount(totalCount).build();
+            // Build and return the search response with the list of user locations and total count
+            return SearchResponse.<UserAction>builder().response(locationCaptureList).totalCount(totalCount).build();
+        } catch (Exception e) {
+            log.error("Failed to execute query for finding user locations", e);
+            return SearchResponse.<UserAction>builder().response(Collections.emptyList()).totalCount(0L).build();
+        }
+
+
     }
 
     /**
@@ -120,14 +128,21 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
-        // Execute the query and retrieve the user locations
-        List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        try {
+            // Execute the query and retrieve the user locations
+            List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
-        // Add the newly found user locations to the cache
-        objFound.addAll(locationCaptureList);
-        putInCache(objFound);
+            // Add the newly found user locations to the cache
+            objFound.addAll(locationCaptureList);
+            putInCache(objFound);
 
-        // Return the search response with the list of user locations
-        return SearchResponse.<UserAction>builder().response(objFound).build();
+            // Return the search response with the list of user locations
+            return SearchResponse.<UserAction>builder().response(objFound).build();
+        } catch (Exception e) {
+            log.error("Failed to execute query for finding user locations by ID", e);
+            return SearchResponse.<UserAction>builder().response(Collections.emptyList()).build();
+        }
+
+
     }
 }
