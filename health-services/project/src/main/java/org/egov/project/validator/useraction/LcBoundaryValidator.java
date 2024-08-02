@@ -100,23 +100,24 @@ public class LcBoundaryValidator implements Validator<UserActionBulkRequest, Use
                             .flatMap(entry -> entry.getValue().stream()) // Flatten the list of locationCaptures
                             .collect(Collectors.toList());
 
-
+                    // Create an error object for locationCaptures with invalid boundaries
+                    Error error = Error.builder()
+                            .errorMessage("Boundary code does not exist in db")
+                            .errorCode("NON_EXISTENT_ENTITY")
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                            .build();
                     locationCapturesWithInvalidBoundaries.forEach(locationCaptureUserAction -> {
-                        // Create an error object for locationCaptures with invalid boundaries
-                        Error error = Error.builder()
-                                .errorMessage("Boundary code does not exist in db")
-                                .errorCode("NON_EXISTENT_ENTITY")
-                                .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
-                                .build();
                         // Populate error details for the locationCaptureUserAction
                         populateErrorDetails(locationCaptureUserAction, error, errorDetailsMap);
                     });
 
                 } catch (Exception e) {
-                    log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+                    log.error("Exception while searching boundaries for tenantId: {}, boundaries: {}", tenantId, boundaries, e);
                     // Throw a custom exception if an error occurs during boundary search
-                    throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
+                    throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR",
+                            "Error fetching boundaries from Boundary Service for tenantId: " + tenantId + ", boundaries: " + boundaries + " : " + e.getMessage()
+                    );
                 }
             }
         });

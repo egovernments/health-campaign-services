@@ -3,6 +3,7 @@ package org.egov.project.web.controllers;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @Controller
 @RequestMapping("/user-location")
 @Validated
+@Slf4j
 public class LocationCaptureController {
 
     private final HttpServletRequest httpServletRequest;
@@ -72,8 +74,15 @@ public class LocationCaptureController {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
-        // Send the request to the Kafka topic for bulk creation.
-        producer.push(projectConfiguration.getBulkCreateLocationCaptureTaskTopic(), request);
+        try {
+            // Send the request to the Kafka topic for bulk creation.
+            producer.push(projectConfiguration.getBulkCreateLocationCaptureTaskTopic(), request);
+        } catch (Exception e) {
+            log.error("Error sending message to Kafka", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false)
+            );
+        }
 
         // Create and return a ResponseInfo object with HTTP status ACCEPTED.
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
@@ -95,17 +104,27 @@ public class LocationCaptureController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody UserActionSearchRequest locationCaptureSearchRequest
     ) throws Exception {
-        // Perform the search using the locationCaptureService.
-        SearchResponse<UserAction> locationCaptureSearchResponse = locationCaptureService.search(locationCaptureSearchRequest, urlParams);
 
-        // Build the response object with the search results and response info.
-        UserActionBulkResponse response = UserActionBulkResponse.builder()
-                .userActions(locationCaptureSearchResponse.getResponse())
-                .totalCount(locationCaptureSearchResponse.getTotalCount())
-                .responseInfo(ResponseInfoFactory.createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), true))
-                .build();
+        try {
+            // Perform the search using the locationCaptureService.
+            SearchResponse<UserAction> locationCaptureSearchResponse = locationCaptureService.search(locationCaptureSearchRequest, urlParams);
 
-        // Return the response with HTTP status OK.
-        return ResponseEntity.status(HttpStatus.OK).body(response);
+            // Build the response object with the search results and response info.
+            UserActionBulkResponse response = UserActionBulkResponse.builder()
+                    .userActions(locationCaptureSearchResponse.getResponse())
+                    .totalCount(locationCaptureSearchResponse.getTotalCount())
+                    .responseInfo(ResponseInfoFactory.createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), true))
+                    .build();
+
+            // Return the response with HTTP status OK.
+            return ResponseEntity.status(HttpStatus.OK).body(response);
+        } catch (Exception e) {
+            log.error("Error during search operation", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    UserActionBulkResponse.builder()
+                            .responseInfo(ResponseInfoFactory.createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), false))
+                            .build()
+            );
+        }
     }
 }

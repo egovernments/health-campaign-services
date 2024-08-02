@@ -47,30 +47,22 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
      * @return A SearchResponse containing the list of user locations and the total count.
      */
     public SearchResponse<UserAction> find(UserActionSearch searchObject, URLParams urlParams) {
-        // Base query for selecting user locations
+        log.info("Executing find with searchObject: {} and urlParams: {}", searchObject, urlParams);
+
         String query = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul ";
 
-        // Map to hold query parameters
         Map<String, Object> paramsMap = new HashMap<>();
-
-        // Generate the WHERE clause based on searchObject fields with non-null values
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
-
-        // Build the final query
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-
-        // Adjust query for specific conditions
         query = query.replace("id IN (:id)", "ul.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "ul.clientReferenceId IN (:clientReferenceId)");
 
-        // Append tenantId condition
         if (CollectionUtils.isEmpty(whereFields)) {
             query = query + " WHERE ul.tenantId=:tenantId ";
         } else {
             query = query + " AND ul.tenantId=:tenantId ";
         }
 
-        // Append conditions for lastModifiedTime if present
         if (urlParams.getLastChangedSince() != null) {
             query = query + " AND ul.lastModifiedTime>=:lastModifiedTime ";
         }
@@ -78,25 +70,22 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
         try {
-            // Construct total count CTE and return the result
+            log.debug("Executing query to fetch total count");
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-            // Add pagination and ordering to the query
             query = query + " ORDER BY ul.id ASC LIMIT :limit OFFSET :offset";
             paramsMap.put("limit", urlParams.getLimit());
             paramsMap.put("offset", urlParams.getOffset());
 
-            // Execute the query and retrieve the user locations
+            log.debug("Executing query to fetch user locations: {}", query);
             List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
 
-            // Build and return the search response with the list of user locations and total count
+            log.info("Successfully fetched user locations: {}", locationCaptureList.size());
             return SearchResponse.<UserAction>builder().response(locationCaptureList).totalCount(totalCount).build();
         } catch (Exception e) {
             log.error("Failed to execute query for finding user locations", e);
             return SearchResponse.<UserAction>builder().response(Collections.emptyList()).totalCount(0L).build();
         }
-
-
     }
 
     /**
@@ -107,42 +96,38 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
      * @return A SearchResponse containing the list of user locations found.
      */
     public SearchResponse<UserAction> findById(List<String> ids, String columnName) {
-        // Check cache first
+        log.info("Executing findById with ids: {} and columnName: {}", ids, columnName);
+
         List<UserAction> objFound = findInCache(ids);
 
-        // Remove found IDs from the list
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
 
-            // If no IDs left to search, return the cached results
             if (ids.isEmpty()) {
+                log.info("All requested user locations found in cache");
                 return SearchResponse.<UserAction>builder().response(objFound).build();
             }
         }
 
-        // Build query to find remaining user locations by IDs
         String query = String.format("SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul WHERE ul.%s IN (:ids)", columnName);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
         try {
-            // Execute the query and retrieve the user locations
+            log.debug("Executing query to fetch user locations by ID: {}", query);
             List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
-            // Add the newly found user locations to the cache
             objFound.addAll(locationCaptureList);
             putInCache(objFound);
 
-            // Return the search response with the list of user locations
+            log.info("Successfully fetched user locations by ID: {}", locationCaptureList.size());
             return SearchResponse.<UserAction>builder().response(objFound).build();
         } catch (Exception e) {
             log.error("Failed to execute query for finding user locations by ID", e);
             return SearchResponse.<UserAction>builder().response(Collections.emptyList()).build();
         }
-
-
     }
 }

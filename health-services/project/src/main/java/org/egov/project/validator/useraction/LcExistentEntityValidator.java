@@ -34,8 +34,10 @@ public class LcExistentEntityValidator implements Validator<UserActionBulkReques
     }
 
     /**
-     * @param request
-     * @return
+     *  Validates the existence of entities in the UserActionBulkRequest.
+     *
+     *  @param request the bulk request containing UserAction entities
+     *  @return a map of UserAction entities and their error details
      */
     @Override
     public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {

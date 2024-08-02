@@ -100,15 +100,14 @@ public class UaBoundaryValidator implements Validator<UserActionBulkRequest, Use
                             .flatMap(entry -> entry.getValue().stream()) // Flatten the list of userActions
                             .collect(Collectors.toList());
 
-
+                    // Create an error object for userActions with invalid boundaries
+                    Error error = Error.builder()
+                            .errorMessage("Boundary code does not exist in db")
+                            .errorCode("NON_EXISTENT_ENTITY")
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                            .build();
                     userActionsWithInvalidBoundaries.forEach(userAction -> {
-                        // Create an error object for userActions with invalid boundaries
-                        Error error = Error.builder()
-                                .errorMessage("Boundary code does not exist in db")
-                                .errorCode("NON_EXISTENT_ENTITY")
-                                .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
-                                .build();
                         // Populate error details for the userAction
                         populateErrorDetails(userAction, error, errorDetailsMap);
                     });
