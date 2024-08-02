@@ -76,10 +76,12 @@ public class UserActionController {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
         try {
+            log.debug("Pushing user action bulk create request to Kafka topic: {}", projectConfiguration.getBulkCreateUserActionTaskTopic());
             // Send the request to the Kafka topic for bulk creation.
             producer.push(projectConfiguration.getBulkCreateUserActionTaskTopic(), request);
+            log.info("Successfully pushed user action bulk create request to Kafka");
         } catch (Exception e) {
-            log.error("Failed to push user action bulk update request to Kafka", e);
+            log.error("Failed to push user action bulk create request to Kafka", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false)
             );
@@ -104,11 +106,14 @@ public class UserActionController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody UserActionSearchRequest request
     ) {
+        log.debug("Executing search with URLParams: {} and request: {}", urlParams, request);
+
         // Perform the search using the userActionService.
         SearchResponse<UserAction> userActions;
         try {
             // Perform the search using the userActionService.
             userActions = userActionService.search(request, urlParams);
+            log.info("Successfully searched for user actions: {}", userActions.getResponse().size());
         } catch (Exception e) {
             log.error("Failed to search for user actions", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);

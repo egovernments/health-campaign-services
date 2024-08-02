@@ -77,7 +77,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
             log.debug("Executing query to fetch total count");
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        // Add pagination and ordering to the query
+            // Add pagination and ordering to the query
             query = query + " ORDER BY ua.id ASC LIMIT :limit OFFSET :offset";
             paramsMap.put("limit", urlParams.getLimit());
             paramsMap.put("offset", urlParams.getOffset());
