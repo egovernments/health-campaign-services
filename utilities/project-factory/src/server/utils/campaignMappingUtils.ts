@@ -3,7 +3,7 @@ import config from "../config";
 import { getDataFromSheet, throwError } from "./genericUtils";
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
-import { produceModifiedMessages } from "../kafka/Listener";
+import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { createCampaignService } from "../service/campaignManageService";
