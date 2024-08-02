@@ -13,6 +13,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,8 @@ import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.project.Constants.LOCATION_CAPTURE_USER_ACTION_ENRICHMENT_ERROR;
+import static org.egov.project.Constants.USER_ACTION_ENRICHMENT_ERROR;
 
 @Service
 @Slf4j
@@ -47,10 +50,15 @@ public class LocationCaptureEnrichmentService {
     public void create(List<UserAction> entities, UserActionBulkRequest request) throws Exception {
         log.info("starting the enrichment for create LocationCaptures");
         log.info("generating IDs using UUID");
-        List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
-        log.info("enriching LocationCaptures with generated IDs");
-        enrichForCreate(entities, idList, request.getRequestInfo());
-        log.info("enrichment done");
+        try {
+            List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
+            log.info("enriching LocationCaptures with generated IDs");
+            enrichForCreate(entities, idList, request.getRequestInfo());
+            log.info("enrichment done");
+        } catch (Exception exception) {
+            log.error("Error during enrichment for create LocationCaptures", exception);
+            throw new CustomException(LOCATION_CAPTURE_USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for create LocationCaptures" + exception);
+        }
     }
 
 }

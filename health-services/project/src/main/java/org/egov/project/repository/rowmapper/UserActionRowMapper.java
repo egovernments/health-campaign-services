@@ -6,9 +6,11 @@ import java.sql.SQLException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
 import org.egov.common.models.project.useraction.UserAction;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
  * This class is used to map the result of a SQL query to UserAction instances.
  */
 @Component
+@Slf4j
 public class UserActionRowMapper implements RowMapper<UserAction> {
 
     private final ObjectMapper objectMapper;
@@ -83,7 +86,8 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
             return userAction;
         } catch (JsonProcessingException e) {
             // Throwing a SQLException if there's an error processing JSON
-            throw new SQLException(e);
+            log.error("Error processing JSON for UserAction mapping. Row number: " + rowNum, e);
+            throw new CustomException("JSON_PROCESSING_ERROR", "Error processing JSON for UserAction mapping. Row number: " + rowNum + ", "+ e);
         }
     }
 }

@@ -6,9 +6,11 @@ import java.sql.SQLException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.TaskAction;
 import org.egov.common.models.project.useraction.UserAction;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
  * This class is used to map the result of a SQL query to UserAction instances.
  */
 @Component
+@Slf4j
 public class LocationCaptureRowMapper implements RowMapper<UserAction> {
 
     private final ObjectMapper objectMapper;
@@ -79,7 +82,8 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                     .build();
         } catch (JsonProcessingException e) {
             // Throwing a RuntimeException if there's an error processing JSON
-            throw new RuntimeException(e);
+            log.error("Error processing Additional detail JSON in Location capture UserAction ", e);
+            throw new CustomException("JSON_PROCESSING_ERROR", "Error processing JSON: " + e.getMessage());
         }
 
         return locationCaptureUserAction;

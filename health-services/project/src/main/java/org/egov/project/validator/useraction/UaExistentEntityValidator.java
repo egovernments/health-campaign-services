@@ -37,9 +37,15 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
      * @param request
      * @return
      */
+    /**
+     * Validates the existence of entities in the UserActionBulkRequest.
+     * @param request the bulk request containing UserAction entities
+     * @return a map of UserAction entities and their error details
+     */
     @Override
     public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
         // Map to hold UserAction entities and their error details
+        log.info("Validating existence of entities in UserActionBulkRequest with {} entities", request.getUserActions().size());
         Map<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
         // Get the list of UserAction entities from the request
         List<UserAction> entities = request.getUserActions();

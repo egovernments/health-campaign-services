@@ -44,7 +44,7 @@ public class UaNonExistentEntityValidator implements Validator<UserActionBulkReq
 
     @Override
     public Map<UserAction, List<Error>> validate(UserActionBulkRequest request) {
-        log.info("validating for existence of entity");
+        log.info("Validating existence of entities in UserActionBulkRequest with {} user actions", request.getUserActions().size());
         Map<UserAction, List<Error>> errorDetailsMap = new HashMap<>();
         List<UserAction> entities = request.getUserActions();
         Class<?> objClass = getObjClass(entities);
@@ -80,7 +80,8 @@ public class UaNonExistentEntityValidator implements Validator<UserActionBulkReq
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for ProjectUserAction with error: {}", e.getMessage(), e);
-                throw new CustomException("SEARCH_FAILED", "Search Failed for given ProjectUserAction, " + e.getMessage());
+                throw new CustomException("SEARCH_FAILED", "Search failed for ProjectUserAction with clientReferenceId(s): "
+                        + clientReferenceIdList + " and id(s): " + idList + ". Error: " + e.getMessage());
             }
             List<UserAction> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

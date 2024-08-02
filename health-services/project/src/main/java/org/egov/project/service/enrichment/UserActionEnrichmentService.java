@@ -10,12 +10,14 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.UserActionRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.project.Constants.USER_ACTION_ENRICHMENT_ERROR;
 
 @Service
 @Slf4j
@@ -40,16 +42,26 @@ public class UserActionEnrichmentService {
     public void create(List<UserAction> entities, UserActionBulkRequest request) {
         log.info("starting the enrichment for create UserActions");
         log.info("generating IDs using UUID");
-        List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
-        log.info("enriching UserActions with generated IDs");
-        enrichForCreate(entities, idList, request.getRequestInfo(),false);
-        log.info("enrichment done");
+        try {
+            List<String> idList = CommonUtils.uuidSupplier().apply(entities.size());
+            log.info("enriching UserActions with generated IDs");
+            enrichForCreate(entities, idList, request.getRequestInfo(),false);
+            log.info("enrichment done");
+        } catch (Exception exception) {
+            log.error("Error during enrichment for create UserActions", exception);
+            throw new CustomException(USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for create UserActions" + exception);
+        }
     }
 
     public void update(List<UserAction> entities, UserActionBulkRequest request) {
-        log.info("starting the enrichment for create UserActions");
-        Map<String, UserAction> userActionMap = getIdToObjMap(entities);
-        enrichForUpdate(userActionMap, entities, request);
-        log.info("enrichment done");
+        log.info("starting the enrichment for update UserActions");
+        try {
+            Map<String, UserAction> userActionMap = getIdToObjMap(entities);
+            enrichForUpdate(userActionMap, entities, request);
+            log.info("enrichment done");
+        } catch (Exception exception) {
+            log.error("Error during enrichment for update UserActions", exception);
+            throw new CustomException(USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for update UserActions" + exception);
+        }
     }
 }
