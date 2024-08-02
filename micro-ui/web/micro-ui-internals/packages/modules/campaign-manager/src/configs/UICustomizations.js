@@ -105,6 +105,12 @@ export const UICustomizations = {
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
       const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
       // const { t } = useTranslation();
       const onActionSelect = (value, row) => {
         switch (value?.code) {
@@ -168,7 +174,10 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
                 </PopUp>
               )}
             </>
@@ -251,6 +260,12 @@ export const UICustomizations = {
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
       const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
       const onActionSelect = (value, row) => {
         switch (value?.code) {
           case "ACTION_LABEL_VIEW_TIMELINE":
@@ -296,7 +311,10 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
                 </PopUp>
               )}
             </>
@@ -381,6 +399,12 @@ export const UICustomizations = {
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
       const [timeLine, setTimeline] = React.useState(false);
       // const { t } = useTranslation();
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
       const onActionSelect = (value, row) => {
         switch (value?.code) {
           case "ACTION_LABEL_UPDATE_DATES":
@@ -443,7 +467,10 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
                 </PopUp>
               )}
             </>
@@ -616,6 +643,12 @@ export const UICustomizations = {
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
       const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
       const onActionSelect = (value, row) => {
         switch (value?.code) {
           case "ACTION_LABEL_VIEW_TIMELINE":
@@ -661,7 +694,10 @@ export const UICustomizations = {
                   onOverlayClick={() => setTimeline(false)}
                   onClose={() => setTimeline(false)}
                 >
-                  <TimelineComponent campaignId={row?.id} resourceId={[row?.resources.find((resource) => resource?.type === "user")?.createResourceId]} />
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
                 </PopUp>
               )}
             </>

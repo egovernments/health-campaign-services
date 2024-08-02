@@ -38,6 +38,8 @@ const TimelineComponent = ({campaignId, resourceId}) => {
   const searchParams = new URLSearchParams(location.search);
   const [userCredential, setUserCredential] = useState(null);
   const [newResourceId, setNewResourceId] = useState(resourceId);
+  const [searchDATA, setSearchDATA] = useState(null);
+  const [dataFetched, setDataFetched] = useState(false); 
   const { data: baseTimeOut } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "baseTimeOut" }]);
 
   const formatLabel = (label) => {
@@ -91,32 +93,49 @@ const TimelineComponent = ({campaignId, resourceId}) => {
       return latestProcess;
     }, null);
 
-  const reqCriteriaSearch = {
-    url: `/project-factory/v1/project-type/search`,
-    body: {
-      CampaignDetails: {
-        tenantId: tenantId,
-        ids: [campaignId],
-      },
-    },
-    config: {
-      enabled: resourceId.length == 0 && lastCompletedProcess?.type === "campaign-creation" && lastCompletedProcess?.status === "completed",
-    },
+
+  const searchAPIData = async (campaignId, resourceId) => {
+    try {
+      const response = await Digit.CustomService.getResponse({
+        url: "/project-factory/v1/project-type/search",
+        body: {
+          CampaignDetails: {
+            tenantId: tenantId,
+            ids: [campaignId],
+          },
+        },
+      });
+      return response;
+    } catch (error) {
+      throw new Error(error?.response?.data?.Errors?.[0].description);
+    }
   };
 
-  const { data: searchDATA } = Digit.Hooks.useCustomAPIHook(reqCriteriaSearch);
-
+  useEffect(() => {
+    if (resourceId.length === 0 && lastCompletedProcess?.type === "campaign-creation" && lastCompletedProcess?.status === "completed" && !dataFetched ) {
+      const fetchData = async () => {
+        try {
+          const data = await searchAPIData(campaignId);
+          setSearchDATA(data);
+          setDataFetched(true)
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      };
+  
+      fetchData();
+    }
+  }, [campaignId, newResourceId, lastCompletedProcess , dataFetched]);
+  
   useEffect(() => {
     if (searchDATA) {
-      const userResource = searchDATA?.CampaignDetails?.[0]?.resources?.find(resource => resource.type === "user");
+      const userResource = searchDATA?.CampaignDetails?.[0]?.resources?.find((resource) => resource.type === "user");
       if (userResource) {
         setNewResourceId([userResource?.createResourceId]);
       }
     }
   }, [searchDATA]);
-
-
-
+  
   useEffect(() => {
     let intervalId;
 
@@ -211,16 +230,8 @@ const TimelineComponent = ({campaignId, resourceId}) => {
               variant="inprogress"
               showConnector={true}
             /> */}
-            {subElements.length > 0 ? (
-              <Timeline label={t("HCM_CURRENT")} subElements={subElements} variant="inprogress" showConnector={true} />
-            ) : (
-              <Timeline
-                label={t(formatLabel(lastCompletedProcess?.type))}
-                subElements={[epochToDateTime(lastCompletedProcess?.lastModifiedTime)]}
-                variant="completed"
-                showConnector={true}
-              />
-            )}
+            {subElements.length > 0 && <Timeline label={t("HCM_CURRENT")} subElements={subElements} variant="inprogress" showConnector={true} />}
+
             {completedTimelines?.map((timeline, index) => (
               <Timeline key={index} label={timeline?.label} subElements={timeline?.subElements} variant="completed" showConnector={true} />
             ))}
