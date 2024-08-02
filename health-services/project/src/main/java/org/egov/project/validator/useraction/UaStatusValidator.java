@@ -66,7 +66,7 @@ public class UaStatusValidator implements Validator<UserActionBulkRequest, UserA
                         .errorMessage(HOUSEHOLD_ID + " is not present in AdditionalDetails of object.")
                         .errorCode("MISSING_HOUSEHOLD_ID")
                         .type(Error.ErrorType.NON_RECOVERABLE)
-                        .exception(new CustomException("MISSING_HOUSEHOLD_ID", HOUSEHOLD_ID + " is not present in AdditionalDetails of object."))
+                        .exception(new CustomException("MISSING_HOUSEHOLD_ID", HOUSEHOLD_ID + " is not present in AdditionalDetails of userAction with ID: " + userAction.getId()))
                         .build();
 
                 // Populate the error details map with the UserAction and the created error

@@ -3,6 +3,7 @@ package org.egov.project.web.controllers;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @Controller
 @RequestMapping("/user-action")
 @Validated
+@Slf4j
 public class UserActionController {
 
     private final HttpServletRequest httpServletRequest;
@@ -73,8 +75,15 @@ public class UserActionController {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
-        // Send the request to the Kafka topic for bulk creation.
-        producer.push(projectConfiguration.getBulkCreateUserActionTaskTopic(), request);
+        try {
+            // Send the request to the Kafka topic for bulk creation.
+            producer.push(projectConfiguration.getBulkCreateUserActionTaskTopic(), request);
+        } catch (Exception e) {
+            log.error("Failed to push user action bulk update request to Kafka", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false)
+            );
+        }
 
         // Create and return a ResponseInfo object with HTTP status ACCEPTED.
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
@@ -96,7 +105,14 @@ public class UserActionController {
             @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody UserActionSearchRequest request
     ) {
         // Perform the search using the userActionService.
-        SearchResponse<UserAction> userActions = userActionService.search(request, urlParams);
+        SearchResponse<UserAction> userActions;
+        try {
+            // Perform the search using the userActionService.
+            userActions = userActionService.search(request, urlParams);
+        } catch (Exception e) {
+            log.error("Failed to search for user actions", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
 
         // Build the response object with the search results and response info.
         UserActionBulkResponse response = UserActionBulkResponse.builder()
@@ -123,8 +139,15 @@ public class UserActionController {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
-        // Send the request to the Kafka topic for bulk update.
-        producer.push(projectConfiguration.getBulkUpdateUserActionTaskTopic(), request);
+        try {
+            // Send the request to the Kafka topic for bulk update.
+            producer.push(projectConfiguration.getBulkUpdateUserActionTaskTopic(), request);
+        } catch (Exception e) {
+            log.error("Failed to push user action bulk update request to Kafka", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false)
+            );
+        }
 
         // Create and return a ResponseInfo object with HTTP status ACCEPTED.
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(
