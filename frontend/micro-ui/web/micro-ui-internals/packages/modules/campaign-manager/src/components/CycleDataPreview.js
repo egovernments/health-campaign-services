@@ -100,18 +100,18 @@ const CycleDataPreview = ({ data, items, index, errors, onErrorClick, cardErrors
               {rules?.attributes?.length > 0 && (
                 <DetailsTable
                   className="campaign-attribute-table"
-                  cardHeader={{ value: `Condition ${ruleIndex + 1}` }}
+                  cardHeader={{ value: `${t("CAMPAIGN_CONDITION")} ${ruleIndex + 1}` }}
                   columnsData={[
                     {
-                      Header: t("Attribute"),
+                      Header: t("CAMPAIGN_ATTRIBUTE_LABEL"),
                       accessor: "attribute",
                     },
                     {
-                      Header: t("Operator"),
+                      Header: t("CAMPAIGN_OPERATOR_LABEL"),
                       accessor: "operator",
                     },
                     {
-                      Header: t("Value"),
+                      Header: t("CAMPAIGN_VALUE_LABEL"),
                       accessor: "value",
                     },
                   ]}
@@ -124,11 +124,11 @@ const CycleDataPreview = ({ data, items, index, errors, onErrorClick, cardErrors
                   // cardHeader={{ value: "Product Details" }}
                   columnsData={[
                     {
-                      Header: t("Product"),
+                      Header: t("CAMPAIGN_PRODUCT_LABEL"),
                       accessor: "name",
                     },
                     {
-                      Header: t("Count"),
+                      Header: t("CAMPAIGN_COUNT_LABEL"),
                       accessor: "count",
                     },
                   ]}

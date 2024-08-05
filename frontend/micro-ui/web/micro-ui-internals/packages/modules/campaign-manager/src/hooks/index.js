@@ -8,6 +8,8 @@ import { useResourceData } from "./useResourceData";
 import useCreateProductVariant from "./useCreateProductVariant";
 import useCreateProduct from "./useCreateProduct";
 import useParallelSearch from "./useParallelSearch";
+import useProjectSearchWithBoundary from "./useProjectSearchWithBoundary";
+import useProjectUpdateWithBoundary from "./useProjectUpdateWithBoundary";
 
 const UserService = {};
 
@@ -25,6 +27,8 @@ const campaign = {
   useCreateProduct,
   useCreateProductVariant,
   useParallelSearch,
+  useProjectSearchWithBoundary,
+  useProjectUpdateWithBoundary,
 };
 
 const Hooks = {

@@ -657,7 +657,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           )}
         </CardHeader>
         {filteredDeliveryConfig?.customAttribute && filteredDeliveryConfig?.projectType !== "LLIN-mz" && (
-          <LabelFieldPair style={{ marginTop: "1.5rem", marginBottom: "1.5rem", alignItems: "flex-start" }} className="delivery-type-radio">
+          <LabelFieldPair style={{ marginTop: "1.5rem", marginBottom: "1.5rem"}} className="delivery-type-radio">
             <div className="deliveryType-labelfield">
               <span className="bold">{`${t("HCM_DELIVERY_TYPE")}`}</span>
             </div>
@@ -733,6 +733,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
               confirmResources={confirmResources}
               showToast={showToast}
               closeToast={closeToast}
+              selectedProducts={delivery?.products}
             />
           }
         />

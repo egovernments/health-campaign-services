@@ -1,7 +1,9 @@
-import { Link, useHistory } from "react-router-dom";
+import { Link } from "react-router-dom";
 import _ from "lodash";
 import React from "react";
-
+import { Fragment } from "react";
+import { Button, PopUp } from "@egovernments/digit-ui-components";
+import TimelineComponent from "../components/TimelineComponent";
 //create functions here based on module name set in mdms(eg->SearchProjectConfig)
 //how to call these -> Digit?.Customizations?.[masterName]?.[moduleName]
 // these functions will act as middlewares
@@ -10,6 +12,31 @@ import React from "react";
 const businessServiceMap = {};
 
 const inboxModuleNameMap = {};
+
+// const onActionSelect = (value, row) => {
+//   console.log("value")
+//   switch (value?.code) {
+//     case "ACTION_LABEL_UPDATE_DATES":
+//       window.history.pushState(
+//         {
+//           name: row?.campaignName,
+//           data: row,
+//           projectId: row?.projectId,
+//         },
+//         "",
+//         `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
+//       );
+//       window.location.href = `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`;
+
+//       break;
+//     case "ACTION_LABEL_VIEW_TIMELINE":
+//       setTimeline(true);
+//       break;
+//     default:
+//       console.log(value);
+//       break;
+//   }
+// };
 
 export const UICustomizations = {
   MyCampaignConfigOngoing: {
@@ -23,8 +50,8 @@ export const UICustomizations = {
         status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: true,
-        startDate: Date.now(),
-        endDate: Date.now(),
+        startDate: Digit.Utils.pt.convertDateToEpoch(new Date().toISOString().split("T")[0], "daystart"),
+        endDate: Digit.Utils.pt.convertDateToEpoch(new Date().toISOString().split("T")[0]),
         pagination: {
           sortBy: "createdTime",
           sortOrder: "desc",
@@ -77,6 +104,37 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
+      // const { t } = useTranslation();
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_UPDATE_DATES":
+            window.history.pushState(
+              {
+                name: row?.campaignName,
+                data: row,
+                projectId: row?.projectId,
+              },
+              "",
+              `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
+            );
+            const navEvent = new PopStateEvent("popstate");
+            window.dispatchEvent(navEvent);
+            break;
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -91,6 +149,39 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[
+                  { key: 1, code: "ACTION_LABEL_UPDATE_DATES", i18nKey: t("ACTION_LABEL_UPDATE_DATES") },
+                  { key: 2, code: "ACTION_LABEL_CONFIGURE_APP", i18nKey: t("ACTION_LABEL_CONFIGURE_APP") },
+                  { key: 3, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") },
+                ]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }
@@ -114,7 +205,7 @@ export const UICustomizations = {
       data.body.CampaignDetails = {
         tenantId: tenantId,
         status: ["creating", "created"],
-        endDate: Date.now() - 24 * 60 * 60 * 1000,
+        endDate: Digit.Utils.pt.convertDateToEpoch(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
         createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
           sortBy: "createdTime",
@@ -168,6 +259,23 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -182,6 +290,35 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[{ key: 1, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") }]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }
@@ -207,7 +344,7 @@ export const UICustomizations = {
         status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: false,
-        startDate: Date.now() + 24 * 60 * 60 * 1000,
+        startDate: Digit.Utils.pt.convertDateToEpoch(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0], "daystart"),
         pagination: {
           sortBy: "createdTime",
           sortOrder: "desc",
@@ -260,6 +397,37 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      // const { t } = useTranslation();
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_UPDATE_DATES":
+            window.history.pushState(
+              {
+                name: row?.campaignName,
+                data: row,
+                projectId: row?.projectId,
+              },
+              "",
+              `/${window.contextPath}/employee/campaign/update-dates-boundary?id=${row?.id}`
+            );
+            const navEvent = new PopStateEvent("popstate");
+            window.dispatchEvent(navEvent);
+            break;
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -274,6 +442,39 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[
+                  { key: 1, code: "ACTION_LABEL_UPDATE_DATES", i18nKey: t("ACTION_LABEL_UPDATE_DATES") },
+                  { key: 2, code: "ACTION_LABEL_CONFIGURE_APP", i18nKey: t("ACTION_LABEL_CONFIGURE_APP") },
+                  { key: 3, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") },
+                ]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }
@@ -441,6 +642,23 @@ export const UICustomizations = {
       return "";
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      const [timeLine, setTimeline] = React.useState(false);
+      const resourceIdArr = [];
+      row?.resources?.map((i) => {
+        if (i?.createResourceId && i?.type === "user") {
+          resourceIdArr.push(i?.createResourceId);
+        }
+      });
+      const onActionSelect = (value, row) => {
+        switch (value?.code) {
+          case "ACTION_LABEL_VIEW_TIMELINE":
+            setTimeline(true);
+            break;
+          default:
+            console.log(value);
+            break;
+        }
+      };
       switch (key) {
         case "CAMPAIGN_NAME":
           return (
@@ -455,6 +673,35 @@ export const UICustomizations = {
           return Digit.DateUtils.ConvertEpochToDate(value);
         case "CAMPAIGN_END_DATE":
           return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_ACTIONS":
+          return (
+            <>
+              <Button
+                className="campaign-action-button"
+                type="actionButton"
+                variation="secondary"
+                label={"Action"}
+                options={[{ key: 1, code: "ACTION_LABEL_VIEW_TIMELINE", i18nKey: t("ACTION_LABEL_VIEW_TIMELINE") }]}
+                optionsKey="i18nKey"
+                showBottom={true}
+                isSearchable={false}
+                onOptionSelect={(item) => onActionSelect(item, row)}
+              />
+              {timeLine && (
+                <PopUp
+                  type={"default"}
+                  heading={t("ES_CAMPAIGN_TIMELINE")}
+                  onOverlayClick={() => setTimeline(false)}
+                  onClose={() => setTimeline(false)}
+                >
+                  <TimelineComponent
+                    campaignId={row?.id}
+                    resourceId={resourceIdArr}
+                  />
+                </PopUp>
+              )}
+            </>
+          );
         default:
           return "case_not_found";
       }

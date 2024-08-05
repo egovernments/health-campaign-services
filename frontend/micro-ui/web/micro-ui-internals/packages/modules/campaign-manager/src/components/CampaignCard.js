@@ -3,7 +3,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 const ROLES = {
-  CAMPAIGN_MANAGER:["CAMPAIGN_MANAGER"]
+  CAMPAIGN_MANAGER:["CAMPAIGN_MANAGER"],
+  NATIONAL_SUPERVISOR:["NATIONAL_SUPERVISOR"]
 };
 
 /**
@@ -55,6 +56,18 @@ const CampaignCard = () => {
       roles: ROLES.CAMPAIGN_MANAGER,
       // count: isLoading?"-":data
     },
+    {
+      label: t("NATIONAL_DASHBOARD"),
+      link: "/digit-ui/employee/utilities/iframe/elastic/national",
+      roles: ROLES.NATIONAL_SUPERVISOR,
+      // count: isLoading?"-":data
+    },
+    {
+      label: t("NDSS_DASHBOARD"),
+      link: "/digit-ui/employee/dss/landing/national-health-dashboard",
+      roles: ROLES.NATIONAL_SUPERVISOR,
+      // count: isLoading?"-":data
+    }
   ];
 
   links = links.filter((link) => (link?.roles && link?.roles?.length > 0 ? Digit.Utils.didEmployeeHasAtleastOneRole(link?.roles) : true));

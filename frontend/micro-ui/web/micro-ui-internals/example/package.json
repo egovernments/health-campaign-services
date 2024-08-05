@@ -9,12 +9,12 @@
     "start": "react-scripts start"
   },
   "devDependencies": {
-    "@egovernments/digit-ui-libraries": "1.8.2-beta.1",
+    "@egovernments/digit-ui-libraries": "1.8.2-beta.6",
     "@egovernments/digit-ui-module-workbench": "1.0.2-beta.3",
-    "@egovernments/digit-ui-components": "0.0.2-beta.1",
-    "@egovernments/digit-ui-module-core": "1.8.2-beta.2",
+    "@egovernments/digit-ui-components": "0.0.2-beta.19",
+    "@egovernments/digit-ui-module-core": "1.8.2-beta.12",
     "@egovernments/digit-ui-module-utilities": "1.0.1-beta.30",
-    "@egovernments/digit-ui-react-components": "1.8.2-beta.6",
+    "@egovernments/digit-ui-react-components": "1.8.2-beta.11",
     "@egovernments/digit-ui-module-hcmworkbench":"0.0.38",
     "@egovernments/digit-ui-module-campaign-manager": "0.0.1",
     "@egovernments/digit-ui-module-hcmmicroplanning": "0.0.1",

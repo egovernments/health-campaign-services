@@ -5,7 +5,7 @@ export const downloadRequestSchema = {
         "tenantId": {
             "type": "string",
             "maxLength": 128,
-            "minLength": 1,
+            "minLength": 1
         },
         "type": {
             "type": "string",
@@ -22,14 +22,24 @@ export const downloadRequestSchema = {
         "hierarchyType": {
             "type": "string",
             "maxLength": 128,
-            "minLength": 1,
+            "minLength": 1
         },
         "id": {
             "type": "string",
-            "maxlength": 128,
-            "minLength": 1,
+            "maxLength": 128,
+            "minLength": 1
+        },
+        "status": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+        },
+        "campaignId": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
         }
     },
     "required": ["tenantId", "type", "hierarchyType"],
     "additionalProperties": false
-}
+}  

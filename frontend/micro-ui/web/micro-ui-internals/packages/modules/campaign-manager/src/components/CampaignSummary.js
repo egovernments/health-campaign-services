@@ -149,6 +149,7 @@ const CampaignSummary = (props) => {
   const [userErrors, setUserErrors] = useState(null);
   const [cycleDatesError, setCycleDatesError] = useState(null);
   const [summaryErrors, setSummaryErrors] = useState(null);
+  const isPreview = searchParams.get("preview");
   const handleRedirect = (step, activeCycle) => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get("id");
@@ -220,6 +221,23 @@ const CampaignSummary = (props) => {
         const cycleData = reverseDeliveryRemap(target, t);
         return {
           cards: [
+            isPreview === "true"
+              ? {
+                  name: "timeline",
+                  sections: [
+                    {
+                      name: "timeline",
+                      type: "COMPONENT",
+                      component: "TimelineComponent",
+                      props: {
+                        campaignId: data?.[0]?.id,
+                        resourceId: resourceIdArr,
+                      },
+                      cardHeader: { value: t("HCM_TIMELINE"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
+                    },
+                  ],
+                }
+              : {},
             {
               sections: [
                 {
@@ -353,15 +371,15 @@ const CampaignSummary = (props) => {
                       key: "CAMPAIGN_NO_OF_CYCLES",
                       value:
                         data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.cycleNumber)?.length > 0
-                        ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.cycleNumber))
-                        : t("CAMPAIGN_SUMMARY_NA"),
+                          ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.cycleNumber))
+                          : t("CAMPAIGN_SUMMARY_NA"),
                     },
                     {
                       key: "CAMPAIGN_NO_OF_DELIVERIES",
                       value:
                         data?.[0]?.deliveryRules && data?.[0]?.deliveryRules.map((item) => item.deliveryNumber)?.length > 0
-                        ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.deliveryNumber))
-                        : t("CAMPAIGN_SUMMARY_NA"),
+                          ? Math.max(...data?.[0]?.deliveryRules.map((item) => item.deliveryNumber))
+                          : t("CAMPAIGN_SUMMARY_NA"),
                     },
                   ],
                 },
@@ -456,7 +474,7 @@ const CampaignSummary = (props) => {
     <>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <Header className="summary-header">{t("ES_TQM_SUMMARY_HEADING")}</Header>
-        {userCredential && (
+        {/* {userCredential && (
           <Button
             label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
             variation="secondary"
@@ -465,7 +483,7 @@ const CampaignSummary = (props) => {
             className="campaign-download-template-btn hover"
             onButtonClick={downloadUserCred}
           />
-        )}
+        )} */}
       </div>
       <div className="campaign-summary-container">
         <ViewComposer data={data} cardErrors={summaryErrors} />

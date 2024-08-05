@@ -18,8 +18,8 @@
     "react-router-dom": "5.3.0"
   },
   "dependencies": {
-    "@egovernments/digit-ui-react-components": "1.8.2-beta.6",
-    "@egovernments/digit-ui-components": "0.0.2-beta.1",
+    "@egovernments/digit-ui-react-components": "1.8.2-beta.11",
+    "@egovernments/digit-ui-components": "0.0.2-beta.19",
     "@rjsf/core": "5.10.0",
     "@rjsf/utils": "5.10.0",
     "@rjsf/validator-ajv8": "5.10.0",
