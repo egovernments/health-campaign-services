@@ -544,7 +544,8 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     // wait for 2 seconds
     logger.info(`Waiting for 2 seconds to persist errors`);
     await new Promise(resolve => setTimeout(resolve, 2000));
-    await produceModifiedMessages(requestBody, topic);
+    const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails }
+    await produceModifiedMessages(produceMessage, topic);
     await persistTrack(requestBody?.CampaignDetails?.id, processTrackTypes.error, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
     delete requestBody.CampaignDetails.campaignDetails
 }
@@ -576,7 +577,10 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     }
     const topic = firstPersist ? config?.kafka?.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     delete request.body.CampaignDetails.codesTargetMapping
-    await produceModifiedMessages(request?.body, topic);
+    const produceMessage: any = {
+        CampaignDetails: request?.body?.CampaignDetails
+    };
+    await produceModifiedMessages(produceMessage, topic);
     delete request.body.CampaignDetails.campaignDetails
 }
 
@@ -622,7 +626,10 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
         request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
     delete request.body.CampaignDetails.codesTargetMapping
-    await produceModifiedMessages(request?.body, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+    const producerMessage: any = {
+        CampaignDetails: request?.body?.CampaignDetails
+    }
+    await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
 }
@@ -659,7 +666,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
         requestBody.CampaignDetails = request?.body?.CampaignDetails
         requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
-        requestBody.localizationMap = localizationMap
+        // requestBody.localizationMap = localizationMap
         logger.info("Persisting CampaignProjectMapping...");
         logger.debug(`CampaignProjectMapping: ${getFormattedStringForDebug(requestBody)}`);
         await produceModifiedMessages(requestBody, config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);

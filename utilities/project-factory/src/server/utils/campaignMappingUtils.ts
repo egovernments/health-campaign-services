@@ -1,6 +1,6 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
-import { getDataFromSheet, throwError } from "./genericUtils";
+import { getDataFromSheet, getLocalizedMessagesHandlerViaRequestInfo, throwError } from "./genericUtils";
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -230,6 +230,8 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
 
 async function fetchAndMap(resources: any[], messageObject: any) {
     await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.inprogress)
+    const localizationMap = await getLocalizedMessagesHandlerViaRequestInfo(messageObject?.RequestInfo, messageObject?.Campaign?.tenantId);
+    messageObject.localizationMap = localizationMap
     try {
         const localizationMap = messageObject?.localizationMap;
         const sheetName: any = {

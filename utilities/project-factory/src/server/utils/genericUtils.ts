@@ -11,7 +11,7 @@ import Localisation from "../controllers/localisationController/localisation.con
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
-import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationUtils";
+import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
@@ -1053,6 +1053,13 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
   return localizationResponse;
 }
 
+async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
+  const localisationcontroller = Localisation.getInstance();
+  const locale = getLocaleFromRequestInfo(RequestInfo);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
+}
+
 
 
 async function translateSchema(schema: any, localizationMap?: { [key: string]: string }) {
@@ -1225,7 +1232,8 @@ export {
   createBoundaryDataMainSheet,
   getMdmsDataBasedOnCampaignType,
   shutdownGracefully,
-  appendProjectTypeToCapacity
+  appendProjectTypeToCapacity,
+  getLocalizedMessagesHandlerViaRequestInfo
 };
 
 
