@@ -3,15 +3,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
+import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
 import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan } from "../utils/campaignUtils";
 const _ = require('lodash');
-import { produceModifiedMessages } from "../kafka/Listener";
+import { produceModifiedMessages } from "../kafka/Producer";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { processTrackStatuses, processTrackTypes } from "../config/constants";
+import { persistTrack } from "../utils/processTrackUtils";
 
 
 
@@ -258,8 +260,18 @@ async function getUuidsError(request: any, response: any, mobileNumberRowNumberM
       errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username` })
       count++;
     }
+    else if (!user?.userDetails?.password) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have password`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have password` })
+      count++;
+    }
+    else if (!user?.userUuid) {
+      logger.info(`User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`)
+      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid` })
+      count++;
+    }
     else {
-      request.body.mobileNumberUuidsMapping[user?.mobileNumber] = { userUuid: user?.id, code: user?.userDetails?.username, rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber] }
+      request.body.mobileNumberUuidsMapping[user?.mobileNumber] = { userUuid: user?.id, code: user?.userDetails?.username, rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber], password: user?.userDetails?.password, userServiceUuid: user?.userUuid }
     }
   }
   if (count > 0) {
@@ -518,11 +530,12 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
+    differentTabsBasedOnLevel = getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
     logger.info("target sheet format validation started");
-    // added await to ensure validations complete before proceeding, preventing premature errors.
-    await immediateValidationForTargetSheet(dataFromSheet, localizationMap);
+    await immediateValidationForTargetSheet(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
     logger.info("target sheet format validation completed and starts with data validation");
-    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, localizationMap);
+    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, differentTabsBasedOnLevel, localizationMap);
   }
 
   else {
@@ -693,7 +706,8 @@ async function enrichAlreadyExsistingUser(request: any) {
         employee.uuid = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].userUuid;
         employee.code = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
         employee.user.userName = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].code;
-        employee.user.password = config.user.userDefaultPassword;
+        employee.user.password = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].password;
+        employee.user.userServiceUuid = request?.body?.mobileNumberUuidsMapping[employee?.user?.mobileNumber].userServiceUuid;
       }
     }
   }
@@ -716,7 +730,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       creationTime = Date.now();
-      if (type == "facility") {
+      if (type == "facility" || type == "facilityMicroplan") {
         await handeFacilityProcess(request, createAndSearchConfig, params, activities, newRequestBody);
       }
       else if (type == "user") {
@@ -774,16 +788,26 @@ async function handleResouceDetailsError(request: any, error: any) {
     if (request?.body?.ResourceDetails?.action == "create") {
       persistMessage.ResourceDetails.additionalDetails = { error: stringifiedError }
     }
-    produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
-  if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
+  if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
     logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
-    produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+    await produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+  }
+}
+
+async function persistCreationProcess(request: any, status: any) {
+  if (request?.body?.ResourceDetails?.type == "facility") {
+    await persistTrack(request?.body?.ResourceDetails?.campaignId, processTrackTypes.facilityCreation, status);
+  }
+  else if (request?.body?.ResourceDetails?.type == "user") {
+    await persistTrack(request?.body?.ResourceDetails?.campaignId, processTrackTypes.staffCreation, status);
   }
 }
 
 async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any, localizationMap?: { [key: string]: string }) {
+  await persistCreationProcess(request, processTrackStatuses.inprogress)
   try {
     const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
     request.body.dataToCreate = typeData.createData;
@@ -801,8 +825,10 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     }
   } catch (error: any) {
     console.log(error)
+    await persistCreationProcess(request, processTrackStatuses.failed)
     await handleResouceDetailsError(request, error)
   }
+  await persistCreationProcess(request, processTrackStatuses.completed)
 }
 
 /**
@@ -817,13 +843,38 @@ async function processCreate(request: any, localizationMap?: any) {
     boundaryBulkUpload(request, localizationMap);
   }
   else {
-    const createAndSearchConfig = createAndSearch[type]
+    // console.log(`Source is MICROPLAN -->`, source);
+    let createAndSearchConfig: any;
+    createAndSearchConfig = createAndSearch[type];
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
+    if (checkIfSourceIsMicroplan(request?.body?.ResourceDetails)) {
+      logger.info(`Data create Source is MICROPLAN`);
+      if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
+        createAndSearchConfig.parseArrayConfig.parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic.map(
+          (item: any) => {
+            if (item.sheetColumn === "E") {
+              item.sheetColumnName += `_${campaignType}`;
+            }
+            return item;
+          }
+        );
+      }
+    }
+
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
+
     if (type == "facility") {
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
+    }
+    else if (type == "facilityMicroplan") {
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+      schema = mdmsResponse
+      logger.info("Appending project type to capacity for microplan " + campaignType);
+      schema = await appendProjectTypeToCapacity(schema, campaignType);
     }
     else if (type == "user") {
       logger.info("Fetching schema to validate the created data for type: " + type);
@@ -843,33 +894,41 @@ async function processCreate(request: any, localizationMap?: any) {
  * @param request The HTTP request object.
  */
 async function createProjectCampaignResourcData(request: any) {
-  // Create resources for a project campaign
-  if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
-    for (const resource of request?.body?.CampaignDetails?.resources) {
-      if (resource.type != "boundaryWithTarget") {
-        const resourceDetails = {
-          type: resource.type,
-          fileStoreId: resource.filestoreId,
-          tenantId: request?.body?.CampaignDetails?.tenantId,
-          action: "create",
-          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-          additionalDetails: {},
-          campaignId: request?.body?.CampaignDetails?.id
-        };
-        logger.info(`Creating the resources for type ${resource.type}`)
-        logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
-        const createRequestBody = {
-          RequestInfo: request.body.RequestInfo,
-          ResourceDetails: resourceDetails
-        }
-        const req = replicateRequest(request, createRequestBody)
-        const res: any = await createDataService(req)
-        if (res?.id) {
-          resource.createResourceId = res?.id
+  await persistTrack(request.body.CampaignDetails.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.inprogress);
+  try {
+    // Create resources for a project campaign
+    if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
+      for (const resource of request?.body?.CampaignDetails?.resources) {
+        if (resource.type != "boundaryWithTarget") {
+          const resourceDetails = {
+            type: resource.type,
+            fileStoreId: resource.filestoreId,
+            tenantId: request?.body?.CampaignDetails?.tenantId,
+            action: "create",
+            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+            additionalDetails: {},
+            campaignId: request?.body?.CampaignDetails?.id
+          };
+          logger.info(`Creating the resources for type ${resource.type}`)
+          logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
+          const createRequestBody = {
+            RequestInfo: request.body.RequestInfo,
+            ResourceDetails: resourceDetails
+          }
+          const req = replicateRequest(request, createRequestBody)
+          const res: any = await createDataService(req)
+          if (res?.id) {
+            resource.createResourceId = res?.id
+          }
         }
       }
     }
+  } catch (error: any) {
+    console.log(error)
+    await persistTrack(request?.body?.CampaignDetails?.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
+    throw new Error(error)
   }
+  await persistTrack(request.body.CampaignDetails.id, processTrackTypes.triggerResourceCreation, processTrackStatuses.completed);
 }
 
 async function confirmProjectParentCreation(request: any, projectId: any) {
