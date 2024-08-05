@@ -24,26 +24,32 @@ import org.springframework.validation.annotation.Validated;
 public class UserActionSearch extends EgovOfflineSearchModel {
 
     /**
-     * A list of project IDs to filter the user actions.
+     * A userId to filter the user actions.
+     */
+    @JsonProperty("createdBy")
+    private String createdBy;
+
+    /**
+     * A project ID to filter the user actions.
      */
     @JsonProperty("projectId")
-    private List<String> projectId;
+    private String projectId;
 
     /**
-     * A list of beneficiary tags to filter the user actions.
+     * A beneficiary tag to filter the user actions.
      */
     @JsonProperty("beneficiaryTag")
-    private List<String> beneficiaryTag;
+    private String beneficiaryTag;
 
     /**
-     * A list of resource tags to filter the user actions.
+     * A resource tag to filter the user actions.
      */
     @JsonProperty("resourceTag")
-    private List<String> resourceTag;
+    private String resourceTag;
 
     /**
-     * A list of boundary codes to filter the user actions.
+     * A boundary code to filter the user actions.
      */
     @JsonProperty("boundaryCode")
-    private List<String> boundaryCode;
+    private String boundaryCode;
 }

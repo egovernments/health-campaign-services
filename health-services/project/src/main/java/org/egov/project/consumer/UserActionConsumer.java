@@ -11,6 +11,7 @@ import org.egov.common.models.project.useraction.UserAction;
 import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.project.service.LocationCaptureService;
 import org.egov.project.service.UserActionService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -40,19 +41,19 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of created UserAction objects.
      */
-    @KafkaListener(topics = "${project.user.action.task.consumer.bulk.create.topic}")
-    public List<UserAction> bulkCreateUserAction(Map<String, Object> consumerRecord,
+    @KafkaListener(topics = "${project.user.action.consumer.bulk.create.topic}")
+    public void bulkCreateUserAction(Map<String, Object> consumerRecord,
                                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             // Convert consumer record to UserActionBulkRequest object
             UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             // Call the userActionService to handle the create operation
-            return userActionService.create(request, true);
+            userActionService.create(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
             log.error("error in user action consumer bulk create", ExceptionUtils.getStackTrace(exception));
-            // Return an empty list in case of an error
-            return Collections.emptyList();
+            // throw custom exception
+            throw new CustomException("PROJECT_USER_ACTION_BULK_CREATE", exception.getMessage());
         }
     }
 
@@ -63,19 +64,19 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of updated UserAction objects.
      */
-    @KafkaListener(topics = "${project.user.action.task.consumer.bulk.update.topic}")
-    public List<UserAction> bulkUpdateUserAction(Map<String, Object> consumerRecord,
+    @KafkaListener(topics = "${project.user.action.consumer.bulk.update.topic}")
+    public void bulkUpdateUserAction(Map<String, Object> consumerRecord,
                                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             // Convert consumer record to UserActionBulkRequest object
             UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             // Call the userActionService to handle the update operation
-            return userActionService.update(request, true);
+            userActionService.update(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
             log.error("error in user action consumer bulk update", ExceptionUtils.getStackTrace(exception));
-            // Return an empty list in case of an error
-            return Collections.emptyList();
+            // throw custom exception
+            throw new CustomException("PROJECT_USER_ACTION_BULK_UPDATE", exception.getMessage());
         }
     }
 
@@ -86,19 +87,19 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of created UserAction objects.
      */
-    @KafkaListener(topics = "${project.location.capture.task.consumer.bulk.create.topic}")
-    public List<UserAction> bulkCreateLocationCapture(Map<String, Object> consumerRecord,
+    @KafkaListener(topics = "${project.location.capture.consumer.bulk.create.topic}")
+    public void bulkCreateLocationCapture(Map<String, Object> consumerRecord,
                                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             // Convert consumer record to UserActionBulkRequest object
             UserActionBulkRequest request = objectMapper.convertValue(consumerRecord, UserActionBulkRequest.class);
             // Call the locationCaptureService to handle the create operation
-            return locationCaptureService.create(request, true);
+            locationCaptureService.create(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
             log.error("error in location capture consumer bulk create", ExceptionUtils.getStackTrace(exception));
-            // Return an empty list in case of an error
-            return Collections.emptyList();
+            // throw custom exception
+            throw new CustomException("PROJECT_USER_ACTION_LOCATION_CAPTURE_BULK_CREATE", exception.getMessage());
         }
     }
 

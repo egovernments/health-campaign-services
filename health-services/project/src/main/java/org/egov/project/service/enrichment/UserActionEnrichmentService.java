@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.project.Constants.USER_ACTION_ENRICHMENT_ERROR;
+import static org.egov.project.Constants.PROJECT_USER_ACTION_ENRICHMENT_ERROR;
 
 @Service
 @Slf4j
@@ -49,7 +49,7 @@ public class UserActionEnrichmentService {
             log.info("enrichment done");
         } catch (Exception exception) {
             log.error("Error during enrichment for create UserActions", exception);
-            throw new CustomException(USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for create UserActions" + exception);
+            throw new CustomException(PROJECT_USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for create UserActions" + exception);
         }
     }
 
@@ -61,7 +61,7 @@ public class UserActionEnrichmentService {
             log.info("enrichment done");
         } catch (Exception exception) {
             log.error("Error during enrichment for update UserActions", exception);
-            throw new CustomException(USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for update UserActions" + exception);
+            throw new CustomException(PROJECT_USER_ACTION_ENRICHMENT_ERROR, "Error during enrichment for update UserActions" + exception);
         }
     }
 }

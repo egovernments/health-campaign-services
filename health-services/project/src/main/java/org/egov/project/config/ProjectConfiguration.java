@@ -191,23 +191,23 @@ public class ProjectConfiguration {
 
 
     // closed household task
-    @Value("${project.user.action.task.kafka.create.topic}")
-    private String createUserActionTaskTopic;
+    @Value("${project.user.action.kafka.create.topic}")
+    private String createUserActionTopic;
 
-    @Value("${project.user.action.task.consumer.bulk.create.topic}")
-    private String bulkCreateUserActionTaskTopic;
+    @Value("${project.user.action.consumer.bulk.create.topic}")
+    private String bulkCreateUserActionTopic;
 
-    @Value("${project.user.action.task.kafka.update.topic}")
-    private String updateUserActionTaskTopic;
+    @Value("${project.user.action.kafka.update.topic}")
+    private String updateUserActionTopic;
 
-    @Value("${project.user.action.task.consumer.bulk.update.topic}")
-    private String bulkUpdateUserActionTaskTopic;
+    @Value("${project.user.action.consumer.bulk.update.topic}")
+    private String bulkUpdateUserActionTopic;
 
-    @Value("${project.location.capture.task.consumer.bulk.create.topic}")
-    private String bulkCreateLocationCaptureTaskTopic;
+    @Value("${project.location.capture.consumer.bulk.create.topic}")
+    private String bulkCreateLocationCaptureTopic;
 
-    @Value("${project.location.capture.task.kafka.create.topic}")
-    private String createLocationCaptureTaskTopic;
+    @Value("${project.location.capture.kafka.create.topic}")
+    private String createLocationCaptureTopic;
 
     @Value("${egov.boundary.host}")
     private String boundaryServiceHost;

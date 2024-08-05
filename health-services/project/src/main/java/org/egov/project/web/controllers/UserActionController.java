@@ -76,9 +76,9 @@ public class UserActionController {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
         try {
-            log.debug("Pushing user action bulk create request to Kafka topic: {}", projectConfiguration.getBulkCreateUserActionTaskTopic());
+            log.debug("Pushing user action bulk create request to Kafka topic: {}", projectConfiguration.getBulkCreateUserActionTopic());
             // Send the request to the Kafka topic for bulk creation.
-            producer.push(projectConfiguration.getBulkCreateUserActionTaskTopic(), request);
+            producer.push(projectConfiguration.getBulkCreateUserActionTopic(), request);
             log.info("Successfully pushed user action bulk create request to Kafka");
         } catch (Exception e) {
             log.error("Failed to push user action bulk create request to Kafka", e);
@@ -146,7 +146,7 @@ public class UserActionController {
 
         try {
             // Send the request to the Kafka topic for bulk update.
-            producer.push(projectConfiguration.getBulkUpdateUserActionTaskTopic(), request);
+            producer.push(projectConfiguration.getBulkUpdateUserActionTopic(), request);
         } catch (Exception e) {
             log.error("Failed to push user action bulk update request to Kafka", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(

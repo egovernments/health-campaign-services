@@ -33,6 +33,8 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 @Slf4j
 public class LocationCaptureRepository extends GenericRepository<UserAction> {
 
+    private final String selectQuery = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul ";
+
     @Autowired
     protected LocationCaptureRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder, LocationCaptureRowMapper locationCaptureRowMapper) {
         // Initialize the repository with producer, JDBC template, Redis template, query builder, and row mapper
@@ -49,7 +51,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
     public SearchResponse<UserAction> find(UserActionSearch searchObject, URLParams urlParams) {
         log.info("Executing find with searchObject: {} and urlParams: {}", searchObject, urlParams);
 
-        String query = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul ";
+        String query = selectQuery + "";
 
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
@@ -112,7 +114,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
             }
         }
 
-        String query = String.format("SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul WHERE ul.%s IN (:ids)", columnName);
+        String query = String.format(selectQuery + " WHERE ul.%s IN (:ids)", columnName);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
@@ -127,7 +129,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
             return SearchResponse.<UserAction>builder().response(objFound).build();
         } catch (Exception e) {
             log.error("Failed to execute query for finding user locations by ID", e);
-            return SearchResponse.<UserAction>builder().response(Collections.emptyList()).build();
+            return SearchResponse.<UserAction>builder().response(Collections.emptyList()).totalCount(0L).build();
         }
     }
 }

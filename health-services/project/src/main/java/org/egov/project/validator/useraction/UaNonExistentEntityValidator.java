@@ -80,7 +80,7 @@ public class UaNonExistentEntityValidator implements Validator<UserActionBulkReq
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for ProjectUserAction with error: {}", e.getMessage(), e);
-                throw new CustomException("SEARCH_FAILED", "Search failed for ProjectUserAction with clientReferenceId(s): "
+                throw new CustomException("PROJECT_USER_ACTION_SEARCH_FAILED", "Search failed for ProjectUserAction with clientReferenceId(s): "
                         + clientReferenceIdList + " and id(s): " + idList + ". Error: " + e.getMessage());
             }
             List<UserAction> nonExistentEntities = checkNonExistentEntities(eMap,

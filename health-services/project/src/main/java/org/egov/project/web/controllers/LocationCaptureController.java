@@ -76,7 +76,7 @@ public class LocationCaptureController {
 
         try {
             // Send the request to the Kafka topic for bulk creation.
-            producer.push(projectConfiguration.getBulkCreateLocationCaptureTaskTopic(), request);
+            producer.push(projectConfiguration.getBulkCreateLocationCaptureTopic(), request);
         } catch (Exception e) {
             log.error("Error sending message to Kafka", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(

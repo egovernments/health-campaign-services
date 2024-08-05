@@ -1,6 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -8,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.core.AdditionalFields;
-import org.egov.common.models.project.TaskAction;
+import org.egov.common.models.project.UserActionEnum;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +73,7 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
                     .longitude(resultSet.getDouble("longitude"))
                     .locationAccuracy(resultSet.getDouble("locationAccuracy"))
                     .boundaryCode(resultSet.getString("boundaryCode"))
-                    .action(TaskAction.fromValue(resultSet.getString("action")))
+                    .action(UserActionEnum.fromValue(resultSet.getString("action")))
                     .status(resultSet.getString("status"))
                     .beneficiaryTag(resultSet.getString("beneficiaryTag"))
                     .resourceTag(resultSet.getString("resourceTag"))
@@ -85,9 +86,10 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
 
             return userAction;
         } catch (JsonProcessingException e) {
-            // Throwing a SQLException if there's an error processing JSON
-            log.error("Error processing JSON for UserAction mapping. Row number: " + rowNum, e);
-            throw new CustomException("JSON_PROCESSING_ERROR", "Error processing JSON for UserAction mapping. Row number: " + rowNum + ", "+ e);
+            String id = resultSet.getString("id");
+            String errorMessage = "Error processing JSON for UserAction mapping. Row number: " + rowNum + ", id: " + (id != null ? id : "not available");
+            log.error(errorMessage, e);
+            throw new CustomException("HCM_PROJECT_USER_ACTION_ROW_MAPPER_INVALID_ERROR", errorMessage + ", " + e.getMessage());
         }
     }
 }

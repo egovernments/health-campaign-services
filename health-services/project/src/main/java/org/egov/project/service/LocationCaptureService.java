@@ -22,10 +22,10 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.LocationCaptureRepository;
-import org.egov.project.service.enrichment.LocationCaptureEnrichmentService;
-import org.egov.project.validator.useraction.LcBoundaryValidator;
-import org.egov.project.validator.useraction.LcExistentEntityValidator;
-import org.egov.project.validator.useraction.LcProjectIdValidator;
+import org.egov.project.service.enrichment.UserActionEnrichmentService;
+import org.egov.project.validator.useraction.UaBoundaryValidator;
+import org.egov.project.validator.useraction.UaExistentEntityValidator;
+import org.egov.project.validator.useraction.UaProjectIdValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.project.Constants.SET_LOCATION_CAPTURE;
+import static org.egov.project.Constants.SET_USER_ACTION;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
 /**
@@ -54,7 +54,7 @@ public class LocationCaptureService {
     private final LocationCaptureRepository locationCaptureRepository;
     private final ServiceRequestClient serviceRequestClient;
     private final ProjectConfiguration projectConfiguration;
-    private final LocationCaptureEnrichmentService locationCaptureEnrichmentService;
+    private final UserActionEnrichmentService userActionEnrichmentService;
     private final List<Validator<UserActionBulkRequest, UserAction>> validators;
 
     /**
@@ -62,9 +62,9 @@ public class LocationCaptureService {
      * Filters validators based on specific classes.
      */
     private final Predicate<Validator<UserActionBulkRequest, UserAction>> isApplicableForCreate = validator ->
-            validator.getClass().equals(LcProjectIdValidator.class)
-                    || validator.getClass().equals(LcExistentEntityValidator.class)
-                    || validator.getClass().equals(LcBoundaryValidator.class);
+            validator.getClass().equals(UaProjectIdValidator.class)
+                    || validator.getClass().equals(UaExistentEntityValidator.class)
+                    || validator.getClass().equals(UaBoundaryValidator.class);
 
     /**
      * Constructor for injecting dependencies into the LocationCaptureService.
@@ -73,7 +73,7 @@ public class LocationCaptureService {
      * @param locationCaptureRepository    Repository for location capture tasks.
      * @param serviceRequestClient         Client for making service requests.
      * @param projectConfiguration         Configuration properties related to the project.
-     * @param locationCaptureEnrichmentService Service for enriching location capture tasks.
+     * @param userActionEnrichmentService Service for enriching location capture user action tasks.
      * @param validators                   List of validators for user actions.
      */
     @Autowired
@@ -82,14 +82,14 @@ public class LocationCaptureService {
             LocationCaptureRepository locationCaptureRepository,
             ServiceRequestClient serviceRequestClient,
             ProjectConfiguration projectConfiguration,
-            LocationCaptureEnrichmentService locationCaptureEnrichmentService,
+            UserActionEnrichmentService userActionEnrichmentService,
             List<Validator<UserActionBulkRequest, UserAction>> validators
     ) {
         this.idGenService = idGenService;
         this.locationCaptureRepository = locationCaptureRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;
-        this.locationCaptureEnrichmentService = locationCaptureEnrichmentService;
+        this.userActionEnrichmentService = userActionEnrichmentService;
         this.validators = validators;
     }
 
@@ -114,16 +114,16 @@ public class LocationCaptureService {
                 log.info("Processing {} valid entities", validLocationCaptures.size());
 
                 // Enrich valid location capture tasks.
-                locationCaptureEnrichmentService.create(validLocationCaptures, request);
+                userActionEnrichmentService.create(validLocationCaptures, request);
 
                 // Save valid location capture tasks and send them to the Kafka topic.
-                locationCaptureRepository.save(validLocationCaptures, projectConfiguration.getCreateLocationCaptureTaskTopic());
+                locationCaptureRepository.save(validLocationCaptures, projectConfiguration.getCreateLocationCaptureTopic());
                 log.info("Successfully created location capture tasks");
             }
         } catch (Exception exception) {
             // Log and handle exceptions that occur during task creation.
             log.error("Error occurred while creating location capture tasks: {}", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validLocationCaptures, exception, SET_LOCATION_CAPTURE);
+            populateErrorDetails(request, errorDetailsMap, validLocationCaptures, exception, SET_USER_ACTION);
         }
 
         // Handle errors based on the validation results.
@@ -154,7 +154,7 @@ public class LocationCaptureService {
                 validators,
                 applicableValidators,
                 request,
-                SET_LOCATION_CAPTURE
+                SET_USER_ACTION
         );
 
         // Throw an exception if there are validation errors and it's not a bulk operation.

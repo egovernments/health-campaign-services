@@ -12,11 +12,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
-import org.egov.common.models.project.TaskAction;
+import org.egov.common.models.project.UserActionEnum;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * The UserAction class represents a user action related to a project.
+ * The UserAction class represents an action performed by the logged in user related to a project with
+ * or without in relation to a beneficiary
  * It extends the EgovOfflineModel to inherit common properties.
  */
 @Validated
@@ -74,15 +75,15 @@ public class UserAction extends EgovOfflineModel {
     private String boundaryCode;
 
     /**
-     * The action performed by the user, represented as a TaskAction object.
+     * The action performed by the user, represented as a UserActionEnum object.
      * It cannot be null.
      */
     @JsonProperty("action")
     @NotNull
-    private TaskAction action;
+    private UserActionEnum action;
 
     /**
-     * An optional tag for the beneficiary associated with the user action.
+     * An optional tag if there is a beneficiary associated with the user action
      * It must be between 2 and 64 characters long.
      */
     @JsonProperty("beneficiaryTag")

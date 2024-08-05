@@ -103,9 +103,9 @@ public class UaBoundaryValidator implements Validator<UserActionBulkRequest, Use
                     // Create an error object for userActions with invalid boundaries
                     Error error = Error.builder()
                             .errorMessage("Boundary code does not exist in db")
-                            .errorCode("NON_EXISTENT_ENTITY")
+                            .errorCode("PROJECT_USER_ACTION_INVALID_BOUNDARY_ERROR")
                             .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                            .exception(new CustomException("PROJECT_USER_ACTION_INVALID_BOUNDARY_ERROR", "Boundary code does not exist in db"))
                             .build();
                     userActionsWithInvalidBoundaries.forEach(userAction -> {
                         // Populate error details for the userAction

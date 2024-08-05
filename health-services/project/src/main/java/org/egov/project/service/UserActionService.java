@@ -105,7 +105,7 @@ public class UserActionService {
             if (!validUserActions.isEmpty()) {
                 log.info("Processing {} valid entities", validUserActions.size());
                 userActionEnrichmentService.create(validUserActions, request);
-                userActionTaskRepository.save(validUserActions, projectConfiguration.getCreateUserActionTaskTopic());
+                userActionTaskRepository.save(validUserActions, projectConfiguration.getCreateUserActionTopic());
                 log.info("Successfully created closed household userActions");
             }
         } catch (Exception exception) {
@@ -134,7 +134,7 @@ public class UserActionService {
             if (!validUserActions.isEmpty()) {
                 log.info("Processing {} valid entities", validUserActions.size());
                 userActionEnrichmentService.update(validUserActions, request);
-                userActionTaskRepository.save(validUserActions, projectConfiguration.getUpdateUserActionTaskTopic());
+                userActionTaskRepository.save(validUserActions, projectConfiguration.getUpdateUserActionTopic());
                 log.info("Successfully updated bulk closed household userActions");
             }
         } catch (Exception exception) {

@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.core.AdditionalFields;
-import org.egov.common.models.project.TaskAction;
+import org.egov.common.models.project.UserActionEnum;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +74,7 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
                     .longitude(resultSet.getDouble("longitude"))
                     .locationAccuracy(resultSet.getDouble("locationAccuracy"))
                     .boundaryCode(resultSet.getString("boundaryCode"))
-                    .action(TaskAction.fromValue(resultSet.getString("action")))
+                    .action(UserActionEnum.fromValue(resultSet.getString("action")))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
@@ -83,7 +83,7 @@ public class LocationCaptureRowMapper implements RowMapper<UserAction> {
         } catch (JsonProcessingException e) {
             // Throwing a RuntimeException if there's an error processing JSON
             log.error("Error processing Additional detail JSON in Location capture UserAction ", e);
-            throw new CustomException("JSON_PROCESSING_ERROR", "Error processing JSON: " + e.getMessage());
+            throw new CustomException("HCM_PROJECT_USER_ACTION_LOCATION_CAPTURE_ROW_MAPPER_INVALID_ERROR", "Error processing JSON: " + e.getMessage());
         }
 
         return locationCaptureUserAction;

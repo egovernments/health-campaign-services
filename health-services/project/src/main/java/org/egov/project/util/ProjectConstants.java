@@ -34,10 +34,10 @@ public class ProjectConstants {
 
         SPRAYED("SPRAYED"),
         REFUSED("REFUSED"),
-        HOUSE_CLOSED("HOUSE CLOSED"),
+        HOUSE_CLOSED("HOUSE_CLOSED"),
         INELIGIBLE("INELIGIBLE"),
         RESOLVED("RESOLVED"),
-        LOCATION_CAPTURE("LOCATION CAPTURE"),
+        LOCATION_CAPTURE("LOCATION_CAPTURE"),
         ADMINISTRATION_FAILED("ADMINISTRATION_FAILED");
         private String value;
 

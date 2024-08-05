@@ -62,7 +62,7 @@ public class UaRowVersionValidator implements Validator<UserActionBulkRequest, U
             }
         } catch (Exception e) {
             log.error("Exception occurred during validation: {}", e.getMessage());
-            throw new CustomException("VALIDATION_ERROR", "Error occurred while validating project IDs"+e);
+            throw new CustomException("PROJECT_USER_ACTION_PROJECT_ID_VALIDATION_ERROR", "Error occurred while validating project IDs"+e);
         }
         return errorDetailsMap;
     }
