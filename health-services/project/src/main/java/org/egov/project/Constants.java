@@ -56,4 +56,12 @@ public interface Constants {
 
     String TASK_QUANTITY = "taskQuantity";
 
+    String HOUSEHOLD_ID = "HouseholdId";
+
+    String SET_USER_ACTION = "setUserActions";
+
+    String GET_USER_ACTION = "getUserActions";
+
+    String PROJECT_USER_ACTION_ENRICHMENT_ERROR = "PROJECT_USER_ACTION_ENRICHMENT_ERROR";
+
 }
