@@ -2,6 +2,7 @@ package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
@@ -111,7 +112,7 @@ public class IndividualEncryptionService {
                             individualsList = individualRepository.find(individualSearch,null,
                                     null,tenantId,null,false).getResponse();
                         } catch (Exception exception) {
-                            log.error("database error occurred", exception);
+                            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
                             throw new CustomException("DATABASE_ERROR", exception.getMessage());
                         }
                         if (!CollectionUtils.isEmpty(individualsList)) {

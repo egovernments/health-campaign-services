@@ -17,6 +17,7 @@
     "@egovernments/digit-ui-react-components": "1.8.2-beta.6",
     "@egovernments/digit-ui-module-hcmworkbench":"0.0.38",
     "@egovernments/digit-ui-module-campaign-manager": "0.0.1",
+    "@egovernments/digit-ui-module-hcmmicroplanning": "0.0.1",
     "http-proxy-middleware": "^1.0.5",
     "react": "17.0.2",
     "react-dom": "17.0.2",

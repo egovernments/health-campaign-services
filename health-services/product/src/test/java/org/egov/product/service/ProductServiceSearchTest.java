@@ -51,7 +51,7 @@ class ProductServiceSearchTest {
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
         ProductSearch productSearch = ProductSearch.builder()
-                .id(Collections.singletonList("ID101")).name(Collections.singletonList("Product")).build();
+                .id(Collections.singletonList("ID101")).name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
@@ -63,7 +63,7 @@ class ProductServiceSearchTest {
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         ProductSearch productSearch = ProductSearch.builder()
-                .id(Collections.singletonList("ID101")).name(Collections.singletonList("Product")).build();
+                .id(Collections.singletonList("ID101")).name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 

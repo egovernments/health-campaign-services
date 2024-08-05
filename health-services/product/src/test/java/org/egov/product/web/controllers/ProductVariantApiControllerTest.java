@@ -186,7 +186,7 @@ public class ProductVariantApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProductsVariants() throws Exception {
 
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(
-                ProductVariantSearch.builder().productId(Arrays.asList("101","102")).build()
+                ProductVariantSearch.builder().productId("101").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(productVariantService.search(any(ProductVariantSearchRequest.class),
                 any(Integer.class),
@@ -213,7 +213,7 @@ public class ProductVariantApiControllerTest {
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(
-                ProductVariantSearch.builder().productId(Arrays.asList("101","102")).build()
+                ProductVariantSearch.builder().productId("101").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(productVariantService.search(any(ProductVariantSearchRequest.class),
                 any(Integer.class),

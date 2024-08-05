@@ -1,20 +1,13 @@
 package org.egov.stock.service;
 
-import static org.egov.common.utils.CommonUtils.getIdList;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
-import static org.egov.stock.Constants.GET_FACILITY_ID;
-import static org.egov.stock.Constants.GET_REFERENCE_ID;
-import static org.egov.stock.Constants.WAREHOUSE;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -32,7 +25,12 @@ import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.getIdList;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
+import static org.egov.stock.Constants.GET_FACILITY_ID;
+import static org.egov.stock.Constants.GET_REFERENCE_ID;
 
 @Service
 @Slf4j
@@ -55,7 +53,7 @@ public class FacilityService {
 
 		if (CollectionUtils.isEmpty(entityIds))
 			return Collections.emptyList();
-		
+
         FacilitySearchRequest facilitySearchRequest = FacilitySearchRequest.builder()
                 .facility(FacilitySearch.builder().id(entityIds).build())
                 .requestInfo(requestInfo)
@@ -71,7 +69,7 @@ public class FacilityService {
                     FacilityBulkResponse.class);
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", e);
+            log.error("error while fetching facility list: {}", ExceptionUtils.getStackTrace(e));
             entities.forEach( stockEntity -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(stockEntity, error, errorDetailsMap);
@@ -84,15 +82,15 @@ public class FacilityService {
                                                 String tenantId,
                                                 Map<T, List<Error>> errorDetailsMap,
                                                 RequestInfo requestInfo) {
-    	
-    	
+
+
         List<String> projectIds = getIdList(entities, getMethod(GET_REFERENCE_ID, entities.get(0).getClass()));
         List<String> facilityIds = null;
-        
+
 		if (entities.get(0) instanceof StockReconciliation) {
 			facilityIds = getIdList(entities, getMethod(GET_FACILITY_ID, entities.get(0).getClass()));
 		} else if (entities.get(0) instanceof Stock) {
-			
+
 			facilityIds = new ArrayList<>();
 			for (T entity : entities) {
 
@@ -106,7 +104,7 @@ public class FacilityService {
 				}
 			}
 		}
-		
+
         Integer searchLimit = projectIds.size() * facilityIds.size();
 
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
@@ -122,13 +120,13 @@ public class FacilityService {
                             + "&offset=0&tenantId=" + tenantId),
                     projectFacilitySearchRequest,
                     ProjectFacilityBulkResponse.class);
-            
+
 			return response.getProjectFacilities().stream()
 					.collect(Collectors.groupingBy(projectFacility -> projectFacility.getProjectId(),
 							Collectors.mapping(projectFacility -> projectFacility.getFacilityId(), Collectors.toList())));
-            
+
         } catch (Exception e) {
-            log.error("error while fetching project facility list", e);
+            log.error("error while fetching project facility list: {}", ExceptionUtils.getStackTrace(e));
             entities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

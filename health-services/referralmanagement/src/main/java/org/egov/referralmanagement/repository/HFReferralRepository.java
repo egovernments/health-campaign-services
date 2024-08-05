@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -81,7 +82,11 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "hf.clientReferenceId IN (:clientReferenceId)");
 
         // Add additional conditions based on tenant ID, includeDeleted, and lastChangedSince.
-        query = query + " and hf.tenantId=:tenantId ";
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where hf.tenantId=:tenantId ";
+        } else {
+            query = query + " and hf.tenantId=:tenantId ";
+        }
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and hf.isDeleted=:isDeleted ";
         }
@@ -113,9 +118,12 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
      */
     public List<HFReferral> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         // Find objects in the cache based on the provided IDs.
-        List<HFReferral> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<HFReferral> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
 
         // If objects are found in the cache, check if there are any IDs remaining to be retrieved.
         if (!objFound.isEmpty()) {

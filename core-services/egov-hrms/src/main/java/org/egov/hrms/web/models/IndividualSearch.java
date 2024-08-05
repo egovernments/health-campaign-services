@@ -49,37 +49,49 @@ public class IndividualSearch extends EgovOfflineSearchModel {
     private List<String> mobileNumber = null;
 
     @JsonProperty("socialCategory")
+    @Exclude
     private String socialCategory = null;
 
     @JsonProperty("wardCode")
+    @Exclude
     private String wardCode = null;
 
+    //Exclude annotation to exclude the field during dynamic sql query generation, because this field is not available in table and generic query fails
     @JsonProperty("individualName")
+    @Exclude
     private String individualName = null;
 
     @JsonProperty("createdFrom")
+    @Exclude
     private BigDecimal createdFrom = null;
 
     @JsonProperty("createdTo")
+    @Exclude
     private BigDecimal createdTo = null;
 
     @JsonProperty("identifier")
     @Valid
+    @Exclude
     private Identifier identifier = null;
 
     @JsonProperty("boundaryCode")
+    @Exclude
     private String boundaryCode = null;
 
     @JsonProperty("roleCodes")
+    @Exclude
     private List<String> roleCodes = null;
 
     @JsonProperty("username")
+    @Exclude
     private List<String> username;
 
     @JsonProperty("userId")
+    @Exclude
     private List<Long> userId;
 
     @JsonProperty("userUuid")
+    @Exclude
     @Size(min = 1)
     private List<String> userUuid;
 

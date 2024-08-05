@@ -6,12 +6,12 @@ import { initLibraries } from "@egovernments/digit-ui-libraries";
 import { DigitUI } from "@egovernments/digit-ui-module-core";
 import "@egovernments/digit-ui-css/example/index.css";
 
-import { pgrCustomizations } from "./pgr";
 import { UICustomizations } from "./UICustomizations";
 import { initCampaignComponents } from "@egovernments/digit-ui-module-campaign-manager"
 import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench";
 import { initUtilitiesComponents } from "@egovernments/digit-ui-module-utilities";
 import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
+import { initMicroplanningComponents } from "@egovernments/digit-ui-module-hcmmicroplanning";
 
 var Digit = window.Digit || {};
 
@@ -57,7 +57,6 @@ const initTokens = (stateCode) => {
 const initDigitUI = () => {
   window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH") || "digit-ui";
   window.Digit.Customizations = {
-    PGR: pgrCustomizations,
     commonUiConfig: UICustomizations
   };
   window?.Digit.ComponentRegistryService.setupRegistry({
@@ -69,6 +68,7 @@ const initDigitUI = () => {
   initWorkbenchComponents();
   initWorkbenchHCMComponents();
   initCampaignComponents();
+  initMicroplanningComponents();
 
   const moduleReducers = (initData) => initData;
 

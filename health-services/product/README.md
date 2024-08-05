@@ -46,13 +46,3 @@ Product service APIs - contains create, update, delete and search end point
 ## Pre commit script
 
 [commit-msg](https://gist.github.com/jayantp-egov/14f55deb344f1648503c6be7e580fa12)
-
-## Updates 
-- Product Search
-  - `name` , and `manufacturer` now accepts a list of entities instead of single entity to search product
-- Product Variant Search
-  - `productId` now accepts a list of entities instead of single entity to search product variants
-## Usage
-- Start the service
-- Access the API endpoints for searching `product`, and `product variant`
-- Pass list parameters for the search fields mentioned in updates 

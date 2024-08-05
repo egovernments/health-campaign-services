@@ -12,14 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.HFReferralRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -63,10 +64,30 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, HFReferral> iMap = getIdToObjMap(hfReferrals
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        // Lists to store IDs and client reference IDs
+        List<String> idList = new ArrayList<>();
+        List<String> clientReferenceIdList = new ArrayList<>();
+        // Extract IDs and client reference IDs from HfReferral entities
+        hfReferrals.forEach(entity -> {
+            idList.add(entity.getId());
+            clientReferenceIdList.add(entity.getClientReferenceId());
+        });
         if (!iMap.isEmpty()) {
-            List<String> referralIds = new ArrayList<>(iMap.keySet());
-            List<HFReferral> existingReferrals = hfReferralRepository
-                    .findById(referralIds, false, getIdFieldName(idMethod));
+            HFReferralSearch hfReferralSearch = HFReferralSearch.builder()
+                    .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
+                    .build();
+
+            List<HFReferral> existingReferrals;
+            try {
+                // Query the repository to find existing entities
+                existingReferrals = hfReferralRepository.find(hfReferralSearch, hfReferrals.size(), 0,
+                        hfReferrals.get(0).getTenantId(), null, false);
+            } catch (Exception e) {
+                // Handle query builder exception
+                log.error("Search failed for HFReferral with error: {}", e.getMessage(), e);
+                throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral, " + e.getMessage()); 
+            }
             List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);
             nonExistentReferrals.forEach(sideEffect -> {

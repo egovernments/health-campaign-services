@@ -71,6 +71,13 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "health-project-db"
+  - name: "builds/health-campaign-services/health-services/project-java-17"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "project"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "project-db"
   - name: "builds/health-campaign-services/health-services/referralmanagement-java-17"
     build:
       - work-dir: "health-services/referralmanagement"
@@ -83,6 +90,13 @@ config:
       - work-dir: "health-services/individual"
         image-name: "individual"
         dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "individual-db"
+  - name: "builds/health-campaign-services/health-services/individual-java-17"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "individual"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "individual-db"
   - name: "builds/health-campaign-services/health-services/health-individual"
@@ -222,6 +236,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "egov-hrms-db"
+  - name: "builds/health-campaign-services/core-services/egov-hrms-java-17"
+    build:
+      - work-dir: "core-services/egov-hrms"
+        image-name: "egov-hrms"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/egov-hrms/src/main/resources/db"
+        image-name: "egov-hrms-db"
   - name: "builds/health-campaign-services/health-services/plan-service"
     build:
       - work-dir: "health-services/plan-service"
@@ -233,54 +254,29 @@ config:
     build:
       - work-dir: "health-services/resource-estimation-service"
         image-name: "resource-estimation-service"
-        dockerfile: "build/17/maven/Dockerfile"
-      - work-dir: "health-services/resource-estimation-service/src/main/resources/db"
-        image-name: "resource-estimation-service-db"
+        dockerfile: "build/17/maven/Dockerfile"     
   - name: "builds/health-campaign-services/analytics/auth-proxy"
     build:
       - work-dir: "analytics/auth-proxy"
         image-name: "auth-proxy"
 
 # frontend
-  - name: builds/Digit-Frontend/workbench-ui
+  - name: builds/health-campaign-services/frontend/workbench-ui
     build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/workbench/Dockerfile
+      - work-dir: frontend/micro-ui/
+        dockerfile: frontend/micro-ui/web/workbench/Dockerfile
         image-name: workbench-ui
-
-  - name: builds/Digit-Frontend/microplan-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/microplan/Dockerfile
-        image-name: microplan-ui
         
-  - name: builds/Digit-Frontend/storybook-svg
+  - name: builds/health-campaign-services/frontend/microplan-ui
     build:
-    - work-dir: micro-ui/web/micro-ui-internals/packages/svg-components/
-      dockerfile: micro-ui/web/micro-ui-internals/packages/svg-components/docker/Dockerfile
-      image-name: storybook-svg
-      
-  - name: builds/Digit-Frontend/storybook
-    build:
-    - work-dir: micro-ui/web/micro-ui-internals/packages/components-core/
-      dockerfile: micro-ui/web/micro-ui-internals/packages/components-core/docker/Dockerfile
-      image-name: storybook
+      - work-dir: frontend/micro-ui/
+        dockerfile: frontend/micro-ui/web/microplan/Dockerfile
+        image-name: microplan-ui
 
-  - name: builds/Digit-Frontend/digit-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/docker/Dockerfile
-        image-name: digit-ui
-
-  - name: builds/Digit-Frontend/core-ui
-    build:
-      - work-dir: micro-ui/
-        dockerfile: micro-ui/web/core/Dockerfile
-        image-name: core-ui
 #Utilities
-  - name: "builds/Digit-Frontend/utilities/project-factory"
+  - name: "builds/health-campaign-services/health-services/project-factory"
     build:
-      - work-dir: "utilities/project-factory"
+      - work-dir: "health-services/project-factory"
         image-name: "project-factory"
-      - work-dir: "utilities/project-factory/migration"
+      - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"

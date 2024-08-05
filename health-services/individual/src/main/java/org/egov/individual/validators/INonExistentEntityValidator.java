@@ -14,6 +14,7 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -72,8 +73,7 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
         });
         // Check if the entity map is not empty
         if (!eMap.isEmpty()) {
-            // Extract entity IDs
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
+
             // Create a search object for querying existing entities
             IndividualSearch individualSearch = IndividualSearch.builder()
                     .id(idList)
@@ -88,7 +88,8 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
             } catch (Exception e) {
                 // Handle query builder exception
                 existingEntities = new ArrayList<>();
-                throw new RuntimeException(e);
+                log.error("Search failed for Individual with error: {}", e.getMessage(), e);
+                throw new CustomException("INDIVIDUAL_SEARCH_FAILED", "Search Failed for Individual, " + e.getMessage()); 
             }
             // Check for non-existent entities
             List<Individual> nonExistentEntities = checkNonExistentEntities(eMap,
