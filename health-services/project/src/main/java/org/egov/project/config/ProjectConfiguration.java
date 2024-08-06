@@ -195,4 +195,29 @@ public class ProjectConfiguration {
     @Value("${project.management.system.kafka.update.date.topic}")
     private String updateProjectDateTopic;
 
+
+    // closed household task
+    @Value("${project.user.action.kafka.create.topic}")
+    private String createUserActionTopic;
+
+    @Value("${project.user.action.consumer.bulk.create.topic}")
+    private String bulkCreateUserActionTopic;
+
+    @Value("${project.user.action.kafka.update.topic}")
+    private String updateUserActionTopic;
+
+    @Value("${project.user.action.consumer.bulk.update.topic}")
+    private String bulkUpdateUserActionTopic;
+
+    @Value("${project.location.capture.consumer.bulk.create.topic}")
+    private String bulkCreateLocationCaptureTopic;
+
+    @Value("${project.location.capture.kafka.create.topic}")
+    private String createLocationCaptureTopic;
+
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
 }

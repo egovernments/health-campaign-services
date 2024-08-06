@@ -109,4 +109,10 @@ public class ReferralManagementConfiguration {
     @Value("${egov.search.individual.url}")
     private String individualSearchUrl;
     
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsSearchUrl;
+
 }
