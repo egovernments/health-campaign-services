@@ -192,4 +192,7 @@ public class ProjectConfiguration {
     @Value("${enable.cascading.project.date.updates}")
     private boolean enableCascadingProjectDateUpdates;
 
+    @Value("${project.management.system.kafka.update.date.topic}")
+    private String updateProjectDateTopic;
+
 }

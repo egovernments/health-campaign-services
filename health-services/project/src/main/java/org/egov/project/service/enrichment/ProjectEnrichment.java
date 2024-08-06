@@ -91,15 +91,8 @@ public class ProjectEnrichment {
     }
 
     /* Enrich Project on Update Request */
-    public void enrichProjectOnUpdate(ProjectRequest request, List<Project> projectsFromDB) {
+    public void enrichProjectOnUpdate(ProjectRequest request, Project project , Project  projectFromDB) {
         RequestInfo requestInfo = request.getRequestInfo();
-        List<Project> projectsFromRequest = request.getProjects();
-
-        for (Project project : projectsFromRequest) {
-            String projectId = String.valueOf(project.getId());
-            Project projectFromDB = projectsFromDB.stream().filter(p -> projectId.equals(String.valueOf(p.getId()))).findFirst().orElse(null);
-
-            if (projectFromDB != null) {
                 //Updating lastModifiedTime and lastModifiedBy for Project
                 enrichProjectRequestOnUpdate(project, projectFromDB, requestInfo);
                 log.info("Enriched project in update project request");
@@ -115,8 +108,6 @@ public class ProjectEnrichment {
                 //Add new document if id is empty or update lastModifiedTime and lastModifiedBy if id exists
                 enrichProjectDocumentOnUpdate(project, projectFromDB, requestInfo);
                 log.info("Enriched document in update project request");
-            }
-        }
     }
 
     /* Enrich Project with id and audit details */
@@ -131,7 +122,7 @@ public class ProjectEnrichment {
     }
 
     /* Enrich Project update request with last modified by and last modified time */
-    private void enrichProjectRequestOnUpdate(Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
+    public void enrichProjectRequestOnUpdate(Project projectRequest, Project projectFromDB, RequestInfo requestInfo) {
         projectRequest.setAuditDetails(projectFromDB.getAuditDetails());
         AuditDetails auditDetails = projectServiceUtil.getAuditDetails(requestInfo.getUserInfo().getUuid(), projectFromDB.getAuditDetails(), false);
         projectRequest.setAuditDetails(auditDetails);

@@ -106,6 +106,9 @@ public class Project {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("action")
+    private String action = null;
+
 
     public Project addDocumentsItem(Document documentsItem) {
         if (this.documents == null) {
