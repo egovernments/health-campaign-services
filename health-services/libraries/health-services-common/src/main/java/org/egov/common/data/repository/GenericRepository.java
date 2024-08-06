@@ -217,9 +217,10 @@ public abstract class GenericRepository<T> {
         if(objects == null || objects.isEmpty()) {
             return;
         }
-
-        cacheByKey(objects, "clientReferenceId");
-        // cacheByKey(objects, "id");
+        if(ReflectionUtils.findMethod(objects.get(0).getClass(), "clientReferenceId") != null)
+            cacheByKey(objects, "clientReferenceId");
+        else
+            cacheByKey(objects, "id");
     }
 
     /**
