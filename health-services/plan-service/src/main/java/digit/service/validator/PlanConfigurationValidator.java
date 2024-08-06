@@ -7,6 +7,8 @@ import digit.util.MdmsUtil;
 import digit.web.models.*;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,6 +50,54 @@ public class PlanConfigurationValidator {
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+        //Validating plan config name against MDMS data
+        validatePlanConfigName(request, mdmsData);
+    }
+
+    /**
+     * Validates the name of the plan configuration against a regex pattern retrieved from MDMS data.
+     *
+     * @param request  the plan configuration request containing the plan configuration details
+     * @param mdmsData the MDMS data containing the name validation regex patterns
+     * @throws CustomException if the JSONPath evaluation fails, the name validation list from MDMS is empty,
+     *                         or the plan configuration name validation fails.
+     */
+    public void validatePlanConfigName(PlanConfigurationRequest request, Object mdmsData)
+    {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+        final String jsonPathForNameValidation = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_NAME_VALIDATION + "[*].data";
+
+        List<Object> nameValidationListFromMDMS = null;
+        try {
+            nameValidationListFromMDMS = JsonPath.read(mdmsData, jsonPathForNameValidation);
+        } catch (Exception e) {
+            log.error(jsonPathForNameValidation);
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        if (nameValidationListFromMDMS == null || CollectionUtils.isEmpty(nameValidationListFromMDMS)) {
+            throw new CustomException(NAME_VALIDATION_LIST_EMPTY_CODE, NAME_VALIDATION_LIST_EMPTY_MESSAGE);
+        }
+
+        String regexPattern = (String) nameValidationListFromMDMS.get(0);
+        if (!validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
+            throw new CustomException(NAME_VALIDATION_FAILED_CODE, NAME_VALIDATION_FAILED_MESSAGE);
+        }
+
+    }
+
+    /**
+     * Validates the given input string against the provided regex pattern.
+     *
+     * @param patternString the regex pattern to validate against
+     * @param inputString   the input string to be validated
+     * @return true if the input string matches the regex pattern, false otherwise
+     */
+    public static boolean validateStringAgainstRegex(String patternString, String inputString) {
+        Pattern pattern = Pattern.compile(patternString);
+        Matcher matcher = pattern.matcher(inputString);
+        return matcher.matches();
     }
 
     /**
@@ -295,7 +345,8 @@ public class PlanConfigurationValidator {
         validateOperationDependencies(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
-
+        //Validating plan config name against MDMS data
+        validatePlanConfigName(request, mdmsData);
     }
 
     /**
