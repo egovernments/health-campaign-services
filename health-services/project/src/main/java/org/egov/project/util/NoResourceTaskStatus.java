@@ -1,9 +1,11 @@
 package org.egov.project.util;
 
-import jakarta.annotation.PostConstruct;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,19 +15,18 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class NoResourceTaskStatus {
 
-  @Getter
-  private final Set<String> statusSet = new HashSet<>();
+    @Getter
+    private Set<String> statusSet = new HashSet<>();
 
-  @Value("${project.task.no.resource.validation.status}")
-  private String statusValues;
+    @Value("${project.task.no.resource.validation.status}")
+    private String statusValues;
 
-  @PostConstruct
-  public void initializeConstants() {
-    String[] statuses = statusValues.split(",");
-    Collections.addAll(statusSet, statuses);
-  }
+    @PostConstruct
+    public void initializeConstants() {
+        statusSet = Arrays.stream(statusValues.split(",")).map(s -> s.trim()).collect(Collectors.toSet());
+    }
 
-  public boolean isExists(String status) {
-    return statusSet.contains(status);
-  }
+    public boolean isExists(String status) {
+        return statusSet.contains(status);
+    }
 }
