@@ -214,4 +214,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${project.task.no.resource.validation.status}")
+    private String noResourceStatuses;
 }
