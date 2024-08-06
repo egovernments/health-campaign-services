@@ -60,6 +60,10 @@ public class StockTransformationService {
 
     private StockIndexV1 transform(Stock stock) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
+
+        String transactingFacilityType = stock.getSenderType().toString();
+        String facilityType = stock.getReceiverType().toString();
+
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
@@ -82,8 +86,8 @@ public class StockTransformationService {
         String transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
 
-        String facilityType = WAREHOUSE;
-        String transactingFacilityType = WAREHOUSE;
+//        String facilityType = WAREHOUSE;
+//        String transactingFacilityType = WAREHOUSE;
 
         facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
         transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
