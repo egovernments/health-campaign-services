@@ -109,7 +109,7 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
         List<T> subEntitiesInReq = null;
         if (objFromReq instanceof List) {
             subEntitiesInReq = (List<T>) objFromReq;
-        } else if(objFromReq != null) {
+        } else if(objFromReq != null) { // if else condition here is added to prevent creating a list of null values, and if objFromReq is null then it will bypass line 116 till end of function.
             subEntitiesInReq = (List<T>) Collections.singletonList(objFromReq);
         }
 
