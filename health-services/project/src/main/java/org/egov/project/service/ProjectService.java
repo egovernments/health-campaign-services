@@ -141,7 +141,7 @@ public class ProjectService {
 
         // Find the project from the database that matches the current project ID
         Project projectFromDB = findProjectById(projectId, projectsFromDB);
-        String action = null;
+        String action = project.getAction();
 
         if (projectFromDB != null) {
             // Handle cases where action is null
@@ -190,7 +190,7 @@ public class ProjectService {
         projectFromDB.setStartDate(project.getStartDate());
         projectFromDB.setEndDate(project.getEndDate());
         projectFromDB.setAdditionalDetails(project.getAdditionalDetails());
-//        projectFromDB.setAction(project.getAction());
+        projectFromDB.setAction(project.getAction());
 
         // Ensure that no other properties are being updated besides the start and end dates
         if (!objectMapper.valueToTree(projectFromDB).equals(objectMapper.valueToTree(project))) {
@@ -204,7 +204,7 @@ public class ProjectService {
         projectFromDB.setStartDate(originalStartDate);
         projectFromDB.setEndDate(originalEndDate);
         projectFromDB.setAdditionalDetails(originalAdditionalDetails);
-//        projectFromDB.setAction(null);
+        projectFromDB.setAction(null);
 
         //Updating lastModifiedTime and lastModifiedBy for Project
         projectEnrichment.enrichProjectRequestOnUpdate(project, projectFromDB, request.getRequestInfo());
