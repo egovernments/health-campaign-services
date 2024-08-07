@@ -3,6 +3,7 @@ package org.egov.project.helper;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskResource;
+import org.egov.common.models.project.TaskStatus;
 
 import java.util.Arrays;
 
@@ -37,6 +38,7 @@ public class TaskTestBuilder {
                 .hasErrors(Boolean.FALSE)
                 .tenantId("default")
                 .id("some-id")
+                .taskStatus(TaskStatus.DELIVERED)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .build();
         return this;
