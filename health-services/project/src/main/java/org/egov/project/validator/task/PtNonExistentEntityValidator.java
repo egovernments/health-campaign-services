@@ -88,10 +88,10 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
             });
 
             existingEntities.forEach(task -> {
-                validateSubEntity(errorDetailsMap, eMap, task,
+                if(task.getAddress() != null) validateSubEntity(errorDetailsMap, eMap, task,
                         Collections.singletonList(task.getAddress()),
                         GET_ADDRESS);
-                validateSubEntity(errorDetailsMap, eMap, task,
+                if(task.getResources() != null) validateSubEntity(errorDetailsMap, eMap, task,
                         task.getResources(), GET_RESOURCES);
             });
         }
