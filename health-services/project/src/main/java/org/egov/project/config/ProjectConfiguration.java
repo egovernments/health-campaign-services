@@ -189,9 +189,6 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
-    @Value("${enable.cascading.project.date.updates}")
-    private boolean enableCascadingProjectDateUpdates;
-
     @Value("${project.management.system.kafka.update.date.topic}")
     private String updateProjectDateTopic;
 

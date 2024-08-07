@@ -144,6 +144,8 @@ public class ProjectService {
         boolean isCascadingProjectDateUpdate = request.isCascadingProjectDateUpdate();
 
         if (projectFromDB != null) {
+            // merge Additional Details of project from request and project from db
+            projectServiceUtil.mergeAdditionalDetails(project, projectFromDB);
             // Handle cases where action is null
             if (isCascadingProjectDateUpdate) {
                 handleUpdateProjectDates(request, project, projectFromDB);
@@ -190,8 +192,8 @@ public class ProjectService {
         // Ensure that no other properties are being updated besides the start and end dates
         if (!objectMapper.valueToTree(projectFromDB).equals(objectMapper.valueToTree(project))) {
             throw new CustomException(
-                "CAN'T_UPDATE_ANYTHING_OTHER_THAN_DATES_IF_ACTION_UPDATE_PROJECT_DATES",
-                "With action updateProjectDates you can't update anything other than dates"
+                "WITH_FLAG_IS_CASCADING_UPDATE_PROJECT_DATES_TRUE_CAN_UPDATE_ONLY_DATES",
+                "With flag isCascadingUpdateProjectDates true can't update anything other than dates"
             );
         }
 
