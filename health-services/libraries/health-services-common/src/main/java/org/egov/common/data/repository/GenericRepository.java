@@ -293,7 +293,7 @@ public abstract class GenericRepository<T> {
     }
 
     public List<T> validateClientReferenceIdsFromDB(List<String> clientReferenceIds) {
-        List<T> objFound = null;
+        List<T> objFound = new ArrayList<>();
 
         String query = String.format("SELECT * FROM %s WHERE clientReferenceId IN (:ids) AND isDeleted = false", tableName);
         Map<String, Object> paramMap = new HashMap<>();
