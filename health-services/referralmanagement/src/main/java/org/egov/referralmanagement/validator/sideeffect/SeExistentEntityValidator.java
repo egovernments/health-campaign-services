@@ -67,10 +67,8 @@ public class SeExistentEntityValidator implements Validator<SideEffectBulkReques
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<SideEffect> existentEntities = sideEffectRepository.findById(
-                    clientReferenceIdList,
-                    getIdFieldName(sideEffectSearch),
-                    Boolean.FALSE);
+            List<SideEffect> existentEntities =
+                    sideEffectRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();
