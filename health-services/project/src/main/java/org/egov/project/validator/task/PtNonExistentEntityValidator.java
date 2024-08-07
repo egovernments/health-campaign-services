@@ -106,10 +106,10 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
                                        String getSubEntityMethodName) {
         Object objFromReq = ReflectionUtils.invokeMethod(getMethod(getSubEntityMethodName, Task.class),
                 eMap.get(entity.getId()));
-        List<T> subEntitiesInReq;
+        List<T> subEntitiesInReq = null;
         if (objFromReq instanceof List) {
             subEntitiesInReq = (List<T>) objFromReq;
-        } else {
+        } else if(objFromReq != null) {
             subEntitiesInReq = (List<T>) Collections.singletonList(objFromReq);
         }
 
