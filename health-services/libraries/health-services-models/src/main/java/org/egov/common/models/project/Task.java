@@ -72,9 +72,9 @@ public class Task extends EgovOfflineModel {
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("status")
+    @JsonProperty("taskStatus")
     @NotNull
-    TaskStatus status = null;
+    TaskStatus taskStatus = null;
 
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);
