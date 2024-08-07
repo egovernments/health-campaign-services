@@ -141,20 +141,16 @@ public class ProjectService {
 
         // Find the project from the database that matches the current project ID
         Project projectFromDB = findProjectById(projectId, projectsFromDB);
-        String action = project.getAction();
+        boolean isCascadingProjectDateUpdate = request.isCascadingProjectDateUpdate();
 
         if (projectFromDB != null) {
             // Handle cases where action is null
-            if (action == null) {
-                handleNullAction(request, project, projectFromDB);
+            if (isCascadingProjectDateUpdate) {
+                handleUpdateProjectDates(request, project, projectFromDB);
             }
             // Handle cases where action is "updateProjectDates"
-            else if ("updateProjectDates".equals(action)) {
-                handleUpdateProjectDatesAction(request, project, projectFromDB);
-            }
-            // Handle invalid action cases
             else {
-                throw new CustomException("INVALID_ACTION", "Action can only be null or updateProjectDates");
+                handleNormalUpdate(request, project, projectFromDB);
             }
         }
     }
@@ -167,12 +163,12 @@ public class ProjectService {
             .orElse(null);
     }
 
-    private void handleNullAction(ProjectRequest request, Project project, Project projectFromDB) {
+    private void handleNormalUpdate(ProjectRequest request, Project project, Project projectFromDB) {
         // Ensure that start and end dates are not being updated when action is null
         if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
             !project.getEndDate().equals(projectFromDB.getEndDate())) {
-            throw new CustomException("NULL_ACTION_CAN'T_UPDATE_DATES",
-                "With action null you can't update project start and end dates");
+            throw new CustomException("WITH_FLAG_IS_CASCADING_DATE_UPDATE_FALSE_CAN'T_UPDATE_DATES",
+                "With is cascading date update flag false,you can't update project start and end dates");
         }
 
         // Enrich the project with values other than the start ,end dates and AdditionalDetails and push the update to the message broker
@@ -180,7 +176,7 @@ public class ProjectService {
         producer.push(projectConfiguration.getUpdateProjectTopic(), request);
     }
 
-    private void handleUpdateProjectDatesAction(ProjectRequest request , Project project, Project projectFromDB) {
+    private void handleUpdateProjectDates(ProjectRequest request , Project project, Project projectFromDB) {
         // Save original values of start date, end date, and additional details
         Long originalStartDate = projectFromDB.getStartDate();
         Long originalEndDate = projectFromDB.getEndDate();
@@ -190,7 +186,6 @@ public class ProjectService {
         projectFromDB.setStartDate(project.getStartDate());
         projectFromDB.setEndDate(project.getEndDate());
         projectFromDB.setAdditionalDetails(project.getAdditionalDetails());
-        projectFromDB.setAction(project.getAction());
 
         // Ensure that no other properties are being updated besides the start and end dates
         if (!objectMapper.valueToTree(projectFromDB).equals(objectMapper.valueToTree(project))) {
@@ -204,7 +199,6 @@ public class ProjectService {
         projectFromDB.setStartDate(originalStartDate);
         projectFromDB.setEndDate(originalEndDate);
         projectFromDB.setAdditionalDetails(originalAdditionalDetails);
-        projectFromDB.setAction(null);
 
         //Updating lastModifiedTime and lastModifiedBy for Project
         projectEnrichment.enrichProjectRequestOnUpdate(project, projectFromDB, request.getRequestInfo());
@@ -224,9 +218,6 @@ public class ProjectService {
         // Retrieve tenant ID from the first project in the request
         String tenantId = request.getProjects().get(0).getTenantId();
         String projectId = String.valueOf(project.getId());
-
-                // If cascading project date updates are enabled, perform additional processing
-                if (projectConfiguration.isEnableCascadingProjectDateUpdates()) {
                     // Fetch projects from the database with ancestors and descendants
                     List<Project> projectsFromDbWithAncestorsAndDescendants = searchProject(
                         getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
@@ -245,7 +236,6 @@ public class ProjectService {
                     Project projectFromDbWithAncestorsAndDescendants = projectFromDbWithAncestorsAndDescendantsMap.get(projectId);
                     // Enrich project cascading dates based on the retrieved data
                     projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants);
-                }
         }
 
 
