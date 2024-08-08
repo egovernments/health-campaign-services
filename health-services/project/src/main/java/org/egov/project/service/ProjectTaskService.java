@@ -72,7 +72,12 @@ public class ProjectTaskService {
     private final ProjectTaskEnrichmentService enrichmentService;
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PtIsResouceEmptyValidator.class);
+            validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtExistentEntityValidator.class)
+                    || validator.getClass().equals(PtIsResouceEmptyValidator.class)
+
+                    || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
+                    || validator.getClass().equals(PtProductVariantIdValidator.class);
 
     //                    || validator.getClass().equals(PtResourceQuantityValidator.class) FIXME add this back once requirement confirmation is done
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
