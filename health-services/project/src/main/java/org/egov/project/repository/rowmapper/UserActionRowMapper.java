@@ -74,7 +74,6 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
                     .locationAccuracy(resultSet.getDouble("locationAccuracy"))
                     .boundaryCode(resultSet.getString("boundaryCode"))
                     .action(UserActionEnum.fromValue(resultSet.getString("action")))
-                    .status(resultSet.getString("status"))
                     .beneficiaryTag(resultSet.getString("beneficiaryTag"))
                     .resourceTag(resultSet.getString("resourceTag"))
                     .rowVersion(resultSet.getInt("rowVersion"))
