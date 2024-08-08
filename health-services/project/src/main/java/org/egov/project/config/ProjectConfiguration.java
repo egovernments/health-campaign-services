@@ -191,6 +191,9 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
+    @Value("${project.management.system.kafka.update.date.topic}")
+    private String updateProjectDateTopic;
+
 
     // closed household task
     @Value("${project.user.action.kafka.create.topic}")
