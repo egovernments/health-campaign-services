@@ -194,8 +194,8 @@ public class ProjectService {
          */
         if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
             !project.getEndDate().equals(projectFromDB.getEndDate())) {
-            throw new CustomException("PROJECT_SERVICE_UPDATE_ERROR_CAN'T_UPDATE_DATES_WITH_ISCASCADING_PROJECT_DATE_UPDATE_FLAG_FALSE",
-                "With is cascading date update flag false, you can't update project start and end dates");
+            throw new CustomException("PROJECT_CASCADE_UPDATE_DATE_ERROR",
+                "Can't Update Date Range if Cascade Project Date Update  false");
         }
 
         /*
@@ -229,8 +229,8 @@ public class ProjectService {
          */
         if (!objectMapper.valueToTree(projectFromDB).equals(objectMapper.valueToTree(project))) {
             throw new CustomException(
-                "PROJECT_SERVICE_CASCADE_UPDATE_ERROR_WITH_IS_CASCADING_PROJECT_DATE_UPDATE_TRUE_CAN_ONLY_UPDATE_DATES",
-                "With flag isCascadingUpdateProjectDates true can't update anything other than dates"
+                "PROJECT_CASCADE_UPDATE_ERROR",
+                "Can only update Project dates and additional details if cascade Project date update true"
             );
         }
 
