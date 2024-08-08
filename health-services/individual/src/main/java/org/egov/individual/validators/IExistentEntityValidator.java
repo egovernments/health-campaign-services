@@ -15,6 +15,7 @@ import org.egov.individual.repository.IndividualRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
@@ -59,6 +60,9 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
                 .filter(notHavingErrors())
                 .map(Individual::getClientReferenceId)
                 .collect(Collectors.toList());
+        Map<String, Individual> map = entities.stream()
+                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Create a search object for querying entities by client reference IDs
         IndividualSearch individualSearch = IndividualSearch.builder()
                 .clientReferenceId(clientReferenceIdList)
@@ -66,12 +70,12 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<Individual> existentEntities =
+            List<String> existingClientReferenceIds =
                     individualRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
-            existentEntities.forEach(entity -> {
+            existingClientReferenceIds.forEach(clientReferenceId -> {
                 Error error = getErrorForUniqueEntity();
-                populateErrorDetails(entity, error, errorDetailsMap);
+                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
         return errorDetailsMap;
