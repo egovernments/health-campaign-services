@@ -292,15 +292,14 @@ public abstract class GenericRepository<T> {
                 .collect(Collectors.toList());
     }
 
-    public List<T> validateClientReferenceIdsFromDB(List<String> clientReferenceIds) {
-        List<T> objFound = new ArrayList<>();
+    public List<String> validateClientReferenceIdsFromDB(List<String> clientReferenceIds) {
+        List<String> objFound = new ArrayList<>();
 
-        String query = String.format("SELECT * FROM %s WHERE clientReferenceId IN (:ids) AND isDeleted = false", tableName);
+        String query = String.format("SELECT clientReferenceId FROM %s WHERE clientReferenceId IN (:ids) AND isDeleted = false", tableName);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", clientReferenceIds);
 
-        objFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, rowMapper));
-        putInCache(objFound);
+        objFound.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
 
         return objFound;
     }

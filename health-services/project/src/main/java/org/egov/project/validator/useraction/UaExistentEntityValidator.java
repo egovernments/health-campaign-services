@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.models.project.useraction.UserActionSearch;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
@@ -54,6 +56,9 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
                 .filter(notHavingErrors())
                 .map(UserAction::getClientReferenceId)
                 .collect(Collectors.toList());
+        Map<String, UserAction> map = entities.stream()
+                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Create a search object for querying entities by client reference IDs
         UserActionSearch userActionSearch = UserActionSearch.builder()
                 .clientReferenceId(clientReferenceIdList)
@@ -61,11 +66,11 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<UserAction> existentEntities = userActionRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
+            List<String> existingClientReferenceIds = userActionRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
-            existentEntities.forEach(entity -> {
+            existingClientReferenceIds.forEach(clientReferenceId -> {
                 Error error = getErrorForUniqueEntity();
-                populateErrorDetails(entity, error, errorDetailsMap);
+                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
         return errorDetailsMap;
