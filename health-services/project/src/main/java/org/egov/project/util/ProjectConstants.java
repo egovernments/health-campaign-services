@@ -2,6 +2,7 @@ package org.egov.project.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import org.egov.common.models.project.TaskStatus;
 
 public class ProjectConstants {
     public static final String MASTER_TENANTS = "tenants";
@@ -24,42 +25,5 @@ public class ProjectConstants {
     public static final String NUMBER_OF_SESSIONS = "numberOfSessions";
     public static final String OR = " OR ";
 
-
-    public enum TaskStatus {
-        BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
-        BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
-        BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
-        BENEFICIARY_SICK("BENEFICIARY_SICK"),
-        BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
-
-        SPRAYED("SPRAYED"),
-        REFUSED("REFUSED"),
-        HOUSE_CLOSED("HOUSE_CLOSED"),
-        INELIGIBLE("INELIGIBLE"),
-        RESOLVED("RESOLVED"),
-        LOCATION_CAPTURE("LOCATION_CAPTURE"),
-        ADMINISTRATION_FAILED("ADMINISTRATION_FAILED");
-        private String value;
-
-        TaskStatus(String value) {
-            this.value = value;
-        }
-
-        @Override
-        @JsonValue
-        public String toString() {
-            return String.valueOf(value);
-        }
-
-        @JsonCreator
-        public static TaskStatus fromValue(String text) {
-            for (TaskStatus status : TaskStatus.values()) {
-                if (String.valueOf(status.value).equals(text)) {
-                    return status;
-                }
-            }
-            return null;
-        }
-    }
 
 }

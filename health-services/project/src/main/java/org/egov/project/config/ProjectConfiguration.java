@@ -1,5 +1,7 @@
 package org.egov.project.config;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -214,4 +216,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${project.task.no.resource.validation.status}")
+    private List<String> noResourceStatuses;
 }

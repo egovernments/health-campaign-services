@@ -88,10 +88,10 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
             });
 
             existingEntities.forEach(task -> {
-                validateSubEntity(errorDetailsMap, eMap, task,
+                if(task.getAddress() != null) validateSubEntity(errorDetailsMap, eMap, task,
                         Collections.singletonList(task.getAddress()),
                         GET_ADDRESS);
-                validateSubEntity(errorDetailsMap, eMap, task,
+                if(task.getResources() != null) validateSubEntity(errorDetailsMap, eMap, task,
                         task.getResources(), GET_RESOURCES);
             });
         }
@@ -106,10 +106,10 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
                                        String getSubEntityMethodName) {
         Object objFromReq = ReflectionUtils.invokeMethod(getMethod(getSubEntityMethodName, Task.class),
                 eMap.get(entity.getId()));
-        List<T> subEntitiesInReq;
+        List<T> subEntitiesInReq = null;
         if (objFromReq instanceof List) {
             subEntitiesInReq = (List<T>) objFromReq;
-        } else {
+        } else if(objFromReq != null) { // if else condition here is added to prevent creating a list of null values, and if objFromReq is null then it will bypass line 116 till end of function.
             subEntitiesInReq = (List<T>) Collections.singletonList(objFromReq);
         }
 

@@ -67,11 +67,8 @@ public class SrExistentEntityValidator implements Validator<StockReconciliationB
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<StockReconciliation> existentEntities = stockReconciliationRepository.findById(
-                    clientReferenceIdList,
-                    Boolean.FALSE,
-                    getIdFieldName(stockReconciliationSearch)
-            );
+            List<StockReconciliation> existentEntities =
+                    stockReconciliationRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();

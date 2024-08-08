@@ -67,10 +67,8 @@ public class PbExistentEntityValidator implements Validator<BeneficiaryBulkReque
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<ProjectBeneficiary> existentEntities = projectBeneficiaryRepository.findById(
-                    clientReferenceIdList,
-                    getIdFieldName(projectBeneficiarySearch),
-                    Boolean.FALSE).getResponse();
+            List<ProjectBeneficiary> existentEntities =
+                    projectBeneficiaryRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();

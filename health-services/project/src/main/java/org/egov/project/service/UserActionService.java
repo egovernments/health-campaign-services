@@ -30,7 +30,6 @@ import org.egov.project.validator.useraction.UaNonExistentEntityValidator;
 import org.egov.project.validator.useraction.UaNullIdValidator;
 import org.egov.project.validator.useraction.UaProjectIdValidator;
 import org.egov.project.validator.useraction.UaRowVersionValidator;
-import org.egov.project.validator.useraction.UaStatusValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -70,7 +69,6 @@ public class UserActionService {
                     || validator.getClass().equals(UaNullIdValidator.class)
                     || validator.getClass().equals(UaNonExistentEntityValidator.class)
                     || validator.getClass().equals(UaRowVersionValidator.class)
-                    || validator.getClass().equals(UaStatusValidator.class)
                     || validator.getClass().equals(UaBoundaryValidator.class);
 
     // Constructor for dependency injection

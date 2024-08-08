@@ -1,10 +1,11 @@
 package org.egov.project.helper;
 
+import java.util.Arrays;
+
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskResource;
-
-import java.util.Arrays;
+import org.egov.common.models.project.TaskStatus;
 
 public class TaskTestBuilder {
 
@@ -31,7 +32,8 @@ public class TaskTestBuilder {
                         TaskResource.builder().tenantId("default").isDelivered(false)
                                 .quantity(100.0).productVariantId("v101").build()))
                 .projectId("some-id").createdBy("some-id")
-                .createdDate(100L).status("status")
+                .createdDate(100L)
+                .status(TaskStatus.DELIVERED)
                 .isDeleted(false).projectBeneficiaryId("some-id")
                 .rowVersion(0)
                 .hasErrors(Boolean.FALSE)

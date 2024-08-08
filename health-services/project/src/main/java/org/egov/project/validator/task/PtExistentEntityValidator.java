@@ -67,10 +67,7 @@ public class PtExistentEntityValidator implements Validator<TaskBulkRequest, Tas
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<Task> existentEntities = projectTaskRepository.findById(
-                    clientReferenceIdList,
-                    getIdFieldName(taskSearch),
-                    Boolean.FALSE).getResponse();
+            List<Task> existentEntities = projectTaskRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();

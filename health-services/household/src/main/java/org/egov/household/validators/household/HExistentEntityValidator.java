@@ -66,10 +66,7 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<Household> existentEntities = householdRepository.findById(
-                    clientReferenceIdList,
-                    getIdFieldName(householdSearch),
-                    Boolean.FALSE).getResponse();
+            List<Household> existentEntities = householdRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();
