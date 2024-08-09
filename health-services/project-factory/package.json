@@ -1,6 +1,6 @@
 {
   "name": "project-factory",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "src/server/index.ts",
   "author": "Jagankumar <jagan.kumar@egov.org.in>",
   "description": "Backend For Frontend service",
@@ -54,6 +54,7 @@
     "@types/http-proxy-middleware": "^1.0.0",
     "@types/jaeger-client": "^3.18.7",
     "@types/jest": "29.5.12",
+    "@types/lodash": "^4.17.5",
     "@types/morgan": "1.9.9",
     "@types/node": "20.11.29",
     "@types/pg": "8.11.3",

@@ -1,5 +1,5 @@
 import * as express from "express";
-import { createCampaignService, createProjectTypeCampaignService, searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../../service/campaignManageService";
+import { createCampaignService, createProjectTypeCampaignService, searchProcessTracksService, searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../../service/campaignManageService";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 
@@ -23,6 +23,7 @@ class campaignManageController {
         this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
+        this.router.post(`${this.path}/getProcessTrack`, this.searchProcessTracks);
     }
     /**
  * Handles the creation of a project type campaign.
@@ -102,6 +103,24 @@ class campaignManageController {
             const Campaign = await createCampaignService(request?.body);
             // Send response with campaign details
             return sendResponse(response, { Campaign }, request);
+        }
+        catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            // Handle errors and send error response
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    };
+
+    searchProcessTracks = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED A PROCESS SEARCH REQUEST");
+            const processTrack = await searchProcessTracksService(request);
+            // Send response with campaign details
+            return sendResponse(response, { processTrack }, request);
         }
         catch (e: any) {
             console.log(e)
