@@ -793,7 +793,8 @@ async function handleResouceDetailsError(request: any, error: any) {
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
     logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
-    await produceModifiedMessages(request?.body, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+    const activityObject = request?.body?.Activities;
+    await produceModifiedMessages(activityObject, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
   }
 }
 
