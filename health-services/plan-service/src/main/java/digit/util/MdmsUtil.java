@@ -75,14 +75,16 @@ public class MdmsUtil {
         MasterDetail ruleConfigureInputsMasterDetail = MasterDetail.builder().name(MDMS_MASTER_RULE_CONFIGURE_INPUTS).filter(FILTER_DATA).build();
         MasterDetail schemaDetails = MasterDetail.builder().name(MDMS_MASTER_SCHEMAS).build();
         MasterDetail metricDetails = MasterDetail.builder().name(MDMS_MASTER_METRIC).build();
-        MasterDetail UnitDetails = MasterDetail.builder().name(MDMS_MASTER_UOM).build();
+        MasterDetail unitDetails = MasterDetail.builder().name(MDMS_MASTER_UOM).build();
+        MasterDetail namingRegexDetails = MasterDetail.builder().name(MDMS_MASTER_NAME_VALIDATION).build();
 
         assumptionMasterDetails.add(assumptionMasterDetail);
         assumptionMasterDetails.add(uploadConfigMasterDetail);
         assumptionMasterDetails.add(ruleConfigureInputsMasterDetail);
         assumptionMasterDetails.add(schemaDetails);
         assumptionMasterDetails.add(metricDetails);
-        assumptionMasterDetails.add(UnitDetails);
+        assumptionMasterDetails.add(unitDetails);
+        assumptionMasterDetails.add(namingRegexDetails);
 
         return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }
