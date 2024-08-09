@@ -485,7 +485,8 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        await produceModifiedMessages(request?.body, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        const activityObject = request?.body?.Activities;
+        await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
 
