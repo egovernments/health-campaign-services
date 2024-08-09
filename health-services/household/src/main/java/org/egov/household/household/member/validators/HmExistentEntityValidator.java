@@ -71,7 +71,7 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
             List<String> existingClientReferenceIds =
-                    householdMemberRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
+                    householdMemberRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
             // For each existing entity, populate error details for uniqueness
             existingClientReferenceIds.forEach(clientReferenceId -> {
                 Error error = getErrorForUniqueEntity();

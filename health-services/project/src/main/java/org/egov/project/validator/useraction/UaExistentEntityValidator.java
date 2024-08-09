@@ -66,7 +66,7 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<String> existingClientReferenceIds = userActionRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
+            List<String> existingClientReferenceIds = userActionRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.FALSE);
             // For each existing entity, populate error details for uniqueness
             existingClientReferenceIds.forEach(clientReferenceId -> {
                 Error error = getErrorForUniqueEntity();
