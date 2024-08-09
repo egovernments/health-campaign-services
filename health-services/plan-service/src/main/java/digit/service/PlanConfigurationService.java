@@ -2,6 +2,7 @@ package digit.service;
 
 import digit.config.Configuration;
 import digit.kafka.Producer;
+import digit.repository.PlanConfigurationRepository;
 import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
@@ -26,12 +27,12 @@ public class PlanConfigurationService {
 
     private PlanConfigurationValidator validator;
 
-    private PlanConfigurationRepositoryImpl repository;
+    private PlanConfigurationRepository repository;
 
     private ResponseInfoFactory responseInfoFactory;
 
     public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
-            , PlanConfigurationValidator validator, PlanConfigurationRepositoryImpl repository, ResponseInfoFactory responseInfoFactory) {
+            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory) {
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.config = config;
@@ -45,12 +46,17 @@ public class PlanConfigurationService {
      * @param request The request containing the plan configuration details.
      * @return The created plan configuration request.
      */
-    public PlanConfigurationRequest create(PlanConfigurationRequest request) {
+    public PlanConfigurationResponse create(PlanConfigurationRequest request) {
         enrichmentService.enrichPlanConfigurationBeforeValidation(request);
         validator.validateCreate(request);
         enrichmentService.enrichCreate(request);
         repository.create(request);
-        return request;
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
+                .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))
+                .responseInfo(responseInfoFactory
+                        .createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .build();
+        return response;
     }
 
     /**

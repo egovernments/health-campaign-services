@@ -45,13 +45,7 @@ public class PlanConfigController {
     @RequestMapping(value = "/config/_create", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
 
-        PlanConfigurationRequest planConfigurationRequest = planConfigurationService.create(body);
-        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
-                .planConfiguration(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
-                .responseInfo(responseInfoFactory
-                        .createResponseInfoFromRequestInfo(body.getRequestInfo(), true))
-                .build();
-
+        PlanConfigurationResponse response = planConfigurationService.create(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 
     }
