@@ -72,7 +72,7 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(clientReferenceIdList);
+            List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
             // For each existing entity, populate error details for uniqueness
             existingClientReferenceIds.forEach(clientReferenceId -> {
                 Error error = getErrorForUniqueEntity();
