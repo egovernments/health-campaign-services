@@ -10,7 +10,6 @@ import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdSearch;
-import org.egov.common.models.individual.Individual;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
 import org.springframework.core.annotation.Order;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;

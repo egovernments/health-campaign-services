@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.18 - 2024-08-09
+- Added validateClientReferenceIdsFromDB method to GenericRepository.
+
 ## 1.0.16 - 2024-05-29
 - Introduced multiple reusable functions to streamline and simplify the codebase.
 - Enhanced function modularity for better maintainability and readability.
