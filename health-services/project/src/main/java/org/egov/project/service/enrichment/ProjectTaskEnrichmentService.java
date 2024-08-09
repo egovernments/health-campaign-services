@@ -1,5 +1,9 @@
 package org.egov.project.service.enrichment;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Address;
@@ -10,10 +14,6 @@ import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
@@ -67,20 +67,24 @@ public class ProjectTaskEnrichmentService {
         for (Task task : validTasks) {
             if (task.getIsDeleted()) {
                 log.info("enriching all task resources for delete");
-                for (TaskResource resource : task.getResources()) {
-                    resource.setIsDeleted(true);
-                    updateAuditDetailsForResource(request, resource);
+                if(!CollectionUtils.isEmpty(task.getResources())) {
+                    for (TaskResource resource : task.getResources()) {
+                        resource.setIsDeleted(true);
+                        updateAuditDetailsForResource(request, resource);
+                    }
                 }
                 updateAuditDetailsForTask(request, task);
                 task.setRowVersion(task.getRowVersion() + 1);
             } else {
                 int previousRowVersion = task.getRowVersion();
                 log.info("enriching task resources for delete");
-                task.getResources().stream().filter(TaskResource::getIsDeleted).forEach(resource -> {
-                    updateAuditDetailsForResource(request, resource);
-                    updateAuditDetailsForTask(request, task);
-                    task.setRowVersion(previousRowVersion + 1);
-                });
+                if(!CollectionUtils.isEmpty(task.getResources())) {
+                    task.getResources().stream().filter(TaskResource::getIsDeleted).forEach(resource -> {
+                        updateAuditDetailsForResource(request, resource);
+                        updateAuditDetailsForTask(request, task);
+                        task.setRowVersion(previousRowVersion + 1);
+                    });
+                }
             }
         }
         log.info("enrichment done");
@@ -103,6 +107,7 @@ public class ProjectTaskEnrichmentService {
     private static void enrichResourcesForUpdate(TaskBulkRequest request, List<Task> tasks) {
         log.info("enriching resources");
         for (Task task : tasks) {
+            if(CollectionUtils.isEmpty(task.getResources())) continue;
             List<TaskResource> resourcesToCreate = task.getResources().stream()
                     .filter(r -> r.getId() == null).collect(Collectors.toList());
             List<TaskResource> resourcesToUpdate = task.getResources().stream()

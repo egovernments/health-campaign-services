@@ -1,9 +1,13 @@
 package org.egov.common.models.project;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,12 +15,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * Task
@@ -75,7 +73,8 @@ public class Task extends EgovOfflineModel {
     private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("status")
-    private String status = null;
+    @NotNull
+    TaskStatus status = null;
 
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);

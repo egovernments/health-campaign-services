@@ -26,6 +26,7 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import static org.egov.project.Constants.INTERNAL_SERVER_ERROR;
 import static org.egov.project.Constants.MDMS_RESPONSE;
@@ -76,10 +77,12 @@ public class PtResourceQuantityValidator implements Validator<TaskBulkRequest, T
                 List<Error> errors = new ArrayList<>();
                 // Extract the list of task resources
                 List<TaskResource> taskResources = task.getResources();
-                for(TaskResource taskResource : taskResources){
-                    Error error = validateResourceQuantity(taskResource, request.getRequestInfo());
-                    if(error != null){
-                        errors.add(error);
+                if(!CollectionUtils.isEmpty(taskResources)) {
+                    for(TaskResource taskResource : taskResources){
+                        Error error = validateResourceQuantity(taskResource, request.getRequestInfo());
+                        if(error != null){
+                            errors.add(error);
+                        }
                     }
                 }
                 if (!errors.isEmpty()){

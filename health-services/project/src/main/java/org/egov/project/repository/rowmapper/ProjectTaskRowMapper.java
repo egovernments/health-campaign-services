@@ -8,6 +8,7 @@ import org.egov.common.models.project.Address;
 import org.egov.common.models.project.AddressType;
 import org.egov.common.models.core.Boundary;
 import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskStatus;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -47,7 +48,7 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .plannedEndDate(resultSet.getLong("plannedEndDate"))
                     .actualStartDate(resultSet.getLong("actualStartDate"))
                     .actualEndDate(resultSet.getLong("actualEndDate"))
-                    .status(resultSet.getString("status"))
+                    .status(TaskStatus.fromValue(resultSet.getString("status")))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
