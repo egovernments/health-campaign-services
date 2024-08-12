@@ -3,6 +3,7 @@ package org.egov.project.web.controllers;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
@@ -70,7 +71,7 @@ public class LocationCaptureController {
      */
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> locationCaptureTaskV1BulkCreatePost(
-            @ApiParam(value = "Create Location Capture LocationCapture.", required = true) @Valid @RequestBody UserActionBulkRequest request) {
+            @ApiParam(value = "Create Location Capture LocationCapture.", required = true) @Valid @RequestBody @NotNull UserActionBulkRequest request) {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
 
@@ -102,7 +103,7 @@ public class LocationCaptureController {
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<UserActionBulkResponse> locationCaptureTaskV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
-            @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody UserActionSearchRequest locationCaptureSearchRequest
+            @ApiParam(value = "Search details of Location Capture.", required = true) @Valid @RequestBody @NotNull UserActionSearchRequest locationCaptureSearchRequest
     ) throws Exception {
 
         try {

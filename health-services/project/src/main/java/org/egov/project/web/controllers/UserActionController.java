@@ -3,6 +3,7 @@ package org.egov.project.web.controllers;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
@@ -70,7 +71,7 @@ public class UserActionController {
      */
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> userActionV1BulkCreatePost(
-            @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody UserActionBulkRequest request
+            @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody @NotNull UserActionBulkRequest request
     ) {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
@@ -104,7 +105,7 @@ public class UserActionController {
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<UserActionBulkResponse> userActionV2SearchPost(
             @Valid @ModelAttribute URLParams urlParams,
-            @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody UserActionSearchRequest request
+            @ApiParam(value = "Capture details of Project User Action UserAction.", required = true) @Valid @RequestBody @NotNull UserActionSearchRequest request
     ) {
         log.debug("Executing search with URLParams: {} and request: {}", urlParams, request);
 
@@ -139,7 +140,7 @@ public class UserActionController {
      */
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> userActionV1BulkUpdatePost(
-            @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody UserActionBulkRequest request
+            @ApiParam(value = "Capture linkage of Project and User Action UserAction.", required = true) @Valid @RequestBody @NotNull UserActionBulkRequest request
     ) {
         // Set the API ID in the request info using the current request URI.
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
