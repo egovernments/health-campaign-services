@@ -15,8 +15,8 @@ import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -45,39 +45,52 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
 
     /**
      * Validates the existence of entities with the given client reference IDs.
+     * This method checks if any of the HouseholdMember entities in the request already exist in the database,
+     * based on their client reference IDs. If an entity is found to exist, an error is added to the error details map.
      *
      * @param request The bulk request containing HouseholdMember entities.
-     * @return A map containing HouseholdMember entities and their associated error details.
+     * @return A map containing HouseholdMember entities and their associated error details, if any.
      */
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
-        // Map to hold HouseholdMember entities and their error details
+        // Map to hold HouseholdMember entities and their associated error details
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+
         // Get the list of HouseholdMember entities from the request
         List<HouseholdMember> entities = request.getHouseholdMembers();
-        // Extract client reference IDs from HouseholdMember entities without errors
+
+        // Extract client reference IDs from HouseholdMember entities that do not have errors
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors())
-                .map(HouseholdMember::getClientReferenceId)
-                .collect(Collectors.toList());
+                .filter(notHavingErrors()) // Filter out entities that already have errors
+                .map(HouseholdMember::getClientReferenceId) // Map to client reference IDs
+                .collect(Collectors.toList()); // Collect the IDs into a list
+
         // Create a search object for querying entities by client reference IDs
         HouseholdMemberSearch householdSearch = HouseholdMemberSearch.builder()
-                .clientReferenceId(clientReferenceIdList)
+                .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search
                 .build();
-        // Check if the client reference ID list is not empty
+
+        // Create a map of client reference ID to HouseholdMember entity for easy lookup
+        Map<String, HouseholdMember> map = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
+
+        // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<HouseholdMember> existentEntities = householdMemberRepository.findById(
-                    clientReferenceIdList,
-                    getIdFieldName(householdSearch),
-                    Boolean.FALSE).getResponse();
-            // For each existing entity, populate error details for uniqueness
-            existentEntities.forEach(entity -> {
+            List<String> existingClientReferenceIds =
+                    householdMemberRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+
+            // For each existing client reference ID, populate error details for uniqueness
+            existingClientReferenceIds.forEach(clientReferenceId -> {
+                // Get a predefined error object for unique entity validation
                 Error error = getErrorForUniqueEntity();
-                populateErrorDetails(entity, error, errorDetailsMap);
+                // Populate error details for the HouseholdMember entity associated with the client reference ID
+                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
+
+        // Return the map containing HouseholdMember entities and their associated error details
         return errorDetailsMap;
     }
-
 }

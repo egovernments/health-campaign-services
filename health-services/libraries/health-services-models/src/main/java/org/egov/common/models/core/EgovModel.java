@@ -30,9 +30,6 @@ public class EgovModel {
     @Size(min = 2, max = 1000)
     protected String tenantId;
 
-    @JsonProperty("status")
-    protected String status;
-
     @JsonProperty("source")
     protected String source;  //TODO what are the various sources and needs comments
 

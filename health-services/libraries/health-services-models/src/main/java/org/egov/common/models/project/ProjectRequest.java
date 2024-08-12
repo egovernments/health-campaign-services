@@ -38,6 +38,10 @@ public class ProjectRequest   {
     @Size(min=1)
     private List<Project> projects = new ArrayList<>();
 
+    @JsonProperty("isCascadingProjectDateUpdate")
+    @Valid
+    private boolean isCascadingProjectDateUpdate = false;
+
     @JsonProperty("apiOperation")
     @Valid
     private ApiOperation apiOperation = null;
