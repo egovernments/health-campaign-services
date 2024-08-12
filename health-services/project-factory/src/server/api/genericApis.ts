@@ -6,10 +6,9 @@ import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import 
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
-import { validateMappingId } from '../utils/campaignMappingUtils';
-import { campaignStatuses } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { processMapping } from "../utils/campaignMappingUtils";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -38,9 +37,9 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
 
 function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
-  const headers = sheetData[1]; // Extract the headers from the first row
+  const headers = sheetData[0]; // Extract the headers from the first row
 
-  for (let i = 2; i < sheetData.length; i++) {
+  for (let i = 1; i < sheetData.length; i++) {
     const rowData: any = {};
     const row = sheetData[i];
     if (row) {
@@ -52,7 +51,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
         }
       }
       if (Object.keys(rowData).length > 0) {
-        if (getRow) rowData["!row#number!"] = i;
+        if (getRow) rowData["!row#number!"] = i + 1;
         if (getSheetName) rowData["!sheet#name!"] = sheetName;
         jsonData.push(rowData);
       }
@@ -62,11 +61,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
 }
 
 function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-  if (
-    createAndSearchConfig &&
-    createAndSearchConfig.parseArrayConfig &&
-    createAndSearchConfig.parseArrayConfig.parseLogic
-  ) {
+  if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
     // Iterate over each column configuration
     for (const columnConfig of parseLogic) {
@@ -91,6 +86,25 @@ function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, loca
   }
 }
 
+function getSheetDataFromWorksheet(worksheet: any) {
+  var sheetData: any[][] = [];
+
+  worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+    const rowData: any[] = [];
+
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+      const cellValue = getRawCellValue(cell);
+      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+    });
+
+    // Push non-empty row only
+    if (rowData.some(value => value !== null && value !== undefined)) {
+      sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
+    }
+  });
+  return sheetData;
+}
+
 // Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (
   fileUrl: string,
@@ -99,19 +113,42 @@ const getSheetData = async (
   createAndSearchConfig?: any,
   localizationMap?: { [key: string]: string }
 ) => {
-  // Retrieve workbook using the getTargetWorkbook function
+  // Retrieve workbook using the getExcelWorkbookFromFileURL function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
   const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
-
   // If parsing array configuration is provided, validate first row of each column
   validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
 
-  const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+  // Collect sheet data by iterating through rows and cells
+  const sheetData = getSheetDataFromWorksheet(worksheet);
   const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
+};
+
+// Helper function to extract raw cell value
+function getRawCellValue(cell: any) {
+  if (cell.value && typeof cell.value === 'object') {
+    if ('richText' in cell.value) {
+      // Handle rich text
+      return cell.value.richText.map((rt: any) => rt.text).join('');
+    } else if ('formula' in cell.value) {
+      // Get the result of the formula
+      return cell.value.result;
+    } else if ('error' in cell.value) {
+      // Get the error value
+      return cell.value.error;
+    } else if (cell.value instanceof Date) {
+      // Handle date values
+      return cell.value.toISOString();
+    } else {
+      // Return as-is for other object types
+      return cell.value;
+    }
+  }
+  return cell.value; // Return raw value for plain strings, numbers, etc.
 }
 
 const getTargetSheetData = async (
@@ -131,7 +168,7 @@ const getTargetSheetData = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
     workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
   return workbookData;
@@ -155,10 +192,10 @@ const getTargetSheetDataAfterCode = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
 
     // Find the target column index where the first row value matches codeColumnName
-    const firstRow = sheetData[1];
+    const firstRow = sheetData[0];
     let targetColumnIndex = -1;
     for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
       if (firstRow[colIndex] === codeColumnName) {
@@ -545,26 +582,31 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
     const column = columnsData[i];
     for (const element of column) {
       if (!findMapValue(elementCodesMap, element)) {
-        const parentCode = findMapValue(childParentMap, element)
-        if (parentCode !== undefined && parentCode !== null) {
-          countMap.set(parentCode, (findMapValue(countMap, parentCode) || 0) + 1);
-          let code;
-          const grandParentCode = findMapValue(childParentMap, parentCode);
-          if (grandParentCode != null && grandParentCode != undefined) {
-            const parentBoundaryCode = findMapValue(elementCodesMap, parentCode)
-            const lastUnderscoreIndex = parentBoundaryCode.lastIndexOf('_');
-            const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
-            code = generateElementCode(countMap.get(parentCode), parentBoundaryCodeTrimmed, element.value);
-          } else {
-            code = generateElementCode(countMap.get(parentCode), findMapValue(elementCodesMap, parentCode), element.value);
-          }
+        const parentElement = findMapValue(childParentMap, element);
+        if (parentElement !== undefined && parentElement !== null) {
+          const parentBoundaryCode = findMapValue(elementCodesMap, parentElement);
+          const currentCount = (findMapValue(countMap, parentElement) || 0) + 1;
+          countMap.set(parentElement, currentCount);
+
+          const code = generateElementCode(
+            currentCount,
+            parentElement,
+            parentBoundaryCode,
+            element.value,
+            config.excludeBoundaryNameAtLastFromBoundaryCodes,
+            childParentMap,
+            elementCodesMap
+          );
+
           elementCodesMap.set(element, code); // Store the code of the element in the map
         } else {
           // Generate default code if parent code is not found
-          elementCodesMap.set(element, (request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase() + element.value.toString().substring(0, 2).toUpperCase());
+          const prefix = config?.excludeHierarchyTypeFromBoundaryCodes
+            ? element.value.toString().substring(0, 2).toUpperCase()
+            : `${(request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase()}${element.value.toString().substring(0, 2).toUpperCase()}`;
+
+          elementCodesMap.set(element, prefix);
         }
-      } else {
-        continue;
       }
     }
   }
@@ -574,21 +616,33 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
 /**
  * Function to generate an element code based on sequence, parent code, and element.
  * @param sequence Sequence number
- * @param parentCode Parent code
+ * @param parentElement Parent element
+ * @param parentBoundaryCode Parent boundary code
  * @param element Element
+ * @param excludeBoundaryNameAtLastFromBoundaryCodes Whether to exclude boundary name at last
+ * @param childParentMap Map of child to parent elements
+ * @param elementCodesMap Map of elements to their codes
  * @returns Generated element code
  */
-function generateElementCode(sequence: any, parentCode: any, element: any) {
+function generateElementCode(sequence: any, parentElement: any, parentBoundaryCode: any, element: any, excludeBoundaryNameAtLastFromBoundaryCodes?: any, childParentMap?: any, elementCodesMap?: any) {
   // Pad single-digit numbers with leading zero
-  let paddedSequence = sequence.toString().padStart(2, "0");
-  const code = parentCode.toUpperCase() +
-    "_" +
-    paddedSequence +
-    "_" +
-    element.toUpperCase();
-  return (
-    code.trim()
-  );
+  const paddedSequence = sequence.toString().padStart(2, "0");
+  let code;
+
+  if (excludeBoundaryNameAtLastFromBoundaryCodes) {
+    code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}`;
+  } else {
+    const grandParentElement = findMapValue(childParentMap, parentElement);
+    if (grandParentElement != null && grandParentElement != undefined) {
+      const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+      const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      code = `${parentBoundaryCodeTrimmed.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    } else {
+      code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    }
+  }
+
+  return code.trim();
 }
 
 /**
@@ -637,21 +691,35 @@ async function getBoundarySheetData(
       headers
     );
   } else {
-    // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    const responseFromCampaignSearch =
-      await getCampaignSearchResponse(request);
-    const FiltersFromCampaignId = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
-    if (FiltersFromCampaignId?.Filters != null) {
+    let Filters: any = {};
+    if (request?.body?.Filters && request?.body?.Filters.boundaries && Array.isArray(request?.body?.Filters.boundaries) && request?.body?.Filters.boundaries.length > 0) {
+      Filters = {
+        Filters: {
+          boundaries: request.body.Filters.boundaries.map((boundary: any) => ({
+            ...boundary,
+            boundaryType: boundary.type // Adding boundaryType field
+          }))
+        }
+      };
+    }
+    else {
+      // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+      const responseFromCampaignSearch =
+        await getCampaignSearchResponse(request);
+      Filters = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
+    }
+    if (Filters?.Filters && Filters.Filters.boundaries && Array.isArray(Filters.Filters.boundaries) && Filters.Filters.boundaries.length > 0) {
       const filteredBoundaryData = await generateFilteredBoundaryData(
         request,
-        FiltersFromCampaignId
+        Filters
       );
       return await getDataSheetReady(
         filteredBoundaryData,
         request,
         localizationMap
       );
-    } else {
+    }
+    else {
       return await getDataSheetReady(boundaryData, request, localizationMap);
     }
   }
@@ -671,8 +739,7 @@ async function createStaff(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Staff mapping created");
   logger.debug(
@@ -700,8 +767,7 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.debug("Project Resource Created");
   logger.debug(
@@ -729,8 +795,7 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Facility Created");
   logger.debug(
@@ -792,32 +857,31 @@ const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBod
  * @param resouceBody The resource body.
  */
 async function createRelatedEntity(
-  resources: any,
-  tenantId: any,
-  projectId: any,
-  startDate: any,
-  endDate: any,
-  resouceBody: any
+  createRelatedEntityArray: any[],
+  CampaignDetails: any,
+  requestBody: any
 ) {
-  // Array to hold all promises
-  const promises = [];
-
-  // Create related entities
-  for (const resource of resources) {
-    const type = resource?.type;
-    for (const resourceId of resource?.resourceIds) {
-      logger.info(`creating project ${type} mapping for project : ${projectId} and resourceId ${resourceId}`);
-      if (type === "staff") {
-        promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
-      } else if (type === "resource") {
-        promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
-      } else if (type === "facility") {
-        promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
+  const mappingArray = []
+  for (const entity of createRelatedEntityArray) {
+    const { tenantId, projectId, startDate, endDate, resouceBody, campaignId, resources } = entity
+    for (const resource of resources) {
+      const type = resource?.type;
+      const mappingObject: any = {
+        type,
+        tenantId,
+        resource,
+        projectId,
+        startDate,
+        endDate,
+        resouceBody,
+        campaignId,
+        CampaignDetails
       }
+      mappingArray.push(mappingObject)
     }
   }
-  // Wait for all promises to complete
-  await Promise.all(promises);
+  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo }
+  await processMapping(mappingObject)
 }
 
 
@@ -827,32 +891,34 @@ async function createRelatedEntity(
  */
 async function createRelatedResouce(requestBody: any) {
   const id = requestBody?.Campaign?.id;
-  const campaignDetails = await validateMappingId(requestBody, id);
-  if (campaignDetails?.status == campaignStatuses.inprogress) {
-    logger.info("Campaign Already In Progress and Mapped");
-  } else {
-    sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
-    correctParentValues(requestBody?.Campaign?.CampaignDetails);
-    // Create related resources
-    const { tenantId } = requestBody?.Campaign;
-
-    for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-      const resouceBody: any = {
-        RequestInfo: requestBody.RequestInfo,
-      };
-      var { projectId, startDate, endDate, resources } = campaignDetails;
-      startDate = parseInt(startDate);
-      endDate = parseInt(endDate);
-      await createRelatedEntity(
-        resources,
-        tenantId,
-        projectId,
-        startDate,
-        endDate,
-        resouceBody
-      );
-    }
+  sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
+  correctParentValues(requestBody?.Campaign?.CampaignDetails);
+  // Create related resources
+  const { tenantId } = requestBody?.Campaign;
+  const createRelatedEntityArray = [];
+  for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
+    const resouceBody: any = {
+      RequestInfo: requestBody.RequestInfo,
+    };
+    var { projectId, startDate, endDate, resources } = campaignDetails;
+    campaignDetails.id = id;
+    startDate = parseInt(startDate);
+    endDate = parseInt(endDate);
+    createRelatedEntityArray.push({
+      resources,
+      tenantId,
+      projectId,
+      startDate,
+      endDate,
+      resouceBody,
+      campaignId: id,
+    });
   }
+  await createRelatedEntity(
+    createRelatedEntityArray,
+    requestBody?.CampaignDetails,
+    requestBody
+  );
 }
 
 /**
@@ -1006,7 +1072,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
           logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
 
           const newRequestBody = JSON.parse(JSON.stringify(request.body));
-          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
+          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, `${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, response?.statusCode));
         } catch (error) {
           // Log the error and rethrow to be caught by the outer try...catch block
           logger.error(`Error creating boundary relationship for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} :: `, error);
@@ -1187,5 +1253,8 @@ export {
   getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsTypeSchema
-}
+  callMdmsTypeSchema,
+  getSheetDataFromWorksheet,
+  createStaffHelper,
+  createProjectFacilityHelper, createProjectResourceHelper
+};
