@@ -10,7 +10,8 @@ export const CONSTANTS: any = {
             INVALID_PAGINATION: "Invalid pagination",
             KAFKA_ERROR: "Some error occured in kafka",
             SCHEMA_ERROR: " Schema related error",
-            RESPONSE_NOT_FOUND_ERROR: "Response not found"
+            RESPONSE_NOT_FOUND_ERROR: "Response not found",
+            GENERATE_ERROR: "Error while generating user/facility/boundary"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
@@ -32,7 +33,8 @@ export const CONSTANTS: any = {
             CAMPAIGN_NOT_FOUND: "Campaign not found",
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
-            CAMPAIGN_NAME_ERROR: "Campaign name already exists"
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -106,6 +108,41 @@ export const generatedResourceStatuses: any = {
     failed: "failed",
     completed: "completed",
     expired: "expired"
+}
+
+export const processTrackTypes = {
+    validation: "validation",
+    triggerResourceCreation: "trigger-resource-creation",
+    facilityCreation: "facility-creation",
+    staffCreation: "staff-creation",
+    targetAndDeliveryRulesCreation: "target-and-delivery-rules-creation",
+    confirmingResourceCreation: "confirming-resource-creation",
+    prepareResourceForMapping: "prepare-resource-for-mapping",
+    validateMappingResource: "validate-mapping-resource",
+    staffMapping: "staff-mapping",
+    resourceMapping: "resource-mapping",
+    facilityMapping: "facility-mapping",
+    campaignCreation: "campaign-creation",
+    error: "error"
+}
+
+export const processTrackForUi = [
+    processTrackTypes.facilityCreation,
+    processTrackTypes.staffCreation,
+    processTrackTypes.targetAndDeliveryRulesCreation,
+    processTrackTypes.staffMapping,
+    processTrackTypes.resourceMapping,
+    processTrackTypes.facilityMapping,
+    processTrackTypes.campaignCreation,
+    processTrackTypes.error
+];
+
+
+export const processTrackStatuses = {
+    inprogress: "inprogress",
+    completed: "completed",
+    toBeCompleted: "toBeCompleted",
+    failed: "failed",
 }
 
 

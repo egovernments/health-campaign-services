@@ -1,10 +1,11 @@
 import express from "express";
 import { processBasedOnAction, searchProjectCampaignResourcData } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateProjectCampaignRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
+import { validateProjectCampaignRequest, validateSearchProcessTracksRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
 import { createRelatedResouce } from "../api/genericApis";
 import { enrichCampaign } from "../api/campaignApis";
+import { getProcessDetails, modifyProcessDetails } from "../utils/processTrackUtils";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -53,10 +54,26 @@ async function createCampaignService(
     return requestBody?.Campaign
 };
 
+async function searchProcessTracksService(
+    request: express.Request
+) {
+    await validateSearchProcessTracksRequest(request)
+    logger.info("VALIDATED THE PROCESS SEARCH REQUEST");
+
+    // Search and return related process tracks
+    const processDetailsArray = await getProcessDetails(request?.query?.campaignId as string)
+
+    // sort and modify process details so that details with status as toBeCompleted comes in last
+    const resultArray = modifyProcessDetails(processDetailsArray)
+
+    return resultArray
+};
+
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
-    createCampaignService
+    createCampaignService,
+    searchProcessTracksService
 }
