@@ -60,7 +60,7 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
                 .map(Household::getClientReferenceId)
                 .collect(Collectors.toList());
         Map<String, Household> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
                 .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Create a search object for querying entities by client reference IDs
         HouseholdSearch householdSearch = HouseholdSearch.builder()

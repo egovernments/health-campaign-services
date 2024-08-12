@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.common.models.project.useraction.UserActionSearch;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -30,6 +28,11 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 public class UaExistentEntityValidator implements Validator<UserActionBulkRequest, UserAction> {
     private UserActionRepository userActionRepository;
 
+    /**
+     * Constructs a UaExistentEntityValidator with the specified UserActionRepository.
+     *
+     * @param userActionRepository the repository used to validate user action entities
+     */
     @Autowired
     public UaExistentEntityValidator(UserActionRepository userActionRepository) {
         this.userActionRepository = userActionRepository;
@@ -57,7 +60,7 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
                 .map(UserAction::getClientReferenceId)
                 .collect(Collectors.toList());
         Map<String, UserAction> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
                 .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Create a search object for querying entities by client reference IDs
         UserActionSearch userActionSearch = UserActionSearch.builder()

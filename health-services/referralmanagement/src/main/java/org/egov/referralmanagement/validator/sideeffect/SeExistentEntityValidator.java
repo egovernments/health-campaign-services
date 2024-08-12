@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.individual.Individual;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -67,7 +65,7 @@ public class SeExistentEntityValidator implements Validator<SideEffectBulkReques
                 .clientReferenceId(clientReferenceIdList)
                 .build();
         Map<String, SideEffect> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
                 .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {

@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.individual.Individual;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.referralmanagement.ReferralSearch;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -62,7 +60,7 @@ public class RmExistentEntityValidator implements Validator<ReferralBulkRequest,
                 .map(Referral::getClientReferenceId)
                 .collect(Collectors.toList());
         Map<String, Referral> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
                 .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Create a search object for querying entities by client reference IDs
         ReferralSearch referralSearch = ReferralSearch.builder()

@@ -65,7 +65,7 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
                 .clientReferenceId(clientReferenceIdList)
                 .build();
         Map<String, HouseholdMember> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
                 .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
