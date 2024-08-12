@@ -53,30 +53,41 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         // Map to hold Stock entities and their error details
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+
         // Get the list of Stock entities from the request
         List<Stock> entities = request.getStock();
-        // Extract client reference IDs from Stock entities without errors
+
+        // Extract client reference IDs from Stock entities that do not already have errors
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors())
-                .map(Stock::getClientReferenceId)
-                .collect(Collectors.toList());
+                .filter(notHavingErrors()) // Exclude entities with existing errors
+                .map(Stock::getClientReferenceId) // Map entities to their client reference IDs
+                .collect(Collectors.toList()); // Collect IDs into a list
+
+        // Create a map for quick lookup of Stock entities by their client reference ID
         Map<String, Stock> map = entities.stream()
-                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId()))
-                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
-        // Create a search object for querying entities by client reference IDs
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
+
+        // Create a search object to query existing entities by client reference IDs
         StockSearch stockSearch = StockSearch.builder()
-                .clientReferenceId(clientReferenceIdList)
+                .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search
                 .build();
-        // Check if the client reference ID list is not empty
+
+        // Check if the list of client reference IDs is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing entities by client reference IDs
+            // Query the repository to find existing Stock entities with the given client reference IDs
             List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
-            // For each existing entity, populate error details for uniqueness
+
+            // For each existing client reference ID, add an error to the map for the corresponding Stock entity
             existingClientReferenceIds.forEach(clientReferenceId -> {
+                // Get a predefined error object for unique entity validation
                 Error error = getErrorForUniqueEntity();
+                // Populate error details for the individual Stock entity associated with the client reference ID
                 populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
+
+        // Return the map containing Stock entities and their associated error details
         return errorDetailsMap;
     }
 }

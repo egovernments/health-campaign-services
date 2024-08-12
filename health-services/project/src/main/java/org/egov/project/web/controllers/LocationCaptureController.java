@@ -78,7 +78,7 @@ public class LocationCaptureController {
             // Send the request to the Kafka topic for bulk creation.
             producer.push(projectConfiguration.getBulkCreateLocationCaptureTopic(), request);
         } catch (Exception e) {
-            log.error("Error sending message to Kafka", e);
+            log.error("Error sending bulk create request for location captures to Kafka: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false)
             );
@@ -119,7 +119,7 @@ public class LocationCaptureController {
             // Return the response with HTTP status OK.
             return ResponseEntity.status(HttpStatus.OK).body(response);
         } catch (Exception e) {
-            log.error("Error during search operation", e);
+            log.error("Error occurred during search operation for location captures: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     UserActionBulkResponse.builder()
                             .responseInfo(ResponseInfoFactory.createResponseInfo(locationCaptureSearchRequest.getRequestInfo(), false))
