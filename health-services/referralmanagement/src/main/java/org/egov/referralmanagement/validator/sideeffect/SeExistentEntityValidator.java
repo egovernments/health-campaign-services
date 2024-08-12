@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.individual.Individual;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -46,40 +44,51 @@ public class SeExistentEntityValidator implements Validator<SideEffectBulkReques
     }
 
     /**
-     * Validates the existence of SideEffect entities with the given client reference IDs.
+     * Validates the existence of SideEffect entities in the SideEffectBulkRequest.
+     * Checks if the provided SideEffect entities already exist in the database based on their client reference IDs.
      *
      * @param request The bulk request containing SideEffect entities.
-     * @return A map containing SideEffect entities and their associated error details.
+     * @return A map containing SideEffect entities and their associated error details if any duplicates are found.
      */
     @Override
     public Map<SideEffect, List<Error>> validate(SideEffectBulkRequest request) {
         // Map to hold SideEffect entities and their error details
         Map<SideEffect, List<Error>> errorDetailsMap = new HashMap<>();
+
         // Get the list of SideEffect entities from the request
         List<SideEffect> entities = request.getSideEffects();
-        // Extract client reference IDs from SideEffect entities without errors
+
+        // Extract client reference IDs from SideEffect entities that do not have existing errors
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors())
-                .map(SideEffect::getClientReferenceId)
-                .collect(Collectors.toList());
-        // Create a search object for querying entities by client reference IDs
-        SideEffectSearch sideEffectSearch = SideEffectSearch.builder()
-                .clientReferenceId(clientReferenceIdList)
-                .build();
+                .filter(notHavingErrors()) // Filter out entities that already have errors
+                .map(SideEffect::getClientReferenceId) // Extract client reference IDs from SideEffect entities
+                .collect(Collectors.toList()); // Collect the IDs into a list
+
+        // Create a map for quick lookup of SideEffect entities by client reference ID
         Map<String, SideEffect> map = entities.stream()
-                .filter(individual -> StringUtils.isEmpty(individual.getClientReferenceId()))
-                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity));
-        // Check if the client reference ID list is not empty
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
+
+        // Create a search object for querying existing SideEffect entities by client reference IDs
+        SideEffectSearch sideEffectSearch = SideEffectSearch.builder()
+                .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search
+                .build();
+
+        // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing entities by client reference IDs
-            List<String> existingClientReferenceIds =
-                    sideEffectRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
-            // For each existing entity, populate error details for uniqueness
+            // Query the repository to find existing SideEffect entities with the given client reference IDs
+            List<String> existingClientReferenceIds = sideEffectRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+
+            // For each existing client reference ID, add an error to the map for the corresponding SideEffect entity
             existingClientReferenceIds.forEach(clientReferenceId -> {
+                // Get a predefined error object for unique entity validation
                 Error error = getErrorForUniqueEntity();
+                // Populate error details for the individual SideEffect entity associated with the client reference ID
                 populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
+
+        // Return the map containing SideEffect entities and their associated error details
         return errorDetailsMap;
     }
 }

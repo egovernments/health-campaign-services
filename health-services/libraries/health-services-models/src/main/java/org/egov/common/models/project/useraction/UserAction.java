@@ -33,7 +33,7 @@ public class UserAction extends EgovOfflineModel {
      * It must be between 2 and 64 characters long and cannot be null.
      */
     @JsonProperty("projectId")
-    @Size(min = 2, max = 64)
+    @Size(min = 2, max = 64, message = "Project ID must be between 2 and 64 characters")
     @NotNull
     private String projectId;
 

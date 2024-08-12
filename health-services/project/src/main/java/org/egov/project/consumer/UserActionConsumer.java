@@ -1,13 +1,10 @@
 package org.egov.project.consumer;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.models.project.useraction.UserAction;
 import org.egov.common.models.project.useraction.UserActionBulkRequest;
 import org.egov.project.service.LocationCaptureService;
 import org.egov.project.service.UserActionService;
@@ -51,7 +48,7 @@ public class UserActionConsumer {
             userActionService.create(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
-            log.error("error in user action consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("Error processing bulk create for user actions from topic {}: {}", topic, ExceptionUtils.getStackTrace(exception));
             // throw custom exception
             throw new CustomException("PROJECT_USER_ACTION_BULK_CREATE", exception.getMessage());
         }
@@ -74,7 +71,7 @@ public class UserActionConsumer {
             userActionService.update(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
-            log.error("error in user action consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("Error processing bulk update for user actions from topic {}: {}", topic, ExceptionUtils.getStackTrace(exception));
             // throw custom exception
             throw new CustomException("PROJECT_USER_ACTION_BULK_UPDATE", exception.getMessage());
         }
@@ -97,7 +94,7 @@ public class UserActionConsumer {
             locationCaptureService.create(request, true);
         } catch (Exception exception) {
             // Log any exception that occurs
-            log.error("error in location capture consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("Error processing bulk create for location captures from topic {}: {}", topic, ExceptionUtils.getStackTrace(exception));
             // throw custom exception
             throw new CustomException("PROJECT_USER_ACTION_LOCATION_CAPTURE_BULK_CREATE", exception.getMessage());
         }
