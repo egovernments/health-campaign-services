@@ -33,8 +33,8 @@ public class IndividualService {
     private Individual getIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
@@ -49,32 +49,35 @@ public class IndividualService {
                             + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
                     IndividualBulkResponse.class);
-            return !CollectionUtils.isEmpty(response.getIndividual()) ? response.getIndividual().get(0) : null;
+
+            // Check if response or individual list is null or empty
+            return (response != null && !CollectionUtils.isEmpty(response.getIndividual())) ? response.getIndividual().get(0) : null;
         } catch (Exception e) {
-            log.error("error while fetching Individual Details for clRefId {}, Exception: {}", clientReferenceId, ExceptionUtils.getStackTrace(e));
+            log.error("Error while fetching Individual Details for clRefId {}, Exception: {}", clientReferenceId, ExceptionUtils.getStackTrace(e));
             return null;
         }
     }
 
-
     public Map<String, Object> getIndividualInfo(String clientReferenceId, String tenantId) {
         Individual individual = getIndividualByClientReferenceId(clientReferenceId, tenantId);
         Map<String, Object> individualDetails = new HashMap<>();
+
         if (individual != null) {
             individualDetails.put(AGE, individual.getDateOfBirth() != null ? commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()) : null);
-            individualDetails.put(GENDER, individual.getGender().toString());
+            individualDetails.put(GENDER, individual.getGender() != null ? individual.getGender().toString() : null);
             individualDetails.put(INDIVIDUAL_ID, clientReferenceId);
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth() != null ? individual.getDateOfBirth().getTime() : null);
+
             if (individual.getAddress() != null && !individual.getAddress().isEmpty()
                     && individual.getAddress().get(0).getLocality() != null
                     && individual.getAddress().get(0).getLocality().getCode() != null) {
                 individualDetails.put(ADDRESS_CODE, individual.getAddress().get(0).getLocality().getCode());
             }
-            //adding individualDetails if they are not null
+
+            // Adding individualDetails if they are not null
             if (individual.getAdditionalFields() != null) {
                 addIndividualAdditionalDetails(individual.getAdditionalFields(), individualDetails);
             }
-            return individualDetails;
         } else {
             individualDetails.put(AGE, null);
             individualDetails.put(GENDER, null);
@@ -83,14 +86,13 @@ public class IndividualService {
         }
 
         return individualDetails;
-
     }
 
     public Name getIndividualNameById(String id, String tenantId) {
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().id(Collections.singletonList(id)).build())
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
@@ -105,11 +107,13 @@ public class IndividualService {
                             + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
                     IndividualBulkResponse.class);
-            Individual individual = response.getIndividual().get(0);
 
-            return individual.getName();
+            // Check if response or individual list is null or empty
+            Individual individual = (response != null && !CollectionUtils.isEmpty(response.getIndividual())) ? response.getIndividual().get(0) : null;
+
+            return (individual != null) ? individual.getName() : null;
         } catch (Exception e) {
-            log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
+            log.error("Error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
     }
