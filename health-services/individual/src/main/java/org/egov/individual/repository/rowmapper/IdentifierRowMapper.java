@@ -1,11 +1,11 @@
 package org.egov.individual.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.individual.Identifier;
 import org.springframework.jdbc.core.RowMapper;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 public class IdentifierRowMapper implements RowMapper<Identifier> {
     @Override

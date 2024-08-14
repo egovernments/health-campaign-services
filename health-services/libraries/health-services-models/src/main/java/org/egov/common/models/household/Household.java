@@ -8,8 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.validator.constraints.Range;
 import org.egov.common.models.core.EgovOfflineModel;
+import org.hibernate.validator.constraints.Range;
 import org.springframework.validation.annotation.Validated;
 
 /**
