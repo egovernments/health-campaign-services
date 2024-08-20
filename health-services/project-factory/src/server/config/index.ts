@@ -117,7 +117,7 @@ const config = {
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
-    mdms_search: process.env.EGOV_MDMS_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
     mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",

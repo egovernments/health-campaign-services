@@ -248,7 +248,7 @@ const searchMDMS: any = async (
   }
 
   // Construct API URL for MDMS search
-  const apiUrl = config.host.mdms + config.paths.mdms_search;
+  const apiUrl = config.host.mdms + config.paths.mdms_v2_search;
 
   // Construct request data for MDMS search
   const data = {
