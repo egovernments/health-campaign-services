@@ -1,6 +1,6 @@
 -- Step 1: Remove duplicate rows
 DELETE FROM eg_cm_campaign_process a
-USING health.eg_cm_campaign_process b
+USING eg_cm_campaign_process b
 WHERE a.id < b.id
 AND a.campaignId = b.campaignId
 AND a.type = b.type;

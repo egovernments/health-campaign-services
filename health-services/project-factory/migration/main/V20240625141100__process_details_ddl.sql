@@ -1,4 +1,4 @@
-CREATE TABLE health.eg_cm_campaign_process (
+CREATE TABLE eg_cm_campaign_process (
     id VARCHAR(128) PRIMARY KEY,
     campaignId VARCHAR(128) NOT NULL,
     type VARCHAR(128),
@@ -7,5 +7,5 @@ CREATE TABLE health.eg_cm_campaign_process (
     createdtime BIGINT,
     lastmodifiedtime BIGINT,
     additionaldetails JSONB,
-    CONSTRAINT fk_campaignId FOREIGN KEY (campaignId) REFERENCES health.eg_cm_campaign_details(id)
+    CONSTRAINT fk_campaignId FOREIGN KEY (campaignId) REFERENCES eg_cm_campaign_details(id)
 );
