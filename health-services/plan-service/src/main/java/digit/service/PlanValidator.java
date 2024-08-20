@@ -405,7 +405,7 @@ public class PlanValidator {
                 .toList();
 
         List<Object> metricUnitListFromMDMS;
-        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.code";
+        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.uomCode";
         try {
             metricUnitListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetricUnit);
         } catch (Exception e) {
