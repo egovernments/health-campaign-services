@@ -190,10 +190,18 @@ function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsCol
     }
 
     if (userNameAndPassword) {
-        worksheet.getCell("J1").value = "UserName";
-        worksheet.getCell("K1").value = "Password";
+        worksheet.getCell("I1").value = "UserName";
+        worksheet.getCell("J1").value = "Password";
 
         // Set the fill color to green for cell I1
+        worksheet.getCell("I1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("I1").font = { bold: true };
+
+        // Set the fill color to green for cell J1
         worksheet.getCell("J1").fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -201,21 +209,13 @@ function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsCol
         };
         worksheet.getCell("J1").font = { bold: true };
 
-        // Set the fill color to green for cell J1
-        worksheet.getCell("K1").fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'ff9248' } // Green color
-        };
-        worksheet.getCell("K1").font = { bold: true };
-
         userNameAndPassword.forEach((data: any) => {
             const rowIndex = data.rowNumber;
-            worksheet.getCell(`J${rowIndex}`).value = data?.userName;
-            worksheet.getCell(`K${rowIndex}`).value = data?.password;
+            worksheet.getCell(`I${rowIndex}`).value = data?.userName;
+            worksheet.getCell(`J${rowIndex}`).value = data?.password;
         });
 
-        lastColumn = "K";
+        lastColumn = "J";
         request.body.userNameAndPassword = undefined;
     }
 
@@ -485,17 +485,12 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-
-        const activities = request?.body?.Activities;
-        for (let i = 0; i < activities.length; i += 50) {
-            const chunk = activities.slice(i, Math.min(i + 50, activities.length));
-            const activityObject: any = { Activities: chunk };
-            await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
-        }
+        const activityObject: any = { Activities: request?.body?.Activities };
+        await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
     }
 }
 
-export function getRootBoundaryCode(boundaries: any[] = []) {
+function getRootBoundaryCode(boundaries: any[] = []) {
     for (const boundary of boundaries) {
         if (boundary.isRoot) {
             return boundary.code;
@@ -569,8 +564,6 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails || {};
     request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || null
     request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || null
-    request.body.CampaignDetails.isActive = true
-    request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null
     request.body.CampaignDetails.auditDetails = {
         createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
         createdTime: Date.now(),
@@ -613,11 +606,9 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
     request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
-    request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
+    request.body.CampaignDetails.status = action == "changeDates" ? request.body.CampaignDetails.status : (action == "create" ? campaignStatuses.started : campaignStatuses.drafted);
     const boundaryCode = !(request?.body?.CampaignDetails?.projectId) ? getRootBoundaryCode(request.body.CampaignDetails.boundaries) : (request?.body?.CampaignDetails?.boundaryCode || ExistingCampaignDetails?.boundaryCode)
     request.body.CampaignDetails.boundaryCode = boundaryCode
-    request.body.CampaignDetails.isActive = ExistingCampaignDetails?.isActive
-    request.body.CampaignDetails.parentId = ExistingCampaignDetails?.parentId
     request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || ExistingCampaignDetails?.startDate || null
     request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || ExistingCampaignDetails?.endDate || null
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : ExistingCampaignDetails?.projectType
@@ -642,18 +633,6 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
-}
-
-async function makeParentInactive(request: any) {
-    let parentCampaign = request?.body?.parentCampaign
-    parentCampaign.isActive = false
-    parentCampaign.campaignDetails = { deliveryRules: parentCampaign?.deliveryRules || [], resources: parentCampaign?.resources || [], boundaries: parentCampaign?.boundaries || [] };
-    parentCampaign.auditDetails.lastModifiedTime = Date.now()
-    parentCampaign.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid
-    const produceMessage: any = {
-        CampaignDetails: parentCampaign
-    }
-    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
 }
 
 function getCreateResourceIds(resources: any[]) {
@@ -708,9 +687,6 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
     }
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
-    }
-    if (request?.body?.parentCampaign?.isActive) {
-        await makeParentInactive(request)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProcessTracks(request.body.CampaignDetails.id)
@@ -1245,69 +1221,69 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
     logger.debug("Reordered Boundaries " + getFormattedStringForDebug(request?.body?.CampaignDetails?.boundaries));
 }
 
-// function convertToProjectsArray(Projects: any, currentArray: any = []) {
-//     for (const project of Projects) {
-//         const descendants = project?.descendants
-//         delete project?.descendants
-//         currentArray.push(project);
-//         if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
-//             convertToProjectsArray(descendants, currentArray)
-//         }
-//     }
-//     return currentArray;
-// }
+function convertToProjectsArray(Projects: any, currentArray: any = []) {
+    for (const project of Projects) {
+        const descendants = project?.descendants
+        delete project?.descendants
+        currentArray.push(project);
+        if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
+            convertToProjectsArray(descendants, currentArray)
+        }
+    }
+    return currentArray;
+}
 
-// async function getRelatedProjects(request: any) {
-//     const { projectId, tenantId } = request?.body?.CampaignDetails;
-//     const projectSearchBody = {
-//         RequestInfo: request?.body?.RequestInfo,
-//         Projects: [
-//             {
-//                 id: projectId,
-//                 tenantId: tenantId
-//             }
-//         ]
-//     }
-//     const projectSearchParams = {
-//         tenantId: tenantId,
-//         offset: 0,
-//         limit: 1,
-//         includeDescendants: true
-//     }
-//     logger.info("Project search params " + JSON.stringify(projectSearchParams))
-//     const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
-//     if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
-//         return convertToProjectsArray(projectSearchResponse?.Project)
-//     }
-//     else {
-//         throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
-//         return []
-//     }
-// }
+async function getRelatedProjects(request: any) {
+    const { projectId, tenantId } = request?.body?.CampaignDetails;
+    const projectSearchBody = {
+        RequestInfo: request?.body?.RequestInfo,
+        Projects: [
+            {
+                id: projectId,
+                tenantId: tenantId
+            }
+        ]
+    }
+    const projectSearchParams = {
+        tenantId: tenantId,
+        offset: 0,
+        limit: 1,
+        includeDescendants: true
+    }
+    logger.info("Project search params " + JSON.stringify(projectSearchParams))
+    const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
+    if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
+        return convertToProjectsArray(projectSearchResponse?.Project)
+    }
+    else {
+        throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+        return []
+    }
+}
 
-// async function updateProjectDates(request: any, actionInUrl: any) {
-//     const { startDate, endDate, projectId } = request?.body?.CampaignDetails
-//     if ((startDate || endDate) && projectId && actionInUrl == "update") {
-//         const projects = await getRelatedProjects(request);
-//         for (const project of projects) {
-//             project.startDate = startDate || project.startDate;
-//             project.endDate = endDate || project.endDate;
-//             delete project?.address;
-//         }
-//         logger.info("Projects related to current Campaign : " + JSON.stringify(projects));
-//         const projectUpdateBody = {
-//             RequestInfo: request?.body?.RequestInfo,
-//             Projects: projects
-//         }
-//         const projectUpdateResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectUpdate, projectUpdateBody);
-//         if (projectUpdateResponse?.Project && Array.isArray(projectUpdateResponse?.Project) && projectUpdateResponse?.Project?.length == projects?.length) {
-//             logger.info("Project dates updated successfully")
-//         }
-//         else {
-//             throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR")
-//         }
-//     }
-// }
+async function updateProjectDates(request: any, actionInUrl: any) {
+    const { startDate, endDate, projectId } = request?.body?.CampaignDetails
+    if ((startDate || endDate) && projectId && actionInUrl == "update") {
+        const projects = await getRelatedProjects(request);
+        for (const project of projects) {
+            project.startDate = startDate || project.startDate;
+            project.endDate = endDate || project.endDate;
+            delete project?.address;
+        }
+        logger.info("Projects related to current Campaign : " + JSON.stringify(projects));
+        const projectUpdateBody = {
+            RequestInfo: request?.body?.RequestInfo,
+            Projects: projects
+        }
+        const projectUpdateResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectUpdate, projectUpdateBody);
+        if (projectUpdateResponse?.Project && Array.isArray(projectUpdateResponse?.Project) && projectUpdateResponse?.Project?.length == projects?.length) {
+            logger.info("Project dates updated successfully")
+        }
+        else {
+            throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR")
+        }
+    }
+}
 
 async function getCodesTarget(request: any, localizationMap?: any) {
     const { tenantId, resources } = request?.body?.CampaignDetails;
@@ -1389,7 +1365,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
         else {
-            // await updateProjectDates(request, actionInUrl);
+            await updateProjectDates(request, actionInUrl);
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
     } catch (error: any) {
