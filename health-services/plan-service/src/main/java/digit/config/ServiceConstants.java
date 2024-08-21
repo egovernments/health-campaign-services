@@ -93,6 +93,8 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_UOM = "Uom";
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegx";
 
+    public static final String JSON_ROOT_PATH = "$.";
+
     public static final String DOT_SEPARATOR = ".";
 
     public static final String DOT_REGEX = "\\.";

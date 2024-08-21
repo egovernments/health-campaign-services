@@ -66,7 +66,7 @@ public class PlanConfigurationValidator {
     {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-        final String jsonPathForNameValidation = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_NAME_VALIDATION + "[*].data";
+        final String jsonPathForNameValidation = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_NAME_VALIDATION + "[*].data";
 
         List<Object> nameValidationListFromMDMS = null;
         try {
@@ -131,7 +131,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
+        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {
@@ -179,8 +179,8 @@ public class PlanConfigurationValidator {
      */
     public void validateTemplateIdentifierAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
-        final String jsonPathForTemplateIdentifierIsRequired = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
+        final String jsonPathForTemplateIdentifier = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
+        final String jsonPathForTemplateIdentifierIsRequired = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
 
         List<Object> templateIdentifierListFromMDMS = null;
         List<Object> requiredTemplateIdentifierFromMDMS = null;
@@ -242,7 +242,7 @@ public class PlanConfigurationValidator {
                 .map(File.InputFileTypeEnum::toString)
                 .collect(Collectors.toList());
 
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
+        final String jsonPathForRuleInputs = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_SCHEMAS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);
@@ -406,7 +406,7 @@ public class PlanConfigurationValidator {
                 .map(File.InputFileTypeEnum::toString)
                 .collect(Collectors.toList());
 
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
+        final String jsonPathForRuleInputs = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_SCHEMAS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);
