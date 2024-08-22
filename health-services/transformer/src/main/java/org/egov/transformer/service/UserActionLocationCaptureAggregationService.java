@@ -124,8 +124,12 @@ public class UserActionLocationCaptureAggregationService {
         }
 
         // Update or create the record in Elasticsearch
-        elasticSearchRepository.save(updatedRecord, esHit.getSeqNo(), esHit.getPrimaryTerm(), config.getAggregatedHouseholdIndex(), USER_LOCATION_CAPTURE_ID);
+        elasticSearchRepository.createOrUpdateDocument(
+                updatedRecord, config.getUserActionLocationCaptureIndex(), USER_LOCATION_CAPTURE_ID, esHit.getSeqNo(), esHit.getPrimaryTerm()
+        );
     }
+
+
 
     /**
      * Convert a timestamp (in milliseconds) to a formatted date string (yyyyMMdd).

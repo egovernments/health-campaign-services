@@ -19,8 +19,6 @@ import org.springframework.stereotype.Component;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
-@Getter
 @Import({TracerConfiguration.class})
 @ComponentScan(basePackages = {"org.egov"})
 public class ServiceConfiguration {
@@ -55,6 +53,9 @@ public class ServiceConfiguration {
 
   @Value("${egov.individual.index}")
   private String individualIndex;
+
+  @Value("${egov.project.user.action.location.capture.index}")
+  private String userActionLocationCaptureIndex;
 
   @Value("${egov.search.index.parameters}")
   private String searchParameter;
