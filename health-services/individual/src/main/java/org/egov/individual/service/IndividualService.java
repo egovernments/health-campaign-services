@@ -202,12 +202,6 @@ public class IndividualService {
         return validIndividuals;
     }
 
-    private void removePasswordFromIndividuals(List<Individual> validIndividualsWOPassword) {
-        if(!CollectionUtils.isEmpty(validIndividualsWOPassword)) {
-            validIndividualsWOPassword.forEach(individual -> individual.getUserDetails().setPassword(null));
-        }
-    }
-
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
                                                                             Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate,
                                                                             IndividualBulkRequest request, boolean isBulk) {
