@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.useraction.UserAction;
+import org.egov.tracer.model.CustomException;
 import org.egov.transformer.aggregator.config.ServiceConfiguration;
 import org.egov.transformer.aggregator.models.ElasticsearchHit;
 import org.egov.transformer.aggregator.models.UserActionCompositeKey;
@@ -202,7 +203,7 @@ public class UserActionLocationCaptureAggregationService {
             return objectMapper.readTree(jsonString);
         } catch (Exception e) {
             log.error("Failed to build GeoJSON: ", e);
-            return null; // Handle exception properly in production code
+            throw new CustomException("Error building GeoJSON from user actions", e.getMessage());
         }
     }
 

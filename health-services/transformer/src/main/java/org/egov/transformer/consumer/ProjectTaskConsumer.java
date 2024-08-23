@@ -62,7 +62,7 @@ public class ProjectTaskConsumer {
             );
             userActionLocationCaptureAggregationService.processUserActionLocationCapture(payloadList);
         } catch (Exception exception) {
-            log.error("error in project user action bulk consumer", exception);
+            log.error("Error in project user action bulk consumer", exception);
         }
     }
 }
