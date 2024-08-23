@@ -142,69 +142,69 @@ public class IndividualService {
 
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
 
+        // Step 1: Validate the input request and group the individuals based on validity.
+        // The tuple contains a list of valid individuals (X) and a map of invalid individuals with corresponding errors (Y).
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request,
-                isBulk);
+                isApplicableForCreate, request, isBulk);
+
+        // Extract the map of error details for invalid individuals.
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+
+        // Extract the list of valid individuals from the tuple.
         List<Individual> validIndividuals = tuple.getX();
-        List<Individual> validIndividualsWOPassword = Collections.emptyList();
+
+        // Initialize the list that will hold the encrypted individuals.
         List<Individual> encryptedIndividualList = Collections.emptyList();
-        List<Individual> encryptedIndividualWOPasswordList;
+
         try {
+            // Step 2: If there are valid individuals to process, proceed with further operations.
             if (!validIndividuals.isEmpty()) {
-                log.info("processing {} valid entities", validIndividuals.size());
+                // Log the number of valid entities being processed.
+                log.info("Processing {} valid entities", validIndividuals.size());
+
+                // Step 3: Enrich the valid individuals by adding necessary metadata or performing other enrichments.
                 enrichmentService.create(validIndividuals, request);
 
-                validIndividualsWOPassword = deepCopy(validIndividuals);
-                removePasswordFromIndividuals(validIndividualsWOPassword);
-                //encrypt PII data
+                // Step 4: Integrate with the user service to create user records related to the individuals.
+                integrateWithUserService(request, validIndividuals, ApiOperation.CREATE);
+
+                // Step 5: Nullify passwords in the UserDetails of each individual to ensure security before saving.
+                validIndividuals.forEach(individual -> {
+                    if (individual.getUserDetails() != null) {
+                        individual.getUserDetails().setPassword(null);
+                    }
+                });
+
+                // Step 6: Encrypt Personally Identifiable Information (PII) data in the valid individuals list.
+                // The encrypted data is stored in `encryptedIndividualList`.
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
 
-                encryptedIndividualWOPasswordList = individualEncryptionService
-                        .encrypt(request, validIndividualsWOPassword, "IndividualEncrypt", isBulk);
-
-                individualRepository.save(encryptedIndividualWOPasswordList,
-                        properties.getSaveIndividualTopic());
+                // Step 7: Save the encrypted individuals to the repository, publishing to the appropriate Kafka topic.
+                individualRepository.save(encryptedIndividualList, properties.getSaveIndividualTopic());
             }
         } catch (CustomException exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validIndividualsWOPassword, exception, SET_INDIVIDUALS);
+            // Step 8: Handle any exceptions that occur during processing.
+            // Log the error details including the stack trace for debugging.
+            log.error("Error occurred during individual creation", ExceptionUtils.getStackTrace(exception));
+
+            // Populate error details in the error map for individuals that caused the exception.
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
+        // Step 9: Handle any validation errors encountered during the initial validation step.
+        // This may involve throwing an exception or returning an error response.
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-        //decrypt
-        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
-                "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service create call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
-        return decryptedIndividualList;
+
+        // Step 10: Return the list of successfully processed individuals.
+        // Note: This returns the list before encryption. If the encrypted list is needed,
+        // consider returning `encryptedIndividualList` instead.
+        return validIndividuals;
     }
 
     private void removePasswordFromIndividuals(List<Individual> validIndividualsWOPassword) {
         if(!CollectionUtils.isEmpty(validIndividualsWOPassword)) {
-            validIndividualsWOPassword.forEach(individual -> {
-                individual.getUserDetails().setPassword(null);
-            });
-        }
-    }
-
-    // Method to perform deep copy using serialization
-    public static <T> List<T> deepCopy(List<T> originalList) {
-        try {
-            // Serialize the list
-            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-            ObjectOutputStream out = new ObjectOutputStream(byteOut);
-            out.writeObject(originalList);
-
-            // Deserialize the list to create a deep copy
-            ByteArrayInputStream byteIn = new ByteArrayInputStream(byteOut.toByteArray());
-            ObjectInputStream in = new ObjectInputStream(byteIn);
-            return (List<T>) in.readObject();
-
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-            throw new CustomException("Failed to perform deep copy of the list.", e.getMessage());
+            validIndividualsWOPassword.forEach(individual -> individual.getUserDetails().setPassword(null));
         }
     }
 
