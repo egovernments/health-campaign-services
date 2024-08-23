@@ -1,5 +1,10 @@
 package org.egov.individual.service;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -142,20 +147,29 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
+        List<Individual> validIndividualsWOPassword = Collections.emptyList();
         List<Individual> encryptedIndividualList = Collections.emptyList();
+        List<Individual> encryptedIndividualWOPasswordList;
         try {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
+
+                validIndividualsWOPassword = deepCopy(validIndividuals);
+                removePasswordFromIndividuals(validIndividualsWOPassword);
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(encryptedIndividualList,
+
+                encryptedIndividualWOPasswordList = individualEncryptionService
+                        .encrypt(request, validIndividualsWOPassword, "IndividualEncrypt", isBulk);
+
+                individualRepository.save(encryptedIndividualWOPasswordList,
                         properties.getSaveIndividualTopic());
             }
         } catch (CustomException exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
+            populateErrorDetails(request, errorDetailsMap, validIndividualsWOPassword, exception, SET_INDIVIDUALS);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -165,6 +179,33 @@ public class IndividualService {
         // integrate with user service create call
         integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
         return decryptedIndividualList;
+    }
+
+    private void removePasswordFromIndividuals(List<Individual> validIndividualsWOPassword) {
+        if(!CollectionUtils.isEmpty(validIndividualsWOPassword)) {
+            validIndividualsWOPassword.forEach(individual -> {
+                individual.getUserDetails().setPassword(null);
+            });
+        }
+    }
+
+    // Method to perform deep copy using serialization
+    public static <T> List<T> deepCopy(List<T> originalList) {
+        try {
+            // Serialize the list
+            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+            ObjectOutputStream out = new ObjectOutputStream(byteOut);
+            out.writeObject(originalList);
+
+            // Deserialize the list to create a deep copy
+            ByteArrayInputStream byteIn = new ByteArrayInputStream(byteOut.toByteArray());
+            ObjectInputStream in = new ObjectInputStream(byteIn);
+            return (List<T>) in.readObject();
+
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            throw new CustomException("Failed to perform deep copy of the list.", e.getMessage());
+        }
     }
 
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
