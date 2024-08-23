@@ -69,9 +69,6 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .userDetails(UserDetails.builder()
                             .username(resultSet.getString("username"))
                             .userType(UserType.fromValue(resultSet.getString("type")))
-                            .roles(resultSet.getString("roles") == null ? null :
-                                    objectMapper.readValue(resultSet.getString("roles"),
-                                            List.class))
                             .tenantId(tenantId)
                             .build())
                     .userUuid(resultSet.getString("userUuid"))
