@@ -18,11 +18,15 @@ public class Constants {
 
     public static String GET_FACILITY_ID = "getFacilityId";
 
+    public static String GET_SENDER_ID = "getSenderId";
+
     public static String GET_REFERENCE_ID = "getReferenceId";
 
     public static String GET_TRANSACTING_PARTY_ID = "getTransactingPartyId";
 
     public static String WAREHOUSE = "WAREHOUSE";
+
+    public static String STAFF = "STAFF";
 
     public static String PROJECT = "PROJECT";
 

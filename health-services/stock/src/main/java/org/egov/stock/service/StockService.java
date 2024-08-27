@@ -1,35 +1,5 @@
 package org.egov.stock.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.ds.Tuple;
-import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.stock.Stock;
-import org.egov.common.models.stock.StockBulkRequest;
-import org.egov.common.models.stock.StockRequest;
-import org.egov.common.validator.Validator;
-import org.egov.stock.config.StockConfiguration;
-import org.egov.stock.repository.StockRepository;
-import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.SFacilityIdValidator;
-import org.egov.stock.validator.stock.SIsDeletedValidator;
-import org.egov.stock.validator.stock.SNonExistentValidator;
-import org.egov.stock.validator.stock.SNullIdValidator;
-import org.egov.stock.validator.stock.SProductVariantIdValidator;
-import org.egov.stock.validator.stock.SReferenceIdValidator;
-import org.egov.stock.validator.stock.SRowVersionValidator;
-import org.egov.stock.validator.stock.STransactingPartyIdValidator;
-import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.web.models.StockSearchRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
@@ -42,6 +12,36 @@ import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK;
 import static org.egov.stock.Constants.SET_STOCK;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.egov.common.ds.Tuple;
+import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
+import org.egov.common.validator.Validator;
+import org.egov.stock.config.StockConfiguration;
+import org.egov.stock.repository.StockRepository;
+import org.egov.stock.service.enrichment.StockEnrichmentService;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SReferenceIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
+import org.egov.stock.validator.stock.StocktransferPartiesValidator;
+import org.egov.stock.web.models.StockSearchRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 @Service
@@ -58,9 +58,9 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
-                    || validator.getClass().equals(SFacilityIdValidator.class)
-                    || validator.getClass().equals(SReferenceIdValidator.class)
-                    || validator.getClass().equals(STransactingPartyIdValidator.class);
+                    || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
+                    || validator.getClass().equals(StocktransferPartiesValidator.class)
+                    || validator.getClass().equals(SReferenceIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
@@ -69,13 +69,14 @@ public class StockService {
             || validator.getClass().equals(SNullIdValidator.class)
             || validator.getClass().equals(SRowVersionValidator.class)
             || validator.getClass().equals(SUniqueEntityValidator.class)
-            || validator.getClass().equals(SFacilityIdValidator.class)
             || validator.getClass().equals(SReferenceIdValidator.class)
-            || validator.getClass().equals(STransactingPartyIdValidator.class);
+            || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
+            || validator.getClass().equals(StocktransferPartiesValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
-            || validator.getClass().equals(SNullIdValidator.class);
+            || validator.getClass().equals(SNullIdValidator.class)
+            || validator.getClass().equals(SRowVersionValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
         this.stockRepository = stockRepository;
