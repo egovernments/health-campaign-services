@@ -1,5 +1,0 @@
-ALTER TABLE STOCK ADD COLUMN clientCreatedTime bigint;
-ALTER TABLE STOCK ADD COLUMN clientLastModifiedTime bigint;
-
-ALTER TABLE STOCK_RECONCILIATION_LOG ADD COLUMN clientCreatedTime bigint;
-ALTER TABLE STOCK_RECONCILIATION_LOG ADD COLUMN clientLastModifiedTime bigint;

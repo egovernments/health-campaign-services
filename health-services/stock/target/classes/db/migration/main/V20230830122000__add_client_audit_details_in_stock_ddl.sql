@@ -1,5 +1,0 @@
-ALTER TABLE STOCK ADD COLUMN IF NOT EXISTS clientCreatedBy character varying(64);
-ALTER TABLE STOCK ADD COLUMN IF NOT EXISTS clientLastModifiedBy character varying(64);
-
-ALTER TABLE STOCK_RECONCILIATION_LOG ADD COLUMN IF NOT EXISTS clientCreatedBy character varying(64);
-ALTER TABLE STOCK_RECONCILIATION_LOG ADD COLUMN IF NOT EXISTS clientLastModifiedBy character varying(64);
