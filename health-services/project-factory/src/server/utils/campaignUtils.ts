@@ -1857,6 +1857,40 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
     return objectWithAdditionalDetails?.additionalDetails?.source === 'microplan';
 }
 
+function createIdRequests(employees: any[]): any[] {
+    const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
+    return Array.from({ length: employees.length }, () => ({
+      tenantId: tenantId,
+      idName: config?.values?.idgen?.idNameForUserNameGeneration,
+      idFormat: config?.values?.idgen?.formatForUserName
+    }));
+  }
+
+async function createUniqueUserNameViaIdGen(request:any)
+{
+    const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
+    try {
+        // Make HTTP request to ID generation service
+       const  result = await httpRequest(
+          idgenurl,
+          request?.body,
+          undefined,
+          undefined,
+          undefined,
+          undefined
+        );
+    
+        // Return null if ID generation fails
+        return result;
+      } catch (error: any) {
+        // Log error if ID generation fails
+        logger.error("Error: " + error);
+    
+        // Return error
+        return error;
+      }
+}
+
 
 
 
@@ -1892,5 +1926,7 @@ export {
     getFinalValidHeadersForTargetSheetAsPerCampaignType,
     getDifferentTabGeneratedBasedOnConfig,
     checkIfSourceIsMicroplan,
-    getBoundaryOnWhichWeSplit
+    getBoundaryOnWhichWeSplit,
+    createIdRequests,
+    createUniqueUserNameViaIdGen
 }
