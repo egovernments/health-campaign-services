@@ -85,6 +85,9 @@ public class UserActionLocationCaptureAggregationService {
         });
     }
 
+    private Boolean isExistingRecord(ElasticsearchHit<UserActionLocationCaptureIndexRecord> esHit) {
+        return esHit.getPrimaryTerm() != 0L && esHit.getSeqNo() != 0L;
+    }
     /**
      * Updates an existing location capture entry or initializes a new one if it doesn't exist.
      *
@@ -98,13 +101,11 @@ public class UserActionLocationCaptureAggregationService {
             List<UserAction> userActionList
     ) {
         // Existing record fetched from Elasticsearch
-        UserActionLocationCaptureIndexRecord existingRecord = esHit.getSource();
-        UserActionLocationCaptureIndexRecord updatedRecord;
+        UserActionLocationCaptureIndexRecord esRecord = esHit.getSource();
 
-        if (existingRecord != null) {
+        if (Boolean.TRUE.equals(isExistingRecord(esHit)) && esRecord != null) {
             // If the entry already exists, update the geoJson with new coordinates and accuracy
-            updatedRecord = existingRecord;
-            JsonNode existingGeoJson = existingRecord.getGeoJson();
+            JsonNode existingGeoJson = esRecord.getGeoJson();
 
             // Extract existing coordinates and accuracy arrays
             List<List<Double>> existingCoordinates = objectMapper.convertValue(
@@ -138,21 +139,17 @@ public class UserActionLocationCaptureAggregationService {
 
             try {
                 // Update the GeoJSON in the record
-                updatedRecord.setGeoJson(objectMapper.readTree(updatedJsonString));
+                esRecord.setGeoJson(objectMapper.readTree(updatedJsonString));
                 log.info("Updated GeoJSON for user action location capture entry with ID: {}", userActionCompositeKey.getId());
             } catch (Exception e) {
                 log.error("Failed to update GeoJSON for user action location capture entry: ", e);
             }
 
-        } else {
-            // If no existing entry, initialize a new record
-            updatedRecord = initLocationCaptureEntry(userActionCompositeKey, userActionList);
-            log.info("Initialized new user action location capture entry for composite key: {}", userActionCompositeKey.getId());
         }
 
         // Update or create the record in Elasticsearch
         elasticSearchRepository.createOrUpdateDocument(
-                updatedRecord, config.getUserActionLocationCaptureIndex(), USER_LOCATION_CAPTURE_ID, esHit.getSeqNo(), esHit.getPrimaryTerm()
+                esRecord, config.getUserActionLocationCaptureIndex(), esRecord.getId(), esHit.getSeqNo(), esHit.getPrimaryTerm()
         );
         log.info("Updated/Created user action location capture entry in Elasticsearch for composite key: {}", userActionCompositeKey.getId());
     }
