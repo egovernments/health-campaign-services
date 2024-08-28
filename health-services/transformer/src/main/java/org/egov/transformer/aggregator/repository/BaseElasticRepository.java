@@ -173,7 +173,7 @@ public class BaseElasticRepository {
   private HttpHeaders getHeaders() {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.add("Authorization", getEsEncodedCredentials());
+//    headers.add("Authorization", getEsEncodedCredentials());
     return headers;
   }
 
