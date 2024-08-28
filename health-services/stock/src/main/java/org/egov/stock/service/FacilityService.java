@@ -19,7 +19,16 @@ import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
+import static org.egov.stock.Constants.GET_FACILITY_ID;
+import static org.egov.stock.Constants.GET_REFERENCE_ID;
 
 @Service
 @Slf4j
@@ -35,10 +44,10 @@ public class FacilityService {
     }
 
 	public <T> List<String> validateFacilityIds(List<String> entityIds,
-                                             List<T> entities,
-                                             String tenantId,
-                                             Map<T, List<Error>> errorDetailsMap,
-                                             RequestInfo requestInfo) {
+                                                List<T> entities,
+                                                String tenantId,
+                                                Map<T, List<Error>> errorDetailsMap,
+                                                RequestInfo requestInfo) {
 
 		if (CollectionUtils.isEmpty(entityIds))
 			return Collections.emptyList();
