@@ -10,6 +10,7 @@ import javax.net.ssl.X509TrustManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -48,6 +49,7 @@ public class RestTemplateConfig {
 
 
   @Bean("customRestTemplate")
+  @Primary
   public RestTemplate restTemplate() {
     trustSelfSignedSSL();
     return new RestTemplate();
