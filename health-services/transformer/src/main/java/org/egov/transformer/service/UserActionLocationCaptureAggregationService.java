@@ -26,14 +26,28 @@ import org.springframework.util.CollectionUtils;
 
 import static org.egov.transformer.aggregator.config.ServiceConstants.USER_LOCATION_CAPTURE_ID;
 
+/**
+ * Service class responsible for aggregating and processing user action location captures.
+ * The service groups user actions by a composite key and then updates or creates the respective entries in Elasticsearch.
+ */
 @Component
 @Slf4j
 public class UserActionLocationCaptureAggregationService {
 
+    // Service configuration instance
     private final ServiceConfiguration config;
+    // Elasticsearch repository for interacting with Elasticsearch
     private final ElasticSearchRepository elasticSearchRepository;
+    // ObjectMapper for JSON processing
     private final ObjectMapper objectMapper;
 
+    /**
+     * Constructor for dependency injection.
+     *
+     * @param config                  Service configuration.
+     * @param elasticSearchRepository Elasticsearch repository.
+     * @param objectMapper            ObjectMapper for JSON handling.
+     */
     @Autowired
     public UserActionLocationCaptureAggregationService(ServiceConfiguration config, ElasticSearchRepository elasticSearchRepository, ObjectMapper objectMapper) {
         this.config = config;
@@ -44,6 +58,8 @@ public class UserActionLocationCaptureAggregationService {
     /**
      * Process a list of UserAction location captures by grouping them by a composite key
      * and then updating or creating the respective entries in Elasticsearch.
+     *
+     * @param userActionPayloadList List of UserAction objects to process.
      */
     public void processUserActionLocationCapture(List<UserAction> userActionPayloadList) {
         // Grouping UserAction list by a composite key (projectId, tenantId, clientCreatedBy, clientCreatedDate)
@@ -61,20 +77,27 @@ public class UserActionLocationCaptureAggregationService {
 
         // For each group, fetch or initialize a location capture entry and update it
         groupByCompositeKey.forEach((userActionCompositeKey, userActionList) -> {
+            // Fetch or initialize location capture entry for the composite key
             ElasticsearchHit<UserActionLocationCaptureIndexRecord> esHit = fetchOrInitializeLocationCaptureEntry(userActionCompositeKey, userActionList);
-            log.info("PROCESS HOUSEHOLD ::: SEQ_NO ::: {}  PRIMARY_TERM ::: {}", esHit.getSeqNo(), esHit.getPrimaryTerm());
+            log.info("PROCESSING USER ACTION LOCATION CAPTURE ::: SEQ_NO ::: {}  PRIMARY_TERM ::: {}", esHit.getSeqNo(), esHit.getPrimaryTerm());
+            // Update the aggregated location capture entry with the current user actions
             updateAggregateLocationCaptureEntry(esHit, userActionCompositeKey, userActionList);
         });
     }
 
     /**
      * Updates an existing location capture entry or initializes a new one if it doesn't exist.
+     *
+     * @param esHit                The Elasticsearch hit containing the current record or a new initialized record.
+     * @param userActionCompositeKey The composite key used for identifying the record.
+     * @param userActionList       List of UserAction objects to be aggregated.
      */
     private void updateAggregateLocationCaptureEntry(
             ElasticsearchHit<UserActionLocationCaptureIndexRecord> esHit,
             UserActionCompositeKey userActionCompositeKey,
             List<UserAction> userActionList
     ) {
+        // Existing record fetched from Elasticsearch
         UserActionLocationCaptureIndexRecord existingRecord = esHit.getSource();
         UserActionLocationCaptureIndexRecord updatedRecord;
 
@@ -114,41 +137,60 @@ public class UserActionLocationCaptureAggregationService {
                     + "}", existingCoordinates.toString(), existingAccuracy.toString());
 
             try {
+                // Update the GeoJSON in the record
                 updatedRecord.setGeoJson(objectMapper.readTree(updatedJsonString));
+                log.info("Updated GeoJSON for user action location capture entry with ID: {}", userActionCompositeKey.getId());
             } catch (Exception e) {
-                log.error("Failed to update GeoJSON: ", e);
+                log.error("Failed to update GeoJSON for user action location capture entry: ", e);
             }
 
         } else {
             // If no existing entry, initialize a new record
             updatedRecord = initLocationCaptureEntry(userActionCompositeKey, userActionList);
+            log.info("Initialized new user action location capture entry for composite key: {}", userActionCompositeKey.getId());
         }
 
         // Update or create the record in Elasticsearch
         elasticSearchRepository.createOrUpdateDocument(
                 updatedRecord, config.getUserActionLocationCaptureIndex(), USER_LOCATION_CAPTURE_ID, esHit.getSeqNo(), esHit.getPrimaryTerm()
         );
+        log.info("Updated/Created user action location capture entry in Elasticsearch for composite key: {}", userActionCompositeKey.getId());
     }
-
-
 
     /**
      * Convert a timestamp (in milliseconds) to a formatted date string (yyyyMMdd).
+     *
+     * @param timestamp The timestamp in milliseconds.
+     * @return The formatted date string.
      */
     private String getDateFromTimeStamp(Long timestamp) {
+        // Convert the timestamp to a formatted date string
         return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     }
 
     /**
      * Fetch an existing location capture entry from Elasticsearch or initialize a new one if not found.
+     *
+     * @param userActionCompositeKey The composite key used for fetching the record.
+     * @param userActionList         The list of UserAction objects.
+     * @return An ElasticsearchHit containing the record or a new initialized record.
      */
     private ElasticsearchHit<UserActionLocationCaptureIndexRecord> fetchOrInitializeLocationCaptureEntry(UserActionCompositeKey userActionCompositeKey, List<UserAction> userActionList) {
+        // Fetch existing record from Elasticsearch
         Optional<ElasticsearchHit<UserActionLocationCaptureIndexRecord>> hit = fetchLocationCaptureEntry(userActionCompositeKey);
-        return hit.orElseGet(() -> new ElasticsearchHit<>(0L, 0L, initLocationCaptureEntry(userActionCompositeKey, userActionList)));
+        // Return the existing record or initialize a new one if not found
+        return hit.orElseGet(() -> {
+            log.info("No existing record found for composite key: {}. Initializing a new entry.", userActionCompositeKey.getId());
+            return new ElasticsearchHit<>(0L, 0L, initLocationCaptureEntry(userActionCompositeKey, userActionList));
+        });
     }
 
     /**
      * Initialize a new UserActionLocationCaptureIndexRecord with the given composite key and list of UserAction.
+     *
+     * @param userActionCompositeKey The composite key used for identifying the record.
+     * @param userActionList         The list of UserAction objects.
+     * @return A new UserActionLocationCaptureIndexRecord instance.
      */
     private UserActionLocationCaptureIndexRecord initLocationCaptureEntry(UserActionCompositeKey userActionCompositeKey, List<UserAction> userActionList) {
         UserAction userAction = null;
@@ -156,6 +198,7 @@ public class UserActionLocationCaptureAggregationService {
             userAction = userActionList.get(0);
         }
 
+        // Initialize a new record with the provided data
         return UserActionLocationCaptureIndexRecord.builder()
                 .id(userActionCompositeKey.getId())
                 .projectId(userActionCompositeKey.getProjectId())
@@ -168,7 +211,10 @@ public class UserActionLocationCaptureAggregationService {
     }
 
     /**
-     * Build a GeoJSON structure based on the provided list of UserAction objects.
+     * Build a GeoJSON object from a list of UserAction objects.
+     *
+     * @param userActionList List of UserAction objects.
+     * @return A JsonNode representing the GeoJSON.
      */
     public JsonNode buildGeoJson(List<UserAction> userActionList) {
         if (userActionList.isEmpty()) {
@@ -199,16 +245,20 @@ public class UserActionLocationCaptureAggregationService {
                 + "}", coordinatesJson, accuracyJson);
 
         try {
-            // Parse JSON string to JsonNode
+            // Parse the GeoJSON string into a JsonNode
             return objectMapper.readTree(jsonString);
         } catch (Exception e) {
-            log.error("Failed to build GeoJSON: ", e);
-            throw new CustomException("Error building GeoJSON from user actions", e.getMessage());
+            // Log and throw an exception if GeoJSON building fails
+            log.error("Failed to build GeoJSON for user action location capture: ", e);
+            throw new CustomException("GEOJSON_BUILD_ERROR", "Failed to build GeoJSON for user action location capture: " + e.getMessage());
         }
     }
 
     /**
-     * Fetch an existing location capture entry from Elasticsearch based on the composite key.
+     * Fetch an existing location capture entry from Elasticsearch by composite key.
+     *
+     * @param userActionCompositeKey The composite key used for fetching the record.
+     * @return An Optional containing the ElasticsearchHit with the record if found, empty otherwise.
      */
     private Optional<ElasticsearchHit<UserActionLocationCaptureIndexRecord>> fetchLocationCaptureEntry(UserActionCompositeKey userActionCompositeKey) {
         return elasticSearchRepository.findBySearchValueAndWithSeqNo(
