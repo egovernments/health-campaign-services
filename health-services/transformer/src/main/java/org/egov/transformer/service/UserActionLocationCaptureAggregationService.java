@@ -263,7 +263,7 @@ public class UserActionLocationCaptureAggregationService {
     private Optional<ElasticsearchHit<UserActionLocationCaptureIndexRecord>> fetchLocationCaptureEntry(UserActionCompositeKey userActionCompositeKey) {
         return elasticSearchRepository.findBySearchValueAndWithSeqNo(
                 userActionCompositeKey.getId(),
-                config.getAggregatedHouseholdIndex(),
+                config.getUserActionLocationCaptureIndex(),
                 USER_LOCATION_CAPTURE_ID,
                 new TypeReference<>() {
                 });
