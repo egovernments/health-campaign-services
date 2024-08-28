@@ -1,11 +1,5 @@
 package org.egov.common.models.stock;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -16,6 +10,12 @@ import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
  * Stock
@@ -95,7 +95,7 @@ public class Stock {
     private SenderReceiverType receiverType;
 
     @JsonProperty("waybillNumber")
-    @Size(min = 2, max = 200)
+    @Size(max = 200)
     private String wayBillNumber;
 
     @JsonProperty("additionalFields")
