@@ -564,14 +564,6 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-// function generateHash(input: string): string {
-//   const prime = 31; // Prime number
-//   let hash = 0;
-//   for (let i = 0; i < input.length; i++) {
-//     hash = (hash * prime + input.charCodeAt(i)) % 100000; // Limit hash to 5 digits
-//   }
-//   return hash.toString().padStart(6, '0');
-// }
 
 function generateUserPassword() {
   // Function to generate a random lowercase letter
@@ -607,19 +599,6 @@ function generateUserPassword() {
   return `${firstSequence}@${randomNumber}`;
 }
 
-
-// function enrichUserNameAndPassword(employees: any[]) {
-//   const epochTime = Date.now();
-//   employees.forEach((employee) => {
-//     const { user, "!row#number!": rowNumber } = employee;
-//     const nameInitials = user.name.split(' ').map((name: any) => name.charAt(0)).join('');
-//     const generatedCode = `${nameInitials}${generateHash(`${epochTime}`)}${rowNumber}`;
-//     const generatedPassword = config?.user?.userPasswordAutoGenerate == "true" ? generateUserPassword() : config?.user?.userDefaultPassword
-//     user.userName = generatedCode;
-//     user.password = generatedPassword;
-//     employee.code = generatedCode
-//   });
-// }
 
 async function enrichJurisdictions(employee: any, request: any) {
   employee.jurisdictions = [
