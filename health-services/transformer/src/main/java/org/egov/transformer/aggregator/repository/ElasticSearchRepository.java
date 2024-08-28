@@ -55,6 +55,9 @@ public class ElasticSearchRepository extends BaseElasticRepository {
   public <T> Optional<T> findBySearchValueAndWithSeqNo(String searchKeyValue, String index,
       String searchKeyPath, TypeReference<T> typeRef) {
     String response = this.fetchDocuments(index, getPayload(searchKeyPath, searchKeyValue));
+    if(response == null) {
+      return Optional.empty();
+    }
     return parseElasticsearchHit(response, typeRef);
   }
 
