@@ -4,6 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
+import digit.util.ServiceUtil;
 import digit.web.models.*;
 
 import java.util.*;
@@ -29,9 +30,12 @@ public class PlanConfigurationValidator {
 
     private PlanConfigurationRepository planConfigRepository;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository) {
+    private ServiceUtil serviceUtil;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository, ServiceUtil serviceUtil) {
         this.mdmsUtil = mdmsUtil;
         this.planConfigRepository = planConfigRepository;
+        this.serviceUtil = serviceUtil;
     }
 
     /**
@@ -76,29 +80,17 @@ public class PlanConfigurationValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        if (nameValidationListFromMDMS == null || CollectionUtils.isEmpty(nameValidationListFromMDMS)) {
+        if (CollectionUtils.isEmpty(nameValidationListFromMDMS)) {
             throw new CustomException(NAME_VALIDATION_LIST_EMPTY_CODE, NAME_VALIDATION_LIST_EMPTY_MESSAGE);
         }
 
         String regexPattern = (String) nameValidationListFromMDMS.get(0);
-        if (!validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
+        if (!serviceUtil.validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
             throw new CustomException(NAME_VALIDATION_FAILED_CODE, NAME_VALIDATION_FAILED_MESSAGE);
         }
 
     }
 
-    /**
-     * Validates the given input string against the provided regex pattern.
-     *
-     * @param patternString the regex pattern to validate against
-     * @param inputString   the input string to be validated
-     * @return true if the input string matches the regex pattern, false otherwise
-     */
-    public static boolean validateStringAgainstRegex(String patternString, String inputString) {
-        Pattern pattern = Pattern.compile(patternString);
-        Matcher matcher = pattern.matcher(inputString);
-        return matcher.matches();
-    }
 
     /**
      * Validates the assumption values against the assumption keys in the plan configuration.

@@ -91,7 +91,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
-    public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegx";
+    public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
 
     public static final String JSON_ROOT_PATH = "$.";
 
