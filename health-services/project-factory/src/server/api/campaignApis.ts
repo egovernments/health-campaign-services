@@ -519,7 +519,8 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
     logger.info("target sheet format validation started");
-    immediateValidationForTargetSheet(dataFromSheet, localizationMap);
+    // added await to ensure validations complete before proceeding, preventing premature errors.
+    await immediateValidationForTargetSheet(dataFromSheet, localizationMap);
     logger.info("target sheet format validation completed and starts with data validation");
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, localizationMap);
   }

@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.3 - 2024-08-09
+- Upgraded downsync logic.
+
+
 ## 1.0.2 - 2024-05-29
 - Upgraded to Core 2.9LTS
 - Client reference ID validation added

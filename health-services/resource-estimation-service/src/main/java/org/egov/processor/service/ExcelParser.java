@@ -12,12 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.DateUtil;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
@@ -200,7 +195,7 @@ public class ExcelParser implements FileParser {
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaignResponse The response object containing campaign details.
 	 * @param planConfig The configuration details specific to the plan.
-	 * @param workbook The workbook containing sheets to be processed.
+	 * @param excelWorkbook The workbook containing sheets to be processed.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param campaignResourcesList List of campaign resources to be integrated.
 	 * @param dataFormatter The data formatter for formatting cell values.
@@ -209,13 +204,19 @@ public class ExcelParser implements FileParser {
 			Object campaignResponse, PlanConfiguration planConfig, Workbook excelWorkbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList,
 			DataFormatter dataFormatter) {
+		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
+		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(planConfigurationRequest,
+				fileStoreId, campaign, planConfig);
+		List<String> boundaryCodeList = getBoundaryCodeList(planConfigurationRequest, campaign, planConfig);
+
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (isSheetAlloedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName())) {
+			if (isSheetAlloedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName(),localeResponse)) {
 				Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(excelWorkbookSheet);
 				List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
 				parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
-				processRows(planConfigurationRequest, excelWorkbookSheet, dataFormatter, fileStoreId, campaignResponse,
-						campaignBoundaryList, campaignResourcesList);
+				processRows(planConfigurationRequest, excelWorkbookSheet, dataFormatter, fileStoreId,
+						campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
 			}
 		});
 	}
@@ -232,24 +233,16 @@ public class ExcelParser implements FileParser {
 	 * @param dataFormatter            The data formatter for formatting cell
 	 *                                 values.
 	 * @param fileStoreId              The ID of the file in the file store.
-	 * @param campaignResponse         The response object to be updated with
-	 *                                 processed data.
 	 * @param campaignBoundaryList     The list of campaign boundaries to be
 	 *                                 updated.
-	 * @param campaignResourcesList    The list of campaign resources to be updated.
+	 * @param attributeNameVsDataTypeMap Mapping of attribute names to their data types.
+	 * @param boundaryCodeList List of boundary codes.
 	 * @throws IOException If an I/O error occurs.
 	 */
-	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
-			DataFormatter dataFormatter, String fileStoreId, Object campaignResponse,
-			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
-		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();		
-		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(planConfigurationRequest,
-				fileStoreId, campaign, planConfig);		
-		List<String> boundaryCodeList = getBoundaryCodeList(planConfigurationRequest, campaign, planConfig);
+	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Row firstRow = null;
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList,
-				planConfig, attributeNameVsDataTypeMap, boundaryCodeList, firstRow);
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, planConfig, attributeNameVsDataTypeMap, boundaryCodeList, firstRow);
 	}
 
 	/**
@@ -323,6 +316,9 @@ public class ExcelParser implements FileParser {
 			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
 			Row firstRow)  {
 		for (Row row : sheet) {
+			if(isRowEmpty(row))
+				continue;
+
 			if (row.getRowNum() == 0) {
 				firstRow = row;
 				continue;
@@ -339,7 +335,7 @@ public class ExcelParser implements FileParser {
 			Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
 					campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
-					planConfigurationRequest, boundaryCodeList);
+					planConfigurationRequest, boundaryCodeList, sheet);
 			JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
 			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
 					assumptionValueMap, feature);
@@ -350,6 +346,26 @@ public class ExcelParser implements FileParser {
 			// TODO: remove after testing
 			printRow(sheet, row);
 		}
+	}
+
+	/**
+	 * Checks if a given row is empty.
+	 *
+	 * A row is considered empty if it is null or if all of its cells are empty or of type BLANK.
+	 *
+	 * @param row the Row to check
+	 * @return true if the row is empty, false otherwise
+	 */
+	public static boolean isRowEmpty(Row row) {
+		if (row == null) {
+			return true;
+		}
+		for (Cell cell : row) {
+			if (cell != null && cell.getCellType() != CellType.BLANK) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -519,24 +535,24 @@ public class ExcelParser implements FileParser {
 	 */
 	public void validateRows(Integer indexOfBoundaryCode, Row row, Row columnHeaderRow, Map<String, Object> attributeNameVsDataTypeMap,
 			Map<String, String> mappedValues, Map<String, Integer> mapOfColumnNameAndIndex,
-			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList) {
+			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList, Sheet sheet) {
 
 		try {
 			validateTillBoundaryCode(indexOfBoundaryCode, row, columnHeaderRow);
 			validateAttributes(attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex, row, columnHeaderRow, indexOfBoundaryCode,
 					boundaryCodeList);
 		} catch (JsonProcessingException e) {
-			log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1));
+			log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " at sheet - " + sheet);
 			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
 			planUtil.update(planConfigurationRequest);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum());
+					ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " at sheet - " + sheet);
 		} catch (CustomException customException) {
-			log.info(customException.toString());
+			log.info(customException.toString()+ "at sheet - " + sheet.getSheetName());
 			planConfigurationRequest.getPlanConfiguration().setStatus(StatusEnum.INVALID_DATA);
 			planUtil.update(planConfigurationRequest);
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					customException.getMessage());
+					customException.getMessage()+ "at sheet - " + sheet.getSheetName());
 		}
 	}
 
@@ -702,11 +718,10 @@ public class ExcelParser implements FileParser {
 	 * @throws JsonMappingException If there's an issue mapping JSON response to Java objects.
 	 * @throws JsonProcessingException If there's an issue processing JSON during conversion.
 	 */
-	private boolean isSheetAlloedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName) {
+	private boolean isSheetAlloedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName,LocaleResponse localeResponse) {
 		Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
 				planConfigurationRequest.getRequestInfo(),
 				planConfigurationRequest.getPlanConfiguration().getTenantId());
-		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
 		String value = (String) mdmsDataConstants.get("readMeSheetName");
 		for (Locale locale : localeResponse.getMessages()) {
 			if ((locale.getCode().equalsIgnoreCase(value))) {

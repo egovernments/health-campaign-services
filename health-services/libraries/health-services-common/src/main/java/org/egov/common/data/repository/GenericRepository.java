@@ -291,4 +291,23 @@ public abstract class GenericRepository<T> {
         return validIds.stream().map((obj) -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                 .collect(Collectors.toList());
     }
+
+    public List<String> validateClientReferenceIdsFromDB(List<String> clientReferenceIds, Boolean isDeletedKeyPresent) {
+        List<String> objFound = new ArrayList<>();
+
+        String query = null;
+
+        if(isDeletedKeyPresent) {
+            query = String.format("SELECT clientReferenceId FROM %s WHERE clientReferenceId IN (:ids) AND isDeleted = false", tableName);
+        } else {
+            query = String.format("SELECT clientReferenceId FROM %s WHERE clientReferenceId IN (:ids) ", tableName);
+        }
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("ids", clientReferenceIds);
+
+        objFound.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
+
+        return objFound;
+    }
 }
