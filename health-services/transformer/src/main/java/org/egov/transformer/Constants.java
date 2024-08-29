@@ -20,6 +20,7 @@ public interface Constants {
     String PRODUCT_VARIANT_ID = "productVariantId";
     String MEMBER_COUNT = "memberCount";
     String HOUSEHOLD_ID = "householdId";
+    String BENEFICIARY_TAG = "tag";
     String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
