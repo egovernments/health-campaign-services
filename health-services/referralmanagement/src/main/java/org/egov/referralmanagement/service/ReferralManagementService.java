@@ -66,8 +66,7 @@ public class ReferralManagementService {
                 || validator.getClass().equals(RmExistentEntityValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
-                || validator.getClass().equals(RmSideEffectIdValidator.class)
-                || validator.getClass().equals(RmRowVersionValidator.class);
+                || validator.getClass().equals(RmSideEffectIdValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
