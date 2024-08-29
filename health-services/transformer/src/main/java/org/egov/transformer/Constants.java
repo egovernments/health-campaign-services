@@ -24,6 +24,7 @@ public interface Constants {
     String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
+    String STAFF = "STAFF";
 
     String MDMS_RESPONSE = "MdmsRes";
 

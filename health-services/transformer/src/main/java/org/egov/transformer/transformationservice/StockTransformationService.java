@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.StockIndexV1;
@@ -15,7 +16,6 @@ import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
-import org.egov.common.models.stock.TransactionType;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -61,41 +61,48 @@ public class StockTransformationService {
     private StockIndexV1 transform(Stock stock) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
-        String transactingFacilityType;
-        String facilityType;
+        String transactingFacilityType = getTransactingFacilityType(stock), facilityType = getFacilityType(stock);
+        String facilityId = getFacilityId(stock), transactingFacilityId = getTransactingFacilityId(stock);
 
-        if (RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString())) {
-            facilityType = stock.getReceiverType().toString();
-            transactingFacilityType = stock.getSenderType().toString();
-        } else {
-            facilityType = stock.getSenderType().toString();
-            transactingFacilityType = stock.getReceiverType().toString();
-        }
+        String facilityLevel = null, transactingFacilityLevel = null;
+        Long facilityTarget = null;
+        String facilityName, transactingFacilityName;
 
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-
-        String facilityId = fetchFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
-        String transactingFacilityId = fetchTransactingFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
-
-
-        Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
-        Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
-        if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
-                && facility.getAddress().getLocality().getCode() != null) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
-        } else if (PROJECT.equalsIgnoreCase(stock.getReferenceIdType().toString())) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+        if (!STAFF.equalsIgnoreCase(facilityType)) {
+            Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
+            if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
+                    && facility.getAddress().getLocality().getCode() != null) {
+                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+            }
+            facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
+            facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+            facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
+            facilityName = facility != null ? facility.getName() : facilityId;
+        } else {
+            facilityName = userService.getUserInfo(tenantId, facilityId).get(USERNAME);
+            ProjectStaff projectStaff = projectService.searchProjectStaff(facilityId, tenantId);
+            if (projectStaff != null) {
+                boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+            }
         }
 
-        String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
-        String transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
-        Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
+        if (!STAFF.equalsIgnoreCase(transactingFacilityType)) {
+            Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
+            transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
+            transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+            transactingFacilityName = transactingFacility != null ? transactingFacility.getName() : transactingFacilityId;
 
-        facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
-        transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+        } else {
+            transactingFacilityName  = userService.getUserInfo(tenantId, transactingFacilityId).get(USERNAME);
+        }
+
+        if (boundaryHierarchy.isEmpty() && PROJECT.equalsIgnoreCase(stock.getReferenceIdType().toString())) {
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+        }
 
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
@@ -112,12 +119,12 @@ public class StockTransformationService {
                 .productVariant(stock.getProductVariantId())
                 .productName(productName)
                 .facilityId(facilityId)
-                .facilityName(facility != null ? facility.getName() : facilityId)
+                .facilityName(facilityName)
                 .facilityType(facilityType)
                 .facilityLevel(facilityLevel)
                 .facilityTarget(facilityTarget)
                 .transactingFacilityId(transactingFacilityId)
-                .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : transactingFacilityId)
+                .transactingFacilityName(transactingFacilityName)
                 .transactingFacilityType(transactingFacilityType)
                 .transactingFacilityLevel(transactingFacilityLevel)
                 .userName(userInfoMap.get(USERNAME))
@@ -145,14 +152,26 @@ public class StockTransformationService {
         return stockIndexV1;
     }
 
-    private String fetchFacilityId(String receiverId, String senderId, TransactionType transactionType) {
-        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
-            return receiverId;
-        } else return senderId;
+    private String getFacilityId(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getReceiverId() :
+                stock.getSenderId();
     }
-    private String fetchTransactingFacilityId(String receiverId, String senderId, TransactionType transactionType) {
-        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
-            return senderId;
-        } else return receiverId;
+
+    private String getTransactingFacilityId(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getSenderId() :
+                stock.getReceiverId();
+    }
+    private String getFacilityType(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getReceiverType().toString() :
+                stock.getSenderType().toString();
+    }
+
+    private String getTransactingFacilityType(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getSenderType().toString() :
+                stock.getReceiverType().toString();
     }
 }
