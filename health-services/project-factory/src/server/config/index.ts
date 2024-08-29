@@ -157,7 +157,7 @@ const config = {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
       idName: process.env.CMP_IDGEN_IDNAME || "campaign.number",
       idNameForUserNameGeneration: "username.name",
-      formatForUserName: "USR-[SEQ_EG_CMP_ID]"
+      formatForUserName: "USR-[SEQ_EG_USER_NAME]"
     },
     matchFacilityData: false,
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
