@@ -105,8 +105,8 @@ public class PlanConfigQueryBuilder {
 
         if (criteria.getName() != null) {
             addClauseIfRequired(preparedStmtList, builder);
-            builder.append(" pc.name = ?");
-            preparedStmtList.add(criteria.getName());
+            builder.append(" pc.name LIKE ?");
+            preparedStmtList.add(criteria.getName() + '%');
         }
 
         if (criteria.getStatus() != null) {
