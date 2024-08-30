@@ -84,6 +84,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
+    public static final String MDMS = "mdms";
 
     public static final String DOT_SEPARATOR = ".";
 
@@ -109,5 +110,7 @@ public class ServiceConstants {
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
     public static final String BOUNDARY_CODE = "boundaryCode";
+
+    public static final String VEHICLE_IDS = "vehicleIds";
 
 }

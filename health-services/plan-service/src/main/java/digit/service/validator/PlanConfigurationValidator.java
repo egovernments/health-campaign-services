@@ -1,5 +1,6 @@
 package digit.service.validator;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
@@ -48,6 +49,7 @@ public class PlanConfigurationValidator {
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+        validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsData);
     }
 
     /**
@@ -81,7 +83,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
+        final String jsonPathForAssumption = "$." + MDMS + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {
@@ -404,6 +406,31 @@ public class PlanConfigurationValidator {
             }
         }
         return new ArrayList<>(finalData);
+    }
+
+    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, Object mdmsData)
+    {
+        List<String> vehicleIds = extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+    }
+
+    public static List<String> extractVehicleIdsFromAdditionalDetails(Object additionalDetails) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            List<String> vehicleIds = new ArrayList<>();
+            JsonNode vehicleIdsNode = rootNode.get(VEHICLE_IDS);
+            if (vehicleIdsNode != null && vehicleIdsNode.isArray()) {
+                for (JsonNode idNode : vehicleIdsNode) {
+                    vehicleIds.add(idNode.asText());
+                }
+            }
+
+            return vehicleIds;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
     }
 
     public void validateFilesActive(PlanConfiguration planConfigurationFromDB, PlanConfiguration planConfiguration)
