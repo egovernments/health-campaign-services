@@ -1,13 +1,11 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.household.Household;
-import org.egov.common.models.household.HouseholdBulkResponse;
-import org.egov.common.models.household.HouseholdSearch;
-import org.egov.common.models.household.HouseholdSearchRequest;
+import org.egov.common.models.household.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
@@ -52,5 +50,23 @@ public class HouseholdService {
             return Collections.emptyList();
         }
         return response.getHouseholds();
+    }
+
+    public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {
+        if (additionalFields instanceof List<?>) {
+            List<?> fieldsList = (List<?>) additionalFields;
+
+            for (Object item : fieldsList) {
+                if (item instanceof Field) {
+                    Field field = (Field) item;
+                    // Check if the key already exists in additionalDetails
+                    if (!additionalDetails.has(field.getKey())) {
+                        additionalDetails.put(field.getKey(), field.getValue());
+                    }
+                }
+            }
+        } else {
+            throw new IllegalArgumentException("additionalFields is not of the expected type List<Field>");
+        }
     }
 }
