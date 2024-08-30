@@ -155,6 +155,18 @@ public class ProjectTaskTransformationService {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
+
+        if (beneficiaryInfo.containsKey("additionalDetails")) {
+            try {
+                householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
+            } catch (IllegalArgumentException e) {
+                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}" , e.getMessage());
+            }
+        }
+
+        if (additionalDetails.has(PREGNANTWOMEN) || additionalDetails.has(CHILDREN)) {
+            additionalDetails.put(ISVULNERABLE, true);
+        }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;
@@ -249,6 +261,9 @@ public class ProjectTaskTransformationService {
             if (!CollectionUtils.isEmpty(households)) {
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
                 projectBenfInfoMap.put(HOUSEHOLD_ID, households.get(0).getClientReferenceId());
+                if (households.get(0).getAdditionalFields() != null && households.get(0).getAdditionalFields().getFields() != null) {
+                    projectBenfInfoMap.put("additionalFields", households.get(0).getAdditionalFields().getFields());
+                }
             }
         } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
