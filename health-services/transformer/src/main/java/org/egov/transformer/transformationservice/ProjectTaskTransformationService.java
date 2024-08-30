@@ -156,7 +156,7 @@ public class ProjectTaskTransformationService {
             additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
 
-        if (beneficiaryInfo.containsKey("additionalDetails")) {
+        if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
                 householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
             } catch (IllegalArgumentException e) {
