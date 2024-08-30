@@ -1883,12 +1883,12 @@ async function createUniqueUserNameViaIdGen(request:any)
         // Return null if ID generation fails
         return result;
       } catch (error: any) {
-        // Log error if ID generation fails
-        logger.error("Error: " + error);
-    
-        // Return error
-        return error;
-      }
+        // Log the error
+        logger.error(`Error during ID generation: ${error.message}`);
+
+        // Throw a custom error
+        throwError("ID_GENERATION", 500, "ID_GENERATION_FAILED", `Error occurred while generating ID: ${error.message}`);
+    }
 }
 
 
