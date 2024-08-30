@@ -79,6 +79,10 @@ public class HouseholdTransformationService {
             additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
         }
 
+        if (additionalDetails.has(PREGNANTWOMEN) || additionalDetails.has(CHILDREN)) {
+            additionalDetails.put(ISVULNERABLE, true);
+        }
+
         return HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))

@@ -89,5 +89,7 @@ public interface Constants {
     String DISABILITY_TYPE = "disabilityType";
     String LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
     String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
-
+    String PREGNANTWOMEN = "pregnantWomen";
+    String CHILDREN = "children";
+    String ISVULNERABLE = "isVulnerable";
 }
