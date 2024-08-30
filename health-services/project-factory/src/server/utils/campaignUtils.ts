@@ -17,7 +17,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
-import { areBoundariesSame, callGenerateIfBoundariesDiffer } from "./generateUtils";
+import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 const _ = require('lodash');
@@ -599,7 +599,7 @@ function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: a
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
-    callGenerateIfBoundariesDiffer(request);
+    callGenerateIfBoundariesOrCampaignTypeDiffer(request);
     if (existingCampaignDetails) {
         if (areBoundariesSame(existingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries)) {
             updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
