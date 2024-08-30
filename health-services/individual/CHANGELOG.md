@@ -1,11 +1,8 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.1.6 - 2024-08-29
- ## 1.1.6 - 2024-08-29
 
  - Added `ExistentEntityValidator` fixes
-
- ## 1.1.5 - 2024-05-29
 
 ## 1.1.5 - 2024-05-29
 - Integrated Core 2.9LTS
@@ -29,8 +26,6 @@ All notable changes to this module will be documented in this file.
 ## 1.1.2-beta
 
 - Added proximity based search support
-
-## 1.1.0
 
 
 ## 1.0.0
