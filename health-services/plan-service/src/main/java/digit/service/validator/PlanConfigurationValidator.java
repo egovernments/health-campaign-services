@@ -295,6 +295,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, SCHEMA_CODE_VEHICLE);
 
         // Validate plan existence
         PlanConfiguration planConfigurationFromDB = validatePlanConfigExistence(request);
@@ -308,7 +309,7 @@ public class PlanConfigurationValidator {
         validateOperationDependencies(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
-
+        validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
     }
 
     /**
