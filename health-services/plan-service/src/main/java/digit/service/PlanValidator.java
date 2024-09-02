@@ -11,10 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
@@ -374,15 +371,12 @@ public class PlanValidator {
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-
-        List<Object> finalMetricListFromMDMS = metricListFromMDMS;
-        plan.getTargets().stream()
-                .map(Target::getMetric)
-                .filter(metric -> !finalMetricListFromMDMS.contains(metric))
-                .findAny()
-                .ifPresent(metric -> {
-                    throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
-                });
+        HashSet<Object> metricSetFromMDMS = new HashSet<>(metricListFromMDMS);
+        plan.getTargets().stream().forEach(target -> {
+            if (!metricSetFromMDMS.contains(target.getMetric())) {
+                throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
+            }
+        });
 
     }
 
@@ -412,13 +406,12 @@ public class PlanValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        metricDetails.stream()
-                .map(MetricDetail::getMetricUnit)
-                .filter(metricUnit -> !metricUnitListFromMDMS.contains(metricUnit))
-                .findAny()
-                .ifPresent(metricUnit -> {
-                    throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
-                });
+        HashSet<Object> metricUnitSetFromMDMS = new HashSet<>(metricUnitListFromMDMS);
+        metricDetails.stream().forEach(metricDetail -> {
+            if (!metricUnitSetFromMDMS.contains(metricDetail.getMetricUnit())) {
+                throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
+            }
+        });
 
     }
 

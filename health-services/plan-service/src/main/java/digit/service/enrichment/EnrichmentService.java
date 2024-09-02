@@ -6,14 +6,13 @@ import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.ResourceMapping;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
-import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
+import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
+
 import org.springframework.util.ObjectUtils;
 
 @Component
@@ -55,18 +54,7 @@ public class EnrichmentService {
         // Generate id for resource mappings
         planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id"));
 
-        enrichAuditDetails(request, Boolean.TRUE);
-    }
-
-    /**
-     * Enriches the audit details for the PlanConfigurationRequest based on the operation type (create or update).
-     * @param request The PlanConfigurationRequest for which audit details are to be enriched.
-     * @param isCreate A boolean indicating whether the operation is a create or update operation.
-     */
-    public void enrichAuditDetails(PlanConfigurationRequest request, Boolean isCreate) {
-        PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        planConfiguration.setAuditDetails(AuditDetailsEnrichmentUtil
-                .prepareAuditDetails(planConfiguration.getAuditDetails(), request.getRequestInfo(), isCreate));
+        planConfiguration.setAuditDetails(prepareAuditDetails(planConfiguration.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
     }
 
     /**
@@ -107,7 +95,7 @@ public class EnrichmentService {
             }
         });
 
-        enrichAuditDetails(request, Boolean.FALSE);
+        planConfiguration.setAuditDetails(prepareAuditDetails(request.getPlanConfiguration().getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
     }
 
     /**

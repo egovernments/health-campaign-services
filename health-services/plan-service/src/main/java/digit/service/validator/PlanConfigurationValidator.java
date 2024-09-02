@@ -85,11 +85,13 @@ public class PlanConfigurationValidator {
                 .map(Assumption::getKey)
                 .collect(Collectors.toSet());
 
-        planConfiguration.getOperations().stream().filter(Operation::getActive) // Filter to only active operations
-                .filter(operation -> !activeAssumptionKeys.contains(operation.getAssumptionValue())) // Check if assumption value is not in the active keys
+        planConfiguration.getOperations().stream()
+                .filter(Operation::getActive)
                 .forEach(operation -> {
-                    log.error(ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + operation.getAssumptionValue());
-                    throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
+                    if (!activeAssumptionKeys.contains(operation.getAssumptionValue())) {
+                        log.error("Assumption Value " + operation.getAssumptionValue() + " is not present in the list of active Assumption Keys");
+                        throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + operation.getAssumptionValue());
+                    }
                 });
 
     }
@@ -113,14 +115,15 @@ public class PlanConfigurationValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        for(Assumption assumption : planConfiguration.getAssumptions())
-        {
-            if(!assumptionListFromMDMS.contains(assumption.getKey()))
-            {
-                log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
-                throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
-            }
-        }
+        HashSet<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
+        planConfiguration.getAssumptions().forEach(assumption -> {
+                    if (!assumptionSetFromMDMS.contains(assumption.getKey())) {
+                        log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
+                        throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
+                    }
+                }
+        );
+
     }
 
     /**
@@ -132,14 +135,12 @@ public class PlanConfigurationValidator {
                 .map(File::getFilestoreId)
                 .collect(Collectors.toSet());
 
-        List<ResourceMapping> resourceMappingList = planConfiguration.getResourceMapping();
-        planConfiguration.getResourceMapping()
-                .stream()
-                .filter(resourceMapping -> !fileStoreIds.contains(resourceMapping.getFilestoreId()))
-                .forEach(resourceMapping -> {
-                    log.error( resourceMapping.getMappedTo() + FILESTORE_ID_INVALID_MESSAGE + resourceMapping.getFilestoreId());
-                    throw new CustomException(FILESTORE_ID_INVALID_CODE, FILESTORE_ID_INVALID_MESSAGE);
-                });
+        planConfiguration.getResourceMapping().stream().forEach(mapping -> {
+            if (!fileStoreIds.contains(mapping.getFilestoreId())) {
+                log.error("Resource Mapping " + mapping.getMappedTo() + " does not have valid fileStoreId " + mapping.getFilestoreId());
+                throw new CustomException(FILESTORE_ID_INVALID_CODE, FILESTORE_ID_INVALID_MESSAGE);
+            }
+        });
 
     }
 
@@ -168,9 +169,12 @@ public class PlanConfigurationValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
+        HashSet<Object> templateIdentifierSetFromMDMS = new HashSet<>(templateIdentifierListFromMDMS);
+        HashSet<Object> requiredTemplateIdentifierSetFromMDMS = new HashSet<>(requiredTemplateIdentifierFromMDMS);
+
         for(File file : planConfiguration.getFiles())
         {
-            if(!templateIdentifierListFromMDMS.contains(file.getTemplateIdentifier()))
+            if(!templateIdentifierSetFromMDMS.contains(file.getTemplateIdentifier()))
             {
                 log.error(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE + file.getTemplateIdentifier());
                 throw new CustomException(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE);
@@ -178,7 +182,7 @@ public class PlanConfigurationValidator {
 
             if (file.getActive()) { // Check if the file is active
                 String templateIdentifier = file.getTemplateIdentifier();
-                if (requiredTemplateIdentifierFromMDMS.contains(templateIdentifier)) { // Check if the template identifier is required
+                if (requiredTemplateIdentifierSetFromMDMS.contains(templateIdentifier)) { // Check if the template identifier is required
                     if (!activeRequiredTemplates.add(templateIdentifier)) { // Ensure only one active file per required template identifier
                         log.error(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE + file.getTemplateIdentifier());
                         throw new CustomException(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE, ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE);
@@ -188,12 +192,13 @@ public class PlanConfigurationValidator {
         }
 
         // Ensure at least one active file for each required template identifier
-        requiredTemplateIdentifierFromMDMS
+        requiredTemplateIdentifierSetFromMDMS
                 .stream()
-                .filter(requiredTemplate -> !activeRequiredTemplates.contains(requiredTemplate))
                 .forEach(requiredTemplate -> {
-                    log.error(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE + requiredTemplate);
-                    throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+                    if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                        log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                        throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+                    }
                 });
 
     }
@@ -225,17 +230,20 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        List<String> allowedColumns = getColumnsFromSchemaThatAreRuleInputs(ruleInputsListFromMDMS, templateIds, inputFileTypes);
+
+        HashSet<Object> ruleInputsSetFromMDMS = new HashSet<>(ruleInputsListFromMDMS);
+
+        HashSet<String> allowedColumns = getColumnsFromSchemaThatAreRuleInputs(ruleInputsSetFromMDMS, templateIds, inputFileTypes);
         planConfiguration.getOperations().stream()
                 .map(Operation::getOutput)
                 .forEach(allowedColumns::add);
 
-        planConfiguration.getOperations().stream()
-                .filter(operation -> !allowedColumns.contains(operation.getInput()))
-                .forEach(operation -> {
-                    log.error(INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
-                    throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE);
-                });
+        planConfiguration.getOperations().stream().forEach(operation -> {
+            if (!allowedColumns.contains(operation.getInput())) {
+                log.error("Input Value " + operation.getInput() + " is not present in MDMS Input List");
+                throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE);
+            }
+        });
 
     }
 
@@ -247,23 +255,25 @@ public class PlanConfigurationValidator {
      * @param templateIds The list of template identifiers from request object
      * @param inputFileTypes The list of input file type from request object
      */
-    public static List<String> getColumnsFromSchemaThatAreRuleInputs(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+    public static HashSet<String> getColumnsFromSchemaThatAreRuleInputs(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (schemas == null) {
-            return new ArrayList<>();
+            return new HashSet<>();
         }
-        Set<String> finalData = new HashSet<>();
+        HashSet<String> finalData = new HashSet<>();
         for (Object item : schemas) {
             LinkedHashMap schemaEntity = (LinkedHashMap) item;
             if(!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE))) continue;
             LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>)((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
-            if(columns == null) return new ArrayList<>();
+            if(columns == null) return new HashSet<>();
             columns.entrySet().stream()
-                    .filter(column -> (boolean) column.getValue().get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)) // Check if the value is true
-                    .map(Map.Entry::getKey) // Extract the keys for matching entries
-                    .forEach(finalData::add); // Add the keys to finalData
-
+                    .forEach(column -> {
+                        LinkedHashMap<String, Boolean> data = column.getValue();
+                        if(data.get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)){
+                            finalData.add(column.getKey());
+                        }
+                    });   // Add the keys to finalData
         }
-        return new ArrayList<>(finalData);
+        return finalData;
     }
 
 
@@ -276,12 +286,13 @@ public class PlanConfigurationValidator {
      */
     public static void validateMappedToUniqueness(List<ResourceMapping> resourceMappings) {
         Set<String> uniqueMappedToSet = new HashSet<>();
-        resourceMappings.stream()
-                .filter(mapping -> !uniqueMappedToSet.add(mapping.getFilestoreId() + "-" + mapping.getMappedTo()))
-                .forEach(mapping -> {
-                    log.error(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
-                    throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE, DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE + " - " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
-                });
+        resourceMappings.stream().forEach(mapping -> {
+            String uniqueKey = mapping.getFilestoreId() + "-" + mapping.getMappedTo();
+            if (!uniqueMappedToSet.add(uniqueKey)) {
+                log.error("Duplicate MappedTo " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
+                throw new CustomException(DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE, DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE + " - " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
+            }
+        });
     }
 
 
@@ -377,12 +388,12 @@ public class PlanConfigurationValidator {
                 .collect(Collectors.toSet());
 
         // Check for each inactive operation
-        planConfiguration.getOperations().stream()
-                .filter(operation -> !operation.getActive() && activeInputs.contains(operation.getOutput()))
-                .forEach(operation -> {
-                    log.error(INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
-                    throw new CustomException(INACTIVE_OPERATION_USED_AS_INPUT_CODE, INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
-                });
+        planConfiguration.getOperations().stream().forEach(operation -> {
+            if (!operation.getActive() && activeInputs.contains(operation.getOutput())) {
+                log.error(INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
+                throw new CustomException(INACTIVE_OPERATION_USED_AS_INPUT_CODE, INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
+            }
+        });
     }
 
 
@@ -411,7 +422,8 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        List<String> requiredColumns = getRequiredColumnsFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
+        HashSet<Object> ruleInputsSetFromMDMS = new HashSet<>(ruleInputsListFromMDMS);
+        HashSet<String> requiredColumns = getRequiredColumnsFromSchema(ruleInputsSetFromMDMS, templateIds, inputFileTypes);
         List<ResourceMapping> resourceMappings =  planConfiguration.getResourceMapping();
 
         // Throw a custom exception if no active mappings with BOUNDARY_CODE are found
@@ -435,22 +447,24 @@ public class PlanConfigurationValidator {
      * @param inputFileTypes The list of input file type from request object
      * @return List of Columns that are required
      */
-    public static List<String> getRequiredColumnsFromSchema(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+    public static HashSet<String> getRequiredColumnsFromSchema(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (schemas == null) {
-            return new ArrayList<>();
+            return new HashSet<>();
         }
-        Set<String> finalData = new HashSet<>();
+        HashSet<String> finalData = new HashSet<>();
         for (Object item : schemas) {
             LinkedHashMap<?, ?> schemaEntity = (LinkedHashMap) item;
             if(!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE))) continue;
             LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>)((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
-            if(columns == null) return new ArrayList<>();
-            columns.entrySet().stream()
-                    .filter(column -> (boolean) column.getValue().get(MDMS_SCHEMA_PROPERTIES_IS_REQUIRED)) // Check if the value is true
-                    .map(Map.Entry::getKey) // Extract the keys for matching entries
-                    .forEach(finalData::add); // Add the keys to finalData
+            if (columns == null) return new HashSet<>();
+            columns.entrySet().stream().forEach(column -> {
+                LinkedHashMap<String, Boolean> data = column.getValue();
+                if (data.get(MDMS_SCHEMA_PROPERTIES_IS_REQUIRED)) {
+                    finalData.add(column.getKey());
+                }
+            });
         }
-        return new ArrayList<>(finalData);
+        return finalData;
     }
 
     /**
