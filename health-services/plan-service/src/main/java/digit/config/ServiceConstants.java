@@ -28,6 +28,9 @@ public class ServiceConstants {
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
 
+    public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
+    public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
+
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS";
 
@@ -112,5 +115,7 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE = "boundaryCode";
 
     public static final String VEHICLE_IDS = "vehicleIds";
+
+    public static final String SCHEMA_CODE_VEHICLE = "hcm-microplanning.VehicleDetails";
 
 }

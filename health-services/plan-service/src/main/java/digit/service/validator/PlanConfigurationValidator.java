@@ -1,10 +1,12 @@
 package digit.service.validator;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
+import digit.util.MdmsV2Util;
 import digit.web.models.*;
 
 import java.util.*;
@@ -14,6 +16,7 @@ import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -26,11 +29,18 @@ public class PlanConfigurationValidator {
 
     private MdmsUtil mdmsUtil;
 
+    private MdmsV2Util mdmsV2Util;
+
     private PlanConfigurationRepository planConfigRepository;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository) {
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, ObjectMapper objectMapper) {
         this.mdmsUtil = mdmsUtil;
+        this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -41,6 +51,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, SCHEMA_CODE_VEHICLE);
 
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
@@ -49,7 +60,7 @@ public class PlanConfigurationValidator {
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
-        validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsData);
+        validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
     }
 
     /**
@@ -83,7 +94,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = "$." + MDMS + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
+        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {
@@ -408,12 +419,32 @@ public class PlanConfigurationValidator {
         return new ArrayList<>(finalData);
     }
 
-    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, Object mdmsData)
+    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, Object mdmsV2Data)
     {
         List<String> vehicleIds = extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+
+        String jsonPathForVehicleIds = "$." + MDMS + DOT_SEPARATOR + "*.id";
+
+        List<Object> vehicleIdsFromMdms = null;
+        try {
+            log.info(jsonPathForVehicleIds);
+            vehicleIdsFromMdms = JsonPath.read(mdmsV2Data, jsonPathForVehicleIds);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        for(String vehicleId : vehicleIds)
+        {
+            if(!vehicleIdsFromMdms.contains(vehicleId))
+            {
+                log.error(" Vehicle Id " + vehicleId + " is not present in MDMS");
+                throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForVehicleIds);
+            }
+        }
     }
 
-    public static List<String> extractVehicleIdsFromAdditionalDetails(Object additionalDetails) {
+    public List<String> extractVehicleIdsFromAdditionalDetails(Object additionalDetails) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
