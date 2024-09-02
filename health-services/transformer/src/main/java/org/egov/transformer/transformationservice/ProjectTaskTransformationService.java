@@ -167,6 +167,9 @@ public class ProjectTaskTransformationService {
         if (additionalDetails.has(PREGNANTWOMEN) || additionalDetails.has(CHILDREN)) {
             additionalDetails.put(ISVULNERABLE, true);
         }
+        if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
+            additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
+        }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;
