@@ -78,6 +78,49 @@ public class ServiceConstants {
 
     public static final String INVALID_PLAN_ID_CODE = "INVALID_PLAN_ID";
     public static final String INVALID_PLAN_ID_MESSAGE = "Plan id provided is invalid";
+
+    public static final String CYCLIC_ACTIVITY_DEPENDENCY_CODE = "CYCLIC_ACTIVITY_DEPENDENCY";
+    public static final String CYCLIC_ACTIVITY_DEPENDENCY_MESSAGE = "Cyclic activity dependency found";
+
+    public static final String INVALID_ACTIVITY_DEPENDENCY_CODE = "INVALID_ACTIVITY_DEPENDENCY";
+    public static final String INVALID_ACTIVITY_DEPENDENCY_MESSAGE = "Activity dependency is invalid";
+
+    public static final String ACTIVITIES_CANNOT_BE_NULL_CODE = "ACTIVITIES_CANNOT_BE_NULL";
+    public static final String ACTIVITIES_CANNOT_BE_NULL_MESSAGE = "Activities list in Plan cannot be null";
+
+    public static final String DUPLICATE_ACTIVITY_CODES = "DUPLICATE_ACTIVITY_CODES";
+    public static final String DUPLICATE_ACTIVITY_CODES_MESSAGE = "Activity codes within the plan should be unique";
+
+    public static final String PLAN_ACTIVITIES_MANDATORY_CODE = "PLAN_ACTIVITIES_MANDATORY";
+    public static final String PLAN_ACTIVITIES_MANDATORY_MESSAGE = "Activities are mandatory if execution plan id is not provided";
+
+    public static final String PLAN_ACTIVITIES_NOT_ALLOWED_CODE = "PLAN_ACTIVITIES_NOT_ALLOWED";
+    public static final String PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE = "Activities are not allowed if execution plan id is provided";
+
+    public static final String INVALID_ACTIVITY_DATES_CODE = "INVALID_ACTIVITY_DATES";
+    public static final String INVALID_ACTIVITY_DATES_MESSAGE = "Planned end date cannot be before planned start date";
+
+    public static final String PLAN_RESOURCES_MANDATORY_CODE = "PLAN_RESOURCES_MANDATORY";
+    public static final String PLAN_RESOURCES_MANDATORY_MESSAGE = "Resources are mandatory if plan configuration id is not provided";
+
+    public static final String PLAN_RESOURCES_NOT_ALLOWED_CODE = "PLAN_RESOURCES_NOT_ALLOWED";
+    public static final String PLAN_RESOURCES_NOT_ALLOWED_MESSAGE = "Resources are not allowed if plan configuration id is provided";
+
+    public static final String INVALID_RESOURCE_ACTIVITY_LINKAGE_CODE = "INVALID_RESOURCE_ACTIVITY_LINKAGE";
+    public static final String INVALID_RESOURCE_ACTIVITY_LINKAGE_MESSAGE = "Resource-Activity linkage is invalid";
+
+    public static final String INVALID_TARGET_ACTIVITY_LINKAGE_CODE = "INVALID_TARGET_ACTIVITY_LINKAGE";
+    public static final String INVALID_TARGET_ACTIVITY_LINKAGE_MESSAGE = "Target-Activity linkage is invalid";
+
+    public static final String DUPLICATE_TARGET_UUIDS_CODE = "DUPLICATE_TARGET_UUIDS";
+    public static final String DUPLICATE_TARGET_UUIDS_MESSAGE = "Target UUIDs should be unique";
+
+    public static final String DUPLICATE_RESOURCE_UUIDS_CODE = "DUPLICATE_RESOURCE_UUIDS";
+    public static final String DUPLICATE_RESOURCE_UUIDS_MESSAGE = "Resource UUIDs should be unique";
+
+    public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
+    public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";

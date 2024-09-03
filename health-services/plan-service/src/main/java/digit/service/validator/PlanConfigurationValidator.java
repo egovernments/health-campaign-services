@@ -448,7 +448,7 @@ public class PlanConfigurationValidator {
      * @return List of Columns that are required
      */
     public static HashSet<String> getRequiredColumnsFromSchema(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
-        if (schemas == null) {
+        if (CollectionUtils.isEmpty(schemas)) {
             return new HashSet<>();
         }
         HashSet<String> finalData = new HashSet<>();

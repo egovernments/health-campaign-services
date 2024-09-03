@@ -91,7 +91,7 @@ public class PlanValidator {
         activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
             activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
                 if(activityCodeVsDependenciesMap.get(dependency).contains(activityCode))
-                    throw new CustomException("CYCLIC_ACTIVITY_DEPENDENCY", "Cyclic activity dependency found");
+                    throw new CustomException(CYCLIC_ACTIVITY_DEPENDENCY_CODE, CYCLIC_ACTIVITY_DEPENDENCY_MESSAGE);
             });
         });
     }
@@ -111,7 +111,7 @@ public class PlanValidator {
             if(!CollectionUtils.isEmpty(activity.getDependencies())) {
                 activity.getDependencies().forEach(dependency -> {
                     if(!activityCodes.contains(dependency))
-                        throw new CustomException("INVALID_ACTIVITY_DEPENDENCY", "Activity dependency is invalid");
+                        throw new CustomException(INVALID_ACTIVITY_DEPENDENCY_CODE, INVALID_ACTIVITY_DEPENDENCY_MESSAGE);
                 });
             }
         });
@@ -125,7 +125,7 @@ public class PlanValidator {
     private void validateActivities(PlanRequest request) {
         // Collect all activity codes
         if(request.getPlan().getActivities() == null)
-            throw new CustomException("ACTIVITIES_CANNOT_BE_NULL","Activities list in Plan cannot be null");
+            throw new CustomException(ACTIVITIES_CANNOT_BE_NULL_CODE, ACTIVITIES_CANNOT_BE_NULL_MESSAGE);
 
         Set<String> activityCodes = request.getPlan().getActivities().stream()
                 .map(Activity::getCode)
@@ -133,26 +133,26 @@ public class PlanValidator {
 
         // If activity codes are not unique, throw an exception
         if(activityCodes.size() != request.getPlan().getActivities().size()) {
-            throw new CustomException("DUPLICATE_ACTIVITY_CODES", "Activity codes within the plan should be unique");
+            throw new CustomException(DUPLICATE_ACTIVITY_CODES, DUPLICATE_ACTIVITY_CODES_MESSAGE);
         }
 
         // If execution plan id is not provided, providing activities is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
-            throw new CustomException("PLAN_ACTIVITIES_MANDATORY", "Activities are mandatory if execution plan id is not provided");
+            throw new CustomException(PLAN_ACTIVITIES_MANDATORY_CODE, PLAN_ACTIVITIES_MANDATORY_MESSAGE);
         }
 
         // If execution plan id is provided, providing activities is not allowed
         if(!ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
-            throw new CustomException("PLAN_ACTIVITIES_NOT_ALLOWED", "Activities are not allowed if execution plan id is provided");
+            throw new CustomException(PLAN_ACTIVITIES_NOT_ALLOWED_CODE, PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate activity dates
         if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             request.getPlan().getActivities().forEach(activity -> {
                 if(activity.getPlannedEndDate() < activity.getPlannedStartDate())
-                    throw new CustomException("INVALID_ACTIVITY_DATES", "Planned end date cannot be before planned start date");
+                    throw new CustomException(INVALID_ACTIVITY_DATES_CODE, INVALID_ACTIVITY_DATES_MESSAGE);
             });
         }
     }
@@ -179,13 +179,13 @@ public class PlanValidator {
         // If plan configuration id is not provided, providing resources is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException("PLAN_RESOURCES_MANDATORY", "Resources are mandatory if plan configuration id is not provided");
+            throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
 
         // If plan configuration id is provided, providing resources is not allowed
         if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException("PLAN_RESOURCES_NOT_ALLOWED", "Resources are not allowed if plan configuration id is provided");
+            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate resource type existence
@@ -211,7 +211,7 @@ public class PlanValidator {
             // Validate resource-activity linkage
             request.getPlan().getResources().forEach(resource -> {
                 if(!activityCodes.contains(resource.getActivityCode()))
-                    throw new CustomException("INVALID_RESOURCE_ACTIVITY_LINKAGE", "Resource-Activity linkage is invalid");
+                    throw new CustomException(INVALID_RESOURCE_ACTIVITY_LINKAGE_CODE, INVALID_RESOURCE_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
     }
@@ -230,7 +230,7 @@ public class PlanValidator {
             // Validate target-activity linkage
             request.getPlan().getTargets().forEach(target -> {
                 if(!activityCodes.contains(target.getActivityCode()))
-                    throw new CustomException("INVALID_TARGET_ACTIVITY_LINKAGE", "Target-Activity linkage is invalid");
+                    throw new CustomException(INVALID_TARGET_ACTIVITY_LINKAGE_CODE, INVALID_TARGET_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
     }
@@ -295,7 +295,7 @@ public class PlanValidator {
 
         // If target UUIDs are not unique, throw an exception
         if (targetUuids.size() != request.getPlan().getTargets().size()) {
-            throw new CustomException("DUPLICATE_TARGET_UUIDS", "Target UUIDs should be unique");
+            throw new CustomException(DUPLICATE_TARGET_UUIDS_CODE, DUPLICATE_TARGET_UUIDS_MESSAGE);
         }
     }
 
@@ -313,7 +313,7 @@ public class PlanValidator {
 
         // If resource UUIDs are not unique, throw an exception
         if (resourceUuids.size() != request.getPlan().getResources().size()) {
-            throw new CustomException("DUPLICATE_RESOURCE_UUIDS", "Resource UUIDs should be unique");
+            throw new CustomException(DUPLICATE_RESOURCE_UUIDS_CODE, DUPLICATE_RESOURCE_UUIDS_MESSAGE);
         }
     }
 
@@ -331,7 +331,7 @@ public class PlanValidator {
 
         // If activity UUIDs are not unique, throw an exception
         if (activityUuids.size() != request.getPlan().getActivities().size()) {
-            throw new CustomException("DUPLICATE_ACTIVITY_UUIDS", "Activity UUIDs should be unique");
+            throw new CustomException(DUPLICATE_ACTIVITY_UUIDS_CODE, DUPLICATE_ACTIVITY_UUIDS_MESSAGE);
         }
     }
 
