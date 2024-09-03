@@ -33,6 +33,7 @@ public class ProjectTaskTransformationService {
     private final HouseholdService householdService;
     private final UserService userService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED, QUANTITY_UTILISED));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(RE_DOSE_QUANTITY_KEY));
 
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService) {
@@ -167,10 +168,16 @@ public class ProjectTaskTransformationService {
                 try {
                     additionalDetails.put(key, Double.valueOf(value));
                 } catch (NumberFormatException e) {
-                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    log.warn("Invalid double format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.put(key, (JsonNode) null);
                 }
-
+            } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
             } else {
                 additionalDetails.put(key, value);
             }

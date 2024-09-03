@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.stock.AdditionalFields;
+import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.StockIndexV1;
@@ -33,6 +35,7 @@ public class StockTransformationService {
     private final UserService userService;
     private final ObjectMapper objectMapper;
     private final ProductService productService;
+    private final List<String> integerAdditionalFields = new ArrayList<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED));
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService) {
         this.producer = producer;
@@ -111,6 +114,7 @@ public class StockTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        appendIntegerAdditionalFieldsInDetails(stock.getAdditionalFields(), additionalDetails);
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -173,5 +177,16 @@ public class StockTransformationService {
         return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
                 stock.getSenderType().toString() :
                 stock.getReceiverType().toString();
+    }
+
+    private void appendIntegerAdditionalFieldsInDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        List<Field> fieldList = additionalFields.getFields();
+        if (fieldList!= null && !fieldList.isEmpty()) {
+            fieldList.forEach(field -> {
+                if (integerAdditionalFields.contains(field.getKey())) {
+                    additionalDetails.put(field.getKey(), Integer.parseInt(field.getValue()));
+                }
+            });
+        }
     }
 }
