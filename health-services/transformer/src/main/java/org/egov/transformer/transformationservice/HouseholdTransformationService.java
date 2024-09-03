@@ -78,6 +78,11 @@ public class HouseholdTransformationService {
                 && !CollectionUtils.isEmpty(additionalFields.getFields())) {
             additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
         }
+        int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
+        int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
+        if (pregnantWomenCount > 0 || childrenCount > 0) {
+            additionalDetails.put(ISVULNERABLE, true);
+        }
 
         return HouseholdIndexV1.builder()
                 .household(household)

@@ -1,5 +1,7 @@
 package org.egov.transformer;
 
+import org.apache.kafka.common.protocol.types.Field;
+
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
@@ -89,5 +91,10 @@ public interface Constants {
     String DISABILITY_TYPE = "disabilityType";
     String LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
     String LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
-
+    String PREGNANTWOMEN = "pregnantWomen";
+    String CHILDREN = "children";
+    String ISVULNERABLE = "isVulnerable";
+    String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
+    String REASON_OF_REFUSAL = "reasonOfRefusal";
+    String NO_OF_ROOMS= "noOfRooms";
 }
