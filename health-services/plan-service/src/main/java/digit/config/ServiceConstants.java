@@ -97,6 +97,8 @@ public class ServiceConstants {
 
     public static final String FILTER_ID = "$.*.id";
 
+    public static final String GET_ALL_IDS = "*.id";
+
     public static final String FILTER_DATA = "$.*.data";
 
     public static final String LOCALITY_CODE = "Locality";
@@ -112,10 +114,10 @@ public class ServiceConstants {
     public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
+
+    public static final String MDMS_SCHEMA_VEHICLE = "VehicleDetails";
+
     public static final String BOUNDARY_CODE = "boundaryCode";
 
-    public static final String VEHICLE_IDS = "vehicleIds";
-
-    public static final String SCHEMA_CODE_VEHICLE = "hcm-microplanning.VehicleDetails";
-
+    public static final String VEHICLE_ID_FIELD = "vehicleIds";
 }

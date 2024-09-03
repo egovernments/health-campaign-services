@@ -35,7 +35,6 @@ public class PlanConfigurationValidator {
 
     private ObjectMapper objectMapper;
 
-    @Autowired
     public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, ObjectMapper objectMapper) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
@@ -51,7 +50,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, SCHEMA_CODE_VEHICLE);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE);
 
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
@@ -295,7 +294,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, SCHEMA_CODE_VEHICLE);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE);
 
         // Validate plan existence
         PlanConfiguration planConfigurationFromDB = validatePlanConfigExistence(request);
@@ -420,11 +419,16 @@ public class PlanConfigurationValidator {
         return new ArrayList<>(finalData);
     }
 
+    /**
+     * Validates Vehicle ids from additional details against MDMS V2
+     * @param request plan configuration request
+     * @param mdmsV2Data mdms v2 data object
+     */
     public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, Object mdmsV2Data)
     {
         List<String> vehicleIds = extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
-        String jsonPathForVehicleIds = "$." + MDMS_CODE + DOT_SEPARATOR + "*.id";
+        String jsonPathForVehicleIds = "$." + MDMS_CODE + DOT_SEPARATOR + GET_ALL_IDS;
 
         List<Object> vehicleIdsFromMdms = null;
         try {
@@ -435,14 +439,14 @@ public class PlanConfigurationValidator {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        for(String vehicleId : vehicleIds)
-        {
-            if(!vehicleIdsFromMdms.contains(vehicleId))
-            {
-                log.error(" Vehicle Id " + vehicleId + " is not present in MDMS");
-                throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForVehicleIds);
-            }
-        }
+
+        List<Object> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
+        vehicleIds.stream()
+                .filter(vehicleId -> !finalVehicleIdsFromMdms.contains(vehicleId))
+                .forEach(vehicleId -> {
+                    log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
+                    throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForVehicleIds);
+                });
     }
 
     public List<String> extractVehicleIdsFromAdditionalDetails(Object additionalDetails) {
@@ -451,7 +455,7 @@ public class PlanConfigurationValidator {
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
             List<String> vehicleIds = new ArrayList<>();
-            JsonNode vehicleIdsNode = rootNode.get(VEHICLE_IDS);
+            JsonNode vehicleIdsNode = rootNode.get(VEHICLE_ID_FIELD);
             if (vehicleIdsNode != null && vehicleIdsNode.isArray()) {
                 for (JsonNode idNode : vehicleIdsNode) {
                     vehicleIds.add(idNode.asText());

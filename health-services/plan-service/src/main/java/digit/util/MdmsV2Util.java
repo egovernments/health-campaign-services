@@ -25,7 +25,6 @@ public class MdmsV2Util {
 
     private Configuration configs;
 
-    @Autowired
     public MdmsV2Util(RestTemplate restTemplate, ObjectMapper objectMapper, Configuration configs)
     {
         this.restTemplate = restTemplate;
