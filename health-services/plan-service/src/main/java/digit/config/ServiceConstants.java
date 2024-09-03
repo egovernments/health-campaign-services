@@ -87,7 +87,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
-    public static final String MDMS = "mdms";
+    public static final String MDMS_CODE = "mdms";
 
     public static final String DOT_SEPARATOR = ".";
 

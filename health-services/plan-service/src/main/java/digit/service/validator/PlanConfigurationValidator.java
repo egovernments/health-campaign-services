@@ -424,7 +424,7 @@ public class PlanConfigurationValidator {
     {
         List<String> vehicleIds = extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
-        String jsonPathForVehicleIds = "$." + MDMS + DOT_SEPARATOR + "*.id";
+        String jsonPathForVehicleIds = "$." + MDMS_CODE + DOT_SEPARATOR + "*.id";
 
         List<Object> vehicleIdsFromMdms = null;
         try {
