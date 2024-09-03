@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
@@ -164,7 +165,9 @@ public class ProjectTaskTransformationService {
             }
         }
 
-        if (additionalDetails.has(PREGNANTWOMEN) || additionalDetails.has(CHILDREN)) {
+        int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
+        int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
+        if (pregnantWomenCount > 0 || childrenCount > 0) {
             additionalDetails.put(ISVULNERABLE, true);
         }
         if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
@@ -264,7 +267,7 @@ public class ProjectTaskTransformationService {
             if (!CollectionUtils.isEmpty(households)) {
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
                 projectBenfInfoMap.put(HOUSEHOLD_ID, households.get(0).getClientReferenceId());
-                if (households.get(0).getAdditionalFields() != null && households.get(0).getAdditionalFields().getFields() != null) {
+                if (ObjectUtils.isNotEmpty(households.get(0).getAdditionalFields()) && !CollectionUtils.isEmpty(households.get(0).getAdditionalFields().getFields())) {
                     projectBenfInfoMap.put("additionalFields", households.get(0).getAdditionalFields().getFields());
                 }
             }

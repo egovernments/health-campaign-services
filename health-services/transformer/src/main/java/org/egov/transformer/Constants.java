@@ -96,4 +96,5 @@ public interface Constants {
     String ISVULNERABLE = "isVulnerable";
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
+    String NO_OF_ROOMS= "noOfRooms";
 }
