@@ -109,19 +109,25 @@ public class ServiceTaskTransformationService {
         if (additionalFields == null || additionalFields.getFields() == null || additionalFields.getFields().isEmpty()) {
             return null;
         }
+        log.info("additionalFields: {}", additionalFields);
 
         Double lat = null, lng = null;
 
         for (Field field : additionalFields.getFields()) {
+            log.info("each field: {}, lat string: {}, lon string: {}, field key: {}", field, LATITUDE, LONGITUDE, field.getKey());
             switch (field.getKey()) {
                 case LATITUDE:
+                    log.info("Found Latitude, {}", field);
                     lat = Double.valueOf(field.getValue());
                     break;
                 case LONGITUDE:
+                    log.info("Found Longitude, {}", field);
                     lng = Double.valueOf(field.getValue());
                     break;
             }
         }
+
+
 
         if (lat != null && lng != null) {
             return Arrays.asList(lng, lat);
