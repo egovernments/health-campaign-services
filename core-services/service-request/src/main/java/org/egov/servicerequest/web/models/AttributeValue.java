@@ -41,8 +41,8 @@ public class AttributeValue {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
-    private Object additionalDetails = null;
+    @JsonProperty("additionalFields")
+    private AdditionalFields additionalFields;
 
 
 }
