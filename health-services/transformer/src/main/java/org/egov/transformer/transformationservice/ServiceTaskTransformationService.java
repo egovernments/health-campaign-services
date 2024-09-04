@@ -2,10 +2,13 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sun.org.apache.xpath.internal.objects.XNull;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
+import org.egov.transformer.models.upstream.AdditionalFields;
+import org.egov.transformer.models.upstream.Field;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
@@ -97,11 +100,37 @@ public class ServiceTaskTransformationService {
                 .tenantId(service.getTenantId())
                 .userId(service.getAccountId())
                 .attributes(service.getAttributes())
+                .geoPoint(null)
                 .syncedTime(service.getAuditDetails().getLastModifiedTime())
                 .syncedTimeStamp(syncedTimeStamp)
                 .boundaryHierarchy(boundaryHierarchy)
                 .additionalDetails(additionalDetails)
                 .build();
         return serviceIndexV1;
+    }
+
+    private List<Double> getGeoPoint(AdditionalFields additionalFields) {
+        if (additionalFields == null || additionalFields.getFields() == null || additionalFields.getFields().isEmpty()) {
+            return null;
+        }
+
+        Double lat = null, lng = null;
+
+        for (Field field : additionalFields.getFields()) {
+            switch (field.getKey().toUpperCase()) {
+                case LATITUDE:
+                    lat = Double.valueOf(field.getValue());
+                    break;
+                case LONGITUDE:
+                    lng = Double.valueOf(field.getValue());
+                    break;
+            }
+        }
+
+        if (lat != null && lng != null) {
+            return Arrays.asList(lng, lat);
+        }
+
+        return null;
     }
 }

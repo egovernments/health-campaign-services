@@ -95,7 +95,7 @@ public class CommonUtils {
             return geoPoint;
 
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
+            log.error("ERROR_IN_GEO_POINT_EXTRACTION : {}", e.toString());
             return null;
         }
     }

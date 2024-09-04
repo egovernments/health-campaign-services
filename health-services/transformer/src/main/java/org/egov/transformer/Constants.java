@@ -1,6 +1,8 @@
 package org.egov.transformer;
 
 public interface Constants {
+    String LATITUDE = "latitude";
+    String LONGITUDE = "longitude";
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
     String HOUSEHOLD = "HOUSEHOLD";

@@ -32,6 +32,6 @@ public class AttributeValue {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
-    private Object additionalDetails = null;
+    @JsonProperty("additionalFields")
+    private AdditionalFields additionalFields;
 }
