@@ -1,11 +1,13 @@
 package org.egov.servicerequest.repository.rowmapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.AuditDetails;
 import org.apache.commons.lang.StringUtils;
+import org.egov.servicerequest.web.models.AdditionalFields;
 import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 import org.egov.tracer.model.CustomException;
@@ -76,13 +78,19 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
         AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("attribute_value_createdby"))
                 .createdTime(rs.getLong("attribute_value_createdtime")).lastModifiedBy(rs.getString("attribute_value_lastmodifiedby"))
                 .lastModifiedTime(rs.getLong("attribute_value_lastmodifiedtime")).build();
-        AttributeValue attributeValue = AttributeValue.builder().id(rs.getString("attribute_value_id"))
-                .referenceId(rs.getString("attribute_value_referenceid"))
-                .attributeCode(rs.getString("attribute_value_attributecode"))
-                .value(getProperTypeCastedAttributeValue(genericValueObject))
-                .auditDetails(auditDetails)
-                .additionalDetails(getAdditionalDetail((PGobject) rs.getObject("attribute_value_additionaldetails")))
-                .build();
+        AttributeValue attributeValue = null;
+        try {
+            attributeValue = AttributeValue.builder().id(rs.getString("attribute_value_id"))
+                    .referenceId(rs.getString("attribute_value_referenceid"))
+                    .attributeCode(rs.getString("attribute_value_attributecode"))
+                    .value(getProperTypeCastedAttributeValue(genericValueObject))
+                    .auditDetails(auditDetails)
+                    .additionalFields(rs.getString("attribute_value_additionaldetails") == null ? null : mapper
+                            .readValue(rs.getString("attribute_value_additionaldetails"), AdditionalFields.class))
+                    .build();
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
 
         if (CollectionUtils.isEmpty(service.getAttributes())) {
             List<AttributeValue> attributeValues = new ArrayList<>();
