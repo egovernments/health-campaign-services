@@ -97,7 +97,7 @@ public class ServiceConstants {
 
     public static final String FILTER_ID = "$.*.id";
 
-    public static final String GET_ALL_IDS = "*.id";
+    public static final String FILTER_TO_GET_ALL_IDS = "*.id";
 
     public static final String FILTER_DATA = "$.*.data";
 
@@ -115,7 +115,7 @@ public class ServiceConstants {
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
 
-    public static final String MDMS_SCHEMA_VEHICLE = "VehicleDetails";
+    public static final String MDMS_SCHEMA_VEHICLE_DETAILS = "VehicleDetails";
 
     public static final String BOUNDARY_CODE = "boundaryCode";
 

@@ -5,7 +5,6 @@ import digit.config.Configuration;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
@@ -44,7 +43,7 @@ public class MdmsV2Util {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
 
-        if(mdmsResponseMap == null || ObjectUtils.isEmpty(mdmsResponseMap))
+        if(ObjectUtils.isEmpty(mdmsResponseMap))
         {
             log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
             throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);

@@ -11,12 +11,10 @@ import digit.web.models.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -25,7 +23,6 @@ import static digit.config.ServiceConstants.*;
 @Component
 @Slf4j
 public class PlanConfigurationValidator {
-
 
     private MdmsUtil mdmsUtil;
 
@@ -50,7 +47,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
 
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
@@ -296,7 +293,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
 
         // Validate plan existence
         PlanConfiguration planConfigurationFromDB = validatePlanConfigExistence(request);
@@ -432,7 +429,7 @@ public class PlanConfigurationValidator {
     {
         List<String> vehicleIds = extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
-        String jsonPathForVehicleIds = "$." + MDMS_CODE + DOT_SEPARATOR + GET_ALL_IDS;
+        String jsonPathForVehicleIds = "$." + MDMS_CODE + DOT_SEPARATOR + FILTER_TO_GET_ALL_IDS;
 
         List<Object> vehicleIdsFromMdms = null;
         try {
@@ -446,10 +443,12 @@ public class PlanConfigurationValidator {
 
         List<Object> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
         vehicleIds.stream()
-                .filter(vehicleId -> !finalVehicleIdsFromMdms.contains(vehicleId))
                 .forEach(vehicleId -> {
-                    log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
-                    throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForVehicleIds);
+                    if(!finalVehicleIdsFromMdms.contains(vehicleId))
+                    {
+                        log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
+                        throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForVehicleIds);
+                    }
                 });
     }
 
