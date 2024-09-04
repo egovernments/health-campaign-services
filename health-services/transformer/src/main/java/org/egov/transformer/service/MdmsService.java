@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -168,5 +169,30 @@ public class MdmsService {
         return transformerElasticIndexLabelsMap.getOrDefault(label, label);
     }
 
+    public String getHierarchyType(String tenantId){
+        String hierarchyType = "";
+        JSONArray hierarchyConfig;
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, transformerProperties.getAdminConsoleHierarchyConfigMaster(), transformerProperties.getAdminConsoleModule(), "");
+        try {
+            MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            hierarchyConfig = mdmsResponse.getMdmsRes().get(transformerProperties.getAdminConsoleModule()).get(transformerProperties.getAdminConsoleHierarchyConfigMaster());
+            for (Object object : hierarchyConfig) {
+                JSONObject jsonObject = (JSONObject) object;
+                boolean isActive = Boolean.parseBoolean(jsonObject.getAsString("isActive"));
+                if (isActive) {
+                    hierarchyType = jsonObject.getAsString("hierarchy");
+                    break;  // Exit loop since we found the active hierarchy
+                }
+            }
+        }
+        catch (Exception e) {
+            log.error("error while fetching hierarchy type from MDMS returning hierarchy type from config: {}", ExceptionUtils.getStackTrace(e));
+            return transformerProperties.getBoundaryHierarchyName();
+        }
+        return hierarchyType;
+    }
 
 }

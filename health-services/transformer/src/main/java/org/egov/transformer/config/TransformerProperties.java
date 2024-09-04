@@ -209,4 +209,10 @@ public class TransformerProperties {
 
     @Value("${egov.localization.locale.code:en_MZ}")
     private String localizationLocaleCode;
+
+    @Value("${egov.mdms.admin.console.module}")
+    private String adminConsoleModule;
+
+    @Value("${egov.mdms.admin.console.hierarchy.config.master}")
+    private String adminConsoleHierarchyConfigMaster;
 }

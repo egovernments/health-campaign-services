@@ -82,6 +82,7 @@ public class ProjectService {
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
+        String hierarchyType = mdmsService.getHierarchyType(tenantId);
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
@@ -90,7 +91,7 @@ public class ProjectService {
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
-                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&hierarchyType=" + hierarchyType
 //                + "&boundaryType=" + transformerProperties.getBoundaryType()
                 + "&codes=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
