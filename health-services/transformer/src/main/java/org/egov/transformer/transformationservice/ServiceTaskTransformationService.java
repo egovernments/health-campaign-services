@@ -113,7 +113,7 @@ public class ServiceTaskTransformationService {
         Double lat = null, lng = null;
 
         for (Field field : additionalFields.getFields()) {
-            switch (field.getKey().toUpperCase()) {
+            switch (field.getKey()) {
                 case LATITUDE:
                     lat = Double.valueOf(field.getValue());
                     break;
