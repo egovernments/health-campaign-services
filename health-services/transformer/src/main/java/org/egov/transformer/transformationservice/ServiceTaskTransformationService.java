@@ -7,10 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
-import org.egov.transformer.models.upstream.AdditionalFields;
-import org.egov.transformer.models.upstream.Field;
-import org.egov.transformer.models.upstream.Service;
-import org.egov.transformer.models.upstream.ServiceDefinition;
+import org.egov.transformer.models.upstream.*;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.ServiceDefinitionService;
@@ -100,7 +97,7 @@ public class ServiceTaskTransformationService {
                 .tenantId(service.getTenantId())
                 .userId(service.getAccountId())
                 .attributes(service.getAttributes())
-                .geoPoint(null)
+                .geoPoint(getGeoPoint(service.getAttributes().get(0).getAdditionalFields()))
                 .syncedTime(service.getAuditDetails().getLastModifiedTime())
                 .syncedTimeStamp(syncedTimeStamp)
                 .boundaryHierarchy(boundaryHierarchy)
