@@ -59,6 +59,8 @@ public class PlanConfigurationValidator {
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+
+        // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
     }
 
@@ -308,6 +310,8 @@ public class PlanConfigurationValidator {
         validateOperationDependencies(planConfiguration);
         validateResourceMappingAgainstMDMS(request, mdmsData);
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
+
+        // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
     }
 
