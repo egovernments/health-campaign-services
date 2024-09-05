@@ -477,6 +477,33 @@ public class ProjectService {
 //        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
 //    }
 
+    public List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
+        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+                .build();
+
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectStaffSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            ProjectStaffBulkResponse response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    ProjectStaffBulkResponse.class);
+            return !response.getProjectStaff().isEmpty() ? response.getProjectStaff() : null;
+        } catch (Exception e) {
+            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+            return null;
+        }
+    }
+
     public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
         if (localityCode == null) {
             return null;
