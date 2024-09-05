@@ -97,4 +97,6 @@ public interface Constants {
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
     String NO_OF_ROOMS= "noOfRooms";
+    String PROJECT_ID = "projectId";
+    String PROJECT_TYPE_ID = "projectTypeId";
 }
