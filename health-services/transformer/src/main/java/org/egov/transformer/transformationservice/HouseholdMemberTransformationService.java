@@ -97,6 +97,11 @@ public class HouseholdMemberTransformationService {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
+        if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
+            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails,
+                    householdMember.getClientAuditDetails().getLastModifiedBy() ,
+                    householdMember.getTenantId());
+        }
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)

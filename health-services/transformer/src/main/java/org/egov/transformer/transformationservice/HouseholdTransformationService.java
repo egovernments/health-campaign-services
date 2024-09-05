@@ -84,6 +84,10 @@ public class HouseholdTransformationService {
             additionalDetails.put(ISVULNERABLE, true);
         }
 
+        if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
+            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy() ,household.getTenantId());
+        }
+
         return HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
