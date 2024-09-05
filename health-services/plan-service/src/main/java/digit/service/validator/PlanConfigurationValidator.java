@@ -4,9 +4,12 @@ import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
+import digit.util.ServiceUtil;
 import digit.web.models.*;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,12 +32,15 @@ public class PlanConfigurationValidator {
 
     private PlanConfigurationRepository planConfigRepository;
 
+
+    private ServiceUtil serviceUtil;
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository, MultiStateInstanceUtil centralInstanceUtil) {
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository, ServiceUtil serviceUtil, MultiStateInstanceUtil centralInstanceUtil) {
         this.mdmsUtil = mdmsUtil;
         this.planConfigRepository = planConfigRepository;
-        this.centralInstanceUtil = centralInstanceUtil;
+        this.serviceUtil = serviceUtil;
+      this.centralInstanceUtil = centralInstanceUtil;
     }
 
     /**
@@ -67,10 +73,47 @@ public class PlanConfigurationValidator {
         // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
+        //Validating plan config name against MDMS data
+        validatePlanConfigName(request, mdmsData);
+
         // Validate the user information in the request
         validateUserInfo(request);
 
     }
+
+    /**
+     * Validates the name of the plan configuration against a regex pattern retrieved from MDMS data.
+     *
+     * @param request  the plan configuration request containing the plan configuration details
+     * @param mdmsData the MDMS data containing the name validation regex patterns
+     * @throws CustomException if the JSONPath evaluation fails, the name validation list from MDMS is empty,
+     *                         or the plan configuration name validation fails.
+     */
+    public void validatePlanConfigName(PlanConfigurationRequest request, Object mdmsData)
+    {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+        final String jsonPathForNameValidation = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_NAME_VALIDATION + "[*].data";
+
+        List<Object> nameValidationListFromMDMS = null;
+        try {
+            nameValidationListFromMDMS = JsonPath.read(mdmsData, jsonPathForNameValidation);
+        } catch (Exception e) {
+            log.error(jsonPathForNameValidation);
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        if (CollectionUtils.isEmpty(nameValidationListFromMDMS)) {
+            throw new CustomException(NAME_VALIDATION_LIST_EMPTY_CODE, NAME_VALIDATION_LIST_EMPTY_MESSAGE);
+        }
+
+        String regexPattern = (String) nameValidationListFromMDMS.get(0);
+        if (!serviceUtil.validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
+            throw new CustomException(NAME_VALIDATION_FAILED_CODE, NAME_VALIDATION_FAILED_MESSAGE);
+        }
+
+    }
+
 
     /**
      * Validates the assumption values against the assumption keys in the plan configuration.
@@ -104,7 +147,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
+        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {
@@ -153,8 +196,8 @@ public class PlanConfigurationValidator {
      */
     public void validateTemplateIdentifierAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
-        final String jsonPathForTemplateIdentifierIsRequired = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
+        final String jsonPathForTemplateIdentifier = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
+        final String jsonPathForTemplateIdentifierIsRequired = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
 
         List<Object> templateIdentifierListFromMDMS = null;
         List<Object> requiredTemplateIdentifierFromMDMS = null;
@@ -221,7 +264,7 @@ public class PlanConfigurationValidator {
                 .map(File.InputFileTypeEnum::toString)
                 .collect(Collectors.toList());
 
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
+        final String jsonPathForRuleInputs = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_SCHEMAS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);
@@ -351,9 +394,11 @@ public class PlanConfigurationValidator {
         // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
 
+        //Validating plan config name against MDMS data
+        validatePlanConfigName(request, mdmsData);
+
         // Validate the user information in the request
         validateUserInfo(request);
-
     }
 
     /**
@@ -413,7 +458,7 @@ public class PlanConfigurationValidator {
                 .map(File.InputFileTypeEnum::toString)
                 .toList();
 
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
+        final String jsonPathForRuleInputs = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_SCHEMAS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);

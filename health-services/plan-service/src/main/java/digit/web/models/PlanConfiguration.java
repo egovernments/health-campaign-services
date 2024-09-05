@@ -38,8 +38,7 @@ public class PlanConfiguration {
 
     @JsonProperty("name")
     @NotNull
-    @Size(min = 2, max = 128)
-    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Name must not contain only special characters")
+    @Size(min = 3, max = 128)
     private String name = null;
 
     @JsonProperty("executionPlanId")

@@ -76,6 +76,12 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
 
+    public static final String NAME_VALIDATION_LIST_EMPTY_CODE = "NAME_VALIDATION_LIST_EMPTY";
+    public static final String NAME_VALIDATION_LIST_EMPTY_MESSAGE = "Name Validation list from MDMS is empty";
+
+    public static final String NAME_VALIDATION_FAILED_CODE = "NAME_VALIDATION_FAILED";
+    public static final String NAME_VALIDATION_FAILED_MESSAGE = "Name Validation failed";
+
     public static final String INVALID_PLAN_ID_CODE = "INVALID_PLAN_ID";
     public static final String INVALID_PLAN_ID_MESSAGE = "Plan id provided is invalid";
 
@@ -121,6 +127,7 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
@@ -129,6 +136,9 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
+    public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
+
+    public static final String JSON_ROOT_PATH = "$.";
 
     public static final String DOT_SEPARATOR = ".";
 
@@ -154,5 +164,7 @@ public class ServiceConstants {
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
     public static final String BOUNDARY_CODE = "boundaryCode";
+
+    public static final String NAME_VALIDATION_DATA = "Data";
 
 }
