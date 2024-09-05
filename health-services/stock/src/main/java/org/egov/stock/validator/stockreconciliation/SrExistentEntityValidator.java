@@ -15,8 +15,8 @@ import org.egov.stock.repository.StockReconciliationRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
@@ -53,31 +53,42 @@ public class SrExistentEntityValidator implements Validator<StockReconciliationB
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         // Map to hold StockReconciliation entities and their error details
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+
         // Get the list of StockReconciliation entities from the request
         List<StockReconciliation> entities = request.getStockReconciliation();
-        // Extract client reference IDs from StockReconciliation entities without errors
+
+        // Extract client reference IDs from StockReconciliation entities that do not already have errors
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors())
-                .map(StockReconciliation::getClientReferenceId)
-                .collect(Collectors.toList());
-        // Create a search object for querying entities by client reference IDs
+                .filter(notHavingErrors()) // Filter out entities with existing errors
+                .map(StockReconciliation::getClientReferenceId) // Map entities to their client reference IDs
+                .collect(Collectors.toList()); // Collect IDs into a list
+
+        // Create a map for quick lookup of StockReconciliation entities by their client reference ID
+        Map<String, StockReconciliation> map = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map
+
+        // Create a search object to query existing entities by client reference IDs
         StockReconciliationSearch stockReconciliationSearch = StockReconciliationSearch.builder()
-                .clientReferenceId(clientReferenceIdList)
+                .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search
                 .build();
-        // Check if the client reference ID list is not empty
+
+        // Check if the list of client reference IDs is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing entities by client reference IDs
-            List<StockReconciliation> existentEntities = stockReconciliationRepository.findById(
-                    clientReferenceIdList,
-                    Boolean.FALSE,
-                    getIdFieldName(stockReconciliationSearch)
-            );
-            // For each existing entity, populate error details for uniqueness
-            existentEntities.forEach(entity -> {
+            // Query the repository to find existing StockReconciliation entities with the given client reference IDs
+            List<String> existingClientReferenceIds =
+                    stockReconciliationRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+
+            // For each existing client reference ID, add an error to the map for the corresponding StockReconciliation entity
+            existingClientReferenceIds.forEach(clientReferenceId -> {
+                // Get a predefined error object for unique entity validation
                 Error error = getErrorForUniqueEntity();
-                populateErrorDetails(entity, error, errorDetailsMap);
+                // Populate error details for the individual StockReconciliation entity associated with the client reference ID
+                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
+
+        // Return the map containing StockReconciliation entities and their associated error details
         return errorDetailsMap;
     }
 }

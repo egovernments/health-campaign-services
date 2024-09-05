@@ -1,5 +1,7 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.5 - 2024-08-07
+- Added UserAction functionality with support for Location capture.
 
 ## 1.1.4 - 2024-05-29
 - Integrated Core 2.9LTS

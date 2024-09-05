@@ -23,7 +23,7 @@ public interface Constants {
 
     String INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD = "INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD";
 
-    String INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE = "individual is already member od household";
+    String INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE = "individual is already member of household";
 
     String INDIVIDUAL_NOT_FOUND = "INDIVIDUAL_NOT_FOUND";
 

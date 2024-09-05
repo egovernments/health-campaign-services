@@ -5,28 +5,16 @@ import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_CODE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
-import static digit.config.ServiceConstants.MDMS_MASTER_METRIC;
-import static digit.config.ServiceConstants.MDMS_MASTER_UOM;
-import static digit.config.ServiceConstants.MDMS_PLAN_MODULE_NAME;
-import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_MESSAGE;
-import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanValidator {
@@ -37,10 +25,13 @@ public class PlanValidator {
 
     private MdmsUtil mdmsUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil) {
+    private MultiStateInstanceUtil centralInstanceUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
+        this.centralInstanceUtil = centralInstanceUtil;
     }
 
     /**
@@ -48,7 +39,7 @@ public class PlanValidator {
      * @param request
      */
     public void validatePlanCreate(PlanRequest request) {
-        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate activities
@@ -100,7 +91,7 @@ public class PlanValidator {
         activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
             activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
                 if(activityCodeVsDependenciesMap.get(dependency).contains(activityCode))
-                    throw new CustomException("CYCLIC_ACTIVITY_DEPENDENCY", "Cyclic activity dependency found");
+                    throw new CustomException(CYCLIC_ACTIVITY_DEPENDENCY_CODE, CYCLIC_ACTIVITY_DEPENDENCY_MESSAGE);
             });
         });
     }
@@ -120,7 +111,7 @@ public class PlanValidator {
             if(!CollectionUtils.isEmpty(activity.getDependencies())) {
                 activity.getDependencies().forEach(dependency -> {
                     if(!activityCodes.contains(dependency))
-                        throw new CustomException("INVALID_ACTIVITY_DEPENDENCY", "Activity dependency is invalid");
+                        throw new CustomException(INVALID_ACTIVITY_DEPENDENCY_CODE, INVALID_ACTIVITY_DEPENDENCY_MESSAGE);
                 });
             }
         });
@@ -134,7 +125,7 @@ public class PlanValidator {
     private void validateActivities(PlanRequest request) {
         // Collect all activity codes
         if(request.getPlan().getActivities() == null)
-            throw new CustomException("ACTIVITIES_CANNOT_BE_NULL","Activities list in Plan cannot be null");
+            throw new CustomException(ACTIVITIES_CANNOT_BE_NULL_CODE, ACTIVITIES_CANNOT_BE_NULL_MESSAGE);
 
         Set<String> activityCodes = request.getPlan().getActivities().stream()
                 .map(Activity::getCode)
@@ -142,26 +133,26 @@ public class PlanValidator {
 
         // If activity codes are not unique, throw an exception
         if(activityCodes.size() != request.getPlan().getActivities().size()) {
-            throw new CustomException("DUPLICATE_ACTIVITY_CODES", "Activity codes within the plan should be unique");
+            throw new CustomException(DUPLICATE_ACTIVITY_CODES, DUPLICATE_ACTIVITY_CODES_MESSAGE);
         }
 
         // If execution plan id is not provided, providing activities is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
-            throw new CustomException("PLAN_ACTIVITIES_MANDATORY", "Activities are mandatory if execution plan id is not provided");
+            throw new CustomException(PLAN_ACTIVITIES_MANDATORY_CODE, PLAN_ACTIVITIES_MANDATORY_MESSAGE);
         }
 
         // If execution plan id is provided, providing activities is not allowed
         if(!ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
-            throw new CustomException("PLAN_ACTIVITIES_NOT_ALLOWED", "Activities are not allowed if execution plan id is provided");
+            throw new CustomException(PLAN_ACTIVITIES_NOT_ALLOWED_CODE, PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate activity dates
         if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             request.getPlan().getActivities().forEach(activity -> {
                 if(activity.getPlannedEndDate() < activity.getPlannedStartDate())
-                    throw new CustomException("INVALID_ACTIVITY_DATES", "Planned end date cannot be before planned start date");
+                    throw new CustomException(INVALID_ACTIVITY_DATES_CODE, INVALID_ACTIVITY_DATES_MESSAGE);
             });
         }
     }
@@ -188,13 +179,13 @@ public class PlanValidator {
         // If plan configuration id is not provided, providing resources is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException("PLAN_RESOURCES_MANDATORY", "Resources are mandatory if plan configuration id is not provided");
+            throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
 
         // If plan configuration id is provided, providing resources is not allowed
         if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException("PLAN_RESOURCES_NOT_ALLOWED", "Resources are not allowed if plan configuration id is provided");
+            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate resource type existence
@@ -220,7 +211,7 @@ public class PlanValidator {
             // Validate resource-activity linkage
             request.getPlan().getResources().forEach(resource -> {
                 if(!activityCodes.contains(resource.getActivityCode()))
-                    throw new CustomException("INVALID_RESOURCE_ACTIVITY_LINKAGE", "Resource-Activity linkage is invalid");
+                    throw new CustomException(INVALID_RESOURCE_ACTIVITY_LINKAGE_CODE, INVALID_RESOURCE_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
     }
@@ -239,7 +230,7 @@ public class PlanValidator {
             // Validate target-activity linkage
             request.getPlan().getTargets().forEach(target -> {
                 if(!activityCodes.contains(target.getActivityCode()))
-                    throw new CustomException("INVALID_TARGET_ACTIVITY_LINKAGE", "Target-Activity linkage is invalid");
+                    throw new CustomException(INVALID_TARGET_ACTIVITY_LINKAGE_CODE, INVALID_TARGET_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
     }
@@ -252,7 +243,7 @@ public class PlanValidator {
         // Validate plan existence
         validatePlanExistence(request);
 
-        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate activities
@@ -290,41 +281,60 @@ public class PlanValidator {
 
     }
 
+    /**
+     * Validates that all target UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the targets to be validated
+     * @throws CustomException if any target UUIDs are not unique
+     */
     private void validateTargetUuidUniqueness(PlanRequest request) {
-        // Collect all target uuids
+        // Collect all target UUIDs
         Set<String> targetUuids = request.getPlan().getTargets().stream()
                 .map(Target::getId)
                 .collect(Collectors.toSet());
 
-        // If target uuids are not unique, throw an exception
-        if(targetUuids.size() != request.getPlan().getTargets().size()) {
-            throw new CustomException("DUPLICATE_TARGET_UUIDS", "Target uuids should be unique");
+        // If target UUIDs are not unique, throw an exception
+        if (targetUuids.size() != request.getPlan().getTargets().size()) {
+            throw new CustomException(DUPLICATE_TARGET_UUIDS_CODE, DUPLICATE_TARGET_UUIDS_MESSAGE);
         }
     }
 
+    /**
+     * Validates that all resource UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the resources to be validated
+     * @throws CustomException if any resource UUIDs are not unique
+     */
     private void validateResourceUuidUniqueness(PlanRequest request) {
-        // Collect all resource uuids
+        // Collect all resource UUIDs
         Set<String> resourceUuids = request.getPlan().getResources().stream()
                 .map(Resource::getId)
                 .collect(Collectors.toSet());
 
-        // If resource uuids are not unique, throw an exception
-        if(resourceUuids.size() != request.getPlan().getResources().size()) {
-            throw new CustomException("DUPLICATE_RESOURCE_UUIDS", "Resource uuids should be unique");
+        // If resource UUIDs are not unique, throw an exception
+        if (resourceUuids.size() != request.getPlan().getResources().size()) {
+            throw new CustomException(DUPLICATE_RESOURCE_UUIDS_CODE, DUPLICATE_RESOURCE_UUIDS_MESSAGE);
         }
     }
 
+    /**
+     * Validates that all activity UUIDs within the provided PlanRequest are unique.
+     *
+     * @param request the PlanRequest containing the activities to be validated
+     * @throws CustomException if any activity UUIDs are not unique
+     */
     private void validateActivitiesUuidUniqueness(PlanRequest request) {
-        // Collect all activity uuids
+        // Collect all activity UUIDs
         Set<String> activityUuids = request.getPlan().getActivities().stream()
                 .map(Activity::getId)
                 .collect(Collectors.toSet());
 
-        // If activity uuids are not unique, throw an exception
-        if(activityUuids.size() != request.getPlan().getActivities().size()) {
-            throw new CustomException("DUPLICATE_ACTIVITY_UUIDS", "Activity uuids should be unique");
+        // If activity UUIDs are not unique, throw an exception
+        if (activityUuids.size() != request.getPlan().getActivities().size()) {
+            throw new CustomException(DUPLICATE_ACTIVITY_UUIDS_CODE, DUPLICATE_ACTIVITY_UUIDS_MESSAGE);
         }
     }
+
 
     /**
      * This method validates if the plan id provided in the update request exists
@@ -335,10 +345,21 @@ public class PlanValidator {
         if(CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
                 .build()))) {
-            throw new CustomException("INVALID_PLAN_ID", "Plan id provided is invalid");
+            throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
         }
     }
 
+    /**
+     * Validates the target metrics within the provided PlanRequest against MDMS data.
+     *
+     * This method checks each target metric in the plan to ensure it exists in the MDMS data.
+     * If a metric is not found, it throws a CustomException.
+     *
+     * @param request the PlanRequest containing the plan and target metrics to be validated
+     * @param mdmsData the MDMS data against which the target metrics are validated
+     * @throws CustomException if there is an error reading the MDMS data using JsonPath
+     *                         or if any target metric is not found in the MDMS data
+     */
     public void validateTargetMetrics(PlanRequest request, Object mdmsData) {
         Plan plan = request.getPlan();
         final String jsonPathForMetric = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_METRIC + ".*.code";
@@ -350,14 +371,26 @@ public class PlanValidator {
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-
-        for (Target target : plan.getTargets()) {
-            if (!metricListFromMDMS.contains(target.getMetric())) {
+        HashSet<Object> metricSetFromMDMS = new HashSet<>(metricListFromMDMS);
+        plan.getTargets().stream().forEach(target -> {
+            if (!metricSetFromMDMS.contains(target.getMetric())) {
                 throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
             }
-        }
+        });
+
     }
 
+    /**
+     * Validates the metric unit details within the provided PlanRequest against MDMS data.
+     *
+     * This method extracts metric details from the plan and checks if each metric unit
+     * is present in the MDMS data. If a metric unit is not found, it throws a CustomException.
+     *
+     * @param request the PlanRequest containing the plan and metric details to be validated
+     * @param mdmsData the MDMS data against which the metric units are validated
+     * @throws CustomException if there is an error reading the MDMS data using JsonPath
+     *                         or if any metric unit is not found in the MDMS data
+     */
     public void validateMetricDetailUnit(PlanRequest request, Object mdmsData) {
         Plan plan = request.getPlan();
 
@@ -365,19 +398,21 @@ public class PlanValidator {
                 .map(Target::getMetricDetail)
                 .toList();
 
-        List<Object> metricUnitListFromMDMS = null;
-        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.code";
+        List<Object> metricUnitListFromMDMS;
+        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.uomCode";
         try {
             metricUnitListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetricUnit);
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        for (MetricDetail metricDetail : metricDetails) {
-            if (!metricUnitListFromMDMS.contains(metricDetail.getMetricUnit())) {
+        HashSet<Object> metricUnitSetFromMDMS = new HashSet<>(metricUnitListFromMDMS);
+        metricDetails.stream().forEach(metricDetail -> {
+            if (!metricUnitSetFromMDMS.contains(metricDetail.getMetricUnit())) {
                 throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
             }
-        }
+        });
+
     }
 
 }

@@ -1,19 +1,21 @@
 package org.egov.project.validator.task;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectConstants;
 import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.project.util.ProjectConstants.TASK_NOT_ALLOWED;
@@ -26,6 +28,13 @@ import static org.egov.project.util.ProjectConstants.TASK_NOT_ALLOWED;
 @Slf4j
 public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Task> {
 
+    private final ProjectConfiguration projectConfiguration;
+
+    @Autowired
+    public PtIsResouceEmptyValidator(ProjectConfiguration projectConfiguration) {
+        this.projectConfiguration = projectConfiguration;
+    }
+
     /**
      *  Returns all the invalid objects in the request based on the task resources.
      * @param request of TaskBulkRequest class
@@ -36,42 +45,20 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
         List<Task> entities = request.getTasks();
         if(!entities.isEmpty()) {
             entities.forEach(task -> {
-                if(CollectionUtils.isEmpty(task.getResources()) &&
-                        !(ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
+                if (CollectionUtils.isEmpty(task.getResources()) &&
+                        !projectConfiguration.getNoResourceStatuses().contains(task.getStatus().toString())) {
                     /**
                      *  If the task resource is empty or null and task status is not BENEFICIARY_REFUSED it is invalid
                      */
+                    String errorMessage = ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE
+                            + String.join(ProjectConstants.OR, projectConfiguration.getNoResourceStatuses());
                     Error error = Error.builder()
-                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE +
-                                    ProjectConstants.TaskStatus.BENEFICIARY_REFUSED +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_SICK +
-                                    ProjectConstants.OR + ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)
-                            .errorCode(TASK_NOT_ALLOWED)
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(TASK_NOT_ALLOWED,
-                                    ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_REFUSED +
-                                            ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE +
-                                            ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_REFERRED +
-                                            ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_SICK +
-                                            ProjectConstants.OR +
-                                            ProjectConstants.TaskStatus.BENEFICIARY_ABSENT)).build();
+                        .errorMessage(errorMessage)
+                        .errorCode(TASK_NOT_ALLOWED)
+                        .type(Error.ErrorType.NON_RECOVERABLE)
+                        .exception(new CustomException(TASK_NOT_ALLOWED, errorMessage)).build();
                     populateErrorDetails(task, error, errorDetailsMap);
-                } else if (!CollectionUtils.isEmpty(task.getResources()) &&
-                        (ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_INELIGIBLE.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_REFERRED.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_SICK.toString().equals(task.getStatus())
-                                || ProjectConstants.TaskStatus.BENEFICIARY_ABSENT.toString().equals(task.getStatus()))) {
+                } else if (!CollectionUtils.isEmpty(task.getResources()) && projectConfiguration.getNoResourceStatuses().contains(task.getStatus().toString())) {
                     /**
                      *  If the task resource is not empty and task status is BENEFICIARY_REFUSED
                       */

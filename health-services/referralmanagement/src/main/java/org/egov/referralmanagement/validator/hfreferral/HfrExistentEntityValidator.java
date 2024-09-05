@@ -15,14 +15,14 @@ import org.egov.referralmanagement.repository.HFReferralRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
- * Validator class for checking the existence of entities with the given client reference IDs.
+ * Validator class for checking the existence of HFReferral entities with the given client reference IDs.
  * This validator checks if the provided HFReferral entities already exist in the database based on their client reference IDs.
  *
  * @author kanishq-egov
@@ -44,41 +44,51 @@ public class HfrExistentEntityValidator implements Validator<HFReferralBulkReque
     }
 
     /**
-     * Validates the existence of entities with the given client reference IDs.
+     * Validates the existence of HFReferral entities in the HFReferralBulkRequest.
+     * Checks if the provided HFReferral entities already exist in the database based on their client reference IDs.
      *
      * @param request The bulk request containing HFReferral entities.
-     * @return A map containing HFReferral entities and their associated error details.
+     * @return A map containing HFReferral entities and their associated error details if any duplicates are found.
      */
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
-        // Map to hold HFReferral entities and their error details
+        // Map to hold HFReferral entities and their error details.
         Map<HFReferral, List<Error>> errorDetailsMap = new HashMap<>();
-        // Get the list of HFReferral entities from the request
+
+        // Get the list of HFReferral entities from the request.
         List<HFReferral> entities = request.getHfReferrals();
-        // Extract client reference IDs from HFReferral entities without errors
+
+        // Extract client reference IDs from HFReferral entities that do not have existing errors.
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors())
-                .map(HFReferral::getClientReferenceId)
-                .collect(Collectors.toList());
-        // Create a search object for querying entities by client reference IDs
+                .filter(notHavingErrors()) // Filter out entities that already have errors.
+                .map(HFReferral::getClientReferenceId) // Extract client reference IDs from HFReferral entities.
+                .collect(Collectors.toList()); // Collect the IDs into a list.
+
+        // Create a map for quick lookup of HFReferral entities by client reference ID.
+        Map<String, HFReferral> map = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty.
+                .collect(Collectors.toMap(entity -> entity.getClientReferenceId(), entity -> entity)); // Collect to a map.
+
+        // Create a search object for querying existing HFReferral entities by client reference IDs.
         HFReferralSearch hfReferralSearch = HFReferralSearch.builder()
-                .clientReferenceId(clientReferenceIdList)
+                .clientReferenceId(clientReferenceIdList) // Set the client reference IDs for the search.
                 .build();
-        // Check if the client reference ID list is not empty
+
+        // Check if the client reference ID list is not empty before querying the database.
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing entities by client reference IDs
-            List<HFReferral> existentEntities = hfReferralRepository.findById(
-                    clientReferenceIdList,
-                    Boolean.FALSE,
-                    getIdFieldName(hfReferralSearch)
-            );
-            // For each existing entity, populate error details for uniqueness
-            existentEntities.forEach(entity -> {
+            // Query the repository to find existing HFReferral entities with the given client reference IDs.
+            List<String> existingClientReferenceIds = hfReferralRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+
+            // For each existing client reference ID, add an error to the map for the corresponding HFReferral entity.
+            existingClientReferenceIds.forEach(clientReferenceId -> {
+                // Get a predefined error object for unique entity validation.
                 Error error = getErrorForUniqueEntity();
-                populateErrorDetails(entity, error, errorDetailsMap);
+                // Populate error details for the individual HFReferral entity associated with the client reference ID.
+                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
             });
         }
+
+        // Return the map containing HFReferral entities and their associated error details.
         return errorDetailsMap;
     }
-
 }
