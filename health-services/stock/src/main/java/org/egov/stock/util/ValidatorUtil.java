@@ -24,6 +24,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.service.UserService;
 import org.egov.stock.service.FacilityService;
 import org.egov.tracer.model.CustomException;
@@ -266,6 +267,10 @@ public class ValidatorUtil {
 			Map<T, List<Error>> errorDetailsMap) {
 
 		for (Stock stock : validEntities) {
+			if (!(SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType()))
+					|| !(SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+				continue;
+			}
 
 			String senderId = stock.getSenderId();
 			String receiverId = stock.getReceiverId();
