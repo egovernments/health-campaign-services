@@ -35,7 +35,7 @@ public class StockTransformationService {
     private final UserService userService;
     private final ObjectMapper objectMapper;
     private final ProductService productService;
-    private final List<String> integerAdditionalFields = new ArrayList<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED));
+    private final List<String> integerAdditionalFields = new ArrayList<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED, WASTED_BLISTERS_RETURNED));
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService) {
         this.producer = producer;
@@ -100,7 +100,7 @@ public class StockTransformationService {
             transactingFacilityName = transactingFacility != null ? transactingFacility.getName() : transactingFacilityId;
 
         } else {
-            transactingFacilityName  = userService.getUserInfo(tenantId, transactingFacilityId).get(USERNAME);
+            transactingFacilityName = userService.getUserInfo(tenantId, transactingFacilityId).get(USERNAME);
         }
 
         if (boundaryHierarchy.isEmpty() && PROJECT.equalsIgnoreCase(stock.getReferenceIdType().toString())) {
@@ -167,6 +167,7 @@ public class StockTransformationService {
                 stock.getSenderId() :
                 stock.getReceiverId();
     }
+
     private String getFacilityType(Stock stock) {
         return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
                 stock.getReceiverType().toString() :
@@ -181,7 +182,7 @@ public class StockTransformationService {
 
     private void appendIntegerAdditionalFieldsInDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
         List<Field> fieldList = additionalFields.getFields();
-        if (fieldList!= null && !fieldList.isEmpty()) {
+        if (fieldList != null && !fieldList.isEmpty()) {
             fieldList.forEach(field -> {
                 if (integerAdditionalFields.contains(field.getKey())) {
                     additionalDetails.put(field.getKey(), Integer.parseInt(field.getValue()));

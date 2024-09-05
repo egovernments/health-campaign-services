@@ -41,6 +41,7 @@ public interface Constants {
     String DISTRICT_WAREHOUSE = "DISTRICT_WAREHOUSE";
     String SATELLITE_WAREHOUSE = "SATELLITE_WAREHOUSE";
     String PARTIAL_BLISTERS_RETURNED = "partialBlistersReturned";
+    String WASTED_BLISTERS_RETURNED = "wastedBlistersReturned";
     String TYPE_KEY = "type";
     String FACILITY_TARGET_KEY = "target";
     String FIELD_TARGET = "targets";
