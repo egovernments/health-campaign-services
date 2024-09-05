@@ -268,7 +268,7 @@ public class ValidatorUtil {
 
 		for (Stock stock : validEntities) {
 			if (!(SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType()))
-					|| !(SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+					&& !(SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
 				continue;
 			}
 
