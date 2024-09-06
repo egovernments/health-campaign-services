@@ -39,6 +39,8 @@ export const campaignDetailsTransformer = (dbRows: any[] = []) => {
     status: row?.status,
     action: row?.action,
     campaignNumber: row?.campaignnumber,
+    isActive: row?.isactive,
+    parentId: row?.parentid,
     campaignName: row?.campaignname,
     projectType: row?.projecttype,
     hierarchyType: row?.hierarchytype,

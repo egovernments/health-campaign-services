@@ -183,25 +183,18 @@ function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request:
 
 function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
     let lastColumn = errorDetailsColumn;
+    console.log(lastColumn,"lassssssssss")
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
         lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
             createAndSearchConfig?.uniqueIdentifierColumn :
             errorDetailsColumn;
     }
-
+   console.log(lastColumn,"laaaaaaa")
     if (userNameAndPassword) {
-        worksheet.getCell("I1").value = "UserName";
-        worksheet.getCell("J1").value = "Password";
+        worksheet.getCell("J1").value = "UserName";
+        worksheet.getCell("K1").value = "Password";
 
         // Set the fill color to green for cell I1
-        worksheet.getCell("I1").fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'ff9248' } // Green color
-        };
-        worksheet.getCell("I1").font = { bold: true };
-
-        // Set the fill color to green for cell J1
         worksheet.getCell("J1").fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -209,13 +202,21 @@ function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsCol
         };
         worksheet.getCell("J1").font = { bold: true };
 
+        // Set the fill color to green for cell J1
+        worksheet.getCell("K1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("K1").font = { bold: true };
+
         userNameAndPassword.forEach((data: any) => {
             const rowIndex = data.rowNumber;
-            worksheet.getCell(`I${rowIndex}`).value = data?.userName;
-            worksheet.getCell(`J${rowIndex}`).value = data?.password;
+            worksheet.getCell(`J${rowIndex}`).value = data?.userName;
+            worksheet.getCell(`K${rowIndex}`).value = data?.password;
         });
 
-        lastColumn = "J";
+        lastColumn = "K";
         request.body.userNameAndPassword = undefined;
     }
 
@@ -396,6 +397,7 @@ function setTenantId(
 async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
     const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
     const requiresToSearchFromSheet = createAndSearchConfig?.requiresToSearchFromSheet;
+    console.log(requiresToSearchFromSheet,"reeeeeeeeeee")
     var createData = [], searchData = [];
     for (const data of dataFromSheet) {
         const resultantElement: any = {};
@@ -417,7 +419,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
                 const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
-                if (data[localizedSheetColumnName]) {
+                if (data[localizedSheetColumnName] || data[localizedSheetColumnName] == "CREATED") {
                     searchData.push(resultantElement)
                     addToCreate = false;
                     break;
@@ -444,6 +446,7 @@ function setTenantIdAndSegregate(processedData: any, createAndSearchConfig: any,
 // Original function divided into two parts
 async function convertToTypeData(request: any, dataFromSheet: any[], createAndSearchConfig: any, requestBody: any, localizationMap?: { [key: string]: string }) {
     const processedData = await processData(request, dataFromSheet, createAndSearchConfig, localizationMap);
+    console.log(processedData,"proccccccccccc")
     return setTenantIdAndSegregate(processedData, createAndSearchConfig, requestBody);
 }
 
@@ -639,6 +642,18 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     delete request.body.CampaignDetails.campaignDetails
 }
 
+async function makeParentInactive(request: any) {
+    let parentCampaign = request?.body?.parentCampaign
+    parentCampaign.isActive = false
+    parentCampaign.campaignDetails = { deliveryRules: parentCampaign?.deliveryRules || [], resources: parentCampaign?.resources || [], boundaries: parentCampaign?.boundaries || [] };
+    parentCampaign.auditDetails.lastModifiedTime = Date.now()
+    parentCampaign.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid
+    const produceMessage: any = {
+        CampaignDetails: parentCampaign
+    }
+    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+}
+
 function getCreateResourceIds(resources: any[]) {
     return resources
         .filter((resource: any) => typeof resource.createResourceId === 'string' && resource.createResourceId.trim() !== '')
@@ -691,6 +706,9 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
     }
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
+    }
+    if (request?.body?.parentCampaign?.isActive) {
+        await makeParentInactive(request)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProcessTracks(request.body.CampaignDetails.id)
@@ -1419,7 +1437,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             const columnWidths = Array(12).fill(30);
             mainSheet.columns = columnWidths.map(width => ({ width }));
             // mainSheetData.forEach(row => mainSheet.addRow(row));
-            addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30, false, true);
+            addDataToSheet(request,mainSheet, mainSheetData, 'F3842D', 30, false, true);
             mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
@@ -1457,7 +1475,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
 
 async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
-    addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
+    addDataToSheet(request,newSheet, newSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -1643,7 +1661,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(boundarySheet, boundarySheetData);
+    addDataToSheet(request,boundarySheet, boundarySheetData);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
@@ -1928,5 +1946,6 @@ export {
     checkIfSourceIsMicroplan,
     getBoundaryOnWhichWeSplit,
     createIdRequests,
-    createUniqueUserNameViaIdGen
+    createUniqueUserNameViaIdGen,
+    getRootBoundaryCode
 }

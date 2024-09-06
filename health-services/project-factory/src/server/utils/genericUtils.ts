@@ -13,10 +13,11 @@ import { generatedResourceTransformer } from "./transforms/searchResponseConstru
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
-import { getBoundaryDataService } from "../service/dataManageService";
+import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
 import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
+import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -371,6 +372,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+    let fileUrlResponse: any;
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
@@ -387,7 +389,21 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       request.body.generatedResource = finalResponse;
     }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
-      await processGenerateRequest(request, localizationMap, filteredBoundary);
+      const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+      const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+      const parentCampaignObject = await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+      if (parentCampaignObject) {
+        const resourcesOfParentCampaign = parentCampaignObject?.resources;
+        const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
+
+        const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
+        const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
+
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
+
+      }
+      await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse?.fileStoreIds?.[0]?.url);
       const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
@@ -650,7 +666,7 @@ function hideUniqueIdentifierColumn(sheet: any, column: any) {
 }
 
 
-async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: any) {
+async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: any, fileUrl?: any, schema?: any) {
   const workbook = getNewExcelWorkbook();
 
   // Add facility sheet to the workbook
@@ -664,7 +680,8 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
-  addDataToSheet(facilitySheet, facilitySheetData, undefined, undefined, true);
+  console.log(schema,"[[[[[[[[[[[[[[")
+  addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
   await handledropdownthings(facilitySheet, request.body?.dropdowns);
@@ -672,7 +689,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
   const fileDetails = await createAndUploadFile(workbook, request);
@@ -720,7 +737,7 @@ async function handledropdownthings(facilitySheet: any, dropdowns: any) {
 
 
 
-async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
+async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, schema: any, localizationMap?: { [key: string]: string }, fileUrl?: any) {
   const workbook = getNewExcelWorkbook();
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   const type = request?.query?.type;
@@ -729,59 +746,94 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
-  addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
+  addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumnForProcessedFileGenerated);
   await handledropdownthings(userSheet, request.body?.dropdowns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
 }
 
 
-async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
+async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   // Get facility and boundary data
   logger.info("Generating facilities started");
   const allFacilities = await getAllFacilities(tenantId, request.body);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
-  const facilitySheetData: any = await createFacilitySheet(request, allFacilities, localizationMap);
+  let facilitySheetData: any;
+  const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
+  let schema: any;
+  if (fileUrl) {
+    /* fetch facility from processed file 
+    and generate facility sheet data */
+    const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(processedFacilitySheetData, localizationMap);
+    facilitySheetData = modifiedProcessedFacilitySheetData;
+    schema = await callMdmsTypeSchema(request, tenantId, "facility", "allUpdated");
+    setDropdownFromSchema(request, schema, localizationMap);
+  }
+  else {
+    facilitySheetData = await createFacilitySheet(request, allFacilities, localizationMap);
+  }
+  console.log(schema,"oppppppppp")
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
-    await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap);
+    await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
   }
   else {
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-    await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap);
+    await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap, fileUrl, schema);
   }
 }
-async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
+async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
-  const schema = await callMdmsTypeSchema(request, tenantId, "user");
+  let schema: any;
+  if (fileUrl) {
+    schema = await callMdmsTypeSchema(request, tenantId, "user", "allUpdated");
+  }
+  else {
+    schema = await callMdmsTypeSchema(request, tenantId, "user");
+  }
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
+  let userSheetData: any;
   // const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   logger.info("Generated an empty user template");
-  const userSheetData = await createExcelSheet(userData, localizedHeaders);
+  if (fileUrl) {
+    /* fetch facility from processed file 
+    and generate facility sheet data */
+    const processedUserSheetData = await getSheetData(fileUrl, localizedUserTab, false, undefined, localizationMap);
+    console.log(fileUrl, "dddddddd")
+    const modifiedProcessedUserSheetData = modifyProcessedSheetData(processedUserSheetData, localizationMap, schema);
+    console.log(modifiedProcessedUserSheetData, "moddddddddddd")
+    userSheetData = modifiedProcessedUserSheetData;
+  }
+  else {
+    userSheetData = await createExcelSheet(userData, localizedHeaders);
+  }
   if (filteredBoundary && filteredBoundary.length > 0) {
-    await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, localizationMap);
+    await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, schema, localizationMap, fileUrl);
   }
   else {
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-    await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
+    await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, schema, localizationMap, fileUrl);
   }
 }
-async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
+async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const { type, tenantId } = request.query
   if (type == "facilityWithBoundary") {
-    await generateFacilityAndBoundarySheet(String(tenantId), request, localizationMap, filteredBoundary);
+    await generateFacilityAndBoundarySheet(String(tenantId), request, localizationMap, filteredBoundary, fileUrl);
   }
   if (type == "userWithBoundary") {
-    await generateUserAndBoundarySheet(request, localizationMap, filteredBoundary);
+    await generateUserAndBoundarySheet(request, localizationMap, filteredBoundary, fileUrl);
   }
 }
 

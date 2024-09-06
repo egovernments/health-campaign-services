@@ -32,6 +32,9 @@ export const createRequestSchema = {
         },
         "additionalDetails": {
             "type": "object"
+        },
+        "isActive":{
+            "type":"boolean"
         }
     },
     "required": ["type", "tenantId", "fileStoreId", "action", "hierarchyType"],

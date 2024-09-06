@@ -3,6 +3,9 @@ import { changeFirstRowColumnColour, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import config from "../config";
+import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader } from "./onGoingCampaignUpdateUtils";
+import { getLocalizedName } from "./campaignUtils";
+import createAndSearch from "../config/createAndSearch";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -104,7 +107,7 @@ function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
   worksheet.protect('passwordhere', { selectLockedCells: true });
 }
 
-function performUnfreezeCells(sheet: any) {
+function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) {
   logger.info(`Unfreezing the sheet ${sheet.name}`);
 
   let lastFilledColumn = 1;
@@ -137,19 +140,30 @@ function performFreezeWholeSheet(sheet: any) {
 }
 
 // Function to add data to the sheet
-function addDataToSheet(sheet: any, sheetData: any, firstRowColor: string = '93C47D', columnWidth: number = 40, frozeCells: boolean = false, frozeWholeSheet: boolean = false) {
+function addDataToSheet(
+  request: any,
+  sheet: any,
+  sheetData: any,
+  firstRowColor: string = '93C47D',
+  columnWidth: number = 40,
+  frozeCells: boolean = false,
+  frozeWholeSheet: boolean = false,
+  localizationMap?: any,
+  fileUrl?: any,
+  schema?: any
+) {
   sheetData?.forEach((row: any, index: number) => {
-    const worksheetRow = sheet.addRow(row);
 
+    const worksheetRow = sheet.addRow(row);
     if (index === 0) {
       formatFirstRow(worksheetRow, sheet, firstRowColor, columnWidth, frozeCells);
     } else {
       formatOtherRows(worksheetRow, frozeCells);
     }
   });
-
-  finalizeSheet(sheet, frozeCells, frozeWholeSheet);
+  finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
 }
+
 
 // Function to format the first row
 function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {
@@ -199,12 +213,34 @@ function formatOtherRows(row: any, frozeCells: boolean) {
 }
 
 // Function to finalize the sheet settings
-function finalizeSheet(sheet: any, frozeCells: boolean, frozeWholeSheet: boolean) {
+function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
+  const type = (request?.query?.type || request?.body?.ResourceDetails?.type);
+  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
+  const createAndSearchConfig = createAndSearch[typeWithoutWith];
+  const columnIndexesToBeFreezed: any = [];
   if (frozeCells) {
-    performUnfreezeCells(sheet);
+    performUnfreezeCells(sheet, localizationMap, fileUrl);
   }
   if (frozeWholeSheet) {
     performFreezeWholeSheet(sheet);
+  }
+  let columnsToBeFreezed: any;
+  if (fileUrl) {
+    if (schema) {
+      columnsToBeFreezed = schema?.columnsToBeFreezed;
+
+      columnsToBeFreezed.forEach((column: any) => {
+        const localizedColumn = getLocalizedName(column, localizationMap);
+        const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
+
+        // Store the column index in the array
+        columnIndexesToBeFreezed.push(columnIndex);
+      });
+    }
+    const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
+    const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
+    const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn]); // Example columns to freeze and unfreeze
   }
   updateFontNameToRoboto(sheet);
   sheet.views = [{ state: 'frozen', ySplit: 1, zoomScale: 110 }];
@@ -259,4 +295,4 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
 }
 
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto };
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet };

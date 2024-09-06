@@ -14,6 +14,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processTrackStatuses, processTrackTypes } from "../config/constants";
 import { persistTrack } from "../utils/processTrackUtils";
+import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 
 
 
@@ -524,7 +525,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
   }
 }
 
-async function processValidate(request: any, localizationMap?: { [key: string]: string }) {
+async function processValidate(request: any, campaignObject: any, parentCampaignObject: any, localizationMap?: { [key: string]: string }) {
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type]
@@ -541,11 +542,18 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-      schema = mdmsResponse
+      let mdmsResponse: any;
+      if (parentCampaignObject) {
+        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "allUpdated");
+        schema = mdmsResponse;
+      } else {
+        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+        schema = mdmsResponse;
+      }
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap)
+
     processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
   }
 }
@@ -706,6 +714,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
   if (createAndSearchConfig?.createBulkDetails?.limit) {
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
+    console.log(dataToCreate, "cccccccccccccccc")
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
     var creationTime = Date.now();
     var activities: any[] = [];
@@ -738,12 +747,18 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
  * @param request The HTTP request object.
  */
 async function processGenericRequest(request: any, localizationMap?: { [key: string]: string }) {
+
   // Process generic requests
+
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+  const parentCampaignObject = await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+
   if (request?.body?.ResourceDetails?.action == "create") {
-    await processCreate(request, localizationMap)
+    await processCreate(request, parentCampaignObject, localizationMap)
   }
   else {
-    await processValidate(request, localizationMap)
+    await processValidate(request, campaignObject, parentCampaignObject, localizationMap)
   }
 }
 
@@ -831,7 +846,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
  * Processes the creation of resources.
  * @param request The HTTP request object.
  */
-async function processCreate(request: any, localizationMap?: any) {
+async function processCreate(request: any, parentCampaignObject: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request?.body?.ResourceDetails?.tenantId;
@@ -861,10 +876,17 @@ async function processCreate(request: any, localizationMap?: any) {
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
 
-    if (type == "facility") {
+    if (type == "facility" || type == "user") {
+      let mdmsResponse: any;
       logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-      schema = mdmsResponse
+      if (parentCampaignObject) {
+        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "allUpdated");
+        schema = mdmsResponse;
+      }
+      else {
+        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+        schema = mdmsResponse
+      }
     }
     else if (type == "facilityMicroplan") {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
@@ -872,14 +894,9 @@ async function processCreate(request: any, localizationMap?: any) {
       logger.info("Appending project type to capacity for microplan " + campaignType);
       schema = await appendProjectTypeToCapacity(schema, campaignType);
     }
-    else if (type == "user") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-      schema = mdmsResponse
-    }
     logger.info("translating schema")
     const translatedSchema = await translateSchema(schema, localizationMap);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap);
     logger.info("validation done sucessfully")
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
   }
