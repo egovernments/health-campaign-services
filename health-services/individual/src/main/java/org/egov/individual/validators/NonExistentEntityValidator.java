@@ -63,8 +63,8 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
         List<String> clientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from individual entities
         individuals.forEach(individual -> {
-            idList.add(individual.getId());
-            clientReferenceIdList.add(individual.getClientReferenceId());
+            if(individual.getId() != null) idList.add(individual.getId());
+            if(individual.getClientReferenceId() != null) clientReferenceIdList.add(individual.getClientReferenceId());
         });
         if (!iMap.isEmpty()) {
             // Create a search object for querying existing entities

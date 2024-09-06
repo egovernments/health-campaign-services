@@ -55,8 +55,8 @@ public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRe
         List<String> clientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from Project Beneficiary entities
         projectBeneficiaries.forEach(entity -> {
-            idList.add(entity.getId());
-            clientReferenceIdList.add(entity.getClientReferenceId());
+            if(entity.getId() != null) idList.add(entity.getId());
+            if(entity.getClientReferenceId() != null) clientReferenceIdList.add(entity.getClientReferenceId());
         });
         if (!iMap.isEmpty()) {
             ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()

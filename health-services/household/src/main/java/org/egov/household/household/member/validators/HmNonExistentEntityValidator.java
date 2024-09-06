@@ -77,8 +77,8 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
         List<String> clientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from household entities
         householdMembers.forEach(householdMember -> {
-            idList.add(householdMember.getId());
-            clientReferenceIdList.add(householdMember.getClientReferenceId());
+            if(householdMember.getId() != null) idList.add(householdMember.getId());
+            if(householdMember.getClientReferenceId() != null) clientReferenceIdList.add(householdMember.getClientReferenceId());
         });
 
         // Check if the map is not empty

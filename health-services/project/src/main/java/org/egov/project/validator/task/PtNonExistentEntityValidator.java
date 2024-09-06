@@ -61,8 +61,8 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
         List<String> clientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from Project Task entities
         entities.forEach(entity -> {
-            idList.add(entity.getId());
-            clientReferenceIdList.add(entity.getClientReferenceId());
+            if(entity.getId() != null) idList.add(entity.getId());
+            if(entity.getClientReferenceId() != null) clientReferenceIdList.add(entity.getClientReferenceId());
         });
         if (!eMap.isEmpty()) {
             TaskSearch taskSearch = TaskSearch.builder()
