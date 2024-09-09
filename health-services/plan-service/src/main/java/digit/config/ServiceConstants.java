@@ -133,7 +133,7 @@ public class ServiceConstants {
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
-    public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
+    public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumption";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";

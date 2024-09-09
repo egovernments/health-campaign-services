@@ -1,7 +1,5 @@
 package digit.service.validator;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
@@ -152,7 +150,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
+        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + "[*].assumptionCategories[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {
