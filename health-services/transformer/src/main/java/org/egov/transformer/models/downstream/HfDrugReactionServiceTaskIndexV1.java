@@ -13,13 +13,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HfReferralServiceIndexV1 {
+public class HfDrugReactionServiceTaskIndexV1 {
     @JsonProperty("id")
     private String id;
     @JsonProperty("supervisorLevel")
     private String supervisorLevel;
     @JsonProperty("checklistName")
     private String checklistName;
+    @JsonProperty("ageGroup")
+    private String ageGroup;
     @JsonProperty("createdTime")
     private Long createdTime;
     @JsonProperty("createdBy")
@@ -42,18 +44,16 @@ public class HfReferralServiceIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
-    @JsonProperty("testedForMalaria")
-    private Object testedForMalaria;
-    @JsonProperty("malariaResult")
-    private Object malariaResult;
-    @JsonProperty("admittedWithSeriousIllness")
-    private Object admittedWithSeriousIllness;
-    @JsonProperty("negativeAndAdmittedWithSeriousIllness")
-    private Object negativeAndAdmittedWithSeriousIllness;
-    @JsonProperty("treatedWithAntiMalarials")
-    private Object treatedWithAntiMalarials;
-    @JsonProperty("nameOfAntiMalarials")
-    private Object nameOfAntiMalarials;
+    @JsonProperty("evaluatedForSE")
+    private Object evaluatedForSE;
+    @JsonProperty("filledPharma")
+    private Object filledPharma;
+    @JsonProperty("adverseReactions")
+    private Object adverseReactions;
+    @JsonProperty("seriousAdverseEffects")
+    private Object seriousAdverseEffects;
+    @JsonProperty("seriousAdverseEffectsOutcome")
+    private Object seriousAdverseEffectsOutcome;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
 

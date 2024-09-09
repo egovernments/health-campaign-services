@@ -79,9 +79,15 @@ public interface Constants {
     String HF_TESTED_FOR_MALARIA = "testedForMalaria";
     String HF_MALARIA_RESULT = "malariaResult";
     String HF_ADMITTED_WITH_ILLNESS = "admittedWithSeriousIllness";
-    String HF_NEGATIVE_ADMITTED_WITH_ILLNESS = "negativeAndAdmittedWithSeriousIllness";
     String HF_TREATED_WITH_ANTI_MALARIALS = "treatedWithAntiMalarials";
     String HF_NAME_OF_ANTI_MALARIALS = "nameOfAntiMalarials";
+    String HF_NEGATIVE_RTD_GIVEN_SPAQ = "negativeRTDGivenSPAQ";
+    String HF_NEGATIVE_RTD_GIVEN_SPAQ_OUTCOME = "negativeRTDGivenSPAQOutcome";
+    String HF_DRUG_EVALUATED_FOR_SE = "evaluatedAdverseReaction";
+    String HF_DRUG_FILLED_PHARMA = "filledPharma";
+    String HF_DRUG_ADVERSE_REACTIONS = "adverseReactions";
+    String HF_DRUG_SERIOUS_ADVERSE_EFFECTS = "seriousAdverseEffects";
+    String HF_DRUG_SERIOUS_ADVERSE_EFFECTS_OUTCOME = "seriousAdverseEffectsOutcome";
     String DEFAULT_FACILITY_NAME = "APS";
     String START_DATE = "startDate";
     String END_DATE = "endDate";

@@ -13,15 +13,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralServiceTaskIndexV1 {
+public class HfFeverServiceIndexV1 {
     @JsonProperty("id")
     private String id;
     @JsonProperty("supervisorLevel")
     private String supervisorLevel;
     @JsonProperty("checklistName")
     private String checklistName;
-    @JsonProperty("ageGroup")
-    private String ageGroup;
     @JsonProperty("createdTime")
     private Long createdTime;
     @JsonProperty("createdBy")
@@ -44,18 +42,20 @@ public class ReferralServiceTaskIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
-    @JsonProperty("childrenPresentedUS")
-    private Object childrenPresentedUS;
-    @JsonProperty("malariaPositiveUS")
-    private Object malariaPositiveUS;
-    @JsonProperty("malariaNegativeUS")
-    private Object malariaNegativeUS;
-    @JsonProperty("childrenPresentedAPE")
-    private Object childrenPresentedAPE;
-    @JsonProperty("malariaPositiveAPE")
-    private Object malariaPositiveAPE;
-    @JsonProperty("malariaNegativeAPE")
-    private Object malariaNegativeAPE;
+    @JsonProperty("testedForMalaria")
+    private Object testedForMalaria;
+    @JsonProperty("malariaResult")
+    private Object malariaResult;
+    @JsonProperty("admittedWithSeriousIllness")
+    private Object admittedWithSeriousIllness;
+    @JsonProperty("treatedWithAntiMalarials")
+    private Object treatedWithAntiMalarials;
+    @JsonProperty("negativeRTDGivenSPAQ")
+    private Object negativeRTDGivenSPAQ;
+    @JsonProperty("negativeRTDGivenSPAQOutcome")
+    private Object negativeRTDGivenSPAQOutcome;
+    @JsonProperty("nameOfAntiMalarials")
+    private Object nameOfAntiMalarials;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
 

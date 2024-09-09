@@ -38,11 +38,11 @@ public class TransformerProperties {
     @Value("${transformer.producer.side.effect.index.v1.topic}")
     private String transformerProducerSideEffectIndexV1Topic;
 
-    @Value("${transformer.producer.service.index.v2.topic}")
-    private String transformerProducerServiceIndexV2Topic;
+    @Value("${transformer.producer.hfreferral.drug.reaction.service.index.topic}")
+    private String transformerProducerHfReferralDrugReactionServiceIndexTopic;
 
-    @Value("${transformer.producer.hfreferral.service.index.topic}")
-    private String transformerProducerHfReferralServiceIndexTopic;
+    @Value("${transformer.producer.hfreferral.fever.service.index.topic}")
+    private String transformerProducerHfReferralFeverServiceIndexTopic;
 
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
@@ -164,8 +164,8 @@ public class TransformerProperties {
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
 
-    @Value("${referral.service.checklist.name}")
-    private String checkListName;
+    @Value("${hfreferral.drug.reaction.service.checklist.name}")
+    private String hfReferralDrugReactionCheckListName;
 
     @Value("${hfreferral.fever.service.checklist.name}")
     private String hfReferralFeverCheckListName;

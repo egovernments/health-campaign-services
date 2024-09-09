@@ -6,8 +6,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
-import org.egov.transformer.transformationservice.HfServiceTransformationService;
-import org.egov.transformer.transformationservice.ReferralServiceTaskTransformationService;
+import org.egov.transformer.transformationservice.HfFeverServiceTransformationService;
+import org.egov.transformer.transformationservice.HfDrugReactionServiceTransformationService;
 import org.egov.transformer.transformationservice.ServiceTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 public class ServiceTaskConsumer {
     private final ObjectMapper objectMapper;
     private final ServiceTaskTransformationService serviceTaskTransformationService;
-    private final ReferralServiceTaskTransformationService referralServiceTaskTransformationService;
-    private final HfServiceTransformationService hfServiceTransformationService;
+    private final HfDrugReactionServiceTransformationService hfDrugReactionServiceTransformationService;
+    private final HfFeverServiceTransformationService hfFeverServiceTransformationService;
 
     @Autowired
-    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService, ReferralServiceTaskTransformationService referralServiceTaskTransformationService, HfServiceTransformationService hfServiceTransformationService) {
+    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService, HfDrugReactionServiceTransformationService hfDrugReactionServiceTransformationService, HfFeverServiceTransformationService hfFeverServiceTransformationService) {
         this.objectMapper = objectMapper;
         this.serviceTaskTransformationService = serviceTaskTransformationService;
-        this.referralServiceTaskTransformationService = referralServiceTaskTransformationService;
-        this.hfServiceTransformationService = hfServiceTransformationService;
+        this.hfDrugReactionServiceTransformationService = hfDrugReactionServiceTransformationService;
+        this.hfFeverServiceTransformationService = hfFeverServiceTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
@@ -44,8 +44,8 @@ public class ServiceTaskConsumer {
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
             serviceTaskTransformationService.transform(collect);
-            referralServiceTaskTransformationService.transform(collect);
-            hfServiceTransformationService.transform(collect);
+            hfDrugReactionServiceTransformationService.transform(collect);
+            hfFeverServiceTransformationService.transform(collect);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
         }
