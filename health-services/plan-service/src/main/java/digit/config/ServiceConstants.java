@@ -174,6 +174,8 @@ public class ServiceConstants {
 
     public static final String BOUNDARY_CODE = "boundaryCode";
 
+    public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
+
     public static final String NAME_VALIDATION_DATA = "Data";
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
