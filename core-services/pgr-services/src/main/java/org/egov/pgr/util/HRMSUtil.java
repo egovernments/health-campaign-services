@@ -33,8 +33,8 @@ public class HRMSUtil {
     /**
      * Gets the list of department for the given list of uuids of employees
      *
-     * @param uuids
-     * @param employeeUuids
+     * @param uuids user uuids
+     * @param employeeUuids employee uuids
      * @param requestInfo
      * @return
      */

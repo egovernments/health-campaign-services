@@ -159,7 +159,7 @@ public class ServiceRequestValidator {
         String serviceCode = request.getService().getServiceCode();
         List<String> assignes = request.getWorkflow().getAssignes();
 
-        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignes();
+        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignees();
 
         if(CollectionUtils.isEmpty(assignes))
             return;
