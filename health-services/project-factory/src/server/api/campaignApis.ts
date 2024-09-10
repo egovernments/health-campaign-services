@@ -869,7 +869,12 @@ async function processCreate(request: any, parentCampaignObject: any, localizati
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
     let schema: any;
 
-    if (type == "facility" || type == "user") {
+    if (type == "facility") {
+      logger.info("Fetching schema to validate the created data for type: " + type);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse
+    }
+    else if (type == "user") {
       logger.info("Fetching schema to validate the created data for type: " + type);
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
