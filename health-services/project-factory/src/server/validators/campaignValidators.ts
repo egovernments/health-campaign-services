@@ -898,7 +898,7 @@ async function validateParent(request: any, actionInUrl: any) {
         const req: any = replicateRequest(request, searchBodyForParent)
         const parentSearchResponse: any = await searchProjectTypeCampaignService(req)
         if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
-            if (parentSearchResponse?.CampaignDetails?.length <= 0) {
+            if (parentSearchResponse?.CampaignDetails?.length <= 0 || !(parentSearchResponse?.CampaignDetails?.[0]?.status == "created")) {
                 throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
             }
             else {
