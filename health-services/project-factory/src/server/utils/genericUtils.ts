@@ -680,7 +680,6 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
-  console.log(schema,"[[[[[[[[[[[[[[")
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
@@ -747,7 +746,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-  hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumnForProcessedFileGenerated);
+  hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
   await handledropdownthings(userSheet, request.body?.dropdowns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -772,15 +771,14 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     /* fetch facility from processed file 
     and generate facility sheet data */
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
-    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(processedFacilitySheetData, localizationMap);
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(request,processedFacilitySheetData, localizationMap);
     facilitySheetData = modifiedProcessedFacilitySheetData;
-    schema = await callMdmsTypeSchema(request, tenantId, "facility", "allUpdated");
+    schema = await callMdmsTypeSchema(request, tenantId, "facility", "all");
     setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
     facilitySheetData = await createFacilitySheet(request, allFacilities, localizationMap);
   }
-  console.log(schema,"oppppppppp")
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
     await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
@@ -794,12 +792,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
   let schema: any;
-  if (fileUrl) {
-    schema = await callMdmsTypeSchema(request, tenantId, "user", "allUpdated");
-  }
-  else {
-    schema = await callMdmsTypeSchema(request, tenantId, "user");
-  }
+  schema = await callMdmsTypeSchema(request, tenantId, "user");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -811,9 +804,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
     /* fetch facility from processed file 
     and generate facility sheet data */
     const processedUserSheetData = await getSheetData(fileUrl, localizedUserTab, false, undefined, localizationMap);
-    console.log(fileUrl, "dddddddd")
-    const modifiedProcessedUserSheetData = modifyProcessedSheetData(processedUserSheetData, localizationMap, schema);
-    console.log(modifiedProcessedUserSheetData, "moddddddddddd")
+    const modifiedProcessedUserSheetData = modifyProcessedSheetData(request, processedUserSheetData, localizationMap);
     userSheetData = modifiedProcessedUserSheetData;
   }
   else {
@@ -1114,16 +1105,31 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
 
 
 
-async function translateSchema(schema: any, localizationMap?: { [key: string]: string }) {
+async function translateSchema(
+  schema: any,
+  localizationMap?: { [key: string]: string },
+  shouldRemoveBoundaryCode?: boolean // Add a flag to control the behavior
+) {
   const translatedSchema = {
     ...schema,
     properties: Object.entries(schema?.properties || {}).reduce((acc, [key, value]) => {
       const localizedMessage = getLocalizedName(key, localizationMap);
       acc[localizedMessage] = value;
       return acc;
-    }, {} as { [key: string]: any }), // Initialize with the correct type
-    required: (schema?.required || []).map((key: string) => getLocalizedName(key, localizationMap)),
-    unique: (schema?.unique || []).map((key: string) => getLocalizedName(key, localizationMap))
+    }, {} as { [key: string]: any }),
+
+    required: (schema?.required || [])
+      .map((key: string) => getLocalizedName(key, localizationMap))
+      .filter((key: string) => {
+        // Only remove if the condition is met
+        if (shouldRemoveBoundaryCode) {
+          return key !== getLocalizedName('HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY', localizationMap);
+        }
+        return true;
+      }),
+
+    unique: (schema?.unique || [])
+      .map((key: string) => getLocalizedName(key, localizationMap))
   };
 
   return translatedSchema;

@@ -3,7 +3,7 @@ import { changeFirstRowColumnColour, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import config from "../config";
-import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader } from "./onGoingCampaignUpdateUtils";
+import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 /**
@@ -225,22 +225,27 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
     performFreezeWholeSheet(sheet);
   }
   let columnsToBeFreezed: any;
+  let columnsToHide: any[] = [];
   if (fileUrl) {
-    if (schema) {
-      columnsToBeFreezed = schema?.columnsToBeFreezed;
-
-      columnsToBeFreezed.forEach((column: any) => {
-        const localizedColumn = getLocalizedName(column, localizationMap);
-        const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-
-        // Store the column index in the array
-        columnIndexesToBeFreezed.push(columnIndex);
-      });
+    if (typeWithoutWith === 'user') {
+      columnsToHide = ["G", "H", "J", "K"]
+      columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", "#status#", "#errorDetails#", "UserService Uuids", "UserName", "Password",]
+    } else {
+      columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]
     }
+
+    columnsToBeFreezed.forEach((column: any) => {
+      const localizedColumn = getLocalizedName(column, localizationMap);
+      const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
+
+      // Store the column index in the array
+      columnIndexesToBeFreezed.push(columnIndex);
+    });
     const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
     freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn]); // Example columns to freeze and unfreeze
+    hideColumnsOfProcessedFile(sheet,columnsToHide);
   }
   updateFontNameToRoboto(sheet);
   sheet.views = [{ state: 'frozen', ySplit: 1, zoomScale: 110 }];

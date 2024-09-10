@@ -59,9 +59,10 @@ async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility
 
 
 
-function modifyProcessedSheetData(sheetData: any, localizationMap?: any, schema?: any) {
+function modifyProcessedSheetData(request: any, sheetData: any, localizationMap?: any) {
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
+  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   if (!sheetData || sheetData.length === 0) return [];
-  console.log(schema, "sssssssssssss")
 
   // Find the row with the maximum number of keys
   const maxLengthRow = sheetData.reduce((maxRow: any, row: any) => {
@@ -69,13 +70,19 @@ function modifyProcessedSheetData(sheetData: any, localizationMap?: any, schema?
   }, {});
 
   // Extract headers from the keys of the row with the maximum number of keys
-  const originalHeaders = schema ? schema.columns : Object.keys(maxLengthRow);
-  console.log(originalHeaders, "oggggggg")
+  const originalHeaders = Object.keys(maxLengthRow);
+  if (typeWithoutWith == 'user') {
+    const statusIndex = originalHeaders.indexOf('#status#');
+    // Insert 'errordetails' after '#status#' if found
+    if (statusIndex !== -1) {
+      originalHeaders.splice(statusIndex + 1, 0, '#errorDetails#');
+    }
+  }
   // Define the new header to add
   const additionalHeader = 'HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE';
 
   // Combine original headers with the additional header
-  const headers = schema ? originalHeaders : [...originalHeaders, additionalHeader];
+  const headers = [...originalHeaders, additionalHeader];
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
   // Map each object in sheetData to an array of values corresponding to the header order
@@ -157,6 +164,22 @@ async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObjec
   return null;
 }
 
+function hideColumnsOfProcessedFile(sheet: any, columnsToHide: any[]) {
+  columnsToHide.forEach((column) => {
+    if (column) {
+      sheet.getColumn(column).hidden = true;
+    }
+  });
+}
+
+function unhideColumnsOfProcessedFile(sheet: any, columnsToUnide: any) {
+  columnsToUnide.forEach((column: any) => {
+    if (column) {
+      sheet.getColumn(column).hidden = false;
+    }
+  });
+}
+
 
 
 
@@ -169,5 +192,7 @@ export {
   freezeUnfreezeColumnsForProcessedFile,
   getColumnIndexByHeader,
   validateBoundaryCodes,
-  checkAndGiveIfParentCampaignAvailable
+  checkAndGiveIfParentCampaignAvailable,
+  hideColumnsOfProcessedFile,
+  unhideColumnsOfProcessedFile
 }

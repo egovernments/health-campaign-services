@@ -357,7 +357,6 @@ const createAndSearch: any = {
         },
         uniqueIdentifier: "user.userServiceUuid",
         uniqueIdentifierColumn: "I",
-        uniqueIdentifierColumnForProcessedFileGenerated: "H",
         uniqueIdentifierColumnName: "UserService Uuids",
         activeColumn: "F",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",

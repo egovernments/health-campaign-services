@@ -542,16 +542,10 @@ async function processValidate(request: any, campaignObject: any, parentCampaign
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
-      let mdmsResponse: any;
-      if (parentCampaignObject) {
-        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "allUpdated");
-        schema = mdmsResponse;
-      } else {
-        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-        schema = mdmsResponse;
-      }
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse;
     }
-    const translatedSchema = await translateSchema(schema, localizationMap);
+    const translatedSchema = parentCampaignObject ? await translateSchema(schema, localizationMap, true) : await translateSchema(schema, localizationMap, false);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap)
 
     processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
@@ -682,7 +676,7 @@ async function handleUserProcess(request: any, createAndSearchConfig: any, param
     newRequestBody.Employees = Employees
   }
   if (newRequestBody.Employees.length > 0) {
-    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true, true);
+    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true, false);
     if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
       enrichDataToCreateForUser(dataToCreate, responsePayload, request);
     }
@@ -714,7 +708,6 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
   if (createAndSearchConfig?.createBulkDetails?.limit) {
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
-    console.log(dataToCreate, "cccccccccccccccc")
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
     var creationTime = Date.now();
     var activities: any[] = [];
@@ -877,16 +870,9 @@ async function processCreate(request: any, parentCampaignObject: any, localizati
     let schema: any;
 
     if (type == "facility" || type == "user") {
-      let mdmsResponse: any;
       logger.info("Fetching schema to validate the created data for type: " + type);
-      if (parentCampaignObject) {
-        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "allUpdated");
-        schema = mdmsResponse;
-      }
-      else {
-        mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-        schema = mdmsResponse
-      }
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse
     }
     else if (type == "facilityMicroplan") {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
@@ -895,7 +881,7 @@ async function processCreate(request: any, parentCampaignObject: any, localizati
       schema = await appendProjectTypeToCapacity(schema, campaignType);
     }
     logger.info("translating schema")
-    const translatedSchema = await translateSchema(schema, localizationMap);
+    const translatedSchema = parentCampaignObject ? await translateSchema(schema, localizationMap, true) : await translateSchema(schema, localizationMap, false);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap);
     logger.info("validation done sucessfully")
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)

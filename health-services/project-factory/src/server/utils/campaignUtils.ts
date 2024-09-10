@@ -20,6 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
+import { unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 const _ = require('lodash');
 
 
@@ -42,7 +43,7 @@ function updateRange(range: any, worksheet: any) {
 }
 
 function findAndChangeColumns(worksheet: any, columns: any) {
-    const firstRow = worksheet.getRow(1); // First row (ExcelJS is 1-based)
+    const firstRow = worksheet.getRow(1);
     firstRow.eachCell((cell: any, colNumber: number) => {
         if (cell.value === '#status#') {
             columns.statusColumn = cell.address.replace(/\d+/g, '');
@@ -183,13 +184,11 @@ function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request:
 
 function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
     let lastColumn = errorDetailsColumn;
-    console.log(lastColumn,"lassssssssss")
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
         lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
             createAndSearchConfig?.uniqueIdentifierColumn :
             errorDetailsColumn;
     }
-   console.log(lastColumn,"laaaaaaa")
     if (userNameAndPassword) {
         worksheet.getCell("J1").value = "UserName";
         worksheet.getCell("K1").value = "Password";
@@ -292,7 +291,6 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
             }
         });
     }
-
     request.body.additionalDetailsErrors = additionalDetailsErrors;
     updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
@@ -312,6 +310,10 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
     const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
     const worksheet: any = workbook.getWorksheet(localizedSheetName);
+    if (request?.body?.ResourceDetails?.type == 'user') {
+        const columnsToUnhide = ["G", "H", "J", "K"];
+        unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
+    }
     processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
 
     // Set column widths
@@ -397,7 +399,6 @@ function setTenantId(
 async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
     const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
     const requiresToSearchFromSheet = createAndSearchConfig?.requiresToSearchFromSheet;
-    console.log(requiresToSearchFromSheet,"reeeeeeeeeee")
     var createData = [], searchData = [];
     for (const data of dataFromSheet) {
         const resultantElement: any = {};
@@ -446,7 +447,6 @@ function setTenantIdAndSegregate(processedData: any, createAndSearchConfig: any,
 // Original function divided into two parts
 async function convertToTypeData(request: any, dataFromSheet: any[], createAndSearchConfig: any, requestBody: any, localizationMap?: { [key: string]: string }) {
     const processedData = await processData(request, dataFromSheet, createAndSearchConfig, localizationMap);
-    console.log(processedData,"proccccccccccc")
     return setTenantIdAndSegregate(processedData, createAndSearchConfig, requestBody);
 }
 
@@ -1437,7 +1437,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             const columnWidths = Array(12).fill(30);
             mainSheet.columns = columnWidths.map(width => ({ width }));
             // mainSheetData.forEach(row => mainSheet.addRow(row));
-            addDataToSheet(request,mainSheet, mainSheetData, 'F3842D', 30, false, true);
+            addDataToSheet(request, mainSheet, mainSheetData, 'F3842D', 30, false, true);
             mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
@@ -1475,7 +1475,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
 
 async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
-    addDataToSheet(request,newSheet, newSheetData, 'F3842D', 40);
+    addDataToSheet(request, newSheet, newSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -1661,7 +1661,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(request,boundarySheet, boundarySheetData);
+    addDataToSheet(request, boundarySheet, boundarySheetData);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
@@ -1878,29 +1878,28 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
 function createIdRequests(employees: any[]): any[] {
     const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
     return Array.from({ length: employees.length }, () => ({
-      tenantId: tenantId,
-      idName: config?.values?.idgen?.idNameForUserNameGeneration,
-      idFormat: config?.values?.idgen?.formatForUserName
+        tenantId: tenantId,
+        idName: config?.values?.idgen?.idNameForUserNameGeneration,
+        idFormat: config?.values?.idgen?.formatForUserName
     }));
-  }
+}
 
-async function createUniqueUserNameViaIdGen(request:any)
-{
+async function createUniqueUserNameViaIdGen(request: any) {
     const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
     try {
         // Make HTTP request to ID generation service
-       const  result = await httpRequest(
-          idgenurl,
-          request?.body,
-          undefined,
-          undefined,
-          undefined,
-          undefined
+        const result = await httpRequest(
+            idgenurl,
+            request?.body,
+            undefined,
+            undefined,
+            undefined,
+            undefined
         );
-    
+
         // Return null if ID generation fails
         return result;
-      } catch (error: any) {
+    } catch (error: any) {
         // Log the error
         logger.error(`Error during ID generation: ${error.message}`);
 

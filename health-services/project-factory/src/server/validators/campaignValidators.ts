@@ -379,7 +379,6 @@ async function validateViaSchema(data: any, schema: any, request: any, parentCam
                         validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
                     }
                 }
-                console.log(activeColumnName,"acccccccccc")
                 const active = activeColumnName ? item?.[activeColumnName] : "Active";
                 if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
                     if (parentCampaignObject) {
