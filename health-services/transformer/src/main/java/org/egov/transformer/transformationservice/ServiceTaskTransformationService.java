@@ -76,8 +76,26 @@ public class ServiceTaskTransformationService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+
+        log.info("NULL_POINTER_FIX_LOG, cycleIndex is: {}", cycleIndex);
+
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        List<Double> geoPoint = !service.getAttributes().isEmpty() ? getGeoPoint(service.getAttributes().get(0).getAdditionalFields()) : null;
+
+        log.info("NULL_POINTER_FIX_LOG, additionalDetails is: {}", additionalDetails);
+        log.info("NULL_POINTER_FIX_LOG, service.getId() is: {}", service.getId());
+        log.info("NULL_POINTER_FIX_LOG, service.getClientId() is: {}", service.getClientId());
+        log.info("NULL_POINTER_FIX_LOG, projectId is: {}", projectId);
+        log.info("NULL_POINTER_FIX_LOG, service.getServiceDefId() is: {}", service.getServiceDefId());
+        log.info("NULL_POINTER_FIX_LOG, supervisorLevel is: {}", supervisorLevel);
+        log.info("NULL_POINTER_FIX_LOG, parts[1] is: {}", parts[1]);
+        log.info("NULL_POINTER_FIX_LOG, userInfoMap is: {}", userInfoMap);
+        log.info("NULL_POINTER_FIX_LOG, service.getAttributes() is: {}", service.getAttributes());
+        log.info("NULL_POINTER_FIX_LOG, geoPoint is: {}", geoPoint);
+        log.info("NULL_POINTER_FIX_LOG, boundaryHierarchy is: {}", boundaryHierarchy);
+        log.info("NULL_POINTER_FIX_LOG, additionalDetails is: {}", additionalDetails);
+
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
@@ -96,12 +114,13 @@ public class ServiceTaskTransformationService {
                 .tenantId(service.getTenantId())
                 .userId(service.getAccountId())
                 .attributes(service.getAttributes())
-                .geoPoint(getGeoPoint(service.getAttributes().get(0).getAdditionalFields()))
+                .geoPoint(geoPoint)
                 .syncedTime(service.getAuditDetails().getLastModifiedTime())
                 .syncedTimeStamp(syncedTimeStamp)
                 .boundaryHierarchy(boundaryHierarchy)
                 .additionalDetails(additionalDetails)
                 .build();
+        log.info("RETURING SINGLE TRANSFORMED SERVICE TASK TO COLLECT AS LIST: {}", serviceIndexV1);
         return serviceIndexV1;
     }
 

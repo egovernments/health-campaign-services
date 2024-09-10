@@ -134,24 +134,6 @@ public class TransformerProperties {
     @Value("${project.staff.role.mdms.module}")
     private String projectStaffRolesMdmsModule;
 
-    @Value("${boundary.label.name.province}")
-    private String province;
-
-    @Value("${boundary.label.name.locality}")
-    private String locality;
-
-    @Value("${boundary.label.name.district}")
-    private String district;
-
-    @Value("${boundary.label.name.village}")
-    private String Village;
-
-    @Value("${boundary.label.name.healthFacility}")
-    private String healthFacility;
-
-    @Value("${boundary.label.name.administrativeProvince}")
-    private String administrativeProvince;
-
     @Value("${egov.program.mandate.limit}")
     private Integer programMandateLimit;
 
