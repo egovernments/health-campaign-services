@@ -874,16 +874,16 @@ async function processCreate(request: any, parentCampaignObject: any, localizati
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
-    else if (type == "user") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-      schema = mdmsResponse
-    }
     else if (type == "facilityMicroplan") {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
       schema = mdmsResponse
       logger.info("Appending project type to capacity for microplan " + campaignType);
       schema = await appendProjectTypeToCapacity(schema, campaignType);
+    }
+    else if (type == "user") {
+      logger.info("Fetching schema to validate the created data for type: " + type);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      schema = mdmsResponse
     }
     logger.info("translating schema")
     const translatedSchema = parentCampaignObject ? await translateSchema(schema, localizationMap, true) : await translateSchema(schema, localizationMap, false);
