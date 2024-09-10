@@ -1,6 +1,5 @@
 package org.egov.transformer.transformationservice;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
@@ -118,6 +117,11 @@ public class ServiceTaskTransformationService {
         Double lat = null, lng = null;
 
         for (Field field : additionalFields.getFields()) {
+            String value = field.getValue();
+            if (value == null) {
+                log.warn("Field value for key '{}' is null, skipping.", field.getKey());
+                continue;
+            }
             switch (field.getKey()) {
                 case LATITUDE:
                     try {

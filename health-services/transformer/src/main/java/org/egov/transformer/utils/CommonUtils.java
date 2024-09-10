@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +30,7 @@ public class CommonUtils {
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
+    private static final String DATE_FORMAT = "dd/MM/yyyy";
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -42,6 +44,18 @@ public class CommonUtils {
             dates.add(getDateFromEpoch(timestamp));
         }
         return dates;
+    }
+
+    public Integer getAgeFromStringDateOfBirth(String dateStr) {
+        SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+        sdf.setLenient(false);
+
+        try {
+            return calculateAgeInMonthsFromDOB(sdf.parse(dateStr));
+        } catch (ParseException e) {
+            log.warn("Invalid date format for DOB '{}': Expected format {}.", dateStr, DATE_FORMAT);
+            return null;
+        }
     }
 
     public String getDateFromEpoch(long epochTime) {

@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
@@ -68,6 +69,8 @@ public class HfReferralTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        AdditionalFields additionalFields = hfReferral.getAdditionalFields();
+        getAgeFromAdditionalFields(additionalDetails, additionalFields);
 
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
@@ -81,6 +84,19 @@ public class HfReferralTransformationService {
                 .build();
 
         return hfReferralIndexV1;
+    }
+
+    private void getAgeFromAdditionalFields(ObjectNode additionalDetails, AdditionalFields additionalFields) {
+        if (additionalFields != null && additionalFields.getFields() != null && !additionalFields.getFields().isEmpty()) {
+            additionalFields.getFields().forEach(
+                    field -> {
+                        if (HF_REF_AGE_STRING.equalsIgnoreCase(field.getKey())) {
+                            Integer age = commonUtils.getAgeFromStringDateOfBirth(field.getValue());
+                            additionalDetails.put(field.getKey(), age);
+                        }
+                    }
+            );
+        }
     }
 }
 

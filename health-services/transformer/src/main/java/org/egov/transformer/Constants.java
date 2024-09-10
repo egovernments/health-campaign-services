@@ -102,5 +102,6 @@ public interface Constants {
     String INHAND = "inHand";
     String HEIGHT = "height";
     String DISABILITY_TYPE = "disabilityType";
+    String HF_REF_AGE_STRING = "age";
 
 }
