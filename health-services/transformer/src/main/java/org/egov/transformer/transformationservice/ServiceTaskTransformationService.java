@@ -1,5 +1,6 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
@@ -83,20 +84,6 @@ public class ServiceTaskTransformationService {
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         List<Double> geoPoint = !service.getAttributes().isEmpty() ? getGeoPoint(service.getAttributes().get(0).getAdditionalFields()) : null;
 
-        log.info("NULL_POINTER_FIX_LOG, additionalDetails is: {}", additionalDetails);
-        log.info("NULL_POINTER_FIX_LOG, service.getId() is: {}", service.getId());
-        log.info("NULL_POINTER_FIX_LOG, service.getClientId() is: {}", service.getClientId());
-        log.info("NULL_POINTER_FIX_LOG, projectId is: {}", projectId);
-        log.info("NULL_POINTER_FIX_LOG, service.getServiceDefId() is: {}", service.getServiceDefId());
-        log.info("NULL_POINTER_FIX_LOG, supervisorLevel is: {}", supervisorLevel);
-        log.info("NULL_POINTER_FIX_LOG, parts[1] is: {}", parts[1]);
-        log.info("NULL_POINTER_FIX_LOG, userInfoMap is: {}", userInfoMap);
-        log.info("NULL_POINTER_FIX_LOG, service.getAttributes() is: {}", service.getAttributes());
-        log.info("NULL_POINTER_FIX_LOG, geoPoint is: {}", geoPoint);
-        log.info("NULL_POINTER_FIX_LOG, boundaryHierarchy is: {}", boundaryHierarchy);
-        log.info("NULL_POINTER_FIX_LOG, additionalDetails is: {}", additionalDetails);
-
-
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
                 .clientReferenceId(service.getClientId())
@@ -120,7 +107,6 @@ public class ServiceTaskTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .additionalDetails(additionalDetails)
                 .build();
-        log.info("RETURING SINGLE TRANSFORMED SERVICE TASK TO COLLECT AS LIST: {}", serviceIndexV1);
         return serviceIndexV1;
     }
 
@@ -134,10 +120,20 @@ public class ServiceTaskTransformationService {
         for (Field field : additionalFields.getFields()) {
             switch (field.getKey()) {
                 case LATITUDE:
-                    lat = Double.valueOf(field.getValue());
+                    try {
+                        lat = Double.valueOf(field.getValue());
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid double format for lat '{}': Setting as null.", field.getValue());
+                        lat = null;
+                    }
                     break;
                 case LONGITUDE:
-                    lng = Double.valueOf(field.getValue());
+                    try {
+                        lng = Double.valueOf(field.getValue());
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid double format for lng '{}': Setting as null.", field.getValue());
+                        lng = null;
+                    }
                     break;
             }
         }
