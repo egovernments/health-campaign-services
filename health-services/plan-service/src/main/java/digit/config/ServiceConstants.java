@@ -76,6 +76,18 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
 
+    public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
+    public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";
+
+    public static final String RESOURCE_MAPPING_NOT_FOUND_CODE = "RESOURCE_MAPPING_NOT_FOUND";
+    public static final String RESOURCE_MAPPING_NOT_FOUND_MESSAGE = "Resource mapping is not present in Plan Configuration.";
+
+    public static final String ASSUMPTIONS_NOT_FOUND_CODE = "ASSUMPTIONS_NOT_FOUND";
+    public static final String ASSUMPTIONS_NOT_FOUND_MESSAGE = "Assumptions are not present in Plan Configuration.";
+
+    public static final String OPERATIONS_NOT_FOUND_CODE = "OPERATIONS_NOT_FOUND";
+    public static final String OPERATIONS_NOT_FOUND_MESSAGE = "Operations are not present in Plan Configuration.";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";

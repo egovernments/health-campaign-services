@@ -53,26 +53,18 @@ public class PlanConfiguration {
     private StatusEnum status = null;
 
     @JsonProperty("files")
-    @NotNull
-    @NotEmpty
     @Valid
     private List<File> files = new ArrayList<>();
 
     @JsonProperty("assumptions")
-    @NotNull
-    @NotEmpty
     @Valid
     private List<Assumption> assumptions = new ArrayList<>();
 
     @JsonProperty("operations")
-    @NotNull
-    @NotEmpty
     @Valid
     private List<Operation> operations = new ArrayList<>();
 
     @JsonProperty("resourceMapping")
-    @NotNull
-    @NotEmpty
     @Valid
     private List<ResourceMapping> resourceMapping = new ArrayList<>();
 
@@ -85,7 +77,7 @@ public class PlanConfiguration {
     public enum StatusEnum {
             DRAFT ,
             GENERATED,
-            INVALID_DATA
+            INVALID_DATA,
+            SETUP_COMPLETED
     }
-
 }
