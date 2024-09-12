@@ -16,6 +16,8 @@ import lombok.NoArgsConstructor;
 public class HfFeverServiceIndexV1 {
     @JsonProperty("id")
     private String id;
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId;
     @JsonProperty("supervisorLevel")
     private String supervisorLevel;
     @JsonProperty("checklistName")

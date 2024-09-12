@@ -67,7 +67,7 @@ public class CommonUtils {
             dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
             dateFromEpoch = dateFormat.format(date);
         } catch (Exception e) {
-            log.error("EpochTime to be transformed :" + epochTime);
+            log.error("EpochTime to be transformed : {}", epochTime);
             log.error("Exception while transforming epochTime to date: {}", ExceptionUtils.getStackTrace(e));
         }
         return dateFromEpoch;
@@ -82,7 +82,7 @@ public class CommonUtils {
             dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
             timeStamp = dateFormat.format(date);
         } catch (Exception e) {
-            log.error("EpochTime to be transformed :" + epochTime);
+            log.error("EpochTime to be transformed : {}", epochTime);
             log.error("Exception while transforming epochTime to timestamp: {}", ExceptionUtils.getStackTrace(e));
         }
         return timeStamp;

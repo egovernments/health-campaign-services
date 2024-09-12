@@ -95,6 +95,7 @@ public class HfFeverServiceTransformationService {
             String checklistName = serviceDefinition.getCode().split("\\.")[1];
             HfFeverServiceIndexV1 hfFeverServiceIndexV1 = HfFeverServiceIndexV1.builder()
                     .id(service.getId())
+                    .clientReferenceId(service.getClientId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(checklistName)
                     .tenantId(tenantId)

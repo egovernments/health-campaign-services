@@ -88,6 +88,7 @@ public class HfDrugReactionServiceTransformationService {
             String checklistName = serviceDefinition.getCode().split("\\.")[1];
             HfDrugReactionServiceTaskIndexV1 hfDrugReactionServiceTaskIndexV1 = HfDrugReactionServiceTaskIndexV1.builder()
                     .id(service.getId())
+                    .clientReferenceId(service.getClientId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(checklistName)
                     .tenantId(tenantId)
