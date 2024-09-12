@@ -55,7 +55,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 planEntry.setId(planId);
                 planEntry.setTenantId(rs.getString("plan_tenant_id"));
                 planEntry.setLocality(rs.getString("plan_locality"));
-                planEntry.setExecutionPlanId(rs.getString("plan_execution_plan_id"));
+                planEntry.setCampaignId(rs.getString("plan_campaign_id"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
                 planEntry.setAdditionalDetails(getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
