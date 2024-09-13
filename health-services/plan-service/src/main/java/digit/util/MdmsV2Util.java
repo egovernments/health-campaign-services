@@ -31,7 +31,7 @@ public class MdmsV2Util {
         this.configs = configs;
     }
 
-    public Object fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode)
+    public List<Mdms> fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode)
     {
         StringBuilder uri = getMdmsV2Uri();
         MdmsV2CriteriaReq mdmsV2CriteriaReq = getMdmsV2Request(requestInfo, tenantId, schemaCode);
@@ -43,13 +43,13 @@ public class MdmsV2Util {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
 
-        if(ObjectUtils.isEmpty(mdmsV2CriteriaResponse.getMdmsV2Data()))
+        if(ObjectUtils.isEmpty(mdmsV2CriteriaResponse.getMdms()))
         {
             log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
             throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
         }
 
-        return mdmsV2CriteriaResponse.getMdmsV2Data();
+        return mdmsV2CriteriaResponse.getMdms();
     }
 
     private StringBuilder getMdmsV2Uri()

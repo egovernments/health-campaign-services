@@ -22,5 +22,5 @@ public class MdmsV2CriteriaResponse {
 
     @JsonProperty("mdms")
     @Valid
-    List<Object> MdmsV2Data = null;
+    private List<Mdms> mdms = null;
 }
