@@ -35,21 +35,21 @@ public class MdmsV2Util {
     {
         StringBuilder uri = getMdmsV2Uri();
         MdmsV2CriteriaReq mdmsV2CriteriaReq = getMdmsV2Request(requestInfo, tenantId, schemaCode);
-        Object mdmsResponseMap = new HashMap<>();
+        MdmsV2CriteriaResponse mdmsV2CriteriaResponse = null;
         try{
-            mdmsResponseMap = restTemplate.postForObject(uri.toString(), mdmsV2CriteriaReq, Map.class);
+            mdmsV2CriteriaResponse = restTemplate.postForObject(uri.toString(), mdmsV2CriteriaReq, MdmsV2CriteriaResponse.class);
         } catch (Exception e)
         {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
 
-        if(ObjectUtils.isEmpty(mdmsResponseMap))
+        if(ObjectUtils.isEmpty(mdmsV2CriteriaResponse.getMdmsV2Data()))
         {
             log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
             throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
         }
 
-        return mdmsResponseMap;
+        return mdmsV2CriteriaResponse.getMdmsV2Data();
     }
 
     private StringBuilder getMdmsV2Uri()

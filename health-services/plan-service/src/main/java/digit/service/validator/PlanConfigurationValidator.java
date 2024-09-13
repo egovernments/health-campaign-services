@@ -542,7 +542,7 @@ public class PlanConfigurationValidator {
     {
         List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
-        String jsonPathForVehicleIds = JSON_ROOT_PATH + MDMS_CODE + DOT_SEPARATOR + FILTER_TO_GET_ALL_IDS;
+        String jsonPathForVehicleIds = FILTER_ID;
 
         List<Object> vehicleIdsFromMdms = null;
         try {
