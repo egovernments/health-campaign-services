@@ -21,7 +21,6 @@ import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
-import { validateBoundaryCodes } from "../utils/onGoingCampaignUpdateUtils";
 
 
 
@@ -357,7 +356,7 @@ async function changeSchemaErrorMessage(schema: any, localizationMap?: any) {
 
 
 
-async function validateViaSchema(data: any, schema: any, request: any, parentCampaignObject: any, localizationMap?: any) {
+async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
     if (schema) {
         const newSchema: any = await changeSchemaErrorMessage(schema, localizationMap)
         const ajv = new Ajv({ allErrors: true, strict: false }); // enable allErrors to get all validation errors
@@ -381,14 +380,6 @@ async function validateViaSchema(data: any, schema: any, request: any, parentCam
                 }
                 const active = activeColumnName ? item?.[activeColumnName] : "Active";
                 if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
-                    if (parentCampaignObject) {
-                        try {
-                            validateBoundaryCodes(item, localizationMap);  // Check boundary codes available or not in both prev and new boundary code column
-                        } catch (boundaryError: any) {
-                            const parsedError = JSON.parse(boundaryError.message);
-                            validationErrors.push({ index: item?.["!row#number!"], errors: parsedError.errors });
-                        }
-                    }
                     const validationResult = validate(item);
                     if (!validationResult) {
                         validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
@@ -429,8 +420,8 @@ async function validateViaSchema(data: any, schema: any, request: any, parentCam
 
 
 
-async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any, parentCampaignObject: any, localizationMap?: { [key: string]: string }) {
-    await validateViaSchema(data, schema, request, parentCampaignObject, localizationMap);
+async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any, localizationMap?: { [key: string]: string }) {
+    await validateViaSchema(data, schema, request, localizationMap);
 }
 
 async function validateTargetSheetData(data: any, request: any, boundaryValidation: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
@@ -736,7 +727,6 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
 
     const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
-    const updatedBoundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.updatedColumn, localizationMap);
     // Initialize resource boundary codes as a set for uniqueness
     const resourceBoundaryCodesArray: any[] = [];
     var activeColumnName: any = null;
@@ -744,9 +734,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
         activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumnName, localizationMap);
     }
     datas.forEach((data: any) => {
-        const codes = data?.[updatedBoundaryColumn]
-            ? data?.[updatedBoundaryColumn].split(',').map((code: string) => code.trim())
-            : data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+        const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
         var active = activeColumnName ? data?.[activeColumnName] : "Active";
         if (active == "Active") {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
@@ -892,21 +880,28 @@ async function validateParent(request: any, actionInUrl: any) {
                 ids: [CampaignDetails?.parentId]
             }
         }
-        if (actionInUrl == "create") {
-            searchBodyForParent.CampaignDetails.isActive = true
-        }
         const req: any = replicateRequest(request, searchBodyForParent)
         const parentSearchResponse: any = await searchProjectTypeCampaignService(req)
         if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
-            if (parentSearchResponse?.CampaignDetails?.length <= 0 || !(parentSearchResponse?.CampaignDetails?.[0]?.status == "created")) {
-                throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
+            if (actionInUrl == "create") {
+                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
+                    parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                    request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
+                }
+                else {
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
+                }
             }
             else {
-                request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
+                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
+                    !parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                    request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
+                }
+                else {
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
+                }
+
             }
-        }
-        else {
-            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
         }
     }
 }
@@ -941,7 +936,7 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                         if (!CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != CampaignDetails?.parentId && campaignWithMatchingName?.isActive) {
+                        else if (campaignWithMatchingName?.id != CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
                     }
@@ -1082,6 +1077,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateCampaignName(request, actionInUrl);
+        await validateParent(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
@@ -1107,11 +1103,23 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     }
     if (actionInUrl == "update") {
         await validateById(request);
+        await validateIsActive(request);
+    }
+    if (actionInUrl == "create") {
+        if (!request?.body?.CampaignDetails?.isActive) {
+            request.body.CampaignDetails.isActive = true;
+        }
     }
     if (action == "changeDates" && actionInUrl == "create") {
         throwError("COMMON", 400, "VALIDATION_ERROR", "changeDates is not allowed during create");
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+}
+
+async function validateIsActive(request: any) {
+    if (!request?.body?.CampaignDetails.isActive) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Can't update isActive")
+    }
 }
 
 async function validateSearchProjectCampaignRequest(request: any) {

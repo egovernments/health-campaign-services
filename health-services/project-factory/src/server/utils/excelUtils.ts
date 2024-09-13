@@ -218,34 +218,35 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   const createAndSearchConfig = createAndSearch[typeWithoutWith];
   const columnIndexesToBeFreezed: any = [];
+  const columnIndexesToBeHidden: any = [];
   if (frozeCells) {
     performUnfreezeCells(sheet, localizationMap, fileUrl);
   }
   if (frozeWholeSheet) {
     performFreezeWholeSheet(sheet);
   }
-  let columnsToBeFreezed: any;
+  let columnsToBeFreezed: any[] = [];
   let columnsToHide: any[] = [];
+  console.log(schema?.columnsToBeFreezed, columnsToHide, "maaaaaaaaaaaaa")
   if (fileUrl) {
-    if (typeWithoutWith === 'user') {
-      columnsToHide = ["G", "H", "J", "K"]
-      columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", "#status#", "#errorDetails#", "UserService Uuids", "UserName", "Password",]
-    } else {
-      columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]
-    }
-
+    columnsToHide = schema?.columnsToHide;
+    columnsToHide.forEach((column: any) => {
+      const localizedColumn = getLocalizedName(column, localizationMap);
+      const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
+      columnIndexesToBeHidden.push(columnIndex);
+    });
+       
+    columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToBeFreezed]
     columnsToBeFreezed.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-
-      // Store the column index in the array
       columnIndexesToBeFreezed.push(columnIndex);
     });
     const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
     freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn]); // Example columns to freeze and unfreeze
-    hideColumnsOfProcessedFile(sheet,columnsToHide);
+    hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);
   sheet.views = [{ state: 'frozen', ySplit: 1, zoomScale: 110 }];

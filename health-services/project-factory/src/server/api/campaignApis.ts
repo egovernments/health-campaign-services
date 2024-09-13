@@ -525,7 +525,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
   }
 }
 
-async function processValidate(request: any, campaignObject: any, parentCampaignObject: any, localizationMap?: { [key: string]: string }) {
+async function processValidate(request: any,  localizationMap?: { [key: string]: string }) {
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type]
@@ -542,11 +542,12 @@ async function processValidate(request: any, campaignObject: any, parentCampaign
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      const isUpdate = request?.body?.parentCampaignObject ? true : false;
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       schema = mdmsResponse;
     }
-    const translatedSchema = parentCampaignObject ? await translateSchema(schema, localizationMap, true) : await translateSchema(schema, localizationMap, false);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap)
+    const translatedSchema =  await translateSchema(schema, localizationMap);
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
 
     processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
   }
@@ -745,13 +746,13 @@ async function processGenericRequest(request: any, localizationMap?: { [key: str
 
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-  const parentCampaignObject = await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+  await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
 
   if (request?.body?.ResourceDetails?.action == "create") {
-    await processCreate(request, parentCampaignObject, localizationMap)
+    await processCreate(request, localizationMap)
   }
   else {
-    await processValidate(request, campaignObject, parentCampaignObject, localizationMap)
+    await processValidate(request, localizationMap)
   }
 }
 
@@ -839,7 +840,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
  * Processes the creation of resources.
  * @param request The HTTP request object.
  */
-async function processCreate(request: any, parentCampaignObject: any, localizationMap?: any) {
+async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request?.body?.ResourceDetails?.tenantId;
@@ -871,23 +872,25 @@ async function processCreate(request: any, parentCampaignObject: any, localizati
 
     if (type == "facility") {
       logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      const isUpdate = request?.body?.parentCampaignObject ? true : false;
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       schema = mdmsResponse
     }
     else if (type == "facilityMicroplan") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, true, "facility", "microplan");
       schema = mdmsResponse
       logger.info("Appending project type to capacity for microplan " + campaignType);
       schema = await appendProjectTypeToCapacity(schema, campaignType);
     }
     else if (type == "user") {
       logger.info("Fetching schema to validate the created data for type: " + type);
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      const isUpdate = request?.body?.parentCampaignObject ? true : false;
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       schema = mdmsResponse
     }
     logger.info("translating schema")
-    const translatedSchema = parentCampaignObject ? await translateSchema(schema, localizationMap, true) : await translateSchema(schema, localizationMap, false);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, parentCampaignObject, localizationMap);
+    const translatedSchema = await translateSchema(schema, localizationMap);
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
     logger.info("validation done sucessfully")
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
   }

@@ -9,7 +9,6 @@ const createAndSearch: any = {
         ],
         boundaryValidation: {
             column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
-            updatedColumn: "HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE"
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -278,7 +277,6 @@ const createAndSearch: any = {
             }],
         boundaryValidation: {
             column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
-            updatedColumn: "HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE"
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",

@@ -60,31 +60,31 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
   return jsonData;
 }
 
-function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-  if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
-    const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
-    // Iterate over each column configuration
-    for (const columnConfig of parseLogic) {
-      const { sheetColumn, sheetColumnName } = columnConfig;
-      const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+// function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
+//   if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
+//     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
+//     // Iterate over each column configuration
+//     for (const columnConfig of parseLogic) {
+//       const { sheetColumn, sheetColumnName } = columnConfig;
+//       const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
 
-      // Get the value of the first row in the current column
-      if (sheetColumn && localizedColumnName) {
-        const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
+//       // Get the value of the first row in the current column
+//       if (sheetColumn && localizedColumnName) {
+//         const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
 
-        // Validate the first row of the current column
-        if (firstRowValue !== localizedColumnName) {
-          throwError(
-            "FILE",
-            400,
-            "INVALID_COLUMNS",
-            `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
-          );
-        }
-      }
-    }
-  }
-}
+//         // Validate the first row of the current column
+//         if (firstRowValue !== localizedColumnName) {
+//           throwError(
+//             "FILE",
+//             400,
+//             "INVALID_COLUMNS",
+//             `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
+//           );
+//         }
+//       }
+//     }
+//   }
+// }
 
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];
@@ -120,7 +120,7 @@ const getSheetData = async (
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
   // If parsing array configuration is provided, validate first row of each column
-  validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
+  // validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
 
   // Collect sheet data by iterating through rows and cells
   const sheetData = getSheetDataFromWorksheet(worksheet);
@@ -1127,7 +1127,7 @@ async function callMdmsData(
   return response;
 }
 
-function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, errorMessage: any) {
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
 
   // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
   columns.sort((a: any, b: any) => {
@@ -1157,16 +1157,18 @@ function enrichSchema(data: any, properties: any, required: any, columns: any, u
   data.errorMessage = errorMessage;
   data.columnsNotToBeFreezed = columnsNotToBeFreezed;
   data.columnsToBeFreezed = columnsToBeFreezed;
+  data.columnsToHide = columnsToHide;
 }
 
-function convertIntoSchema(data: any) {
+function convertIntoSchema(data: any, isUpdate: boolean) {
   const properties: any = {};
   const errorMessage: any = {};
   const required: any[] = [];
-  const columns: any[] = [];
+  let columns: any[] = [];
   const unique: any[] = [];
   const columnsNotToBeFreezed: any[] = [];
   const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
 
   for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
     if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
@@ -1190,13 +1192,23 @@ function convertIntoSchema(data: any) {
         if (property?.freezeColumn) {
           columnsToBeFreezed.push(property?.name);
         }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
 
         // If orderNumber is missing, default to a very high number
-        columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        if (isUpdate) {
+          columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        }
+        else {
+          if (!property?.isUpdate) {
+            columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+          }
+        }
       }
     }
   }
-  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, errorMessage);
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
   return data;
 }
 
@@ -1205,6 +1217,7 @@ function convertIntoSchema(data: any) {
 async function callMdmsTypeSchema(
   request: any,
   tenantId: string,
+  isUpdate: boolean,
   type: any,
   campaignType = "all"
 ) {
@@ -1228,7 +1241,7 @@ async function callMdmsTypeSchema(
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
-  return convertIntoSchema(response?.mdms?.[0]?.data);
+  return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
 }
 
 async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {

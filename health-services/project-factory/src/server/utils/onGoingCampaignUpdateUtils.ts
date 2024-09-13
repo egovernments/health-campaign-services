@@ -78,16 +78,23 @@ function modifyProcessedSheetData(request: any, sheetData: any, localizationMap?
       originalHeaders.splice(statusIndex + 1, 0, '#errorDetails#');
     }
   }
-  // Define the new header to add
-  const additionalHeader = 'HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE';
 
-  // Combine original headers with the additional header
-  const headers = [...originalHeaders, additionalHeader];
-  const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  let localizedHeaders = getLocalizedHeaders(originalHeaders, localizationMap);
 
   // Map each object in sheetData to an array of values corresponding to the header order
-  const dataRows = sheetData.map((row: any) => {
+  let dataRows = sheetData.map((row: any) => {
     return localizedHeaders.map((header: any) => row[header] || '');
+  });
+
+  const updatedHeaders = localizedHeaders.map((header: any) => header === getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap) ?
+    getLocalizedName(config?.boundary?.boundaryCodeOld, localizationMap) : header)
+
+  const updatedWithAdditionalHeaders = [...updatedHeaders, config?.boundary?.boundaryCodeMandatory]
+  localizedHeaders = getLocalizedHeaders(updatedWithAdditionalHeaders, localizationMap);
+
+  dataRows = dataRows.map((row: any, index: number) => {
+    const boundaryCodeValue = sheetData[index][getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap)] || '';
+    return [...row, boundaryCodeValue];
   });
 
   // Combine headers and dataRows
@@ -129,39 +136,38 @@ function getColumnIndexByHeader(sheet: any, headerName: string): number {
   return 1;
 }
 
-function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
-  const updatedBoundaryCodeKey = getLocalizedName('HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE', localizationMap);
-  const updatedBoundaryCodeValue = activeRows[updatedBoundaryCodeKey];
-  const boundaryCodeMandatoryKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap);
-  const boundaryCodeMandatoryValue = activeRows[boundaryCodeMandatoryKey];
-  if (!updatedBoundaryCodeValue && !boundaryCodeMandatoryValue) {
-    const errorDetails = {
-      errors: [
-        {
-          instancePath: '',
-          schemaPath: '#/required',
-          keyword: 'required',
-          params: {
-            missingProperty: `${updatedBoundaryCodeKey} and ${boundaryCodeMandatoryKey} both`
-          },
-          message: `must have required properties ${`${updatedBoundaryCodeKey}, ${boundaryCodeMandatoryKey}`}`
-        }
-      ]
-    };
+// function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
+//   const updatedBoundaryCodeKey = getLocalizedName('HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE', localizationMap);
+//   const updatedBoundaryCodeValue = activeRows[updatedBoundaryCodeKey];
+//   const boundaryCodeMandatoryKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap);
+//   const boundaryCodeMandatoryValue = activeRows[boundaryCodeMandatoryKey];
+//   if (!updatedBoundaryCodeValue && !boundaryCodeMandatoryValue) {
+//     const errorDetails = {
+//       errors: [
+//         {
+//           instancePath: '',
+//           schemaPath: '#/required',
+//           keyword: 'required',
+//           params: {
+//             missingProperty: `${updatedBoundaryCodeKey} and ${boundaryCodeMandatoryKey} both`
+//           },
+//           message: `must have required properties ${`${updatedBoundaryCodeKey}, ${boundaryCodeMandatoryKey}`}`
+//         }
+//       ]
+//     };
 
-    throw new Error(JSON.stringify(errorDetails));
-  }
-}
+//     throw new Error(JSON.stringify(errorDetails));
+//   }
+// }
 
-async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObject: any): Promise<any | null> {
+async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObject: any) {
   if (campaignObject?.parentId) {
     const parentCampaignObject = await getParentCampaignObject(request, campaignObject.parentId);
 
-    if (parentCampaignObject?.status === "created" && parentCampaignObject.isActive) { // for time being let it be active
-      return parentCampaignObject;
+    if (parentCampaignObject?.status === "created" && !parentCampaignObject.isActive) {
+      request.body.parentCampaignObject = parentCampaignObject;
     }
   }
-  return null;
 }
 
 function hideColumnsOfProcessedFile(sheet: any, columnsToHide: any[]) {
@@ -191,7 +197,6 @@ export {
   modifyProcessedSheetData,
   freezeUnfreezeColumnsForProcessedFile,
   getColumnIndexByHeader,
-  validateBoundaryCodes,
   checkAndGiveIfParentCampaignAvailable,
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile

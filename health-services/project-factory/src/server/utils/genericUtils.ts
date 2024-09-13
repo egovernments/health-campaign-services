@@ -391,9 +391,9 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-      const parentCampaignObject = await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
-      if (parentCampaignObject) {
-        const resourcesOfParentCampaign = parentCampaignObject?.resources;
+      await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+      if (request?.body?.parentCampaignObject) {
+        const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
         const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
 
         const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
@@ -484,9 +484,9 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
   let schema;
   if (isSourceMicroplan) {
-    schema = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+    schema = await callMdmsTypeSchema(request, tenantId, false, "facility", "microplan");
   } else {
-    schema = await callMdmsTypeSchema(request, tenantId, "facility", "all");
+    schema = await callMdmsTypeSchema(request, tenantId, false, "facility", "all");
   }
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
@@ -771,9 +771,9 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     /* fetch facility from processed file 
     and generate facility sheet data */
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
-    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(request,processedFacilitySheetData, localizationMap);
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(request, processedFacilitySheetData, localizationMap);
     facilitySheetData = modifiedProcessedFacilitySheetData;
-    schema = await callMdmsTypeSchema(request, tenantId, "facility", "all");
+    schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
     setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
@@ -792,7 +792,8 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
   let schema: any;
-  schema = await callMdmsTypeSchema(request, tenantId, "user");
+  const isUpdate = fileUrl ? true : false;
+  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, "user");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -1107,9 +1108,7 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
 
 async function translateSchema(
   schema: any,
-  localizationMap?: { [key: string]: string },
-  shouldRemoveBoundaryCode?: boolean // Add a flag to control the behavior
-) {
+  localizationMap?: { [key: string]: string }) {
   const translatedSchema = {
     ...schema,
     properties: Object.entries(schema?.properties || {}).reduce((acc, [key, value]) => {
@@ -1119,14 +1118,7 @@ async function translateSchema(
     }, {} as { [key: string]: any }),
 
     required: (schema?.required || [])
-      .map((key: string) => getLocalizedName(key, localizationMap))
-      .filter((key: string) => {
-        // Only remove if the condition is met
-        if (shouldRemoveBoundaryCode) {
-          return key !== getLocalizedName('HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY', localizationMap);
-        }
-        return true;
-      }),
+      .map((key: string) => getLocalizedName(key, localizationMap)),
 
     unique: (schema?.unique || [])
       .map((key: string) => getLocalizedName(key, localizationMap))

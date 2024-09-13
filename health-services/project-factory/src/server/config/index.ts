@@ -26,6 +26,8 @@ const config = {
   masterNameForSplitBoundariesOn: "hierarchyConfig",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+    boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
+    boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
     // Default criteria for generating different tabs
     generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
