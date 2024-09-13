@@ -3,7 +3,6 @@ package digit.web.models.mdmsV2;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 
 import javax.validation.Valid;
@@ -15,7 +14,7 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 
-public class MdmsV2CriteriaResponse {
+public class MdmsResponseV2 {
     @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;

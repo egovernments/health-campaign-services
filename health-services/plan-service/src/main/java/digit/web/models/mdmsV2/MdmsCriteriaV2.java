@@ -21,7 +21,7 @@ import java.util.Set;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class MdmsV2Criteria {
+public class MdmsCriteriaV2 {
 
     @JsonProperty("tenantId")
     @Size(min = 1, max = 100)
