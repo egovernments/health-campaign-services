@@ -11,9 +11,9 @@ if (!HOST) {
 }
 
 
-// const getDBSchemaName = (dbSchema = "") => {
-//   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
-// }
+const getDBSchemaName = (dbSchema = "") => {
+  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
+}
 // Configuration object containing various environment variables
 const config = {
   cacheTime : 300,
@@ -71,13 +71,13 @@ const config = {
   DB_CONFIG: {
     DB_USER: process.env.DB_USER || "postgres",
     DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
-    DB_NAME: process.env.DB_NAME || "postgres2",
-    DB_PASSWORD: process.env.DB_PASSWORD || "1234",
+    DB_NAME: process.env.DB_NAME || "postgres",
+    DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
     DB_PORT: process.env.DB_PORT || "5432",
-    DB_CAMPAIGN_DETAILS_TABLE_NAME: `health.eg_cm_campaign_details`,
-    DB_CAMPAIGN_PROCESS_TABLE_NAME: `health.eg_cm_campaign_process`,
-    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `health.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `health.eg_cm_resource_details`
+    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
+    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
+    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`
   },
   // Application configuration
   app: {
@@ -100,7 +100,7 @@ const config = {
   host: {
     serverHost: HOST,
     // Kafka broker host
-    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "localhost:9092",
+    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
     mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
