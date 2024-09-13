@@ -889,7 +889,7 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be inactive when creating child campaign");
                 }
             }
             else {
@@ -898,7 +898,7 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be active when  updating child campaign");
                 }
 
             }
