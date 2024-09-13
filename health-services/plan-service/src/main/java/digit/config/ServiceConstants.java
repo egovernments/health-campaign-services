@@ -110,4 +110,6 @@ public class ServiceConstants {
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
     public static final String BOUNDARY_CODE = "boundaryCode";
 
+    public static final String PERCENTAGE_WILDCARD = "%";
+
 }

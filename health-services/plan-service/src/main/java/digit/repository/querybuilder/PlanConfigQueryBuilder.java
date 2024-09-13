@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanConfigQueryBuilder {
@@ -106,7 +107,7 @@ public class PlanConfigQueryBuilder {
         if (criteria.getName() != null) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.name LIKE ?");
-            preparedStmtList.add(criteria.getName() + '%');
+            preparedStmtList.add(criteria.getName() + PERCENTAGE_WILDCARD);
         }
 
         if (criteria.getStatus() != null) {
