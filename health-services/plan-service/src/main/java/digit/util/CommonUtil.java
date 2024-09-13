@@ -15,11 +15,11 @@ import static digit.config.ServiceConstants.*;
 
 @Component
 @Slf4j
-public class ServiceUtil {
+public class CommonUtil {
 
     private ObjectMapper objectMapper;
 
-    public ServiceUtil(ObjectMapper objectMapper)
+    public CommonUtil(ObjectMapper objectMapper)
     {
         this.objectMapper = objectMapper;
     }

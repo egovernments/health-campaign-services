@@ -5,7 +5,7 @@ import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
 import digit.util.MdmsV2Util;
-import digit.util.ServiceUtil;
+import digit.util.CommonUtil;
 import digit.web.models.*;
 
 import java.util.*;
@@ -31,15 +31,15 @@ public class PlanConfigurationValidator {
 
     private PlanConfigurationRepository planConfigRepository;
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, ServiceUtil serviceUtil, MultiStateInstanceUtil centralInstanceUtil) {
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
-        this.serviceUtil = serviceUtil;
+        this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
     }
 
@@ -51,7 +51,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
 
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
@@ -111,7 +111,7 @@ public class PlanConfigurationValidator {
         }
 
         String regexPattern = (String) nameValidationListFromMDMS.get(0);
-        if (!serviceUtil.validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
+        if (!commonUtil.validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
             throw new CustomException(NAME_VALIDATION_FAILED_CODE, NAME_VALIDATION_FAILED_MESSAGE);
         }
 
@@ -369,7 +369,7 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(),rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        Object mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
 
         // Validate the existence of the plan configuration in the request
         validatePlanConfigExistence(request);
@@ -540,13 +540,12 @@ public class PlanConfigurationValidator {
      */
     public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, Object mdmsV2Data)
     {
-        List<String> vehicleIds = serviceUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+        List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
         String jsonPathForVehicleIds = JSON_ROOT_PATH + MDMS_CODE + DOT_SEPARATOR + FILTER_TO_GET_ALL_IDS;
 
         List<Object> vehicleIdsFromMdms = null;
         try {
-            log.info(jsonPathForVehicleIds);
             vehicleIdsFromMdms = JsonPath.read(mdmsV2Data, jsonPathForVehicleIds);
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -555,7 +554,7 @@ public class PlanConfigurationValidator {
 
 
         List<Object> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
-        vehicleIds.stream()
+        vehicleIdsLinkedWithPlanConfig.stream()
                 .forEach(vehicleId -> {
                     if(!finalVehicleIdsFromMdms.contains(vehicleId))
                     {
