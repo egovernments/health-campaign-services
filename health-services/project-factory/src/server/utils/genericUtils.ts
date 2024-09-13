@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses, resourceDistributionStrategyTypes, rolesForMicroplan } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
@@ -462,18 +462,36 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
   request.body.dropdowns = dropdowns;
 }
 
-async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
+function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+  // from schema.properties find the key whose value have value.hideColumn == true
+  const hiddenColumns = Object.entries(schema.properties).filter(([key, value]: any) => value.hideColumn == true).map(([key, value]: any) => getLocalizedName(key, localizationMap));
+  logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`)
+  request.body.hiddenColumns = hiddenColumns;
+}
+
+async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, resourceDistributionStrategy: string) {
   const tenantId = request?.query?.tenantId;
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
-  let schema;
+  let schema: any;
   if (isSourceMicroplan) {
-    schema = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+    if (resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
+      schema = await callMdmsTypeSchema(request, tenantId, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
+    }
+    else {
+      throwError("CAMPAIGN", 500, "INVALID_RESOURCE_DISTRIBUTION_STRATEGY", `Invalid resource distribution strategy: ${resourceDistributionStrategy} ; Allowed resource distribution strategies: ${resourceDistributionStrategyTypes}`);
+    }
   } else {
     schema = await callMdmsTypeSchema(request, tenantId, "facility", "all");
   }
+  return schema;
+}
+
+async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
+  setHiddenColumns(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   let localizedHeaders;
   if (isSourceMicroplan) {
@@ -668,6 +686,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
   await handledropdownthings(facilitySheet, request.body?.dropdowns);
+  await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
@@ -679,23 +698,22 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(facilitySheet: any, dropdowns: any) {
+async function handledropdownthings(sheet: any, dropdowns: any) {
   let dropdownColumnIndex = -1;
   if (dropdowns) {
     for (const key of Object.keys(dropdowns)) {
       if (dropdowns[key]) {
-        // Iterate through each row to find the column index of "Boundary Code (Mandatory)"
-        await facilitySheet.eachRow({ includeEmpty: true }, (row: any) => {
-          row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
-            if (cell.value === key) {
-              dropdownColumnIndex = colNumber;
-            }
-          });
+
+        const firstRow = sheet.getRow(1);
+        firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+          if (cell.value === key) {
+            dropdownColumnIndex = colNumber;
+          }
         });
 
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
-          facilitySheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
+          sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
@@ -711,6 +729,23 @@ async function handledropdownthings(facilitySheet: any, dropdowns: any) {
           });
         }
       }
+    }
+  }
+}
+
+async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
+  if (hiddenColumns) {
+    for (const columnName of hiddenColumns) {
+      const firstRow = sheet.getRow(1);
+      let colIndex = -1;
+      firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+        if (cell.value === columnName) {
+          colIndex = colNumber;
+        }
+        if (colIndex !== -1) {
+          sheet.getColumn(colIndex).hidden = true
+        }
+      });
     }
   }
 }
@@ -731,6 +766,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
   await handledropdownthings(userSheet, request.body?.dropdowns);
+  await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
@@ -757,8 +793,8 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap);
   }
 }
-async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
-  const userData: any[] = [];
+
+async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any) {
   const tenantId = request?.query?.tenantId;
   const schema = await callMdmsTypeSchema(request, tenantId, "user");
   setDropdownFromSchema(request, schema, localizationMap);
@@ -773,6 +809,53 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   else {
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
     await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
+  }
+}
+
+async function generateUserSheetForMicroPlan(
+  request: any,
+  rolesForMicroplan: string[],
+  userData?: any,
+  localizationMap?: any
+) {
+  const tenantId = request?.query?.tenantId;
+  const schema = await callMdmsTypeSchema(request, tenantId, "user", "microplan");
+  setDropdownFromSchema(request, schema, localizationMap);
+  const headers = schema?.columns;
+  const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+
+  logger.info("Generated an empty user template");
+
+  const workbook = getNewExcelWorkbook();
+  const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
+
+  // Loop through the rolesForMicroplan array to create sheets for each role
+  for (const role of rolesForMicroplan) {
+    // Create a sheet for each role, using the role name as the sheet name
+    const userSheet = workbook.addWorksheet(role);
+
+    addDataToSheet(userSheet, userSheetData, undefined, undefined, true);
+    await handledropdownthings(userSheet, request.body?.dropdowns);
+    await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
+  }
+
+  // Create and upload the workbook file
+  const fileDetails = await createAndUploadFile(workbook, request);
+  request.body.fileDetails = fileDetails;
+}
+
+
+
+
+async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
+  const userData: any[] = [];
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  if (isSourceMicroplan) {
+    await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap);
+  }
+  else {
+    await generateUserSheet(request, localizationMap, filteredBoundary, userData);
   }
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any) {
@@ -941,9 +1024,7 @@ function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
   return [withBoundaryCode, withoutBoundaryCode];
 }
 
-
-async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const type = request?.body?.ResourceDetails?.type;
+async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
@@ -952,6 +1033,135 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
     return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true, localizationMap);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName || optionalSheetName, true, createAndSearchConfig, localizationMap)
+
+}
+
+function validateInConsistency(userMapping: any, emailKey: any, nameKey: any) {
+  let overallInconsistencies: string[] = []; // Collect all inconsistencies here
+
+  for (const phoneNumber in userMapping) {
+    const users = userMapping[phoneNumber];
+    let userRecords: any[] = [];
+
+    // Collect all user data for this phone number
+    for (const user of users) {
+      userRecords.push({
+        row: user["!row#number!"],
+        sheet: user["!sheet#name!"],
+        name: user[nameKey],
+        email: user[emailKey]
+      });
+    }
+
+    // Create the error message mentioning all the records for this phone number
+    let errorMessage = `Inconsistent data for phone number ${phoneNumber}. All occurrences are : `;
+
+    for (const record of userRecords) {
+      errorMessage += `  - Name: '${record.name}', Email: '${record.email}' at row ${record.row} in sheet '${record.sheet},`;
+    }
+
+    // Check for any inconsistencies by comparing all records with each other
+    const firstRecord = userRecords[0]; // Take the first record as baseline
+    const inconsistentRecords = userRecords.filter(record =>
+      record.name !== firstRecord.name || record.email !== firstRecord.email
+    );
+
+    if (inconsistentRecords.length > 0) {
+      overallInconsistencies.push(errorMessage);  // Collect all inconsistencies
+    }
+  }
+
+  // If there are any inconsistencies across phone numbers, throw an error
+  if (overallInconsistencies.length > 0) {
+    let finalErrorMessage = "Inconsistent data found: " + overallInconsistencies.join(" ; ");
+    throwError("VALIDATION", 400, "VALIDATION_ERROR", finalErrorMessage);
+  }
+}
+
+function convertDataSheetWise(userMapping: any) {
+  var sheetMapping: any = {}
+  for (const phoneNumber in userMapping) {
+    const users = userMapping[phoneNumber];
+    for (const user of users) {
+      const sheetName = user["!sheet#name!"];
+      if (!sheetMapping[sheetName]) {
+        sheetMapping[sheetName] = [];
+      }
+      sheetMapping[sheetName].push(user);
+    }
+  }
+  return sheetMapping;
+}
+
+function getAllUserData(request: any, userMapping: any, localizationMap: any) {
+  const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL", localizationMap);
+  const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME", localizationMap);
+  validateInConsistency(userMapping, emailKey, nameKey);
+  var dataToCreate: any = [];
+  for (const phoneNumber of Object.keys(userMapping)) {
+    const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
+    const email = userMapping[phoneNumber]?.[0]?.[emailKey];
+    const name = userMapping[phoneNumber]?.[0]?.[nameKey];
+    const rowNumbers = userMapping[phoneNumber].map((user: any) => user["!row#number!"]);
+    const sheetNames = userMapping[phoneNumber].map((user: any) => user["!sheet#name!"]);
+    const tenantId = request?.body?.ResourceDetails?.tenantId;
+    const rowXSheet = rowNumbers.map((row: any, index: number) => ({
+      row: row,
+      sheetName: sheetNames[index]
+    }));
+    dataToCreate.push({ ["!row#number!"]: rowXSheet, tenantId: tenantId, employeeType: "TEMPORARY", user: { emailId: email, name: name, mobileNumber: phoneNumber, roles: roles } });
+  }
+  request.body.dataToCreate = dataToCreate;
+  return convertDataSheetWise(userMapping);
+}
+
+
+
+
+
+async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
+  const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+  if (!fileResponse?.fileStoreIds?.[0]?.url) {
+    throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
+  }
+  var userMapping: any = {};
+  for (const sheetName of rolesForMicroplan) {
+    const dataOfSheet = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap)
+    for (const user of dataOfSheet) {
+      user.role = sheetName;
+      user["!sheet#name!"] = sheetName;
+      const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL", localizationMap)
+      user[emailKey] = user[emailKey]?.text || user[emailKey];
+      const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap)
+      if (!userMapping[user[phoneNumberKey]]) {
+        userMapping[user[phoneNumberKey]] = [user]
+      }
+      else {
+        userMapping[user[phoneNumberKey]].push(user)
+      }
+    }
+  }
+  const allUserData = getAllUserData(request, userMapping, localizationMap);
+  return allUserData;
+}
+
+
+async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  request.body.isSourceMicroplan = isSourceMicroplan;
+  const type = request?.body?.ResourceDetails?.type;
+  if (isSourceMicroplan) {
+    if (type == 'user') {
+      return await getUserDataFromMicroplanSheet(request, fileStoreId, tenantId, createAndSearchConfig, localizationMap);
+    }
+    else {
+      return await getDataFromSheetFromNormalCampaign(type, fileStoreId, tenantId, createAndSearchConfig, optionalSheetName, localizationMap);
+    }
+  }
+  else {
+    return await getDataFromSheetFromNormalCampaign(type, fileStoreId, tenantId, createAndSearchConfig, optionalSheetName, localizationMap);
+  }
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
@@ -1095,7 +1305,7 @@ function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: 
     const rowData = Object.values(data);
     const districtValue = data[differentTabsBasedOnLevel];
     const districtIndex = districtValue !== '' ? rowData.indexOf(districtValue) : -1;
-    // replaced '_' with '#' to avoid errors caused by underscores in boundary codes.
+
     if (districtIndex != -1) {
       const districtLevelRow = rowData.slice(0, districtIndex + 1);
       const districtKey = districtLevelRow.join('#');
@@ -1235,5 +1445,3 @@ export {
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo
 };
-
-

@@ -35,6 +35,8 @@ export const CONSTANTS: any = {
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
+            PARENT_CAMPAIGN_ERROR: "Parent campaign not found",
+            INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -144,6 +146,12 @@ export const processTrackStatuses = {
     toBeCompleted: "toBeCompleted",
     failed: "failed",
 }
+
+export const resourceDistributionStrategyTypes = [
+    "FIXED", "MIXED", "HOUSE_TO_HOUSE"
+]
+
+export const rolesForMicroplan = ["Microplan Admin", "National Supervisor", "Provincial Supervisor"]
 
 
 // Retrieves the error object containing the error code, message, and notFound flag.

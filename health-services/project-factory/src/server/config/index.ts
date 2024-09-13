@@ -3,6 +3,7 @@
 import { getErrorCodes } from "./constants";
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
+  "http://localhost:8080/" ||
   "https://unified-dev.digit.org/";
 // Checking if HOST is set, if not, exiting the process
 if (!HOST) {
@@ -12,11 +13,12 @@ if (!HOST) {
 
 
 const getDBSchemaName = (dbSchema = "") => {
+  return "health";
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 // Configuration object containing various environment variables
 const config = {
-  cacheTime : 300,
+  cacheTime: 300,
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
@@ -98,7 +100,7 @@ const config = {
   host: {
     serverHost: HOST,
     // Kafka broker host
-    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
+    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "localhost:9092" || "kafka-v2.kafka-cluster:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
     mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
