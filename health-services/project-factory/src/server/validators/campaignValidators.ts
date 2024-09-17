@@ -492,20 +492,9 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
 
 function validateDataSheetWise(data: any, validate: any, validationErrors: any[], uniqueIdentifierColumnName: any, activeColumnName: any) {
     data.forEach((item: any) => {
-        if (activeColumnName) {
-            if (!item?.[activeColumnName]) {
-                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
-            }
-            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
-            }
-        }
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
-            const validationResult = validate(item);
-            if (!validationResult) {
-                validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
-            }
+        const validationResult = validate(item);
+        if (!validationResult) {
+            validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
         }
     });
 }

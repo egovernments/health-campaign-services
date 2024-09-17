@@ -967,6 +967,7 @@ async function getSchema(request: any, tenantId: string, type: string, campaignT
       schema = mdmsResponse
     }
   }
+  return schema;
 }
 
 async function processAfterGettingSchema(dataFromSheet: any, schema: any, request: any, createAndSearchConfig: any, localizationMap?: any) {
