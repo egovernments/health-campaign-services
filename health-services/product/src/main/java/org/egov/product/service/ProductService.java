@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
@@ -109,8 +110,9 @@ public class ProductService {
         Object jsonNode = mdmsV2Service.fetchMdmsData(productSearchRequest.getRequestInfo(), tenantId, Boolean.TRUE);
         List<Product> products = Collections.emptyList();
         try {
+            Object jsonArray = JsonPath.read(jsonNode, "$.HCM-Product.Products");
             // Convert JSON string to List<Product>
-            products = objectMapper.readValue(jsonNode, new TypeReference<List<Product>>() {});
+            products = objectMapper.convertValue(jsonArray, new TypeReference<List<Product>>() {});
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -15,6 +15,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
@@ -41,11 +42,13 @@ public class MdmsV2Service {
     private final ProductConfiguration configs;
 
     @Autowired
-    public MdmsV2Service(RestTemplate restTemplate, ObjectMapper mapper, ProductConfiguration configs) {
+    public MdmsV2Service(RestTemplate restTemplate, @Qualifier("objectMapper") ObjectMapper mapper, ProductConfiguration configs) {
         this.restTemplate = restTemplate;
         this.mapper = mapper;
         this.configs = configs;
     }
+
+//    public List<Product> fetchProduct
 
     public Object fetchMdmsData(RequestInfo requestInfo, String tenantId, Boolean isProduct) {
         StringBuilder uri = new StringBuilder();
