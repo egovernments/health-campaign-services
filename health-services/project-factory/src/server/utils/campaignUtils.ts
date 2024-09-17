@@ -567,11 +567,15 @@ function enrichRootProjectId(requestBody: any) {
 }
 
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
+    if (requestBody?.parentCampaign) {
+        await makeParentInactiveOrActive(requestBody, true)
+    }
     requestBody.CampaignDetails = requestBody?.CampaignDetails || {}
     const action = requestBody?.CampaignDetails?.action;
     requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
     requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [], boundaries: requestBody?.CampaignDetails?.boundaries || [] };
     requestBody.CampaignDetails.status = campaignStatuses?.failed;
+    requestBody.CampaignDetails.isActive = false;
     requestBody.CampaignDetails.boundaryCode = getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null
     requestBody.CampaignDetails.projectType = requestBody?.CampaignDetails?.projectType || null;
     requestBody.CampaignDetails.hierarchyType = requestBody?.CampaignDetails?.hierarchyType || null;
@@ -690,12 +694,12 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     delete request.body.CampaignDetails.campaignDetails
 }
 
-async function makeParentInactive(request: any) {
-    let parentCampaign = request?.body?.parentCampaign
-    parentCampaign.isActive = false
+async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
+    let parentCampaign = requestBody?.parentCampaign
+    parentCampaign.isActive = active
     parentCampaign.campaignDetails = { deliveryRules: parentCampaign?.deliveryRules || [], resources: parentCampaign?.resources || [], boundaries: parentCampaign?.boundaries || [] };
     parentCampaign.auditDetails.lastModifiedTime = Date.now()
-    parentCampaign.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid
+    parentCampaign.auditDetails.lastModifiedBy = requestBody?.RequestInfo?.userInfo?.uuid
     const produceMessage: any = {
         CampaignDetails: parentCampaign
     }
@@ -730,6 +734,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         requestBody.Campaign.rootProjectId = request?.body?.CampaignDetails?.projectId
         requestBody.Campaign.resourceDetailsIds = createResourceDetailsIds
         requestBody.CampaignDetails = request?.body?.CampaignDetails
+        requestBody.parentCampaign = request?.body?.parentCampaign;
         var updatedInnerCampaignDetails = {}
         enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
         requestBody.CampaignDetails = request?.body?.CampaignDetails
@@ -756,7 +761,7 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
     if (request?.body?.parentCampaign?.isActive) {
-        await makeParentInactive(request)
+        await makeParentInactiveOrActive(request?.body, false)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProcessTracks(request.body.CampaignDetails.id)

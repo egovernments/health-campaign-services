@@ -1072,6 +1072,12 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                 isActive: true
             }
         }
+        if (request.body?.parentCampaign) {
+                 if(request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName)
+                    {
+                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent"); 
+                    } 
+        }
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)
         if (Array.isArray(searchResponse?.CampaignDetails)) {
@@ -1212,8 +1218,8 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
-        await validateCampaignName(request, actionInUrl);
         await validateParent(request, actionInUrl);
+        await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
@@ -1224,8 +1230,8 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
-        await validateCampaignName(request, actionInUrl);
         await validateParent(request, actionInUrl);
+        await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
