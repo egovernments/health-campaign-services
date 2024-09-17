@@ -20,6 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
+import { unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 const _ = require('lodash');
 
 
@@ -42,7 +43,7 @@ function updateRange(range: any, worksheet: any) {
 }
 
 function findAndChangeColumns(worksheet: any, columns: any) {
-    const firstRow = worksheet.getRow(1); // First row (ExcelJS is 1-based)
+    const firstRow = worksheet.getRow(1);
     firstRow.eachCell((cell: any, colNumber: number) => {
         if (cell.value === '#status#') {
             columns.statusColumn = cell.address.replace(/\d+/g, '');
@@ -188,20 +189,11 @@ function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsCol
             createAndSearchConfig?.uniqueIdentifierColumn :
             errorDetailsColumn;
     }
-
     if (userNameAndPassword) {
-        worksheet.getCell("I1").value = "UserName";
-        worksheet.getCell("J1").value = "Password";
+        worksheet.getCell("J1").value = "UserName";
+        worksheet.getCell("K1").value = "Password";
 
         // Set the fill color to green for cell I1
-        worksheet.getCell("I1").fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'ff9248' } // Green color
-        };
-        worksheet.getCell("I1").font = { bold: true };
-
-        // Set the fill color to green for cell J1
         worksheet.getCell("J1").fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -209,13 +201,21 @@ function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsCol
         };
         worksheet.getCell("J1").font = { bold: true };
 
+        // Set the fill color to green for cell J1
+        worksheet.getCell("K1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("K1").font = { bold: true };
+
         userNameAndPassword.forEach((data: any) => {
             const rowIndex = data.rowNumber;
-            worksheet.getCell(`I${rowIndex}`).value = data?.userName;
-            worksheet.getCell(`J${rowIndex}`).value = data?.password;
+            worksheet.getCell(`J${rowIndex}`).value = data?.userName;
+            worksheet.getCell(`K${rowIndex}`).value = data?.password;
         });
 
-        lastColumn = "J";
+        lastColumn = "K";
         request.body.userNameAndPassword = undefined;
     }
 
@@ -291,7 +291,6 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
             }
         });
     }
-
     request.body.additionalDetailsErrors = additionalDetailsErrors;
     updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
@@ -311,6 +310,10 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
     const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
     const worksheet: any = workbook.getWorksheet(localizedSheetName);
+    if (request?.body?.ResourceDetails?.type == 'user') {
+        const columnsToUnhide = ["G", "H", "J", "K"];
+        unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
+    }
     processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
 
     // Set column widths
@@ -417,7 +420,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
                 const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
-                if (data[localizedSheetColumnName]) {
+                if (data[localizedSheetColumnName] || data[localizedSheetColumnName] == "CREATED") {
                     searchData.push(resultantElement)
                     addToCreate = false;
                     break;
@@ -558,7 +561,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
 async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     if (firstPersist) {
-        request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+        if (!request?.body?.parentCampaign) {
+            request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+        }
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
     request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
@@ -639,6 +644,18 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     delete request.body.CampaignDetails.campaignDetails
 }
 
+async function makeParentInactive(request: any) {
+    let parentCampaign = request?.body?.parentCampaign
+    parentCampaign.isActive = false
+    parentCampaign.campaignDetails = { deliveryRules: parentCampaign?.deliveryRules || [], resources: parentCampaign?.resources || [], boundaries: parentCampaign?.boundaries || [] };
+    parentCampaign.auditDetails.lastModifiedTime = Date.now()
+    parentCampaign.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid
+    const produceMessage: any = {
+        CampaignDetails: parentCampaign
+    }
+    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+}
+
 function getCreateResourceIds(resources: any[]) {
     return resources
         .filter((resource: any) => typeof resource.createResourceId === 'string' && resource.createResourceId.trim() !== '')
@@ -691,6 +708,9 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
     }
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
+    }
+    if (request?.body?.parentCampaign?.isActive) {
+        await makeParentInactive(request)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProcessTracks(request.body.CampaignDetails.id)
@@ -1401,7 +1421,7 @@ async function getLocalizedHierarchy(request: any, localizationMap: any) {
 }
 
 
-async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any) {
+async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any, fileUrl?: any) {
     try {
         logger.info("Received Boundary data for generating  different tabs based on configured boundary level");
         const hierarchy: any[] = await getLocalizedHierarchy(request, localizationMap);
@@ -1419,11 +1439,11 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             const columnWidths = Array(12).fill(30);
             mainSheet.columns = columnWidths.map(width => ({ width }));
             // mainSheetData.forEach(row => mainSheet.addRow(row));
-            addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30, false, true);
+            addDataToSheet(request, mainSheet, mainSheetData, 'F3842D', 30, false, true);
             mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
-        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject);
+        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject, fileUrl);
         logger.info("Sheet with different tabs generated successfully");
         return workbook;
     } catch (error) {
@@ -1433,7 +1453,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
 }
 
 
-async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any, campaignObject: any) {
+async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any, campaignObject: any, fileUrl?: any) {
     const configurableColumnHeadersFromSchemaForTargetSheet = await getConfigurableColumnHeadersFromSchemaForTargetSheet(request, hierarchy, boundaryData, differentTabsBasedOnLevel, campaignObject, localizationMap);
     for (const uniqueData of uniqueDistrictsForMainSheet) {
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
@@ -1457,7 +1477,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
 
 async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
-    addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
+    addDataToSheet(request, newSheet, newSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -1643,7 +1663,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(boundarySheet, boundarySheetData);
+    addDataToSheet(request, boundarySheet, boundarySheetData);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
@@ -1725,9 +1745,9 @@ function modifyChildParentMap(childParentMap: Map<any, any>, boundaryMap: Map<an
 }
 
 
-async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
+async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any, fileUrl?: any) {
     // create different tabs on the level of hierarchy we want to 
-    const updatedWorkbook = await appendSheetsToWorkbook(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+    const updatedWorkbook = await appendSheetsToWorkbook(request, boundaryData, differentTabsBasedOnLevel, localizationMap, fileUrl);
     // upload the excel and generate file store id
     const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);
     return boundaryDetails;
@@ -1794,7 +1814,9 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         let campaignType = campaignObject?.projectType;
         const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
         campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-        const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+        const isUpdate = request?.body?.parentCampaignObject ? true : false;
+        const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, isUpdate, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+        console.log(mdmsResponse, "msssssssssssssssss")
         if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
             logger.error(`Campaign Type ${campaignType} has not any columns configured in schema`)
             throwError("COMMON", 400, "SCHEMA_ERROR", `Campaign Type ${campaignType} has not any columns configured in schema`);
@@ -1830,8 +1852,9 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
     return expectedHeadersForTargetSheet;
 }
 
-async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any) {
+async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any, fileUrl?: any) {
     var boundaryDataGeneratedAfterDifferentTabSeparation: any = boundaryDataGeneratedBeforeDifferentTabSeparation;
+    console.log(boundaryDataGeneratedAfterDifferentTabSeparation, "afterrrrrrrrrrrrrrrrrrrrr")
     const boundaryData = await getBoundaryDataAfterGeneration(boundaryDataGeneratedBeforeDifferentTabSeparation, request, localizationMap);
     let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
     differentTabsBasedOnLevel = getLocalizedName(`${request?.query?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
@@ -1840,7 +1863,7 @@ async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataG
     const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel]);
     if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)) {
         logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
-        boundaryDataGeneratedAfterDifferentTabSeparation = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+        boundaryDataGeneratedAfterDifferentTabSeparation = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap, fileUrl);
     }
     return boundaryDataGeneratedAfterDifferentTabSeparation;
 }
@@ -1860,29 +1883,28 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
 function createIdRequests(employees: any[]): any[] {
     const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
     return Array.from({ length: employees.length }, () => ({
-      tenantId: tenantId,
-      idName: config?.values?.idgen?.idNameForUserNameGeneration,
-      idFormat: config?.values?.idgen?.formatForUserName
+        tenantId: tenantId,
+        idName: config?.values?.idgen?.idNameForUserNameGeneration,
+        idFormat: config?.values?.idgen?.formatForUserName
     }));
-  }
+}
 
-async function createUniqueUserNameViaIdGen(request:any)
-{
+async function createUniqueUserNameViaIdGen(request: any) {
     const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
     try {
         // Make HTTP request to ID generation service
-       const  result = await httpRequest(
-          idgenurl,
-          request?.body,
-          undefined,
-          undefined,
-          undefined,
-          undefined
+        const result = await httpRequest(
+            idgenurl,
+            request?.body,
+            undefined,
+            undefined,
+            undefined,
+            undefined
         );
-    
+
         // Return null if ID generation fails
         return result;
-      } catch (error: any) {
+    } catch (error: any) {
         // Log the error
         logger.error(`Error during ID generation: ${error.message}`);
 
@@ -1928,5 +1950,6 @@ export {
     checkIfSourceIsMicroplan,
     getBoundaryOnWhichWeSplit,
     createIdRequests,
-    createUniqueUserNameViaIdGen
+    createUniqueUserNameViaIdGen,
+    getRootBoundaryCode
 }

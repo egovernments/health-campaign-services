@@ -6,7 +6,7 @@ import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, han
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, getRootBoundaryCode } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -378,7 +378,7 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
                         validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
                     }
                 }
-                const active = activeColumnName ? item[activeColumnName] : "Active";
+                const active = activeColumnName ? item?.[activeColumnName] : "Active";
                 if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
                     const validationResult = validate(item);
                     if (!validationResult) {
@@ -675,7 +675,20 @@ async function validateCampaignBoundary(boundaries: any[], hierarchyType: any, t
     }
 }
 
+function validateRootBoundaryWithParent(request: any) {
+    const CampaignDetails = request?.body?.CampaignDetails
+    const parentCampaign = request?.body?.parentCampaign
+    if (CampaignDetails?.parentId) {
+        const campaignBoundaries = CampaignDetails?.boundaries
+        const parentBoundaries = parentCampaign?.boundaries
+        if (getRootBoundaryCode(campaignBoundaries) !== getRootBoundaryCode(parentBoundaries)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "Root boundary code should be same as parent campaign root boundary code");
+        }
+    }
+}
+
 async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyType: any, tenantId: any, request: any): Promise<void> {
+    validateRootBoundaryWithParent(request)
     if (!request?.body?.CampaignDetails?.projectId) {
         if (boundaries) {
             if (!Array.isArray(boundaries)) {
@@ -714,7 +727,6 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
 
     const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
-
     // Initialize resource boundary codes as a set for uniqueness
     const resourceBoundaryCodesArray: any[] = [];
     var activeColumnName: any = null;
@@ -857,6 +869,43 @@ function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
     }
 }
 
+async function validateParent(request: any, actionInUrl: any) {
+    if (request?.body?.CampaignDetails?.parentId) {
+        const CampaignDetails: any = request.body.CampaignDetails;
+        const tenantId = request.body.CampaignDetails?.tenantId
+        const searchBodyForParent: any = {
+            RequestInfo: request.body.RequestInfo,
+            CampaignDetails: {
+                tenantId: tenantId,
+                ids: [CampaignDetails?.parentId]
+            }
+        }
+        const req: any = replicateRequest(request, searchBodyForParent)
+        const parentSearchResponse: any = await searchProjectTypeCampaignService(req)
+        if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
+            if (actionInUrl == "create") {
+                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
+                    parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                    request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
+                }
+                else {
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be inactive when creating child campaign");
+                }
+            }
+            else {
+                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
+                    !parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                    request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
+                }
+                else {
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be active when  updating child campaign");
+                }
+
+            }
+        }
+    }
+}
+
 async function validateCampaignName(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { campaignName, tenantId } = CampaignDetails;
@@ -871,7 +920,8 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             RequestInfo: request.body.RequestInfo,
             CampaignDetails: {
                 tenantId: tenantId,
-                campaignName: campaignName
+                campaignName: campaignName,
+                isActive: true
             }
         }
         const req: any = replicateRequest(request, searchBody)
@@ -880,12 +930,19 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             if (searchResponse?.CampaignDetails?.length > 0) {
                 const allCampaigns = searchResponse?.CampaignDetails;
                 logger.info(`campaignName to match : ${"'"}${campaignName}${"'"}`)
-                const campaignWithMatchingName: any = allCampaigns.find((campaign: any) => "'" + campaign?.campaignName + "'" == "'" + campaignName + "'") || null;
-                if (campaignWithMatchingName && actionInUrl == "create") {
-                    throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
-                }
-                else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != CampaignDetails?.id) {
-                    throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                const matchingCampaigns: any[] = allCampaigns.filter((campaign: any) => campaign?.campaignName === campaignName);
+                for (const campaignWithMatchingName of matchingCampaigns) {
+                    if (campaignWithMatchingName && actionInUrl == "create") {
+                        if (!CampaignDetails?.parentId) {
+                            throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                        }
+                        else if (campaignWithMatchingName?.id != CampaignDetails?.parentId) {
+                            throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                        }
+                    }
+                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != CampaignDetails?.id) {
+                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                    }
                 }
             }
         }
@@ -1008,6 +1065,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateCampaignName(request, actionInUrl);
+        await validateParent(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
@@ -1019,6 +1077,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateCampaignName(request, actionInUrl);
+        await validateParent(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
@@ -1031,6 +1090,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         if (!id) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "id is required for update");
         }
+        await validateById(request);
     }
     if (!CampaignDetails) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
@@ -1043,11 +1103,23 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     }
     if (actionInUrl == "update") {
         await validateById(request);
+        await validateIsActive(request);
+    }
+    if (actionInUrl == "create") {
+        if (!request?.body?.CampaignDetails?.isActive) {
+            request.body.CampaignDetails.isActive = true;
+        }
     }
     if (action == "changeDates" && actionInUrl == "create") {
         throwError("COMMON", 400, "VALIDATION_ERROR", "changeDates is not allowed during create");
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+}
+
+async function validateIsActive(request: any) {
+    if (!request?.body?.CampaignDetails.isActive) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Can't update isActive")
+    }
 }
 
 async function validateSearchProjectCampaignRequest(request: any) {
@@ -1239,5 +1311,6 @@ export {
     validateTargetSheetData,
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
-    validateSearchProcessTracksRequest
+    validateSearchProcessTracksRequest,
+    validateParent
 }
