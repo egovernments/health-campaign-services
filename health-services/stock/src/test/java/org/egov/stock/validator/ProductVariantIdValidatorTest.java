@@ -53,8 +53,8 @@ class ProductVariantIdValidatorTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(stockConfiguration.getProductHost()).thenReturn("http://localhost:8080/");
-        lenient().when(stockConfiguration.getProductVariantSearchUrl()).thenReturn("/some-url");
+        lenient().when(stockConfiguration.getMdmsHost()).thenReturn("http://localhost:8080/");
+        lenient().when(stockConfiguration.getMdmsSearchEndpoint()).thenReturn("/some-url");
 
         lenient().when(stockReconciliationConfiguration.getProductHost()).thenReturn("http://localhost:8080/");
         lenient().when(stockReconciliationConfiguration.getProductVariantSearchUrl()).thenReturn("/some-url");

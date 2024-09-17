@@ -64,4 +64,14 @@ public interface Constants {
 
     String PROJECT_USER_ACTION_ENRICHMENT_ERROR = "PROJECT_USER_ACTION_ENRICHMENT_ERROR";
 
+    String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
+
+    String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
+
+    String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
+
+    String MDMS_PRODUCT_VARIANT_MODULE_NAME = "HCM-Product";
+
+    String MDMS_PRODUCT_VARIANT_MASTER_NAME = "ProductVariants";
+
 }

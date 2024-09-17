@@ -48,7 +48,6 @@ public class MdmsV2Service {
         this.configs = configs;
     }
 
-//    public List<Product> fetchProduct
 
     public Object fetchMdmsData(RequestInfo requestInfo, String tenantId, Boolean isProduct) {
         StringBuilder uri = new StringBuilder();

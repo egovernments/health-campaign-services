@@ -40,6 +40,12 @@ public class StockConfiguration {
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
 
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsSearchEndpoint;
+
     @Value("${stock.idgen.id.format}")
     private String stockIdFormat;
 
