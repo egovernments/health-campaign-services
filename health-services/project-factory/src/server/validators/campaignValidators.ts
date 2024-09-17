@@ -889,7 +889,7 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be inactive when creating child campaign");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign can't be inactive when creating child campaign");
                 }
             }
             else {
@@ -898,7 +898,7 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR","Parent Campaign can't be active when  updating child campaign");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign can't be active when  updating child campaign");
                 }
 
             }
@@ -923,6 +923,12 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                 campaignName: campaignName,
                 isActive: true
             }
+        }
+        if (request.body?.parentCampaign) {
+                 if(request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName)
+                    {
+                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent"); 
+                    } 
         }
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)
@@ -1064,8 +1070,8 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
-        await validateCampaignName(request, actionInUrl);
         await validateParent(request, actionInUrl);
+        await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
@@ -1076,8 +1082,8 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
-        await validateCampaignName(request, actionInUrl);
         await validateParent(request, actionInUrl);
+        await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
