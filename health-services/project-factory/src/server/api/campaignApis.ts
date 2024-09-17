@@ -877,7 +877,7 @@ async function processCreate(request: any, localizationMap?: any) {
       schema = mdmsResponse
     }
     else if (type == "facilityMicroplan") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, true, "facility", "microplan");
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, false, "facility", "microplan");
       schema = mdmsResponse
       logger.info("Appending project type to capacity for microplan " + campaignType);
       schema = await appendProjectTypeToCapacity(schema, campaignType);
