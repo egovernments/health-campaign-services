@@ -1036,9 +1036,18 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 }
 
-function validateInConsistency(userMapping: any, emailKey: any, nameKey: any) {
-  let overallInconsistencies: string[] = []; // Collect all inconsistencies here
+function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
+  // Create the error message mentioning all the records for this phone number
+  var errors: any = []
+  let errorMessage = `Inconsistent data for phone number ${phoneNumber}`;
+  for (const record of userRecords) {
+    errors.push({ rowNumber: record.row, sheetName: record.sheet, status: "INVALID", errorDetails: errorMessage });
+  }
 
+  return errors
+}
+
+function enrichInconsistencies(overallInconsistencies: any, userMapping: any, nameKey: string, emailKey: string) {
   for (const phoneNumber in userMapping) {
     const users = userMapping[phoneNumber];
     let userRecords: any[] = [];
@@ -1053,29 +1062,28 @@ function validateInConsistency(userMapping: any, emailKey: any, nameKey: any) {
       });
     }
 
-    // Create the error message mentioning all the records for this phone number
-    let errorMessage = `Inconsistent data for phone number ${phoneNumber}. All occurrences are : `;
-
-    for (const record of userRecords) {
-      errorMessage += `  - Name: '${record.name}', Email: '${record.email}' at row ${record.row} in sheet '${record.sheet},`;
-    }
+    const errorMessage = getInconsistencyErrorMessage(phoneNumber, userRecords);
 
     // Check for any inconsistencies by comparing all records with each other
     const firstRecord = userRecords[0]; // Take the first record as baseline
     const inconsistentRecords = userRecords.filter(record =>
       record.name !== firstRecord.name || record.email !== firstRecord.email
     );
-
     if (inconsistentRecords.length > 0) {
-      overallInconsistencies.push(errorMessage);  // Collect all inconsistencies
+      overallInconsistencies.push(...errorMessage);  // Collect all inconsistencies
     }
   }
+}
 
-  // If there are any inconsistencies across phone numbers, throw an error
+function validateInConsistency(request: any, userMapping: any, emailKey: any, nameKey: any) {
+  let overallInconsistencies: string[] = []; // Collect all inconsistencies here
+
+  enrichInconsistencies(overallInconsistencies, userMapping, nameKey, emailKey);
   if (overallInconsistencies.length > 0) {
-    let finalErrorMessage = "Inconsistent data found: " + overallInconsistencies.join(" ; ");
-    throwError("VALIDATION", 400, "VALIDATION_ERROR", finalErrorMessage);
+    request.body.ResourceDetails.status = resourceDataStatuses.invalid
   }
+
+  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
 }
 
 function convertDataSheetWise(userMapping: any) {
@@ -1096,7 +1104,7 @@ function convertDataSheetWise(userMapping: any) {
 function getAllUserData(request: any, userMapping: any, localizationMap: any) {
   const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL", localizationMap);
   const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME", localizationMap);
-  validateInConsistency(userMapping, emailKey, nameKey);
+  validateInConsistency(request, userMapping, emailKey, nameKey);
   var dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');

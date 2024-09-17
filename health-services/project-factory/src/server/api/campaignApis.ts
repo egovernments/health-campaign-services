@@ -12,7 +12,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { processTrackStatuses, processTrackTypes } from "../config/constants";
+import { processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
 import { persistTrack } from "../utils/processTrackUtils";
 
 
@@ -544,6 +544,7 @@ async function processSheetWise(forCreate: any, dataFromSheet: any, request: any
     enrichErrorIfSheetInvalid(request, errorMap)
     await processSearchAndValidation(request)
     if (request?.body?.sheetErrorDetails?.length > 0) {
+      request.body.ResourceDetails.status = resourceDataStatuses.invalid;
       await generateProcessedFileAndPersist(request, localizationMap);
     }
     else {
@@ -615,12 +616,14 @@ function convertUserRoles(employees: any[], request: any) {
   for (const employee of employees) {
     if (employee?.user?.roles) {
       var newRoles: any[] = []
-      const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
-      for (const role of rolesArray) {
-        const code = role.toUpperCase().split(' ').join('_')
-        newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
+      if (!Array.isArray(employee.user.roles)) {
+        const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
+        for (const role of rolesArray) {
+          const code = role.toUpperCase().split(' ').join('_')
+          newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
+        }
+        employee.user.roles = newRoles
       }
-      employee.user.roles = newRoles
     }
   }
 }
@@ -926,40 +929,48 @@ async function processCreate(request: any, localizationMap?: any) {
     }
 
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
-    let schema: any;
+    const schema = await getSchema(request, tenantId, type, campaignType);
+    await processAfterGettingSchema(dataFromSheet, schema, request, createAndSearchConfig, localizationMap);
+  }
+}
 
-    if (type == "facility") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
+async function getSchema(request: any, tenantId: string, type: string, campaignType: string) {
+  let schema: any;
+
+  if (type == "facility") {
+    logger.info("Fetching schema to validate the created data for type: " + type);
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+    schema = mdmsResponse
+  }
+  else if (type == "facilityMicroplan") {
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+    schema = mdmsResponse
+    logger.info("Appending project type to capacity for microplan " + campaignType);
+    schema = await appendProjectTypeToCapacity(schema, campaignType);
+  }
+  else if (type == "user") {
+    logger.info("Fetching schema to validate the created data for type: " + type);
+    if (request?.body?.isSourceMicroplan) {
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "microplan");
+      schema = mdmsResponse
+    }
+    else {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
       schema = mdmsResponse
     }
-    else if (type == "facilityMicroplan") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
-      schema = mdmsResponse
-      logger.info("Appending project type to capacity for microplan " + campaignType);
-      schema = await appendProjectTypeToCapacity(schema, campaignType);
-    }
-    else if (type == "user") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
-      if (request?.body?.isSourceMicroplan) {
-        const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "microplan");
-        schema = mdmsResponse
-      }
-      else {
-        const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
-        schema = mdmsResponse
-      }
-    }
-    logger.info("translating schema")
-    const translatedSchema = await translateSchema(schema, localizationMap);
-    if (Array.isArray(dataFromSheet)) {
-      await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
-      logger.info("validation done sucessfully")
-      processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
-    }
-    else {
-      processSheetWise(true, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
-    }
+  }
+}
+
+async function processAfterGettingSchema(dataFromSheet: any, schema: any, request: any, createAndSearchConfig: any, localizationMap?: any) {
+  logger.info("translating schema")
+  const translatedSchema = await translateSchema(schema, localizationMap);
+  if (Array.isArray(dataFromSheet)) {
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
+    logger.info("validation done sucessfully")
+    processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
+  }
+  else {
+    processSheetWise(true, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
   }
 }
 

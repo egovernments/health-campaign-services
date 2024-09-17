@@ -419,6 +419,51 @@ async function changeSchemaErrorMessage(schema: any, localizationMap?: any) {
     return schema; // Return unmodified schema if no error message
 }
 
+function validateData(data: any[], validationErrors: any[], activeColumnName: any, uniqueIdentifierColumnName: any, validate: any) {
+    data.forEach((item: any) => {
+        if (activeColumnName) {
+            if (!item?.[activeColumnName]) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
+            }
+            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
+            }
+        }
+        const active = activeColumnName ? item[activeColumnName] : "Active";
+        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+            const validationResult = validate(item);
+            if (!validationResult) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+            }
+        }
+    });
+}
+
+function enrichRowMappingViaValidation(validationErrors: any[], rowMapping: any, localizationMap?: any) {
+    if (validationErrors.length > 0) {
+        const errorMessage = validationErrors.map(({ index, message, errors }) => {
+            const formattedErrors = errors ? errors.map((error: any) => {
+                let instancePath = error.instancePath || ''; // Assign an empty string if dataPath is not available
+                if (instancePath.startsWith('/')) {
+                    instancePath = instancePath.slice(1);
+                }
+                if (error.keyword === 'required') {
+                    const missingProperty = error.params?.missingProperty || '';
+                    return `Data at row ${index} in column '${missingProperty}' should not be empty`;
+                }
+                let formattedError = `in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
+                if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                    formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                }
+                return `Data at row ${index} ${formattedError}`
+            }).join(' ; ') : message;
+            return formattedErrors;
+        }).join(' ; ');
+        throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
+    } else {
+        logger.info("All Data rows are valid.");
+    }
+}
 
 
 export async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
@@ -434,52 +479,75 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
             validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0) {
-            data.forEach((item: any) => {
-                if (activeColumnName) {
-                    if (!item?.[activeColumnName]) {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
-                    }
-                    else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
-                    }
-                }
-                const active = activeColumnName ? item[activeColumnName] : "Active";
-                if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
-                    const validationResult = validate(item);
-                    if (!validationResult) {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
-                    }
-                }
-            });
+            validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
             validateUnique(newSchema, data, request, localizationMap);
-            if (validationErrors.length > 0) {
-                const errorMessage = validationErrors.map(({ index, message, errors }) => {
-                    const formattedErrors = errors ? errors.map((error: any) => {
-                        let instancePath = error.instancePath || ''; // Assign an empty string if dataPath is not available
-                        if (instancePath.startsWith('/')) {
-                            instancePath = instancePath.slice(1);
-                        }
-                        if (error.keyword === 'required') {
-                            const missingProperty = error.params?.missingProperty || '';
-                            return `Data at row ${index} in column '${missingProperty}' should not be empty`;
-                        }
-                        let formattedError = `in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
-                        if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
-                            formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
-                        }
-                        return `Data at row ${index} ${formattedError}`
-                    }).join(' ; ') : message;
-                    return formattedErrors;
-                }).join(' ; ');
-                throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
-            } else {
-                logger.info("All Data rows are valid.");
-            }
+            enrichRowMappingViaValidation(validationErrors, request?.body?.rowMapping, localizationMap);
         } else {
             throwError("FILE", 400, "INVALID_FILE_ERROR", "Data rows cannot be empty");
         }
     } else {
         logger.info("Skipping schema validation");
+    }
+}
+
+function validateDataSheetWise(data: any, validate: any, validationErrors: any[], uniqueIdentifierColumnName: any, activeColumnName: any) {
+    data.forEach((item: any) => {
+        if (activeColumnName) {
+            if (!item?.[activeColumnName]) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
+            }
+            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
+            }
+        }
+        const active = activeColumnName ? item[activeColumnName] : "Active";
+        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+            const validationResult = validate(item);
+            if (!validationResult) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+            }
+        }
+    });
+}
+
+function enrichRowMappingViaValidationSheetwise(rowMapping: any, validationErrors: any[], localizationMap: any) {
+    if (validationErrors.length > 0) {
+        validationErrors.map(({ index, message, errors }) => {
+            if (errors) {
+                errors.map((error: any) => {
+                    let instancePath = error.instancePath || ''; // Assign an empty string if instancePath is not available
+                    if (instancePath.startsWith('/')) {
+                        instancePath = instancePath.slice(1);
+                    }
+
+                    // Handle 'required' keyword errors
+                    if (error.keyword === 'required') {
+                        const missingProperty = error.params?.missingProperty || '';
+                        if (!rowMapping[index]) {
+                            rowMapping[index] = [];
+                        }
+                        rowMapping[index].push(`Column '${missingProperty}' should not be empty`);
+                    }
+
+                    // Format the general error message
+                    let formattedError = `Column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
+
+                    // Handle 'enum' keyword errors
+                    if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                        formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                    }
+
+                    // Ensure rowMapping[index] exists
+                    if (!rowMapping[index]) {
+                        rowMapping[index] = [];
+                    }
+                    rowMapping[index].push(`${formattedError}`);
+                })
+            }
+        });
+    }
+    else {
+        logger.info("All Data rows are valid.");
     }
 }
 
@@ -500,62 +568,9 @@ export async function validateViaSchemaSheetWise(dataFromExcel: any, schema: any
                 validatePhoneNumberSheetWise(data, localizationMap, rowMapping);
             }
             if (data?.length > 0) {
-                data.forEach((item: any) => {
-                    if (activeColumnName) {
-                        if (!item?.[activeColumnName]) {
-                            validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
-                        }
-                        else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                            validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
-                        }
-                    }
-                    const active = activeColumnName ? item[activeColumnName] : "Active";
-                    if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
-                        const validationResult = validate(item);
-                        if (!validationResult) {
-                            validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
-                        }
-                    }
-                });
+                validateDataSheetWise(data, validate, validationErrors, uniqueIdentifierColumnName, activeColumnName);
                 validateUniqueSheetWise(newSchema, data, request, rowMapping, localizationMap);
-                if (validationErrors.length > 0) {
-                    validationErrors.map(({ index, message, errors }) => {
-                        if (errors) {
-                            errors.map((error: any) => {
-                                let instancePath = error.instancePath || ''; // Assign an empty string if instancePath is not available
-                                if (instancePath.startsWith('/')) {
-                                    instancePath = instancePath.slice(1);
-                                }
-
-                                // Handle 'required' keyword errors
-                                if (error.keyword === 'required') {
-                                    const missingProperty = error.params?.missingProperty || '';
-                                    if (!rowMapping[index]) {
-                                        rowMapping[index] = [];
-                                    }
-                                    rowMapping[index].push(`Column '${missingProperty}' should not be empty`);
-                                }
-
-                                // Format the general error message
-                                let formattedError = `Column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
-
-                                // Handle 'enum' keyword errors
-                                if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
-                                    formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
-                                }
-
-                                // Ensure rowMapping[index] exists
-                                if (!rowMapping[index]) {
-                                    rowMapping[index] = [];
-                                }
-                                rowMapping[index].push(`${formattedError}`);
-                            })
-                        }
-                    });
-                }
-                else {
-                    logger.info("All Data rows are valid.");
-                }
+                enrichRowMappingViaValidationSheetwise(rowMapping, validationErrors, localizationMap);
             } else {
                 errorMap[sheetName] = { 2: ["Data rows cannot be empty"] };
             }
@@ -698,13 +713,6 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
-        // if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
-        //     const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-        //     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-        //     const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, localizationMap);
-        //     logger.info("finalValidHeadersForTargetSheetAsPerCampaignType :" + JSON.stringify(finalValidHeadersForTargetSheetAsPerCampaignType));
-        //     validateTabsWithTargetInTargetSheet(targetWorkbook, finalValidHeadersForTargetSheetAsPerCampaignType);
-        // }
     }
 }
 
