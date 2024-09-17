@@ -35,7 +35,7 @@ export const CONSTANTS: any = {
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
-            PARENT_CAMPAIGN_ERROR: "Parent campaign not found",
+            PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
         },
         BOUNDARY: {

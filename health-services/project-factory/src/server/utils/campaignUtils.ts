@@ -198,8 +198,8 @@ function deterMineLastColumnAndEnrichUserDetails(
     }
 
     // Default columns
-    let usernameColumn = "I";
-    let passwordColumn = "J";
+    let usernameColumn = "J";
+    let passwordColumn = "K";
 
     // Update columns if the request indicates a different source
     if (request?.body?.isSourceMicroplan) {
