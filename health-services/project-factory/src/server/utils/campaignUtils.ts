@@ -568,6 +568,10 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
         if (!request?.body?.parentCampaign) {
             request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
         }
+        else{
+            request.body.CampaignDetails.campaignNumber = request.body.parentCampaign?.campaignNumber;
+            request.body.CampaignDetails.campaignName = request.body.parentCampaign?.campaignName;
+        }
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
     request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
