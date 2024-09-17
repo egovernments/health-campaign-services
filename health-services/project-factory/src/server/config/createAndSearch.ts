@@ -8,7 +8,7 @@ const createAndSearch: any = {
             }
         ],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -270,8 +270,13 @@ const createAndSearch: any = {
         }
     },
     "user": {
+        requiresToSearchFromSheet: [
+            {
+                sheetColumnName: "#status#",
+                searchPath: "user.mobileNumber"
+            }],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -349,8 +354,10 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "H",
+        uniqueIdentifierColumn: "I",
         uniqueIdentifierColumnName: "UserService Uuids",
+        activeColumn: "F",
+        activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",

@@ -14,6 +14,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
 import { persistTrack } from "../utils/processTrackUtils";
+import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 
 
 
@@ -594,11 +595,12 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
+      const isUpdate = request?.body?.parentCampaignObject ? true : false;
       if (request?.body?.isSourceMicroplan) {
-        schema = await callMdmsTypeSchema(request, tenantId, type, "microplan");
+        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
       }
       else {
-        schema = await callMdmsTypeSchema(request, tenantId, type);
+        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       }
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
@@ -738,7 +740,7 @@ async function handleUserProcess(request: any, createAndSearchConfig: any, param
     newRequestBody.Employees = Employees
   }
   if (newRequestBody.Employees.length > 0) {
-    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true, true);
+    var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true, false);
     if (responsePayload?.Employees && responsePayload?.Employees?.length > 0) {
       enrichDataToCreateForUser(dataToCreate, responsePayload, request);
     }
@@ -802,7 +804,13 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
  * @param request The HTTP request object.
  */
 async function processGenericRequest(request: any, localizationMap?: { [key: string]: string }) {
+
   // Process generic requests
+
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+  await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+
   if (request?.body?.ResourceDetails?.action == "create") {
     await processCreate(request, localizationMap)
   }
@@ -936,14 +944,14 @@ async function processCreate(request: any, localizationMap?: any) {
 
 async function getSchema(request: any, tenantId: string, type: string, campaignType: string) {
   let schema: any;
-
+  const isUpdate = request?.body?.parentCampaignObject ? true : false;
   if (type == "facility") {
     logger.info("Fetching schema to validate the created data for type: " + type);
-    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
     schema = mdmsResponse
   }
   else if (type == "facilityMicroplan") {
-    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, "facility", "microplan");
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, "facility", "microplan");
     schema = mdmsResponse
     logger.info("Appending project type to capacity for microplan " + campaignType);
     schema = await appendProjectTypeToCapacity(schema, campaignType);
@@ -951,11 +959,11 @@ async function getSchema(request: any, tenantId: string, type: string, campaignT
   else if (type == "user") {
     logger.info("Fetching schema to validate the created data for type: " + type);
     if (request?.body?.isSourceMicroplan) {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type, "microplan");
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
       schema = mdmsResponse
     }
     else {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, type);
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       schema = mdmsResponse
     }
   }

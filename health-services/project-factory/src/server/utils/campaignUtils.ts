@@ -20,6 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
+import { unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 const _ = require('lodash');
 
 
@@ -42,7 +43,7 @@ function updateRange(range: any, worksheet: any) {
 }
 
 function findAndChangeColumns(worksheet: any, columns: any) {
-    const firstRow = worksheet.getRow(1); // First row (ExcelJS is 1-based)
+    const firstRow = worksheet.getRow(1);
     firstRow.eachCell((cell: any, colNumber: number) => {
         if (cell.value === '#status#') {
             columns.statusColumn = cell.address.replace(/\d+/g, '');
@@ -341,6 +342,10 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
     const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
     const worksheet: any = workbook.getWorksheet(localizedSheetName);
+    if (request?.body?.ResourceDetails?.type == 'user') {
+        const columnsToUnhide = ["G", "H", "J", "K"];
+        unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
+    }
     processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
 
     // Set column widths
@@ -461,7 +466,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
                 const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
-                if (data[localizedSheetColumnName]) {
+                if (data[localizedSheetColumnName] || data[localizedSheetColumnName] == "CREATED") {
                     searchData.push(resultantElement)
                     addToCreate = false;
                     break;
@@ -602,7 +607,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
 async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     if (firstPersist) {
-        request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+        if (!request?.body?.parentCampaign) {
+            request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+        }
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
     request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
@@ -683,6 +690,18 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     delete request.body.CampaignDetails.campaignDetails
 }
 
+async function makeParentInactive(request: any) {
+    let parentCampaign = request?.body?.parentCampaign
+    parentCampaign.isActive = false
+    parentCampaign.campaignDetails = { deliveryRules: parentCampaign?.deliveryRules || [], resources: parentCampaign?.resources || [], boundaries: parentCampaign?.boundaries || [] };
+    parentCampaign.auditDetails.lastModifiedTime = Date.now()
+    parentCampaign.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid
+    const produceMessage: any = {
+        CampaignDetails: parentCampaign
+    }
+    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+}
+
 function getCreateResourceIds(resources: any[]) {
     return resources
         .filter((resource: any) => typeof resource.createResourceId === 'string' && resource.createResourceId.trim() !== '')
@@ -735,6 +754,9 @@ async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl
     }
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
+    }
+    if (request?.body?.parentCampaign?.isActive) {
+        await makeParentInactive(request)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProcessTracks(request.body.CampaignDetails.id)
@@ -1445,7 +1467,7 @@ async function getLocalizedHierarchy(request: any, localizationMap: any) {
 }
 
 
-async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any) {
+async function appendSheetsToWorkbook(request: any, boundaryData: any[], differentTabsBasedOnLevel: any, localizationMap?: any, fileUrl?: any) {
     try {
         logger.info("Received Boundary data for generating  different tabs based on configured boundary level");
         const hierarchy: any[] = await getLocalizedHierarchy(request, localizationMap);
@@ -1463,11 +1485,11 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
             const columnWidths = Array(12).fill(30);
             mainSheet.columns = columnWidths.map(width => ({ width }));
             // mainSheetData.forEach(row => mainSheet.addRow(row));
-            addDataToSheet(mainSheet, mainSheetData, 'F3842D', 30, false, true);
+            addDataToSheet(request, mainSheet, mainSheetData, 'F3842D', 30, false, true);
             mainSheet.state = 'hidden';
         }
         logger.info("appending different districts tab in the sheet started")
-        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject);
+        await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject, fileUrl);
         logger.info("Sheet with different tabs generated successfully");
         return workbook;
     } catch (error) {
@@ -1477,7 +1499,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
 }
 
 
-async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any, campaignObject: any) {
+async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMainSheet: any, differentTabsBasedOnLevel: any, boundaryData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, hierarchy: any, campaignObject: any, fileUrl?: any) {
     const configurableColumnHeadersFromSchemaForTargetSheet = await getConfigurableColumnHeadersFromSchemaForTargetSheet(request, hierarchy, boundaryData, differentTabsBasedOnLevel, campaignObject, localizationMap);
     for (const uniqueData of uniqueDistrictsForMainSheet) {
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
@@ -1501,7 +1523,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
 
 async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
-    addDataToSheet(newSheet, newSheetData, 'F3842D', 40);
+    addDataToSheet(request, newSheet, newSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -1687,7 +1709,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(boundarySheet, boundarySheetData);
+    addDataToSheet(request, boundarySheet, boundarySheetData);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
@@ -1769,9 +1791,9 @@ function modifyChildParentMap(childParentMap: Map<any, any>, boundaryMap: Map<an
 }
 
 
-async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
+async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any, localizationMap?: any, fileUrl?: any) {
     // create different tabs on the level of hierarchy we want to 
-    const updatedWorkbook = await appendSheetsToWorkbook(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+    const updatedWorkbook = await appendSheetsToWorkbook(request, boundaryData, differentTabsBasedOnLevel, localizationMap, fileUrl);
     // upload the excel and generate file store id
     const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);
     return boundaryDetails;
@@ -1838,7 +1860,9 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         let campaignType = campaignObject?.projectType;
         const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
         campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-        const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+        const isUpdate = request?.body?.parentCampaignObject ? true : false;
+        const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, isUpdate, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+        console.log(mdmsResponse, "msssssssssssssssss")
         if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
             logger.error(`Campaign Type ${campaignType} has not any columns configured in schema`)
             throwError("COMMON", 400, "SCHEMA_ERROR", `Campaign Type ${campaignType} has not any columns configured in schema`);
@@ -1874,8 +1898,9 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
     return expectedHeadersForTargetSheet;
 }
 
-async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any) {
+async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any, fileUrl?: any) {
     var boundaryDataGeneratedAfterDifferentTabSeparation: any = boundaryDataGeneratedBeforeDifferentTabSeparation;
+    console.log(boundaryDataGeneratedAfterDifferentTabSeparation, "afterrrrrrrrrrrrrrrrrrrrr")
     const boundaryData = await getBoundaryDataAfterGeneration(boundaryDataGeneratedBeforeDifferentTabSeparation, request, localizationMap);
     let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
     differentTabsBasedOnLevel = getLocalizedName(`${request?.query?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
@@ -1884,7 +1909,7 @@ async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataG
     const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel]);
     if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)) {
         logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
-        boundaryDataGeneratedAfterDifferentTabSeparation = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+        boundaryDataGeneratedAfterDifferentTabSeparation = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap, fileUrl);
     }
     return boundaryDataGeneratedAfterDifferentTabSeparation;
 }
@@ -1971,5 +1996,6 @@ export {
     checkIfSourceIsMicroplan,
     getBoundaryOnWhichWeSplit,
     createIdRequests,
-    createUniqueUserNameViaIdGen
+    createUniqueUserNameViaIdGen,
+    getRootBoundaryCode
 }

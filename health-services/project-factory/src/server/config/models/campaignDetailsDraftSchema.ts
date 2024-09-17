@@ -92,6 +92,9 @@ export const campaignDetailsDraftSchema = {
         },
         "additionalDetails": {
             "type": "object"
+        },
+        "isActive":{
+            "type":"boolean"
         }
     },
     "required": ["tenantId", "campaignName", "hierarchyType"]
