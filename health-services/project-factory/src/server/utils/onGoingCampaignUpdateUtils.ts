@@ -23,18 +23,23 @@ async function getParentCampaignObject(request: any, parentId: any) {
 }
 
 function getCreatedResourceIds(resources: any, type: any) {
-  return resources
-    .filter((item: any) => item.type === type.split('With')[0])
-    .map((item: any) => item.createResourceId);
+  const processedType = type === 'boundary'
+    ? 'boundaryWithTarget'
+    : (type.includes('With') ? type.split('With')[0] : type); return resources
+      .filter((item: any) => item.type === processedType)
+      .map((item: any) => item.createResourceId);
 }
 
 function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
+  let processedType = type === 'boundary'
+    ? 'boundaryWithTarget'
+    : (type.includes('With') ? type.split('With')[0] : type);
   return {
     RequestInfo: request.body.RequestInfo,
     SearchCriteria: {
       id: createdResourceId,
       tenantId: request?.query?.tenantId,
-      type: type.split('With')[0]
+      type: processedType
     }
   };
 }
@@ -186,6 +191,55 @@ function unhideColumnsOfProcessedFile(sheet: any, columnsToUnide: any) {
   });
 }
 
+function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, headers: any, localizationMap?: any) {
+
+  if (!processedDistrictSheetData || processedDistrictSheetData.length === 0) return [];
+
+  let localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  const dataRows = processedDistrictSheetData.map((row: any) => {
+    return localizedHeaders.map((header: any) => row[header] || '');
+  });
+  const modifiedData = [localizedHeaders, ...dataRows];
+  const newData = updateTargetValues(modifiedData, newSheetData, localizedHeaders, localizationMap);
+  return newData;
+}
+
+
+function updateTargetValues(originalData: any, newData: any, localizedHeaders: any, localizationMap?: any) {
+
+  const boundaryCodeIndex = localizedHeaders.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+
+  // Update newData with matching values from originalData
+  newData = newData.map((newRow: any) => {
+    const matchingRow = originalData.find((originalRow: any) =>
+      originalRow.slice(0, boundaryCodeIndex + 1).every((val: any, index: any) => val === newRow[index])
+    );
+
+    return newRow.map((value: any, index: any) =>
+      index > boundaryCodeIndex && matchingRow && value === ''
+        ? matchingRow[index]
+        : value
+    );
+  });
+  
+  newData = newData.map((newRow: any, rowIndex: number) => {
+    const updatedValues: any[] = [];
+  
+    for (let i = boundaryCodeIndex + 1; i < localizedHeaders.length; i++) {
+      updatedValues.push(newRow[i]);  // Store original value
+  
+      if (rowIndex === 0) {  // Only modify the first row
+        newRow[i] = newRow[i] + "(OLD)"; // Modify value with (OLD) for the first row
+      }
+    }
+  
+    // Concatenate original values at the end of every row
+    return [...newRow, ...updatedValues];
+  });  
+
+  return newData;
+}
+
 
 
 
@@ -199,5 +253,6 @@ export {
   getColumnIndexByHeader,
   checkAndGiveIfParentCampaignAvailable,
   hideColumnsOfProcessedFile,
-  unhideColumnsOfProcessedFile
+  unhideColumnsOfProcessedFile,
+  modifyNewSheetData
 }
