@@ -83,7 +83,7 @@ class ProjectStaffServiceSearchTest {
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
 
-        List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false);
+        List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false).getResponse();
 
         assertEquals(1, projectStaffs.size());
     }
@@ -100,7 +100,7 @@ class ProjectStaffServiceSearchTest {
         when(projectStaffRepository.findById(anyList(), anyBoolean())).thenReturn(projectStaffs);
 
         List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest,
-                10, 0, null, null, true);
+                10, 0, null, null, true).getResponse();
 
         assertEquals(1, projectStaffs.size());
     }

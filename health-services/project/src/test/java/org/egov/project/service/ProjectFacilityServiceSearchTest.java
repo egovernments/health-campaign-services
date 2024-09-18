@@ -87,7 +87,7 @@ class ProjectFacilityServiceSearchTest {
                         .withCompleteRequestInfo().build()).build();
 
         List<ProjectFacility> projectFacilities = projectFacilityService.search(projectFacilitySearchRequest, 
-                10, 0, "default", null, false);
+                10, 0, "default", null, false).getResponse();
 
         assertEquals(1, projectFacilities.size());
     }
@@ -104,7 +104,7 @@ class ProjectFacilityServiceSearchTest {
         when(projectFacilityRepository.findById(anyList(), anyBoolean())).thenReturn(projectFacilities);
 
         List<ProjectFacility> projectFacilities = projectFacilityService.search(projectFacilitySearchRequest,
-                10, 0, null, null, true);
+                10, 0, null, null, true).getResponse();
 
         assertEquals(1, projectFacilities.size());
     }
