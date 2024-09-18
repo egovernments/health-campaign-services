@@ -4,6 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.MdmsUtil;
+import digit.util.ServiceUtil;
 import digit.web.models.*;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
@@ -27,11 +28,14 @@ public class PlanValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil) {
+    private ServiceUtil serviceUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, ServiceUtil serviceUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.serviceUtil = serviceUtil;
     }
 
     /**
@@ -163,10 +167,9 @@ public class PlanValidator {
      */
     private void validatePlanConfigurationExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId()) && CollectionUtils.isEmpty(planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
-                .id(request.getPlan().getPlanConfigurationId())
-                .tenantId(request.getPlan().getTenantId())
-                .build()))) {
+        if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId()) &&
+                CollectionUtils.isEmpty(serviceUtil.searchPlanConfigId(request.getPlan().getPlanConfigurationId(), request.getPlan().getTenantId())))
+        {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
     }

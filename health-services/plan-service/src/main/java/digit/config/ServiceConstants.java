@@ -12,6 +12,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
@@ -54,6 +56,9 @@ public class ServiceConstants {
 
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
+
+    public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_CODE = "NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID";
+    public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id. No hrms data found for provided employee id.";
 
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";

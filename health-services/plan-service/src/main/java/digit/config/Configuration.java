@@ -28,6 +28,12 @@ public class Configuration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsEndPoint;
 
+    //HRMS
+    @Value("${egov.hrms.host}")
+    private String hrmsHost;
+
+    @Value("${egov.hrms.search.endpoint}")
+    private String hrmsEndPoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
@@ -35,6 +41,12 @@ public class Configuration {
 
     @Value("${plan.configuration.update.topic}")
     private String planConfigUpdateTopic;
+
+    @Value("${plan.employee.assignment.create.topic}")
+    private String planEmployeeAssignmentCreateTopic;
+
+    @Value("${plan.employee.assignment.update.topic}")
+    private String planEmployeeAssignmentUpdateTopic;
 
     @Value("${plan.create.topic}")
     private String planCreateTopic;
