@@ -17,8 +17,6 @@ import org.springframework.validation.annotation.Validated;
  * FacilityResponse
  */
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,6 +32,14 @@ public class FacilityBulkResponse {
     @Valid
     private List<Facility> facilities = null;
 
+    /**
+     * The total count of user actions in the response.
+     * It is initialized to 0 by default.
+     */
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
 
     public FacilityBulkResponse addFacilityItem(Facility facilityItem) {
         if (this.facilities == null) {
