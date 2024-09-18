@@ -1,6 +1,7 @@
 package org.egov.project.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.project.helper.ProjectFacilityTestBuilder;
 import org.egov.project.repository.ProjectFacilityRepository;
@@ -46,9 +47,9 @@ class ProjectFacilityServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectFacilityFound() throws Exception {
-        when(projectFacilityRepository.find(any(ProjectFacilitySearch.class), any(Integer.class),
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(SearchResponse.<ProjectFacility>builder().response(Collections.emptyList()).build());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).facilityId(Collections.singletonList("some-facility-id")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
@@ -77,8 +78,9 @@ class ProjectFacilityServiceSearchTest {
     @Test
     @DisplayName("should return project facility if search criteria is matched")
     void shouldReturnProjectFacilityIfSearchCriteriaIsMatched() throws Exception {
-        when(projectFacilityRepository.find(any(ProjectFacilitySearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectFacilities);
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProjectFacility>builder()
+                .response(projectFacilities).build());
         projectFacilities.add(ProjectFacilityTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
