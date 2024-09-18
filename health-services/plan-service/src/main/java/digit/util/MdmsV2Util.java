@@ -36,10 +36,9 @@ public class MdmsV2Util {
         StringBuilder uri = getMdmsV2Uri();
         MdmsCriteriaReqV2 mdmsCriteriaReqV2 = getMdmsV2Request(requestInfo, tenantId, schemaCode);
         MdmsResponseV2 mdmsResponseV2 = null;
-        try{
+        try {
             mdmsResponseV2 = restTemplate.postForObject(uri.toString(), mdmsCriteriaReqV2, MdmsResponseV2.class);
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
 
