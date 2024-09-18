@@ -906,27 +906,27 @@ async function createProjectCampaignResourcData(request: any) {
     // Create resources for a project campaign
     if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
       for (const resource of request?.body?.CampaignDetails?.resources) {
-        if (resource.type != "boundaryWithTarget") {
-          const resourceDetails = {
-            type: resource.type,
-            fileStoreId: resource.filestoreId,
-            tenantId: request?.body?.CampaignDetails?.tenantId,
-            action: "create",
-            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-            additionalDetails: {},
-            campaignId: request?.body?.CampaignDetails?.id
-          };
-          logger.info(`Creating the resources for type ${resource.type}`)
-          logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
-          const createRequestBody = {
-            RequestInfo: request.body.RequestInfo,
-            ResourceDetails: resourceDetails
-          }
-          const req = replicateRequest(request, createRequestBody)
-          const res: any = await createDataService(req)
-          if (res?.id) {
-            resource.createResourceId = res?.id
-          }
+        const action = resource?.type === "boundaryWithTarget" ? "validate" : "create";
+        // if (resource.type != "boundaryWithTarget") {
+        const resourceDetails = {
+          type: resource.type,
+          fileStoreId: resource.filestoreId,
+          tenantId: request?.body?.CampaignDetails?.tenantId,
+          action: action,
+          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+          additionalDetails: {},
+          campaignId: request?.body?.CampaignDetails?.id
+        };
+        logger.info(`Creating the resources for type ${resource.type}`)
+        logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
+        const createRequestBody = {
+          RequestInfo: request.body.RequestInfo,
+          ResourceDetails: resourceDetails
+        }
+        const req = replicateRequest(request, createRequestBody)
+        const res: any = await createDataService(req)
+        if (res?.id) {
+          resource.createResourceId = res?.id
         }
       }
     }
