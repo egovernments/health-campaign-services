@@ -1237,6 +1237,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
+        validateRootBoundaryWithParent(request)
     }
 }
 

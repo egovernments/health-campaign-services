@@ -20,7 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
-import { unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 const _ = require('lodash');
 
 
@@ -613,6 +613,10 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         if (!request?.body?.parentCampaign) {
             request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+        }
+        else {
+            request.body.CampaignDetails.campaignNumber = request.body.parentCampaign?.campaignNumber;
+            request.body.CampaignDetails.campaignName = request.body.parentCampaign?.campaignName;
         }
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
@@ -1520,15 +1524,24 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
                 }
                 newSheetData.push(rowData);
             }
-            await createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet, campaignObject);
+
+            await createNewSheet(request, workbook, newSheetData, uniqueData, localizationMap, districtLevelRowBoundaryCodeMap, configurableColumnHeadersFromSchemaForTargetSheet, campaignObject, fileUrl);
             logger.info(`${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel} boundary data generation completed`)
         }
     }
 }
 
-async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any) {
+async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any, fileUrl?: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
-    addDataToSheet(request, newSheet, newSheetData, 'F3842D', 40);
+    let modifiedNewSheetData: any = newSheetData;
+    if (fileUrl) {
+        const processedDistrictSheetData = await getSheetData(fileUrl, getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap),
+            false, undefined, localizationMap);
+        if (processedDistrictSheetData) {
+            modifiedNewSheetData = modifyNewSheetData(processedDistrictSheetData, newSheetData, localizedHeaders, localizationMap)
+        }
+    }
+    addDataToSheet(request, newSheet, modifiedNewSheetData, 'F3842D', 40);
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -1898,8 +1911,12 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     const columnFromSchemaOfTargetTemplate = await generateDynamicTargetHeaders(request, campaignObject, localizationMap);
-    const localizedcolumnFromSchemaOfTargetTemplate = getLocalizedHeaders(columnFromSchemaOfTargetTemplate, localizationMap)
-    const expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheetUptoHierarchy, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), ...localizedcolumnFromSchemaOfTargetTemplate];
+    const localizedcolumnFromSchemaOfTargetTemplate = getLocalizedHeaders(columnFromSchemaOfTargetTemplate, localizationMap);
+    let updatedLocalizedcolumnFromSchemaOfTargetTemplate = localizedcolumnFromSchemaOfTargetTemplate;
+    if (request?.body?.parentCampaignObject) {
+        updatedLocalizedcolumnFromSchemaOfTargetTemplate = localizedcolumnFromSchemaOfTargetTemplate.map((item: any) => `${item}(OLD)`).concat(localizedcolumnFromSchemaOfTargetTemplate);
+    }
+    const expectedHeadersForTargetSheet = [...expectedHeadersForTargetSheetUptoHierarchy, getLocalizedName(config?.boundary?.boundaryCode, localizationMap), ...updatedLocalizedcolumnFromSchemaOfTargetTemplate];
     return expectedHeadersForTargetSheet;
 }
 
