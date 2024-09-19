@@ -5,7 +5,7 @@ CREATE TABLE plan_employee_assignment (
   plan_configuration_id         character varying(64),
   employee_id                   character varying(64),
   role                          character varying(64),
-  jurisdiction                  text[] DEFAULT '{}',
+  jurisdiction                  JSONB,
   additional_details            JSONB,
   active                        boolean DEFAULT true,
   created_by                    character varying(64),
