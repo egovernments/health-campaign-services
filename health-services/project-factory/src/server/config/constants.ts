@@ -151,7 +151,16 @@ export const resourceDistributionStrategyTypes = [
     "FIXED", "MIXED", "HOUSE_TO_HOUSE"
 ]
 
-export const rolesForMicroplan = ["Microplan Admin", "National Supervisor", "Provincial Supervisor"]
+export const rolesForMicroplan = ["Microplan approver", "National microplan approver", "Population data approver", "National population data approver", "Facility catchment assigner", "National facility catchment assigner", "Microplan viewer"];
+export const rolesForMicroplanMapping: any = {
+    "Microplan approver": "Microplan approver",
+    "National microplan approver": "National microplan approver",
+    "Population data approver": "Population data approver",
+    "National population data approver": "National population da...",
+    "Facility catchment assigner": "Facility catchment assigner",
+    "National facility catchment assigner": "National facility ca...",
+    "Microplan viewer": "Microplan viewer"
+}
 
 
 // Retrieves the error object containing the error code, message, and notFound flag.

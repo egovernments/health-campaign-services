@@ -350,11 +350,11 @@ async function matchUserValidation(createdData: any[], request: any) {
     if (mobileNumberResponse.has(key) && !config.values.notCreateUserIfAlreadyThere) {
       if (Array.isArray(mobileNumberRowNumberMapping[key])) {
         for (const row of mobileNumberRowNumberMapping[key]) {
-          errors.push({ status: "INVALID", rowNumber: row.row, sheetName: row.sheetName, errorDetails: `User with mobileNumber ${key} already exists` })
+          errors.push({ status: "INVALID", rowNumber: row.row, sheetName: row.sheetName, errorDetails: `User with contact number ${key} already exists` })
         }
       }
       else {
-        errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with mobileNumber ${key} already exists` })
+        errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with contact number ${key} already exists` })
       }
       count++;
     }

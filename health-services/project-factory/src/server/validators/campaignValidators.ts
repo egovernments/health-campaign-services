@@ -326,7 +326,7 @@ function validateUniqueSheetWise(schema: any, data: any[], request: any, rowMapp
                         if (!rowMapping[rowNum]) {
                             rowMapping[rowNum] = [];
                         }
-                        rowMapping[rowNum].push(`Duplicate value '${value}' found for '${element}`);
+                        rowMapping[rowNum].push(`Duplicate value '${value}' found for '${element}'`);
                     }
                     // Add the value to the map
                     uniqueMap.set(value, rowNum);
@@ -374,7 +374,7 @@ export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any,
     var digitErrorRows = [];
     var missingNumberRows = [];
     for (const data of datas) {
-        const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
         if (data[phoneColumn]) {
             var phoneNumber = data[phoneColumn];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
@@ -515,22 +515,26 @@ function enrichRowMappingViaValidationSheetwise(rowMapping: any, validationError
                         if (!rowMapping[index]) {
                             rowMapping[index] = [];
                         }
-                        rowMapping[index].push(`Column '${missingProperty}' should not be empty`);
+                        rowMapping[index].push(`Data in column '${missingProperty}' should not be empty`);
                     }
+                    else {
+                        // Format the general error message
+                        let formattedError = `Data in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
 
-                    // Format the general error message
-                    let formattedError = `Column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
+                        // Handle 'enum' keyword errors
+                        if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                            formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                        }
+                        else if (error.keyword === 'pattern') {
+                            formattedError = `Data in column '${instancePath}' is invalid`
+                        }
 
-                    // Handle 'enum' keyword errors
-                    if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
-                        formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                        // Ensure rowMapping[index] exists
+                        if (!rowMapping[index]) {
+                            rowMapping[index] = [];
+                        }
+                        rowMapping[index].push(`${formattedError}`);
                     }
-
-                    // Ensure rowMapping[index] exists
-                    if (!rowMapping[index]) {
-                        rowMapping[index] = [];
-                    }
-                    rowMapping[index].push(`${formattedError}`);
                 })
             }
         });
@@ -1073,10 +1077,9 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             }
         }
         if (request.body?.parentCampaign) {
-                 if(request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName)
-                    {
-                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent"); 
-                    } 
+            if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent");
+            }
         }
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)

@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, resourceDistributionStrategyTypes, rolesForMicroplan } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses, resourceDistributionStrategyTypes, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -856,6 +856,62 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   }
 }
 
+
+async function getCustomSheetData(request: any, type: any, sheetName: any) {
+  const { RequestInfo = {} } = request?.body || {};
+  const requestBody = {
+    RequestInfo,
+    MdmsCriteria: {
+      tenantId: request?.query?.tenantId,
+      uniqueIdentifiers: [
+        `${sheetName}.${type}`
+      ],
+      schemaCode: "HCM-ADMIN-CONSOLE.customSheetData"
+    }
+  };
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const header = {
+    ...defaultheader,
+    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${sheetName}${type}.${sheetName}${requestBody?.MdmsCriteria?.schemaCode}`
+  }
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during customSheet config search");
+  }
+  return response?.mdms?.[0]?.data;
+}
+
+function getConvertedSheetData(allRows: any) {
+  const headersSet = new Set();
+  allRows.forEach((row: any) => {
+    Object.keys(row).forEach(header => headersSet.add(header));
+  });
+  const headers: any = Array.from(headersSet);
+
+  // Map rows to include all headers, filling missing values with ""
+  const sheetData = allRows.map((row: any) =>
+    headers.map((header: any) => row[header] || "")
+  );
+
+  sheetData.unshift(headers);
+  return sheetData;
+}
+async function makeCustomSheetData(request: any, type: any, sheetName: any, workbook: any, localizationMap: any) {
+  const data = await getCustomSheetData(request, type, sheetName);
+  const sheetNameAfterTranslation = getLocalizedName(sheetName, localizationMap);
+  const customSheet = workbook.addWorksheet(sheetNameAfterTranslation);
+  const allRows: any = []
+  for (const rows of data?.data) {
+    const rowData: any = {}
+    for (const row of rows) {
+      rowData[getLocalizedName(row?.column, localizationMap)] = getLocalizedName(row?.value, localizationMap);
+    }
+    allRows.push(rowData);
+  }
+  const sheetData = getConvertedSheetData(allRows);
+  addDataToSheet(request, customSheet, sheetData, undefined, undefined, true, true);
+}
+
 async function generateUserSheetForMicroPlan(
   request: any,
   rolesForMicroplan: string[],
@@ -873,12 +929,15 @@ async function generateUserSheetForMicroPlan(
 
   const workbook = getNewExcelWorkbook();
   const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
+  const localisedReadme = getLocalizedName(config.values.readMeTab, localizationMap);
+  workbook.addWorksheet(localisedReadme);
+
+  await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
 
   // Loop through the rolesForMicroplan array to create sheets for each role
   for (const role of rolesForMicroplan) {
     // Create a sheet for each role, using the role name as the sheet name
-    const userSheet = workbook.addWorksheet(role);
-
+    const userSheet: any = workbook.addWorksheet(rolesForMicroplanMapping[role]);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(userSheet, request.body?.dropdowns);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
@@ -1084,7 +1143,7 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
   // Create the error message mentioning all the records for this phone number
   var errors: any = []
-  let errorMessage = `Inconsistent data for phone number ${phoneNumber}`;
+  let errorMessage = `User details for the same contact number isn’t matching. Please check the user’s name or email ID`;
   for (const record of userRecords) {
     errors.push({ rowNumber: record.row, sheetName: record.sheet, status: "INVALID", errorDetails: errorMessage });
   }
@@ -1131,6 +1190,44 @@ function validateInConsistency(request: any, userMapping: any, emailKey: any, na
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
 }
 
+function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKey: any) {
+  const duplicates: any[] = [];
+
+  for (const phoneNumber in userMapping) {
+    const roleMap: { [key: string]: string[] } = {};
+    const users = userMapping[phoneNumber];
+
+    for (const user of users) {
+      if (user.role && user.role.startsWith("National ")) {
+        // Trim the role
+        const trimmedRole = user.role.replace("National ", "").trim().toLowerCase();
+        const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
+
+        // Check for duplicates in the roleMap
+        if (roleMap[trimmedRole]) {
+          const errorMessage: any = `An user with ${trimmedRoleWithCapital} role can’t be assigned to ${user.role} role`;
+          duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
+        } else {
+          roleMap[trimmedRole] = [user?.[phoneNumberKey]];
+        }
+      }
+      else {
+        const trimmedRole = user.role.toLowerCase();
+        const errorMessage: any = `An user with ${"National " + trimmedRole} role can’t be assigned to ${user.role} role`;
+        if (roleMap[trimmedRole]) {
+          duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
+        } else {
+          roleMap[trimmedRole] = [user?.[phoneNumberKey]];
+        }
+      }
+    }
+  }
+  if (duplicates.length > 0) {
+    request.body.ResourceDetails.status = resourceDataStatuses.invalid
+  }
+  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...duplicates] : duplicates;
+}
+
 function convertDataSheetWise(userMapping: any) {
   var sheetMapping: any = {}
   for (const phoneNumber in userMapping) {
@@ -1147,9 +1244,11 @@ function convertDataSheetWise(userMapping: any) {
 }
 
 function getAllUserData(request: any, userMapping: any, localizationMap: any) {
-  const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL", localizationMap);
-  const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME", localizationMap);
+  const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap);
+  const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
+  const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
   validateInConsistency(request, userMapping, emailKey, nameKey);
+  validateNationalDuplicacy(request, userMapping, phoneNumberKey);
   var dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
@@ -1179,13 +1278,13 @@ async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, ten
   }
   var userMapping: any = {};
   for (const sheetName of rolesForMicroplan) {
-    const dataOfSheet = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap)
+    const dataOfSheet = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, rolesForMicroplanMapping[sheetName], true, undefined, localizationMap)
     for (const user of dataOfSheet) {
       user.role = sheetName;
-      user["!sheet#name!"] = sheetName;
-      const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL", localizationMap)
+      user["!sheet#name!"] = rolesForMicroplanMapping[sheetName];
+      const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap)
       user[emailKey] = user[emailKey]?.text || user[emailKey];
-      const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap)
+      const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap)
       if (!userMapping[user[phoneNumberKey]]) {
         userMapping[user[phoneNumberKey]] = [user]
       }
@@ -1405,7 +1504,7 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
   let campaignType = campaignObject.projectType;
   const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
   campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false,request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
 }
 

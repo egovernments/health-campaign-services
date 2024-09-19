@@ -398,7 +398,7 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
     }
 
     localizedSheetNames.forEach((sheetName: any) => {
-        if (sheetName !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && sheetName !== getLocalizedName(config.values.readMeTab, localizationMap)) {
+        if (sheetName !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && sheetName !== getLocalizedName(config.values.readMeTab, localizationMap) && sheetName !== getLocalizedName("USER_MICROPLAN_SHEET_ROLES", localizationMap)) {
             processErrorDataForEachSheets(request, createAndSearchConfig, workbook, sheetName);
         }
     });
