@@ -22,16 +22,20 @@ public class HrmsUtil {
 
     private Configuration configs;
 
-    private RequestInfoWrapper requestInfoWrapper;
 
-    public HrmsUtil(RestTemplate restTemplate, Configuration configs, RequestInfoWrapper requestInfoWrapper)
-    {
+    public HrmsUtil(RestTemplate restTemplate, Configuration configs) {
         this.restTemplate = restTemplate;
         this.configs = configs;
-        this.requestInfoWrapper = requestInfoWrapper;
     }
 
-    public List<Employee> fetchHrmsData(RequestInfo requestInfo, String employeeId, String tenantId) {
+    /**
+     * This method fetches data from HRMS service for provided employeeId
+     *
+     * @param employeeId  employee id provided in the request
+     * @param requestInfo request info from the request
+     * @param tenantId    tenant id from the request
+     */
+    public EmployeeResponse fetchHrmsData(RequestInfo requestInfo, String employeeId, String tenantId) {
 
         StringBuilder uri = new StringBuilder();
         uri.append(configs.getHrmsHost()).append(configs.getHrmsEndPoint()).append("?limit={limit}&tenantId={tenantId}&offset={offset}&ids={employeeId}");
@@ -46,12 +50,12 @@ public class HrmsUtil {
         EmployeeResponse employeeResponse = new EmployeeResponse();
 
         try {
-            employeeResponse  = restTemplate.postForObject(uri.toString(), requestInfoWrapper, EmployeeResponse.class, uriParameters);
+            employeeResponse = restTemplate.postForObject(uri.toString(), requestInfoWrapper, EmployeeResponse.class, uriParameters);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_DATA_FROM_HRMS, e);
         }
 
-        return employeeResponse.getEmployees();
+        return employeeResponse;
     }
 
 

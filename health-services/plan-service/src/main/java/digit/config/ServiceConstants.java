@@ -12,6 +12,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
+
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
 
     public static final String RES_MSG_ID = "uief87324";
@@ -59,6 +61,12 @@ public class ServiceConstants {
 
     public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_CODE = "NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID";
     public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id. No hrms data found for provided employee id.";
+
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
+    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The provided employee's jurisdiction is invalid";
 
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";

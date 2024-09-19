@@ -12,10 +12,10 @@ public class PlanEmployeeAssignmentEnricher {
 
     /**
      * Enriches the PlanEmployeeAssignmentRequest with id and audit details.
+     *
      * @param request The PlanEmployeeAssignmentRequest body to be enriched
      */
-    public void enrichCreate(PlanEmployeeAssignmentRequest request)
-    {
+    public void enrichCreate(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
 
         // Generate id for Plan employee assignment body
@@ -29,10 +29,10 @@ public class PlanEmployeeAssignmentEnricher {
 
     /**
      * Enriches the PlanEmployeeAssignmentRequest for updating an existing plan employee assignment with audit details.
+     *
      * @param request The PlanEmployeeAssignmentRequest body to be enriched
      */
-    public void enrichUpdate(PlanEmployeeAssignmentRequest request)
-    {
+    public void enrichUpdate(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
 
         // Set Audit Details for Plan employee assignment update

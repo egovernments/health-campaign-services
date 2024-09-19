@@ -35,6 +35,13 @@ public class Configuration {
     @Value("${egov.hrms.search.endpoint}")
     private String hrmsEndPoint;
 
+    //Project Factory
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndPoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;
