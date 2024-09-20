@@ -521,11 +521,11 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
         },
-        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors } || {}
+        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: request?.body?.isSourceMicroplan ? "microplan" : null } || {}
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-        persistMessage.ResourceDetails.additionalDetails = {}
+        persistMessage.ResourceDetails.additionalDetails = { source: request?.body?.isSourceMicroplan ? "microplan" : null }
     }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
@@ -1079,40 +1079,55 @@ async function processDataSearchRequest(request: any) {
     request.body.ResourceDetails = genericResourceTransformer(queryResult?.rows);;
 }
 
+
 function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; values: any[] } {
-    const { id, tenantId, type, status } = SearchCriteria;
+    const { id, tenantId, type, status, source } = SearchCriteria;
     let conditions = [];
     let values = [];
 
+    // Check for id
     if (id && id.length > 0) {
         conditions.push(`id = ANY($${values.length + 1})`);
         values.push(id);
     }
 
+    // Check for tenantId
     if (tenantId) {
         conditions.push(`tenantId = $${values.length + 1}`);
         values.push(tenantId);
     }
 
+    // Check for type
     if (type) {
         conditions.push(`type = $${values.length + 1}`);
         values.push(type);
     }
 
+    // Check for status
     if (status) {
         conditions.push(`status = $${values.length + 1}`);
         values.push(status);
     }
 
+    // Check for source within additionaldetails (JSONB)
+    if (source) {
+        conditions.push(`additionaldetails->>'source' = $${values.length + 1}`);
+        values.push(source);
+    }
+
+    // Build the WHERE clause
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Return the query and values array
     return {
         query: `
-    SELECT *
-    FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
-    ${whereClause};`, values
+            SELECT *
+            FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
+            ${whereClause};`,
+        values
     };
 }
+
 
 function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
     if (!boundaryResponse) return;
