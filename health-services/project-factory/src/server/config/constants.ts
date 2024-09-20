@@ -147,10 +147,6 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
-export const resourceDistributionStrategyTypes = [
-    "FIXED", "MIXED", "HOUSE_TO_HOUSE"
-]
-
 export const rolesForMicroplan = ["Microplan approver", "National microplan approver", "Population data approver", "National population data approver", "Facility catchment assigner", "National facility catchment assigner", "Microplan viewer"];
 export const rolesForMicroplanMapping: any = {
     "Microplan approver": "Microplan approver",

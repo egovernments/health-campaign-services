@@ -173,7 +173,7 @@ function changeBodyViaElements(elements: any, requestBody: any) {
 // }
 
 function updateErrorsForUser(request: any, newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
-  const isSourceMicroplan = request?.body?.isSourceMicroplan
+  const isSourceMicroplan = (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan")
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
@@ -534,7 +534,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
 }
 
 export async function processValidateAfterSchemaSheetWise(request: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
-  if (request?.body?.isSourceMicroplan && request.body.ResourceDetails.type == 'user') {
+  if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user') {
     await generateProcessedFileAndPersist(request, localizationMap);
   }
 }
@@ -596,7 +596,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
     let schema: any;
     if (type == "facility" || type == "user") {
       const isUpdate = request?.body?.parentCampaignObject ? true : false;
-      if (request?.body?.isSourceMicroplan) {
+      if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
         schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
       }
       else {
@@ -877,7 +877,7 @@ async function persistCreationProcess(request: any, status: any) {
 async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any, localizationMap?: { [key: string]: string }) {
   await persistCreationProcess(request, processTrackStatuses.inprogress)
   try {
-    if (request?.body?.isSourceMicroplan && request.body.ResourceDetails.type == 'user') {
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user') {
       await processSearchAndValidation(request)
       await generateProcessedFileAndPersist(request, localizationMap);
     }
@@ -958,7 +958,7 @@ async function getSchema(request: any, tenantId: string, type: string, campaignT
   }
   else if (type == "user") {
     logger.info("Fetching schema to validate the created data for type: " + type);
-    if (request?.body?.isSourceMicroplan) {
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
       schema = mdmsResponse
     }

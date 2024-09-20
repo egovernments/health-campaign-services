@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, resourceDistributionStrategyTypes, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -373,20 +373,20 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-      const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-      const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-      await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
-      if (request?.body?.parentCampaignObject) {
-        const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
-        const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+    if (request?.body?.parentCampaignObject) {
+      const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
+      const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
 
-        const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
-        const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
+      const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
+      const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
-        fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
+      const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+      fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
 
-      }
+    }
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
@@ -394,7 +394,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       logger.info("generating different tabs logic ")
-      const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap,fileUrlResponse?.fileStoreIds?.[0]?.url)
+      const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
@@ -485,10 +485,31 @@ function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: s
   request.body.hiddenColumns = hiddenColumns;
 }
 
+async function getResourceDistributionStrategyTypes(request: any) {
+  const { RequestInfo = {} } = request?.body || {};
+  const requestBody = {
+    RequestInfo,
+    MdmsCriteria: {
+      tenantId: request?.query?.tenantId,
+      schemaCode: "hcm-microplanning.ResourceDistributionStrategy"
+    }
+  };
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined);
+  if (response?.mdms && Array.isArray(response?.mdms)) {
+    const resourceDistributionStrategyTypes = response?.mdms?.map((mdms: any) => mdms?.data?.resourceDistributionStrategyCode);
+    return resourceDistributionStrategyTypes;
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during resource distribution strategy type search");
+  }
+}
+
 async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, resourceDistributionStrategy: string) {
   const tenantId = request?.query?.tenantId;
   let schema: any;
   if (isSourceMicroplan) {
+    const resourceDistributionStrategyTypes = await getResourceDistributionStrategyTypes(request);
     if (resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
       schema = await callMdmsTypeSchema(request, tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
     }
@@ -953,8 +974,7 @@ async function generateUserSheetForMicroPlan(
 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const userData: any[] = [];
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  const isSourceMicroplan = request?.query?.source == "microplan";
   if (isSourceMicroplan) {
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }
@@ -1299,9 +1319,7 @@ async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, ten
 
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
-  request.body.isSourceMicroplan = isSourceMicroplan;
+  const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
   const type = request?.body?.ResourceDetails?.type;
   if (isSourceMicroplan) {
     if (type == 'user') {

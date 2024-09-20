@@ -28,6 +28,9 @@ export const generateRequestSchema = {
     },
     "campaignId": {
       "type": "string"
+    },
+    "source": {
+      "type": "string",
     }
   },
   "required": ["tenantId", "type", "hierarchyType", "campaignId"],

@@ -202,7 +202,7 @@ function deterMineLastColumnAndEnrichUserDetails(
     let passwordColumn = "K";
 
     // Update columns if the request indicates a different source
-    if (request?.body?.isSourceMicroplan) {
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
         usernameColumn = "F";
         passwordColumn = "G";
     }
@@ -505,7 +505,7 @@ function updateActivityResourceId(request: any) {
 }
 
 async function generateProcessedFileAndPersist(request: any, localizationMap?: { [key: string]: string }) {
-    if (request.body.ResourceDetails.type == 'boundaryWithTarget' || (request?.body?.isSourceMicroplan && request.body.ResourceDetails.type == 'user')) {
+    if (request.body.ResourceDetails.type == 'boundaryWithTarget' || (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user')) {
         await updateStatusFileForEachSheets(request, localizationMap);
     } else {
         if (request.body.ResourceDetails.type !== "boundary") {
@@ -521,11 +521,11 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
         },
-        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: request?.body?.isSourceMicroplan ? "microplan" : null } || {}
+        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null } || {}
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-        persistMessage.ResourceDetails.additionalDetails = { source: request?.body?.isSourceMicroplan ? "microplan" : null }
+        persistMessage.ResourceDetails.additionalDetails = { source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
