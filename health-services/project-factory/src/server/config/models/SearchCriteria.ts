@@ -17,6 +17,9 @@ export const searchCriteriaSchema = {
         },
         "status": {
             "type": "string"
+        },
+        "source": {
+            "type": "string"
         }
     },
     "required": ["tenantId"],

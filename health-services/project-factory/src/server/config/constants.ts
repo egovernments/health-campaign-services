@@ -35,7 +35,8 @@ export const CONSTANTS: any = {
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
-            PARENT_CAMPAIGN_ERROR : "Parent Camapign error "
+            PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
+            INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -144,6 +145,17 @@ export const processTrackStatuses = {
     completed: "completed",
     toBeCompleted: "toBeCompleted",
     failed: "failed",
+}
+
+export const rolesForMicroplan = ["Microplan approver", "National microplan approver", "Population data approver", "National population data approver", "Facility catchment assigner", "National facility catchment assigner", "Microplan viewer"];
+export const rolesForMicroplanMapping: any = {
+    "Microplan approver": "Microplan approver",
+    "National microplan approver": "National microplan approver",
+    "Population data approver": "Population data approver",
+    "National population data approver": "National population da...",
+    "Facility catchment assigner": "Facility catchment assigner",
+    "National facility catchment assigner": "National facility ca...",
+    "Microplan viewer": "Microplan viewer"
 }
 
 

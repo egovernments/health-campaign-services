@@ -4,7 +4,7 @@ import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity } from "../utils/genericUtils";
-import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
+import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData, validateViaSchemaSheetWise } from '../validators/campaignValidators';
 import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan, createIdRequests, createUniqueUserNameViaIdGen } from "../utils/campaignUtils";
 const _ = require('lodash');
@@ -12,7 +12,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { processTrackStatuses, processTrackTypes } from "../config/constants";
+import { processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
 import { persistTrack } from "../utils/processTrackUtils";
 import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 
@@ -172,14 +172,15 @@ function changeBodyViaElements(elements: any, requestBody: any) {
 //   }
 // }
 
-function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
+function updateErrorsForUser(request: any, newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
+  const isSourceMicroplan = (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan")
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
       if (searchedElement?.code === createdElement?.code) {
         foundMatch = true;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: isSourceMicroplan ? false : true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
         userNameAndPassword.push({
           userName: searchedElement?.user?.userName,
           password: createdElement?.user?.password,
@@ -239,7 +240,7 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   }
   else {
     var userNameAndPassword: any = []
-    updateErrorsForUser(newCreatedData, newSearchedData, errors, createAndSearchConfig, userNameAndPassword);
+    updateErrorsForUser(request, newCreatedData, newSearchedData, errors, createAndSearchConfig, userNameAndPassword);
     request.body.userNameAndPassword = userNameAndPassword
   }
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
@@ -347,7 +348,14 @@ async function matchUserValidation(createdData: any[], request: any) {
   const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers, mobileNumberRowNumberMapping);
   for (const key in mobileNumberRowNumberMapping) {
     if (mobileNumberResponse.has(key) && !config.values.notCreateUserIfAlreadyThere) {
-      errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with mobileNumber ${key} already exists` })
+      if (Array.isArray(mobileNumberRowNumberMapping[key])) {
+        for (const row of mobileNumberRowNumberMapping[key]) {
+          errors.push({ status: "INVALID", rowNumber: row.row, sheetName: row.sheetName, errorDetails: `User with contact number ${key} already exists` })
+        }
+      }
+      else {
+        errors.push({ status: "INVALID", rowNumber: mobileNumberRowNumberMapping[key], errorDetails: `User with contact number ${key} already exists` })
+      }
       count++;
     }
   }
@@ -439,7 +447,7 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
 }
 
 
-async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
+async function processSearchAndValidation(request: any) {
   // if (request?.body?.dataToSearch?.length > 0) {
   //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
@@ -516,7 +524,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
-    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await processSearchAndValidation(request)
     await reorderBoundariesOfDataAndValidate(request, localizationMap)
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
@@ -525,11 +533,57 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
   }
 }
 
-async function processValidate(request: any,  localizationMap?: { [key: string]: string }) {
+export async function processValidateAfterSchemaSheetWise(request: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
+  if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user') {
+    await generateProcessedFileAndPersist(request, localizationMap);
+  }
+}
+
+async function processSheetWise(forCreate: any, dataFromSheet: any, request: any, createAndSearchConfig: any, translatedSchema: any, localizationMap?: { [key: string]: string }) {
+  try {
+    const errorMap: any = await validateViaSchemaSheetWise(dataFromSheet, translatedSchema, request, localizationMap);
+    enrichErrorIfSheetInvalid(request, errorMap)
+    await processSearchAndValidation(request)
+    if (request?.body?.sheetErrorDetails?.length > 0) {
+      request.body.ResourceDetails.status = resourceDataStatuses.invalid;
+      await generateProcessedFileAndPersist(request, localizationMap);
+    }
+    else {
+      if (forCreate) {
+        await processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
+      }
+      else {
+        await processValidateAfterSchemaSheetWise(request, createAndSearchConfig, localizationMap)
+      }
+    }
+  }
+  catch (error) {
+    console.log(error)
+    await handleResouceDetailsError(request, error);
+  }
+}
+
+function enrichErrorIfSheetInvalid(request: any, errorMap: any) {
+  if (Object.keys(errorMap).length > 0) {
+    var sheetErrorDetails = [];
+    for (const sheetName of Object.keys(errorMap)) {
+      const errorData = errorMap[sheetName];
+      for (const row of Object.keys(errorData)) {
+        if (errorData[row].length > 0) {
+          const errorDetails = errorData[row].join(', ');
+          sheetErrorDetails.push({ status: "INVALID", sheetName: sheetName, rowNumber: row, errorDetails: errorDetails })
+        }
+      }
+    }
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...sheetErrorDetails] : sheetErrorDetails;
+  }
+}
+
+async function processValidate(request: any, localizationMap?: { [key: string]: string }) {
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type]
-  const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
+  const dataFromSheet: any = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
     let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
     differentTabsBasedOnLevel = getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
@@ -538,18 +592,25 @@ async function processValidate(request: any,  localizationMap?: { [key: string]:
     logger.info("target sheet format validation completed and starts with data validation");
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, differentTabsBasedOnLevel, localizationMap);
   }
-
   else {
     let schema: any;
     if (type == "facility" || type == "user") {
       const isUpdate = request?.body?.parentCampaignObject ? true : false;
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
-      schema = mdmsResponse;
+      if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
+        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
+      }
+      else {
+        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
+      }
     }
-    const translatedSchema =  await translateSchema(schema, localizationMap);
-    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
-
-    processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
+    const translatedSchema = await translateSchema(schema, localizationMap);
+    if (Array.isArray(dataFromSheet)) {
+      await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
+      processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
+    }
+    else {
+      processSheetWise(false, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+    }
   }
 }
 
@@ -557,12 +618,14 @@ function convertUserRoles(employees: any[], request: any) {
   for (const employee of employees) {
     if (employee?.user?.roles) {
       var newRoles: any[] = []
-      const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
-      for (const role of rolesArray) {
-        const code = role.toUpperCase().split(' ').join('_')
-        newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
+      if (!Array.isArray(employee.user.roles)) {
+        const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
+        for (const role of rolesArray) {
+          const code = role.toUpperCase().split(' ').join('_')
+          newRoles.push({ name: role, code: code, tenantId: request?.body?.ResourceDetails?.tenantId })
+        }
+        employee.user.roles = newRoles
       }
-      employee.user.roles = newRoles
     }
   }
 }
@@ -814,11 +877,17 @@ async function persistCreationProcess(request: any, status: any) {
 async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any, localizationMap?: { [key: string]: string }) {
   await persistCreationProcess(request, processTrackStatuses.inprogress)
   try {
-    const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
-    request.body.dataToCreate = typeData.createData;
-    request.body.dataToSearch = typeData.searchData;
-    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-    await reorderBoundariesOfDataAndValidate(request, localizationMap)
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user') {
+      await processSearchAndValidation(request)
+      await generateProcessedFileAndPersist(request, localizationMap);
+    }
+    else {
+      const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
+      request.body.dataToCreate = typeData.createData;
+      request.body.dataToSearch = typeData.searchData;
+      await processSearchAndValidation(request)
+      await reorderBoundariesOfDataAndValidate(request, localizationMap)
+    }
     if (createAndSearchConfig?.createBulkDetails && request.body.ResourceDetails.status != "invalid") {
       _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
       const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
@@ -868,31 +937,49 @@ async function processCreate(request: any, localizationMap?: any) {
     }
 
     const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, undefined, localizationMap)
-    let schema: any;
+    const schema = await getSchema(request, tenantId, type, campaignType);
+    await processAfterGettingSchema(dataFromSheet, schema, request, createAndSearchConfig, localizationMap);
+  }
+}
 
-    if (type == "facility") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
-      const isUpdate = request?.body?.parentCampaignObject ? true : false;
+async function getSchema(request: any, tenantId: string, type: string, campaignType: string) {
+  let schema: any;
+  const isUpdate = request?.body?.parentCampaignObject ? true : false;
+  if (type == "facility") {
+    logger.info("Fetching schema to validate the created data for type: " + type);
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
+    schema = mdmsResponse
+  }
+  else if (type == "facilityMicroplan") {
+    const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, "facility", "microplan");
+    schema = mdmsResponse
+    logger.info("Appending project type to capacity for microplan " + campaignType);
+    schema = await appendProjectTypeToCapacity(schema, campaignType);
+  }
+  else if (type == "user") {
+    logger.info("Fetching schema to validate the created data for type: " + type);
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
+      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type, "microplan");
+      schema = mdmsResponse
+    }
+    else {
       const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
       schema = mdmsResponse
     }
-    else if (type == "facilityMicroplan") {
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, false, "facility", "microplan");
-      schema = mdmsResponse
-      logger.info("Appending project type to capacity for microplan " + campaignType);
-      schema = await appendProjectTypeToCapacity(schema, campaignType);
-    }
-    else if (type == "user") {
-      logger.info("Fetching schema to validate the created data for type: " + type);
-      const isUpdate = request?.body?.parentCampaignObject ? true : false;
-      const mdmsResponse = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
-      schema = mdmsResponse
-    }
-    logger.info("translating schema")
-    const translatedSchema = await translateSchema(schema, localizationMap);
+  }
+  return schema;
+}
+
+async function processAfterGettingSchema(dataFromSheet: any, schema: any, request: any, createAndSearchConfig: any, localizationMap?: any) {
+  logger.info("translating schema")
+  const translatedSchema = await translateSchema(schema, localizationMap);
+  if (Array.isArray(dataFromSheet)) {
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap);
     logger.info("validation done sucessfully")
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
+  }
+  else {
+    processSheetWise(true, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
   }
 }
 

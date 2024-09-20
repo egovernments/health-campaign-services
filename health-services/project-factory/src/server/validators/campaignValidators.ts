@@ -276,8 +276,7 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
     }
 }
 
-async function validateUnique(schema: any, data: any[], request: any) {
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+function validateUnique(schema: any, data: any[], request: any, localizationMap: any) {
     if (schema?.unique) {
         const uniqueElements = schema.unique;
         const errors = [];
@@ -288,7 +287,7 @@ async function validateUnique(schema: any, data: any[], request: any) {
             // Iterate over each data object and check uniqueness
             for (const item of data) {
                 const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
-                const localizedUniqueIdentifierColumnName = await getLocalizedName(uniqueIdentifierColumnName, localizationMap);
+                const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
                 const value = item[element];
                 const rowNum = item['!row#number!'];
                 if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
@@ -305,6 +304,34 @@ async function validateUnique(schema: any, data: any[], request: any) {
         if (errors.length > 0) {
             // Throw an error or return the errors based on your requirement
             throwError("FILE", 400, "INVALID_FILE_ERROR", errors.join(" ; "));
+        }
+    }
+}
+
+function validateUniqueSheetWise(schema: any, data: any[], request: any, rowMapping: any, localizationMap: any) {
+    if (schema?.unique) {
+        const uniqueElements = schema.unique;
+
+        for (const element of uniqueElements) {
+            const uniqueMap = new Map();
+
+            // Iterate over each data object and check uniqueness
+            for (const item of data) {
+                const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
+                const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
+                const value = item[element];
+                const rowNum = item['!row#number!'];
+                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
+                    if (uniqueMap.has(value)) {
+                        if (!rowMapping[rowNum]) {
+                            rowMapping[rowNum] = [];
+                        }
+                        rowMapping[rowNum].push(`Duplicate value '${value}' found for '${element}'`);
+                    }
+                    // Add the value to the map
+                    uniqueMap.set(value, rowNum);
+                }
+            }
         }
     }
 }
@@ -343,6 +370,44 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
     }
 }
 
+export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
+    var digitErrorRows = [];
+    var missingNumberRows = [];
+    for (const data of datas) {
+        const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
+        if (data[phoneColumn]) {
+            var phoneNumber = data[phoneColumn];
+            phoneNumber = phoneNumber.toString().replace(/^0+/, '');
+            if (phoneNumber.length != 10) {
+                digitErrorRows.push(data["!row#number!"]);
+            }
+        }
+        else {
+            missingNumberRows.push(data["!row#number!"]);
+        }
+    }
+    if (digitErrorRows.length > 0) {
+        for (const row of digitErrorRows) {
+            if (!rowMapping[row]) {
+                rowMapping[row] = [];
+            }
+            rowMapping[row].push("PhoneNumber should be of 10 digit");
+        }
+    }
+    encrichRowMapping(rowMapping, missingNumberRows);
+}
+
+function encrichRowMapping(rowMapping: any, missingNumberRows: any[]) {
+    if (missingNumberRows.length > 0) {
+        for (const row of missingNumberRows) {
+            if (!rowMapping[row]) {
+                rowMapping[row] = [];
+            }
+            rowMapping[row].push("PhoneNumber is missing");
+        }
+    }
+}
+
 async function changeSchemaErrorMessage(schema: any, localizationMap?: any) {
     if (schema?.errorMessage) {
         for (const key in schema.errorMessage) {
@@ -354,9 +419,54 @@ async function changeSchemaErrorMessage(schema: any, localizationMap?: any) {
     return schema; // Return unmodified schema if no error message
 }
 
+function validateData(data: any[], validationErrors: any[], activeColumnName: any, uniqueIdentifierColumnName: any, validate: any) {
+    data.forEach((item: any) => {
+        if (activeColumnName) {
+            if (!item?.[activeColumnName]) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
+            }
+            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
+            }
+        }
+        const active = activeColumnName ? item[activeColumnName] : "Active";
+        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+            const validationResult = validate(item);
+            if (!validationResult) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+            }
+        }
+    });
+}
+
+function enrichRowMappingViaValidation(validationErrors: any[], rowMapping: any, localizationMap?: any) {
+    if (validationErrors.length > 0) {
+        const errorMessage = validationErrors.map(({ index, message, errors }) => {
+            const formattedErrors = errors ? errors.map((error: any) => {
+                let instancePath = error.instancePath || ''; // Assign an empty string if dataPath is not available
+                if (instancePath.startsWith('/')) {
+                    instancePath = instancePath.slice(1);
+                }
+                if (error.keyword === 'required') {
+                    const missingProperty = error.params?.missingProperty || '';
+                    return `Data at row ${index} in column '${missingProperty}' should not be empty`;
+                }
+                let formattedError = `in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
+                if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                    formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                }
+                return `Data at row ${index} ${formattedError}`
+            }).join(' ; ') : message;
+            return formattedErrors;
+        }).join(' ; ');
+        throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
+    } else {
+        logger.info("All Data rows are valid.");
+    }
+}
 
 
-async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
+export async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
     if (schema) {
         const newSchema: any = await changeSchemaErrorMessage(schema, localizationMap)
         const ajv = new Ajv({ allErrors: true, strict: false }); // enable allErrors to get all validation errors
@@ -369,53 +479,102 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
             validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0) {
-            data.forEach((item: any) => {
-                if (activeColumnName) {
-                    if (!item?.[activeColumnName]) {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
-                    }
-                    else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
-                    }
-                }
-                const active = activeColumnName ? item?.[activeColumnName] : "Active";
-                if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
-                    const validationResult = validate(item);
-                    if (!validationResult) {
-                        validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
-                    }
-                }
-            });
-            await validateUnique(newSchema, data, request);
-            if (validationErrors.length > 0) {
-                const errorMessage = validationErrors.map(({ index, message, errors }) => {
-                    const formattedErrors = errors ? errors.map((error: any) => {
-                        let instancePath = error.instancePath || ''; // Assign an empty string if dataPath is not available
-                        if (instancePath.startsWith('/')) {
-                            instancePath = instancePath.slice(1);
-                        }
-                        if (error.keyword === 'required') {
-                            const missingProperty = error.params?.missingProperty || '';
-                            return `Data at row ${index} in column '${missingProperty}' should not be empty`;
-                        }
-                        let formattedError = `in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
-                        if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
-                            formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
-                        }
-                        return `Data at row ${index} ${formattedError}`
-                    }).join(' ; ') : message;
-                    return formattedErrors;
-                }).join(' ; ');
-                throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
-            } else {
-                logger.info("All Data rows are valid.");
-            }
+            validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
+            validateUnique(newSchema, data, request, localizationMap);
+            enrichRowMappingViaValidation(validationErrors, request?.body?.rowMapping, localizationMap);
         } else {
             throwError("FILE", 400, "INVALID_FILE_ERROR", "Data rows cannot be empty");
         }
     } else {
         logger.info("Skipping schema validation");
     }
+}
+
+function validateDataSheetWise(data: any, validate: any, validationErrors: any[], uniqueIdentifierColumnName: any, activeColumnName: any) {
+    data.forEach((item: any) => {
+        const validationResult = validate(item);
+        if (!validationResult) {
+            validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+        }
+    });
+}
+
+function enrichRowMappingViaValidationSheetwise(rowMapping: any, validationErrors: any[], localizationMap: any) {
+    if (validationErrors.length > 0) {
+        validationErrors.map(({ index, message, errors }) => {
+            if (errors) {
+                errors.map((error: any) => {
+                    let instancePath = error.instancePath || ''; // Assign an empty string if instancePath is not available
+                    if (instancePath.startsWith('/')) {
+                        instancePath = instancePath.slice(1);
+                    }
+
+                    // Handle 'required' keyword errors
+                    if (error.keyword === 'required') {
+                        const missingProperty = error.params?.missingProperty || '';
+                        if (!rowMapping[index]) {
+                            rowMapping[index] = [];
+                        }
+                        rowMapping[index].push(`Data in column '${missingProperty}' should not be empty`);
+                    }
+                    else {
+                        // Format the general error message
+                        let formattedError = `Data in column '${instancePath}' ${getLocalizedName(error.message, localizationMap)}`;
+
+                        // Handle 'enum' keyword errors
+                        if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                            formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                        }
+                        else if (error.keyword === 'pattern') {
+                            formattedError = `Data in column '${instancePath}' is invalid`
+                        }
+
+                        // Ensure rowMapping[index] exists
+                        if (!rowMapping[index]) {
+                            rowMapping[index] = [];
+                        }
+                        rowMapping[index].push(`${formattedError}`);
+                    }
+                })
+            }
+        });
+    }
+    else {
+        logger.info("All Data rows are valid.");
+    }
+}
+
+export async function validateViaSchemaSheetWise(dataFromExcel: any, schema: any, request: any, localizationMap?: any) {
+    const errorMap: any = {};
+    for (const sheetName of Object.keys(dataFromExcel)) {
+        const data = dataFromExcel[sheetName];
+        const rowMapping: any = {};
+        if (schema) {
+            const newSchema: any = await changeSchemaErrorMessage(schema, localizationMap)
+            const ajv = new Ajv({ allErrors: true, strict: false }); // enable allErrors to get all validation errors
+            addAjvErrors(ajv);
+            const validate = ajv.compile(newSchema);
+            const validationErrors: any[] = [];
+            const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
+            const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+            if (request?.body?.ResourceDetails?.type == "user") {
+                validatePhoneNumberSheetWise(data, localizationMap, rowMapping);
+            }
+            if (data?.length > 0) {
+                validateDataSheetWise(data, validate, validationErrors, uniqueIdentifierColumnName, activeColumnName);
+                validateUniqueSheetWise(newSchema, data, request, rowMapping, localizationMap);
+                enrichRowMappingViaValidationSheetwise(rowMapping, validationErrors, localizationMap);
+            } else {
+                errorMap[sheetName] = { 2: ["Data rows cannot be empty"] };
+            }
+        } else {
+            logger.info("Skipping schema validation");
+        }
+        if (Object.keys(rowMapping).length > 0) {
+            errorMap[sheetName] = rowMapping;
+        }
+    }
+    return errorMap;
 }
 
 
@@ -547,13 +706,6 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
-        // if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
-        //     const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-        //     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-        //     const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, localizationMap);
-        //     logger.info("finalValidHeadersForTargetSheetAsPerCampaignType :" + JSON.stringify(finalValidHeadersForTargetSheetAsPerCampaignType));
-        //     validateTabsWithTargetInTargetSheet(targetWorkbook, finalValidHeadersForTargetSheetAsPerCampaignType);
-        // }
     }
 }
 
@@ -925,10 +1077,9 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             }
         }
         if (request.body?.parentCampaign) {
-                 if(request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName)
-                    {
-                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent"); 
-                    } 
+            if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent");
+            }
         }
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)

@@ -227,7 +227,6 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
   }
   let columnsToBeFreezed: any[] = [];
   let columnsToHide: any[] = [];
-  console.log(schema?.columnsToBeFreezed, columnsToHide, "maaaaaaaaaaaaa")
   if (fileUrl) {
     columnsToHide = schema?.columnsToHide;
     columnsToHide.forEach((column: any) => {
@@ -235,7 +234,7 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
       columnIndexesToBeHidden.push(columnIndex);
     });
-       
+
     columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToBeFreezed]
     columnsToBeFreezed.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);

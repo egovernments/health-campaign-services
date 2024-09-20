@@ -93,6 +93,7 @@ function makeColumns(worksheet: any, range: any, columns: any) {
             fgColor: { argb: 'CCCC00' }
         };
         statusCell.font = { bold: true };
+        worksheet.getColumn(columns.statusColumn).width = 40;
     }
 
     // Calculate errorDetails column one column to the right of status column
@@ -106,6 +107,7 @@ function makeColumns(worksheet: any, range: any, columns: any) {
             fgColor: { argb: 'CCCC00' }
         };
         errorDetailsCell.font = { bold: true };
+        worksheet.getColumn(columns.errorDetailsColumn).width = 40;
     }
 }
 
@@ -182,45 +184,61 @@ function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request:
     }
 }
 
-function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
-    let lastColumn = errorDetailsColumn;
+function deterMineLastColumnAndEnrichUserDetails(
+    worksheet: any,
+    errorDetailsColumn: number,
+    userNameAndPassword: { rowNumber: number, userName: string, password: string }[] | undefined,
+    request: any,
+    createAndSearchConfig: { uniqueIdentifierColumn?: number }
+): string {
+    // Determine the last column
+    let lastColumn: any = errorDetailsColumn;
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
-        lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
-            createAndSearchConfig?.uniqueIdentifierColumn :
-            errorDetailsColumn;
+        lastColumn = Math.max(createAndSearchConfig.uniqueIdentifierColumn, errorDetailsColumn);
     }
+
+    // Default columns
+    let usernameColumn = "J";
+    let passwordColumn = "K";
+
+    // Update columns if the request indicates a different source
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
+        usernameColumn = "F";
+        passwordColumn = "G";
+    }
+
+    // Populate username and password columns if data is provided
     if (userNameAndPassword) {
-        worksheet.getCell("J1").value = "UserName";
-        worksheet.getCell("K1").value = "Password";
-
-        // Set the fill color to green for cell I1
-        worksheet.getCell("J1").fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'ff9248' } // Green color
+        // Set headers with formatting
+        const setCellHeader = (cell: string) => {
+            worksheet.getCell(cell).value = cell === usernameColumn + "1" ? "UserName" : "Password";
+            worksheet.getCell(cell).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'ff9248' } // Green color
+            };
+            worksheet.getCell(cell).font = { bold: true };
+            const columnLetter = cell.replace(/\d+$/, '');
+            worksheet.getColumn(columnLetter).width = 40;
         };
-        worksheet.getCell("J1").font = { bold: true };
 
-        // Set the fill color to green for cell J1
-        worksheet.getCell("K1").fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'ff9248' } // Green color
-        };
-        worksheet.getCell("K1").font = { bold: true };
+        setCellHeader(usernameColumn + "1");
+        setCellHeader(passwordColumn + "1");
 
-        userNameAndPassword.forEach((data: any) => {
+        // Set values
+        userNameAndPassword.forEach(data => {
             const rowIndex = data.rowNumber;
-            worksheet.getCell(`J${rowIndex}`).value = data?.userName;
-            worksheet.getCell(`K${rowIndex}`).value = data?.password;
+            worksheet.getCell(`${usernameColumn}${rowIndex}`).value = data.userName;
+            worksheet.getCell(`${passwordColumn}${rowIndex}`).value = data.password;
         });
 
-        lastColumn = "K";
-        request.body.userNameAndPassword = undefined;
+        // Update lastColumn based on the password column
+        lastColumn = passwordColumn;
     }
 
     return lastColumn;
 }
+
 
 function adjustRef(worksheet: any, lastColumn: any) {
     const range = getSheetDataFromWorksheet(worksheet).filter((row: any) => row).length; // Get the number of used rows
@@ -264,11 +282,13 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
 }
 
 
-function processErrorDataForTargets(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
+function processErrorDataForEachSheets(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
     const desiredSheet = workbook.getWorksheet(sheetName);
     const columns: any = findColumns(desiredSheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
+    const userNameAndPassword = request?.body?.userNameAndPassword;
+
 
     const errorData = request.body.sheetErrorDetails.filter((error: any) => error.sheetName === sheetName);
     const additionalDetailsErrors: any = [];
@@ -291,6 +311,18 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
             }
         });
     }
+    if (userNameAndPassword) {
+        var newUserNameAndPassword: any = []
+        for (const data of userNameAndPassword) {
+            const rowArray = data.rowNumber
+            for (let i = 0; i < rowArray.length; i++) {
+                if (rowArray[i].sheetName == sheetName) {
+                    newUserNameAndPassword.push({ ...data, rowNumber: rowArray[i].row })
+                }
+            }
+        }
+    }
+    deterMineLastColumnAndEnrichUserDetails(desiredSheet, errorDetailsColumn, newUserNameAndPassword, request, createAndSearchConfig);
     request.body.additionalDetailsErrors = additionalDetailsErrors;
     updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
@@ -333,7 +365,7 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
         throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
     }
 }
-async function updateStatusFileForTargets(request: any, localizationMap?: { [key: string]: string }) {
+async function updateStatusFileForEachSheets(request: any, localizationMap?: { [key: string]: string }) {
     const fileStoreId = request?.body?.ResourceDetails?.fileStoreId;
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
@@ -351,9 +383,23 @@ async function updateStatusFileForTargets(request: any, localizationMap?: { [key
     const sheetNames = workbook.worksheets.map((worksheet: any) => worksheet.name);
     const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
 
+    const sheetErrorDetails = request?.body?.sheetErrorDetails;
+    if (sheetErrorDetails && sheetErrorDetails?.length > 0) {
+        const firstError = sheetErrorDetails[0];
+        if (Array.isArray(firstError?.rowNumber)) {
+            var newSheetErrorDetails: any = []
+            for (const error of sheetErrorDetails) {
+                for (let i = 0; i < error.rowNumber.length; i++) {
+                    newSheetErrorDetails.push({ ...error, rowNumber: error.rowNumber[i]?.row, sheetName: error.rowNumber[i]?.sheetName })
+                }
+            }
+            request.body.sheetErrorDetails = newSheetErrorDetails;
+        }
+    }
+
     localizedSheetNames.forEach((sheetName: any) => {
-        if (sheetName !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && sheetName !== getLocalizedName(config.values.readMeTab, localizationMap)) {
-            processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
+        if (sheetName !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && sheetName !== getLocalizedName(config.values.readMeTab, localizationMap) && sheetName !== getLocalizedName("USER_MICROPLAN_SHEET_ROLES", localizationMap)) {
+            processErrorDataForEachSheets(request, createAndSearchConfig, workbook, sheetName);
         }
     });
 
@@ -459,8 +505,8 @@ function updateActivityResourceId(request: any) {
 }
 
 async function generateProcessedFileAndPersist(request: any, localizationMap?: { [key: string]: string }) {
-    if (request.body.ResourceDetails.type == 'boundaryWithTarget') {
-        await updateStatusFileForTargets(request, localizationMap);
+    if (request.body.ResourceDetails.type == 'boundaryWithTarget' || (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user')) {
+        await updateStatusFileForEachSheets(request, localizationMap);
     } else {
         if (request.body.ResourceDetails.type !== "boundary") {
             await updateStatusFile(request, localizationMap);
@@ -475,11 +521,11 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
         },
-        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors } || {}
+        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null } || {}
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-        persistMessage.ResourceDetails.additionalDetails = {}
+        persistMessage.ResourceDetails.additionalDetails = { source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
@@ -1033,40 +1079,55 @@ async function processDataSearchRequest(request: any) {
     request.body.ResourceDetails = genericResourceTransformer(queryResult?.rows);;
 }
 
+
 function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; values: any[] } {
-    const { id, tenantId, type, status } = SearchCriteria;
+    const { id, tenantId, type, status, source } = SearchCriteria;
     let conditions = [];
     let values = [];
 
+    // Check for id
     if (id && id.length > 0) {
         conditions.push(`id = ANY($${values.length + 1})`);
         values.push(id);
     }
 
+    // Check for tenantId
     if (tenantId) {
         conditions.push(`tenantId = $${values.length + 1}`);
         values.push(tenantId);
     }
 
+    // Check for type
     if (type) {
         conditions.push(`type = $${values.length + 1}`);
         values.push(type);
     }
 
+    // Check for status
     if (status) {
         conditions.push(`status = $${values.length + 1}`);
         values.push(status);
     }
 
+    // Check for source within additionaldetails (JSONB)
+    if (source) {
+        conditions.push(`additionaldetails->>'source' = $${values.length + 1}`);
+        values.push(source);
+    }
+
+    // Build the WHERE clause
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Return the query and values array
     return {
         query: `
-    SELECT *
-    FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
-    ${whereClause};`, values
+            SELECT *
+            FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
+            ${whereClause};`,
+        values
     };
 }
+
 
 function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
     if (!boundaryResponse) return;
