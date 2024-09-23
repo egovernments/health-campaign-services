@@ -76,7 +76,7 @@ public class ProjectValidator {
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
 
-        //Verify if Attendance feature is enabled
+        //Validate Attendance Session only when attendance feature is enabled
         if(config.getIsAttendanceFeatureEnabled()) validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
 
         //Get boundaries in list from all Projects in request body for validation
