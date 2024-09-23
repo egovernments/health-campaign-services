@@ -879,7 +879,6 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
   try {
     if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user') {
       await processSearchAndValidation(request)
-      await generateProcessedFileAndPersist(request, localizationMap);
     }
     else {
       const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
