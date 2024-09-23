@@ -391,7 +391,7 @@ export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any,
             if (!rowMapping[row]) {
                 rowMapping[row] = [];
             }
-            rowMapping[row].push("PhoneNumber should be of 10 digit");
+            rowMapping[row].push("Contact number should be of 10 digit");
         }
     }
     encrichRowMapping(rowMapping, missingNumberRows);
@@ -403,7 +403,7 @@ function encrichRowMapping(rowMapping: any, missingNumberRows: any[]) {
             if (!rowMapping[row]) {
                 rowMapping[row] = [];
             }
-            rowMapping[row].push("PhoneNumber is missing");
+            rowMapping[row].push("Contact number is missing");
         }
     }
 }
