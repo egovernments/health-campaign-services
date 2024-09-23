@@ -75,7 +75,9 @@ public class ProjectValidator {
         //Verify MDMS Data
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
-        validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
+
+        //Validate Attendance Session only when attendance feature is enabled
+        if(config.getIsAttendanceFeatureEnabled()) validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
 
         //Get boundaries in list from all Projects in request body for validation
         Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
