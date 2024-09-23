@@ -1,10 +1,8 @@
 package digit.repository.rowmapper;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.util.ServiceUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
-import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -12,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -20,10 +17,10 @@ import java.util.*;
 @Component
 public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
-    private ObjectMapper objectMapper;
+    private ServiceUtil serviceUtil;
 
-    public PlanRowMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public PlanRowMapper(ServiceUtil serviceUtil) {
+        this.serviceUtil = serviceUtil;
     }
 
     @Override
@@ -57,7 +54,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 planEntry.setLocality(rs.getString("plan_locality"));
                 planEntry.setExecutionPlanId(rs.getString("plan_execution_plan_id"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
-                planEntry.setAdditionalDetails(getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
+                planEntry.setAdditionalDetails(serviceUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 
             }
@@ -228,20 +225,4 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         targetMap.put(target.getId(), target);
 
     }
-
-    private JsonNode getAdditionalDetail(PGobject pGobject){
-        JsonNode additionalDetail = null;
-
-        try {
-            if(ObjectUtils.isEmpty(pGobject)){
-                additionalDetail = objectMapper.readTree(pGobject.getValue());
-            }
-        }
-        catch (IOException e){
-            throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
-        }
-
-        return additionalDetail;
-    }
-
 }

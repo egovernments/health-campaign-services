@@ -3,14 +3,13 @@ package digit.service.validator;
 import digit.util.CampaignUtil;
 import digit.util.HrmsUtil;
 import digit.util.ServiceUtil;
-import digit.web.models.PlanConfiguration;
-import digit.web.models.PlanEmployeeAssignment;
-import digit.web.models.PlanEmployeeAssignmentRequest;
+import digit.web.models.*;
 import digit.web.models.hrms.EmployeeResponse;
 import digit.web.models.projectFactory.Boundary;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -72,7 +71,7 @@ public class PlanEmployeeAssignmentValidator {
     private void validateCampaignDetails(String campaignId, String tenantId, PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
 
         PlanEmployeeAssignment planEmployeeAssignment = planEmployeeAssignmentRequest.getPlanEmployeeAssignment();
-        CampaignResponse campaignResponse =  campaignUtil.fetchCampaignData(planEmployeeAssignmentRequest.getRequestInfo(), campaignId, tenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(planEmployeeAssignmentRequest.getRequestInfo(), campaignId, tenantId);
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
@@ -143,6 +142,21 @@ public class PlanEmployeeAssignmentValidator {
         }
     }
 
+    /**
+     * Validates the search request for plan employee assignment
+     *
+     * @param request the request to search plan employee assignment
+     */
+    public void validateSearch(PlanEmployeeAssignmentSearchRequest request) {
+        PlanEmployeeAssignmentSearchCriteria searchCriteria = request.getPlanEmployeeAssignmentSearchCriteria();
+        if (Objects.isNull(searchCriteria)) {
+            throw new CustomException(SEARCH_CRITERIA_EMPTY_CODE, SEARCH_CRITERIA_EMPTY_MESSAGE);
+        }
+
+        if (StringUtils.isEmpty(searchCriteria.getTenantId())) {
+            throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
+        }
+    }
 
     /**
      * This method validates the update request for plan employee assignment.

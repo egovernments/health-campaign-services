@@ -27,8 +27,7 @@ public class PlanEmployeeService {
 
     PlanEmployeeAssignmentValidator validator;
 
-    public PlanEmployeeService(Producer producer, Configuration config, ResponseInfoFactory responseInfoFactory, PlanEmployeeAssignmentRepository repository, PlanEmployeeAssignmentEnricher enricher, PlanEmployeeAssignmentValidator validator)
-    {
+    public PlanEmployeeService(Producer producer, Configuration config, ResponseInfoFactory responseInfoFactory, PlanEmployeeAssignmentRepository repository, PlanEmployeeAssignmentEnricher enricher, PlanEmployeeAssignmentValidator validator) {
         this.producer = producer;
         this.config = config;
         this.responseInfoFactory = responseInfoFactory;
@@ -39,11 +38,11 @@ public class PlanEmployeeService {
 
     /**
      * Creates a new plan employee assignment based on the provided request.
+     *
      * @param request The request containing the plan employee assignment details.
      * @return The response containing the created plan employee assignment.
      */
     public PlanEmployeeAssignmentResponse create(PlanEmployeeAssignmentRequest request) {
-
         validator.validateCreate(request);
         enricher.enrichCreate(request);
         repository.create(request);
@@ -56,24 +55,26 @@ public class PlanEmployeeService {
 
     /**
      * Searches for plan employee assignment based on the provided search criteria.
+     *
      * @param request The search request containing the criteria.
      * @return A list of plan employee assignments that matches the search criteria.
      */
     public PlanEmployeeAssignmentResponse search(PlanEmployeeAssignmentSearchRequest request) {
+        validator.validateSearch(request);
 
-        return PlanEmployeeAssignmentResponse.builder().
-                responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
+        return PlanEmployeeAssignmentResponse.builder()
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
+                .planEmployeeAssignment(repository.search(request.getPlanEmployeeAssignmentSearchCriteria()))
                 .build();
     }
 
     /**
      * Updates an existing plan employee assignment based on the provided request.
+     *
      * @param request The request containing the updated plan employee assignment details.
      * @return The response containing the updated plan employee assignment.
      */
-
     public PlanEmployeeAssignmentResponse update(PlanEmployeeAssignmentRequest request) {
-
         validator.validateUpdate(request);
         enricher.enrichUpdate(request);
         repository.update(request);

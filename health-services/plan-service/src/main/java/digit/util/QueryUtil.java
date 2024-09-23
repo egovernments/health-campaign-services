@@ -1,6 +1,8 @@
 package digit.util;
 
 import com.google.gson.Gson;
+import digit.config.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
@@ -11,10 +13,14 @@ import java.util.stream.IntStream;
 import static digit.config.ServiceConstants.DOT_REGEX;
 import static digit.config.ServiceConstants.DOT_SEPARATOR;
 
-
+@Component
 public class QueryUtil {
 
-    private QueryUtil(){}
+    private Configuration config;
+
+    private QueryUtil(Configuration config) {
+        this.config = config;
+    }
 
     private static final Gson gson = new Gson();
 
@@ -123,4 +129,24 @@ public class QueryUtil {
         prepareNestedQueryMap(index + 1, nestedKeyArray, (Map<String, Object>) currentQueryMap.get(nestedKeyArray[index]), value);
     }
 
+    /**
+     * This method adds pagination to the query
+     *
+     * @param query
+     * @param preparedStmtList
+     * @return
+     */
+    public String getPaginatedQuery(String query, List<Object> preparedStmtList) {
+        StringBuilder paginatedQuery = new StringBuilder(query);
+
+        // Append offset
+        paginatedQuery.append(" OFFSET ? ");
+        preparedStmtList.add(config.getDefaultOffset());
+
+        // Append limit
+        paginatedQuery.append(" LIMIT ? ");
+        preparedStmtList.add(config.getDefaultLimit());
+
+        return paginatedQuery.toString();
+    }
 }
