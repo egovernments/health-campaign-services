@@ -33,8 +33,8 @@ public class PlanConfigurationSearchCriteria {
     @JsonProperty("name")
     private String name = null;
 
-    @JsonProperty("executionPlanId")
-    private String executionPlanId = null;
+    @JsonProperty("campaignId")
+    private String campaignId = null;
 
     @JsonProperty("status")
     private String status = null;

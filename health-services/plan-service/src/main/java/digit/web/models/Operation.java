@@ -48,6 +48,10 @@ public class Operation {
     @Size(min = 1, max = 64)
     private String output = null;
 
+    @JsonProperty("showOnEstimationDashboard")
+    @NotNull
+    private Boolean showOnEstimationDashboard = true;
+
     @JsonProperty("active")
     @NotNull
     private Boolean active = true;

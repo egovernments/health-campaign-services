@@ -31,8 +31,8 @@ public class PlanSearchCriteria {
     @JsonProperty("locality")
     private String locality = null;
 
-    @JsonProperty("executionPlanId")
-    private String executionPlanId = null;
+    @JsonProperty("campaignId")
+    private String campaignId = null;
 
     @JsonProperty("planConfigurationId")
     private String planConfigurationId = null;
