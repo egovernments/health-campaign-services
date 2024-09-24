@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 import lombok.Data;
 import lombok.Builder;
 
+import java.util.Arrays;
+
 /**
  * Operation
  */
@@ -45,6 +47,10 @@ public class Operation {
     @NotNull
     @Size(min = 1, max = 64)
     private String output = null;
+
+    @JsonProperty("showOnEstimationDashboard")
+    @NotNull
+    private Boolean showOnEstimationDashboard = true;
 
     @JsonProperty("active")
     @NotNull
@@ -80,12 +86,10 @@ public class Operation {
 
         @JsonCreator
         public static OperatorEnum fromValue(String text) {
-            for (OperatorEnum b : OperatorEnum.values()) {
-                if (String.valueOf(b.value).equals(text)) {
-                    return b;
-                }
-            }
-            throw new IllegalArgumentException("Unexpected value '" + text + "'");
+            return Arrays.stream(OperatorEnum.values())
+                    .filter(b -> String.valueOf(b.value).equals(text))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Unexpected value '" + text + "'"));
         }
     }
 
