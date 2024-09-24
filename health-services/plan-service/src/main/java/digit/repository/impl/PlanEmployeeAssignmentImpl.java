@@ -12,9 +12,13 @@ import digit.web.models.PlanEmployeeAssignmentRequest;
 import digit.web.models.PlanEmployeeAssignmentSearchCriteria;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentRepository {
@@ -61,7 +65,14 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     public List<PlanEmployeeAssignment> search(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String searchQuery = queryBuilder.getPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
-        return jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
+        List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
+
+        // If searchCriteria has jurisdiction, filter the list of planEmployeeAssignments by jurisdiction
+        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
+            planEmployeeAssignments = filterByJurisdiction(planEmployeeAssignments, searchCriteria.getJurisdiction());
+        }
+
+        return planEmployeeAssignments;
     }
 
     /**
@@ -73,5 +84,27 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     public void update(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
         PlanEmployeeAssignmentRequestDTO requestDTO = commonUtil.convertToReqDTO(planEmployeeAssignmentRequest);
         producer.push(config.getPlanEmployeeAssignmentUpdateTopic(), requestDTO);
+    }
+
+    /**
+     * This is a helper method to filter out list of PlanEmployeeAssignment by jurisdiction provided
+     *
+     * @param planEmployeeAssignments        List of planEmployeeAssignment based on search criteria
+     * @param jurisdictionFromSearchCriteria jurisdiction provided in search criteria
+     * @return a list of planEmployeeAssignment filtered by jurisdiction
+     */
+    private List<PlanEmployeeAssignment> filterByJurisdiction(List<PlanEmployeeAssignment> planEmployeeAssignments, List<String> jurisdictionFromSearchCriteria) {
+
+        // Convert jurisdictionFromSearchCriteria to a Set
+        Set<String> jurisdictionSet = new HashSet<>(jurisdictionFromSearchCriteria);
+
+        return planEmployeeAssignments.stream().filter(assignment -> {
+            for (String jurisdiction : assignment.getJurisdiction()) {
+                if (jurisdictionSet.contains(jurisdiction)) {
+                    return true;
+                }
+            }
+            return false;
+        }).collect(Collectors.toList());
     }
 }
