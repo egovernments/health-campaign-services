@@ -35,9 +35,9 @@ public class Plan {
     @Size(min = 1, max = 64)
     private String locality = null;
 
-    @JsonProperty("executionPlanId")
+    @JsonProperty("campaignId")
     @Size(max = 64)
-    private String executionPlanId = null;
+    private String campaignId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)

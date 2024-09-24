@@ -45,7 +45,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setId(planConfigId);
                 planConfigEntry.setTenantId(rs.getString("plan_configuration_tenant_id"));
                 planConfigEntry.setName(rs.getString("plan_configuration_name"));
-                planConfigEntry.setExecutionPlanId(rs.getString("plan_configuration_execution_plan_id"));
+                planConfigEntry.setCampaignId(rs.getString("plan_configuration_campaign_id"));
                 planConfigEntry.setStatus(PlanConfiguration.StatusEnum.valueOf(rs.getString("plan_configuration_status").toUpperCase()));
                 planConfigEntry.setAuditDetails(auditDetails);
 
@@ -147,6 +147,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         operation.setAssumptionValue(rs.getString("plan_configuration_operations_assumption_value"));
         operation.setOutput(rs.getString("plan_configuration_operations_output"));
         operation.setActive(rs.getBoolean("plan_configuration_operations_active"));
+        operation.setShowOnEstimationDashboard(rs.getBoolean("plan_configuration_operations_show_on_estimation_dashboard"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getOperations())) {
             List<Operation> operationList = new ArrayList<>();
