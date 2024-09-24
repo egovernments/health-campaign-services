@@ -78,6 +78,9 @@ public class PlanConfiguration {
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
 
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
+
     /**
      * The status used in the Plan Configuration
      */

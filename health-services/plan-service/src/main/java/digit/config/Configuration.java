@@ -28,6 +28,8 @@ public class Configuration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsEndPoint;
 
+    @Value("${egov.mdms.search.v2.endpoint}")
+    private String mdmsV2EndPoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
