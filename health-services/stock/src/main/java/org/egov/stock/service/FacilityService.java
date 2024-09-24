@@ -99,9 +99,6 @@ public class FacilityService {
 				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType())) {
 					facilityIds.add(stock.getSenderId());
 				}
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType())) {
-					facilityIds.add(stock.getReceiverId());
-				}
 			}
 		}
 
