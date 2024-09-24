@@ -3,8 +3,8 @@ package digit.service;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
+import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
-import digit.util.ServiceUtil;
 import digit.web.models.*;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
@@ -28,14 +28,14 @@ public class PlanValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, ServiceUtil serviceUtil) {
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
-        this.serviceUtil = serviceUtil;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -141,13 +141,13 @@ public class PlanValidator {
         }
 
         // If execution plan id is not provided, providing activities is mandatory
-        if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
+        if(ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_MANDATORY_CODE, PLAN_ACTIVITIES_MANDATORY_MESSAGE);
         }
 
         // If execution plan id is provided, providing activities is not allowed
-        if(!ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
+        if(!ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_NOT_ALLOWED_CODE, PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE);
         }
@@ -168,7 +168,7 @@ public class PlanValidator {
     private void validatePlanConfigurationExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
         if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId()) &&
-                CollectionUtils.isEmpty(serviceUtil.searchPlanConfigId(request.getPlan().getPlanConfigurationId(), request.getPlan().getTenantId())))
+                CollectionUtils.isEmpty(commonUtil.searchPlanConfigId(request.getPlan().getPlanConfigurationId(), request.getPlan().getTenantId())))
         {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }

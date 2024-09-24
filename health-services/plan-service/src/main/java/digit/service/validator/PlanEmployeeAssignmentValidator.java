@@ -1,8 +1,8 @@
 package digit.service.validator;
 
 import digit.util.CampaignUtil;
+import digit.util.CommonUtil;
 import digit.util.HrmsUtil;
-import digit.util.ServiceUtil;
 import digit.web.models.*;
 import digit.web.models.hrms.EmployeeResponse;
 import digit.web.models.projectFactory.Boundary;
@@ -28,14 +28,14 @@ public class PlanEmployeeAssignmentValidator {
 
     private HrmsUtil hrmsUtil;
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
     private CampaignUtil campaignUtil;
 
-    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, HrmsUtil hrmsUtil, ServiceUtil serviceUtil, CampaignUtil campaignUtil) {
+    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
         this.centralInstanceUtil = centralInstanceUtil;
         this.hrmsUtil = hrmsUtil;
-        this.serviceUtil = serviceUtil;
+        this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
     }
 
@@ -48,7 +48,7 @@ public class PlanEmployeeAssignmentValidator {
     public void validateCreate(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
-        List<PlanConfiguration> planConfigurations = serviceUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
+        List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
 
         // Validate if plan config id exists
         validatePlanConfigId(planConfigurations);
@@ -57,7 +57,7 @@ public class PlanEmployeeAssignmentValidator {
         validateEmployeeAgainstHRMS(request);
 
         // Validate campaign id and employee jurisdiction
-        validateCampaignDetails(planConfigurations.get(0).getExecutionPlanId(), rootTenantId, request);
+        validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
     }
 
 
@@ -166,7 +166,7 @@ public class PlanEmployeeAssignmentValidator {
     public void validateUpdate(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
-        List<PlanConfiguration> planConfigurations = serviceUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
+        List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
 
         // Validate if Plan employee assignment exists
         validatePlanEmployeeAssignment(planEmployeeAssignment);
@@ -178,7 +178,7 @@ public class PlanEmployeeAssignmentValidator {
         validateEmployeeAgainstHRMS(request);
 
         // Validate campaign id and employee jurisdiction
-        validateCampaignDetails(planConfigurations.get(0).getExecutionPlanId(), rootTenantId, request);
+        validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
     }
 

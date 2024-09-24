@@ -1,6 +1,6 @@
 package digit.repository.rowmapper;
 
-import digit.util.ServiceUtil;
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
 import org.postgresql.util.PGobject;
@@ -17,10 +17,10 @@ import java.util.*;
 @Component
 public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
-    public PlanRowMapper(ServiceUtil serviceUtil) {
-        this.serviceUtil = serviceUtil;
+    public PlanRowMapper(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
     }
 
     @Override
@@ -52,9 +52,9 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 planEntry.setId(planId);
                 planEntry.setTenantId(rs.getString("plan_tenant_id"));
                 planEntry.setLocality(rs.getString("plan_locality"));
-                planEntry.setExecutionPlanId(rs.getString("plan_execution_plan_id"));
+                planEntry.setCampaignId(rs.getString("plan_campaign_id"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
-                planEntry.setAdditionalDetails(serviceUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
+                planEntry.setAdditionalDetails(commonUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 
             }

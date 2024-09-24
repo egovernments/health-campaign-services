@@ -5,7 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.repository.querybuilder.PlanEmployeeAssignmentQueryBuilder;
 import digit.repository.rowmapper.PlanEmployeeAssignmentRowMapper;
-import digit.util.ServiceUtil;
+import digit.util.CommonUtil;
 import digit.web.models.PlanEmployeeAssignment;
 import digit.web.models.PlanEmployeeAssignmentRequestDTO;
 import digit.web.models.PlanEmployeeAssignmentRequest;
@@ -29,15 +29,15 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
 
     private PlanEmployeeAssignmentRowMapper rowMapper;
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
-    public PlanEmployeeAssignmentImpl(Producer producer, Configuration config, PlanEmployeeAssignmentQueryBuilder queryBuilder, JdbcTemplate jdbcTemplate, PlanEmployeeAssignmentRowMapper rowMapper, ServiceUtil serviceUtil) {
+    public PlanEmployeeAssignmentImpl(Producer producer, Configuration config, PlanEmployeeAssignmentQueryBuilder queryBuilder, JdbcTemplate jdbcTemplate, PlanEmployeeAssignmentRowMapper rowMapper, CommonUtil commonUtil) {
         this.producer = producer;
         this.config = config;
         this.queryBuilder = queryBuilder;
         this.jdbcTemplate = jdbcTemplate;
         this.rowMapper = rowMapper;
-        this.serviceUtil = serviceUtil;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -47,7 +47,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
      */
     @Override
     public void create(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
-        PlanEmployeeAssignmentRequestDTO requestDTO = serviceUtil.convertToReqDTO(planEmployeeAssignmentRequest);
+        PlanEmployeeAssignmentRequestDTO requestDTO = commonUtil.convertToReqDTO(planEmployeeAssignmentRequest);
         producer.push(config.getPlanEmployeeAssignmentCreateTopic(), requestDTO);
     }
 
@@ -71,7 +71,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
      */
     @Override
     public void update(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
-        PlanEmployeeAssignmentRequestDTO requestDTO = serviceUtil.convertToReqDTO(planEmployeeAssignmentRequest);
+        PlanEmployeeAssignmentRequestDTO requestDTO = commonUtil.convertToReqDTO(planEmployeeAssignmentRequest);
         producer.push(config.getPlanEmployeeAssignmentUpdateTopic(), requestDTO);
     }
 }

@@ -1,6 +1,6 @@
 package digit.repository.rowmapper;
 
-import digit.util.ServiceUtil;
+import digit.util.CommonUtil;
 import digit.web.models.PlanEmployeeAssignment;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
@@ -18,10 +18,10 @@ import java.util.*;
 @Component
 public class PlanEmployeeAssignmentRowMapper implements ResultSetExtractor<List<PlanEmployeeAssignment>> {
 
-    private ServiceUtil serviceUtil;
+    private CommonUtil commonUtil;
 
-    public PlanEmployeeAssignmentRowMapper(ServiceUtil serviceUtil) {
-        this.serviceUtil = serviceUtil;
+    public PlanEmployeeAssignmentRowMapper(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class PlanEmployeeAssignmentRowMapper implements ResultSetExtractor<List<
                 planEmployeeAssignment.setEmployeeId(rs.getString("employee_id"));
                 planEmployeeAssignment.setRole(rs.getString("role"));
                 planEmployeeAssignment.setJurisdiction(jurisdictionList);
-                planEmployeeAssignment.setAdditionalDetails(serviceUtil.getAdditionalDetail((PGobject) rs.getObject("additional_details")));
+                planEmployeeAssignment.setAdditionalDetails(commonUtil.getAdditionalDetail((PGobject) rs.getObject("additional_details")));
                 planEmployeeAssignment.setAuditDetails(auditDetails);
 
                 planEmployeeAssignmentMap.put(planEmployeeAssignmentId, planEmployeeAssignment);
