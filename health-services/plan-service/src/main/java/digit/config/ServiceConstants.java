@@ -174,10 +174,26 @@ public class ServiceConstants {
 
     public static final String BOUNDARY_CODE = "boundaryCode";
 
-    public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
+    public static final String FILTER_ALL_ASSUMPTIONS = ".assumptionCategories[*].assumptions[*]";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
-    public static final String VEHICLE_ID_FIELD = "vehicleIds";
+
+    // Constants for operators and JSON fields
+    public static final String AND = " && ";
+    public static final String EQUALS = " == ";
+    public static final String SINGLE_QUOTE = "'";
+    public static final String CAMPAIGN_TYPE = "campaignType";
+    public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
+    public static final String REGISTRATION_PROCESS = "RegistrationProcess";
+    public static final String RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
+    public static final String IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
+
+    public static final String JSON_FIELD_CAMPAIGN_TYPE = "@.campaignType";
+    public static final String JSON_FIELD_DISTRIBUTION_PROCESS = "@.DistributionProcess";
+    public static final String JSON_FIELD_REGISTRATION_PROCESS = "@.RegistrationProcess";
+    public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "@.resourceDistributionStrategyCode";
+    public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "@.isRegistrationAndDistributionHappeningTogetherOrSeparately";
+    public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
 
 }

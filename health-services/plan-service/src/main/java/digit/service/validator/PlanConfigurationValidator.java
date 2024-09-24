@@ -151,8 +151,13 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + FILTER_ALL_ASSUMPTIONS;
+        Object additionalDetails = request.getPlanConfiguration().getAdditionalDetails();
 
+        String jsonPathForAssumption = commonUtil.createJsonPathForAssumption((String) commonUtil.extractFieldsFromAdditionalDetails(additionalDetails,CAMPAIGN_TYPE),
+                (String) commonUtil.extractFieldsFromAdditionalDetails(additionalDetails,DISTRIBUTION_PROCESS),
+                (String) commonUtil.extractFieldsFromAdditionalDetails(additionalDetails,REGISTRATION_PROCESS),
+                (String) commonUtil.extractFieldsFromAdditionalDetails(additionalDetails,RESOURCE_DISTRIBUTION_STRATEGY_CODE),
+                (String) commonUtil.extractFieldsFromAdditionalDetails(additionalDetails,IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER));
         List<Object> assumptionListFromMDMS = null;
         try {
             log.info(jsonPathForAssumption);
@@ -541,16 +546,15 @@ public class PlanConfigurationValidator {
      */
     public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data)
     {
-        List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+        List<String> vehicleIdsLinkedWithPlanConfig = (List<String>) commonUtil.extractFieldsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails(), JSON_FIELD_VEHICLE_ID);
 
         List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
                 .map(Mdms::getId)
-                .collect(Collectors.toList());
+                .toList();
 
-        List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
         vehicleIdsLinkedWithPlanConfig.stream()
                 .forEach(vehicleId -> {
-                    if(!finalVehicleIdsFromMdms.contains(vehicleId))
+                    if(!vehicleIdsFromMdms.contains(vehicleId))
                     {
                         log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
                         throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
