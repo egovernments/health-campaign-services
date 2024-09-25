@@ -706,7 +706,7 @@ async function getBoundarySheetData(
       // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
       const responseFromCampaignSearch =
         await getCampaignSearchResponse(request);
-      Filters = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
+      Filters = await getFiltersFromCampaignSearchResponse(request, responseFromCampaignSearch)
     }
     if (Filters?.Filters && Filters.Filters.boundaries && Array.isArray(Filters.Filters.boundaries) && Filters.Filters.boundaries.length > 0) {
       const filteredBoundaryData = await generateFilteredBoundaryData(

@@ -1,15 +1,17 @@
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { getLocalizedHeaders, replicateRequest } from "./genericUtils";
+import { getLocalizedHeaders, replicateRequest, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import config from "../config/index";
 import { getLocalizedName } from "./campaignUtils";
+import { logger } from "./logger";
+import { callGenerate } from "./generateUtils";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
     const searchBodyForParent = {
       RequestInfo: request.body.RequestInfo,
       CampaignDetails: {
-        tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+        tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId || request?.body?.CampaignDetails?.tenantId,
         ids: [parentId]
       }
     };
@@ -18,7 +20,7 @@ async function getParentCampaignObject(request: any, parentId: any) {
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
     console.error("Error fetching parent campaign object:", error);
-    throw error;
+    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign fetching error ");
   }
 }
 
@@ -192,14 +194,18 @@ function unhideColumnsOfProcessedFile(sheet: any, columnsToUnide: any) {
 }
 
 function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, headers: any, localizationMap?: any) {
-
-  if (!processedDistrictSheetData || processedDistrictSheetData.length === 0) return [];
-
+  let modifiedData = [];
   let localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const dataRows = processedDistrictSheetData.map((row: any) => {
-    return localizedHeaders.map((header: any) => row[header] || '');
-  });
-  const modifiedData = [localizedHeaders, ...dataRows];
+  if (processedDistrictSheetData && processedDistrictSheetData.length > 0) {
+    const dataRows = processedDistrictSheetData.map((row: any) => {
+      return localizedHeaders.map((header: any) => row[header] || '');
+    });
+    modifiedData = [localizedHeaders, ...dataRows];
+  } else {
+    // If processedDistrictSheetData is not present, work only with newSheetData
+    modifiedData = [newSheetData];
+  }
+
   const newData = updateTargetValues(modifiedData, newSheetData, localizedHeaders, localizationMap);
   return newData;
 }
@@ -221,24 +227,146 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
         : value
     );
   });
-  
   newData = newData.map((newRow: any, rowIndex: number) => {
     const updatedValues: any[] = [];
-  
     for (let i = boundaryCodeIndex + 1; i < localizedHeaders.length; i++) {
       updatedValues.push(newRow[i]);  // Store original value
-  
       if (rowIndex === 0) {  // Only modify the first row
         newRow[i] = newRow[i] + "(OLD)"; // Modify value with (OLD) for the first row
       }
     }
-  
     // Concatenate original values at the end of every row
     return [...newRow, ...updatedValues];
-  });  
-
+  });
   return newData;
 }
+
+function validateBoundariesIfParentPresent(request: any) {
+  const { parentCampaign, CampaignDetails } = request?.body || {};
+
+  if (parentCampaign) {
+    const errors: string[] = [];
+    const newBoundaries: any[] = [];
+    const parentCampaignBoundaryCodes = parentCampaign.boundaries.map((boundary: any) => boundary.code);
+
+    CampaignDetails?.boundaries?.forEach((boundary: any) => {
+      if (parentCampaignBoundaryCodes.includes(boundary.code)) {
+        errors.push(boundary.code);
+      } else {
+        if (!boundary?.isRoot) {
+          newBoundaries.push(boundary);
+        } else {
+          throwError(
+            "COMMON",
+            400,
+            "VALIDATION_ERROR",
+            `Boundary with code ${boundary.code} cannot be added as it is marked as root. Root boundary should come from the parent campaign.`
+          );
+        }
+      }
+    });
+
+    if (errors.length > 0) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
+    }
+  }
+}
+
+
+async function callGenerateWhenChildCampaigngetsCreated(request: any) {
+  try {
+    const newRequestBody = {
+      RequestInfo: request?.body?.RequestInfo,
+      Filters: {
+        boundaries: getBoundariesArray(request?.body?.parentCampaign?.boundaries, request?.body?.CampaignDetails?.boundaries)
+      }
+    };
+
+    const { query } = request;
+    const params = {
+      tenantId: request?.body?.CampaignDetails?.tenantId,
+      forceUpdate: 'true',
+      hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+      campaignId: request?.body?.CampaignDetails?.id
+    };
+
+    const newParamsBoundary = { ...query, ...params, type: "boundary" };
+    const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
+    await callGenerate(newRequestBoundary, "boundary");
+
+    const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
+    const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
+    await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
+
+    const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
+    const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
+    await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
+  }
+  catch (error: any) {
+    logger.error(error);
+    throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+  }
+}
+
+
+function getBoundariesArray(parentCampaignBoundaries: any, campaignBoundaries: any) {
+  // Ensure both inputs are arrays or default to empty arrays
+  const validParentBoundaries = Array.isArray(parentCampaignBoundaries) ? parentCampaignBoundaries : [];
+  const validCampaignBoundaries = Array.isArray(campaignBoundaries) ? campaignBoundaries : [];
+
+  return [...validParentBoundaries, ...validCampaignBoundaries];
+}
+
+async function getBoundariesFromCampaignSearchResponse(request: any, campaignDetails: any) {
+  let parentCampaignBoundaries: any[] = [];
+  if (campaignDetails?.parentId) {
+    const parentCampaignObject = await getParentCampaignObject(request, campaignDetails?.parentId);
+    parentCampaignBoundaries = parentCampaignObject?.boundaries;
+  }
+  return getBoundariesArray(parentCampaignBoundaries, campaignDetails?.boundaries)
+}
+
+async function getBoundariesFromCampaignRequest(request: any) {
+  let parentCampaignBoundaries: any[] = [];
+  if (request?.body?.CampaignDetails?.parentId) {
+    const parentCampaignObject = await getParentCampaignObject(request, request?.body?.CampaignDetails?.parentId);
+    parentCampaignBoundaries = parentCampaignObject?.boundaries;
+  }
+  return getBoundariesArray(parentCampaignBoundaries, request?.body?.CampaignDetails?.boundaries)
+}
+
+
+async function projectSearchWithBoundaryCodes(request: any, boundaryCode: any) {
+  const { tenantId } = request.body.CampaignDetails;
+  const projectSearchBody = {
+    RequestInfo: request?.body?.RequestInfo,
+    Projects: [{
+      "address": {
+        "tenantId": tenantId,
+        "boundary": boundaryCode
+      },
+      "name": request?.body?.CampaignDetails?.name,
+      "tenantId": tenantId
+    }
+    ],
+  }
+  const projectSearchParams = {
+    tenantId: tenantId,
+    offset: 0,
+    limit: 1
+  }
+  const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
+
+  if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
+    return projectSearchResponse?.Project?.[0]?.id;
+  }
+  else {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+    return null
+  }
+
+}
+
 
 
 
@@ -254,5 +382,10 @@ export {
   checkAndGiveIfParentCampaignAvailable,
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile,
-  modifyNewSheetData
+  modifyNewSheetData,
+  validateBoundariesIfParentPresent,
+  callGenerateWhenChildCampaigngetsCreated,
+  getBoundariesFromCampaignSearchResponse,
+  getBoundariesFromCampaignRequest,
+  projectSearchWithBoundaryCodes
 }

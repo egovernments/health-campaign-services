@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
 import { getLocalisationModuleName } from "./localisationUtils";
+import { getBoundariesFromCampaignRequest } from "./onGoingCampaignUpdateUtils";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -29,8 +30,9 @@ function isCampaignTypeSame(request: any) {
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+        const boundaries = await getBoundariesFromCampaignRequest(request);
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries) || !isCampaignTypeSame(request)) {
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || !isCampaignTypeSame(request)) {
                 logger.info("Boundaries or Campaign Type  differ, generating new resources");
                 // Apply 2-second timeout after the condition check
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -38,7 +40,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                 const newRequestBody = {
                     RequestInfo: request?.body?.RequestInfo,
                     Filters: {
-                        boundaries: request?.body?.CampaignDetails?.boundaries
+                        boundaries: boundaries
                     }
                 };
 
