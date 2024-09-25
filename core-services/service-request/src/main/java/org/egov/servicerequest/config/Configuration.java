@@ -58,6 +58,9 @@ public class Configuration {
     @Value("${egov.service.create.topic}")
     private String serviceCreateTopic;
 
+    @Value("${egov.service.definition.update.topic}")
+    private String serviceDefinitionUpdateTopic;
+
     @Value("${egov.max.string.input.size}")
     private Integer maxStringInputSize;
 
