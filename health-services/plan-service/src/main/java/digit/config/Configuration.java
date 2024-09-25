@@ -44,6 +44,9 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.facility.create.topic}")
+    private String planFacilityCreateTopic;
+
     @Value("${plan.default.offset}")
     private Integer defaultOffset;
 
