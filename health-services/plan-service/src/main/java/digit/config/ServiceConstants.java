@@ -180,4 +180,6 @@ public class ServiceConstants {
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility: ";
+
 }

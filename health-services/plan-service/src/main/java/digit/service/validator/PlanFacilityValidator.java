@@ -1,11 +1,14 @@
 package digit.service.validator;
 
 import digit.repository.PlanConfigurationRepository;
+import digit.util.FacilityUtil;
 import digit.util.MdmsUtil;
 import digit.web.models.PlanConfigurationSearchCriteria;
 import digit.web.models.PlanFacilityRequest;
+import digit.web.models.facility.FacilityResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -25,9 +28,12 @@ public class PlanFacilityValidator {
 
     private PlanConfigurationRepository planConfigurationRepository;
 
-    public PlanFacilityValidator(MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, PlanConfigurationRepository planConfigurationRepository) {
+    private FacilityUtil facilityUtil;
+
+    public PlanFacilityValidator(MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, FacilityUtil facilityUtil, PlanConfigurationRepository planConfigurationRepository) {
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.facilityUtil = facilityUtil;
         this.planConfigurationRepository = planConfigurationRepository;
     }
 
@@ -37,6 +43,21 @@ public class PlanFacilityValidator {
         // Validate plan configuration existence
         validatePlanConfigurationExistence(planFacilityRequest);
 
+        // Validate facility existence
+        validateFacilityExistence(planFacilityRequest.getPlanFacility().getFacilityId(),
+                planFacilityRequest.getPlanFacility().getTenantId(),
+                planFacilityRequest.getRequestInfo());
+
+
+    }
+
+    private void validateFacilityExistence(String facilityId, String tenantId, RequestInfo requestInfo) {
+        FacilityResponse facilityResponse = facilityUtil.fetchFacilityData(requestInfo, facilityId, tenantId);
+
+        // Check if the facility response is null or if the facilities list is null or empty
+        if (facilityResponse == null || facilityResponse.getFacilities() == null || facilityResponse.getFacilities().isEmpty()) {
+            throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + facilityId + " not found in the system.");
+        }
     }
 
     private void validatePlanConfigurationExistence(PlanFacilityRequest request) {

@@ -53,4 +53,11 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Facility
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.facility.search.endpoint}")
+    private String facilityEndPoint;
+
 }
