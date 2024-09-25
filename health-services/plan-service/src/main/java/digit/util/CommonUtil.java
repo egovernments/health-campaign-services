@@ -3,6 +3,7 @@ package digit.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.StringEscapeUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -39,10 +40,10 @@ public class CommonUtil {
 
 
     /**
-     * Extracts the list of vehicle Ids provided in additional details object
+     * Extracts provided field from the additional details object
      *
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @return a list of vehicle Ids from additional details
+     * @return a field to extract from additional details
      */
     public Object extractFieldsFromAdditionalDetails(Object additionalDetails, String fieldToExtract) {
         try {
@@ -66,7 +67,7 @@ public class CommonUtil {
                     return node.asText();
                 }
             }
-            // In case the node is of some other type (like object or binary), handle accordingly
+            // In case the node is of other type like object, handle accordingly
             return node;
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -95,11 +96,11 @@ public class CommonUtil {
     ) {
 
         StringBuilder jsonPathFilters = new StringBuilder("[?(");
-        jsonPathFilters.append(JSON_FIELD_CAMPAIGN_TYPE).append(EQUALS).append(SINGLE_QUOTE).append(campaignType).append(SINGLE_QUOTE)
-                .append(AND).append(JSON_FIELD_DISTRIBUTION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(distributionProcess).append(SINGLE_QUOTE)
-                .append(AND).append(JSON_FIELD_REGISTRATION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(registrationProcess).append(SINGLE_QUOTE)
-                .append(AND).append(JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE).append(EQUALS).append(SINGLE_QUOTE).append(resourceDistributionStrategyCode).append(SINGLE_QUOTE)
-                .append(AND).append(JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER).append(EQUALS).append(SINGLE_QUOTE).append(isRegistrationAndDistributionTogether).append(SINGLE_QUOTE)
+        jsonPathFilters.append(JSON_PATH_FILTER_CAMPAIGN_TYPE).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(campaignType)).append(SINGLE_QUOTE)
+                .append(AND).append(JSON_PATH_FILTER_DISTRIBUTION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(distributionProcess)).append(SINGLE_QUOTE)
+                .append(AND).append(JSON_PATH_FILTER_REGISTRATION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(registrationProcess)).append(SINGLE_QUOTE)
+                .append(AND).append(JSON_PATH_FILTER_RESOURCE_DISTRIBUTION_STRATEGY_CODE).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(resourceDistributionStrategyCode)).append(SINGLE_QUOTE)
+                .append(AND).append(JSON_PATH_FILTER_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(isRegistrationAndDistributionTogether)).append(SINGLE_QUOTE)
                 .append(")]");
 
         return JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + jsonPathFilters + FILTER_ALL_ASSUMPTIONS;

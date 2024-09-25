@@ -95,6 +95,11 @@
             <version>2.9.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.10.0</version> <!-- or the latest version -->
+        </dependency>
     </dependencies>
     <repositories>
         <repository>

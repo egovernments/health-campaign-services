@@ -31,6 +31,9 @@ public class ServiceConstants {
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
 
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_CODE = "VEHICLE_IDS_INVALID_DATA_TYPE";
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_MESSAGE = "Vehicle IDs should be a list of strings.";
+
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS ";
 
@@ -178,22 +181,24 @@ public class ServiceConstants {
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
-
-    // Constants for operators and JSON fields
+    // Constants for constructing logical expressions or queries
     public static final String AND = " && ";
     public static final String EQUALS = " == ";
     public static final String SINGLE_QUOTE = "'";
-    public static final String CAMPAIGN_TYPE = "campaignType";
-    public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
-    public static final String REGISTRATION_PROCESS = "RegistrationProcess";
-    public static final String RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
-    public static final String IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
 
-    public static final String JSON_FIELD_CAMPAIGN_TYPE = "@.campaignType";
-    public static final String JSON_FIELD_DISTRIBUTION_PROCESS = "@.DistributionProcess";
-    public static final String JSON_FIELD_REGISTRATION_PROCESS = "@.RegistrationProcess";
-    public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "@.resourceDistributionStrategyCode";
-    public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "@.isRegistrationAndDistributionHappeningTogetherOrSeparately";
+    // JSON field constants for campaign details
+    public static final String JSON_FIELD_CAMPAIGN_TYPE = "campaignType";
+    public static final String JSON_FIELD_DISTRIBUTION_PROCESS = "DistributionProcess";
+    public static final String JSON_FIELD_REGISTRATION_PROCESS = "RegistrationProcess";
+    public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
+    public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
     public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
+
+    // JSON path constants for campaign details
+    public static final String JSON_PATH_FILTER_CAMPAIGN_TYPE = "@.campaignType";
+    public static final String JSON_PATH_FILTER_DISTRIBUTION_PROCESS = "@.DistributionProcess";
+    public static final String JSON_PATH_FILTER_REGISTRATION_PROCESS = "@.RegistrationProcess";
+    public static final String JSON_PATH_FILTER_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "@.resourceDistributionStrategyCode";
+    public static final String JSON_PATH_FILTER_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "@.isRegistrationAndDistributionHappeningTogetherOrSeparately";
 
 }
