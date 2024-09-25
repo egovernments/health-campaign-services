@@ -72,7 +72,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
         if (searchCriteria.getActive() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" active = ?");
-            preparedStmtList.add(Boolean.TRUE);
+            preparedStmtList.add(searchCriteria.getActive());
         }
 
         return builder.toString();
