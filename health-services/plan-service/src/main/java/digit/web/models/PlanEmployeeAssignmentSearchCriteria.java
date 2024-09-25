@@ -21,6 +21,9 @@ import lombok.Builder;
 @Builder
 public class PlanEmployeeAssignmentSearchCriteria {
 
+    @JsonProperty("id")
+    private String id = null;
+
     @JsonProperty("tenantId")
     @Size(min = 2, max = 100)
     @NotNull

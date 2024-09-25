@@ -45,6 +45,12 @@ public class PlanEmployeeAssignmentQueryBuilder {
     private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY);
 
+        if (searchCriteria.getId() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" id = ?");
+            preparedStmtList.add(searchCriteria.getId());
+        }
+
         if (searchCriteria.getTenantId() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ?");

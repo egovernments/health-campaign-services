@@ -77,6 +77,9 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+
     public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
     public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
 

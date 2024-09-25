@@ -1,5 +1,6 @@
 package digit.service.validator;
 
+import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.util.CampaignUtil;
 import digit.util.CommonUtil;
 import digit.util.HrmsUtil;
@@ -32,11 +33,14 @@ public class PlanEmployeeAssignmentValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
+    private PlanEmployeeAssignmentRepository repository;
+
+    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeAssignmentRepository repository) {
         this.centralInstanceUtil = centralInstanceUtil;
         this.hrmsUtil = hrmsUtil;
         this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
+        this.repository = repository;
     }
 
 
@@ -189,5 +193,13 @@ public class PlanEmployeeAssignmentValidator {
      */
     private void validatePlanEmployeeAssignment(PlanEmployeeAssignment planEmployeeAssignment) {
 
+        // Validates the existence of plan employee assignment
+        List<PlanEmployeeAssignment> planEmployeeAssignments = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
+                .id(planEmployeeAssignment.getId())
+                .build());
+
+        if(CollectionUtils.isEmpty(planEmployeeAssignments)) {
+            throw new CustomException(INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE, INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE);
+        }
     }
 }
