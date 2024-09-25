@@ -650,4 +650,3 @@ public class ProjectValidator {
         log.info("Parent projects validated against DB");
     }
 }
-
