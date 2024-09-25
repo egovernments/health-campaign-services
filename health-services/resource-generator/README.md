@@ -45,7 +45,7 @@ The resource estimation service processes various file formats to estimate resou
 ## Configuration and Deployment
 
 - **Persister Config**: NA
-- **Helm Chart**: Deployment details available [here](https://github.com/egovernments/DIGIT-DevOps/tree/unified-env/deploy-as-code/helm/charts/health-services/resource-generator).
+- **Helm Chart**: Deployment details available [here](https://github.com/egovernments/DIGIT-DevOps/tree/unified-dev/deploy-as-code/helm/charts/health-services/resource-generator).
 
 ## Environment Variables
 
