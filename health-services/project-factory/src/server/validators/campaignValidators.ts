@@ -997,28 +997,10 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 
 function validateProjectCampaignMissingFields(CampaignDetails: any) {
     validateCampaignBodyViaSchema(campaignDetailsSchema, CampaignDetails)
-    const { startDate, endDate } = CampaignDetails;
-    if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
-    }
-    const today: any = Date.now();
-    if (startDate <= today) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
-    }
 }
 
 function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
     validateCampaignBodyViaSchema(campaignDetailsDraftSchema, CampaignDetails)
-    const { startDate, endDate, action } = CampaignDetails;
-    if (action != "changeDates") {
-        if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
-        }
-        const today: any = Date.now();
-        if (startDate <= today) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
-        }
-    }
 }
 
 async function validateParent(request: any, actionInUrl: any) {
@@ -1222,6 +1204,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
+        validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
@@ -1234,10 +1217,24 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
+        validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
         validateRootBoundaryWithParent(request)
+    }
+}
+
+function validateProjectDatesForCampaign(request: any, CampaignDetails: any) {
+    if (!request?.body?.parentCampaign) {
+        const { startDate, endDate } = CampaignDetails;
+        if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
+        }
+        const today: any = Date.now();
+        if (startDate <= today) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
+        }
     }
 }
 

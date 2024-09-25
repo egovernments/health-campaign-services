@@ -184,58 +184,38 @@ function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request:
     }
 }
 
-function deterMineLastColumnAndEnrichUserDetails(
-    worksheet: any,
-    errorDetailsColumn: number,
-    userNameAndPassword: { rowNumber: number, userName: string, password: string }[] | undefined,
-    request: any,
-    createAndSearchConfig: { uniqueIdentifierColumn?: number }
-): string {
-    // Determine the last column
-    let lastColumn: any = errorDetailsColumn;
+function deterMineLastColumnAndEnrichUserDetails(worksheet: any, errorDetailsColumn: any, userNameAndPassword: any, request: any, createAndSearchConfig: any) {
+    let lastColumn = errorDetailsColumn;
     if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
-        lastColumn = Math.max(createAndSearchConfig.uniqueIdentifierColumn, errorDetailsColumn);
+        lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
+            createAndSearchConfig?.uniqueIdentifierColumn :
+            errorDetailsColumn;
     }
-
-    // Default columns
-    let usernameColumn = "J";
-    let passwordColumn = "K";
-
-    // Update columns if the request indicates a different source
-    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
-        usernameColumn = "F";
-        passwordColumn = "G";
-    }
-
-    // Populate username and password columns if data is provided
     if (userNameAndPassword) {
-        // Set headers with formatting
-        const setCellHeader = (cell: string) => {
-            worksheet.getCell(cell).value = cell === usernameColumn + "1" ? "UserName" : "Password";
-            worksheet.getCell(cell).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'ff9248' } // Green color
-            };
-            worksheet.getCell(cell).font = { bold: true };
-            const columnLetter = cell.replace(/\d+$/, '');
-            worksheet.getColumn(columnLetter).width = 40;
+        worksheet.getCell("J1").value = "UserName";
+        worksheet.getCell("K1").value = "Password";
+        // Set the fill color to green for cell I1
+        worksheet.getCell("J1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
         };
-
-        setCellHeader(usernameColumn + "1");
-        setCellHeader(passwordColumn + "1");
-
-        // Set values
-        userNameAndPassword.forEach(data => {
+        worksheet.getCell("J1").font = { bold: true };
+        // Set the fill color to green for cell J1
+        worksheet.getCell("K1").fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'ff9248' } // Green color
+        };
+        worksheet.getCell("K1").font = { bold: true };
+        userNameAndPassword.forEach((data: any) => {
             const rowIndex = data.rowNumber;
-            worksheet.getCell(`${usernameColumn}${rowIndex}`).value = data.userName;
-            worksheet.getCell(`${passwordColumn}${rowIndex}`).value = data.password;
+            worksheet.getCell(`J${rowIndex}`).value = data?.userName;
+            worksheet.getCell(`K${rowIndex}`).value = data?.password;
         });
-
-        // Update lastColumn based on the password column
-        lastColumn = passwordColumn;
+        lastColumn = "K";
+        request.body.userNameAndPassword = undefined;
     }
-
     return lastColumn;
 }
 
