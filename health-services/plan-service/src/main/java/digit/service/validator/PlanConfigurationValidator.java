@@ -581,18 +581,21 @@ public class PlanConfigurationValidator {
                                                                            request, List<Mdms> mdmsV2Data) {
         List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
-        List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
-                .map(Mdms::getId)
-                .collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(vehicleIdsLinkedWithPlanConfig)) {
+            List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
+                    .map(Mdms::getId)
+                    .collect(Collectors.toList());
 
-        List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
-        vehicleIdsLinkedWithPlanConfig.stream()
-                .forEach(vehicleId -> {
-                    if (!finalVehicleIdsFromMdms.contains(vehicleId)) {
-                        log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
-                        throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
-                    }
-                });
+            List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
+            vehicleIdsLinkedWithPlanConfig.stream()
+                    .forEach(vehicleId -> {
+                        if (!finalVehicleIdsFromMdms.contains(vehicleId)) {
+                            log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
+                            throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
+                        }
+                    });
+        }
+
     }
 
 
