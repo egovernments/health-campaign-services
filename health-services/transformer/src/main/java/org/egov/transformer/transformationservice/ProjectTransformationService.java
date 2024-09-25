@@ -92,10 +92,14 @@ public class ProjectTransformationService {
                     Integer campaignDurationInDays = null;
                     Integer targetPerDay = null;
                     Long milliSecForOneDay = (long) (24 * 60 * 60 * 1000);
-                    if (startDate != null && endDate != null) {
-                        campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
-                        if (targetNo != null && campaignDurationInDays > 0) {
-                            targetPerDay = targetNo / campaignDurationInDays;
+                    if(transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_PER_DAY)) {
+                        targetPerDay = targetNo;
+                    } else if (transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_OVERALL)){
+                        if (startDate != null && endDate != null) {
+                            campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
+                            if (targetNo != null && campaignDurationInDays > 0) {
+                                targetPerDay = targetNo / campaignDurationInDays;
+                            }
                         }
                     }
 

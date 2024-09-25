@@ -209,4 +209,7 @@ public class TransformerProperties {
 
     @Value("${egov.localization.locale.code:en_MZ}")
     private String localizationLocaleCode;
+
+    @Value("${egov.project.target.number-type}")
+    private String projectTargetNumberType;
 }
