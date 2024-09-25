@@ -50,4 +50,12 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    @Value("${plan.facility.update.topic}")
+    private String planFacilityUpdateTopic;
+
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndPoint;
 }
