@@ -181,5 +181,12 @@ public class ServiceConstants {
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
 
     public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility: ";
+    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
+
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String INVALID_SERVICE_BOUNDARY_CODE = "INVALID_SERVICE_BOUNDARY";
+    public static final String INVALID_SERVICE_BOUNDARY_MESSAGE = "The provided service boundary is invalid";
 
 }

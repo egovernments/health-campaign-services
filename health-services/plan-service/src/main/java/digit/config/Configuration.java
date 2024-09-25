@@ -60,4 +60,11 @@ public class Configuration {
     @Value("${egov.facility.search.endpoint}")
     private String facilityEndPoint;
 
+    //Project Factory
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndPoint;
+
 }
