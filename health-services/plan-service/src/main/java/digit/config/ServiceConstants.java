@@ -130,6 +130,9 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
+    public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "Residing Boundary is Invalid";
+
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
@@ -141,6 +144,10 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_UOM = "Uom";
     public static final String MDMS_CODE = "mdms";
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
+    public static final String MDMS_HCM_ADMIN_CONSOLE = "HCM-ADMIN-CONSOLE";
+    public static final String MDMS_MASTER_HIERARCHY_CONFIG= "hierarchyConfig";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE="HIERARCHY_NOT_FOUND_IN_MDMS";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE="Hierarchy Not Found";
 
     public static final String JSON_ROOT_PATH = "$.";
 
