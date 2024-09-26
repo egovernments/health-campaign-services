@@ -1913,7 +1913,6 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (request: any, loc
         campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
         const isUpdate = request?.body?.parentCampaignObject ? true : false;
         const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, isUpdate, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
-        console.log(mdmsResponse, "msssssssssssssssss")
         if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
             logger.error(`Campaign Type ${campaignType} has not any columns configured in schema`)
             throwError("COMMON", 400, "SCHEMA_ERROR", `Campaign Type ${campaignType} has not any columns configured in schema`);
