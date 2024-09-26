@@ -117,7 +117,7 @@ const config = {
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
-    mdms_search: process.env.EGOV_MDMS_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
     mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
@@ -142,7 +142,6 @@ const config = {
     projectTypeSearch: "project-factory/v1/project-type/search",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     mdmsV2SchemaSearch: "mdms-v2/schema/v1/_search",
-    mdms_v2_search: "mdms-v2/v2/_search",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
   },
   // Values configuration
@@ -156,7 +155,9 @@ const config = {
     userMainBoundaryType: "Country",
     idgen: {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
-      idName: process.env.CMP_IDGEN_IDNAME || "campaign.number"
+      idName: process.env.CMP_IDGEN_IDNAME || "campaign.number",
+      idNameForUserNameGeneration: "username.name",
+      formatForUserName: "USR-[SEQ_EG_USER_NAME]"
     },
     matchFacilityData: false,
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",

@@ -211,7 +211,7 @@ const getTargetSheetDataAfterCode = async (
 
     // Process data from sheet
     const processedData = sheetData.map((row: any, rowIndex: any) => {
-      if (rowIndex <= 1) return null; // Skip header row
+      if (rowIndex <= 0) return null; // Skip header row
 
       let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
 
@@ -248,7 +248,7 @@ const searchMDMS: any = async (
   }
 
   // Construct API URL for MDMS search
-  const apiUrl = config.host.mdms + config.paths.mdms_search;
+  const apiUrl = config.host.mdms + config.paths.mdms_v2_search;
 
   // Construct request data for MDMS search
   const data = {

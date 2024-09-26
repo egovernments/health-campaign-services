@@ -17,7 +17,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
-import { areBoundariesSame, callGenerateIfBoundariesDiffer } from "./generateUtils";
+import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 const _ = require('lodash');
@@ -485,8 +485,12 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         logger.debug(getFormattedStringForDebug(request?.body?.Activities));
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-        const activityObject = request?.body?.Activities;
-        await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        const activities = request?.body?.Activities;
+        for (let i = 0; i < activities.length; i += 50) {
+            const chunk = activities.slice(i, Math.min(i + 50, activities.length));
+            const activityObject: any = { Activities: chunk };
+            await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+        }
     }
 }
 
@@ -595,7 +599,7 @@ function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: a
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
-    callGenerateIfBoundariesDiffer(request);
+    callGenerateIfBoundariesOrCampaignTypeDiffer(request);
     if (existingCampaignDetails) {
         if (areBoundariesSame(existingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries)) {
             updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
@@ -1853,6 +1857,40 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
     return objectWithAdditionalDetails?.additionalDetails?.source === 'microplan';
 }
 
+function createIdRequests(employees: any[]): any[] {
+    const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
+    return Array.from({ length: employees.length }, () => ({
+      tenantId: tenantId,
+      idName: config?.values?.idgen?.idNameForUserNameGeneration,
+      idFormat: config?.values?.idgen?.formatForUserName
+    }));
+  }
+
+async function createUniqueUserNameViaIdGen(request:any)
+{
+    const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
+    try {
+        // Make HTTP request to ID generation service
+       const  result = await httpRequest(
+          idgenurl,
+          request?.body,
+          undefined,
+          undefined,
+          undefined,
+          undefined
+        );
+    
+        // Return null if ID generation fails
+        return result;
+      } catch (error: any) {
+        // Log the error
+        logger.error(`Error during ID generation: ${error.message}`);
+
+        // Throw a custom error
+        throwError("ID_GENERATION", 500, "ID_GENERATION_FAILED", `Error occurred while generating ID: ${error.message}`);
+    }
+}
+
 
 
 
@@ -1888,5 +1926,7 @@ export {
     getFinalValidHeadersForTargetSheetAsPerCampaignType,
     getDifferentTabGeneratedBasedOnConfig,
     checkIfSourceIsMicroplan,
-    getBoundaryOnWhichWeSplit
+    getBoundaryOnWhichWeSplit,
+    createIdRequests,
+    createUniqueUserNameViaIdGen
 }
