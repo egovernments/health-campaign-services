@@ -155,9 +155,12 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                         var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
                         active = data[activeColumn];
                     }
-                    if (boundaryCode && active == "Active") {
-                        mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
+                    if (boundaryCode && active === "Active") {
+                        if (!messageObject?.parentCampaign || (messageObject?.parentCampaign && data["#status#"] === "CREATED")) {
+                            mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
+                        }
                     }
+                    
                 }
                 else {
                     logger.info(`Code ${code} is somehow null or empty for resource ${resource?.type} for uniqueCodeColumn ${uniqueCodeColumn}`)

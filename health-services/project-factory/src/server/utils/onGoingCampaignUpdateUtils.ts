@@ -269,6 +269,10 @@ function validateBoundariesIfParentPresent(request: any) {
     if (errors.length > 0) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
     }
+    request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
+  }
+  else {
+    request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
   }
 }
 
@@ -278,7 +282,7 @@ async function callGenerateWhenChildCampaigngetsCreated(request: any) {
     const newRequestBody = {
       RequestInfo: request?.body?.RequestInfo,
       Filters: {
-        boundaries: getBoundariesArray(request?.body?.parentCampaign?.boundaries, request?.body?.CampaignDetails?.boundaries)
+        boundaries: request?.body?.boundariesCombined
       }
     };
 
@@ -336,36 +340,67 @@ async function getBoundariesFromCampaignRequest(request: any) {
 }
 
 
-async function projectSearchWithBoundaryCodes(request: any, boundaryCode: any) {
-  const { tenantId } = request.body.CampaignDetails;
+async function fetchProjectsWithParentRootProjectId(request: any) {
+  const { projectId, tenantId } = request?.body?.parentCampaign;
   const projectSearchBody = {
     RequestInfo: request?.body?.RequestInfo,
-    Projects: [{
-      "address": {
-        "tenantId": tenantId,
-        "boundary": boundaryCode
-      },
-      "name": request?.body?.CampaignDetails?.name,
-      "tenantId": tenantId
-    }
-    ],
+    Projects: [
+      {
+        id: projectId,
+        tenantId: tenantId
+      }
+    ]
   }
   const projectSearchParams = {
     tenantId: tenantId,
     offset: 0,
-    limit: 1
+    limit: 1,
+    includeDescendants: true
   }
+  logger.info("Project search params " + JSON.stringify(projectSearchParams))
   const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
-
   if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
-    return projectSearchResponse?.Project?.[0]?.id;
+    return projectSearchResponse;
   }
   else {
     throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
-    return null
+    return []
   }
-
 }
+
+function getBoundaryProjectMappingFromParentCampaign(request: any, project: any) {
+
+  const boundarySet = new Set<string>();
+
+  // Initialize result array with the project itself (id and boundary)
+  const result = [
+    {
+      id: project.id,
+      boundary: project.address.boundary
+    },
+    ...project.descendants.map((descendant: any) => ({
+      id: descendant.id,
+      boundary: descendant.address.boundary
+    }))
+  ];
+
+  // Iterate over the result array to find matching boundaries and populate projectId
+  result.forEach((entry: any) => {
+    const boundary = entry.boundary;
+    boundarySet.add(boundary);
+    
+    // Initialize the boundaryProjectMapping for this boundary if not present
+    if (!request?.body?.boundaryProjectMapping?.[boundary]) {
+      request.body.boundaryProjectMapping[boundary] = { parent: null, projectId: null };
+    }
+    
+    // Update the projectId in the request's boundaryProjectMapping
+    request.body.boundaryProjectMapping[boundary].projectId = entry.id;
+  });
+
+  return boundarySet;
+}
+
 
 
 
@@ -388,5 +423,6 @@ export {
   callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
   getBoundariesFromCampaignRequest,
-  projectSearchWithBoundaryCodes
+  fetchProjectsWithParentRootProjectId,
+  getBoundaryProjectMappingFromParentCampaign
 }

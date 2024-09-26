@@ -21,7 +21,7 @@ import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
-import { getBoundariesFromCampaignRequest, getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
+import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 
 
 
@@ -1048,10 +1048,9 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             }
         }
         if (request.body?.parentCampaign) {
-                 if(request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName)
-                    {
-                        throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent"); 
-                    } 
+            if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR", "Campaign name should be same as that of parent");
+            }
         }
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)
@@ -1188,7 +1187,6 @@ async function validateChangeDatesRequest(request: any) {
 
 async function validateCampaignBody(request: any, CampaignDetails: any, actionInUrl: any) {
     const { hierarchyType, action, tenantId, resources, projectType } = CampaignDetails;
-    var boundaries = await getBoundariesFromCampaignRequest(request);
     if (action == "changeDates") {
         await validateChangeDatesRequest(request);
     }
@@ -1203,7 +1201,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         }
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
-        await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
+        await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
     }
     else {

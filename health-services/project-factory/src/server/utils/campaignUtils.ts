@@ -20,7 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
-import { callGenerateWhenChildCampaigngetsCreated, getBoundariesFromCampaignRequest, getBoundariesFromCampaignSearchResponse, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 const _ = require('lodash');
 
 
@@ -594,7 +594,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
         if (!request?.body?.parentCampaign) {
             request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
         }
-        else{
+        else {
             request.body.CampaignDetails.campaignNumber = request.body.parentCampaign?.campaignNumber;
             request.body.CampaignDetails.campaignName = request.body.parentCampaign?.campaignName;
         }
@@ -629,16 +629,15 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
 }
 
 async function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any) {
-    const boundaries = await getBoundariesFromCampaignRequest(request);
     updatedInnerCampaignDetails.resources = request?.body?.CampaignDetails?.resources || []
     updatedInnerCampaignDetails.deliveryRules = request?.body?.CampaignDetails?.deliveryRules || []
-    updatedInnerCampaignDetails.boundaries = boundaries || []
+    updatedInnerCampaignDetails.boundaries = request?.body?.CampaignDetails?.boundaries || []
 }
 
 
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
-    const boundaries = await getBoundariesFromCampaignRequest(request);
+    const boundaries = request?.body?.boundariesCombined
     const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
     callGenerateIfBoundariesOrCampaignTypeDiffer(request);
     if (existingCampaignDetails) {
@@ -732,15 +731,15 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
     }
 }
 
-function removeBoundariesFromRequest(request: any) {
-    const boundaries = getBoundariesFromCampaignRequest(request);
-    if (boundaries && Array.isArray(boundaries) && boundaries?.length > 0) {
-        request.body.CampaignDetails.boundaries = boundaries?.filter((boundary: any) => !boundary?.insertedAfter)
-    }
-}
+// function removeBoundariesFromRequest(request: any) {
+//     const boundaries = getBoundariesFromCampaignRequest(request);
+//     if (boundaries && Array.isArray(boundaries) && boundaries?.length > 0) {
+//         request.body.CampaignDetails.boundaries = boundaries?.filter((boundary: any) => !boundary?.insertedAfter)
+//     }
+// }
 
 async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
-    removeBoundariesFromRequest(request);
+    // removeBoundariesFromRequest(request);
     if (actionInUrl == "create") {
         await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
@@ -761,7 +760,7 @@ async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl:
     if (request?.body?.CampaignDetails?.resources && Array.isArray(request?.body?.CampaignDetails?.resources) && request?.body?.CampaignDetails?.resources?.length > 0 && request?.body?.CampaignDetails?.action == "create") {
         createResourceDetailsIds = getCreateResourceIds(request?.body?.CampaignDetails?.resources);
     }
-    removeBoundariesFromRequest(request);
+    // removeBoundariesFromRequest(request);
     if (actionInUrl == "create") {
         await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
@@ -1173,10 +1172,10 @@ async function processBoundary(boundaryResponse: any, boundaries: any, includeAl
 }
 
 async function addBoundaries(request: any, boundaryResponse: any, boundaryChildren: any) {
-    var boundaries = await getBoundariesFromCampaignRequest(request);
+    var boundaries = request?.body?.boundariesCombined
     var boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code));
     await processBoundary(boundaryResponse, boundaries, boundaryChildren[boundaryResponse?.code], boundaryCodes, boundaryChildren);
-    request.body.CampaignDetails.boundaries = boundaries
+    request.body.boundariesCombined = boundaries
 }
 
 async function addBoundariesForData(request: any, CampaignDetails: any) {
@@ -1260,7 +1259,7 @@ async function reorderBoundariesOfDataAndValidate(request: any, localizationMap?
 
 async function reorderBoundaries(request: any, localizationMap?: any) {
     // var { boundaries } = request?.body?.CampaignDetails;
-    var boundaries = await getBoundariesFromCampaignRequest(request);
+    var boundaries = request?.body?.boundariesCombined
     const rootBoundary = getRootBoundaryCode(boundaries)
     request.body.boundaryProjectMapping = {}
     if (rootBoundary) {
@@ -1295,11 +1294,10 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
         throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "There is no root boundary for this campaign.");
     }
     logger.info("Boundaries for campaign creation in received")
-    logger.debug("Boundaries after addition " + getFormattedStringForDebug(request?.body?.CampaignDetails?.boundaries));
-    const boundariesFromCampaign = await getBoundariesFromCampaignRequest(request);
-    reorderBoundariesWithParentFirst(boundariesFromCampaign, request?.body?.boundaryProjectMapping)
+    logger.debug("Boundaries after addition " + getFormattedStringForDebug(request?.body?.boundariesCombined));
+    reorderBoundariesWithParentFirst(request?.body?.boundariesCombined, request?.body?.boundaryProjectMapping)
     logger.info("Reordered the Boundaries for mapping");
-    logger.debug("Reordered Boundaries " + getFormattedStringForDebug(request?.body?.CampaignDetails?.boundaries));
+    logger.debug("Reordered Boundaries " + getFormattedStringForDebug(request?.body?.boundariesCombined));
 }
 
 function convertToProjectsArray(Projects: any, currentArray: any = []) {
@@ -1396,8 +1394,8 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
     await persistTrack(request.body.CampaignDetails.id, processTrackTypes.targetAndDeliveryRulesCreation, processTrackStatuses.inprogress);
     try {
         logger.info("Create Projects started for the given Campaign")
-        var { tenantId, projectType, boundaries, projectId } = request?.body?.CampaignDetails;
-        // var boundaries = await getBoundariesFromCampaignRequest(request);
+        var { tenantId, projectType, projectId } = request?.body?.CampaignDetails;
+        var boundaries = request?.body?.boundariesCombined;
         if (boundaries && projectType && !projectId) {
             const projectTypeResponse = await getMDMSV1Data({}, 'HCM-PROJECT-TYPES', "projectTypes", tenantId);
             var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails, projectTypeResponse?.filter((types: any) => types?.code == projectType)?.[0]);
@@ -1406,29 +1404,47 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
                 Projects
             }
             await reorderBoundaries(request, localizationMap)
-            // make search to project with root project id 
+            let boundariesAlreadyWithProjects: any;
+            if (request?.body?.parentCampaign) {
+                // make search to project with root project id 
+                const projectSearchResponse = await fetchProjectsWithParentRootProjectId(request)
+                boundariesAlreadyWithProjects = getBoundaryProjectMappingFromParentCampaign(request, projectSearchResponse?.Project?.[0])
+            }
+
             // make a mapping of bcodes and project id 
 
             for (const boundary of boundaries) {
-                Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
-                if (request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent) {
-                    const parent = request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent
-                    await confirmProjectParentCreation(request, request?.body?.boundaryProjectMapping?.[parent]?.projectId)
-                    Projects[0].parent = request?.body?.boundaryProjectMapping?.[parent]?.projectId
-                }
-                else {
-                    Projects[0].parent = null
-                }
-                Projects[0].referenceID = request?.body?.CampaignDetails?.id
-                Projects[0].targets = [
-                    {
-                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
-                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code],
-                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]
+                const boundaryCode = boundary?.code;
+                // Only proceed if the boundary code is not already mapped to an existing project
+                if (!boundariesAlreadyWithProjects.has(boundaryCode)) {
+                    // Set the address for the project
+                    Projects[0].address = {
+                        tenantId: tenantId,
+                        boundary: boundaryCode,
+                        boundaryType: boundary?.type
+                    };
+
+                    // Handle parent project assignment if present in boundaryProjectMapping
+                    const parent = request?.body?.boundaryProjectMapping?.[boundaryCode]?.parent;
+                    const parentProjectId = request?.body?.boundaryProjectMapping?.[parent]?.projectId;
+
+                    if (parent && parentProjectId) {
+                        await confirmProjectParentCreation(request, parentProjectId);
+                        Projects[0].parent = parentProjectId;
+                    } else {
+                        Projects[0].parent = null;
                     }
-                ]
-                if (!request?.body?.boundaryProjectMapping?.[boundary?.code]?.projectId) {
-                    await projectCreate(projectCreateBody, request)
+
+                    // Set the reference ID and project targets
+                    Projects[0].referenceID = request?.body?.CampaignDetails?.id;
+                    Projects[0].targets = [
+                        {
+                            beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                            totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode],
+                            targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode]
+                        }
+                    ];
+                    await projectCreate(projectCreateBody, request);
                 }
             }
         }
