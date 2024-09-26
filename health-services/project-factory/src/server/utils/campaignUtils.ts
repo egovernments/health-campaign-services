@@ -628,7 +628,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     delete request.body.CampaignDetails.campaignDetails
 }
 
-async function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any) {
+function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any) {
     updatedInnerCampaignDetails.resources = request?.body?.CampaignDetails?.resources || []
     updatedInnerCampaignDetails.deliveryRules = request?.body?.CampaignDetails?.deliveryRules || []
     updatedInnerCampaignDetails.boundaries = request?.body?.CampaignDetails?.boundaries || []
@@ -647,7 +647,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     }
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     var updatedInnerCampaignDetails = {}
-    await enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
     request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
     request.body.CampaignDetails.status = action == "changeDates" ? request.body.CampaignDetails.status : (action == "create" ? campaignStatuses.started : campaignStatuses.drafted);
@@ -721,7 +721,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         requestBody.CampaignDetails = request?.body?.CampaignDetails
         requestBody.parentCampaign = request?.body?.parentCampaign;
         var updatedInnerCampaignDetails = {}
-        await enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+        enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
         requestBody.CampaignDetails = request?.body?.CampaignDetails
         requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
         // requestBody.localizationMap = localizationMap
