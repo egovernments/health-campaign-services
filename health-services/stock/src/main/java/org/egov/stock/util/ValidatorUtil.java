@@ -274,9 +274,6 @@ public class ValidatorUtil {
 				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
 					populateErrorForStock(stock, senderId, errorDetailsMap);
 				}
-
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId))
-					populateErrorForStock(stock, receiverId, errorDetailsMap);
 			} else {
 				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 			}
