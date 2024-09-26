@@ -74,7 +74,7 @@ public class ServiceConstants {
     public static final String INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE = "Inactive operation output used. ";
 
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
-    public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
+    public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath";
 
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
     public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
@@ -140,7 +140,9 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
     public static final String MDMS_CODE = "mdms";
-    public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
+    public static final String MDMS_MASTER_NAME_VALIDATION = "MicroplanNamingRegex";
+    public static final String MDMS_HCM_ADMIN_CONSOLE = "HCM-ADMIN-CONSOLE";
+    public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
 
     public static final String JSON_ROOT_PATH = "$.";
 
@@ -181,7 +183,7 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
     public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";
 
-    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
+    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from ProjectFactory service ";
 
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
@@ -191,6 +193,9 @@ public class ServiceConstants {
 
     public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
     public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
+
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE = "HIERARCHY_NOT_FOUND_IN_MDMS";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE = "Hierarchy key not found in mdms";
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
 

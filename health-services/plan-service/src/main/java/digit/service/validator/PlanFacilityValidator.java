@@ -1,8 +1,10 @@
 package digit.service.validator;
 
+import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
 import digit.util.CampaignUtil;
+import digit.util.MdmsUtil;
 import digit.web.models.*;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
@@ -12,16 +14,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import digit.web.models.projectFactory.Boundary;
-
 import static digit.config.ServiceConstants.*;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
 
 @Component
 @Slf4j
@@ -30,68 +25,71 @@ public class PlanFacilityValidator {
     private PlanConfigurationRepository planConfigurationRepository;
     private CampaignUtil campaignUtil;
     private MultiStateInstanceUtil centralInstanceUtil;
+    private MdmsUtil mdmsUtil;
 
-    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository,CampaignUtil campaignUtil,MultiStateInstanceUtil centralInstanceUtil) {
+    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil) {
         this.planFacilityRepository = planFacilityRepository;
         this.planConfigurationRepository = planConfigurationRepository;
-        this.campaignUtil=campaignUtil;
+        this.campaignUtil = campaignUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.mdmsUtil = mdmsUtil;
     }
 
-    public void validatePlanFacilityUpdate(PlanFacilityRequest body)
-    {
-        String rootTenantId=centralInstanceUtil.getStateLevelTenant(body.getPlanFacility().getTenantId());
-        List<PlanConfiguration> planConfigurations = searchPlanConfigId(body.getPlanFacility().getPlanConfigurationId(),rootTenantId);
-        if(planConfigurations.isEmpty())
-        {
-            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE,INVALID_PLAN_CONFIG_ID_MESSAGE);
-        }
-
+    public void validatePlanFacilityUpdate(PlanFacilityRequest planFacilityRequest) {
         //validate plan facility existence
-        validatePlanFacilityExistence(body);
+        validatePlanFacilityExistence(planFacilityRequest);
 
+        String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
+        List<PlanConfiguration> planConfigurations = searchPlanConfigId(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
+        if (planConfigurations == null || planConfigurations.isEmpty()) {
+            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
+        }
         //validate service boundaries and residing boundaries with campaign id
-        validateCampaignDetails(planConfigurations.get(0).getCampaignId(),rootTenantId,body);
+        validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, planFacilityRequest);
     }
 
     /**
      * This method validates campaign id and service boundaries against project factory
      *
-     * @param campaignId    the campaign id corresponding to the plan config id provided in the request
-     * @param rootTenantId  the tenant id provided in the request
-     * @param body the plan facility request provided
+     * @param campaignId          the campaign id corresponding to the plan config id provided in the request
+     * @param rootTenantId        the tenant id provided in the request
+     * @param planFacilityRequest the plan facility request provided
      */
-    private void validateCampaignDetails(String campaignId,String rootTenantId, PlanFacilityRequest body)
-    {
-        PlanFacility planFacility=body.getPlanFacility();
-        CampaignResponse campaignResponse=campaignUtil.fetchCampaignData(body.getRequestInfo(),campaignId,rootTenantId);
+    private void validateCampaignDetails(String campaignId, String rootTenantId, PlanFacilityRequest planFacilityRequest) {
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+        Object mdmsData = mdmsUtil.fetchMdmsData(planFacilityRequest.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(planFacilityRequest.getRequestInfo(), campaignId, rootTenantId);
 
         // Validate if campaign id exists
         validateCampaignId(campaignResponse);
 
+        // validate hierarchy type for campaign
+        String lowestHierarchy = validateHierarchyType(campaignResponse, mdmsData);
+
+        // Collect all boundary code for the campaign
+        CampaignDetail campaignDetail = campaignResponse.getCampaignDetails().get(0);
+        Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
+                .filter(boundary -> lowestHierarchy.equals(boundary.getType()))
+                .map(Boundary::getCode)
+                .collect(Collectors.toSet());
+
         //validate service boundaries
-        validateServiceBoundaries(campaignResponse.getCampaignDetails().get(0),planFacility);
+        validateServiceBoundaries(boundaryCodes, planFacility);
 
         //validate residing boundaries
-        validateResidingBoundaries(campaignResponse.getCampaignDetails().get(0),planFacility);
-        
+        validateResidingBoundaries(boundaryCodes, planFacility);
+
     }
 
     /**
      * This method validates if residing boundaries exist in campaign details
      *
-     * @param campaignDetail the campaign details for the corresponding campaign id
+     * @param boundaryCodes
      * @param planFacility
      */
-    private void validateResidingBoundaries(CampaignDetail campaignDetail, PlanFacility planFacility)
-    {
-        // Collect all boundary code for the campaign
-        Set<String> boundaryCode = campaignDetail.getBoundaries().stream()
-                .map(Boundary::getCode)
-                .collect(Collectors.toSet());
-
-        String residingBoundary=planFacility.getResidingBoundary();
-        if (residingBoundary != null && !boundaryCode.contains(residingBoundary)) {
+    private void validateResidingBoundaries(Set<String> boundaryCodes, PlanFacility planFacility) {
+        String residingBoundary = planFacility.getResidingBoundary();
+        if (residingBoundary != null && !boundaryCodes.contains(residingBoundary)) {
             throw new CustomException(INVALID_RESIDING_BOUNDARY_CODE, INVALID_RESIDING_BOUNDARY_MESSAGE);
         }
     }
@@ -99,22 +97,43 @@ public class PlanFacilityValidator {
     /**
      * This method validates if service boundaries exist in campaign details
      *
-     * @param campaignDetail the campaign details for the corresponding campaign id
+     * @param boundaryCodes
      * @param planFacility
      */
-    private void validateServiceBoundaries(CampaignDetail campaignDetail, PlanFacility planFacility)
-    {
-        // Collect all boundary code for the campaign
-        Set<String> boundaryCode = campaignDetail.getBoundaries().stream()
-                .map(Boundary::getCode)
-                .collect(Collectors.toSet());
-
+    private void validateServiceBoundaries(Set<String> boundaryCodes, PlanFacility planFacility) {
         planFacility.getServiceBoundaries().stream()
                 .forEach(service -> {
-                    if (!boundaryCode.contains(service)) {
+                    if (!boundaryCodes.contains(service)) {
                         throw new CustomException(INVALID_SERVICE_BOUNDARY_CODE, INVALID_SERVICE_BOUNDARY_MESSAGE);
                     }
                 });
+    }
+
+    /**
+     * This method validates if the hierarchy type provided in the request exists
+     *
+     * @param campaignResponse
+     * @param mdmsData
+     */
+    private String validateHierarchyType(CampaignResponse campaignResponse, Object mdmsData) {
+        String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
+        final String jsonPathForHierarchy = "$.HCM-ADMIN-CONSOLE.hierarchyConfig[*]";
+
+        List<Map<String, Object>> hierarchyConfigList = null;
+        System.out.println("Jsonpath for hierarchy config -> " + jsonPathForHierarchy);
+        try {
+            hierarchyConfigList = JsonPath.read(mdmsData, jsonPathForHierarchy);
+        } catch (Exception e) {
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        for (Map<String, Object> hierarchyConfig : hierarchyConfigList) {
+            if (hierarchyType.equals(hierarchyConfig.get("hierarchy"))) {
+                return (String) hierarchyConfig.get("lowestHierarchy");
+            }
+        }
+        // Throw exception if no matching hierarchy is found
+        throw new CustomException(HIERARCHY_NOT_FOUND_IN_MDMS_CODE, HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE);
     }
 
     /**
@@ -132,12 +151,12 @@ public class PlanFacilityValidator {
     /**
      * This method validates if the plan facility id provided in the update request exists
      *
-     * @param body
+     * @param planFacilityRequest
      */
-    private void validatePlanFacilityExistence(PlanFacilityRequest body) {
+    private void validatePlanFacilityExistence(PlanFacilityRequest planFacilityRequest) {
         // If plan facility id provided is invalid, throw an exception
         if (CollectionUtils.isEmpty(planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
-                .ids(Collections.singleton(body.getPlanFacility().getId()))
+                .ids(Collections.singleton(planFacilityRequest.getPlanFacility().getId()))
                 .build()))) {
             throw new CustomException(INVALID_PLAN_FACILITY_ID_CODE, INVALID_PLAN_FACILITY_ID_MESSAGE);
         }

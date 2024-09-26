@@ -38,11 +38,11 @@ public class MdmsUtil {
         StringBuilder uri = new StringBuilder();
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId);
-        Object mdmsResponseMap  = new HashMap<>();
+        Object mdmsResponseMap = new HashMap<>();
         MdmsResponse mdmsResponse = new MdmsResponse();
         try {
-        	mdmsResponseMap  = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
-            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponse.class);
+            mdmsResponseMap = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
+            mdmsResponse = mapper.convertValue(mdmsResponseMap, MdmsResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
@@ -61,6 +61,7 @@ public class MdmsUtil {
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(assumptionModuleDetail);
+        moduleDetails.add(getHCMAdminConsoleModuleDetail());
 
         MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId).build();
 
@@ -89,4 +90,15 @@ public class MdmsUtil {
         return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }
 
+    /**
+     * This method get HCM-Admin-Console module details
+     */
+    private ModuleDetail getHCMAdminConsoleModuleDetail() {
+        List<MasterDetail> hcmAdminConsoleMasterDetails = new ArrayList<>();
+
+        MasterDetail hierarchyConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_HIERARCHY_CONFIG).build();
+        hcmAdminConsoleMasterDetails.add(hierarchyConfigMasterDetail);
+
+        return ModuleDetail.builder().masterDetails(hcmAdminConsoleMasterDetails).moduleName(MDMS_HCM_ADMIN_CONSOLE).build();
+    }
 }
