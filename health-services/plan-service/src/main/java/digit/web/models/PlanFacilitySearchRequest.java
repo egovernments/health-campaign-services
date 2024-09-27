@@ -10,7 +10,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * PlanSearchRequest
+ * PlanFacilitySearchRequest
  */
 @Validated
 @Data
@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @Builder
 public class PlanFacilitySearchRequest {
+
     @JsonProperty("RequestInfo")
     @Valid
     private RequestInfo requestInfo = null;
@@ -25,6 +26,5 @@ public class PlanFacilitySearchRequest {
     @JsonProperty("PlanFacilitySearchCriteria")
     @Valid
     private PlanFacilitySearchCriteria planFacilitySearchCriteria = null;
-
 
 }

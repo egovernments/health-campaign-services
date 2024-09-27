@@ -18,13 +18,13 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @Builder
 public class PlanFacilityRequest {
+
     @JsonProperty("RequestInfo")
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("PlanFacility")
     @Valid
-    private PlanFacility planFacility = null;
-
+    private PlanFacility planFacility;
 
 }

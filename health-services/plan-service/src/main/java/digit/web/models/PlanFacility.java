@@ -52,11 +52,10 @@ public class PlanFacility {
     private Object additionalDetails = null;
 
     @JsonProperty("active")
-    private Boolean active = null;
+    private Boolean active = true;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
-
 
     public PlanFacility addServiceBoundariesItem(String serviceBoundariesItem) {
         if (this.serviceBoundaries == null) {

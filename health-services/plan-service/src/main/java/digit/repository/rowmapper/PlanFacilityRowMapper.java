@@ -10,7 +10,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
-
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,7 +18,7 @@ import java.util.*;
 @Component
 public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacility>> {
 
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     public PlanFacilityRowMapper(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -28,11 +27,11 @@ public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacili
     @Override
     public List<PlanFacility> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, PlanFacility> planFacilityMap = new LinkedHashMap<>();
-        while(rs.next()){
+        while (rs.next()) {
             String planFacilityId = rs.getString("plan_facility_id");
 
             PlanFacility planFacilityEntry = planFacilityMap.get(planFacilityId);
-            if(ObjectUtils.isEmpty(planFacilityEntry)){
+            if (planFacilityEntry == null || ObjectUtils.isEmpty(planFacilityEntry)) {
                 planFacilityEntry = new PlanFacility();
 
                 // Prepare audit details
@@ -50,7 +49,7 @@ public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacili
                 planFacilityEntry.setFacilityId(rs.getString("plan_facility_facility_id"));
                 planFacilityEntry.setResidingBoundary(rs.getString("plan_facility_residing_boundary"));
                 String serviceBoundaries = rs.getString("plan_facility_service_boundaries");
-                planFacilityEntry.setServiceBoundaries(ObjectUtils.isEmpty(serviceBoundaries) ? new ArrayList<>() : Arrays.asList(rs.getString("plan_facility_service_boundaries").split(",")));
+                planFacilityEntry.setServiceBoundaries(ObjectUtils.isEmpty(serviceBoundaries) ? new ArrayList<>() : Arrays.asList(serviceBoundaries.split(",")));
                 planFacilityEntry.setAdditionalDetails(getAdditionalDetail((PGobject) rs.getObject("plan_facility_additional_details")));
                 planFacilityEntry.setAuditDetails(auditDetails);
                 planFacilityEntry.setActive(rs.getBoolean("plan_facility_active"));
@@ -61,15 +60,14 @@ public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacili
         return new ArrayList<>(planFacilityMap.values());
     }
 
-    private JsonNode getAdditionalDetail(PGobject pGobject){
+    private JsonNode getAdditionalDetail(PGobject pGobject) {
         JsonNode additionalDetail = null;
 
         try {
-            if(!ObjectUtils.isEmpty(pGobject)){
+            if (!ObjectUtils.isEmpty(pGobject)) {
                 additionalDetail = objectMapper.readTree(pGobject.getValue());
             }
-        }
-        catch (IOException e){
+        } catch (IOException e) {
             throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
         }
 

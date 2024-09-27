@@ -26,6 +26,7 @@ public class PlanFacilitySearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("planConfigurationId")
+    @NotNull
     private String planConfigurationId = null;
 
     @JsonProperty("residingBoundaries")
@@ -36,4 +37,5 @@ public class PlanFacilitySearchCriteria {
 
     @JsonProperty("limit")
     private Integer limit = null;
+
 }

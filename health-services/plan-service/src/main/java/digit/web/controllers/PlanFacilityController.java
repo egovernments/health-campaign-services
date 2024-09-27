@@ -18,8 +18,13 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @Controller
 @RequestMapping("plan")
 public class PlanFacilityController {
-    @Autowired
+
     private PlanFacilityService planFacilityService;
+
+    public PlanFacilityController(PlanFacilityService planFacilityService) {
+        this.planFacilityService = planFacilityService;
+    }
+
     @RequestMapping(value = "/facility/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanFacilityResponse> searchPost(@Valid @RequestBody PlanFacilitySearchRequest body) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(body);

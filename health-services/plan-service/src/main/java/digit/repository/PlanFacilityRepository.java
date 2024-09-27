@@ -5,9 +5,9 @@ import digit.web.models.*;
 import java.util.List;
 
 public interface PlanFacilityRepository {
-    public void create(PlanFacilityRequest planFacilityRequest);
+    public void create(PlanFacilitySearchCriteria planFacilitySearchCriteria);
 
-    public List<PlanFacility> search(PlanFacilitySearchCriteria planSearchCriteria);
+    public List<PlanFacility> search(PlanFacilitySearchCriteria planFacilitySearchCriteria);
 
-    public void update(PlanFacilityRequest planFacilityRequest);
+    public void update(PlanFacilitySearchCriteria planFacilitySearchCriteria);
 }
