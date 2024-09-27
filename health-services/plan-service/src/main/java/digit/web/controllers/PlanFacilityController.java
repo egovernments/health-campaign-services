@@ -2,10 +2,7 @@ package digit.web.controllers;
 
 
 import digit.service.PlanFacilityService;
-import digit.web.models.PlanFacilityResponse;
-import digit.web.models.PlanFacilitySearchRequest;
-import digit.web.models.PlanResponse;
-import digit.web.models.PlanSearchRequest;
+import digit.web.models.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,5 +26,17 @@ public class PlanFacilityController {
     public ResponseEntity<PlanFacilityResponse> searchPost(@Valid @RequestBody PlanFacilitySearchRequest body) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(body);
         return ResponseEntity.status(HttpStatus.OK).body(planFacilityResponse);
+    }
+
+    /**
+     * Request handler for serving plan facility update requests
+     *
+     * @param planFacilityRequest
+     * @return
+     */
+    @RequestMapping(value = "/facility/update", method = RequestMethod.POST)
+    public ResponseEntity<PlanFacilityResponse> planFacilityUpdatePost(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+        PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
 }

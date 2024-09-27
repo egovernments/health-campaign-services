@@ -9,5 +9,5 @@ public interface PlanFacilityRepository {
 
     public List<PlanFacility> search(PlanFacilitySearchCriteria planFacilitySearchCriteria);
 
-    public void update(PlanFacilitySearchCriteria planFacilitySearchCriteria);
+    void update(PlanFacilityRequest planFacilityRequest);
 }

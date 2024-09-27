@@ -52,9 +52,19 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
         return planFacilities;
     }
 
+    /**
+     * This method emits an event to the persister for it to update the plan facility in the database.
+     *
+     * @param planFacilityRequest
+     */
     @Override
-    public void update(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
-
+    public void update(PlanFacilityRequest planFacilityRequest) {
+        try {
+            producer.push(config.getPlanFacilityUpdateTopic(), planFacilityRequest);
+            log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
+        } catch (Exception e) {
+            log.info("Failed to push message to topic {}. Error: {}", config.getPlanFacilityUpdateTopic(), e.getMessage(), e);
+        }
     }
 
     /**
