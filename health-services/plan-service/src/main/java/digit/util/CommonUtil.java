@@ -56,7 +56,7 @@ public class CommonUtil {
             } else if (node != null) {
                 return objectMapper.convertValue(node, valueType);
             }
-            // In case the node is of other type like object, handle accordingly
+            // In case the node is of other type like object
             return (T) node;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
