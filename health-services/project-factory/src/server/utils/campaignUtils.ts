@@ -1986,12 +1986,17 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
 }
 
 function createIdRequests(employees: any[]): any[] {
-    const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
-    return Array.from({ length: employees.length }, () => ({
-        tenantId: tenantId,
-        idName: config?.values?.idgen?.idNameForUserNameGeneration,
-        idFormat: config?.values?.idgen?.formatForUserName
-    }));
+    if(employees && Array.isArray(employees) && employees.length > 0){
+        const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
+        return Array.from({ length: employees.length }, () => ({
+            tenantId: tenantId,
+            idName: config?.values?.idgen?.idNameForUserNameGeneration,
+            idFormat: config?.values?.idgen?.formatForUserName
+        }));
+    }
+    else{
+        return [];
+    }
 }
 
 async function createUniqueUserNameViaIdGen(request: any) {
