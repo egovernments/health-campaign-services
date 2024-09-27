@@ -402,12 +402,13 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == "facilityWithBoundary" || type == 'userWithBoundary')
+    else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse?.fileStoreIds?.[0]?.url);
-    const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
-    const generatedResourceNew: any = { generatedResource: finalResponse }
-    await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
-    request.body.generatedResource = finalResponse;
+      const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      request.body.generatedResource = finalResponse;
+    }
   }
   catch (error: any) {
     console.log(error)

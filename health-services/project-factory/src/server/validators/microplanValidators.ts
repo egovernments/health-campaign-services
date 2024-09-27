@@ -5,25 +5,27 @@ export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any,
     for (const data of datas) {
         const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
         if (data[phoneColumn]) {
-            var phoneNumber = data[phoneColumn];
-            phoneNumber = phoneNumber.toString()
-            if (phoneNumber.length != 10) {
+            let phoneNumber = data[phoneColumn].toString();
+
+            // Check if the phone number is numeric and has exactly 10 digits
+            const isNumeric = /^\d+$/.test(phoneNumber);
+            if (phoneNumber.length !== 10 || !isNumeric) {
                 const row = data["!row#number!"];
                 if (!rowMapping[row]) {
                     rowMapping[row] = [];
                 }
-                rowMapping[row].push("The ‘Contact number’ entered is invalid,it should be of 10 digit, please update and re-upload");
+                rowMapping[row].push("The ‘Contact number’ entered is invalid, it should be a 10-digit number and contain only digits. Please update and re-upload.");
             }
-        }
-        else {
+        } else {
             const row = data["!row#number!"];
             if (!rowMapping[row]) {
                 rowMapping[row] = [];
             }
-            rowMapping[row].push("The ‘Contact number’ is a mandatory field in the file, please update and re-upload");
+            rowMapping[row].push("The ‘Contact number’ is a mandatory field in the file. Please update and re-upload.");
         }
     }
 }
+
 
 export function validateEmailSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Simple email regex pattern
