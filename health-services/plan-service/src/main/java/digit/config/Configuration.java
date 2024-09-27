@@ -44,10 +44,20 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.facility.update.topic}")
+    private String planFacilityUpdateTopic;
+
+    //Pagination
     @Value("${plan.default.offset}")
     private Integer defaultOffset;
 
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Project Factory
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndpoint;
 }

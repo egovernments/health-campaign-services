@@ -42,19 +42,21 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     /**
      * This method emits an event to the persister for it to save the plan in the database.
+     *
      * @param planRequest
      */
     @Override
     public void create(PlanRequest planRequest) {
-		try {
-			producer.push(config.getPlanCreateTopic(), planRequest);
-		} catch (Exception e) {
-			log.info("Pushing message to topic " + config.getPlanCreateTopic() + " failed.", e);
-		}
+        try {
+            producer.push(config.getPlanCreateTopic(), planRequest);
+        } catch (Exception e) {
+            log.info("Pushing message to topic " + config.getPlanCreateTopic() + " failed.", e);
+        }
     }
 
     /**
      * This method searches for plans based on the search criteria.
+     *
      * @param planSearchCriteria
      * @return
      */
@@ -64,9 +66,9 @@ public class PlanRepositoryImpl implements PlanRepository {
         List<String> planIds = queryDatabaseForPlanIds(planSearchCriteria);
 
         // Return empty list back as response if no plan ids are found
-        if(CollectionUtils.isEmpty(planIds)) {
+        if (CollectionUtils.isEmpty(planIds)) {
             log.info("No plan ids found for provided plan search criteria.");
-        	return new ArrayList<>();
+            return new ArrayList<>();
         }
 
         // Fetch plans from database based on the acquired ids
@@ -77,19 +79,21 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     /**
      * This method emits an event to the persister for it to update the plan in the database.
+     *
      * @param planRequest
      */
     @Override
-	public void update(PlanRequest planRequest) {
-		try {
-			producer.push(config.getPlanUpdateTopic(), planRequest);
-		} catch (Exception e) {
-			log.info("Pushing message to topic " + config.getPlanUpdateTopic() + " failed.", e);
-		}
-	}
+    public void update(PlanRequest planRequest) {
+        try {
+            producer.push(config.getPlanUpdateTopic(), planRequest);
+        } catch (Exception e) {
+            log.info("Pushing message to topic " + config.getPlanUpdateTopic() + " failed.", e);
+        }
+    }
 
     /**
      * Helper method to query database for plan ids based on the provided search criteria.
+     *
      * @param planSearchCriteria
      * @return
      */
@@ -102,6 +106,7 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     /**
      * Helper method to search for plans based on the provided plan ids.
+     *
      * @param planIds
      * @return
      */
