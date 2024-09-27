@@ -137,13 +137,13 @@ public class PlanValidator {
         }
 
         // If execution plan id is not provided, providing activities is mandatory
-        if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
+        if(ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_MANDATORY_CODE, PLAN_ACTIVITIES_MANDATORY_MESSAGE);
         }
 
         // If execution plan id is provided, providing activities is not allowed
-        if(!ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
+        if(!ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_NOT_ALLOWED_CODE, PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE);
         }

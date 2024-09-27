@@ -20,7 +20,7 @@ public class PlanQueryBuilder {
 
     private static final String PLAN_SEARCH_BASE_QUERY = "SELECT id FROM plan ";
 
-    private static final String PLAN_QUERY = "SELECT plan.id as plan_id, plan.tenant_id as plan_tenant_id, plan.locality as plan_locality, plan.execution_plan_id as plan_execution_plan_id, plan.plan_configuration_id as plan_plan_configuration_id, plan.additional_details as plan_additional_details, plan.created_by as plan_created_by, plan.created_time as plan_created_time, plan.last_modified_by as plan_last_modified_by, plan.last_modified_time as plan_last_modified_time,\n" +
+    private static final String PLAN_QUERY = "SELECT plan.id as plan_id, plan.tenant_id as plan_tenant_id, plan.locality as plan_locality, plan.campaign_id as plan_campaign_id, plan.plan_configuration_id as plan_plan_configuration_id, plan.additional_details as plan_additional_details, plan.created_by as plan_created_by, plan.created_time as plan_created_time, plan.last_modified_by as plan_last_modified_by, plan.last_modified_time as plan_last_modified_time,\n" +
             "\t   plan_activity.id as plan_activity_id, plan_activity.code as plan_activity_code, plan_activity.description as plan_activity_description, plan_activity.planned_start_date as plan_activity_planned_start_date, plan_activity.planned_end_date as plan_activity_planned_end_date, plan_activity.dependencies as plan_activity_dependencies, plan_activity.plan_id as plan_activity_plan_id, plan_activity.created_by as plan_activity_created_by, plan_activity.created_time as plan_activity_created_time, plan_activity.last_modified_by as plan_activity_last_modified_by, plan_activity.last_modified_time as plan_activity_last_modified_time,\n" +
             "\t   plan_activity_condition.id as plan_activity_condition_id, plan_activity_condition.entity as plan_activity_condition_entity, plan_activity_condition.entity_property as plan_activity_condition_entity_property, plan_activity_condition.expression as plan_activity_condition_expression, plan_activity_condition.activity_id as plan_activity_condition_activity_id, plan_activity_condition.is_active as plan_activity_condition_is_active, plan_activity_condition.created_by as plan_activity_condition_created_by, plan_activity_condition.created_time as plan_activity_condition_created_time, plan_activity_condition.last_modified_by as plan_activity_condition_last_modified_by, plan_activity_condition.last_modified_time as plan_activity_condition_last_modified_time,\n" +
             "\t   plan_resource.id as plan_resource_id, plan_resource.resource_type as plan_resource_resource_type, plan_resource.estimated_number as plan_resource_estimated_number, plan_resource.plan_id as plan_resource_plan_id, plan_resource.activity_code as plan_resource_activity_code, plan_resource.created_by as plan_resource_created_by, plan_resource.created_time as plan_resource_created_time, plan_resource.last_modified_by as plan_resource_last_modified_by, plan_resource.last_modified_time as plan_resource_last_modified_time,\n" +
@@ -83,10 +83,10 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getLocality());
         }
 
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getExecutionPlanId())) {
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getCampaignId())) {
             QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" execution_plan_id = ? ");
-            preparedStmtList.add(planSearchCriteria.getExecutionPlanId());
+            builder.append(" campaign_id = ? ");
+            preparedStmtList.add(planSearchCriteria.getCampaignId());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {

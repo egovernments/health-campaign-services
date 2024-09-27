@@ -28,6 +28,9 @@ public class ServiceConstants {
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS ";
 
+    public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
+    public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
+
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS ";
 
@@ -136,6 +139,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
+    public static final String MDMS_CODE = "mdms";
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
 
     public static final String JSON_ROOT_PATH = "$.";
@@ -147,6 +151,8 @@ public class ServiceConstants {
     public static final String FILTER_CODE = "$.*.code";
 
     public static final String FILTER_ID = "$.*.id";
+
+    public static final String FILTER_TO_GET_ALL_IDS = "*.id";
 
     public static final String FILTER_DATA = "$.*.data";
 
@@ -163,10 +169,16 @@ public class ServiceConstants {
     public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
+
+    public static final String MDMS_SCHEMA_VEHICLE_DETAILS = "VehicleDetails";
+
     public static final String BOUNDARY_CODE = "boundaryCode";
+
+    public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
-    public static final String PERCENTAGE_WILDCARD = "%";
+    public static final String VEHICLE_ID_FIELD = "vehicleIds";
 
+    public static final String PERCENTAGE_WILDCARD = "%";
 }

@@ -41,11 +41,11 @@ public class PlanConfiguration {
     @Size(min = 3, max = 128)
     private String name = null;
 
-    @JsonProperty("executionPlanId")
+    @JsonProperty("campaignId")
     @NotNull
     @Size(min = 2, max = 64)
-    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Execution Plan Id must not contain only special characters")
-    private String executionPlanId = null;
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Campaign Id must not contain only special characters")
+    private String campaignId = null;
 
     @JsonProperty("status")
     @NotNull
@@ -77,6 +77,9 @@ public class PlanConfiguration {
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
+
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
     /**
      * The status used in the Plan Configuration
