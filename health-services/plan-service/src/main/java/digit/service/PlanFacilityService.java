@@ -23,22 +23,22 @@ public class PlanFacilityService {
     }
 
     /**
-     * This method processes the requests that come for updating plans facility
+     * Processes requests for updating plan facilities.
      *
-     * @param body
-     * @return The response containing the updated plan facility.
+     * @param planFacilityRequest The PlanFacilityRequest containing the update information.
+     * @return PlanFacilityResponse containing the updated plan facility and response information.
      */
-    public PlanFacilityResponse updatePlanFacility(PlanFacilityRequest body) {
+    public PlanFacilityResponse updatePlanFacility(PlanFacilityRequest planFacilityRequest) {
         //validate plan facility request
-        planFacilityValidator.validatePlanFacilityUpdate(body);
+        planFacilityValidator.validatePlanFacilityUpdate(planFacilityRequest);
         //enrich plan facilty request
-        planFacilityEnricher.enrichPlanFacilityUpdate(body);
+        planFacilityEnricher.enrichPlanFacilityUpdate(planFacilityRequest);
         //delegate update request to repository
-        planFacilityRepository.update(body);
+        planFacilityRepository.update(planFacilityRequest);
         //Build and return response back to controller
         return PlanFacilityResponse.builder()
-                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE)).
-                planFacility(Collections.singletonList(body.getPlanFacility()))
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), Boolean.TRUE)).
+                planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility()))
                 .build();
     }
 }

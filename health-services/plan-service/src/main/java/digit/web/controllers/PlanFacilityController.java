@@ -24,12 +24,12 @@ public class PlanFacilityController {
     /**
      * Request handler for serving plan facility update requests
      *
-     * @param body
+     * @param planFacilityRequest
      * @return
      */
     @RequestMapping(value = "/update", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> planFacilityUpdatePost(@Valid @RequestBody PlanFacilityRequest body) {
-        PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(body);
+    public ResponseEntity<PlanFacilityResponse> planFacilityUpdatePost(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+        PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
 }

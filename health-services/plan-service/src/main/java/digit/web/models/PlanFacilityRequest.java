@@ -10,7 +10,9 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * PlanFacilityRequest
+ * Represents a request object for Plan Facility operations.
+ * This class encapsulates both the request information and the plan facility data.
+ * It is used for creating, updating, or processing plan facilities in the system.
  */
 @Validated
 @Data

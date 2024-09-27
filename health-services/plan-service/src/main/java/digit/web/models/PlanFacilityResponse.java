@@ -14,6 +14,8 @@ import java.util.List;
 
 /**
  * PlanFacilityResponse
+ * This class represents the response structure for plan facility-related operations.
+ * It encapsulates the response information and a list of plan facilities.
  */
 @Validated
 @Data

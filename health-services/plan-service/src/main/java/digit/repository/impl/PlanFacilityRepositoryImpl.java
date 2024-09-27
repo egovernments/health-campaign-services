@@ -26,7 +26,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     private PlanFacilityQueryBuilder planFacilityQueryBuilder;
     private PlanFacilityRowMapper planFacilityRowMapper;
 
-    public PlanFacilityRepositoryImpl(Producer producer, Configuration config,JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper) {
+    public PlanFacilityRepositoryImpl(Producer producer, Configuration config, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper) {
         this.producer = producer;
         this.config = config;
         this.jdbcTemplate = jdbcTemplate;
@@ -38,17 +38,17 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     public List<PlanFacility> search(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         // Fetch plan facility ids from database
         List<String> planFacilityIds = planFacilitySearchCriteria.getIds().stream().toList();
-        if(CollectionUtils.isEmpty(planFacilityIds))
+        if (CollectionUtils.isEmpty(planFacilityIds))
             planFacilityIds = queryDatabaseForPlanFacilityIds(planFacilitySearchCriteria);
 
         // Return empty list back as response if no plan facility ids are found
-        if(CollectionUtils.isEmpty(planFacilityIds)) {
+        if (CollectionUtils.isEmpty(planFacilityIds)) {
             log.info("No planFacility ids found for provided plan facility search criteria.");
             return new ArrayList<>();
         }
 
         // Fetch plans facilities from database based on the acquired ids
-        List<PlanFacility> planFacilities  = searchPlanFacilityByIds(planFacilityIds);
+        List<PlanFacility> planFacilities = searchPlanFacilityByIds(planFacilityIds);
 
         return planFacilities;
     }
@@ -56,25 +56,28 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     private List<String> queryDatabaseForPlanFacilityIds(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planFacilityQueryBuilder.getPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
-        log.info("Plan search query: " + query);
+        log.info("Plan facility search query: " + query);
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
     /**
      * This method emits an event to the persister for it to update the plan facility in the database.
+     *
      * @param planFacilityRequest
      */
     @Override
     public void update(PlanFacilityRequest planFacilityRequest) {
         try {
             producer.push(config.getPlanFacilityUpdateTopic(), planFacilityRequest);
+            log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
         } catch (Exception e) {
-            log.info("Pushing message to topic " + config.getPlanFacilityUpdateTopic() + " failed.", e);
+            log.info("Failed to push message to topic {}. Error: {}", config.getPlanFacilityUpdateTopic(), e.getMessage(), e);
         }
     }
 
     /**
      * Helper method to search for plans facility based on the provided plan ids.
+     *
      * @param planFacilityIds
      * @return
      */

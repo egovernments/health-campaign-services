@@ -12,11 +12,14 @@ public class PlanFacilityEnricher {
     /**
      * Enriches the plan facility update request
      *
-     * @param body
+     * @param planFacilityRequest The PlanFacilityRequest object contains the plan facility to be enriched.
      */
-    public void enrichPlanFacilityUpdate(PlanFacilityRequest body) {
-        PlanFacility planFacility = body.getPlanFacility();
+    public void enrichPlanFacilityUpdate(PlanFacilityRequest planFacilityRequest) {
+        if (planFacilityRequest == null || planFacilityRequest.getPlanFacility() == null) {
+            throw new IllegalArgumentException("PlanFacilityRequest or PlanFacility cannot be null");
+        }
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
         //enrich audit details
-        planFacility.setAuditDetails(prepareAuditDetails(body.getPlanFacility().getAuditDetails(), body.getRequestInfo(), Boolean.FALSE));
+        planFacility.setAuditDetails(prepareAuditDetails(planFacilityRequest.getPlanFacility().getAuditDetails(), planFacilityRequest.getRequestInfo(), Boolean.FALSE));
     }
 }

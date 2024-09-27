@@ -33,7 +33,7 @@ public class CampaignUtil {
      */
     public CampaignResponse fetchCampaignData(RequestInfo requestInfo, String campaignId, String tenantId) {
         StringBuilder uri = new StringBuilder();
-        uri = uri.append(configs.getProjectFactoryHost()).append(configs.getProjectFactorySearchEndPoint());
+        uri = uri.append(configs.getProjectFactoryHost()).append(configs.getProjectFactorySearchEndpoint());
 
         CampaignSearchReq campaignSearchReq = getSearchReq(requestInfo, campaignId, tenantId);
         CampaignResponse campaignResponse = new CampaignResponse();
