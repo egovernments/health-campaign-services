@@ -133,6 +133,11 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String ADDITIONAL_DETAILS_MISSING_CODE = "ADDITIONAL_DETAILS_MISSING";
+    public static final String ADDITIONAL_DETAILS_MISSING_MESSAGE = "Additional details are missing in the plan configuration request.";
+
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
@@ -195,6 +200,8 @@ public class ServiceConstants {
     public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
 
     // JSON path constants for campaign details
+    public static final String JSONPATH_FILTER_PREFIX = "[?(";
+    public static final String JSONPATH_FILTER_SUFFIX = ")]";
     public static final String JSON_PATH_FILTER_CAMPAIGN_TYPE = "@.campaignType";
     public static final String JSON_PATH_FILTER_DISTRIBUTION_PROCESS = "@.DistributionProcess";
     public static final String JSON_PATH_FILTER_REGISTRATION_PROCESS = "@.RegistrationProcess";

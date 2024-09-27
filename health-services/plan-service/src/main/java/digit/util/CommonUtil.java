@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.tracer.model.CustomException;
+import org.postgresql.util.PGobject;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import static digit.config.ServiceConstants.*;
 
 @Component
@@ -45,33 +45,22 @@ public class CommonUtil {
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
      * @return a field to extract from additional details
      */
-    public Object extractFieldsFromAdditionalDetails(Object additionalDetails, String fieldToExtract) {
+    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> valueType) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
-            List<String> listFromAdditionalDetails = new ArrayList<>();
             JsonNode node = rootNode.get(fieldToExtract);
             if (node != null && node.isArray()) {
-                for (JsonNode idNode : node) {
-                    listFromAdditionalDetails.add(idNode.asText());
-                }
-                return listFromAdditionalDetails;
+                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructCollectionType(List.class, valueType));
             } else if (node != null) {
-                // Return the value in its original type based on its type
-                if (node.isInt()) {
-                    return node.asInt();
-                } else if (node.isBoolean()) {
-                    return node.asBoolean();
-                } else if (node.isTextual()) {
-                    return node.asText();
-                }
+                return objectMapper.convertValue(node, valueType);
             }
             // In case the node is of other type like object, handle accordingly
-            return node;
+            return (T) node;
         } catch (Exception e) {
-            log.error(e.getMessage());
-            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
         }
     }
 
@@ -95,13 +84,13 @@ public class CommonUtil {
             String isRegistrationAndDistributionTogether
     ) {
 
-        StringBuilder jsonPathFilters = new StringBuilder("[?(");
+        StringBuilder jsonPathFilters = new StringBuilder(JSONPATH_FILTER_PREFIX);
         jsonPathFilters.append(JSON_PATH_FILTER_CAMPAIGN_TYPE).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(campaignType)).append(SINGLE_QUOTE)
                 .append(AND).append(JSON_PATH_FILTER_DISTRIBUTION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(distributionProcess)).append(SINGLE_QUOTE)
                 .append(AND).append(JSON_PATH_FILTER_REGISTRATION_PROCESS).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(registrationProcess)).append(SINGLE_QUOTE)
                 .append(AND).append(JSON_PATH_FILTER_RESOURCE_DISTRIBUTION_STRATEGY_CODE).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(resourceDistributionStrategyCode)).append(SINGLE_QUOTE)
                 .append(AND).append(JSON_PATH_FILTER_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER).append(EQUALS).append(SINGLE_QUOTE).append(StringEscapeUtils.escapeJson(isRegistrationAndDistributionTogether)).append(SINGLE_QUOTE)
-                .append(")]");
+                .append(JSONPATH_FILTER_SUFFIX);
 
         return JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + jsonPathFilters + FILTER_ALL_ASSUMPTIONS;
     }
