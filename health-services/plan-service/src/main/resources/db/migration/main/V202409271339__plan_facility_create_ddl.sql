@@ -14,5 +14,4 @@ CREATE TABLE plan_facility_linkage (
   last_modified_time bigint,
   CONSTRAINT uk_plan_facility_linkage_id PRIMARY KEY (id),
   FOREIGN KEY (plan_configuration_id) REFERENCES plan_configuration(id)
---  FOREIGN KEY (facility_id) REFERENCES facility(id)
 );
