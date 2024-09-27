@@ -160,6 +160,10 @@ public class PlanEmployeeAssignmentValidator {
         if (StringUtils.isEmpty(searchCriteria.getTenantId())) {
             throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
         }
+
+        if (StringUtils.isEmpty(searchCriteria.getPlanConfigurationId())) {
+            throw new CustomException(PLAN_CONFIG_ID_EMPTY_CODE, PLAN_CONFIG_ID_EMPTY_MESSAGE);
+        }
     }
 
     /**

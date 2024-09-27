@@ -59,6 +59,9 @@ public class ServiceConstants {
     public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
     public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
 
+    public static final String PLAN_CONFIG_ID_EMPTY_CODE = "PLAN_CONFIG_ID_EMPTY";
+    public static final String PLAN_CONFIG_ID_EMPTY_MESSAGE = "Plan config Id cannot be empty, PlanConfigID should be present";
+
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
