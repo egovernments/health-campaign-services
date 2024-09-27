@@ -125,22 +125,4 @@ public class CommonUtil {
         return String.join(", ", stringList);
     }
 
-    /**
-     * This method is used to extract and parse JSON data into a JsonNode object
-     *
-     * @param pGobject postgreSQL specific object
-     * @return returns a JsonNode
-     */
-    public JsonNode getAdditionalDetail(PGobject pGobject) {
-        JsonNode additionalDetail = null;
-
-        try {
-            if (!ObjectUtils.isEmpty(pGobject)) {
-                additionalDetail = objectMapper.readTree(pGobject.getValue());
-            }
-        } catch (IOException e) {
-            throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
-        }
-        return additionalDetail;
-    }
 }

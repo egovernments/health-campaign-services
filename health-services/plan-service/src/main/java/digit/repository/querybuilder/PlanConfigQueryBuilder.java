@@ -4,8 +4,10 @@ import digit.config.Configuration;
 
 import digit.util.QueryUtil;
 import digit.web.models.PlanConfigurationSearchCriteria;
+
 import java.util.LinkedHashSet;
 import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -15,8 +17,11 @@ public class PlanConfigQueryBuilder {
 
     private Configuration config;
 
-    public PlanConfigQueryBuilder(Configuration config) {
+    private QueryUtil queryUtil;
+
+    public PlanConfigQueryBuilder(Configuration config, QueryUtil queryUtil) {
         this.config = config;
+        this.queryUtil = queryUtil;
     }
 
     private static final String PLAN_CONFIG_SEARCH_BASE_QUERY = "SELECT id FROM plan_configuration pc ";
@@ -44,14 +49,14 @@ public class PlanConfigQueryBuilder {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_QUERY);
 
         if (!CollectionUtils.isEmpty(ids)) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" pc.id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" pc.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
         }
 
         addActiveWhereClause(builder, preparedStmtList);
 
-        return QueryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        return queryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     /**
@@ -64,7 +69,7 @@ public class PlanConfigQueryBuilder {
      */
     public String getPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
-        query = QueryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        query = queryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, criteria, preparedStmtList);
 
         return query;
@@ -162,8 +167,7 @@ public class PlanConfigQueryBuilder {
         return paginatedQuery.toString();
     }
 
-    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList)
-    {
+    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList) {
         addClauseIfRequired(preparedStmtList, builder);
         builder.append(" pcf.active = ?");
         preparedStmtList.add(Boolean.TRUE);
