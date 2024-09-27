@@ -43,7 +43,11 @@ public class CommonUtil {
      * Extracts provided field from the additional details object
      *
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @return a field to extract from additional details
+     * @param fieldToExtract the name of the field to be extracted from the additional details
+     * @param valueType the class type to which the extracted field should be converted
+     * @return the value of the specified field, converted to the specified type
+     * @throws CustomException if the field does not exist or cannot be converted to the specified type
+
      */
     public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> valueType) {
         try {
