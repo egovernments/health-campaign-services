@@ -12,11 +12,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
-import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
-
 import org.springframework.util.CollectionUtils;
 
+import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 import org.springframework.util.ObjectUtils;
