@@ -1892,7 +1892,7 @@ async function getTargetBoundariesRelatedToCampaignId(request: any, localization
 
 
 async function getFiltersFromCampaignSearchResponse(request: any, responseFromCampaignSearch: any) {
-    const boundaries = await getBoundariesFromCampaignSearchResponse(request, responseFromCampaignSearch?.CampaignDetails?.[0]?.boundaries);
+    const boundaries = await getBoundariesFromCampaignSearchResponse(request, responseFromCampaignSearch?.CampaignDetails?.[0]);
     const boundariesModified = boundaries?.map((ele: any) => ({ ...ele, boundaryType: ele?.type }));
     if (!boundariesModified) {
         logger.info(`no boundaries found so considering the complete hierarchy`);

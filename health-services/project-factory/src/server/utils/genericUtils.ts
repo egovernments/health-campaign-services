@@ -373,12 +373,12 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-      const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-      const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-      await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
-      if (request?.body?.parentCampaignObject) {
-        const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
-        const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+    if (request?.body?.parentCampaignObject) {
+      const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
+      const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
 
       const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
@@ -386,7 +386,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
       fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
 
-      }
+    }
     if (type === 'boundary') {
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
@@ -394,7 +394,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       logger.info("generating different tabs logic ")
-      const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap,fileUrlResponse?.fileStoreIds?.[0]?.url)
+      const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
@@ -402,12 +402,13 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == "facilityWithBoundary" || type == 'userWithBoundary')
+    else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse?.fileStoreIds?.[0]?.url);
-    const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
-    const generatedResourceNew: any = { generatedResource: finalResponse }
-    await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
-    request.body.generatedResource = finalResponse;
+      const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      request.body.generatedResource = finalResponse;
+    }
   }
   catch (error: any) {
     console.log(error)
@@ -979,7 +980,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }
   else {
-    await generateUserSheet(request, localizationMap, filteredBoundary, userData);
+    await generateUserSheet(request, localizationMap, filteredBoundary, userData,fileUrl);
   }
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: string) {
