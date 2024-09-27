@@ -11,11 +11,14 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+
 import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
 import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
 
 import org.springframework.util.CollectionUtils;
+
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
+
 import org.springframework.util.ObjectUtils;
 
 @Component
@@ -31,6 +34,7 @@ public class EnrichmentService {
      * Enriches the PlanConfigurationRequest for creating a new plan configuration.
      * Enriches the given plan configuration with generated IDs for plan, files, assumptions, operations, and resource mappings,
      * validates user information, and enriches audit details for create operation.
+     *
      * @param request The PlanConfigurationRequest to be enriched.
      * @throws CustomException if user information is missing in the request.
      */
@@ -42,8 +46,7 @@ public class EnrichmentService {
         UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");
 
         // Generate id for files
-        if(!CollectionUtils.isEmpty(planConfiguration.getFiles()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             planConfiguration.getFiles().forEach(file -> {
                 UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
                 enrichActiveForResourceMapping(file, planConfiguration.getResourceMapping());
@@ -51,21 +54,18 @@ public class EnrichmentService {
         }
 
         // Generate id for assumptions
-        if(!CollectionUtils.isEmpty(planConfiguration.getAssumptions()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
             planConfiguration.getAssumptions().forEach(assumption -> UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id"));
         }
 
 
         // Generate id for operations
-        if(!CollectionUtils.isEmpty(planConfiguration.getOperations()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
             planConfiguration.getOperations().forEach(operation -> UUIDEnrichmentUtil.enrichRandomUuid(operation, "id"));
         }
 
         // Generate id for resource mappings
-        if(!CollectionUtils.isEmpty(planConfiguration.getResourceMapping()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
             planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id"));
         }
 
@@ -75,6 +75,7 @@ public class EnrichmentService {
     /**
      * Enriches the PlanConfigurationRequest for updating an existing plan configuration.
      * This method enriches the plan configuration for update, validates user information, and enriches audit details for update operation.
+     *
      * @param request The PlanConfigurationRequest to be enriched.
      * @throws CustomException if user information is missing in the request.
      */
@@ -82,8 +83,7 @@ public class EnrichmentService {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
         // Generate id for Files
-        if(!CollectionUtils.isEmpty(planConfiguration.getFiles()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             planConfiguration.getFiles().forEach(file -> {
                 if (ObjectUtils.isEmpty(file.getId())) {
                     UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
@@ -93,8 +93,7 @@ public class EnrichmentService {
         }
 
         // Generate id for Assumptions
-        if(!CollectionUtils.isEmpty(planConfiguration.getAssumptions()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
             planConfiguration.getAssumptions().forEach(assumption -> {
                 if (ObjectUtils.isEmpty(assumption.getId())) {
                     UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id");
@@ -103,8 +102,7 @@ public class EnrichmentService {
         }
 
         // Generate id for Operations
-        if(!CollectionUtils.isEmpty(planConfiguration.getOperations()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
             planConfiguration.getOperations().forEach(operation -> {
                 if (ObjectUtils.isEmpty(operation.getId())) {
                     UUIDEnrichmentUtil.enrichRandomUuid(operation, "id");
@@ -113,8 +111,7 @@ public class EnrichmentService {
         }
 
         // Generate id for ResourceMappings
-        if(!CollectionUtils.isEmpty(planConfiguration.getResourceMapping()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
             planConfiguration.getResourceMapping().forEach(resourceMapping -> {
                 if (ObjectUtils.isEmpty(resourceMapping.getId())) {
                     UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id");
@@ -128,7 +125,7 @@ public class EnrichmentService {
     /**
      * Sets all corresponding resource mappings to inactive if the given file is inactive.
      *
-     * @param file the file object which may be inactive
+     * @param file             the file object which may be inactive
      * @param resourceMappings the list of resource mappings to update
      */
     public void enrichActiveForResourceMapping(File file, List<ResourceMapping> resourceMappings) {
@@ -147,13 +144,11 @@ public class EnrichmentService {
      *
      * @param request the plan configuration request containing the plan configuration to be enriched
      */
-    public void enrichPlanConfigurationBeforeValidation(PlanConfigurationRequest request)
-    {
+    public void enrichPlanConfigurationBeforeValidation(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
         // For Files, Operations, Assumptions and Resource Mappings override active to be True
-        if(!CollectionUtils.isEmpty(planConfiguration.getFiles()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             planConfiguration.getFiles().forEach(file -> {
                 if (ObjectUtils.isEmpty(file.getId())) {
                     file.setActive(Boolean.TRUE);
@@ -161,8 +156,7 @@ public class EnrichmentService {
             });
         }
 
-        if(!CollectionUtils.isEmpty(planConfiguration.getOperations()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
             planConfiguration.getOperations().forEach(operation -> {
                 if (ObjectUtils.isEmpty(operation.getId())) {
                     operation.setActive(Boolean.TRUE);
@@ -170,8 +164,7 @@ public class EnrichmentService {
             });
         }
 
-        if(!CollectionUtils.isEmpty(planConfiguration.getAssumptions()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
             planConfiguration.getAssumptions().forEach(assumption -> {
                 if (ObjectUtils.isEmpty(assumption.getId())) {
                     assumption.setActive(Boolean.TRUE);
@@ -179,8 +172,7 @@ public class EnrichmentService {
             });
         }
 
-        if(!CollectionUtils.isEmpty(planConfiguration.getResourceMapping()))
-        {
+        if (!CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
             planConfiguration.getResourceMapping().forEach(resourceMapping -> {
                 if (ObjectUtils.isEmpty(resourceMapping.getId())) {
                     resourceMapping.setActive(Boolean.TRUE);
