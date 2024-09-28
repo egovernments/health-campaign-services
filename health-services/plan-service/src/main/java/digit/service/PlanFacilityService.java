@@ -13,10 +13,10 @@ import java.util.Collections;
 @Service
 public class PlanFacilityService {
 
-    private PlanFacilityValidator planFacilityValidator;
-    private ResponseInfoFactory responseInfoFactory;
-    private PlanFacilityEnrichementService planFacilityEnricher;
-    private PlanFacilityRepository planFacilityRepository;
+    private final PlanFacilityValidator planFacilityValidator;
+    private final ResponseInfoFactory responseInfoFactory;
+    private final PlanFacilityEnrichementService planFacilityEnricher;
+    private final PlanFacilityRepository planFacilityRepository;
 
     public PlanFacilityService(PlanFacilityValidator planFacilityValidator, ResponseInfoFactory responseInfoFactory, PlanFacilityEnrichementService planFacilityEnricher, PlanFacilityRepository planFacilityRepository) {
         this.planFacilityValidator = planFacilityValidator;
@@ -27,6 +27,7 @@ public class PlanFacilityService {
 
     /**
      * This method processes the requests that come for creating plans.
+     *
      * @param planFacilityRequest
      * @return
      */
@@ -41,11 +42,7 @@ public class PlanFacilityService {
         planFacilityRepository.create(planFacilityRequest);
 
         // Build and return response back to controller
-        PlanFacilityResponse response = PlanFacilityResponse.builder()
-                .planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility()))
-                .responseInfo(responseInfoFactory
-                        .createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), true))
-                .build();
+        PlanFacilityResponse response = PlanFacilityResponse.builder().planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility())).responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), true)).build();
         return response;
     }
 }

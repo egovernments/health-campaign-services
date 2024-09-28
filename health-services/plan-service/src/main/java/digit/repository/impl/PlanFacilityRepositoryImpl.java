@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanFacilityRepository;
 import digit.web.models.PlanFacilityRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -29,6 +30,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
             producer.push(config.getPlanFacilityCreateTopic(), planFacilityRequest);
         } catch (Exception e) {
             log.info("Pushing message to topic " + config.getPlanFacilityCreateTopic() + " failed.", e);
+            throw new CustomException("KAFKA_PUSH_FAILED", "Failed to push event to Kafka, operation could not be completed.");
         }
     }
 

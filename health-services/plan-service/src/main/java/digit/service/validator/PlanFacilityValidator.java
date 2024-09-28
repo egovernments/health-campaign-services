@@ -65,18 +65,12 @@ public class PlanFacilityValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
 
         List<PlanConfiguration> planConfigurations = searchPlanConfigId(planFacilityRequest.getPlanFacility().getPlanConfigurationId(),rootTenantId);
-        if(planConfigurations.isEmpty())
-        {
-            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE,INVALID_PLAN_CONFIG_ID_MESSAGE);
-        }
 
         // Validate plan configuration existence
         validatePlanConfigurationExistence(planFacilityRequest);
 
         // Validate facility existence
-        validateFacilityExistence(planFacilityRequest.getPlanFacility().getFacilityId(),
-                planFacilityRequest.getPlanFacility().getTenantId(),
-                planFacilityRequest.getRequestInfo());
+        validateFacilityExistence(planFacilityRequest);
 
         //validate service boundaries and residing boundaries with campaign id
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(),rootTenantId,planFacilityRequest);
@@ -137,7 +131,7 @@ public class PlanFacilityValidator {
      */
     private String validateHierarchyType(CampaignResponse campaignResponse, Object mdmsData) {
         String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
-        final String jsonPathForHierarchy = "$.HCM-ADMIN-CONSOLE.hierarchyConfig[*]";
+        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_HCM_ADMIN_CONSOLE + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";;
 
         List<Map<String, Object>> hierarchyConfigList = null;
         System.out.println("Jsonpath for hierarchy config -> " + jsonPathForHierarchy);
@@ -148,8 +142,8 @@ public class PlanFacilityValidator {
         }
 
         for (Map<String, Object> hierarchyConfig : hierarchyConfigList) {
-            if (hierarchyType.equals(hierarchyConfig.get("hierarchy"))) {
-                return (String) hierarchyConfig.get("lowestHierarchy");
+            if (hierarchyType.equals(hierarchyConfig.get(MDMS_MASTER_HIERARCHY))) {
+                return (String) hierarchyConfig.get(MDMS_MASTER_LOWEST_HIERARCHY);
             }
         }
         // Throw exception if no matching hierarchy is found
@@ -202,18 +196,21 @@ public class PlanFacilityValidator {
     /**
      * Validates if the facility with the provided ID exists in the system.
      *
-     * @param facilityId The facility ID to validate.
-     * @param tenantId   The tenant ID.
-     * @param requestInfo The request information for the API call.
+     * @param planFacilityRequest
      */
-    private void validateFacilityExistence(String facilityId, String tenantId, RequestInfo requestInfo) {
+    private void validateFacilityExistence(PlanFacilityRequest planFacilityRequest) {
+        String facilityId = planFacilityRequest.getPlanFacility().getFacilityId();
+        String tenantId = planFacilityRequest.getPlanFacility().getTenantId();
+        RequestInfo requestInfo = planFacilityRequest.getRequestInfo();
+
         FacilityResponse facilityResponse = facilityUtil.fetchFacilityData(requestInfo, facilityId, tenantId);
 
-        // Check if the facility response is null or if the facilities list is null or empty
-        if (facilityResponse == null || facilityResponse.getFacilities() == null || facilityResponse.getFacilities().isEmpty()) {
+        // Use ObjectUtils and CollectionUtils to handle null or empty checks
+        if (ObjectUtils.isEmpty(facilityResponse) || CollectionUtils.isEmpty(facilityResponse.getFacilities())) {
             throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + facilityId + " not found in the system.");
         }
     }
+
 
     /**
      * Validates if the plan configuration ID provided in the request exists.

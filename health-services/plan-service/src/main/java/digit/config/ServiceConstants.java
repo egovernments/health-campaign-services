@@ -146,6 +146,8 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
     public static final String MDMS_HCM_ADMIN_CONSOLE = "HCM-ADMIN-CONSOLE";
     public static final String MDMS_MASTER_HIERARCHY_CONFIG= "hierarchyConfig";
+    public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
+    public static final String MDMS_MASTER_LOWEST_HIERARCHY= "lowestHierarchy";
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE="HIERARCHY_NOT_FOUND_IN_MDMS";
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE="Hierarchy Not Found";
 

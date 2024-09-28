@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @RequestMapping("/plan/facility")
 public class PlanFacilityController {
 
-    private PlanFacilityService planFacilityService;
+    private final PlanFacilityService planFacilityService;
 
     public PlanFacilityController(PlanFacilityService planFacilityService) {
         this.planFacilityService = planFacilityService;
@@ -30,7 +30,7 @@ public class PlanFacilityController {
      * @return
      */
     @RequestMapping(value = "/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> planFacilityCreatePost(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+    public ResponseEntity<PlanFacilityResponse> createPlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.createPlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
