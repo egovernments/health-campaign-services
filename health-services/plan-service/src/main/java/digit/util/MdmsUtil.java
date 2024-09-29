@@ -101,5 +101,4 @@ public class MdmsUtil {
 
         return ModuleDetail.builder().masterDetails(hcmAdminConsoleMasterDetails).moduleName(MDMS_HCM_ADMIN_CONSOLE).build();
     }
-
 }

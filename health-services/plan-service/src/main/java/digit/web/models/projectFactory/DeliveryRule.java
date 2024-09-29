@@ -11,7 +11,6 @@ import java.util.List;
 /**
  * DeliveryRule
  */
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -39,5 +38,4 @@ public class DeliveryRule {
 
     @JsonProperty("deliveryRuleNumber")
     private Integer deliveryRuleNumber;
-
 }

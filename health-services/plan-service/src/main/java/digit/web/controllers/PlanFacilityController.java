@@ -1,6 +1,5 @@
 package digit.web.controllers;
 
-
 import digit.service.PlanFacilityService;
 import digit.web.models.*;
 import jakarta.validation.Valid;
@@ -8,24 +7,32 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
+@Validated
 @Controller
 @RequestMapping("plan")
 public class PlanFacilityController {
 
-    private PlanFacilityService planFacilityService;
+    private final PlanFacilityService planFacilityService;
 
     public PlanFacilityController(PlanFacilityService planFacilityService) {
         this.planFacilityService = planFacilityService;
     }
 
-    @RequestMapping(value = "/facility/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> searchPost(@Valid @RequestBody PlanFacilitySearchRequest body) {
-        PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(body);
-        return ResponseEntity.status(HttpStatus.OK).body(planFacilityResponse);
+    /**
+     * Request handler for serving plan facility create requests
+     *
+     * @param planFacilityRequest
+     * @return
+     */
+    @RequestMapping(value = "/facility/_create", method = RequestMethod.POST)
+    public ResponseEntity<PlanFacilityResponse> createPlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+        PlanFacilityResponse planFacilityResponse = planFacilityService.createPlanFacility(planFacilityRequest);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
 
     /**
@@ -38,5 +45,11 @@ public class PlanFacilityController {
     public ResponseEntity<PlanFacilityResponse> planFacilityUpdatePost(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
+    }
+
+    @RequestMapping(value = "/facility/_search", method = RequestMethod.POST)
+    public ResponseEntity<PlanFacilityResponse> searchPost(@Valid @RequestBody PlanFacilitySearchRequest body) {
+        PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(body);
+        return ResponseEntity.status(HttpStatus.OK).body(planFacilityResponse);
     }
 }

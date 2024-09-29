@@ -8,6 +8,7 @@ import digit.repository.rowmapper.PlanFacilityRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +35,18 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
         this.config = config;
     }
 
+    /**
+     * This method emits an event to the persister for it to save the plan facility linkage in the database.
+     * @param planFacilityRequest
+     */
     @Override
-    public void create(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
-
+    public void create(PlanFacilityRequest planFacilityRequest) {
+        try {
+            producer.push(config.getPlanFacilityCreateTopic(), planFacilityRequest);
+        } catch (Exception e) {
+            log.info("Pushing message to topic " + config.getPlanFacilityCreateTopic() + " failed.", e);
+            throw new CustomException("KAFKA_PUSH_FAILED", "Failed to push event to Kafka, operation could not be completed.");
+        }
     }
 
     /**
@@ -80,5 +90,6 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
         log.debug(preparedStmtList.toString());
         return jdbcTemplate.query(query, planFacilityRowMapper, preparedStmtList.toArray());
     }
+
 
 }

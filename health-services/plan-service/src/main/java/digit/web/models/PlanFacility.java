@@ -52,7 +52,7 @@ public class PlanFacility {
     private Object additionalDetails = null;
 
     @JsonProperty("active")
-    private Boolean active = true;
+    private Boolean active = null;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;

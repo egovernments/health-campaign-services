@@ -182,6 +182,10 @@ public class ServiceConstants {
 
     public static final String MDMS_HCM_ADMIN_CONSOLE = "HCM-ADMIN-CONSOLE";
     public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
+    public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
+    public static final String MDMS_MASTER_LOWEST_HIERARCHY= "lowestHierarchy";
+
+    public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
 
     public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
     public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";

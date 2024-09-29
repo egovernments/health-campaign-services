@@ -2,6 +2,7 @@ package digit.web.models.projectFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.web.models.Pagination;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
