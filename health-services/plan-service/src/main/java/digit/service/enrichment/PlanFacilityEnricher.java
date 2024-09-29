@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class PlanFacilityEnrichementService {
+public class PlanFacilityEnricher {
 
     /**
      * Enriches the plan facility create request

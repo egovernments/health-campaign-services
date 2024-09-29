@@ -1,7 +1,7 @@
 package digit.service;
 
 import digit.repository.PlanFacilityRepository;
-import digit.service.enrichment.PlanFacilityEnrichementService;
+import digit.service.enrichment.PlanFacilityEnricher;
 import digit.service.validator.PlanFacilityValidator;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanFacilityRequest;
@@ -15,10 +15,10 @@ public class PlanFacilityService {
 
     private final PlanFacilityValidator planFacilityValidator;
     private final ResponseInfoFactory responseInfoFactory;
-    private final PlanFacilityEnrichementService planFacilityEnricher;
+    private final PlanFacilityEnricher planFacilityEnricher;
     private final PlanFacilityRepository planFacilityRepository;
 
-    public PlanFacilityService(PlanFacilityValidator planFacilityValidator, ResponseInfoFactory responseInfoFactory, PlanFacilityEnrichementService planFacilityEnricher, PlanFacilityRepository planFacilityRepository) {
+    public PlanFacilityService(PlanFacilityValidator planFacilityValidator, ResponseInfoFactory responseInfoFactory, PlanFacilityEnricher planFacilityEnricher, PlanFacilityRepository planFacilityRepository) {
         this.planFacilityValidator = planFacilityValidator;
         this.responseInfoFactory = responseInfoFactory;
         this.planFacilityEnricher = planFacilityEnricher;

@@ -33,7 +33,7 @@ public class FacilityUtil {
     }
 
     public FacilityResponse fetchFacilityData(RequestInfo requestInfo, String facilityId, String tenantId) {
-        String baseUri = configs.getFacilityHost()+ configs.getFacilityEndPoint();
+        String baseUri = configs.getFacilityHost()+ configs.getFacilitySearchEndPoint();
 
         // Retrieve the limit and offset from the configuration
         int limit = configs.getDefaultLimit();
