@@ -42,14 +42,20 @@ public class PlanFacilityController {
      * @return
      */
     @RequestMapping(value = "/facility/update", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> planFacilityUpdatePost(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+    public ResponseEntity<PlanFacilityResponse> updatePlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
 
+    /**
+     * Request handler for serving plan facility search requests
+     *
+     * @param planFacilityRequest
+     * @return
+     */
     @RequestMapping(value = "/facility/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> searchPost(@Valid @RequestBody PlanFacilitySearchRequest body) {
-        PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(body);
+    public ResponseEntity<PlanFacilityResponse> searchPlanFacility(@Valid @RequestBody PlanFacilitySearchRequest planFacilityRequest) {
+        PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.OK).body(planFacilityResponse);
     }
 }

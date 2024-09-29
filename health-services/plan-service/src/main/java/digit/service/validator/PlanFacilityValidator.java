@@ -5,6 +5,7 @@ import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
 import digit.util.*;
 import digit.web.models.*;
+import digit.web.models.facility.FacilityResponse;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import jakarta.validation.Valid;
@@ -32,6 +33,16 @@ public class PlanFacilityValidator {
     private FacilityUtil facilityUtil;
     private CommonUtil commonUtil;
 
+    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil, CommonUtil commonUtil) {
+        this.planFacilityRepository = planFacilityRepository;
+        this.planConfigurationRepository = planConfigurationRepository;
+        this.campaignUtil = campaignUtil;
+        this.centralInstanceUtil = centralInstanceUtil;
+        this.mdmsUtil = mdmsUtil;
+        this.facilityUtil = facilityUtil;
+        this.commonUtil = commonUtil;
+    }
+
     /**
      * This method validates the Plan Facility Create request.
      * It performs multiple validations such as plan configuration, facility existence,
@@ -54,6 +65,13 @@ public class PlanFacilityValidator {
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(),rootTenantId,planFacilityRequest);
     }
 
+    /**
+     * This method validates the Plan Facility Update request.
+     * It performs multiple validations such as plan facility existence
+     * and campaign-related validations.
+     *
+     * @param planFacilityRequest
+     */
     public void validatePlanFacilityUpdate(PlanFacilityRequest planFacilityRequest) {
         //validate plan facility existence
         validatePlanFacilityExistence(planFacilityRequest);

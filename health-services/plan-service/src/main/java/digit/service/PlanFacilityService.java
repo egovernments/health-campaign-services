@@ -30,10 +30,10 @@ public class PlanFacilityService {
     }
 
     /**
-     * This method processes the requests that come for creating plans.
+     * This method processes the requests that come for creating plan facilities.
      *
-     * @param planFacilityRequest
-     * @return
+     * @param planFacilityRequest The PlanFacilityRequest containing the plan facility details for creation.
+     * @return PlanFacilityResponse containing the created plan facility and response information.
      */
     public PlanFacilityResponse createPlanFacility(PlanFacilityRequest planFacilityRequest) {
         // Validate plan facility create request
