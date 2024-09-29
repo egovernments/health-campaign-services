@@ -130,6 +130,9 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
+    public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "Residing Boundary is Invalid";
+
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
@@ -141,6 +144,12 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_UOM = "Uom";
     public static final String MDMS_CODE = "mdms";
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
+    public static final String MDMS_HCM_ADMIN_CONSOLE = "HCM-ADMIN-CONSOLE";
+    public static final String MDMS_MASTER_HIERARCHY_CONFIG= "hierarchyConfig";
+    public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
+    public static final String MDMS_MASTER_LOWEST_HIERARCHY= "lowestHierarchy";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE="HIERARCHY_NOT_FOUND_IN_MDMS";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE="Hierarchy Not Found";
 
     public static final String JSON_ROOT_PATH = "$.";
 
@@ -179,5 +188,14 @@ public class ServiceConstants {
     public static final String NAME_VALIDATION_DATA = "Data";
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
+
+    public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
+    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from ProjectFactory service ";
+
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String INVALID_SERVICE_BOUNDARY_CODE = "INVALID_SERVICE_BOUNDARY";
+    public static final String INVALID_SERVICE_BOUNDARY_MESSAGE = "The provided service boundary is invalid";
 
 }

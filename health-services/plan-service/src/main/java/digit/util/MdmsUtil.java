@@ -61,6 +61,7 @@ public class MdmsUtil {
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(assumptionModuleDetail);
+        moduleDetails.add(getHCMAdminConsoleModuleDetail());
 
         MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId).build();
 
@@ -89,4 +90,15 @@ public class MdmsUtil {
         return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }
 
+    /**
+     * This method get HCM-Admin-Console module details
+     */
+    private ModuleDetail getHCMAdminConsoleModuleDetail() {
+        List<MasterDetail> hcmAdminConsoleMasterDetails = new ArrayList<>();
+
+        MasterDetail hierarchyConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_HIERARCHY_CONFIG).build();
+        hcmAdminConsoleMasterDetails.add(hierarchyConfigMasterDetail);
+
+        return ModuleDetail.builder().masterDetails(hcmAdminConsoleMasterDetails).moduleName(MDMS_HCM_ADMIN_CONSOLE).build();
+    }
 }
