@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.springframework.stereotype.Component;
-import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
