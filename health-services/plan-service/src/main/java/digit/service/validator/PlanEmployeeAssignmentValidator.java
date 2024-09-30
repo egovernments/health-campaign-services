@@ -16,7 +16,7 @@ import org.egov.common.contract.request.Role;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
+import org.springframework.util.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -178,7 +178,7 @@ public class PlanEmployeeAssignmentValidator {
      */
     private void validateEmployeeAgainstHRMS(EmployeeResponse employeeResponse) {
         if (CollectionUtils.isEmpty(employeeResponse.getEmployees())) {
-            throw new CustomException(NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_CODE, NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_MESSAGE);
+            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
         }
     }
 
@@ -226,25 +226,47 @@ public class PlanEmployeeAssignmentValidator {
         EmployeeResponse employeeResponse = hrmsUtil.fetchHrmsData(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
 
         // Validate if Plan employee assignment exists
-        validatePlanEmployeeAssignment(planEmployeeAssignment);
+        PlanEmployeeAssignment existingPlanEmployeeAssignment = validatePlanEmployeeAssignment(planEmployeeAssignment);
 
-        // Validate if plan config id exists
-        validatePlanConfigId(planConfigurations);
-
-        // Validate if employee exists against HRMS
-        validateEmployeeAgainstHRMS(employeeResponse);
+        // Validates if planConfig id and employee id provided in request is same in the existing record
+        validateRequestAgainstExistingRecord(planEmployeeAssignment, existingPlanEmployeeAssignment);
 
         // Validate campaign id and employee jurisdiction
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
+        // Validate role of employee against HRMS
+        validateRoleAgainstHRMS(planEmployeeAssignment, employeeResponse);
+    }
+
+    /**
+     * This method validates plan config id and employee id provided in the update request is same as in the existing record
+     *
+     * @param planEmployeeAssignment         the plan employee assignment from the update request
+     * @param existingPlanEmployeeAssignment the plan employee assignment existing in the db
+     */
+    private void validateRequestAgainstExistingRecord(PlanEmployeeAssignment planEmployeeAssignment, PlanEmployeeAssignment existingPlanEmployeeAssignment) {
+
+        // Validates plan config id against existing record
+        if (!Objects.equals(planEmployeeAssignment.getPlanConfigurationId(), existingPlanEmployeeAssignment.getPlanConfigurationId())) {
+            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
+        }
+
+        // Validates employee id against existing record
+        if (!Objects.equals(planEmployeeAssignment.getEmployeeId(), existingPlanEmployeeAssignment.getEmployeeId())) {
+            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
+        }
     }
 
     /**
      * This method validates if the plan employee assignment id provided in the update request exists
      *
      * @param planEmployeeAssignment The plan employee assignment details from the request
+     * @return the plan employee assignment from db which is to be updated
      */
-    private void validatePlanEmployeeAssignment(PlanEmployeeAssignment planEmployeeAssignment) {
+    private PlanEmployeeAssignment validatePlanEmployeeAssignment(PlanEmployeeAssignment planEmployeeAssignment) {
+        if (ObjectUtils.isEmpty(planEmployeeAssignment.getId())) {
+            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE, PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE);
+        }
 
         // Validates the existence of plan employee assignment
         List<PlanEmployeeAssignment> planEmployeeAssignments = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
@@ -255,5 +277,7 @@ public class PlanEmployeeAssignmentValidator {
         if (CollectionUtils.isEmpty(planEmployeeAssignments)) {
             throw new CustomException(INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE, INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE);
         }
+
+        return planEmployeeAssignments.get(0);
     }
 }

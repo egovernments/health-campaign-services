@@ -65,9 +65,8 @@ public class ServiceConstants {
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
-    public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_CODE = "NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID";
-    public static final String NO_HRMS_DATA_FOUND_FOR_GIVEN_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id. No hrms data found for provided employee id.";
-
+    public static final String INVALID_EMPLOYEE_ID_CODE = "INVALID_EMPLOYEE_ID";
+    public static final String INVALID_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id.";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
 
@@ -85,6 +84,9 @@ public class ServiceConstants {
 
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
 
     public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
     public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
