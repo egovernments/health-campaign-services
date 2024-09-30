@@ -266,7 +266,6 @@ public class ValidatorUtil {
 		for (Stock stock : validEntities) {
 
 			String senderId = stock.getSenderId();
-			String receiverId = stock.getReceiverId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
 			if (!CollectionUtils.isEmpty(facilityIds)) {
@@ -275,7 +274,7 @@ public class ValidatorUtil {
 					populateErrorForStock(stock, senderId, errorDetailsMap);
 				}
 			} else {
-				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
+				populateErrorForStock(stock, senderId, errorDetailsMap);
 			}
 		}
 	}
