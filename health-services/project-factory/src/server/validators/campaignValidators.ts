@@ -6,7 +6,7 @@ import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, han
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, getRootBoundaryCode } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -21,8 +21,8 @@ import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
+import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validatePhoneNumberSheetWise, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
-
 
 
 
@@ -480,14 +480,14 @@ async function validateCampaignId(request: any) {
         const req: any = replicateRequest(request, searchBody);
         const response = await searchProjectTypeCampaignService(req);
         if (response?.CampaignDetails?.[0]) {
-            const campaign = response?.CampaignDetails?.[0]
-            if (!campaign?.boundaries) {
+            const boundaries = await getBoundariesFromCampaignSearchResponse(request, response?.CampaignDetails?.[0]);
+            if (!boundaries) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
             }
-            if (!Array.isArray(campaign?.boundaries)) {
+            if (!Array.isArray(boundaries)) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Boundaries of campaign with given campaignId is not an array");
             }
-            if (campaign?.boundaries?.length === 0) {
+            if (boundaries?.length === 0) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
             }
         }
@@ -636,20 +636,8 @@ async function validateCampaignBoundary(boundaries: any[], hierarchyType: any, t
     }
 }
 
-function validateRootBoundaryWithParent(request: any) {
-    const CampaignDetails = request?.body?.CampaignDetails
-    const parentCampaign = request?.body?.parentCampaign
-    if (CampaignDetails?.parentId) {
-        const campaignBoundaries = CampaignDetails?.boundaries
-        const parentBoundaries = parentCampaign?.boundaries
-        if (getRootBoundaryCode(campaignBoundaries) !== getRootBoundaryCode(parentBoundaries)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Root boundary code should be same as parent campaign root boundary code");
-        }
-    }
-}
 
 async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyType: any, tenantId: any, request: any): Promise<void> {
-    validateRootBoundaryWithParent(request)
     if (!request?.body?.CampaignDetails?.projectId) {
         if (boundaries) {
             if (!Array.isArray(boundaries)) {
@@ -869,7 +857,7 @@ async function validateCampaignName(request: any, actionInUrl: any) {
         }
         if (request.body?.parentCampaign) {
             if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
-                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR", "Campaign name should be same as that of parent");
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR", "Campaign name should be same as that of parent");
             }
         }
         const req: any = replicateRequest(request, searchBody)
@@ -1006,13 +994,14 @@ async function validateChangeDatesRequest(request: any) {
 }
 
 async function validateCampaignBody(request: any, CampaignDetails: any, actionInUrl: any) {
-    const { hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
+    const { hierarchyType, action, tenantId, resources, projectType } = CampaignDetails;
     if (action == "changeDates") {
         await validateChangeDatesRequest(request);
     }
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
+        validateBoundariesIfParentPresent(request);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -1020,17 +1009,17 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         }
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
-        await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
+        await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
+        validateBoundariesIfParentPresent(request);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
-        validateRootBoundaryWithParent(request)
     }
 }
 
@@ -1241,7 +1230,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
     logger.debug("districts present in user filled sheet (exclude first two tabs): " + getFormattedStringForDebug(tabsFromTargetSheet));
 
     if (tabsFromTargetSheet.length - tabsIndex !== tabsOfDistrict.length) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uplaoded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system `)
+        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uploaded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system `)
     } else {
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab

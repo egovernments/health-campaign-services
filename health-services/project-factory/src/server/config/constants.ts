@@ -34,6 +34,7 @@ export const CONSTANTS: any = {
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR: "Campaign name different from parent Campaign",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
             PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",

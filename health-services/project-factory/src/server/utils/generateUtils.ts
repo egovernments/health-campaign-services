@@ -29,8 +29,9 @@ function isCampaignTypeSame(request: any) {
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+        const boundaries = request?.body?.boundariesCombined
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries) || !isCampaignTypeSame(request)) {
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || !isCampaignTypeSame(request)) {
                 logger.info("Boundaries or Campaign Type  differ, generating new resources");
                 // Apply 2-second timeout after the condition check
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -38,7 +39,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                 const newRequestBody = {
                     RequestInfo: request?.body?.RequestInfo,
                     Filters: {
-                        boundaries: request?.body?.CampaignDetails?.boundaries
+                        boundaries: boundaries
                     }
                 };
 
