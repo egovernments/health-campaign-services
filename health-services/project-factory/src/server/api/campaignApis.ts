@@ -311,7 +311,7 @@ const createBatchRequest = async (request: any, batch: any[], mobileNumberRowNum
 };
 
 async function getUserWithMobileNumbers(request: any, mobileNumbers: any[], mobileNumberRowNumberMapping: any) {
-  logger.info("mobileNumbers to search: " + JSON.stringify(mobileNumbers));
+  logger.debug("mobileNumbers to search: " + getFormattedStringForDebug(mobileNumbers));
   const BATCH_SIZE = 50;
   let allResults: any[] = [];
 
@@ -344,7 +344,7 @@ async function matchUserValidation(createdData: any[], request: any) {
     acc[curr.user.mobileNumber] = curr["!row#number!"];
     return acc;
   }, {});
-  logger.info("mobileNumberRowNumberMapping : " + JSON.stringify(mobileNumberRowNumberMapping));
+  logger.debug("mobileNumberRowNumberMapping : " + getFormattedStringForDebug(mobileNumberRowNumberMapping));
   const mobileNumberResponse = await getUserWithMobileNumbers(request, mobileNumbers, mobileNumberRowNumberMapping);
   for (const key in mobileNumberRowNumberMapping) {
     if (mobileNumberResponse.has(key) && !config.values.notCreateUserIfAlreadyThere) {
@@ -856,8 +856,8 @@ async function handleResouceDetailsError(request: any, error: any) {
 
     const activities = request?.body?.Activities;
     const chunkPromises = [];
-    for (let i = 0; i < activities.length; i += 50) {
-      const chunk = activities.slice(i, Math.min(i + 50, activities.length));
+    for (let i = 0; i < activities.length; i += 10) {
+      const chunk = activities.slice(i, Math.min(i + 10, activities.length));
       const activityObject: any = { Activities: chunk };
       chunkPromises.push(produceModifiedMessages(activityObject, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC));
     }
