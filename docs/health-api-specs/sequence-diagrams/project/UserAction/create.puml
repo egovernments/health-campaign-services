@@ -1,0 +1,116 @@
+@startuml
+title Project - User Action - Create
+!theme vibrant
+participant Client as c
+participant ProjectService as s
+participant RedisCache as rc
+participant IDGenService as idgen
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+activate s
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+        Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+s -> s: Request validation successful
+alt record already exists
+    alt record found in cache
+      s -> rc: Check using clientReferenceId/serverGeneratedId
+      activate rc
+      rc -> s: 1 row
+      deactivate rc
+      s -> c: HttpStatus: 400 with appropriate error code
+      note left
+          Error Code: RECORD_ALREADY_EXISTS
+      end note
+    end
+    s -> rc: Check using clientReferenceId/serverGeneratedId
+    activate rc
+    rc -> s: 0 rows
+    deactivate rc
+    s -> db: Check if record already exists
+    activate db
+    db -> s: 1 row
+    deactivate db
+    s -> rc: Put data in cache using clientReferenceId/serverGeneratedId
+    activate rc
+    deactivate rc
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+        Error Code: RECORD_ALREADY_EXISTS
+    end note
+end
+alt projectId invalid
+    s -> db: Check if projectId exists
+    activate db
+    db -> s: 0 rows
+    deactivate db
+     s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: BAD_REQUEST
+    end note
+end
+s -> db: Check if projectId exists
+activate db
+db -> s: 1 row
+deactivate db
+alt projectBeneficiaryId invalid
+    s -> db: Check if projectBeneficiaryId exists
+    activate db
+    db -> s: 0 rows
+    deactivate db
+   s -> c: HttpStatus: 400 with appropriate error code
+   note left
+       Error Code: DEPENDENCY_ERROR
+   end note
+end
+s -> db: Check if projectBeneficiaryId exists
+activate db
+db -> s: 1 row
+deactivate db
+alt id generation fails
+    s -> idgen: /id/_generate
+    activate idgen
+    idgen -> s: HttpStatus: 400
+    deactivate idgen
+    s -> c: HttpStatus: 500 with appropriate error code
+    note left
+      Error Code: ID_GENERATION_FAILED
+    end note
+end
+s -> idgen: Generate ID
+activate idgen
+idgen -> s: Generated ID
+deactivate idgen
+s -> s: Update generated ID in Project User Action Data
+s -> k: Project User Action Data /persist_topic
+activate k
+s -> rc: Put Project User Action Data against clientReferenceId/serverGeneratedId in cache
+activate rc
+deactivate rc
+s -> c: HttpStatus: 202 ACCEPTED
+deactivate s
+group async
+    prs -> k: Consume Project User Action Data
+    activate prs
+    idx -> k: Consume Project User Action Data
+    activate idx
+    idx -> el: Store Project User Action Data
+    activate el
+    deactivate el
+    deactivate idx
+    prs -> db: Persist Project User Action Data
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+@enduml
