@@ -41,7 +41,7 @@ public class PlanFacilityController {
      * @param planFacilityRequest
      * @return
      */
-    @RequestMapping(value = "/facility/update", method = RequestMethod.POST)
+    @RequestMapping(value = "/facility/_update", method = RequestMethod.POST)
     public ResponseEntity<PlanFacilityResponse> updatePlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
