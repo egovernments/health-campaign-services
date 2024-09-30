@@ -577,8 +577,7 @@ public class PlanConfigurationValidator {
      * @param request    plan configuration request
      * @param mdmsV2Data mdms v2 data object
      */
-    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest
-                                                                           request, List<Mdms> mdmsV2Data) {
+    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data) {
         List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
 
         if (!CollectionUtils.isEmpty(vehicleIdsLinkedWithPlanConfig)) {
