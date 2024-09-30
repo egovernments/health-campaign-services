@@ -1,6 +1,7 @@
 package digit.util;
 
 import digit.config.Configuration;
+import digit.web.models.Pagination;
 import digit.web.models.projectFactory.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
@@ -31,7 +32,7 @@ public class CampaignUtil {
      */
     public CampaignResponse fetchCampaignData(RequestInfo requestInfo, String campaignId, String tenantId) {
         StringBuilder uri = new StringBuilder();
-        uri = uri.append(configs.getProjectFactoryHost()).append(configs.getProjectFactorySearchEndpoint());
+        uri = uri.append(configs.getProjectFactoryHost()).append(configs.getProjectFactorySearchEndPoint());
 
         CampaignSearchReq campaignSearchReq = getSearchReq(requestInfo, campaignId, tenantId);
         CampaignResponse campaignResponse = new CampaignResponse();

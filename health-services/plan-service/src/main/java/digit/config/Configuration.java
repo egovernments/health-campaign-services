@@ -44,6 +44,9 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.facility.create.topic}")
+    private String planFacilityCreateTopic;
+
     @Value("${plan.facility.update.topic}")
     private String planFacilityUpdateTopic;
 
@@ -53,11 +56,18 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Facility
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.facility.search.endpoint}")
+    private String facilitySearchEndPoint;
+
     //Project Factory
     @Value("${egov.project.factory.host}")
     private String projectFactoryHost;
 
     @Value("${egov.project.factory.search.endpoint}")
-    private String projectFactorySearchEndpoint;
+    private String projectFactorySearchEndPoint;
 
 }

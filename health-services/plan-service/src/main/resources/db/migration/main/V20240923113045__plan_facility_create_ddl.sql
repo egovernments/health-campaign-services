@@ -1,4 +1,4 @@
--- Table: plan_facility
+-- Table: plan_facility_linkage
 CREATE TABLE plan_facility_linkage (
   id varchar(64),
   tenant_id varchar(64),
@@ -13,6 +13,5 @@ CREATE TABLE plan_facility_linkage (
   last_modified_by varchar(64),
   last_modified_time bigint,
   CONSTRAINT uk_plan_facility_linkage_id PRIMARY KEY (id),
-  FOREIGN KEY (plan_configuration_id) REFERENCES plan_configuration(id),
-  FOREIGN KEY (facility_id) REFERENCES facility(id)
+  FOREIGN KEY (plan_configuration_id) REFERENCES plan_configuration(id)
 );

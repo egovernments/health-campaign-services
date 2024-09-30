@@ -1,4 +1,4 @@
-package digit.web.models.projectFactory;
+package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class Pagination {
+
     @JsonIgnore
     private String sortBy;
 
