@@ -21,6 +21,7 @@ import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from 
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 
 
@@ -283,6 +284,26 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     workbook.xlsx.writeBuffer();
 }
 
+function mergeErrors(errorData: any) {
+    const errorMap: any = {};
+
+    errorData.forEach((item: any) => {
+        const { rowNumber, sheetName, status, errorDetails } = item;
+
+        // If the rowNumber already exists, merge the errorDetails
+        if (errorMap[rowNumber]) {
+            errorMap[rowNumber].errorDetails += "; " + errorDetails;
+        } else {
+            // If not, add a new entry
+            errorMap[rowNumber] = { rowNumber, sheetName, status, errorDetails };
+        }
+    });
+
+    // Convert the errorMap back into an array
+    return Object.values(errorMap);
+}
+
+
 
 function processErrorDataForEachSheets(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
     const desiredSheet = workbook.getWorksheet(sheetName);
@@ -292,9 +313,9 @@ function processErrorDataForEachSheets(request: any, createAndSearchConfig: any,
     const userNameAndPassword = request?.body?.userNameAndPassword;
 
 
-    const errorData = request.body.sheetErrorDetails.filter((error: any) => error.sheetName === sheetName);
+    var errorData = request.body.sheetErrorDetails.filter((error: any) => error.sheetName === sheetName);
     const additionalDetailsErrors: any = [];
-
+    errorData = mergeErrors(errorData);
     if (errorData) {
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber;
@@ -357,7 +378,6 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
             worksheet.getColumn(index + 1).width = colWidth.width;
         }
     });
-
     const responseData = await createAndUploadFile(workbook, request);
 
     logger.info('File updated successfully:' + JSON.stringify(responseData));
@@ -372,11 +392,11 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+    const isLockSheetNeeded = (request?.body?.ResourceDetails?.type == 'user' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') ? true : false
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");
     }
-
 
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
 
@@ -404,7 +424,7 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
             processErrorDataForEachSheets(request, createAndSearchConfig, workbook, sheetName);
         }
     });
-
+    if (isLockSheetNeeded) lockSheet(workbook);
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
     if (responseData?.[0]?.fileStoreId) {
@@ -2002,12 +2022,17 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
 }
 
 function createIdRequests(employees: any[]): any[] {
-    const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
-    return Array.from({ length: employees.length }, () => ({
-        tenantId: tenantId,
-        idName: config?.values?.idgen?.idNameForUserNameGeneration,
-        idFormat: config?.values?.idgen?.formatForUserName
-    }));
+    if(employees && Array.isArray(employees) && employees.length > 0){
+        const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
+        return Array.from({ length: employees.length }, () => ({
+            tenantId: tenantId,
+            idName: config?.values?.idgen?.idNameForUserNameGeneration,
+            idFormat: config?.values?.idgen?.formatForUserName
+        }));
+    }
+    else{
+        return [];
+    }
 }
 
 async function createUniqueUserNameViaIdGen(request: any) {

@@ -978,7 +978,12 @@ async function processAfterGettingSchema(dataFromSheet: any, schema: any, reques
     processAfterValidation(dataFromSheet, createAndSearchConfig, request, localizationMap)
   }
   else {
-    processSheetWise(true, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+    if (dataFromSheet && Object.keys(dataFromSheet).length > 0) {
+      processSheetWise(true, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+    }
+    else {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "No data filled in the sheet.");
+    }
   }
 }
 

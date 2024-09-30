@@ -952,7 +952,13 @@ async function generateUserSheetForMicroPlan(
   const workbook = getNewExcelWorkbook();
   const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
   const localisedReadme = getLocalizedName(config.values.readMeTab, localizationMap);
-  workbook.addWorksheet(localisedReadme);
+  const worksheet = workbook.addWorksheet(localisedReadme);
+  // Lock the worksheet
+  worksheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true
+  });
+
 
   await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
 
@@ -1215,7 +1221,7 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
   const duplicates: any[] = [];
 
   for (const phoneNumber in userMapping) {
-    const roleMap: { [key: string]: string[] } = {};
+    const roleMap: any = {};
     const users = userMapping[phoneNumber];
 
     for (const user of users) {
@@ -1225,20 +1231,20 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
         const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
 
         // Check for duplicates in the roleMap
-        if (roleMap[trimmedRole]) {
+        if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           const errorMessage: any = `An user with ${trimmedRoleWithCapital} role can’t be assigned to ${user.role} role`;
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
-          roleMap[trimmedRole] = [user?.[phoneNumberKey]];
+          roleMap[trimmedRole] = user;
         }
       }
       else {
         const trimmedRole = user.role.toLowerCase();
         const errorMessage: any = `An user with ${"National " + trimmedRole} role can’t be assigned to ${user.role} role`;
-        if (roleMap[trimmedRole]) {
+        if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
-          roleMap[trimmedRole] = [user?.[phoneNumberKey]];
+          roleMap[trimmedRole] = user;
         }
       }
     }
@@ -1273,7 +1279,7 @@ function getAllUserData(request: any, userMapping: any, localizationMap: any) {
   var dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
-    const email = userMapping[phoneNumber]?.[0]?.[emailKey];
+    const email = userMapping[phoneNumber]?.[0]?.[emailKey] || null;
     const name = userMapping[phoneNumber]?.[0]?.[nameKey];
     const rowNumbers = userMapping[phoneNumber].map((user: any) => user["!row#number!"]);
     const sheetNames = userMapping[phoneNumber].map((user: any) => user["!sheet#name!"]);

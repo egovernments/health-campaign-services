@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-
+import { validatePhoneNumberSheetWise, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 
 
 
@@ -83,138 +83,6 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     });
     return responseBoundaries;
 }
-
-// // Compares unique boundaries with response boundaries and throws error for missing codes.
-// function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
-//     // Extracts boundary codes from response boundaries
-//     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
-
-//     // Finds missing codes from unique boundaries
-//     const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
-
-//     // Throws error if missing codes exist
-//     if (missingCodes.length > 0) {
-//         throwError(
-//             "COMMON",
-//             400,
-//             "VALIDATION_ERROR",
-//             `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
-//         );
-//     }
-// }
-
-// Validates unique boundaries against the response boundaries.
-// async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
-//     // Fetches response boundaries in chunks
-//     const responseBoundaries = await fetchBoundariesInChunks(request);
-
-//     // Compares unique boundaries with response boundaries
-//     compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
-// }
-
-
-
-
-// async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap: any) {
-//     const boundarySet = new Set(); // Create a Set to store unique boundaries
-//     logger.info("validating for the boundary data")
-//     const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
-//     const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap) : null;
-//     if (activeColumnName && uniqueIdentifierColumnName) {
-//         data = data.filter((item: any) => item[activeColumnName] === "Active" || !item[uniqueIdentifierColumnName]);
-//         data.forEach((item: any) => item[activeColumnName] = "Active");
-//     }
-//     if (data.length == 0) {
-//         if (request?.body?.ResourceDetails?.type == "facility") {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", "All facilities are set to Inactive for this campaign. Please set at least one facility to Active for this campaign or add a new facility for this campaign");
-//         }
-//         else {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", "Data is empty for this campaign, add atleast one data row");
-//         }
-//     }
-//     data.forEach((element) => {
-//         const boundaries = element[boundaryColumn];
-//         if (!boundaries) {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!']}`);
-//         }
-
-//         const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-//         if (boundaryList.length === 0) {
-//             throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!']}`);
-//         }
-
-//         for (const boundary of boundaryList) {
-//             if (!boundary) {
-//                 throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!']}. Put it with one comma between boundary codes`);
-//             }
-//             boundarySet.add(boundary); // Add boundary to the set
-//         }
-//     });
-//     const uniqueBoundaries = Array.from(boundarySet);
-//     await validateUniqueBoundaries(uniqueBoundaries, request);
-// }
-
-// async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[], localizationMap?: any) {
-//     // const responseBoundaries = await fetchBoundariesInChunks(request);
-//     const responseBoundaries = await getTargetBoundariesRelatedToCampaignId(request, localizationMap);
-//     const responseBoundaryCodes = responseBoundaries.map((boundary: any) => boundary.code);
-//     // Iterate through each array of objects
-//     for (const key in data) {
-//         const isNotBoundaryOrReadMeTab = key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap);
-//         if (isNotBoundaryOrReadMeTab) {
-//             if (Array.isArray(data[key])) {
-//                 const boundaryData = data[key];
-//                 const boundarySet = new Set(); // Create a Set to store unique boundaries for given sheet 
-//                 boundaryData.forEach((element: any, index: number) => {
-//                     const boundaries = element?.[boundaryColumn]; // Access "Boundary Code" property directly
-//                     if (!boundaries) {
-//                         errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"]} for sheet ${key}`, sheetName: key })
-//                     } else {
-//                         if (typeof boundaries !== 'string') {
-//                             errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row ${element["!row#number!"]} in boundary sheet ${key}`, sheetName: key });
-//                         } else {
-//                             const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-//                             if (boundaryList.length === 0 || boundaryList.includes('')) {
-//                                 errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"]} in boundary sheet ${key}`, sheetName: key })
-//                             }
-//                             if (boundaryList.length > 1) {
-//                                 errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"]} of sheet ${key}`, sheetName: key })
-//                             }
-//                             if (boundaryList.length === 1) {
-//                                 const boundaryCode = boundaryList[0];
-//                                 if (boundarySet.has(boundaryCode)) {
-//                                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"]} of sheet ${key}`, sheetName: key })
-//                                 }
-//                                 if (!responseBoundaryCodes.includes(boundaryCode)) {
-//                                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"]}  of sheet ${key} is not present in the selected boundaries`, sheetName: key })
-//                                 }
-//                                 boundarySet.add(boundaryCode);
-//                             }
-//                         }
-//                     }
-//                 });
-//             }
-//         }
-//     }
-// }
-
-
-
-// async function validateTargetsAtLowestLevelPresentOrNot(data: any[], request: any, errors: any[], localizationMap?: any) {
-//     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-//     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
-//     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
-//     const dataToBeValidated = modifyTargetData(data);
-//     let maxKeyIndex = -1;
-//     dataToBeValidated.forEach(obj => {
-//         const keyIndex = calculateKeyIndex(obj, localizedHierarchy, localizationMap);
-//         if (keyIndex > maxKeyIndex) {
-//             maxKeyIndex = keyIndex;
-//         }
-//     })
-//     const lowestLevelHierarchy = localizedHierarchy[maxKeyIndex];
-//     await validateTargets(request, data, lowestLevelHierarchy, errors, localizationMap);
-// }
 
 
 async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
@@ -309,34 +177,6 @@ function validateUnique(schema: any, data: any[], request: any, localizationMap:
     }
 }
 
-function validateUniqueSheetWise(schema: any, data: any[], request: any, rowMapping: any, localizationMap: any) {
-    if (schema?.unique) {
-        const uniqueElements = schema.unique;
-
-        for (const element of uniqueElements) {
-            const uniqueMap = new Map();
-
-            // Iterate over each data object and check uniqueness
-            for (const item of data) {
-                const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
-                const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
-                const value = item[element];
-                const rowNum = item['!row#number!'];
-                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
-                    if (uniqueMap.has(value)) {
-                        if (!rowMapping[rowNum]) {
-                            rowMapping[rowNum] = [];
-                        }
-                        rowMapping[rowNum].push(`Duplicate value '${value}' found for '${element}'`);
-                    }
-                    // Add the value to the map
-                    uniqueMap.set(value, rowNum);
-                }
-            }
-        }
-    }
-}
-
 function validatePhoneNumber(datas: any[], localizationMap: any) {
     var digitErrorRows = [];
     var missingNumberRows = [];
@@ -371,43 +211,6 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
     }
 }
 
-export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
-    var digitErrorRows = [];
-    var missingNumberRows = [];
-    for (const data of datas) {
-        const phoneColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
-        if (data[phoneColumn]) {
-            var phoneNumber = data[phoneColumn];
-            phoneNumber = phoneNumber.toString().replace(/^0+/, '');
-            if (phoneNumber.length != 10) {
-                digitErrorRows.push(data["!row#number!"]);
-            }
-        }
-        else {
-            missingNumberRows.push(data["!row#number!"]);
-        }
-    }
-    if (digitErrorRows.length > 0) {
-        for (const row of digitErrorRows) {
-            if (!rowMapping[row]) {
-                rowMapping[row] = [];
-            }
-            rowMapping[row].push("Contact number should be of 10 digit");
-        }
-    }
-    encrichRowMapping(rowMapping, missingNumberRows);
-}
-
-function encrichRowMapping(rowMapping: any, missingNumberRows: any[]) {
-    if (missingNumberRows.length > 0) {
-        for (const row of missingNumberRows) {
-            if (!rowMapping[row]) {
-                rowMapping[row] = [];
-            }
-            rowMapping[row].push("Contact number is missing");
-        }
-    }
-}
 
 async function changeSchemaErrorMessage(schema: any, localizationMap?: any) {
     if (schema?.errorMessage) {
@@ -558,15 +361,20 @@ export async function validateViaSchemaSheetWise(dataFromExcel: any, schema: any
             const validationErrors: any[] = [];
             const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
             const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
-            if (request?.body?.ResourceDetails?.type == "user") {
-                validatePhoneNumberSheetWise(data, localizationMap, rowMapping);
+            if (request?.body?.ResourceDetails?.type == "user" && request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
+                validateUserForMicroplan(data, sheetName, request, errorMap, newSchema, rowMapping, localizationMap);
             }
-            if (data?.length > 0) {
-                validateDataSheetWise(data, validate, validationErrors, uniqueIdentifierColumnName, activeColumnName);
-                validateUniqueSheetWise(newSchema, data, request, rowMapping, localizationMap);
-                enrichRowMappingViaValidationSheetwise(rowMapping, validationErrors, localizationMap);
-            } else {
-                errorMap[sheetName] = { 2: ["Data rows cannot be empty"] };
+            else {
+                if (request?.body?.ResourceDetails?.type == "user") {
+                    validatePhoneNumberSheetWise(data, localizationMap, rowMapping);
+                }
+                if (data?.length > 0) {
+                    validateDataSheetWise(data, validate, validationErrors, uniqueIdentifierColumnName, activeColumnName);
+                    validateUniqueSheetWise(newSchema, data, request, rowMapping, localizationMap);
+                    enrichRowMappingViaValidationSheetwise(rowMapping, validationErrors, localizationMap);
+                } else {
+                    errorMap[sheetName] = { 2: ["Data rows cannot be empty"] };
+                }
             }
         } else {
             logger.info("Skipping schema validation");
