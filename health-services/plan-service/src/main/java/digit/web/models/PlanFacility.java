@@ -33,18 +33,22 @@ public class PlanFacility {
     private String tenantId = null;
 
     @JsonProperty("planConfigurationId")
+    @NotNull
     @Size(max = 64)
     private String planConfigurationId = null;
 
     @JsonProperty("facilityId")
+    @NotNull
     @Size(max = 64)
     private String facilityId = null;
 
     @JsonProperty("residingBoundary")
+    @NotNull
     @Size(min = 1, max = 64)
     private String residingBoundary = null;
 
     @JsonProperty("serviceBoundaries")
+    @NotNull
     @Valid
     private List<String> serviceBoundaries = null;
 
