@@ -7,11 +7,13 @@ import digit.repository.querybuilder.PlanFacilityQueryBuilder;
 import digit.repository.rowmapper.PlanFacilityRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.tracer.model.CustomException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
+import static digit.config.ServiceConstants.*;
 
 @Repository
 @Slf4j
@@ -73,7 +75,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
             producer.push(config.getPlanFacilityUpdateTopic(), planFacilityRequest);
             log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
         } catch (Exception e) {
-            log.info("Failed to push message to topic {}. Error: {}", config.getPlanFacilityUpdateTopic(), e.getMessage(), e);
+            throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());
         }
     }
 

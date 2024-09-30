@@ -5,7 +5,9 @@ import digit.web.models.Pagination;
 import digit.web.models.projectFactory.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 import static digit.config.ServiceConstants.*;
 import java.util.Collections;
@@ -35,12 +37,17 @@ public class CampaignUtil {
         uri = uri.append(configs.getProjectFactoryHost()).append(configs.getProjectFactorySearchEndPoint());
 
         CampaignSearchReq campaignSearchReq = getSearchReq(requestInfo, campaignId, tenantId);
-        CampaignResponse campaignResponse = new CampaignResponse();
+        CampaignResponse campaignResponse = null;
         try {
             campaignResponse = restTemplate.postForObject(uri.toString(), campaignSearchReq, CampaignResponse.class);
         } catch (Exception e) {
-            log.error(ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY, e);
+            throw new CustomException(NO_CAMPAIGN_RESPONSE_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE,NO_CAMPAIGN_RESPONSE_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
         }
+
+        if (CollectionUtils.isEmpty(campaignResponse.getCampaignDetails())) {
+            throw new CustomException(NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
+        }
+
         return campaignResponse;
     }
 
