@@ -1458,7 +1458,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             for (const boundary of boundaries) {
                 const boundaryCode = boundary?.code;
                 // Only proceed if the boundary code is not already mapped to an existing project
-                if (!boundariesAlreadyWithProjects.has(boundaryCode)) {
+                if (boundariesAlreadyWithProjects && boundariesAlreadyWithProjects.size > 0 && !boundariesAlreadyWithProjects.has(boundaryCode)) {
                     // Set the address for the project
                     Projects[0].address = {
                         tenantId: tenantId,
