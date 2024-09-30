@@ -1,0 +1,69 @@
+@startuml
+title Project - User Action - Search
+!theme vibrant
+participant Client as c
+participant ProjectService as s
+participant RedisCache as rc
+database Database as db
+c -> s : /project/user-action/v1/_search
+activate s
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+s -> s: Request validation successful
+alt search by clientReferenceId/serverGeneratedId
+    alt record doesn't exist
+        s -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> s: 0 rows
+        deactivate rc
+        s -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> s: 0 rows
+        deactivate db
+        s -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: RECORD_NOT_FOUND
+        end note
+    end
+    alt record doesn't exists in cache
+        s -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> s: 0 rows
+        deactivate rc
+        s -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> s: 1 row
+        deactivate db
+        s -> rc: 1 record
+        activate rc
+        deactivate rc
+        s -> c: HttpStatus: 200 with appropriate response code
+    end
+s -> rc: Search record based on clientReferenceId/serverGeneratedId
+activate rc
+rc -> s: 1 row
+deactivate rc
+end
+alt record doesn't exist for criteria
+    s -> db: Search record based on criteria
+    activate db
+    db -> s: 0 rows
+    deactivate db
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: RECORD_NOT_FOUND
+    end note
+end
+s -> db: Search record based on criteria
+activate db
+db -> s: 1-n rows
+deactivate db
+s -> c: HttpStatus: 200 OK with found record(s)
+deactivate s
+@enduml
