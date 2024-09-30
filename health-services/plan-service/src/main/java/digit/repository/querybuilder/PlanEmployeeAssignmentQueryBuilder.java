@@ -63,6 +63,12 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
         }
 
+        if (searchCriteria.getEmployeeId() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" employee_id = ?");
+            preparedStmtList.add(searchCriteria.getEmployeeId());
+        }
+
         if (searchCriteria.getRole() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" role = ?");

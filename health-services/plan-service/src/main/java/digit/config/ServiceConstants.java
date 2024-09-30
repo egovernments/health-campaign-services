@@ -72,7 +72,10 @@ public class ServiceConstants {
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
 
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
-    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The provided employee's jurisdiction is invalid";
+    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
+
+    public static final String INVALID_EMPLOYEE_ROLE_CODE = "INVALID_EMPLOYEE_ROLE";
+    public static final String INVALID_EMPLOYEE_ROLE_MESSAGE = "The employee's role provided is invalid";
 
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
