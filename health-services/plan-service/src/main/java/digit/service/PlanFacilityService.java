@@ -87,15 +87,18 @@ public class PlanFacilityService {
     public PlanFacilityResponse updatePlanFacility(PlanFacilityRequest planFacilityRequest) {
         //validate plan facility request
         planFacilityValidator.validatePlanFacilityUpdate(planFacilityRequest);
-        //enrich plan facilty request
+
+        //enrich plan facility request
         planFacilityEnricher.enrichPlanFacilityUpdate(planFacilityRequest);
+
         //delegate update request to repository
         planFacilityRepository.update(planFacilityRequest);
+
         //Build and return response back to controller
-        return PlanFacilityResponse.builder()
-                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), Boolean.TRUE)).
-                planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility()))
-                .build();
+        return PlanFacilityResponse.builder().
+                responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), Boolean.TRUE)).
+                planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility())).
+                build();
     }
 
 }
