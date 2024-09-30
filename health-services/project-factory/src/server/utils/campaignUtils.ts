@@ -557,8 +557,8 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         logger.info(`Waiting for 2 seconds`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         const activities = request?.body?.Activities;
-        for (let i = 0; i < activities.length; i += 50) {
-            const chunk = activities.slice(i, Math.min(i + 50, activities.length));
+        for (let i = 0; i < activities.length; i += 10) {
+            const chunk = activities.slice(i, Math.min(i + 10, activities.length));
             const activityObject: any = { Activities: chunk };
             await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
         }
