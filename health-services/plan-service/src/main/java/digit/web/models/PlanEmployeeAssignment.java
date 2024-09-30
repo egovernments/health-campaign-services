@@ -3,6 +3,7 @@ package digit.web.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.egov.common.contract.models.AuditDetails;
@@ -47,6 +48,7 @@ public class PlanEmployeeAssignment {
 
     @JsonProperty("jurisdiction")
     @Valid
+    @NotEmpty
     private List<String> jurisdiction = null;
 
     @JsonProperty("additionalDetails")

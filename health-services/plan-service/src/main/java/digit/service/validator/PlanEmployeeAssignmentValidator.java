@@ -248,6 +248,7 @@ public class PlanEmployeeAssignmentValidator {
 
         // Validates the existence of plan employee assignment
         List<PlanEmployeeAssignment> planEmployeeAssignments = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
+                .tenantId(planEmployeeAssignment.getTenantId())
                 .id(planEmployeeAssignment.getId())
                 .build());
 
