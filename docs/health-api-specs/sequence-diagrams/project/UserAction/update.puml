@@ -1,5 +1,5 @@
 @startuml
-title Project - User Action - Update
+title Project - User Action - Bulk Update
 !theme vibrant
 participant Client as c
 participant ProjectService as s
@@ -9,16 +9,24 @@ participant PersisterService as prs
 participant IndexerService as idx
 participant ErrorService as es
 participant ElasticSearch as el
+participant BoundaryService as bs
 database Database as db
+participant HandleErrorMethod as he
 c -> s : /project/user-action/v1/_update
 activate s
 s -> s: Validate request body
+s -> c: HttpStatus: 202 ACCEPTED
+group async
 alt request validation fails
-     s -> s: Request validation failed
-     s -> c: HttpStatus: 400 with appropriate error code
+    s -> s: Request validation failed
+    s -> he: call handleError HandleErrorMethod
+    activate he
+    deactivate he
     note left
-      Error Code: REQUEST_VALIDATION_FAILED
+        This will be marked as unrecoverable right away
+        and require manual intervention
     end note
+
 end
 s -> s: Request validation successful
 alt record doesn't exist
@@ -30,10 +38,12 @@ alt record doesn't exist
     activate db
     db -> s: 0 row
     deactivate db
-    s -> c: HttpStatus: 400 with appropriate error code
     note left
-      Error Code: RECORD_NOT_FOUND
+        This will be marked as unrecoverable right away
+        and require manual intervention
+        Error Code: RECORD_NOT_FOUND
     end note
+    s -> he: call handleError HandleErrorMethod
 end
 alt record doesn't exists in cache
     s -> rc: Search record based on clientReferenceId/serverGeneratedId
@@ -52,14 +62,48 @@ s -> rc: Fetch the existing record
 activate rc
 rc -> s: 1 row
 deactivate rc
-alt incorrect rowVersion
-    s -> s: Compare rowVersion between request and db
-    s -> s: Incorrect rowVersion [request: should be +1 only]
-    s -> c: HttpStatus: 400 with appropriate error code
+alt projectId invalid
+    s -> db: Check if projectId exists
+    activate db
+    db -> s: 0 rows
+    deactivate db
+    s -> he: call handleError HandleErrorMethod
+        note left
+            This will be marked as unrecoverable right away
+            and require manual intervention
+            Error Code: BAD_REQUEST
+        end note
+end
+s -> db: Check if projectId exists
+activate db
+db -> s: 1 row
+deactivate db
+alt boundary invalid
+    s -> bs: Check if boundary exists
+    activate bs
+    bs -> s: 0 rows
+    deactivate bs
+    s -> he: call handleError HandleErrorMethod
     note left
-      Error Code: BAD_REQUEST
+        This will be marked as recoverable and will be
+        retried later
+        Error Code: DEPENDENCY_ERROR
     end note
 end
+s -> bs: Check if boundary exists
+activate bs
+bs -> s: 1 row
+deactivate bs
+alt incorrect rowVersion
+        s -> s: Compare rowVersion between request and db
+        s -> s: Incorrect rowVersion [request: should be +1 only]
+        s -> he: call handleError HandleErrorMethod
+        activate he
+        deactivate he
+        note left
+          Error Code: BAD_REQUEST
+        end note
+    end
 s -> s: Compare rowVersion between request and db
 s -> s: rowVersion in request = rowVersion in db + 1
 s -> k: Project User Action Data /update_topic
@@ -67,7 +111,6 @@ activate k
 s -> rc: Update new record in cache against clientReferenceId/serverGeneratedId
 activate rc
 deactivate rc
-s -> c: HttpStatus: 202 ACCEPTED
 deactivate s
 group async
     prs -> k: Consume Project User Action Data
@@ -84,4 +127,5 @@ group async
     deactivate prs
 end
 deactivate k
+end
 @enduml
