@@ -162,22 +162,21 @@ public class PlanConfigQueryBuilder {
         return paginatedQuery.toString();
     }
 
-    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList)
-    {
+    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList) {
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pcf.active = ?");
+        builder.append(" ( pcf.active = ? OR pcf.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pca.active = ?");
+        builder.append(" ( pca.active = ? OR pca.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pco.active = ?");
+        builder.append(" ( pco.active = ? OR pco.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pcm.active = ?");
+        builder.append(" ( pcm.active = ? OR pcm.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
     }
 
