@@ -3,9 +3,11 @@ package digit.service;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
+import digit.util.CampaignUtil;
 import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
+import digit.web.models.projectFactory.CampaignResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -30,12 +32,15 @@ public class PlanValidator {
 
     private CommonUtil commonUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil) {
+    private CampaignUtil campaignUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.commonUtil = commonUtil;
+        this.campaignUtil = campaignUtil;
     }
 
     /**
@@ -45,6 +50,7 @@ public class PlanValidator {
     public void validatePlanCreate(PlanRequest request) {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
 
         // Validate activities
         validateActivities(request);
@@ -69,6 +75,20 @@ public class PlanValidator {
 
         // Validate Metric Detail's Unit against MDMS
         validateMetricDetailUnit(request, mdmsData);
+
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
+    }
+
+    /**
+     * This method validates if the campaign id provided in the request exists
+     *
+     * @param campaignResponse The campaign details response from project factory
+     */
+    private void validateCampaignId(CampaignResponse campaignResponse) {
+        if (CollectionUtils.isEmpty(campaignResponse.getCampaignDetails())) {
+            throw new CustomException(NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
+        }
     }
 
     /**
@@ -248,6 +268,7 @@ public class PlanValidator {
 
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
 
         // Validate activities
         validateActivities(request);
@@ -282,6 +303,8 @@ public class PlanValidator {
         // Validate Metric Detail's Unit against MDMS
         validateMetricDetailUnit(request, mdmsData);
 
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
     }
 
     /**

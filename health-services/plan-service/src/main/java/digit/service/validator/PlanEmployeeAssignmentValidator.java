@@ -68,7 +68,7 @@ public class PlanEmployeeAssignmentValidator {
         // Validate role of employee against HRMS
         validateRoleAgainstHRMS(planEmployeeAssignment, employeeResponse);
 
-        // Validate
+        // Validate if role of employee is a conflicting role
         validateRoleConflict(planEmployeeAssignment);
 
         // Validate campaign id and employee jurisdiction
