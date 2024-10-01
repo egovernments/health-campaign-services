@@ -57,31 +57,31 @@ const checkBrokerAvailability = () => {
 
 createKafkaClientAndProducer();
 
-const sendWithRetries = (payloads: any[], retries = 3, shutdown: boolean = false): Promise<void> => {
+const sendWithReconnect = (payloads: any[]): Promise<void> => {
     return new Promise((resolve, reject) => {
+        // Send the message initially
         producer.send(payloads, async (err: any) => {
             if (err) {
                 logger.error('Error sending message:', err);
                 logger.debug(`Was trying to send: ${JSON.stringify(payloads)}`);
-                if (retries > 0) {
-                    logger.info(`Retrying to send message. Retries left: ${retries}`);
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // wait before retrying
-                    resolve(sendWithRetries(payloads, retries - 1, shutdown));
-                } else {
-                    // Attempt to reconnect and retry
-                    logger.error('Failed to send message after retries. Reconnecting producer...');
-                    if (shutdown) {
-                        shutdownGracefully();
-                    }
-                    else {
-                        producer.close(() => {
-                            createKafkaClientAndProducer();
-                            setTimeout(() => {
-                                sendWithRetries(payloads, 1, true).catch(reject);
-                            }, 2000); // wait before retrying after reconnect
+
+                // Attempt to reconnect and retry
+                logger.error('Reconnecting producer and retrying...');
+                producer.close(() => {
+                    createKafkaClientAndProducer();
+                    setTimeout(() => {
+                        // Retry sending after reconnection
+                        producer.send(payloads, (err: any) => {
+                            if (err) {
+                                logger.error('Failed to send message after reconnection:', err);
+                                return reject(err); // Final failure, reject promise
+                            } else {
+                                logger.info('Message sent successfully after reconnection');
+                                resolve();
+                            }
                         });
-                    }
-                }
+                    }, 2000); // wait before retrying after reconnect
+                });
             } else {
                 logger.info('Message sent successfully');
                 resolve();
@@ -89,6 +89,7 @@ const sendWithRetries = (payloads: any[], retries = 3, shutdown: boolean = false
         });
     });
 };
+
 
 async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
     try {
@@ -101,7 +102,7 @@ async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
             },
         ];
 
-        await sendWithRetries(payloads, 3);
+        await sendWithReconnect(payloads);
     } catch (error) {
         logger.error(`KAFKA :: PRODUCER :: Exception caught: ${JSON.stringify(error)}`);
         throwError("COMMON", 400, "KAFKA_ERROR", "Some error occurred in Kafka"); // Re-throw the error after logging it
