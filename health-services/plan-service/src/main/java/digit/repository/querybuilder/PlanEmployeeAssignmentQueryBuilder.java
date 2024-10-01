@@ -40,7 +40,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
      *
      * @param searchCriteria   The criteria used for filtering PlanEmployeeAssignment objects.
      * @param preparedStmtList A list to store prepared statement parameters.
-     * @return
+     * @return A SQL query string for searching planEmployeeAssignment
      */
     private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY);

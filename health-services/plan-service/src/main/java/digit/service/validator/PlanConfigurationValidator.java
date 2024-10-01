@@ -95,7 +95,7 @@ public class PlanConfigurationValidator {
     }
 
     /**
-     * This method validates if the campaign id provided in the request exists
+     * Validates campaign ID from request against project factory
      *
      * @param campaignResponse The campaign details response from project factory
      */

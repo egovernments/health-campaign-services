@@ -37,15 +37,11 @@ public class HrmsUtil {
      */
     public EmployeeResponse fetchHrmsData(RequestInfo requestInfo, String employeeId, String tenantId) {
 
-        StringBuilder uri = new StringBuilder();
-        uri.append(configs.getHrmsHost()).append(configs.getHrmsEndPoint()).append("?limit={limit}&tenantId={tenantId}&offset={offset}&ids={employeeId}");
-
+        // Create HRMS uri
         Map<String, String> uriParameters = new HashMap<>();
-        uriParameters.put("limit", configs.getDefaultLimit().toString());
-        uriParameters.put("tenantId", tenantId);
-        uriParameters.put("offset", configs.getDefaultOffset().toString());
-        uriParameters.put("employeeId", employeeId);
+        StringBuilder uri = getHrmsUri(uriParameters, tenantId, employeeId);
 
+        // Create request body
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
         EmployeeResponse employeeResponse = new EmployeeResponse();
 
@@ -56,6 +52,26 @@ public class HrmsUtil {
         }
 
         return employeeResponse;
+    }
+
+    /**
+     * This method creates HRMS uri with query parameters
+     *
+     * @param uriParameters map that stores values corresponding to the placeholder in uri
+     * @param tenantId      the tenant id from plan employee assignment request
+     * @param employeeId    the employee id from plan employee assignment request
+     * @return a complete HRMS uri
+     */
+    private StringBuilder getHrmsUri(Map<String, String> uriParameters, String tenantId, String employeeId) {
+        StringBuilder uri = new StringBuilder();
+        uri.append(configs.getHrmsHost()).append(configs.getHrmsEndPoint()).append("?limit={limit}&tenantId={tenantId}&offset={offset}&ids={employeeId}");
+
+        uriParameters.put("limit", configs.getDefaultLimit().toString());
+        uriParameters.put("tenantId", tenantId);
+        uriParameters.put("offset", configs.getDefaultOffset().toString());
+        uriParameters.put("employeeId", employeeId);
+
+        return uri;
     }
 
 
