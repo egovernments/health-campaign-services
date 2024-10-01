@@ -75,6 +75,12 @@ public class IndividualService {
                 addIndividualAdditionalDetails(individual.getAdditionalFields(), individualDetails);
             }
             if (individual.getIdentifiers() != null && !CollectionUtils.isEmpty(individual.getIdentifiers())) {
+                List<Identifier> identifiers = individual.getIdentifiers();
+                for (Identifier identifier : identifiers) {
+                    if(identifier.getIdentifierType().equals(UNIQUE_BEN_ID_TYPE)){
+                        individualDetails.put(UNIQUE_BEN_ID_TYPE, identifier.getIdentifierId());
+                    }
+                }
                 String identifierType = individual.getIdentifiers().get(0).getIdentifierType();
                 individualDetails.put(INDIVIDUAL_IDENTIFIER_TYPE, identifierType);
             }
@@ -85,6 +91,7 @@ public class IndividualService {
             individualDetails.put(DATE_OF_BIRTH, null);
             individualDetails.put(INDIVIDUAL_ID, null);
             individualDetails.put(INDIVIDUAL_IDENTIFIER_TYPE, null);
+            individualDetails.put(UNIQUE_BEN_ID_TYPE, null);
         }
 
         return individualDetails;

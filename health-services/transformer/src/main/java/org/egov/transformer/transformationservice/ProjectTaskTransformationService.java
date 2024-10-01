@@ -138,6 +138,7 @@ public class ProjectTaskTransformationService {
                 .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
+                .uniqueBeneficiaryID(beneficiaryInfo.containsKey(UNIQUE_BEN_ID_TYPE) ? (String) beneficiaryInfo.get(UNIQUE_BEN_ID_TYPE) : null)
                 .tag(beneficiaryInfo.containsKey(BENEFICIARY_TAG) ? (String) beneficiaryInfo.get(BENEFICIARY_TAG) : null)
                 .build();
 
