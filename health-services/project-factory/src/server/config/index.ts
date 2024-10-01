@@ -16,7 +16,8 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
-  cacheTime : 300,
+  irsProjectType: "IRS-mz",
+  cacheTime: 300,
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
