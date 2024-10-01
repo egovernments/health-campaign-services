@@ -92,6 +92,8 @@ public class ProjectTaskIndexV1 {
     private Integer age;
     @JsonProperty("individualId")
     private String individualId;
+    @JsonProperty("uniqueBeneficiaryID")
+    private String uniqueBeneficiaryID;
     @JsonProperty("tag")
     private String tag;
     @JsonProperty("gender")
