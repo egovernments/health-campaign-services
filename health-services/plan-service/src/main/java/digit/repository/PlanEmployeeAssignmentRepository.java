@@ -11,4 +11,6 @@ public interface PlanEmployeeAssignmentRepository {
     public List<PlanEmployeeAssignment> search(PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria);
 
     public void update(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest);
+
+    public Integer count(PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria);
 }

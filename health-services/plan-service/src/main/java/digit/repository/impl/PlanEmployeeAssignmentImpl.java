@@ -76,6 +76,19 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     }
 
     /**
+     * Counts the number of plan employee assignments based on the provided search criteria.
+     *
+     * @param searchCriteria The search criteria for filtering plan employee assignments.
+     * @return The total count of plan employee assignment matching the search criteria.
+     */
+    @Override
+    public Integer count(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
+        // TODO : YET TO BE IMPLEMENTED
+        List<Object> preparedStmtList = new ArrayList<>();
+        return 0;
+    }
+
+    /**
      * Pushes an updated existing plan employee assignment to persister kafka topic.
      *
      * @param planEmployeeAssignmentRequest The request containing the updated plan employee assignment details.

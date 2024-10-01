@@ -65,6 +65,7 @@ public class PlanEmployeeService {
         return PlanEmployeeAssignmentResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
                 .planEmployeeAssignment(repository.search(request.getPlanEmployeeAssignmentSearchCriteria()))
+                .totalCount(repository.count(request.getPlanEmployeeAssignmentSearchCriteria()))
                 .build();
     }
 

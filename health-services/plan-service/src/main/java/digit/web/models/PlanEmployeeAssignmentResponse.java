@@ -28,5 +28,9 @@ public class PlanEmployeeAssignmentResponse {
     @JsonProperty("PlanEmployeeAssignment")
     @Valid
     private List<PlanEmployeeAssignment> planEmployeeAssignment = null;
+
+    @JsonProperty("TotalCount")
+    @Valid
+    private Integer totalCount = null;
 }
 
