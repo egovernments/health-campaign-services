@@ -1075,6 +1075,41 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
 }
 
 
+function mapIRSTargets(boundaryResponses: any, codesTargetMapping: any) {
+    if (!boundaryResponses || !codesTargetMapping) return;
+
+    for (const boundaryResponse of boundaryResponses) {
+        const mapBoundary = (boundary: any) => {
+            if (!boundary.children || boundary.children.length === 0) {
+                const targetValue = codesTargetMapping[boundary.code];
+                return {
+                    roomTarget: targetValue?.roomTarget || 0,
+                    householdTarget: targetValue?.householdTarget || 0,
+                };
+            }
+
+            let totalRoomTarget = 0; // For IRS
+            let totalHouseholdTarget = 0; // For IRS
+
+            for (const child of boundary.children) {
+                const childTargets = mapBoundary(child);
+                totalRoomTarget += childTargets.roomTarget || 0;
+                totalHouseholdTarget += childTargets.householdTarget || 0;
+            }
+
+            // Update codesTargetMapping with accumulated targets for IRS
+            codesTargetMapping[boundary.code] = {
+                roomTarget: totalRoomTarget,
+                householdTarget: totalHouseholdTarget,
+            };
+
+            return { roomTarget: totalRoomTarget, householdTarget: totalHouseholdTarget };
+        };
+
+        mapBoundary(boundaryResponse);
+    }
+}
+
 async function processBoundary(boundaryResponse: any, boundaries: any, includeAllChildren: any, boundaryCodes: any, boundaryChildren: any) {
     if (!boundaryResponse) return;
     if (!boundaryCodes.has(boundaryResponse.code)) {
@@ -1201,7 +1236,11 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
         if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
             const codesTargetMapping = await getCodesTarget(request, localizationMap)
-            mapTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping)
+            if (request.body.CampaignDetails?.projectType === config?.irsProjectType) {
+                mapIRSTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping);
+            } else {
+                mapTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping)
+            }
             request.body.CampaignDetails.codesTargetMapping = codesTargetMapping
             logger.debug("codesTargetMapping mapping :: " + getFormattedStringForDebug(codesTargetMapping));
             mapBoundariesParent(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], request, null)
@@ -1298,16 +1337,24 @@ async function getCodesTarget(request: any, localizationMap?: any) {
         throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
     }
     const codeColumnName = getLocalizedName(createAndSearch?.boundaryWithTarget?.boundaryValidation?.column, localizationMap)
-    const targetData = await getTargetSheetDataAfterCode(fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
+    const targetData = await getTargetSheetDataAfterCode(request, fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
     const boundaryTargetMapping: any = {};
     // Iterate through each key in targetData
     for (const key in targetData) {
         // Iterate through each entry in the array under the current key
         targetData[key].forEach(entry => {
-            // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
-            if (entry[codeColumnName] !== undefined && entry['Target at the Selected Boundary level'] !== undefined) {
-                // Add the mapping to the boundaryTargetMapping object
-                boundaryTargetMapping[entry[codeColumnName]] = entry['Target at the Selected Boundary level'];
+            // Check if the entry has "Boundary Code"
+            if (entry[codeColumnName] !== undefined) {
+                if (request.body.CampaignDetails?.projectType === config?.irsProjectType) {
+                    // For "irs" campaigns, store both IRS_1 and IRS_2 targets
+                    boundaryTargetMapping[entry[codeColumnName]] = {
+                        roomTarget: entry["roomTarget"] || 0,
+                        householdTarget: entry["householdTarget"] || 0
+                    };
+                } else if (entry['Target at the Selected Boundary level'] !== undefined) {
+                    // For other campaigns, store the single target value
+                    boundaryTargetMapping[entry[codeColumnName]] = entry['Target at the Selected Boundary level'];
+                }
             }
         });
     }
@@ -1340,13 +1387,22 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
                     Projects[0].parent = null
                 }
                 Projects[0].referenceID = request?.body?.CampaignDetails?.id
-                Projects[0].targets = [
+                Projects[0].targets = request?.body?.CampaignDetails?.projectType === config?.irsProjectType
+                    ? [{
+                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]?.roomTarget || 0,
+                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]?.roomTarget || 0,
+                    },
                     {
+                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]?.householdTarget || 0,
+                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]?.householdTarget || 0,
+                    }]
+                    : [{
                         beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
                         totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code],
                         targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary?.code]
-                    }
-                ]
+                    }];
                 await projectCreate(projectCreateBody, request)
             }
         }

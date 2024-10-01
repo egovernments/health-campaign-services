@@ -175,6 +175,7 @@ const getTargetSheetData = async (
 };
 
 const getTargetSheetDataAfterCode = async (
+  request: any,
   fileUrl: string,
   getRow = false,
   getSheetName = false,
@@ -203,6 +204,12 @@ const getTargetSheetDataAfterCode = async (
         break;
       }
     }
+    let roomTargetIndex: number;
+    let householdTargetIndex: number;
+    if (request?.body?.CampaignDetails?.projectType == config?.irsProjectType) {
+      roomTargetIndex = firstRow.indexOf(getLocalizedName('HCM_ADMIN_CONSOLE_TARGET_IRS_1', localizationMap));
+      householdTargetIndex = firstRow.indexOf(getLocalizedName('HCM_ADMIN_CONSOLE_TARGET_IRS_2', localizationMap));
+    }
 
     if (targetColumnIndex === -1) {
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
@@ -214,18 +221,25 @@ const getTargetSheetDataAfterCode = async (
       if (rowIndex <= 0) return null; // Skip header row
 
       let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
-
-      // Add integer values in the target column for the current row
-      let sum = 0;
-      for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
-        const value = row[colIndex];
-        if (typeof value === 'number' && Number.isInteger(value)) {
-          sum += value;
-        }
+      if (request.body.CampaignDetails.projectType === config?.irsProjectType) {
+        // Separate target values for "irs" type
+        rowData['roomTarget'] = row[roomTargetIndex];
+        rowData['householdTarget'] = row[householdTargetIndex]; // Assuming roomTargetColumnIndex exists
       }
+      else {
 
-      // Add the sum to the row data
-      rowData['Target at the Selected Boundary level'] = sum;
+        // Add integer values in the target column for the current row
+        let sum = 0;
+        for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
+          const value = row[colIndex];
+          if (typeof value === 'number' && Number.isInteger(value)) {
+            sum += value;
+          }
+        }
+
+        // Add the sum to the row data
+        rowData['Target at the Selected Boundary level'] = sum;
+      }
       return rowData;
     }).filter(Boolean); // Remove null entries
 
