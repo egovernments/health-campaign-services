@@ -12,6 +12,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
 import org.egov.common.producer.Producer;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 /**
@@ -66,7 +68,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
      * @param includeDeleted    Flag indicating whether to include deleted records.
      * @return                  A list of HFReferral entities matching the search criteria.
      */
-    public List<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
+    public SearchResponse<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) {
         // Initial query to select HFReferral fields from the table.
         String query = "SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf";
@@ -96,16 +98,21 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         }
 
         // Add ORDER BY, LIMIT, and OFFSET clauses to the query.
-        query = query + "ORDER BY hf.createdtime DESC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY hf.createdtime DESC";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+
+        query += " LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
         // Execute the query and retrieve the list of HFReferral entities.
         List<HFReferral> hfReferralList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        return hfReferralList;
+
+        return SearchResponse.<HFReferral>builder().response(hfReferralList).totalCount(totalCount).build();
     }
 
     /**
@@ -116,7 +123,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
      * @param columnName        The column name to search for IDs.
      * @return                  A list of HFReferral entities matching the provided IDs.
      */
-    public List<HFReferral> findById(List<String> ids, Boolean includeDeleted, String columnName) {
+    public SearchResponse<HFReferral> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         // Find objects in the cache based on the provided IDs.
         List<HFReferral> objFound = findInCache(ids);
         if (!includeDeleted) {
@@ -134,7 +141,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
 
             // If no IDs are remaining, return the objects found in the cache.
             if (ids.isEmpty()) {
-                return objFound;
+                return SearchResponse.<HFReferral>builder().response(objFound).build();
             }
         }
 
@@ -154,6 +161,6 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         // Add the retrieved entities to the cache.
         objFound.addAll(hfReferralList);
         putInCache(objFound);
-        return objFound;
+        return SearchResponse.<HFReferral>builder().response(objFound).build();
     }
 }
