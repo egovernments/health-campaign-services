@@ -109,7 +109,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     @Override
     public void update(PlanFacilityRequest planFacilityRequest) {
         try {
-            producer.push(config.getPlanFacilityUpdateTopic(), planFacilityRequest);
+            PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
+            producer.push(config.getPlanFacilityUpdateTopic(), requestDTO);
             log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
         } catch (Exception e) {
             throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());
