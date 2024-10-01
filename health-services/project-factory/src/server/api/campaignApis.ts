@@ -806,10 +806,11 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
 async function processGenericRequest(request: any, localizationMap?: { [key: string]: string }) {
 
   // Process generic requests
-
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-  await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+  if (request?.body?.ResourceDetails?.type != "boundary") {
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+  }
 
   if (request?.body?.ResourceDetails?.action == "create") {
     await processCreate(request, localizationMap)
