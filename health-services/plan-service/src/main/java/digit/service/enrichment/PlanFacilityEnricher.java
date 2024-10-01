@@ -19,19 +19,16 @@ public class PlanFacilityEnricher {
      * @param planFacilityRequest
      */
     public void enrichPlanFacilityCreate(@Valid PlanFacilityRequest planFacilityRequest) {
-        if (planFacilityRequest.getPlanFacility() == null) {
-            throw new IllegalArgumentException("Plan Facility details are missing in the request.");
-        }
-
         // Generate id for plan facility
         UUIDEnrichmentUtil.enrichRandomUuid(planFacilityRequest.getPlanFacility(), "id");
 
         // Enrich audit details
         planFacilityRequest.getPlanFacility().setAuditDetails(AuditDetailsEnrichmentUtil
-                .prepareAuditDetails(planFacilityRequest.getPlanFacility().getAuditDetails(), planFacilityRequest.getRequestInfo(), Boolean.TRUE));
+                .prepareAuditDetails(planFacilityRequest.getPlanFacility().getAuditDetails(),
+                        planFacilityRequest.getRequestInfo(), Boolean.TRUE));
 
         //Set Active
-        planFacilityRequest.getPlanFacility().setActive(true);
+        planFacilityRequest.getPlanFacility().setActive(Boolean.TRUE);
 
     }
 
