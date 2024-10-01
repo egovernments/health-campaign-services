@@ -2,6 +2,7 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
+import digit.web.models.PlanFacilityRequest;
 import digit.web.models.facility.FacilityResponse;
 import digit.web.models.facility.FacilitySearchCriteria;
 import digit.web.models.facility.FacilitySearchRequest;
@@ -24,16 +25,19 @@ public class FacilityUtil {
 
     private RestTemplate restTemplate;
     private Configuration configs;
-    @Autowired
     private ObjectMapper mapper;
 
-    public FacilityUtil(RestTemplate restTemplate, Configuration configs) {
+    public FacilityUtil(RestTemplate restTemplate, Configuration configs, ObjectMapper mapper) {
         this.restTemplate = restTemplate;
         this.configs = configs;
+        this.mapper = mapper;
     }
 
-    public FacilityResponse fetchFacilityData(RequestInfo requestInfo, String facilityId, String tenantId) {
+    public FacilityResponse fetchFacilityData(PlanFacilityRequest planFacilityRequest) {
         String baseUri = configs.getFacilityHost()+ configs.getFacilitySearchEndPoint();
+
+        // Retrieve tenantId from planFacilityRequest
+        String tenantId = planFacilityRequest.getPlanFacility().getTenantId();
 
         // Retrieve the limit and offset from the configuration
         int limit = configs.getDefaultLimit();
@@ -46,7 +50,7 @@ public class FacilityUtil {
                 .queryParam("offset", offset)
                 .toUriString();
 
-        FacilitySearchRequest facilitySearchRequest = getSearchReq(requestInfo, facilityId);
+        FacilitySearchRequest facilitySearchRequest = getFacilitySearchRequest(planFacilityRequest);
         FacilityResponse facilityResponse = new FacilityResponse();
         Object response = new HashMap<>();
         try {
@@ -60,7 +64,11 @@ public class FacilityUtil {
         return facilityResponse;
     }
 
-    private FacilitySearchRequest getSearchReq(RequestInfo requestInfo, String facilityId) {
+    private FacilitySearchRequest getFacilitySearchRequest(PlanFacilityRequest planFacilityRequest) {
+        // Retrieve facilityId,requestInfo from planFacilityRequest
+        String facilityId = planFacilityRequest.getPlanFacility().getFacilityId();
+        RequestInfo requestInfo = planFacilityRequest.getRequestInfo();
+
         FacilitySearchCriteria searchCriteria = FacilitySearchCriteria.builder()
                 .id(Collections.singletonList(facilityId))
                 .build();

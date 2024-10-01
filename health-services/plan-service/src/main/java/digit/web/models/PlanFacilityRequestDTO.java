@@ -11,14 +11,14 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * PlanFacilityRequest
+ * PlanFacilityRequestDTO
  */
 @Validated
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanFacilityRequest {
+public class PlanFacilityRequestDTO {
 
     @JsonProperty("RequestInfo")
     @Valid
@@ -28,6 +28,6 @@ public class PlanFacilityRequest {
     @JsonProperty("PlanFacility")
     @Valid
     @NotNull
-    private PlanFacility planFacility;
+    private PlanFacilityDTO planFacilityDTO;
 
 }

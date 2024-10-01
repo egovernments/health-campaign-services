@@ -15,15 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Plan Facility
+ * Plan Facility DTO
  */
 @Validated
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanFacility {
-
+public class PlanFacilityDTO {
     @JsonProperty("id")
     private String id = null;
 
@@ -47,10 +46,11 @@ public class PlanFacility {
     @Size(min = 1, max = 64)
     private String residingBoundary = null;
 
+    // Changed List<String> to String to store as JSON
     @JsonProperty("serviceBoundaries")
     @NotNull
-    @Valid
-    private List<String> serviceBoundaries;
+    @Size(min = 1)
+    private String serviceBoundaries = null; // Store as JSON string
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
@@ -60,15 +60,5 @@ public class PlanFacility {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
-
-    public PlanFacility addServiceBoundariesItem(String serviceBoundariesItem) {
-        if (this.serviceBoundaries == null) {
-            this.serviceBoundaries = new ArrayList<>();
-        }
-        this.serviceBoundaries.add(serviceBoundariesItem);
-        return this;
-    }
-
-
 
 }

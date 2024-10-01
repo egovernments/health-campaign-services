@@ -9,9 +9,7 @@ import digit.web.models.facility.FacilityResponse;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -31,16 +29,14 @@ public class PlanFacilityValidator {
     private MultiStateInstanceUtil centralInstanceUtil;
     private MdmsUtil mdmsUtil;
     private FacilityUtil facilityUtil;
-    private CommonUtil commonUtil;
 
-    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil, CommonUtil commonUtil) {
+    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil) {
         this.planFacilityRepository = planFacilityRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.campaignUtil = campaignUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.mdmsUtil = mdmsUtil;
         this.facilityUtil = facilityUtil;
-        this.commonUtil = commonUtil;
     }
 
     /**
@@ -51,18 +47,17 @@ public class PlanFacilityValidator {
      * @param planFacilityRequest
      */
     public void validatePlanFacilityCreate(@Valid PlanFacilityRequest planFacilityRequest) {
+        // Retrieve the root-level tenant ID (state-level) based on the facility's tenant ID
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
 
-        List<PlanConfiguration> planConfigurations = getPlanConfigurationData(planFacilityRequest.getPlanFacility().getPlanConfigurationId(),rootTenantId);
-
-        // Validate plan configuration existence
-        validatePlanConfigurationExistence(planFacilityRequest);
+        // Validate PlanConfiguration Existence and fetch the plan configuration details using the PlanConfigurationId
+        List<PlanConfiguration> planConfigurations = fetchPlanConfigurationById(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
 
         // Validate facility existence
         validateFacilityExistence(planFacilityRequest);
 
-        //validate service boundaries and residing boundaries with campaign id
-        validateCampaignDetails(planConfigurations.get(0).getCampaignId(),rootTenantId,planFacilityRequest);
+        // Validate service boundaries and residing boundaries with campaign id
+        validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, planFacilityRequest);
     }
 
     /**
@@ -78,7 +73,7 @@ public class PlanFacilityValidator {
         //validate plan facility existence
         validatePlanFacilityExistence(planFacilityRequest);
 
-        List<PlanConfiguration> planConfigurations = getPlanConfigurationData(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
+        List<PlanConfiguration> planConfigurations = fetchPlanConfigurationById(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
 
         //validate service boundaries and residing boundaries with campaign id
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, planFacilityRequest);
@@ -96,17 +91,17 @@ public class PlanFacilityValidator {
         Object mdmsData = mdmsUtil.fetchMdmsData(planFacilityRequest.getRequestInfo(), rootTenantId);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(planFacilityRequest.getRequestInfo(), campaignId, rootTenantId);
 
-        // validate hierarchy type for campaign
+        // Validate hierarchy type for campaign
         String lowestHierarchy = validateHierarchyType(campaignResponse, mdmsData);
 
         // Collect all boundary code for the campaign
         Set<String> boundaryCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
 
-        //validate service boundaries
-        validateServiceBoundaries(boundaryCodes, planFacility);
-
-        //validate residing boundaries
+        // Validate residing boundaries
         validateResidingBoundaries(boundaryCodes, planFacility);
+
+        // Validate service boundaries
+        validateServiceBoundaries(boundaryCodes, planFacility);
 
     }
 
@@ -159,19 +154,23 @@ public class PlanFacilityValidator {
      * @param mdmsData
      */
     private String validateHierarchyType(CampaignResponse campaignResponse, Object mdmsData) {
+        // Get the hierarchy type from the campaign response
         String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
+
+        // Define the JSON path to fetch hierarchy configurations from MDMS data
         final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_HCM_ADMIN_CONSOLE + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
 
         List<Map<String, Object>> hierarchyConfigList = null;
-        System.out.println("Jsonpath for hierarchy config -> " + jsonPathForHierarchy);
         try {
             hierarchyConfigList = JsonPath.read(mdmsData, jsonPathForHierarchy);
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
+        // Iterate through the hierarchy configuration list
         for (Map<String, Object> hierarchyConfig : hierarchyConfigList) {
             if (hierarchyType.equals(hierarchyConfig.get(MDMS_MASTER_HIERARCHY))) {
+                // Return the lowest hierarchy value from the configuration
                 return (String) hierarchyConfig.get(MDMS_MASTER_LOWEST_HIERARCHY);
             }
         }
@@ -200,12 +199,14 @@ public class PlanFacilityValidator {
      * @param tenantId
      * @return
      */
-    public List<PlanConfiguration> getPlanConfigurationData(String planConfigurationId, String tenantId) {
+    public List<PlanConfiguration> fetchPlanConfigurationById(String planConfigurationId, String tenantId) {
         List<PlanConfiguration> planConfigurations = planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
                 .id(planConfigurationId)
                 .tenantId(tenantId)
                 .build());
+        log.info("planConfigurations: "+planConfigurations);
 
+        // Validate planConfiguration exists
         if (CollectionUtils.isEmpty(planConfigurations)) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
@@ -219,32 +220,12 @@ public class PlanFacilityValidator {
      * @param planFacilityRequest
      */
     private void validateFacilityExistence(PlanFacilityRequest planFacilityRequest) {
-        String facilityId = planFacilityRequest.getPlanFacility().getFacilityId();
-        String tenantId = planFacilityRequest.getPlanFacility().getTenantId();
-        RequestInfo requestInfo = planFacilityRequest.getRequestInfo();
-
-        FacilityResponse facilityResponse = facilityUtil.fetchFacilityData(requestInfo, facilityId, tenantId);
+        FacilityResponse facilityResponse = facilityUtil.fetchFacilityData(planFacilityRequest);
 
         // Use ObjectUtils and CollectionUtils to handle null or empty checks
         if (ObjectUtils.isEmpty(facilityResponse) || CollectionUtils.isEmpty(facilityResponse.getFacilities())) {
-            throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + facilityId + " not found in the system.");
+            throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + planFacilityRequest.getPlanFacility().getFacilityId() + " not found in the system.");
         }
     }
 
-
-    /**
-     * Validates if the plan configuration ID provided in the request exists.
-     *
-     * @param request The request object containing the plan configuration ID.
-     */
-    private void validatePlanConfigurationExistence(PlanFacilityRequest request) {
-        // If plan configuration id provided is invalid, throw an exception
-        if(!ObjectUtils.isEmpty(request.getPlanFacility().getPlanConfigurationId()) && CollectionUtils.isEmpty(
-                planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
-                        .id(request.getPlanFacility().getPlanConfigurationId())
-                        .tenantId(request.getPlanFacility().getTenantId())
-                        .build()))) {
-            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
-        }
-    }
 }

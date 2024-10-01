@@ -1,5 +1,6 @@
 package digit.repository.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanFacilityRepository;
@@ -9,7 +10,6 @@ import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,12 +29,15 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
 
     private Configuration config;
 
-    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config) {
+    private ObjectMapper mapper;
+
+    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config, ObjectMapper mapper) {
         this.producer = producer;
         this.jdbcTemplate = jdbcTemplate;
         this.planFacilityQueryBuilder = planFacilityQueryBuilder;
         this.planFacilityRowMapper = planFacilityRowMapper;
         this.config = config;
+        this.mapper = mapper;
     }
 
     /**
@@ -43,13 +46,47 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
      */
     @Override
     public void create(PlanFacilityRequest planFacilityRequest) {
-        try {
-            producer.push(config.getPlanFacilityCreateTopic(), planFacilityRequest);
-        } catch (Exception e) {
-            log.info("Pushing message to topic " + config.getPlanFacilityCreateTopic() + " failed.", e);
-            throw new CustomException("KAFKA_PUSH_FAILED", "Failed to push event to Kafka, operation could not be completed.");
-        }
+        // Convert the incoming PlanFacilityRequest to PlanFacilityRequestDTO
+        PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
+
+        // Push the requestDTO to the producer for processing
+        producer.push(config.getPlanFacilityCreateTopic(), requestDTO);
     }
+
+    public PlanFacilityRequestDTO convertToDTO(PlanFacilityRequest planFacilityRequest) {
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+
+        // Create a new PlanFacilityDTO
+        PlanFacilityDTO planFacilityDTO = PlanFacilityDTO.builder()
+                .id(planFacility.getId())
+                .tenantId(planFacility.getTenantId())
+                .planConfigurationId(planFacility.getPlanConfigurationId())
+                .facilityId(planFacility.getFacilityId())
+                .residingBoundary(planFacility.getResidingBoundary())
+                .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
+                .additionalDetails(planFacility.getAdditionalDetails())
+                .active(planFacility.getActive())
+                .auditDetails(planFacility.getAuditDetails())
+                .build();
+
+        // Return the complete PlanFacilityRequestDTO
+        return PlanFacilityRequestDTO.builder()
+                .requestInfo(planFacilityRequest.getRequestInfo())
+                .planFacilityDTO(planFacilityDTO)
+                .build();
+    }
+
+    /**
+     * This is a helper function to convert an array of string to comma separated string
+     *
+     * @param stringList Array of string to be converted
+     * @return a string
+     */
+    private String convertArrayToString(List<String> stringList) {
+        return String.join(", ", stringList);
+    }
+
+
 
     /**
      * This method searches for plans based on the search criteria.
@@ -72,7 +109,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     @Override
     public void update(PlanFacilityRequest planFacilityRequest) {
         try {
-            producer.push(config.getPlanFacilityUpdateTopic(), planFacilityRequest);
+            PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
+            producer.push(config.getPlanFacilityUpdateTopic(), requestDTO);
             log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
         } catch (Exception e) {
             throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());

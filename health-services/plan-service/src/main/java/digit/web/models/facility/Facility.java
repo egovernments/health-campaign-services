@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 
+import java.util.Map;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -31,7 +33,7 @@ public class Facility {
     private boolean hasErrors;
 
     @JsonProperty("additionalFields")
-    private String additionalFields;
+    private AdditionalFields additionalFields;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails;
@@ -55,7 +57,7 @@ public class Facility {
     private Integer storageCapacity;
 
     @JsonProperty("address")
-    private String address;
+    private Address address;
 
     @JsonProperty("isDeleted")
     private boolean isDeleted;

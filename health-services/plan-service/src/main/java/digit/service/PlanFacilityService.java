@@ -9,7 +9,6 @@ import digit.web.models.PlanFacilityRequest;
 import digit.web.models.PlanFacilityResponse;
 import org.egov.common.utils.ResponseInfoUtil;
 import digit.web.models.PlanFacilitySearchRequest;
-import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
@@ -17,10 +16,10 @@ import java.util.List;
 @Service
 public class PlanFacilityService {
 
-    private final PlanFacilityValidator planFacilityValidator;
-    private final ResponseInfoFactory responseInfoFactory;
-    private final PlanFacilityEnricher planFacilityEnricher;
-    private final PlanFacilityRepository planFacilityRepository;
+    private PlanFacilityValidator planFacilityValidator;
+    private ResponseInfoFactory responseInfoFactory;
+    private PlanFacilityEnricher planFacilityEnricher;
+    private PlanFacilityRepository planFacilityRepository;
 
     public PlanFacilityService(PlanFacilityValidator planFacilityValidator, ResponseInfoFactory responseInfoFactory, PlanFacilityEnricher planFacilityEnricher, PlanFacilityRepository planFacilityRepository) {
         this.planFacilityValidator = planFacilityValidator;
@@ -46,8 +45,10 @@ public class PlanFacilityService {
         planFacilityRepository.create(planFacilityRequest);
 
         // Build and return response back to controller
-        PlanFacilityResponse response = PlanFacilityResponse.builder().planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility())).responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), true)).build();
-        return response;
+        return PlanFacilityResponse.builder()
+                .planFacility(Collections.singletonList(planFacilityRequest.getPlanFacility()))
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(planFacilityRequest.getRequestInfo(), Boolean.TRUE))
+                .build();
     }
 
     /**
