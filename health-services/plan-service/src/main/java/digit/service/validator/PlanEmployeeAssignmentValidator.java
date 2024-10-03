@@ -1,10 +1,12 @@
 package digit.service.validator;
 
+import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
 import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.util.CampaignUtil;
 import digit.util.CommonUtil;
 import digit.util.HrmsUtil;
+import digit.util.MdmsUtil;
 import digit.web.models.*;
 import digit.web.models.hrms.EmployeeResponse;
 import digit.web.models.projectFactory.Boundary;
@@ -29,6 +31,8 @@ public class PlanEmployeeAssignmentValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
+    private MdmsUtil mdmsUtil;
+
     private HrmsUtil hrmsUtil;
 
     private CommonUtil commonUtil;
@@ -39,8 +43,9 @@ public class PlanEmployeeAssignmentValidator {
 
     private Configuration config;
 
-    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeAssignmentRepository repository, Configuration config) {
+    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeAssignmentRepository repository, Configuration config) {
         this.centralInstanceUtil = centralInstanceUtil;
+        this.mdmsUtil = mdmsUtil;
         this.hrmsUtil = hrmsUtil;
         this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
@@ -71,8 +76,49 @@ public class PlanEmployeeAssignmentValidator {
         // Validate if role of employee is a conflicting role
         validateRoleConflict(planEmployeeAssignment);
 
-        // Validate campaign id and employee jurisdiction
+        // Validate campaign id, employee jurisdiction and highest root jurisdiction in case of National role
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
+
+    }
+
+    /**
+     * Validates that employee with National role is assigned to the highest root jurisdiction only against MDMS
+     *
+     * @param planEmployeeAssignment The plan employee assignment provided in request
+     * @param mdmsData               mdms data from mdms v2
+     * @param campaignDetail         the campaign details for the corresponding campaign id
+     */
+    private void validateNationalRole(PlanEmployeeAssignment planEmployeeAssignment, Object mdmsData, CampaignDetail campaignDetail) {
+        if (planEmployeeAssignment.getRole().contains(NATIONAL_ROLE)) {
+            List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
+
+            // Validate that National role employee should not have more than one jurisdiction assigned
+            if (jurisdiction.size() > 1) {
+                throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+            }
+
+            // Fetch the highest hierarchy for Microplan from MDMS
+            String jsonPathForHighestHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN + DOT_SEPARATOR + HIGHEST_HIERARCHY_FOR_MICROPLAN;
+
+            List<String> highestHirarchyForPlan = null;
+            try {
+                log.info(jsonPathForHighestHierarchy);
+                highestHirarchyForPlan = JsonPath.read(mdmsData, jsonPathForHighestHierarchy);
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+            }
+
+            // Filter out the boundary details for the jurisdiction assigned to employee
+            Boundary jurisdictionBoundary = campaignDetail.getBoundaries().stream()
+                    .filter(boundary -> boundary.getCode().equals(planEmployeeAssignment.getJurisdiction().get(0)))
+                    .findFirst().get();
+
+            // Throw exception if jurisdiction assigned to National role employee is not the highest hierarchy
+            if (!jurisdictionBoundary.getType().equals(highestHirarchyForPlan.get(0))) {
+                throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+            }
+        }
     }
 
     /**
@@ -122,6 +168,7 @@ public class PlanEmployeeAssignmentValidator {
 
     /**
      * This method validates campaign id and employee's jurisdiction against project factory
+     * If the employee has a national role, it validates that the employee has the highest root jurisdiction only
      *
      * @param campaignId                    the campaign id corresponding to the plan config id provided in the request
      * @param tenantId                      the tenant id provided in the request
@@ -130,12 +177,16 @@ public class PlanEmployeeAssignmentValidator {
     private void validateCampaignDetails(String campaignId, String tenantId, PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
         PlanEmployeeAssignment planEmployeeAssignment = planEmployeeAssignmentRequest.getPlanEmployeeAssignment();
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(planEmployeeAssignmentRequest.getRequestInfo(), campaignId, tenantId);
+        Object mdmsData = mdmsUtil.fetchMdmsData(planEmployeeAssignmentRequest.getRequestInfo(), tenantId);
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
 
         // Validate the provided jurisdiction for employee
         validateEmployeeJurisdiction(campaignResponse.getCampaignDetails().get(0), planEmployeeAssignment);
+
+        // Validates highest root jurisdiction for National roles against MDMS
+        validateNationalRole(planEmployeeAssignment, mdmsData, campaignResponse.getCampaignDetails().get(0));
     }
 
     /**

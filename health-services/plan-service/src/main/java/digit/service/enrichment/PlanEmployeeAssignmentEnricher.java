@@ -11,7 +11,7 @@ import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetai
 public class PlanEmployeeAssignmentEnricher {
 
     /**
-     * Enriches the PlanEmployeeAssignmentRequest with id and audit details.
+     * Enriches the PlanEmployeeAssignmentRequest with id and audit details and sets active as true.
      *
      * @param request The PlanEmployeeAssignmentRequest body to be enriched
      */
@@ -20,6 +20,9 @@ public class PlanEmployeeAssignmentEnricher {
 
         // Generate id for Plan employee assignment body
         UUIDEnrichmentUtil.enrichRandomUuid(planEmployeeAssignment, "id");
+
+        // Set active true
+        planEmployeeAssignment.setActive(Boolean.TRUE);
 
         // Set Audit Details for Plan employee assignment
         planEmployeeAssignment.setAuditDetails(prepareAuditDetails(planEmployeeAssignment.getAuditDetails(),

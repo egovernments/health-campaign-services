@@ -20,6 +20,8 @@ public class ServiceConstants {
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
 
+    public static final String NATIONAL_ROLE = "NATIONAL";
+
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 
@@ -157,6 +159,8 @@ public class ServiceConstants {
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
+    public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
+    public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
@@ -199,6 +203,10 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE = "boundaryCode";
 
     public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
+
+    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
+
+    public static final String HIGHEST_HIERARCHY_FOR_MICROPLAN = "highestHierarchy";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
