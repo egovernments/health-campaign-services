@@ -56,6 +56,7 @@ public class PlanFacilityDTO {
     private Object additionalDetails = null;
 
     @JsonProperty("active")
+    @NotNull
     private Boolean active = null;
 
     @JsonProperty("auditDetails")
