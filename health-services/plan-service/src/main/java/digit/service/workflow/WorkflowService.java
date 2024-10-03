@@ -10,14 +10,13 @@ import org.egov.common.contract.models.Workflow;
 import org.egov.common.contract.request.User;
 import org.egov.common.contract.workflow.*;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
 import static digit.config.ServiceConstants.*;
-import static java.util.stream.Collectors.toList;
 
 @Service
 @Slf4j
@@ -29,7 +28,6 @@ public class WorkflowService {
 
 	private ObjectMapper mapper;
 
-	@Autowired
 	public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper) {
 		this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
@@ -42,23 +40,15 @@ public class WorkflowService {
 	 *
 	 * @param planConfigurationRequest The request containing the plan configuration to integrate with the workflow.
 	 */
-	public void integrateWithWorkflow(PlanConfigurationRequest planConfigurationRequest) {
-		if (planConfigurationRequest.getPlanConfiguration().getWorkflow() == null ||
-				planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction() == null) {
+	public void invokeWorkflowForStatusUpdate(PlanConfigurationRequest planConfigurationRequest) {
+		if (ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()))
 			return;
-		}
 
 		ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(planConfigurationRequest);
 		ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
 
-		String businessId = planConfigurationRequest.getPlanConfiguration().getId();
-		ProcessInstance processInstanceAfterTransition = processInstanceResponse.getProcessInstances().stream()
-				.filter(processInstance -> businessId.equals(processInstance.getBusinessId()))
-				.findFirst()
-				.orElseThrow(() -> new CustomException(PROCESS_INSTANCE_NOT_FOUND_CODE, PROCESS_INSTANCE_NOT_FOUND_MESSAGE + businessId));
-
 		// Setting the status back to the plan configuration object from workflow response
-		planConfigurationRequest.getPlanConfiguration().setStatus(processInstanceAfterTransition.getState().getApplicationStatus());
+		planConfigurationRequest.getPlanConfiguration().setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
 	}
 
 	/**
@@ -113,13 +103,13 @@ public class WorkflowService {
 	 * @param workflow The workflow containing assignees to be added to the process instance.
 	 */
 	public void enrichAssignesInWorkflow(ProcessInstance processInstance, Workflow workflow) {
-		List<User> userUuidList = CollectionUtils.isEmpty(workflow.getAssignes())
+		List<User> userList = CollectionUtils.isEmpty(workflow.getAssignes())
 				? new LinkedList<>()
 				: workflow.getAssignes().stream()
 				.map(assignee -> User.builder().uuid(assignee).build())
-				.collect(toList());
+				.toList();
 
-		processInstance.setAssignes(userUuidList);
+		processInstance.setAssignes(userList);
 	}
 
 	/**

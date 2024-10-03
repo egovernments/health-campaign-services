@@ -49,7 +49,6 @@ public class PlanConfiguration {
     private String campaignId = null;
 
     @JsonProperty("status")
-    @NotNull
     private String status = null;
 
     @JsonProperty("files")
