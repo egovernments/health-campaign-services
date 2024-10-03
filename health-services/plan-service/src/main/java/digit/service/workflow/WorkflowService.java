@@ -43,7 +43,8 @@ public class WorkflowService {
 	 * @param planConfigurationRequest The request containing the plan configuration to integrate with the workflow.
 	 */
 	public void integrateWithWorkflow(PlanConfigurationRequest planConfigurationRequest) {
-		if (planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction() == null) {
+		if (planConfigurationRequest.getPlanConfiguration().getWorkflow() == null ||
+				planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction() == null) {
 			return;
 		}
 
@@ -73,7 +74,7 @@ public class WorkflowService {
 			Object response = serviceRequestRepository.fetchResult(getWorkflowTransitionUri(), processInstanceRequest);
 			processInstanceResponse = mapper.convertValue(response, ProcessInstanceResponse.class);
 		} catch (Exception e) {
-			throw new CustomException(WORKFLOW_INTEGRATION_ERROR_CODE, WORKFLOW_INTEGRATION_ERROR_MESSAGE + e);
+			throw new CustomException(WORKFLOW_INTEGRATION_ERROR_CODE, WORKFLOW_INTEGRATION_ERROR_MESSAGE + e.getMessage());
 		}
 
 		return processInstanceResponse;
@@ -127,8 +128,7 @@ public class WorkflowService {
 	 * @return The StringBuilder containing the constructed workflow transition URI.
 	 */
 	private StringBuilder getWorkflowTransitionUri() {
-		StringBuilder uri = new StringBuilder();
-		return uri.append(config.getWfHost()).append(config.getWfTransitionPath());
+		return new StringBuilder().append(config.getWfHost()).append(config.getWfTransitionPath());
 	}
 
 

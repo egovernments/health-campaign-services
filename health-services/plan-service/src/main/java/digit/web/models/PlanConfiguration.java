@@ -83,6 +83,7 @@ public class PlanConfiguration {
     private Object additionalDetails = null;
 
     @JsonProperty("workflow")
+    @Valid
     private Workflow workflow;
 
 }

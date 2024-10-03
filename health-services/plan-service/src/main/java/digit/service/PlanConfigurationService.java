@@ -85,8 +85,8 @@ public class PlanConfigurationService {
      */
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
         validator.validateUpdateRequest(request);
-        workflowService.integrateWithWorkflow(request);
         enrichmentService.enrichUpdate(request);
+        workflowService.integrateWithWorkflow(request);
         repository.update(request);
 
         // Build and return response back to controller
