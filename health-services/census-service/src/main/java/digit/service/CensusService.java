@@ -1,5 +1,8 @@
 package digit.service;
 
+import digit.repository.CensusRepository;
+import digit.service.enrichment.CensusEnrichment;
+import digit.service.validator.CensusValidator;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
@@ -13,6 +16,19 @@ public class CensusService {
 
     private ResponseInfoFactory responseInfoFactory;
 
+    private CensusRepository repository;
+
+    private CensusValidator validator;
+
+    private CensusEnrichment enrichment;
+
+    public CensusService(ResponseInfoFactory responseInfoFactory, CensusRepository repository, CensusValidator validator, CensusEnrichment enrichment) {
+        this.responseInfoFactory = responseInfoFactory;
+        this.repository = repository;
+        this.validator = validator;
+        this.enrichment = enrichment;
+    }
+
     /**
      * Creates a new census record based on the provided request.
      *
@@ -20,6 +36,7 @@ public class CensusService {
      * @return The created census reponse.
      */
     public CensusResponse create(CensusRequest request) {
+        repository.create(request);
         CensusResponse response = CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
@@ -36,6 +53,7 @@ public class CensusService {
     public CensusResponse search(CensusSearchRequest request) {
         CensusResponse response = CensusResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .census(repository.search(request.getCensusSearchCriteria()))
                 .build();
 
         return response;
@@ -48,6 +66,7 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
+        repository.update(request);
         CensusResponse response = CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))

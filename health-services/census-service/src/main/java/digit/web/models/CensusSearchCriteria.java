@@ -1,16 +1,12 @@
 package digit.web.models;
 
-import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -36,6 +32,15 @@ public class CensusSearchCriteria {
 
     @JsonProperty("areaCodes")
     private List<String> areaCodes = null;
+
+    @JsonProperty("status")
+    private String status = null;
+
+    @JsonProperty("assignee")
+    private String assignee = null;
+
+    @JsonProperty("boundaryCodeAncestralMaterializedPath")
+    private List<String> materializedPath = null;
 
 
     public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {

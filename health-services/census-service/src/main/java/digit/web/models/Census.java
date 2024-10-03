@@ -1,12 +1,9 @@
 package digit.web.models;
 
-import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import digit.web.models.PopulationByDemographic;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,10 +11,7 @@ import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.Data;
-import lombok.Builder;
+import lombok.*;
 
 /**
  * Census
@@ -45,6 +39,48 @@ public class Census {
     @JsonProperty("boundaryCode")
     @NotNull
     private String boundaryCode = null;
+
+    @JsonProperty("assignee")
+    @NotNull
+    private String assignee = null;
+
+    @JsonProperty("status")
+    @NotNull
+    private StatusEnum status = null;
+
+    @JsonProperty("type")
+    @NotNull
+    private TypeEnum type = null;
+
+    @JsonProperty("totalPopulation")
+    @NotNull
+    private Long totalPopulation = null;
+
+    @JsonProperty("populationByDemographics")
+    @Valid
+    private List<PopulationByDemographic> populationByDemographics = null;
+
+    @JsonProperty("effectiveFrom")
+    private Long effectiveFrom = null;
+
+    @JsonProperty("effectiveTo")
+    private Long effectiveTo = null;
+
+    @JsonProperty("source")
+    @NotNull
+    private String source = null;
+
+    @JsonProperty("materializedPath")
+    @NotNull
+    private List<String> materializedPath = null;
+
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
+
+    /**
+     * The status used in the Census
+     */
+    public enum StatusEnum {}
 
     /**
      * Gets or Sets type
@@ -80,31 +116,6 @@ public class Census {
             return null;
         }
     }
-
-    @JsonProperty("type")
-    @NotNull
-    private TypeEnum type = null;
-
-    @JsonProperty("totalPopulation")
-    @NotNull
-    private Long totalPopulation = null;
-
-    @JsonProperty("populationByDemographics")
-    @Valid
-    private List<PopulationByDemographic> populationByDemographics = null;
-
-    @JsonProperty("effectiveFrom")
-    private Long effectiveFrom = null;
-
-    @JsonProperty("effectiveTo")
-    private Long effectiveTo = null;
-
-    @JsonProperty("source")
-    @NotNull
-    private String source = null;
-
-    @JsonProperty("additionalDetails")
-    private Object additionalDetails = null;
 
 
     public Census addPopulationByDemographicsItem(PopulationByDemographic populationByDemographicsItem) {

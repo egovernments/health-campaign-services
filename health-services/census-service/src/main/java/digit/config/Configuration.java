@@ -1,18 +1,10 @@
 package digit.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 import org.egov.tracer.config.TracerConfiguration;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-
-import java.util.TimeZone;
 
 @Component
 @Data
@@ -23,6 +15,12 @@ import java.util.TimeZone;
 @Getter
 public class Configuration {
 
+    //Persister Topic
+    @Value("${census.create.topic}")
+    private String censusCreateTopic;
+
+    @Value("${census.update.topic}")
+    private String censusUpdateTopic;
 
     // User Config
     @Value("${egov.user.host}")
@@ -90,4 +88,11 @@ public class Configuration {
     //SMSNotification
     @Value("${egov.sms.notification.topic}")
     private String smsNotificationTopic;
+
+    //Pagination
+    @Value("${census.default.offset}")
+    private Integer defaultOffset;
+
+    @Value("${census.default.limit}")
+    private Integer defaultLimit;
 }
