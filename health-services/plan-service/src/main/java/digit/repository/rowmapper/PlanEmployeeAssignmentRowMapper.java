@@ -41,7 +41,7 @@ public class PlanEmployeeAssignmentRowMapper implements ResultSetExtractor<List<
 
                 // Converting jurisdiction from comma separated string to a list of string
                 String jurisdiction = rs.getString("jurisdiction");
-                List<String> jurisdictionList = Arrays.asList(jurisdiction.split(", "));
+                List<String> jurisdictionList = Arrays.asList(jurisdiction.split(","));
 
                 // Prepare PlanEmployeeAssignment object
                 planEmployeeAssignment.setId(planEmployeeAssignmentId);

@@ -87,42 +87,4 @@ public class CommonUtil {
         return planConfigurations;
     }
 
-    /**
-     * Converts the PlanEmployeeAssignmentRequest to a data transfer object (DTO)
-     *
-     * @param planEmployeeAssignmentRequest The request to be converted to DTO
-     * @return a DTO for PlanEmployeeAssignmentRequest
-     */
-    public PlanEmployeeAssignmentRequestDTO convertToReqDTO(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
-        PlanEmployeeAssignment planEmployeeAssignment = planEmployeeAssignmentRequest.getPlanEmployeeAssignment();
-
-        // Creating a new data transfer object (DTO) for PlanEmployeeAssignment
-        PlanEmployeeAssignmentDTO planEmployeeAssignmentDTO = PlanEmployeeAssignmentDTO.builder()
-                .id(planEmployeeAssignment.getId())
-                .tenantId(planEmployeeAssignment.getTenantId())
-                .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
-                .employeeId(planEmployeeAssignment.getEmployeeId())
-                .role(planEmployeeAssignment.getRole())
-                .jurisdiction(convertArrayToString(planEmployeeAssignment.getJurisdiction()))
-                .additionalDetails(planEmployeeAssignment.getAdditionalDetails())
-                .active(planEmployeeAssignment.getActive())
-                .auditDetails(planEmployeeAssignment.getAuditDetails())
-                .build();
-
-        return PlanEmployeeAssignmentRequestDTO.builder()
-                .requestInfo(planEmployeeAssignmentRequest.getRequestInfo())
-                .planEmployeeAssignmentDTO(planEmployeeAssignmentDTO)
-                .build();
-    }
-
-    /**
-     * This is a helper function to convert an array of string to comma separated string
-     *
-     * @param stringList Array of string to be converted
-     * @return a string
-     */
-    private String convertArrayToString(List<String> stringList) {
-        return String.join(", ", stringList);
-    }
-
 }

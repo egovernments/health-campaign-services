@@ -5,21 +5,15 @@ import digit.kafka.Producer;
 import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.repository.querybuilder.PlanEmployeeAssignmentQueryBuilder;
 import digit.repository.rowmapper.PlanEmployeeAssignmentRowMapper;
-import digit.util.CommonUtil;
-import digit.web.models.PlanEmployeeAssignment;
-import digit.web.models.PlanEmployeeAssignmentRequestDTO;
-import digit.web.models.PlanEmployeeAssignmentRequest;
-import digit.web.models.PlanEmployeeAssignmentSearchCriteria;
+import digit.web.models.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+@Slf4j
 @Repository
 public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentRepository {
 
@@ -33,15 +27,12 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
 
     private PlanEmployeeAssignmentRowMapper rowMapper;
 
-    private CommonUtil commonUtil;
-
-    public PlanEmployeeAssignmentImpl(Producer producer, Configuration config, PlanEmployeeAssignmentQueryBuilder queryBuilder, JdbcTemplate jdbcTemplate, PlanEmployeeAssignmentRowMapper rowMapper, CommonUtil commonUtil) {
+    public PlanEmployeeAssignmentImpl(Producer producer, Configuration config, PlanEmployeeAssignmentQueryBuilder queryBuilder, JdbcTemplate jdbcTemplate, PlanEmployeeAssignmentRowMapper rowMapper) {
         this.producer = producer;
         this.config = config;
         this.queryBuilder = queryBuilder;
         this.jdbcTemplate = jdbcTemplate;
         this.rowMapper = rowMapper;
-        this.commonUtil = commonUtil;
     }
 
     /**
@@ -51,7 +42,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
      */
     @Override
     public void create(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
-        PlanEmployeeAssignmentRequestDTO requestDTO = commonUtil.convertToReqDTO(planEmployeeAssignmentRequest);
+        PlanEmployeeAssignmentRequestDTO requestDTO = convertToReqDTO(planEmployeeAssignmentRequest);
         producer.push(config.getPlanEmployeeAssignmentCreateTopic(), requestDTO);
     }
 
@@ -67,11 +58,6 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
         String searchQuery = queryBuilder.getPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
         List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
 
-        // If searchCriteria has jurisdiction, filter the list of planEmployeeAssignments by jurisdiction
-        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
-            planEmployeeAssignments = filterByJurisdiction(planEmployeeAssignments, searchCriteria.getJurisdiction());
-        }
-
         return planEmployeeAssignments;
     }
 
@@ -83,9 +69,11 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
      */
     @Override
     public Integer count(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
-        // TODO : YET TO BE IMPLEMENTED
         List<Object> preparedStmtList = new ArrayList<>();
-        return 0;
+        String query = queryBuilder.getPlanEmployeeAssignmentCountQuery(searchCriteria, preparedStmtList);
+        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+
+        return count;
     }
 
     /**
@@ -95,29 +83,36 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
      */
     @Override
     public void update(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
-        PlanEmployeeAssignmentRequestDTO requestDTO = commonUtil.convertToReqDTO(planEmployeeAssignmentRequest);
+        PlanEmployeeAssignmentRequestDTO requestDTO = convertToReqDTO(planEmployeeAssignmentRequest);
         producer.push(config.getPlanEmployeeAssignmentUpdateTopic(), requestDTO);
     }
 
     /**
-     * This is a helper method to filter out list of PlanEmployeeAssignment by jurisdiction provided
+     * Converts the PlanEmployeeAssignmentRequest to a data transfer object (DTO)
      *
-     * @param planEmployeeAssignments        List of planEmployeeAssignment based on search criteria
-     * @param jurisdictionFromSearchCriteria jurisdiction provided in search criteria
-     * @return a list of planEmployeeAssignment filtered by jurisdiction
+     * @param planEmployeeAssignmentRequest The request to be converted to DTO
+     * @return a DTO for PlanEmployeeAssignmentRequest
      */
-    private List<PlanEmployeeAssignment> filterByJurisdiction(List<PlanEmployeeAssignment> planEmployeeAssignments, List<String> jurisdictionFromSearchCriteria) {
+    public PlanEmployeeAssignmentRequestDTO convertToReqDTO(PlanEmployeeAssignmentRequest planEmployeeAssignmentRequest) {
+        PlanEmployeeAssignment planEmployeeAssignment = planEmployeeAssignmentRequest.getPlanEmployeeAssignment();
 
-        // Convert jurisdictionFromSearchCriteria to a Set
-        Set<String> jurisdictionSet = new HashSet<>(jurisdictionFromSearchCriteria);
+        // Creating a new data transfer object (DTO) for PlanEmployeeAssignment
+        PlanEmployeeAssignmentDTO planEmployeeAssignmentDTO = PlanEmployeeAssignmentDTO.builder()
+                .id(planEmployeeAssignment.getId())
+                .tenantId(planEmployeeAssignment.getTenantId())
+                .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
+                .employeeId(planEmployeeAssignment.getEmployeeId())
+                .role(planEmployeeAssignment.getRole())
+                .jurisdiction(String.join(",", planEmployeeAssignment.getJurisdiction()))
+                .additionalDetails(planEmployeeAssignment.getAdditionalDetails())
+                .active(planEmployeeAssignment.getActive())
+                .auditDetails(planEmployeeAssignment.getAuditDetails())
+                .build();
 
-        return planEmployeeAssignments.stream().filter(assignment -> {
-            for (String jurisdiction : assignment.getJurisdiction()) {
-                if (jurisdictionSet.contains(jurisdiction)) {
-                    return true;
-                }
-            }
-            return false;
-        }).collect(Collectors.toList());
+        return PlanEmployeeAssignmentRequestDTO.builder()
+                .requestInfo(planEmployeeAssignmentRequest.getRequestInfo())
+                .planEmployeeAssignmentDTO(planEmployeeAssignmentDTO)
+                .build();
     }
+
 }

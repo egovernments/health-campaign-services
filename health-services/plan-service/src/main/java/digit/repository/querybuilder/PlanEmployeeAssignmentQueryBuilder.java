@@ -1,10 +1,11 @@
 package digit.repository.querybuilder;
 
-import digit.config.Configuration;
 import digit.util.QueryUtil;
 import digit.web.models.PlanEmployeeAssignmentSearchCriteria;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
+import java.util.HashSet;
 import java.util.List;
 
 @Component
@@ -20,6 +21,8 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+
     /**
      * Constructs a SQL query string for searching PlanEmployeeAssignment objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -29,9 +32,21 @@ public class PlanEmployeeAssignmentQueryBuilder {
      * @return A complete SQL query string for searching PlanEmployeeAssignment objects.
      */
     public String getPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
+        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = queryUtil.getPaginatedQuery(query, preparedStmtList);
+        return query;
+    }
+
+    /**
+     * Constructs the count query to get the total count of plan employee assignments based on search criteria
+     *
+     * @param searchCriteria   The criteria used for filtering PlanEmployeeAssignment objects.
+     * @param preparedStmtList A list to store prepared statement parameters.
+     * @return A SQL query string to get the total count of plan employee assignments
+     */
+    public String getPlanEmployeeAssignmentCountQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
+        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList, Boolean.TRUE);
         return query;
     }
 
@@ -40,9 +55,10 @@ public class PlanEmployeeAssignmentQueryBuilder {
      *
      * @param searchCriteria   The criteria used for filtering PlanEmployeeAssignment objects.
      * @param preparedStmtList A list to store prepared statement parameters.
+     * @param isCount          is true if count query is required for the provided search criteria
      * @return A SQL query string for searching planEmployeeAssignment
      */
-    private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
+    private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList, Boolean isCount) {
         StringBuilder builder = new StringBuilder(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY);
 
         if (searchCriteria.getId() != null) {
@@ -81,7 +97,21 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getActive());
         }
 
+        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ").append(queryUtil.createQuery(searchCriteria.getJurisdiction().size())).append(" ]").append("::text[] ");
+            builder.append(" && string_to_array(jurisdiction, ',') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(searchCriteria.getJurisdiction()));
+        }
+
+        StringBuilder countQuery = new StringBuilder();
+        if (isCount) {
+            countQuery.append(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
+            countQuery.append(") AS subquery");
+
+            return countQuery.toString();
+        }
+
         return builder.toString();
     }
-
 }
