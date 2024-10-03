@@ -29,15 +29,12 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
 
     private Configuration config;
 
-    private ObjectMapper mapper;
-
-    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config, ObjectMapper mapper) {
+    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config) {
         this.producer = producer;
         this.jdbcTemplate = jdbcTemplate;
         this.planFacilityQueryBuilder = planFacilityQueryBuilder;
         this.planFacilityRowMapper = planFacilityRowMapper;
         this.config = config;
-        this.mapper = mapper;
     }
 
     /**
