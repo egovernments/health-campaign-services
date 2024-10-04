@@ -180,4 +180,5 @@ public class ServiceConstants {
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
 
+    public static final String PERCENTAGE_WILDCARD = "%";
 }
