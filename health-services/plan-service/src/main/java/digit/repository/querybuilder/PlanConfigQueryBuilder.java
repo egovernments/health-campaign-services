@@ -9,7 +9,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import static digit.config.ServiceConstants.*;
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
 
 @Component
 public class PlanConfigQueryBuilder {
