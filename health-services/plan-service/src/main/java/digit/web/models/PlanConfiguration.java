@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Pattern;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -48,8 +49,7 @@ public class PlanConfiguration {
     private String campaignId = null;
 
     @JsonProperty("status")
-    @NotNull
-    private StatusEnum status = null;
+    private String status = null;
 
     @JsonProperty("files")
     @NotNull
@@ -81,14 +81,9 @@ public class PlanConfiguration {
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
-    /**
-     * The status used in the Plan Configuration
-     */
-    public enum StatusEnum {
-            DRAFT ,
-            GENERATED,
-            INVALID_DATA,
-            SETUP_COMPLETED
-    }
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
+
 
 }
