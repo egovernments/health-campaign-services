@@ -5,9 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.CensusRepository;
 import digit.repository.querybuilder.CensusQueryBuilder;
 import digit.repository.rowmapper.CensusRowMapper;
-import digit.web.models.Census;
-import digit.web.models.CensusRequest;
-import digit.web.models.CensusSearchCriteria;
+import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
@@ -46,7 +44,8 @@ public class CensusRepositoryImpl implements CensusRepository {
      */
     @Override
     public void create(CensusRequest censusRequest) {
-        producer.push(config.getCensusCreateTopic(), censusRequest);
+        CensusRequestDTO requestDTO = convertToReqDTO(censusRequest);
+        producer.push(config.getCensusCreateTopic(), requestDTO);
     }
 
     /**
@@ -108,6 +107,41 @@ public class CensusRepositoryImpl implements CensusRepository {
      */
     @Override
     public void update(CensusRequest censusRequest) {
-        producer.push(config.getCensusUpdateTopic(), censusRequest);
+        CensusRequestDTO requestDTO = convertToReqDTO(censusRequest);
+        producer.push(config.getCensusUpdateTopic(), requestDTO);
+    }
+
+    /**
+     * Converts the CensusRequest to a data transfer object (DTO)
+     *
+     * @param censusRequest The request to be converted to DTO
+     * @return a DTO for CensusRequest
+     */
+    private CensusRequestDTO convertToReqDTO(CensusRequest censusRequest) {
+        Census census = censusRequest.getCensus();
+
+        // Creating a new data transfer object (DTO) for Census
+        CensusDTO censusDTO = CensusDTO.builder()
+                .id(census.getId())
+                .tenantId(census.getTenantId())
+                .hierarchyType(census.getHierarchyType())
+                .boundaryCode(census.getBoundaryCode())
+                .assignee(census.getAssignee())
+                .status(CensusDTO.StatusEnum.valueOf(census.getStatus().toString()))
+                .type(CensusDTO.TypeEnum.valueOf(census.getType().toString()))
+                .totalPopulation(census.getTotalPopulation())
+                .populationByDemographics(census.getPopulationByDemographics())
+                .effectiveFrom(census.getEffectiveFrom())
+                .effectiveTo(census.getEffectiveTo())
+                .source(census.getSource())
+                .materializedPath(String.join(",", census.getMaterializedPath()))
+                .additionalDetails(census.getAdditionalDetails())
+                .auditDetails(census.getAuditDetails())
+                .build();
+
+        return CensusRequestDTO.builder()
+                .requestInfo(censusRequest.getRequestInfo())
+                .censusDTO(censusDTO)
+                .build();
     }
 }

@@ -1,6 +1,5 @@
 package digit.web.models;
 
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -19,16 +18,15 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 
 
-
 /**
- * Census
+ * CensusDTO
  */
 @Validated
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Census {
+public class CensusDTO {
 
     @JsonProperty("id")
     @Valid
@@ -79,7 +77,7 @@ public class Census {
 
     @JsonProperty("materializedPath")
     @NotNull
-    private List<String> materializedPath = null;
+    private String materializedPath = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
@@ -126,14 +124,4 @@ public class Census {
             return null;
         }
     }
-
-
-    public Census addPopulationByDemographicsItem(PopulationByDemographic populationByDemographicsItem) {
-        if (this.populationByDemographics == null) {
-            this.populationByDemographics = new ArrayList<>();
-        }
-        this.populationByDemographics.add(populationByDemographicsItem);
-        return this;
-    }
-
 }
