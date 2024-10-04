@@ -192,4 +192,7 @@ public class ServiceConstants {
 
     public static final String DRAFT_STATUS = "DRAFT";
 
+    //Query constants
+    public static final String PERCENTAGE_WILDCARD = "%";
+
 }
