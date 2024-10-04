@@ -77,7 +77,7 @@ public class Census {
     @NotNull
     private String source = null;
 
-    @JsonProperty("materializedPath")
+    @JsonProperty("boundaryCodeAncestralMaterializedPath")
     @NotNull
     private List<String> materializedPath = null;
 
