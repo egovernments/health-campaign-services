@@ -67,50 +67,47 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
-//        log.info("validating product ids");
-//        validateIds(getSet(request.getProductVariant(), "getProductId"),
-//                productService::validateProductId);
-//        log.info("generating IDs using IdGenService");
-//        List<String> idList = idGenService.getIdList(request.getRequestInfo(),
-//                getTenantId(request.getProductVariant()),
-//                "product.variant.id", "", request.getProductVariant().size());
-//        log.info("ids generated");
-//        enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
-//        log.info("Enrichment done");
-//        log.info("saving the product variants");
-//        productVariantRepository.save(request.getProductVariant(), productConfiguration.getCreateProductVariantTopic());
-//        log.info("saved product variants");
-//        return request.getProductVariant();
-        return Collections.emptyList();
+        log.info("validating product ids");
+        validateIds(getSet(request.getProductVariant(), "getProductId"),
+                productService::validateProductId);
+        log.info("generating IDs using IdGenService");
+        List<String> idList = idGenService.getIdList(request.getRequestInfo(),
+                getTenantId(request.getProductVariant()),
+                "product.variant.id", "", request.getProductVariant().size());
+        log.info("ids generated");
+        enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
+        log.info("Enrichment done");
+        log.info("saving the product variants");
+        productVariantRepository.save(request.getProductVariant(), productConfiguration.getCreateProductVariantTopic());
+        log.info("saved product variants");
+        return request.getProductVariant();
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
-//        identifyNullIds(request.getProductVariant());
-//
-//        log.info("validating product ids");
-//        validateIds(getSet(request.getProductVariant(), "getProductId"),
-//                productService::validateProductId);
-//        Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
-//
-//        log.info("checking if already exists");
-//        List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
-//        List<ProductVariant> existingProductVariants = productVariantRepository
-//                .findById(productVariantIds);
-//
-//        log.info("checking validate entities for product variants");
-//        validateEntities(pvMap, existingProductVariants);
-//
-//        log.info("checking version product variants");
-//        checkRowVersion(pvMap, existingProductVariants);
-//
-//        log.info("updating product variants lastModifiedTime and lastModifiedBy");
-//        enrichForUpdate(pvMap, existingProductVariants, request);
-//
-//        productVariantRepository.save(request.getProductVariant(), productConfiguration.getUpdateProductVariantTopic());
-//
-//        return request.getProductVariant();
+        identifyNullIds(request.getProductVariant());
 
-        return Collections.emptyList();
+        log.info("validating product ids");
+        validateIds(getSet(request.getProductVariant(), "getProductId"),
+                productService::validateProductId);
+        Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
+
+        log.info("checking if already exists");
+        List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
+        List<ProductVariant> existingProductVariants = productVariantRepository
+                .findById(productVariantIds);
+
+        log.info("checking validate entities for product variants");
+        validateEntities(pvMap, existingProductVariants);
+
+        log.info("checking version product variants");
+        checkRowVersion(pvMap, existingProductVariants);
+
+        log.info("updating product variants lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(pvMap, existingProductVariants, request);
+
+        productVariantRepository.save(request.getProductVariant(), productConfiguration.getUpdateProductVariantTopic());
+
+        return request.getProductVariant();
     }
 
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
@@ -141,7 +138,6 @@ public class ProductVariantService {
         final String jsonPathForAssumption = "$.HCM-Product.ProductVariants.*";
 
         try {
-            log.info(jsonPathForAssumption);
             productVariants = JsonPath.read(jsonNode, jsonPathForAssumption);
         } catch (Exception e) {
             log.error(e.getMessage());

@@ -1,7 +1,9 @@
 package org.egov.product.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +17,8 @@ import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import static org.egov.common.utils.CommonUtils.*;
 
 @Service
 @Slf4j
@@ -45,43 +49,41 @@ public class ProductService {
     }
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
-//        log.info("Enrichment products started");
-//
-//        log.info("generating ids for products");
-//        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
-//                getTenantId(productRequest.getProduct()),
-//                "product.id", "", productRequest.getProduct().size());
-//
-//        log.info("enriching products");
-//        enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
-//
-//        log.info("saving products");
-//        productRepository.save(productRequest.getProduct(), productConfiguration.getCreateProductTopic());
-//        return productRequest.getProduct();
-        return Collections.emptyList();
+        log.info("Enrichment products started");
+
+        log.info("generating ids for products");
+        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
+                getTenantId(productRequest.getProduct()),
+                "product.id", "", productRequest.getProduct().size());
+
+        log.info("enriching products");
+        enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
+
+        log.info("saving products");
+        productRepository.save(productRequest.getProduct(), productConfiguration.getCreateProductTopic());
+        return productRequest.getProduct();
     }
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
-//        identifyNullIds(productRequest.getProduct());
-//        Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
-//
-//        log.info("checking if product already exists");
-//        List<String> productIds = new ArrayList<>(pMap.keySet());
-//        List<Product> existingProducts = productRepository.findById(productIds);
-//
-//        log.info("validate entities for products");
-//        validateEntities(pMap, existingProducts);
-//
-//        log.info("checking row version for products");
-//        checkRowVersion(pMap, existingProducts);
-//
-//        log.info("updating lastModifiedTime and lastModifiedBy");
-//        enrichForUpdate(pMap, existingProducts, productRequest);
-//
-//        log.info("saving updated products");
-//        productRepository.save(productRequest.getProduct(), productConfiguration.getUpdateProductTopic());
-//        return productRequest.getProduct();
-        return Collections.emptyList();
+        identifyNullIds(productRequest.getProduct());
+        Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
+
+        log.info("checking if product already exists");
+        List<String> productIds = new ArrayList<>(pMap.keySet());
+        List<Product> existingProducts = productRepository.findById(productIds);
+
+        log.info("validate entities for products");
+        validateEntities(pMap, existingProducts);
+
+        log.info("checking row version for products");
+        checkRowVersion(pMap, existingProducts);
+
+        log.info("updating lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(pMap, existingProducts, productRequest);
+
+        log.info("saving updated products");
+        productRepository.save(productRequest.getProduct(), productConfiguration.getUpdateProductTopic());
+        return productRequest.getProduct();
     }
 
     public List<Product> search(ProductSearchRequest productSearchRequest,
