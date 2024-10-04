@@ -1,5 +1,13 @@
 package org.egov.stock.validator.stock;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
+import digit.models.coremodels.mdms.MasterDetail;
+import digit.models.coremodels.mdms.MdmsCriteria;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import digit.models.coremodels.mdms.MdmsResponse;
+import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -15,8 +23,10 @@ import org.egov.stock.config.StockConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +41,12 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
+import static org.egov.stock.Constants.ERROR_WHILE_FETCHING_FROM_MDMS;
 import static org.egov.stock.Constants.GET_PRODUCT_VARIANT_ID;
+import static org.egov.stock.Constants.MDMS_PRODUCT_VARIANT_MASTER_NAME;
+import static org.egov.stock.Constants.MDMS_PRODUCT_VARIANT_MODULE_NAME;
+import static org.egov.stock.Constants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE;
+import static org.egov.stock.Constants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE;
 
 @Component
 @Slf4j
@@ -42,9 +57,12 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
 
     private final StockConfiguration stockConfiguration;
 
-    public SProductVariantIdValidator(ServiceRequestClient serviceRequestClient, StockConfiguration stockConfiguration) {
+    private final ObjectMapper mapper;
+
+    public SProductVariantIdValidator(ServiceRequestClient serviceRequestClient, StockConfiguration stockConfiguration, ObjectMapper mapper) {
         this.serviceRequestClient = serviceRequestClient;
         this.stockConfiguration = stockConfiguration;
+        this.mapper = mapper;
     }
 
     @Override
@@ -81,22 +99,51 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
 
         List<String> productVariantIds = new ArrayList<>(pvIds);
         log.info("validating if stock product variant exist");
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
-                .id(productVariantIds).build();
-        ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
-                .requestInfo(requestInfo).build();
-        StringBuilder url = new StringBuilder(stockConfiguration.getProductHost()
-                + stockConfiguration.getProductVariantSearchUrl()
-                + "?limit=" + productVariantIds.size() + "&offset=0&tenantId=" + tenantId);
-        ProductVariantResponse response;
+        StringBuilder url = new StringBuilder(stockConfiguration.getMdmsHost()
+                + stockConfiguration.getMdmsSearchEndpoint());
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, productVariantIds);
+        MdmsResponse mdmsResponse = new MdmsResponse();
+        Object result;
         try {
-            response = serviceRequestClient.fetchResult(url, request, ProductVariantResponse.class);
+            mdmsResponse = serviceRequestClient.fetchResult(url, mdmsCriteriaReq, MdmsResponse.class);
+            result = mdmsResponse.getMdmsRes();
+            if (result == null || ObjectUtils.isEmpty(result)) {
+                log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
+                throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
+            }
         } catch (Exception e) {
+            log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
             throw new CustomException("PRODUCT_VARIANT",
-                    String.format("Something went wrong: %s", e.getMessage()));
+                    String.format(ERROR_WHILE_FETCHING_FROM_MDMS + ": %s", e.getMessage()));
         }
-        log.info("stock product variant exist validation completed successfully");
-        return response.getProductVariant();
+        log.info("stock reconciliation product variant exist validation completed successfully");
+
+        List<ProductVariant> productVariants = Collections.emptyList();
+        try {
+            log.debug("Parsing product variants from MDMS response");
+            Object jsonArray = JsonPath.read(result, "$.HCM-Product.ProductVariants");
+            // Convert JSON string to List<Product>
+            productVariants = mapper.convertValue(jsonArray, new TypeReference<List<ProductVariant>>() {});
+            log.debug("Successfully parsed {} product variants from MDMS response", productVariants.size());
+        } catch (Exception e) {
+            log.error("Error while converting MDMS response to ProductVariant list", e);
+            throw new CustomException("PRODUCT_VARIANT_CONVERSION_ERROR",
+                    "Failed to convert MDMS response to ProductVariant list: " + e.getMessage());
+        }
+
+        return productVariants;
+    }
+
+    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, List<String> productVariantIds) {
+        String filter = "[?(@.id in ['" + String.join("', '", productVariantIds) + "'])]";
+        MasterDetail productMaster = MasterDetail.builder().name(MDMS_PRODUCT_VARIANT_MASTER_NAME).filter(filter).build();
+        ModuleDetail moduleDetail = ModuleDetail.builder()
+                .moduleName(MDMS_PRODUCT_VARIANT_MODULE_NAME)
+                .masterDetails(Collections.singletonList(productMaster))
+                .build();
+        MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(Collections.singletonList(moduleDetail)).tenantId(tenantId).build();
+
+        return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
     }
 
 }
