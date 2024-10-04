@@ -29,6 +29,9 @@ public class MdmsV2Service {
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
+    public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
+    public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
+
     public static final String MDMS_PRODUCT_MODULE_NAME = "HCM-Product";
     public static final String MDMS_PRODUCT_MASTER_NAME = "Products";
 
@@ -67,6 +70,7 @@ public class MdmsV2Service {
             log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
             throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
         }
+        log.info(result.toString());
         return result;
     }
 
