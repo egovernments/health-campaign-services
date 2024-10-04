@@ -6,11 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ReferralServiceTaskIndexV1;
 import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.ServiceDefinitionService;
 import org.egov.transformer.service.UserService;
@@ -31,9 +33,10 @@ public class ReferralServiceTaskTransformationService {
     private final UserService userService;
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
+    private final BoundaryService boundaryService;
 
 
-    public ReferralServiceTaskTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public ReferralServiceTaskTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -42,6 +45,7 @@ public class ReferralServiceTaskTransformationService {
         this.userService = userService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -64,18 +68,19 @@ public class ReferralServiceTaskTransformationService {
         String supervisorLevel = parts[2];
         String projectId = service.getAccountId() != null ? service.getAccountId() :
                 projectService.getProjectByName(projectName, service.getTenantId()).getId();
-        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        BoundaryHierarchyResult boundaryHierarchyResult;
 
         if (service.getAdditionalDetails() != null) {
-            boundaryLabelToNameMap = projectService
-                    .getBoundaryCodeToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), service.getTenantId());
         } else {
-            boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
+            boundaryHierarchyResult = projectService.getBoundaryCodeToNameMapByProjectIdV2(projectId, service.getTenantId());
         }
-        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
+//        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+        Map<String, String > boundaryHierarchyMap = boundaryHierarchyResult.getBoundaryHierarchy();
+        ObjectNode boundaryHierarchy = objectMapper.convertValue(boundaryHierarchyMap, ObjectNode.class);
+        Map<String, String > boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
@@ -107,6 +112,7 @@ public class ReferralServiceTaskTransformationService {
                         .createdBy(service.getAuditDetails().getCreatedBy())
                         .syncedTimeStamp(syncedTimeStamp)
                         .boundaryHierarchy(boundaryHierarchy)
+                        .boundaryHierarchyCode(boundaryHierarchyCode)
                         .additionalDetails(additionalDetails)
                         .build();
 

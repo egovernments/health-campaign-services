@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.ServiceDefinitionService;
 import org.egov.transformer.service.UserService;
@@ -30,8 +32,9 @@ public class ServiceTaskTransformationService {
     private final ProjectService projectService;
     private final CommonUtils commonUtils;
     private final UserService userService;
+    private final BoundaryService boundaryService;
 
-    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService) {
+    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
         this.producer = producer;
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
@@ -39,6 +42,7 @@ public class ServiceTaskTransformationService {
         this.projectService = projectService;
         this.commonUtils = commonUtils;
         this.userService = userService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -67,12 +71,17 @@ public class ServiceTaskTransformationService {
             projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
         }
         Map<String, String> boundaryHierarchy;
+        Map<String, String> boundaryHierarchyCode;
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         if (service.getAdditionalDetails() != null) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(projectId, tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
@@ -100,6 +109,7 @@ public class ServiceTaskTransformationService {
                 .syncedTime(service.getAuditDetails().getLastModifiedTime())
                 .syncedTimeStamp(syncedTimeStamp)
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
         return serviceIndexV1;

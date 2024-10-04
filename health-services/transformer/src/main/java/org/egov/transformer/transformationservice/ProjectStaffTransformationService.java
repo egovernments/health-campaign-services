@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.ProjectService;
@@ -64,7 +65,7 @@ public class ProjectStaffTransformationService {
         } else {
             localityCode = null;
         }
-        Map<String, String> boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+        BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
@@ -81,7 +82,8 @@ public class ProjectStaffTransformationService {
                 .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                 .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                 .additionalDetails(additionalDetails)
-                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy())
+                .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
                 .build();

@@ -7,8 +7,10 @@ import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.HouseholdService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
@@ -32,8 +34,9 @@ public class HouseholdTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final HouseholdService householdService;
+    private final BoundaryService boundaryService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -41,6 +44,7 @@ public class HouseholdTransformationService {
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.householdService = householdService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Household> householdList) {
@@ -60,13 +64,17 @@ public class HouseholdTransformationService {
     private HouseholdIndexV1 transform(Household household) {
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
 
         String localityCode;
         if (household.getAddress() != null
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+//            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
@@ -96,6 +104,7 @@ public class HouseholdTransformationService {
                 .userAddress(userInfoMap.get(CITY))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(syncedTimeStamp)

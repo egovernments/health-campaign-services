@@ -9,6 +9,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -33,11 +34,12 @@ public class ProjectTaskTransformationService {
     private final IndividualService individualService;
     private final HouseholdService householdService;
     private final UserService userService;
+    private final BoundaryService boundaryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
 
 
-    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService) {
+    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -47,6 +49,7 @@ public class ProjectTaskTransformationService {
         this.individualService = individualService;
         this.householdService = householdService;
         this.userService = userService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Task> taskList) {
@@ -66,14 +69,19 @@ public class ProjectTaskTransformationService {
     public List<ProjectTaskIndexV1> transform(Task task) {
 
         Map<String, String> boundaryHierarchy;
+        Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
             localityCode = null;
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(task.getProjectId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
@@ -86,11 +94,11 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
         ).collect(Collectors.toList());
     }
 
-    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, String tenantId,
+    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
                                                                Map<String, String> userInfoMap, String localityCode) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
@@ -132,6 +140,7 @@ public class ProjectTaskTransformationService {
                 .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                 .administrationStatus(task.getStatus())
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .projectType(projectType)
                 .projectTypeId(projectTypeId)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)

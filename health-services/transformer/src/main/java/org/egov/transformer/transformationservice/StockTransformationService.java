@@ -7,12 +7,10 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
-import org.egov.transformer.service.ProductService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.egov.common.models.stock.TransactionType;
@@ -33,8 +31,9 @@ public class StockTransformationService {
     private final UserService userService;
     private final ObjectMapper objectMapper;
     private final ProductService productService;
+    private final BoundaryService boundaryService;
 
-    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService) {
+    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
         this.facilityService = facilityService;
         this.transformerProperties = transformerProperties;
@@ -43,6 +42,7 @@ public class StockTransformationService {
         this.userService = userService;
         this.objectMapper = objectMapper;
         this.productService = productService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Stock> stocksList) {
@@ -60,6 +60,7 @@ public class StockTransformationService {
 
     private StockIndexV1 transform(Stock stock) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
         String transactingFacilityType = stock.getSenderType().toString();
         String facilityType = stock.getReceiverType().toString();
@@ -77,9 +78,13 @@ public class StockTransformationService {
         Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else if (stock.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(stock.getReferenceId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
@@ -135,6 +140,7 @@ public class StockTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                 .waybillNumber(stock.getWayBillNumber())
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
         return stockIndexV1;
