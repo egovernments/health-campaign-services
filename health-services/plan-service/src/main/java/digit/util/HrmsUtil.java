@@ -64,7 +64,7 @@ public class HrmsUtil {
      */
     private StringBuilder getHrmsUri(Map<String, String> uriParameters, String tenantId, String employeeId) {
         StringBuilder uri = new StringBuilder();
-        uri.append(configs.getHrmsHost()).append(configs.getHrmsEndPoint()).append("?limit={limit}&tenantId={tenantId}&offset={offset}&ids={employeeId}");
+        uri.append(configs.getHrmsHost()).append(configs.getHrmsEndPoint()).append("?limit={limit}&tenantId={tenantId}&offset={offset}&uuids={employeeId}");
 
         uriParameters.put("limit", configs.getDefaultLimit().toString());
         uriParameters.put("tenantId", tenantId);
