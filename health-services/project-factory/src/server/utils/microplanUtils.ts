@@ -6,14 +6,14 @@ import { getSheetData } from "./../api/genericApis";
 import { getLocalizedName } from "./campaignUtils";
 
 
-export const filterData = (data:any) => {
-  return data.filter((item:any) => {
+export const filterData = (data: any) => {
+  return data.filter((item: any) => {
     // Create a shallow copy of the object without `#status#` and `#errorDetails#`
     const { '#status#': status, '#errorDetails#': errorDetails, ...rest } = item;
-    
+
     // Check if only `!row#number!` remains after removing status and errorDetails
     const remainingKeys = Object.keys(rest).filter(key => key !== '!row#number!');
-    
+
     // Include the item if any other properties exist besides `!row#number!`
     return remainingKeys.length > 0;
   });
@@ -92,9 +92,9 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
     const users = userMapping[phoneNumber];
 
     for (const user of users) {
-      if (user.role && user.role.startsWith("National ")) {
+      if (user.role && user.role.startsWith("Root ")) {
         // Trim the role
-        const trimmedRole = user.role.replace("National ", "").trim().toLowerCase();
+        const trimmedRole = user.role.replace("Root ", "").trim().toLowerCase();
         const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
 
         // Check for duplicates in the roleMap
@@ -107,7 +107,7 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
       }
       else {
         const trimmedRole = user.role.toLowerCase();
-        const errorMessage: any = `An user with ${"National " + trimmedRole} role can’t be assigned to ${user.role} role`;
+        const errorMessage: any = `An user with ${"Root " + trimmedRole} role can’t be assigned to ${user.role} role`;
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
@@ -150,34 +150,35 @@ function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
 
 function enrichInconsistencies(overallInconsistencies: any, userMapping: any, nameKey: string, emailKey: string) {
   for (const phoneNumber in userMapping) {
-    const users = userMapping[phoneNumber];
-    let userRecords: any[] = [];
+    if (phoneNumber) {
+      const users = userMapping[phoneNumber];
+      let userRecords: any[] = [];
 
-    // Collect all user data for this phone number
-    for (const user of users) {
-      userRecords.push({
-        row: user["!row#number!"],
-        sheet: user["!sheet#name!"],
-        name: user[nameKey],
-        email: user[emailKey]
-      });
-    }
+      // Collect all user data for this phone number
+      for (const user of users) {
+        userRecords.push({
+          row: user["!row#number!"],
+          sheet: user["!sheet#name!"],
+          name: user[nameKey],
+          email: user[emailKey]
+        });
+      }
 
-    const errorMessage = getInconsistencyErrorMessage(phoneNumber, userRecords);
+      const errorMessage = getInconsistencyErrorMessage(phoneNumber, userRecords);
 
-    // Check for any inconsistencies by comparing all records with each other
-    const firstRecord = userRecords[0]; // Take the first record as baseline
-    const inconsistentRecords = userRecords.filter(record =>
-      record.name !== firstRecord.name || record.email !== firstRecord.email
-    );
-    if (inconsistentRecords.length > 0) {
-      overallInconsistencies.push(...errorMessage);  // Collect all inconsistencies
+      // Check for any inconsistencies by comparing all records with each other
+      const firstRecord = userRecords[0]; // Take the first record as baseline
+      const inconsistentRecords = userRecords.filter(record =>
+        record.name !== firstRecord.name || record.email !== firstRecord.email
+      );
+      if (inconsistentRecords.length > 0) {
+        overallInconsistencies.push(...errorMessage);  // Collect all inconsistencies
+      }
     }
   }
 }
 
-
-export function lockSheet(workbook: any) {
+function lockTillStatus(workbook: any) {
   workbook.worksheets.forEach((sheet: any) => {
     const statusCell = findStatusColumn(sheet); // Find the status column
 
@@ -219,6 +220,34 @@ export function lockSheet(workbook: any) {
       });
     }
   });
+}
+
+export function lockWithConfig(sheet: any) {
+  for (let row = 1; row <= parseInt(config.values.unfrozeTillRow); row++) {
+    for (let col = 1; col <= parseInt(config.values.unfrozeTillColumn); col++) {
+      const cell = sheet.getCell(row, col);
+      if (!cell.value && cell.value !== 0) {
+        cell.protection = { locked: false };
+      }
+    }
+  }
+  sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
+}
+
+function lockAll(workbook: any) {
+  workbook.worksheets.forEach((sheet: any) => {
+    lockWithConfig(sheet);
+  })
+}
+
+
+export function lockSheet(request: any, workbook: any) {
+  if (request?.body?.ResourceDetails?.type == 'create') {
+    lockAll(workbook);
+  }
+  else {
+    lockTillStatus(workbook);
+  }
 }
 
 // Helper function to find the column containing "#status#"
