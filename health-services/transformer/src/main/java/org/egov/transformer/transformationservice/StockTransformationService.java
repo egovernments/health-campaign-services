@@ -1,9 +1,12 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
@@ -14,6 +17,7 @@ import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.egov.common.models.stock.TransactionType;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +36,7 @@ public class StockTransformationService {
     private final ObjectMapper objectMapper;
     private final ProductService productService;
     private final BoundaryService boundaryService;
+    private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
@@ -105,6 +110,10 @@ public class StockTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
+            addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
+        }
+
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
                 .clientReferenceId(stock.getClientReferenceId())
@@ -155,5 +164,21 @@ public class StockTransformationService {
         if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
             return senderId;
         } else return receiverId;
+    }
+    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        additionalFields.getFields().forEach(field -> {
+            String key = field.getKey();
+            String value = field.getValue();
+            if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Double.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
+            } else {
+                additionalDetails.put(key, value);
+            }
+        });
     }
 }
