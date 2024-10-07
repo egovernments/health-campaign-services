@@ -156,6 +156,11 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
+    public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
+
+    public static final String PROCESS_INSTANCE_NOT_FOUND_CODE = "PROCESS_INSTANCE_NOT_FOUND";
+    public static final String PROCESS_INSTANCE_NOT_FOUND_MESSAGE = "No process instance found with businessId: ";
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
@@ -211,5 +216,15 @@ public class ServiceConstants {
     public static final String NAME_VALIDATION_DATA = "Data";
 
     public static final String VEHICLE_ID_FIELD = "vehicleIds";
+
+    // Workflow Constants
+    public static final String PLAN_CONFIGURATION_BUSINESS_SERVICE = "PLAN_CONFIGURATION";
+
+    public static final String MODULE_NAME_VALUE = "plan-service";
+
+    public static final String DRAFT_STATUS = "DRAFT";
+
+    //Query constants
+    public static final String PERCENTAGE_WILDCARD = "%";
 
 }

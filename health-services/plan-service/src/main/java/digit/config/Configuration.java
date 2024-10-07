@@ -77,4 +77,11 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Workflow
+    @Value("${egov.workflow.host}")
+    private String wfHost;
+
+    @Value("${egov.workflow.transition.path}")
+    private String wfTransitionPath;
+
 }

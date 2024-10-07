@@ -3,9 +3,9 @@ package digit.service;
 import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
-import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
+import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
@@ -31,14 +31,17 @@ public class PlanConfigurationService {
 
     private ResponseInfoFactory responseInfoFactory;
 
+    private WorkflowService workflowService;
+
     public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
-            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory) {
+            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService) {
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.config = config;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -83,6 +86,7 @@ public class PlanConfigurationService {
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
         validator.validateUpdateRequest(request);
         enrichmentService.enrichUpdate(request);
+        workflowService.invokeWorkflowForStatusUpdate(request);
         repository.update(request);
 
         // Build and return response back to controller
