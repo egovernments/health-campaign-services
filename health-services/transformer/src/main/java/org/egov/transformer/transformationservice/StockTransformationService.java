@@ -82,7 +82,7 @@ public class StockTransformationService {
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else if (stock.getReferenceIdType().equals(PROJECT)) {
-            BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(stock.getReferenceId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }

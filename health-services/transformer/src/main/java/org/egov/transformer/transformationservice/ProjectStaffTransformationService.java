@@ -8,6 +8,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
@@ -28,13 +29,15 @@ public class ProjectStaffTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final UserService userService;
+    private final BoundaryService boundaryService;
 
-    public ProjectStaffTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, ProjectService projectService, UserService userService) {
+    public ProjectStaffTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, ProjectService projectService, UserService userService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.userService = userService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<ProjectStaff> projectStaffList) {
@@ -65,7 +68,7 @@ public class ProjectStaffTransformationService {
         } else {
             localityCode = null;
         }
-        BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(projectId, tenantId);
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()

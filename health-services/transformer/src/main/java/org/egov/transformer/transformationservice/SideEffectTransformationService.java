@@ -83,7 +83,7 @@ public class SideEffectTransformationService {
                     task.getAddress().getLocality().getCode() :
                     null;
             BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
-                    projectService.getBoundaryHierarchyWithProjectIdV2(task.getProjectId(), tenantId);
+                    boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             List<ProjectBeneficiary> projectBeneficiaries = projectService

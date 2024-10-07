@@ -9,6 +9,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HfReferralIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
@@ -28,17 +29,19 @@ public class HfReferralTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final ProjectService projectService;
+    private final BoundaryService boundaryService;
 
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
     public HfReferralTransformationService(TransformerProperties transformerProperties,
-                                           Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                           Producer producer, UserService userService, ProjectService projectService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
+        this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -57,12 +60,11 @@ public class HfReferralTransformationService {
 
     public HfReferralIndexV1 transform(HFReferral hfReferral) {
         String tenantId = hfReferral.getTenantId();
-//        Map<String, String> boundaryHierarchy;
         String projectId = hfReferral.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = projectService.getBoundaryHierarchyWithProjectIdV2(projectId, tenantId);
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 

@@ -79,7 +79,7 @@ public class HfServiceTransformationService {
         if (service.getAdditionalDetails() != null) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), service.getTenantId());
         } else {
-            boundaryHierarchyResult = projectService.getBoundaryCodeToNameMapByProjectIdV2(projectId, service.getTenantId());
+            boundaryHierarchyResult = boundaryService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
         }
 
 //        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
