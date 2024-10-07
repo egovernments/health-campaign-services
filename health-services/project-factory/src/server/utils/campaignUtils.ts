@@ -424,7 +424,7 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
             processErrorDataForEachSheets(request, createAndSearchConfig, workbook, sheetName);
         }
     });
-    if (isLockSheetNeeded) lockSheet(workbook);
+    if (isLockSheetNeeded) lockSheet(request, workbook);
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
     if (responseData?.[0]?.fileStoreId) {
@@ -2022,7 +2022,7 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
 }
 
 function createIdRequests(employees: any[]): any[] {
-    if(employees && Array.isArray(employees) && employees.length > 0){
+    if (employees && Array.isArray(employees) && employees.length > 0) {
         const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
         return Array.from({ length: employees.length }, () => ({
             tenantId: tenantId,
@@ -2030,7 +2030,7 @@ function createIdRequests(employees: any[]): any[] {
             idFormat: config?.values?.idgen?.formatForUserName
         }));
     }
-    else{
+    else {
         return [];
     }
 }

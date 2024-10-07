@@ -51,16 +51,28 @@ export function validateNameSheetWise(datas: any[], localizationMap: any, rowMap
         const nameColumn = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
         if (data[nameColumn]) {
             var name = data[nameColumn];
-            name = name.toString()
+            name = name.toString();
+            const row = data["!row#number!"];
+
+            // Check name length
             if (name.length > 128 || name.length < 2) {
-                const row = data["!row#number!"];
                 if (!rowMapping[row]) {
                     rowMapping[row] = [];
                 }
                 rowMapping[row].push("The ‘Name’ should be between 2 to 128 characters. Please update and re-upload");
             }
-        }
-        else {
+            else {
+                // Check if name contains at least one alphabetic character
+                const hasAlphabetic = /[a-zA-Z]/.test(name);
+                if (!hasAlphabetic) {
+                    if (!rowMapping[row]) {
+                        rowMapping[row] = [];
+                    }
+                    rowMapping[row].push("The ‘Name’ should contain at least one alphabetic character. Please update and re-upload");
+                }
+            }
+
+        } else {
             const row = data["!row#number!"];
             if (!rowMapping[row]) {
                 rowMapping[row] = [];
@@ -69,6 +81,7 @@ export function validateNameSheetWise(datas: any[], localizationMap: any, rowMap
         }
     }
 }
+
 
 export function validateUserForMicroplan(data: any, sheetName: any, request: any, errorMap: any, newSchema: any, rowMapping: any, localizationMap: any) {
     if (data?.length > 0) {

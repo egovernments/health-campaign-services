@@ -148,14 +148,14 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
-export const rolesForMicroplan = ["Microplan approver", "National microplan approver", "Population data approver", "National population data approver", "Facility catchment assigner", "National facility catchment assigner", "Microplan viewer"];
+export const rolesForMicroplan = ["Resource estimation approver", "Root resource estimation approver", "Population data approver", "Root population data approver", "Facility catchment mapper", "Root facility catchment mapper", "Microplan viewer"];
 export const rolesForMicroplanMapping: any = {
-    "Microplan approver": "Microplan approver",
-    "National microplan approver": "National microplan approver",
+    "Resource estimation approver": "Microplan approver",
+    "Root resource estimation approver": "Root microplan approver",
     "Population data approver": "Population data approver",
-    "National population data approver": "National population da...",
-    "Facility catchment assigner": "Facility catchment assigner",
-    "National facility catchment assigner": "National facility ca...",
+    "Root population data approver": "Root population data approver",
+    "Facility catchment mapper": "Facility catchment mapper",
+    "Root facility catchment mapper": "Root facility catchment mapper",
     "Microplan viewer": "Microplan viewer"
 }
 

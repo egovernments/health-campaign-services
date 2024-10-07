@@ -932,7 +932,11 @@ async function makeCustomSheetData(request: any, type: any, sheetName: any, work
     allRows.push(rowData);
   }
   const sheetData = getConvertedSheetData(allRows);
-  addDataToSheet(request, customSheet, sheetData, undefined, undefined, true, true);
+  addDataToSheet(request, customSheet, sheetData, undefined, undefined);
+  customSheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true
+  });
 }
 
 async function generateUserSheetForMicroPlan(
@@ -987,7 +991,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }
   else {
-    await generateUserSheet(request, localizationMap, filteredBoundary, userData,fileUrl);
+    await generateUserSheet(request, localizationMap, filteredBoundary, userData, fileUrl);
   }
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: string) {
@@ -1009,7 +1013,8 @@ async function processGenerateForNew(request: any, generatedResource: any, newEn
 async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
   newEntryResponse.map((item: any) => {
     item.status = generatedResourceStatuses.failed, item.additionalDetails = {
-      ...item.additionalDetails, error: {
+      ...item.additionalDetails,
+      error: {
         status: error.status,
         code: error.code,
         description: error.description,
