@@ -8,12 +8,10 @@ import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.HouseholdService;
-import org.egov.transformer.service.IndividualService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -36,8 +34,9 @@ public class HouseholdMemberTransformationService {
     private final HouseholdService householdService;
     private final ObjectMapper objectMapper;
     private final ProjectService projectService;
+    private final BoundaryService boundaryService;
 
-    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService) {
+    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
@@ -46,6 +45,7 @@ public class HouseholdMemberTransformationService {
         this.householdService = householdService;
         this.objectMapper = objectMapper;
         this.projectService = projectService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<HouseholdMember> householdMemberList) {
@@ -64,6 +64,7 @@ public class HouseholdMemberTransformationService {
 
     private HouseholdMemberIndexV1 transform(HouseholdMember householdMember) {
         Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
@@ -75,7 +76,9 @@ public class HouseholdMemberTransformationService {
                 && households.get(0).getAddress().getLocality() != null
                 && households.get(0).getAddress().getLocality().getCode() != null) {
             localityCode = households.get(0).getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
 
             AdditionalFields additionalFields = households.get(0).getAdditionalFields();
@@ -105,6 +108,7 @@ public class HouseholdMemberTransformationService {
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))

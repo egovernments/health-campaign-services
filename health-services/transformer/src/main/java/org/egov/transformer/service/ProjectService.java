@@ -80,6 +80,7 @@ public class ProjectService {
         return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
 
+
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
@@ -526,5 +527,6 @@ public class ProjectService {
         });
         return boundaryHierarchy;
     }
+
 
 }

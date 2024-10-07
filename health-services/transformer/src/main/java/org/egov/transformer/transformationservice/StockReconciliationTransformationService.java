@@ -8,12 +8,10 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
-import org.egov.transformer.service.ProductService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -35,12 +33,13 @@ public class StockReconciliationTransformationService {
     private final UserService userService;
     private final ProductService productService;
     private final ProjectService projectService;
+    private final BoundaryService boundaryService;
 
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND
     ));
 
-    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService) {
+    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
@@ -49,6 +48,7 @@ public class StockReconciliationTransformationService {
         this.userService = userService;
         this.productService = productService;
         this.projectService = projectService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<StockReconciliation> stockReconciliationList) {
@@ -67,6 +67,7 @@ public class StockReconciliationTransformationService {
 
     public StockReconciliationIndexV1 transform(StockReconciliation stockReconciliation) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
         String tenantId = stockReconciliation.getTenantId();
         Facility facility = facilityService.findFacilityById(stockReconciliation.getFacilityId(), tenantId);
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
@@ -77,9 +78,13 @@ public class StockReconciliationTransformationService {
                 facility.getAddress().getLocality() != null &&
                 facility.getAddress().getLocality().getCode() != null) {
             localityCode = facility.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null && stockReconciliation.getAdditionalFields().getFields() != null
@@ -103,6 +108,7 @@ public class StockReconciliationTransformationService {
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(stockReconciliation.getAuditDetails().getLastModifiedTime())
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .productName(productName)
                 .localityCode(localityCode)
                 .additionalDetails(additionalDetails)

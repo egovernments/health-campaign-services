@@ -30,6 +30,9 @@ public class SideEffectsIndexV1 {
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
 
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
+
     @JsonProperty("localityCode")
     private String localityCode;
 

@@ -50,6 +50,8 @@ public class ProjectTaskIndexV1 {
     private String administrationStatus;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("projectType")
