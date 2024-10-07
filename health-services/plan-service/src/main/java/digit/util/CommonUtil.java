@@ -2,12 +2,12 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.repository.PlanConfigurationRepository;
+import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.tracer.model.CustomException;
-import org.postgresql.util.PGobject;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -18,10 +18,12 @@ import static digit.config.ServiceConstants.*;
 @Slf4j
 public class CommonUtil {
 
+    private PlanConfigurationRepository planConfigurationRepository;
+
     private ObjectMapper objectMapper;
 
-    public CommonUtil(ObjectMapper objectMapper)
-    {
+    public CommonUtil(PlanConfigurationRepository planConfigurationRepository, ObjectMapper objectMapper) {
+        this.planConfigurationRepository = planConfigurationRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -97,5 +99,22 @@ public class CommonUtil {
                 .append(JSONPATH_FILTER_SUFFIX);
 
         return JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + jsonPathFilters + FILTER_ALL_ASSUMPTIONS;
+    }
+
+
+    /**
+     * Searches the plan config based on the plan config id provided
+     *
+     * @param planConfigId the plan config id to validate
+     * @param tenantId     the tenant id of the plan config
+     * @return list of planConfiguration for the provided plan config id
+     */
+    public List<PlanConfiguration> searchPlanConfigId(String planConfigId, String tenantId) {
+        List<PlanConfiguration> planConfigurations = planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
+                .id(planConfigId)
+                .tenantId(tenantId)
+                .build());
+
+        return planConfigurations;
     }
 }

@@ -1,5 +1,6 @@
 package digit.repository.rowmapper;
 
+import digit.util.QueryUtil;
 import digit.web.models.Assumption;
 import digit.web.models.File;
 import digit.web.models.Operation;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.egov.common.contract.models.AuditDetails;
+import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
@@ -20,6 +22,12 @@ import org.springframework.util.ObjectUtils;
 
 @Component
 public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfiguration>> {
+
+    private QueryUtil queryUtil;
+
+    public PlanConfigRowMapper(QueryUtil queryUtil) {
+        this.queryUtil = queryUtil;
+    }
 
     @Override
     public List<PlanConfiguration> extractData(ResultSet rs) throws SQLException, DataAccessException {
@@ -46,7 +54,8 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setTenantId(rs.getString("plan_configuration_tenant_id"));
                 planConfigEntry.setName(rs.getString("plan_configuration_name"));
                 planConfigEntry.setCampaignId(rs.getString("plan_configuration_campaign_id"));
-                planConfigEntry.setStatus(rs.getString("plan_configuration_status").toUpperCase());
+                planConfigEntry.setStatus(PlanConfiguration.StatusEnum.valueOf(rs.getString("plan_configuration_status").toUpperCase()));
+                planConfigEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_configuration_additional_details")));
                 planConfigEntry.setAuditDetails(auditDetails);
 
             }
