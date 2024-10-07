@@ -8,8 +8,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProductService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.utils.CommonUtils;
@@ -30,14 +32,16 @@ public class ProjectTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final ProductService productService;
+    private final BoundaryService boundaryService;
 
-    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService) {
+    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.productService = productService;
+        this.boundaryService = boundaryService;
     }
 
 
@@ -66,8 +70,11 @@ public class ProjectTransformationService {
         } else {
             localityCode = null;
         }
-        Map<String, String> boundaryHierarchy = localityCode != null ?
-                projectService.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId()) : null;
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(localityCode, project.getTenantId());
+
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchy() : null;
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult != null ? boundaryHierarchyResult.getBoundaryHierarchyCode() : null;
+
         String tenantId = project.getTenantId();
         String projectTypeId = project.getProjectTypeId();
         List<Target> targets = project.getTargets();
@@ -92,10 +99,14 @@ public class ProjectTransformationService {
                     Integer campaignDurationInDays = null;
                     Integer targetPerDay = null;
                     Long milliSecForOneDay = (long) (24 * 60 * 60 * 1000);
-                    if (startDate != null && endDate != null) {
-                        campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
-                        if (targetNo != null && campaignDurationInDays > 0) {
-                            targetPerDay = targetNo / campaignDurationInDays;
+                    if(transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_PER_DAY)) {
+                        targetPerDay = targetNo;
+                    } else if (transformerProperties.getProjectTargetNumberType().equals(PROJECT_TARGET_NUMBER_TYPE_OVERALL)){
+                        if (startDate != null && endDate != null) {
+                            campaignDurationInDays = (int) ((endDate - startDate) / milliSecForOneDay);
+                            if (targetNo != null && campaignDurationInDays > 0) {
+                                targetPerDay = targetNo / campaignDurationInDays;
+                            }
                         }
                     }
 
@@ -131,6 +142,7 @@ public class ProjectTransformationService {
                             .createdBy(project.getAuditDetails().getCreatedBy())
                             .additionalDetails(additionalDetails)
                             .boundaryHierarchy(boundaryHierarchy)
+                            .boundaryHierarchyCode(boundaryHierarchyCode)
                             .build();
                     return projectIndexV1;
                 }
@@ -164,5 +176,12 @@ public class ProjectTransformationService {
                 }
             }
         }
+    }
+
+    private BoundaryHierarchyResult getBoundaryHierarchyResult(String localityCode, String tenantId) {
+        if (localityCode != null) {
+            return boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+        }
+        return null;
     }
 }

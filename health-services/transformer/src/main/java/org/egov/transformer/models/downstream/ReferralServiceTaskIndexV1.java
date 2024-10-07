@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -44,6 +46,8 @@ public class ReferralServiceTaskIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("childrenPresentedUS")
     private Object childrenPresentedUS;
     @JsonProperty("malariaPositiveUS")

@@ -6,10 +6,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -29,6 +34,7 @@ public class CommonUtils {
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
+    private static Map<String, String> userIdVsProjectIdAndProjectTypeIdCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -197,6 +203,43 @@ public class CommonUtils {
             }
         }
         return false;
+    }
+
+    public String projectDetailsFromUserId(String userId, String tenantId){
+        if (userIdVsProjectIdAndProjectTypeIdCache.containsKey(userId)) {
+            return userIdVsProjectIdAndProjectTypeIdCache.get(userId);
+        }
+
+        List<String> userIds = new ArrayList<>(Arrays.asList(userId));
+        String projectIdAndProjectTypeId = null;
+        List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(userIds, tenantId);
+        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
+
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
+            if (ObjectUtils.isNotEmpty(project)) {
+                projectIdAndProjectTypeId = projectStaff.getProjectId() + ":" + project.getProjectTypeId();
+                userIdVsProjectIdAndProjectTypeIdCache.put(userId, projectIdAndProjectTypeId);
+            }
+        }
+
+        return projectIdAndProjectTypeId;
+    }
+
+    public void addProjectDetailsToAdditionalDetails(ObjectNode additionalDetails, String userId, String tenantId) {
+        String projectDetails = projectDetailsFromUserId(userId, tenantId);
+
+        if (!StringUtils.isEmpty(projectDetails)) {
+            String[] projectDetailsParts = projectDetails.split(":");  // ":" is being to separate project id from project type id
+            if (projectDetailsParts.length == 2) {
+                if (!additionalDetails.has(PROJECT_ID)) {
+                    additionalDetails.put(PROJECT_ID, projectDetailsParts[0]);
+                }
+                if (!additionalDetails.has(PROJECT_TYPE_ID)) {
+                    additionalDetails.put(PROJECT_TYPE_ID, projectDetailsParts[1]);
+                }
+            }
+        }
     }
 
 //    public ObjectNode additionalFieldsToDetails(List<Object> fields) {

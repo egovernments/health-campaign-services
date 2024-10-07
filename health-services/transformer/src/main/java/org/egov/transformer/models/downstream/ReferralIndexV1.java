@@ -36,6 +36,8 @@ public class ReferralIndexV1 {
     private Integer age;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("facilityName")
     private String facilityName;
     @JsonProperty("individualId")
