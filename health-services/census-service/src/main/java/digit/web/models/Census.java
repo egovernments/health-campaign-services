@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +18,6 @@ import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
-
 
 
 /**
@@ -90,18 +90,19 @@ public class Census {
     /**
      * The status used in the Census
      */
-    public enum StatusEnum {}
+    public enum StatusEnum {
+        DRAFT,
+        GENERATED,
+        INVALID_DATA
+    }
 
     /**
      * Gets or Sets type
      */
     public enum TypeEnum {
         PEOPLE("people"),
-
         ANIMALS("animals"),
-
         PLANTS("plants"),
-
         OTHER("other");
 
         private String value;
@@ -113,17 +114,15 @@ public class Census {
         @Override
         @JsonValue
         public String toString() {
-            return String.valueOf(value);
+            return String.valueOf(value);  // Return the exact value as lowercase
         }
 
         @JsonCreator
         public static TypeEnum fromValue(String text) {
-            for (TypeEnum b : TypeEnum.values()) {
-                if (String.valueOf(b.value).equals(text)) {
-                    return b;
-                }
-            }
-            return null;
+            return Arrays.stream(TypeEnum.values())
+                    .filter(b -> String.valueOf(b.value).equals(text))
+                    .findFirst()
+                    .orElse(null);
         }
     }
 
