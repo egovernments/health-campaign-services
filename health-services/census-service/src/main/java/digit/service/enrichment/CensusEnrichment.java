@@ -3,6 +3,7 @@ package digit.service.enrichment;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import org.egov.common.utils.UUIDEnrichmentUtil;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -17,9 +18,10 @@ public class CensusEnrichment {
     /**
      * Enriches the CensusRequest for creating a new census record.
      * Enriches the given census record with generated IDs for Census and PopulationByDemographics.
-     * Enriches audit details for create operation.
+     * Validates user information and enriches audit details for create operation.
      *
      * @param request The CensusRequest to be enriched.
+     * @throws CustomException if user information is missing in the request.
      */
     public void enrichCreate(CensusRequest request) {
         Census census = request.getCensus();
@@ -37,9 +39,10 @@ public class CensusEnrichment {
 
     /**
      * Enriches the CensusRequest for updating an existing census record.
-     * This method enriches the census record for update and enriches audit details for update operation.
+     * This method enriches the census record for update, validates user information and enriches audit details for update operation.
      *
      * @param request The CensusRequest to be enriched.
+     * @throws CustomException if user information is missing in the request.
      */
     public void enrichUpdate(CensusRequest request) {
         Census census = request.getCensus();
