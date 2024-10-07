@@ -44,19 +44,16 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private final BoundaryService boundaryService;
-
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, MdmsService mdmsService, BoundaryService boundaryService) {
+                          ObjectMapper objectMapper, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.mdmsService = mdmsService;
-        this.boundaryService = boundaryService;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -83,11 +80,6 @@ public class ProjectService {
         return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
 
-    public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectIdV2(String projectId, String tenantId) {
-        Project project = getProject(projectId, tenantId);
-        String locationCode = project.getAddress().getBoundary();
-        return boundaryService.getBoundaryCodeToNameMap(locationCode, tenantId);
-    }
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
@@ -536,9 +528,5 @@ public class ProjectService {
         return boundaryHierarchy;
     }
 
-    public BoundaryHierarchyResult getBoundaryHierarchyWithProjectIdV2(String projectId, String tenantId) {
-        BoundaryHierarchyResult boundaryLabelToNameMap = getBoundaryCodeToNameMapByProjectIdV2(projectId, tenantId);
-        return boundaryService.applyTransformerElasticIndexLabels(boundaryLabelToNameMap, tenantId);
-    }
 
 }

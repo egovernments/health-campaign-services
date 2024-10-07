@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.RequestInfoWrapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
@@ -26,11 +27,13 @@ public class BoundaryService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
+    private final ProjectService projectService;
 
-    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService) {
+    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.mdmsService = mdmsService;
+        this.projectService = projectService;
     }
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
@@ -41,6 +44,17 @@ public class BoundaryService {
         BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId);
 
         return applyTransformerElasticIndexLabels(boundaryResult, tenantId);
+    }
+
+    public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
+        Project project = projectService.getProject(projectId, tenantId);
+        String locationCode = project.getAddress().getBoundary();
+        return getBoundaryCodeToNameMap(locationCode, tenantId);
+    }
+
+    public BoundaryHierarchyResult getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
+        BoundaryHierarchyResult boundaryLabelToNameMap = getBoundaryCodeToNameMapByProjectId(projectId, tenantId);
+        return applyTransformerElasticIndexLabels(boundaryLabelToNameMap, tenantId);
     }
 
 
