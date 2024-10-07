@@ -151,8 +151,16 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + FILTER_ALL_ASSUMPTIONS;
+        Object additionalDetails = request.getPlanConfiguration().getAdditionalDetails();
+        if (additionalDetails == null) {
+            throw new CustomException(ADDITIONAL_DETAILS_MISSING_CODE, ADDITIONAL_DETAILS_MISSING_MESSAGE);
+        }
 
+        String jsonPathForAssumption = commonUtil.createJsonPathForAssumption(commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_CAMPAIGN_TYPE, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_DISTRIBUTION_PROCESS, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_REGISTRATION_PROCESS, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER, String.class));
         List<Object> assumptionListFromMDMS = null;
         try {
             log.info(jsonPathForAssumption);
@@ -539,19 +547,25 @@ public class PlanConfigurationValidator {
      * @param request plan configuration request
      * @param mdmsV2Data mdms v2 data object
      */
-    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data)
-    {
-        List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data) {
+        Object vehicleIdsfromAdditionalDetails;
+        List<String> vehicleIdsLinkedWithPlanConfig = new ArrayList<>();
+        try {
+            vehicleIdsfromAdditionalDetails = commonUtil.extractFieldsFromJsonObject(request.getPlanConfiguration().getAdditionalDetails(), JSON_FIELD_VEHICLE_ID, String.class);
+            if (vehicleIdsfromAdditionalDetails instanceof List<?> vehicleIdsList) {
+                vehicleIdsList.stream().allMatch(String.class::isInstance);
+            }
+        } catch (ClassCastException e) {
+            throw new CustomException(VEHICLE_IDS_INVALID_DATA_TYPE_CODE, VEHICLE_IDS_INVALID_DATA_TYPE_MESSAGE);
+        }
 
         List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
                 .map(Mdms::getId)
-                .collect(Collectors.toList());
+                .toList();
 
-        List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
         vehicleIdsLinkedWithPlanConfig.stream()
                 .forEach(vehicleId -> {
-                    if(!finalVehicleIdsFromMdms.contains(vehicleId))
-                    {
+                    if (!vehicleIdsFromMdms.contains(vehicleId)) {
                         log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
                         throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
                     }

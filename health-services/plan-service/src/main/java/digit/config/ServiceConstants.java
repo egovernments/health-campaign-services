@@ -31,6 +31,9 @@ public class ServiceConstants {
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
 
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_CODE = "VEHICLE_IDS_INVALID_DATA_TYPE";
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_MESSAGE = "Vehicle IDs should be a list of strings.";
+
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS ";
 
@@ -130,6 +133,12 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String ADDITIONAL_DETAILS_MISSING_CODE = "ADDITIONAL_DETAILS_MISSING";
+    public static final String ADDITIONAL_DETAILS_MISSING_MESSAGE = "Additional details are missing in the plan configuration request.";
+
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
+
     public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
     public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
 
@@ -179,11 +188,31 @@ public class ServiceConstants {
 
     public static final String BOUNDARY_CODE = "boundaryCode";
 
-    public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
+    public static final String FILTER_ALL_ASSUMPTIONS = ".assumptionCategories[*].assumptions[*]";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
-    public static final String VEHICLE_ID_FIELD = "vehicleIds";
+    // Constants for constructing logical expressions or queries
+    public static final String AND = " && ";
+    public static final String EQUALS = " == ";
+    public static final String SINGLE_QUOTE = "'";
+
+    // JSON field constants for campaign details
+    public static final String JSON_FIELD_CAMPAIGN_TYPE = "campaignType";
+    public static final String JSON_FIELD_DISTRIBUTION_PROCESS = "DistributionProcess";
+    public static final String JSON_FIELD_REGISTRATION_PROCESS = "RegistrationProcess";
+    public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
+    public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
+    public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
+
+    // JSON path constants for campaign details
+    public static final String JSONPATH_FILTER_PREFIX = "[?(";
+    public static final String JSONPATH_FILTER_SUFFIX = ")]";
+    public static final String JSON_PATH_FILTER_CAMPAIGN_TYPE = "@.campaignType";
+    public static final String JSON_PATH_FILTER_DISTRIBUTION_PROCESS = "@.DistributionProcess";
+    public static final String JSON_PATH_FILTER_REGISTRATION_PROCESS = "@.RegistrationProcess";
+    public static final String JSON_PATH_FILTER_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "@.resourceDistributionStrategyCode";
+    public static final String JSON_PATH_FILTER_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "@.isRegistrationAndDistributionHappeningTogetherOrSeparately";
 
     // Workflow Constants
     public static final String PLAN_CONFIGURATION_BUSINESS_SERVICE = "PLAN_CONFIGURATION";
