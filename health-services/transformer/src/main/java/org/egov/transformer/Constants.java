@@ -102,4 +102,6 @@ public interface Constants {
     String PROJECT_TARGET_NUMBER_TYPE_PER_DAY = "PER_DAY";
     String PROJECT_TARGET_NUMBER_TYPE_OVERALL = "OVERALL";
     String NO_OF_ROOMS_SPRAYED_KEY = "noOfRoomsSprayedKey";
+    String LAT = "lat";
+    String LNG = "lng";
 }
