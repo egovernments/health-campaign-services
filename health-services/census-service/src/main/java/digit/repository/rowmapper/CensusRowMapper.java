@@ -56,7 +56,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setTenantId(rs.getString("census_tenant_id"));
                 censusEntry.setHierarchyType(rs.getString("census_hierarchy_type"));
                 censusEntry.setBoundaryCode(rs.getString("census_boundary_code"));
-                censusEntry.setType(Census.TypeEnum.valueOf(rs.getString("census_type").toUpperCase()));
+                censusEntry.setType(Census.TypeEnum.fromValue(rs.getString("census_type").toUpperCase()));
                 censusEntry.setTotalPopulation(rs.getLong("census_total_population"));
                 censusEntry.setEffectiveFrom(rs.getLong("census_effective_from"));
                 censusEntry.setEffectiveTo(rs.getLong("census_effective_to"));
@@ -93,7 +93,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
 
         PopulationByDemographic populationByDemographic = new PopulationByDemographic();
         populationByDemographic.setId(rs.getString("population_by_demographics_id"));
-        populationByDemographic.setDemographicVariable(PopulationByDemographic.DemographicVariableEnum.valueOf(rs.getString("population_by_demographics_demographic_variable")));
+        populationByDemographic.setDemographicVariable(PopulationByDemographic.DemographicVariableEnum.fromValue(rs.getString("population_by_demographics_demographic_variable")));
         populationByDemographic.setPopulationDistribution(queryUtil.parseJson((PGobject) rs.getObject("population_by_demographics_population_distribution")));
 
         if (CollectionUtils.isEmpty(censusEntry.getPopulationByDemographics())) {

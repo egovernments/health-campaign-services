@@ -114,15 +114,17 @@ public class Census {
         @Override
         @JsonValue
         public String toString() {
-            return String.valueOf(value);  // Return the exact value as lowercase
+            return String.valueOf(value);
         }
 
         @JsonCreator
         public static TypeEnum fromValue(String text) {
-            return Arrays.stream(TypeEnum.values())
-                    .filter(b -> String.valueOf(b.value).equals(text))
-                    .findFirst()
-                    .orElse(null);
+            for (TypeEnum b : TypeEnum.values()) {
+                if (String.valueOf(b.value).equals(text)) {
+                    return b;
+                }
+            }
+            return null;
         }
     }
 

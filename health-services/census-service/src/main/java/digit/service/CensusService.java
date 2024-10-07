@@ -36,6 +36,7 @@ public class CensusService {
      * @return The created census reponse.
      */
     public CensusResponse create(CensusRequest request) {
+        enrichment.enrichCreate(request);
         repository.create(request);
         CensusResponse response = CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
