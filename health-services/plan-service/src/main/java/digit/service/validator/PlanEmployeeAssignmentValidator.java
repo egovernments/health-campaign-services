@@ -98,7 +98,7 @@ public class PlanEmployeeAssignmentValidator {
             }
 
             // Fetch the highest hierarchy for Microplan from MDMS
-            String jsonPathForHighestHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN + DOT_SEPARATOR + HIGHEST_HIERARCHY_FOR_MICROPLAN;
+            String jsonPathForHighestHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN + DOT_SEPARATOR + HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN;
 
             List<String> highestHirarchyForPlan = null;
             try {

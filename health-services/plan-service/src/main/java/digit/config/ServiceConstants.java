@@ -69,6 +69,7 @@ public class ServiceConstants {
 
     public static final String INVALID_EMPLOYEE_ID_CODE = "INVALID_EMPLOYEE_ID";
     public static final String INVALID_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id.";
+
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
 
@@ -211,7 +212,7 @@ public class ServiceConstants {
 
     public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
 
-    public static final String HIGHEST_HIERARCHY_FOR_MICROPLAN = "highestHierarchy";
+    public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
