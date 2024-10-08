@@ -440,17 +440,19 @@ async function createAndUploadFile(
   // Create form data for file upload
   const formData = new FormData();
   formData.append("file", buffer, "filename.xlsx");
-  formData.append(
-    "tenantId",
-    tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
-  );
+  /* MODIFIED FOR LTS UPGRADE */
+  // formData.append(
+  //   "tenantId",
+  //   tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
+  // );
   formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
 
   // Make HTTP request to upload file
   var fileCreationResult = await httpRequest(
     config.host.filestore + config.paths.filestore,
     formData,
-    undefined,
+    /* MODIFIED FOR LTS UPGRADE */
+    { tenantId: tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId },
     undefined,
     undefined,
     {
