@@ -1,4 +1,4 @@
-import { resourceDataStatuses, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
+import { resourceDataStatuses, rolesForMicroplan } from "../config/constants";
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
@@ -30,10 +30,10 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   }
   var userMapping: any = {};
   for (const sheetName of rolesForMicroplan) {
-    const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, rolesForMicroplanMapping[sheetName], true, undefined, localizationMap));
+    const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap));
     for (const user of dataOfSheet) {
       user.role = sheetName;
-      user["!sheet#name!"] = rolesForMicroplanMapping[sheetName];
+      user["!sheet#name!"] = sheetName;
       const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap)
       user[emailKey] = user[emailKey]?.text || user[emailKey];
       const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap)
