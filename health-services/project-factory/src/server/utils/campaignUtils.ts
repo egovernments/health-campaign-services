@@ -773,15 +773,15 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
     }
 }
 
-// function removeBoundariesFromRequest(request: any) {
-//     const boundaries = getBoundariesFromCampaignRequest(request);
-//     if (boundaries && Array.isArray(boundaries) && boundaries?.length > 0) {
-//         request.body.CampaignDetails.boundaries = boundaries?.filter((boundary: any) => !boundary?.insertedAfter)
-//     }
-// }
+function removeBoundariesFromRequest(request: any) {
+    const boundaries = request?.body?.CampaignDetails?.boundaries;
+    if (boundaries && Array.isArray(boundaries) && boundaries?.length > 0) {
+        request.body.CampaignDetails.boundaries = boundaries?.filter((boundary: any) => !boundary?.insertedAfter)
+    }
+}
 
 async function enrichAndPersistProjectCampaignForFirst(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
-    // removeBoundariesFromRequest(request);
+    removeBoundariesFromRequest(request);
     if (actionInUrl == "create") {
         await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
@@ -1458,7 +1458,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             for (const boundary of boundaries) {
                 const boundaryCode = boundary?.code;
                 // Only proceed if the boundary code is not already mapped to an existing project
-                if (boundariesAlreadyWithProjects && boundariesAlreadyWithProjects.size > 0 && !boundariesAlreadyWithProjects.has(boundaryCode)) {
+                if (!boundariesAlreadyWithProjects || (boundariesAlreadyWithProjects.size > 0 && !boundariesAlreadyWithProjects.has(boundaryCode))) {
                     // Set the address for the project
                     Projects[0].address = {
                         tenantId: tenantId,
