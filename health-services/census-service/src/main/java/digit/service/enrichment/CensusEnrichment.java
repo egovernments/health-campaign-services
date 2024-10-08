@@ -30,9 +30,7 @@ public class CensusEnrichment {
         UUIDEnrichmentUtil.enrichRandomUuid(census, "id");
 
         // Generate id for PopulationByDemographics
-        census.getPopulationByDemographics().forEach(populationByDemographics -> {
-            UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id");
-        });
+        census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
 
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
     }

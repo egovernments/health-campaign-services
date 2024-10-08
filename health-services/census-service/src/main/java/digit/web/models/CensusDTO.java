@@ -73,7 +73,6 @@ public class CensusDTO {
     private String source = null;
 
     @JsonProperty("boundaryAncestralPath")
-    @NotNull
     private String boundaryAncestralPath = null;
 
     @JsonProperty("additionalDetails")

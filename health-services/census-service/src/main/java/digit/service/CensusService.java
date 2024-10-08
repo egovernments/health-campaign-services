@@ -4,12 +4,14 @@ import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
 import digit.service.validator.CensusValidator;
 import digit.util.ResponseInfoFactory;
+import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
 import digit.web.models.CensusSearchRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.List;
 
 @Service
 public class CensusService {
@@ -36,13 +38,12 @@ public class CensusService {
      * @return The created census reponse.
      */
     public CensusResponse create(CensusRequest request) {
-        enrichment.enrichCreate(request);
-        repository.create(request);
-        CensusResponse response = CensusResponse.builder()
+        enrichment.enrichCreate(request); // Enrich census create request
+        repository.create(request); // Delegate creation request to repository
+        return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .build();
-        return response;
     }
 
     /**
@@ -52,12 +53,11 @@ public class CensusService {
      * @return A list of census record that matches the search criteria.
      */
     public CensusResponse search(CensusSearchRequest request) {
-        CensusResponse response = CensusResponse.builder()
+        List<Census> censusList = repository.search(request.getCensusSearchCriteria()); // Delegate search request to repository
+        return CensusResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
-                .census(repository.search(request.getCensusSearchCriteria()))
+                .census(censusList)
                 .build();
-
-        return response;
     }
 
     /**
@@ -67,12 +67,11 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
-        enrichment.enrichUpdate(request);
-        repository.update(request);
-        CensusResponse response = CensusResponse.builder()
+        enrichment.enrichUpdate(request); // Enrich census update request
+        repository.update(request); // Delegate update request to repository
+        return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .build();
-        return response;
     }
 }

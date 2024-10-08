@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import jakarta.validation.constraints.NotNull;
@@ -78,7 +77,6 @@ public class Census {
     private String source = null;
 
     @JsonProperty("boundaryAncestralPath")
-    @NotNull
     private List<String> boundaryAncestralPath = null;
 
     @JsonProperty("additionalDetails")
@@ -126,15 +124,6 @@ public class Census {
             }
             return null;
         }
-    }
-
-
-    public Census addPopulationByDemographicsItem(PopulationByDemographic populationByDemographicsItem) {
-        if (this.populationByDemographics == null) {
-            this.populationByDemographics = new ArrayList<>();
-        }
-        this.populationByDemographics.add(populationByDemographicsItem);
-        return this;
     }
 
 }
