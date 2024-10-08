@@ -3,8 +3,11 @@ package digit.service;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
+import digit.util.CampaignUtil;
+import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
+import digit.web.models.projectFactory.CampaignResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -27,20 +30,28 @@ public class PlanValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil) {
+    private CommonUtil commonUtil;
+
+    private CampaignUtil campaignUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.commonUtil = commonUtil;
+        this.campaignUtil = campaignUtil;
     }
 
     /**
      * This method performs business validations on plan create requests
+     *
      * @param request
      */
     public void validatePlanCreate(PlanRequest request) {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
 
         // Validate activities
         validateActivities(request);
@@ -65,10 +76,25 @@ public class PlanValidator {
 
         // Validate Metric Detail's Unit against MDMS
         validateMetricDetailUnit(request, mdmsData);
+
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
+    }
+
+    /**
+     * Validates campaign ID from request against project factory
+     *
+     * @param campaignResponse The campaign details response from project factory
+     */
+    private void validateCampaignId(CampaignResponse campaignResponse) {
+        if (CollectionUtils.isEmpty(campaignResponse.getCampaignDetails())) {
+            throw new CustomException(NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
+        }
     }
 
     /**
      * This validation method validates if the dependent activities are valid and if they form a cycle
+     *
      * @param request
      */
     private void validateActivityDependencies(PlanRequest request) {
@@ -81,6 +107,7 @@ public class PlanValidator {
 
     /**
      * This method checks if the activity dependencies form a cycle
+     *
      * @param request
      */
     private void checkForCycleInActivityDependencies(PlanRequest request) {
@@ -90,7 +117,7 @@ public class PlanValidator {
 
         activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
             activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
-                if(activityCodeVsDependenciesMap.get(dependency).contains(activityCode))
+                if (activityCodeVsDependenciesMap.get(dependency).contains(activityCode))
                     throw new CustomException(CYCLIC_ACTIVITY_DEPENDENCY_CODE, CYCLIC_ACTIVITY_DEPENDENCY_MESSAGE);
             });
         });
@@ -98,6 +125,7 @@ public class PlanValidator {
 
     /**
      * This method validates if the dependent activity codes are valid
+     *
      * @param request
      */
     private void validateDependentActivityCodes(PlanRequest request) {
@@ -108,9 +136,9 @@ public class PlanValidator {
 
         // Check if the dependent activity codes are valid
         request.getPlan().getActivities().forEach(activity -> {
-            if(!CollectionUtils.isEmpty(activity.getDependencies())) {
+            if (!CollectionUtils.isEmpty(activity.getDependencies())) {
                 activity.getDependencies().forEach(dependency -> {
-                    if(!activityCodes.contains(dependency))
+                    if (!activityCodes.contains(dependency))
                         throw new CustomException(INVALID_ACTIVITY_DEPENDENCY_CODE, INVALID_ACTIVITY_DEPENDENCY_MESSAGE);
                 });
             }
@@ -120,11 +148,12 @@ public class PlanValidator {
 
     /**
      * This method validates the activities provided in the request
+     *
      * @param request
      */
     private void validateActivities(PlanRequest request) {
         // Collect all activity codes
-        if(request.getPlan().getActivities() == null)
+        if (request.getPlan().getActivities() == null)
             throw new CustomException(ACTIVITIES_CANNOT_BE_NULL_CODE, ACTIVITIES_CANNOT_BE_NULL_MESSAGE);
 
         Set<String> activityCodes = request.getPlan().getActivities().stream()
@@ -132,26 +161,26 @@ public class PlanValidator {
                 .collect(Collectors.toSet());
 
         // If activity codes are not unique, throw an exception
-        if(activityCodes.size() != request.getPlan().getActivities().size()) {
+        if (activityCodes.size() != request.getPlan().getActivities().size()) {
             throw new CustomException(DUPLICATE_ACTIVITY_CODES, DUPLICATE_ACTIVITY_CODES_MESSAGE);
         }
 
         // If execution plan id is not provided, providing activities is mandatory
-        if(ObjectUtils.isEmpty(request.getPlan().getCampaignId())
+        if (ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_MANDATORY_CODE, PLAN_ACTIVITIES_MANDATORY_MESSAGE);
         }
 
         // If execution plan id is provided, providing activities is not allowed
-        if(!ObjectUtils.isEmpty(request.getPlan().getCampaignId())
+        if (!ObjectUtils.isEmpty(request.getPlan().getCampaignId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             throw new CustomException(PLAN_ACTIVITIES_NOT_ALLOWED_CODE, PLAN_ACTIVITIES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate activity dates
-        if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+        if (!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             request.getPlan().getActivities().forEach(activity -> {
-                if(activity.getPlannedEndDate() < activity.getPlannedStartDate())
+                if (activity.getPlannedEndDate() < activity.getPlannedStartDate())
                     throw new CustomException(INVALID_ACTIVITY_DATES_CODE, INVALID_ACTIVITY_DATES_MESSAGE);
             });
         }
@@ -159,37 +188,37 @@ public class PlanValidator {
 
     /**
      * This method validates if the plan configuration id provided in the request exists
+     *
      * @param request
      */
     private void validatePlanConfigurationExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId()) && CollectionUtils.isEmpty(planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
-                .id(request.getPlan().getPlanConfigurationId())
-                .tenantId(request.getPlan().getTenantId())
-                .build()))) {
+        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId()) &&
+                CollectionUtils.isEmpty(commonUtil.searchPlanConfigId(request.getPlan().getPlanConfigurationId(), request.getPlan().getTenantId()))) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
     }
 
     /**
      * This method validates the resources provided in the request
+     *
      * @param request
      */
     private void validateResources(PlanRequest request) {
         // If plan configuration id is not provided, providing resources is mandatory
-        if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
+        if (ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
             throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
 
         // If plan configuration id is provided, providing resources is not allowed
-        if(!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
+        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
             throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
         }
 
         // Validate resource type existence
-        if(!CollectionUtils.isEmpty(request.getPlan().getResources())) {
+        if (!CollectionUtils.isEmpty(request.getPlan().getResources())) {
             request.getPlan().getResources().forEach(resource -> {
                 // Validate resource type existence
             });
@@ -198,10 +227,11 @@ public class PlanValidator {
 
     /**
      * This method validates the linkage between resources and activities
+     *
      * @param request
      */
     private void validateResourceActivityLinkage(PlanRequest request) {
-        if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
+        if (ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             // Collect all activity codes
             Set<String> activityCodes = request.getPlan().getActivities().stream()
@@ -210,7 +240,7 @@ public class PlanValidator {
 
             // Validate resource-activity linkage
             request.getPlan().getResources().forEach(resource -> {
-                if(!activityCodes.contains(resource.getActivityCode()))
+                if (!activityCodes.contains(resource.getActivityCode()))
                     throw new CustomException(INVALID_RESOURCE_ACTIVITY_LINKAGE_CODE, INVALID_RESOURCE_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
@@ -218,10 +248,11 @@ public class PlanValidator {
 
     /**
      * This method validates the linkage between targets and activities
+     *
      * @param request
      */
     private void validateTargetActivityLinkage(PlanRequest request) {
-        if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+        if (!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             // Collect all activity codes
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
@@ -229,7 +260,7 @@ public class PlanValidator {
 
             // Validate target-activity linkage
             request.getPlan().getTargets().forEach(target -> {
-                if(!activityCodes.contains(target.getActivityCode()))
+                if (!activityCodes.contains(target.getActivityCode()))
                     throw new CustomException(INVALID_TARGET_ACTIVITY_LINKAGE_CODE, INVALID_TARGET_ACTIVITY_LINKAGE_MESSAGE);
             });
         }
@@ -237,6 +268,7 @@ public class PlanValidator {
 
     /**
      * This method performs business validations on plan update requests
+     *
      * @param request
      */
     public void validatePlanUpdate(PlanRequest request) {
@@ -245,6 +277,7 @@ public class PlanValidator {
 
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
 
         // Validate activities
         validateActivities(request);
@@ -279,6 +312,8 @@ public class PlanValidator {
         // Validate Metric Detail's Unit against MDMS
         validateMetricDetailUnit(request, mdmsData);
 
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
     }
 
     /**
@@ -338,11 +373,12 @@ public class PlanValidator {
 
     /**
      * This method validates if the plan id provided in the update request exists
+     *
      * @param request
      */
     private void validatePlanExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if(CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
+        if (CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
                 .build()))) {
             throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
@@ -355,7 +391,7 @@ public class PlanValidator {
      * This method checks each target metric in the plan to ensure it exists in the MDMS data.
      * If a metric is not found, it throws a CustomException.
      *
-     * @param request the PlanRequest containing the plan and target metrics to be validated
+     * @param request  the PlanRequest containing the plan and target metrics to be validated
      * @param mdmsData the MDMS data against which the target metrics are validated
      * @throws CustomException if there is an error reading the MDMS data using JsonPath
      *                         or if any target metric is not found in the MDMS data
@@ -386,7 +422,7 @@ public class PlanValidator {
      * This method extracts metric details from the plan and checks if each metric unit
      * is present in the MDMS data. If a metric unit is not found, it throws a CustomException.
      *
-     * @param request the PlanRequest containing the plan and metric details to be validated
+     * @param request  the PlanRequest containing the plan and metric details to be validated
      * @param mdmsData the MDMS data against which the metric units are validated
      * @throws CustomException if there is an error reading the MDMS data using JsonPath
      *                         or if any metric unit is not found in the MDMS data

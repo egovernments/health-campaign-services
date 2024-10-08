@@ -3,6 +3,7 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
+import digit.util.CampaignUtil;
 import digit.util.MdmsUtil;
 import digit.util.MdmsV2Util;
 import digit.util.CommonUtil;
@@ -12,6 +13,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import digit.web.models.mdmsV2.Mdms;
+import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -36,12 +38,15 @@ public class PlanConfigurationValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil) {
+    private CampaignUtil campaignUtil;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
         this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.campaignUtil = campaignUtil;
     }
 
     /**
@@ -53,6 +58,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
@@ -84,6 +90,19 @@ public class PlanConfigurationValidator {
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
 
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
+    }
+
+    /**
+     * Validates campaign ID from request against project factory
+     *
+     * @param campaignResponse The campaign details response from project factory
+     */
+    private void validateCampaignId(CampaignResponse campaignResponse) {
+        if (CollectionUtils.isEmpty(campaignResponse.getCampaignDetails())) {
+            throw new CustomException(NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
+        }
     }
 
     /**
@@ -151,8 +170,16 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + FILTER_ALL_ASSUMPTIONS;
+        Object additionalDetails = request.getPlanConfiguration().getAdditionalDetails();
+        if (additionalDetails == null) {
+            throw new CustomException(ADDITIONAL_DETAILS_MISSING_CODE, ADDITIONAL_DETAILS_MISSING_MESSAGE);
+        }
 
+        String jsonPathForAssumption = commonUtil.createJsonPathForAssumption(commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_CAMPAIGN_TYPE, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_DISTRIBUTION_PROCESS, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_REGISTRATION_PROCESS, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE, String.class),
+                commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER, String.class));
         List<Object> assumptionListFromMDMS = null;
         try {
             log.info(jsonPathForAssumption);
@@ -371,6 +398,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
         // Validate the existence of the plan configuration in the request
         validatePlanConfigExistence(request);
@@ -407,6 +435,9 @@ public class PlanConfigurationValidator {
 
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
+
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
     }
 
     /**
@@ -539,19 +570,25 @@ public class PlanConfigurationValidator {
      * @param request plan configuration request
      * @param mdmsV2Data mdms v2 data object
      */
-    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data)
-    {
-        List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
+    public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data) {
+        Object vehicleIdsfromAdditionalDetails;
+        List<String> vehicleIdsLinkedWithPlanConfig = new ArrayList<>();
+        try {
+            vehicleIdsfromAdditionalDetails = commonUtil.extractFieldsFromJsonObject(request.getPlanConfiguration().getAdditionalDetails(), JSON_FIELD_VEHICLE_ID, String.class);
+            if (vehicleIdsfromAdditionalDetails instanceof List<?> vehicleIdsList) {
+                vehicleIdsList.stream().allMatch(String.class::isInstance);
+            }
+        } catch (ClassCastException e) {
+            throw new CustomException(VEHICLE_IDS_INVALID_DATA_TYPE_CODE, VEHICLE_IDS_INVALID_DATA_TYPE_MESSAGE);
+        }
 
         List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
                 .map(Mdms::getId)
-                .collect(Collectors.toList());
+                .toList();
 
-        List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
         vehicleIdsLinkedWithPlanConfig.stream()
                 .forEach(vehicleId -> {
-                    if(!finalVehicleIdsFromMdms.contains(vehicleId))
-                    {
+                    if (!vehicleIdsFromMdms.contains(vehicleId)) {
                         log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
                         throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
                     }

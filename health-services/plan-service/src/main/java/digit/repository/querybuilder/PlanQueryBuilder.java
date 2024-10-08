@@ -6,6 +6,7 @@ import digit.web.models.PlanSearchCriteria;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
 import java.util.LinkedHashSet;
 import java.util.List;
 
@@ -14,8 +15,11 @@ public class PlanQueryBuilder {
 
     private Configuration config;
 
-    public PlanQueryBuilder(Configuration config) {
+    private QueryUtil queryUtil;
+
+    public PlanQueryBuilder(Configuration config, QueryUtil queryUtil) {
         this.config = config;
+        this.queryUtil = queryUtil;
     }
 
     private static final String PLAN_SEARCH_BASE_QUERY = "SELECT id FROM plan ";
@@ -41,9 +45,9 @@ public class PlanQueryBuilder {
         StringBuilder builder = new StringBuilder(PLAN_QUERY);
 
         if (!CollectionUtils.isEmpty(ids)) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan.id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
         }
 
         return builder.toString();
@@ -51,13 +55,14 @@ public class PlanQueryBuilder {
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
         String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList);
-        query = QueryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
         return query;
     }
 
     /**
      * Method to build query dynamically based on the criteria passed to the method
+     *
      * @param planSearchCriteria
      * @param preparedStmtList
      * @return
@@ -66,31 +71,31 @@ public class PlanQueryBuilder {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ? ");
             preparedStmtList.add(planSearchCriteria.getTenantId());
         }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getIds())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" id IN ( ").append(QueryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" id IN ( ").append(queryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getLocality())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" locality = ? ");
             preparedStmtList.add(planSearchCriteria.getLocality());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getCampaignId())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" campaign_id = ? ");
             preparedStmtList.add(planSearchCriteria.getCampaignId());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ? ");
             preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
         }
