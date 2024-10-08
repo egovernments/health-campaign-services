@@ -84,13 +84,6 @@ public class CensusQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(criteria.getAreaCodes()));
         }
 
-        if (!CollectionUtils.isEmpty(criteria.getMaterializedPath())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" ARRAY [ ").append(queryUtil.createQuery(criteria.getMaterializedPath().size())).append(" ]").append("::text[] ");
-            builder.append(" && string_to_array(census_materialized_path, ',') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(criteria.getMaterializedPath()));
-        }
-
         return builder.toString();
     }
 
