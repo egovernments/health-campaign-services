@@ -2,7 +2,9 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
+
 import java.util.LinkedList;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.mdms.model.*;
@@ -38,11 +40,11 @@ public class MdmsUtil {
         StringBuilder uri = new StringBuilder();
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId);
-        Object mdmsResponseMap  = new HashMap<>();
+        Object mdmsResponseMap = new HashMap<>();
         MdmsResponse mdmsResponse = new MdmsResponse();
         try {
-        	mdmsResponseMap  = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
-            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponse.class);
+            mdmsResponseMap = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
+            mdmsResponse = mapper.convertValue(mdmsResponseMap, MdmsResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
@@ -55,18 +57,47 @@ public class MdmsUtil {
         return result;
     }
 
+    /**
+     * This method constructs the criteria request for MDMS Api call
+     *
+     * @param requestInfo requestInfo from the provided request
+     * @param tenantId    tenant id from the provided request
+     * @return Returns the mdms criteria request
+     */
     public MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId) {
 
         ModuleDetail assumptionModuleDetail = getPlanModuleDetail();
+        ModuleDetail adminConsoleModuleDetail = getAdminConsoleModuleDetail();
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(assumptionModuleDetail);
+        moduleDetails.add(adminConsoleModuleDetail);
 
         MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId).build();
 
         return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
     }
 
+    /**
+     * This method constructs module detail object for 'HCM-ADMIN-CONSOLE' module
+     *
+     * @return Returns the module details for 'HCM-ADMIN-CONSOLE' module
+     */
+    private ModuleDetail getAdminConsoleModuleDetail() {
+        List<MasterDetail> adminConsoleMasterDetails = new ArrayList<>();
+
+        MasterDetail hierarchyConfig = MasterDetail.builder().name(MDMS_MASTER_HIERARCHY_CONFIG).build();
+
+        adminConsoleMasterDetails.add(hierarchyConfig);
+
+        return ModuleDetail.builder().masterDetails(adminConsoleMasterDetails).moduleName(MDMS_ADMIN_CONSOLE_MODULE_NAME).build();
+    }
+
+    /**
+     * This method constructs module detail object for 'hcm-microplanning' module
+     *
+     * @return Returns the module details for 'hcm-microplanning' module
+     */
     private ModuleDetail getPlanModuleDetail() {
         List<MasterDetail> assumptionMasterDetails = new ArrayList<>();
 

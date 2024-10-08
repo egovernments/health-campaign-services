@@ -12,9 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+import static digit.config.ServiceConstants.DRAFT_STATUS;
 import org.springframework.util.CollectionUtils;
-
-import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 import org.springframework.util.ObjectUtils;
@@ -39,6 +38,9 @@ public class EnrichmentService {
     public void enrichCreate(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         log.info("Enriching plan config with generated IDs");
+
+        //set Draft status on create
+        planConfiguration.setStatus(DRAFT_STATUS);
 
         // Generate id for plan configuration
         UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");

@@ -3,14 +3,16 @@ package digit.service;
 import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
-import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
+import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
+
 import java.util.Collections;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
@@ -31,18 +33,22 @@ public class PlanConfigurationService {
 
     private ResponseInfoFactory responseInfoFactory;
 
+    private WorkflowService workflowService;
+
     public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
-            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory) {
+            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService) {
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.config = config;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
+        this.workflowService = workflowService;
     }
 
     /**
      * Creates a new plan configuration based on the provided request.
+     *
      * @param request The request containing the plan configuration details.
      * @return The created plan configuration request.
      */
@@ -61,6 +67,7 @@ public class PlanConfigurationService {
 
     /**
      * Searches for plan configurations based on the provided search criteria.
+     *
      * @param request The search request containing the criteria.
      * @return A list of plan configurations that match the search criteria.
      */
@@ -77,18 +84,21 @@ public class PlanConfigurationService {
 
     /**
      * Updates an existing plan configuration based on the provided request.
+     *
      * @param request The request containing the updated plan configuration details.
      * @return The response containing the updated plan configuration.
      */
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
         validator.validateUpdateRequest(request);
         enrichmentService.enrichUpdate(request);
+        workflowService.invokeWorkflowForStatusUpdate(request);
         repository.update(request);
 
-        // Build and return response back to controller
-        return PlanConfigurationResponse.builder()
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
                 .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))
                 .build();
+
+        return response;
     }
 }

@@ -12,9 +12,15 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
+
+    public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
+
+    public static final String NATIONAL_ROLE = "NATIONAL";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
@@ -30,6 +36,9 @@ public class ServiceConstants {
 
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
+
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_CODE = "VEHICLE_IDS_INVALID_DATA_TYPE";
+    public static final String VEHICLE_IDS_INVALID_DATA_TYPE_MESSAGE = "Vehicle IDs should be a list of strings.";
 
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS ";
@@ -55,14 +64,35 @@ public class ServiceConstants {
     public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
     public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
 
+    public static final String PLAN_CONFIG_ID_EMPTY_CODE = "PLAN_CONFIG_ID_EMPTY";
+    public static final String PLAN_CONFIG_ID_EMPTY_MESSAGE = "Plan config Id cannot be empty.";
+
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
+
+    public static final String INVALID_EMPLOYEE_ID_CODE = "INVALID_EMPLOYEE_ID";
+    public static final String INVALID_EMPLOYEE_ID_MESSAGE = "Invalid or incorrect employee id.";
+
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
+    public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
+    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
+
+    public static final String INVALID_EMPLOYEE_ROLE_CODE = "INVALID_EMPLOYEE_ROLE";
+    public static final String INVALID_EMPLOYEE_ROLE_MESSAGE = "The employee's role provided is invalid";
 
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
 
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
+
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
 
     public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
     public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
@@ -130,6 +160,18 @@ public class ServiceConstants {
     public static final String DUPLICATE_ACTIVITY_UUIDS_CODE = "DUPLICATE_ACTIVITY_UUIDS";
     public static final String DUPLICATE_ACTIVITY_UUIDS_MESSAGE = "Activity UUIDs should be unique";
 
+    public static final String ADDITIONAL_DETAILS_MISSING_CODE = "ADDITIONAL_DETAILS_MISSING";
+    public static final String ADDITIONAL_DETAILS_MISSING_MESSAGE = "Additional details are missing in the plan configuration request.";
+
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
+
+    public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
+    public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
+
+    public static final String PROCESS_INSTANCE_NOT_FOUND_CODE = "PROCESS_INSTANCE_NOT_FOUND";
+    public static final String PROCESS_INSTANCE_NOT_FOUND_MESSAGE = "No process instance found with businessId: ";
+
     public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
     public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";
 
@@ -144,6 +186,8 @@ public class ServiceConstants {
 
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
+    public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
+    public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
@@ -189,6 +233,38 @@ public class ServiceConstants {
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
-    public static final String VEHICLE_ID_FIELD = "vehicleIds";
+    // Constants for constructing logical expressions or queries
+    public static final String AND = " && ";
+    public static final String EQUALS = " == ";
+    public static final String SINGLE_QUOTE = "'";
+
+    // JSON field constants for campaign details
+    public static final String JSON_FIELD_CAMPAIGN_TYPE = "campaignType";
+    public static final String JSON_FIELD_DISTRIBUTION_PROCESS = "DistributionProcess";
+    public static final String JSON_FIELD_REGISTRATION_PROCESS = "RegistrationProcess";
+    public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
+    public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
+    public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
+
+    // JSON path constants for campaign details
+    public static final String JSONPATH_FILTER_PREFIX = "[?(";
+    public static final String JSONPATH_FILTER_SUFFIX = ")]";
+    public static final String JSON_PATH_FILTER_CAMPAIGN_TYPE = "@.campaignType";
+    public static final String JSON_PATH_FILTER_DISTRIBUTION_PROCESS = "@.DistributionProcess";
+    public static final String JSON_PATH_FILTER_REGISTRATION_PROCESS = "@.RegistrationProcess";
+    public static final String JSON_PATH_FILTER_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "@.resourceDistributionStrategyCode";
+    public static final String JSON_PATH_FILTER_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "@.isRegistrationAndDistributionHappeningTogetherOrSeparately";
+
+    // Workflow Constants
+    public static final String PLAN_CONFIGURATION_BUSINESS_SERVICE = "PLAN_CONFIGURATION";
+
+    public static final String MODULE_NAME_VALUE = "plan-service";
+
+    public static final String DRAFT_STATUS = "DRAFT";
+
+    public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
+
+    //Query constants
+    public static final String PERCENTAGE_WILDCARD = "%";
 
 }

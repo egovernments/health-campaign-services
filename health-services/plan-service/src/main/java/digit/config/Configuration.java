@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 
 @Component
 @Data
@@ -15,6 +16,10 @@ import org.springframework.stereotype.Component;
 @Setter
 @Getter
 public class Configuration {
+
+    //Role Map
+    @Value("#{${role.map}}")
+    public Map<String, String> roleMap;
 
     //MDMS
     @Value("${egov.mdms.host}")
@@ -26,12 +31,32 @@ public class Configuration {
     @Value("${egov.mdms.search.v2.endpoint}")
     private String mdmsV2EndPoint;
 
+    //HRMS
+    @Value("${egov.hrms.host}")
+    private String hrmsHost;
+
+    @Value("${egov.hrms.search.endpoint}")
+    private String hrmsEndPoint;
+
+    //Project Factory
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndPoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;
 
     @Value("${plan.configuration.update.topic}")
     private String planConfigUpdateTopic;
+
+    @Value("${plan.employee.assignment.create.topic}")
+    private String planEmployeeAssignmentCreateTopic;
+
+    @Value("${plan.employee.assignment.update.topic}")
+    private String planEmployeeAssignmentUpdateTopic;
 
     @Value("${plan.create.topic}")
     private String planCreateTopic;
@@ -44,5 +69,12 @@ public class Configuration {
 
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
+
+    //Workflow
+    @Value("${egov.workflow.host}")
+    private String wfHost;
+
+    @Value("${egov.workflow.transition.path}")
+    private String wfTransitionPath;
 
 }
