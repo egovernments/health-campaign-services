@@ -1,24 +1,24 @@
 package org.egov.product.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductRepository;
+import org.egov.product.web.models.Mdms;
 import org.egov.product.web.models.ProductSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.product.config.ServiceConstants.*;
+import static org.egov.product.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
 
 @Service
 @Slf4j
@@ -95,30 +95,39 @@ public class ProductService {
 
         log.info("received request to search product");
 
-//        if (isSearchByIdOnly(productSearchRequest.getProduct())) {
-//            log.info("searching product by id");
-//            List<String> ids = productSearchRequest.getProduct().getId();
-//            log.info("fetching product with ids: {}", ids);
-//            return productRepository.findById(ids, includeDeleted).stream()
-//                    .filter(lastChangedSince(lastChangedSince))
-//                    .filter(havingTenantId(tenantId))
-//                    .filter(includeDeleted(includeDeleted))
-//                    .collect(Collectors.toList());
-//        }
-//        log.info("searching product using criteria");
-//        return productRepository.find(productSearchRequest.getProduct(), limit,
-//                offset, tenantId, lastChangedSince, includeDeleted);
+        List <String> ids = productSearchRequest.getProduct().getId();
 
-        Object jsonNode = mdmsV2Service.fetchMdmsData(productSearchRequest.getRequestInfo(), tenantId, Boolean.TRUE);
-        List<Product> products = Collections.emptyList();
-        try {
-            Object jsonArray = JsonPath.read(jsonNode, "$.HCM-Product.Products");
-            // Convert JSON string to List<Product>
-            products = objectMapper.convertValue(jsonArray, new TypeReference<List<Product>>() {});
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        List <Mdms> jsonNode = mdmsV2Service.fetchMdmsData(productSearchRequest.getRequestInfo(), tenantId, Boolean.TRUE, ids, limit, offset);
 
-        return products;
+        List<Product> products= new ArrayList<>();
+
+        jsonNode.forEach(data -> {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                // Convert JsonNode to ProductVariant object
+                Product product = objectMapper.treeToValue(data.getData(), Product.class);
+                products.add(product);
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+            }
+        });
+
+        List <Product> filteredProduct = products.stream().filter(product -> {
+            if(productSearchRequest.getProduct().getName() == null) {
+                return true;
+            }
+            return product.getName().toLowerCase().equals(productSearchRequest.getProduct().getName().toLowerCase());
+                })
+                .filter(product -> {
+                    if(productSearchRequest.getProduct().getManufacturer() == null) {
+                        return true;
+                    }
+                    return product.getManufacturer().toLowerCase().equals(productSearchRequest.getProduct().getManufacturer().toLowerCase());
+                })
+                .filter(includeDeleted(includeDeleted))
+                .filter(lastChangedSince(lastChangedSince)).collect(Collectors.toList());
+
+        return  products;
     }
 }

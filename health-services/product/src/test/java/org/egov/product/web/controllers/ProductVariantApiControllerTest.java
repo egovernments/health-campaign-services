@@ -60,7 +60,7 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariant()
                 .withApiOperationNotUpdate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId("ID101").build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.create(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -124,7 +124,7 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariantHavingId()
                 .withApiOperationNotNullAndNotCreate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId("ID101").build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.update(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -193,7 +193,7 @@ public class ProductVariantApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId("ID101").withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)

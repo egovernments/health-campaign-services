@@ -1,18 +1,14 @@
 package org.egov.product.service;
 
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.MdmsResponse;
-import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.product.config.ProductConfiguration;
+import org.egov.product.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,24 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
+import static org.egov.product.config.ServiceConstants.*;
+
 @Service
 @Slf4j
 public class MdmsV2Service {
-
-    public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
-
-    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
-    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
-
-    public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
-    public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
-
-    public static final String MDMS_PRODUCT_MODULE_NAME = "HCM-Product";
-    public static final String MDMS_PRODUCT_MASTER_NAME = "Products";
-
-    public static final String MDMS_PRODUCT_VARIANT_MODULE_NAME = "HCM-Product";
-    public static final String MDMS_PRODUCT_VARIANT_MASTER_NAME = "ProductVariants";
-
     private final RestTemplate restTemplate;
 
     private final ObjectMapper mapper;
@@ -52,54 +35,44 @@ public class MdmsV2Service {
     }
 
 
-    public Object fetchMdmsData(RequestInfo requestInfo, String tenantId, Boolean isProduct) {
+    public List<Mdms> fetchMdmsData(RequestInfo requestInfo, String tenantId, Boolean isProduct, List <String> ids, Integer limit, Integer offset) {
         StringBuilder uri = new StringBuilder();
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
-        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, isProduct);
+        MdmsCriteriaReqV2 mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, isProduct, ids, limit, offset);
         Object mdmsResponseMap  = new HashMap<>();
-        MdmsResponse mdmsResponse = new MdmsResponse();
+        MdmsResponseV2 mdmsResponse = new MdmsResponseV2();
         try {
             mdmsResponseMap  = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
-            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponse.class);
+            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponseV2.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
         }
 
-        Object result = mdmsResponse.getMdmsRes();
+        List <Mdms> result = mdmsResponse.getMdms();
         if (result == null || ObjectUtils.isEmpty(result)) {
-            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
-            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
+            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS_MESSAGE + " - " + tenantId);
+            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS, NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS_MESSAGE);
         }
         log.info(result.toString());
         return result;
     }
 
-    public MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, Boolean isProduct) {
+    public MdmsCriteriaReqV2 getMdmsRequest(RequestInfo requestInfo, String tenantId, Boolean isProduct, List <String> ids, Integer limit, Integer offset) {
 
-        MdmsCriteria mdmsCriteria = isProduct ? getProductsMdmsCriteria(tenantId) : getProductVariantsMdmsCriteria(tenantId);
+        MdmsCriteriaV2 mdmsCriteria = isProduct ? getProductsMdmsCriteria(tenantId,ids, limit, offset) : getProductVariantsMdmsCriteria(tenantId, ids, limit, offset);
 
-        return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
+        return MdmsCriteriaReqV2.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
     }
 
-    private MdmsCriteria getProductVariantsMdmsCriteria(String tenantId) {
-        MasterDetail productMaster = MasterDetail.builder().name(MDMS_PRODUCT_VARIANT_MASTER_NAME).build();
-        ModuleDetail moduleDetail = ModuleDetail.builder()
-                .moduleName(MDMS_PRODUCT_VARIANT_MODULE_NAME)
-                .masterDetails(Collections.singletonList(productMaster))
-                .build();
-        return MdmsCriteria.builder().moduleDetails(Collections.singletonList(moduleDetail)).tenantId(tenantId).build();
+    private MdmsCriteriaV2 getProductVariantsMdmsCriteria(String tenantId,List <String> ids, Integer limit, Integer offset) {
+        final String schemaCode = MDMS_PRODUCT_VARIANT_MODULE_NAME + DOT_SEPARATOR + MDMS_PRODUCT_VARIANT_MASTER_NAME;
+
+        return MdmsCriteriaV2.builder().tenantId(tenantId).schemaCode(schemaCode).uniqueIdentifiers(ids).offset(offset).limit(limit).build();
     }
 
-    private MdmsCriteria getProductsMdmsCriteria(String tenantId) {
-        MasterDetail productMaster = MasterDetail.builder().name(MDMS_PRODUCT_MASTER_NAME).build();
-        ModuleDetail moduleDetail = ModuleDetail.builder()
-                .moduleName(MDMS_PRODUCT_MODULE_NAME)
-                .masterDetails(Collections.singletonList(productMaster))
-                .build();
-        return MdmsCriteria.builder().moduleDetails(Collections.singletonList(moduleDetail)).tenantId(tenantId).build();
+    private MdmsCriteriaV2 getProductsMdmsCriteria(String tenantId, List <String> ids, Integer limit, Integer offset) {
+        final String schemaCode = MDMS_PRODUCT_MODULE_NAME + DOT_SEPARATOR + MDMS_PRODUCT_MASTER_NAME;
+
+        return MdmsCriteriaV2.builder().tenantId(tenantId).schemaCode(schemaCode).uniqueIdentifiers(ids).limit(limit).offset(offset).build();
     }
-
-
-
-
 }
