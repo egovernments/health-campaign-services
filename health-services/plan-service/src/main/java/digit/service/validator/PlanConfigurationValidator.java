@@ -3,6 +3,7 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
+import digit.util.CampaignUtil;
 import digit.util.MdmsUtil;
 import digit.util.MdmsV2Util;
 import digit.util.CommonUtil;
@@ -12,6 +13,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import digit.web.models.mdmsV2.Mdms;
+import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -36,12 +38,15 @@ public class PlanConfigurationValidator {
 
     private MultiStateInstanceUtil centralInstanceUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil) {
+    private CampaignUtil campaignUtil;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
         this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
+        this.campaignUtil = campaignUtil;
     }
 
     /**
@@ -54,6 +59,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
@@ -85,6 +91,19 @@ public class PlanConfigurationValidator {
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
 
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
+    }
+
+    /**
+     * Validates campaign ID from request against project factory
+     *
+     * @param campaignResponse The campaign details response from project factory
+     */
+    private void validateCampaignId(CampaignResponse campaignResponse) {
+        if (CollectionUtils.isEmpty(campaignResponse.getCampaignDetails())) {
+            throw new CustomException(NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE);
+        }
     }
 
     /**
@@ -115,7 +134,6 @@ public class PlanConfigurationValidator {
         if (!commonUtil.validateStringAgainstRegex(regexPattern, planConfiguration.getName())) {
             throw new CustomException(NAME_VALIDATION_FAILED_CODE, NAME_VALIDATION_FAILED_MESSAGE);
         }
-
     }
 
 
@@ -158,8 +176,17 @@ public class PlanConfigurationValidator {
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            final String jsonPathForAssumption = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ASSUMPTION + FILTER_ALL_ASSUMPTIONS;
 
+            Object additionalDetails = request.getPlanConfiguration().getAdditionalDetails();
+            if (additionalDetails == null) {
+                throw new CustomException(ADDITIONAL_DETAILS_MISSING_CODE, ADDITIONAL_DETAILS_MISSING_MESSAGE);
+            }
+
+            String jsonPathForAssumption = commonUtil.createJsonPathForAssumption(commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_CAMPAIGN_TYPE),
+                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_DISTRIBUTION_PROCESS),
+                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_REGISTRATION_PROCESS),
+                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE),
+                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER));
             List<Object> assumptionListFromMDMS = null;
             try {
                 log.info(jsonPathForAssumption);
@@ -195,7 +222,7 @@ public class PlanConfigurationValidator {
                     .map(File::getFilestoreId)
                     .collect(Collectors.toSet());
 
-            planConfiguration.getResourceMapping().stream().forEach(mapping -> {
+            planConfiguration.getResourceMapping().forEach(mapping -> {
                 if (!fileStoreIds.contains(mapping.getFilestoreId())) {
                     log.error("Resource Mapping " + mapping.getMappedTo() + " does not have valid fileStoreId " + mapping.getFilestoreId());
                     throw new CustomException(FILESTORE_ID_INVALID_CODE, FILESTORE_ID_INVALID_MESSAGE);
@@ -252,14 +279,12 @@ public class PlanConfigurationValidator {
             }
 
             // Ensure at least one active file for each required template identifier
-            requiredTemplateIdentifierSetFromMDMS
-                    .stream()
-                    .forEach(requiredTemplate -> {
-                        if (!activeRequiredTemplates.contains(requiredTemplate)) {
-                            log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
-                            throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
-                        }
-                    });
+            requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
+                if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                    log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                    throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+                }
+            });
 
         }
     }
@@ -304,7 +329,7 @@ public class PlanConfigurationValidator {
                     .map(Operation::getOutput)
                     .forEach(allowedColumns::add);
 
-            planConfiguration.getOperations().stream().forEach(operation -> {
+            planConfiguration.getOperations().forEach(operation -> {
                 if (!allowedColumns.contains(operation.getInput())) {
                     log.error("Input Value " + operation.getInput() + " is not present in MDMS Input List");
                     throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE);
@@ -322,8 +347,7 @@ public class PlanConfigurationValidator {
      * @param templateIds    The list of template identifiers from request object
      * @param inputFileTypes The list of input file type from request object
      */
-    public static HashSet<String> getColumnsFromSchemaThatAreRuleInputs
-    (HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+    public static HashSet<String> getColumnsFromSchemaThatAreRuleInputs(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (schemas == null) {
             return new HashSet<>();
         }
@@ -334,13 +358,12 @@ public class PlanConfigurationValidator {
                 continue;
             LinkedHashMap<String, LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>) ((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
             if (columns == null) return new HashSet<>();
-            columns.entrySet().stream()
-                    .forEach(column -> {
-                        LinkedHashMap<String, Boolean> data = column.getValue();
-                        if (data.get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)) {
-                            finalData.add(column.getKey());
-                        }
-                    });   // Add the keys to finalData
+            columns.forEach((key, value) -> {
+                LinkedHashMap<String, Boolean> data = value;
+                if (data.get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)) {
+                    finalData.add(key);
+                }
+            });   // Add the keys to finalData
         }
         return finalData;
     }
@@ -356,7 +379,7 @@ public class PlanConfigurationValidator {
     public static void validateMappedToUniqueness(List<ResourceMapping> resourceMappings) {
         if (!CollectionUtils.isEmpty(resourceMappings)) {
             Set<String> uniqueMappedToSet = new HashSet<>();
-            resourceMappings.stream().forEach(mapping -> {
+            resourceMappings.forEach(mapping -> {
                 String uniqueKey = mapping.getFilestoreId() + "-" + mapping.getMappedTo();
                 if (!uniqueMappedToSet.add(uniqueKey)) {
                     log.error("Duplicate MappedTo " + mapping.getMappedTo() + " for FilestoreId " + mapping.getFilestoreId());
@@ -397,6 +420,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
         // Validate the existence of the plan configuration in the request
         validatePlanConfigExistence(request);
@@ -433,6 +457,9 @@ public class PlanConfigurationValidator {
 
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
+
+        // Validate if campaign id exists against project factory
+        validateCampaignId(campaignResponse);
     }
 
     /**
@@ -440,7 +467,7 @@ public class PlanConfigurationValidator {
      *
      * @param request The request containing the plan configuration to validate.
      */
-    public PlanConfiguration validatePlanConfigExistence(PlanConfigurationRequest request) {
+    public void validatePlanConfigExistence(PlanConfigurationRequest request) {
         // If plan id provided is invalid, throw an exception
         List<PlanConfiguration> planConfigurationList = planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
                 .id(request.getPlanConfiguration().getId())
@@ -450,7 +477,6 @@ public class PlanConfigurationValidator {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
         }
 
-        return planConfigurationList.get(0);
     }
 
     /**
@@ -469,7 +495,7 @@ public class PlanConfigurationValidator {
                     .collect(Collectors.toSet());
 
             // Check for each inactive operation
-            planConfiguration.getOperations().stream().forEach(operation -> {
+            planConfiguration.getOperations().forEach(operation -> {
                 if (!operation.getActive() && activeInputs.contains(operation.getOutput())) {
                     log.error(INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
                     throw new CustomException(INACTIVE_OPERATION_USED_AS_INPUT_CODE, INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
@@ -536,22 +562,21 @@ public class PlanConfigurationValidator {
      * @param inputFileTypes The list of input file type from request object
      * @return List of Columns that are required
      */
-    public static HashSet<String> getRequiredColumnsFromSchema
-    (HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+    public static HashSet<String> getRequiredColumnsFromSchema(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (CollectionUtils.isEmpty(schemas)) {
             return new HashSet<>();
         }
         HashSet<String> finalData = new HashSet<>();
         for (Object item : schemas) {
-            LinkedHashMap<?, ?> schemaEntity = (LinkedHashMap) item;
+            LinkedHashMap<?, ?> schemaEntity = (LinkedHashMap<?, ?>) item;
             if (!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE)))
                 continue;
             LinkedHashMap<String, LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>) ((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
             if (columns == null) return new HashSet<>();
-            columns.entrySet().stream().forEach(column -> {
-                LinkedHashMap<String, Boolean> data = column.getValue();
+            columns.forEach((key, value) -> {
+                LinkedHashMap<String, Boolean> data = value;
                 if (data.get(MDMS_SCHEMA_PROPERTIES_IS_REQUIRED)) {
-                    finalData.add(column.getKey());
+                    finalData.add(key);
                 }
             });
         }
@@ -578,55 +603,51 @@ public class PlanConfigurationValidator {
      * @param mdmsV2Data mdms v2 data object
      */
     public void validateVehicleIdsFromAdditionalDetailsAgainstMDMS(PlanConfigurationRequest request, List<Mdms> mdmsV2Data) {
-        List<String> vehicleIdsLinkedWithPlanConfig = commonUtil.extractVehicleIdsFromAdditionalDetails(request.getPlanConfiguration().getAdditionalDetails());
-
-        if (!CollectionUtils.isEmpty(vehicleIdsLinkedWithPlanConfig)) {
+        List<String> vehicleIdsfromAdditionalDetails = commonUtil.extractFieldsFromJsonObject(request.getPlanConfiguration().getAdditionalDetails(), JSON_FIELD_VEHICLE_ID, List.class);
+        if (!CollectionUtils.isEmpty(vehicleIdsfromAdditionalDetails)) {
             List<String> vehicleIdsFromMdms = mdmsV2Data.stream()
                     .map(Mdms::getId)
-                    .collect(Collectors.toList());
+                    .toList();
 
-            List<String> finalVehicleIdsFromMdms = vehicleIdsFromMdms;
-            vehicleIdsLinkedWithPlanConfig.stream()
-                    .forEach(vehicleId -> {
-                        if (!finalVehicleIdsFromMdms.contains(vehicleId)) {
-                            log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
-                            throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
-                        }
-                    });
+            vehicleIdsfromAdditionalDetails.forEach(vehicleId -> {
+                if (!vehicleIdsFromMdms.contains(vehicleId)) {
+                    log.error("Vehicle Id " + vehicleId + " is not present in MDMS");
+                    throw new CustomException(VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE, VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE);
+                }
+            });
         }
-
     }
 
 
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        return planConfiguration.getStatus() == PlanConfiguration.StatusEnum.SETUP_COMPLETED;
+        return Objects.equals(planConfiguration.getStatus(), SETUP_COMPLETED_STATUS);
     }
 
     // Checks for whether file, assumption, operation or resource mapping is empty or null at a certain status
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            log.error("Files cannot be empty at status = " + PlanConfiguration.StatusEnum.SETUP_COMPLETED);
+            log.error("Files cannot be empty at status = " + SETUP_COMPLETED_STATUS);
             throw new CustomException(FILES_NOT_FOUND_CODE, FILES_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            log.error("Assumptions cannot be empty at status = " + PlanConfiguration.StatusEnum.SETUP_COMPLETED);
+            log.error("Assumptions cannot be empty at status = " + SETUP_COMPLETED_STATUS);
             throw new CustomException(ASSUMPTIONS_NOT_FOUND_CODE, ASSUMPTIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            log.error("Operations cannot be empty at status = " + PlanConfiguration.StatusEnum.SETUP_COMPLETED);
+            log.error("Operations cannot be empty at status = " + SETUP_COMPLETED_STATUS);
             throw new CustomException(OPERATIONS_NOT_FOUND_CODE, OPERATIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyResourceMapping(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
-            log.error("Resource mapping cannot be empty at status = " + PlanConfiguration.StatusEnum.SETUP_COMPLETED);
+            log.error("Resource mapping cannot be empty at status = " + SETUP_COMPLETED_STATUS);
             throw new CustomException(RESOURCE_MAPPING_NOT_FOUND_CODE, RESOURCE_MAPPING_NOT_FOUND_MESSAGE);
         }
     }

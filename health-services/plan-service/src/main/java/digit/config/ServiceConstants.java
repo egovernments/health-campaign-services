@@ -229,7 +229,11 @@ public class ServiceConstants {
 
     public static final String BOUNDARY_CODE = "boundaryCode";
 
-    public static final String FILTER_ALL_ASSUMPTIONS = "[*].assumptionCategories[*].assumptions[*]";
+    public static final String FILTER_ALL_ASSUMPTIONS = ".assumptionCategories[*].assumptions[*]";
+
+    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
+
+    public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
