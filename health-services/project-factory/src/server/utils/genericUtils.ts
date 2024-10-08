@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -970,7 +970,7 @@ async function generateUserSheetForMicroPlan(
   // Loop through the rolesForMicroplan array to create sheets for each role
   for (const role of rolesForMicroplan) {
     // Create a sheet for each role, using the role name as the sheet name
-    const userSheet: any = workbook.addWorksheet(rolesForMicroplanMapping[role]);
+    const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(userSheet, request.body?.dropdowns);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);

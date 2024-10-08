@@ -148,16 +148,7 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
-export const rolesForMicroplan = ["Resource estimation approver", "Root resource estimation approver", "Population data approver", "Root population data approver", "Facility catchment mapper", "Root facility catchment mapper", "Microplan viewer"];
-export const rolesForMicroplanMapping: any = {
-    "Resource estimation approver": "Microplan approver",
-    "Root resource estimation approver": "Root microplan approver",
-    "Population data approver": "Population data approver",
-    "Root population data approver": "Root population data approver",
-    "Facility catchment mapper": "Facility catchment mapper",
-    "Root facility catchment mapper": "Root facility catchment mapper",
-    "Microplan viewer": "Microplan viewer"
-}
+export const rolesForMicroplan = ["Plan estimation approver", "Root plan estimation approver", "Population data approver", "Root population data approver", "Facility catchment mapper", "Root facility catchment mapper", "Microplan viewer"];
 
 
 // Retrieves the error object containing the error code, message, and notFound flag.
