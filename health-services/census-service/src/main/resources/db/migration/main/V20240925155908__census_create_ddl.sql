@@ -11,7 +11,7 @@ CREATE TABLE census (
   source                                    character varying(255),
   status                                    character varying(255),
   assignee                                  character varying(255),
-  materialized_path                         TEXT,
+  boundary_ancestral_path                   TEXT,
   additional_details                        JSONB,
   created_by                                character varying(64),
   created_time                              bigint,

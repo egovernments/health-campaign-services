@@ -134,7 +134,7 @@ public class CensusRepositoryImpl implements CensusRepository {
                 .effectiveFrom(census.getEffectiveFrom())
                 .effectiveTo(census.getEffectiveTo())
                 .source(census.getSource())
-                .materializedPath(String.join(",", census.getMaterializedPath()))
+                .boundaryAncestralPath(String.join(",", census.getBoundaryAncestralPath()))
                 .additionalDetails(census.getAdditionalDetails())
                 .auditDetails(census.getAuditDetails())
                 .build();

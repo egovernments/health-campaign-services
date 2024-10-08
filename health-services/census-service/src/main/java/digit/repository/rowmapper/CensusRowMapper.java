@@ -47,9 +47,9 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
 
-                // Converting materialized path from comma separated string to a list of string
-                String materializedPath = rs.getString("census_materialized_path");
-                List<String> materializedPathList = Arrays.asList(materializedPath.split(","));
+                // Converting boundaryAncestralPath from comma separated string to a list of string
+                String boundaryAncestralPath = rs.getString("census_boundary_ancestral_path");
+                List<String> boundaryAncestralPathList = Arrays.asList(boundaryAncestralPath.split(","));
 
                 // Prepare census entry
                 censusEntry.setId(rs.getString("census_id"));
@@ -63,7 +63,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setSource(rs.getString("census_source"));
                 censusEntry.setStatus(Census.StatusEnum.valueOf(rs.getString("census_status").toUpperCase()));
                 censusEntry.setAssignee(rs.getString("census_assignee"));
-                censusEntry.setMaterializedPath(materializedPathList);
+                censusEntry.setBoundaryAncestralPath(boundaryAncestralPathList);
                 censusEntry.setAdditionalDetails(queryUtil.parseJson((PGobject) rs.getObject("census_additional_details")));
                 censusEntry.setAuditDetails(auditDetails);
             }

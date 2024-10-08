@@ -72,9 +72,9 @@ public class CensusDTO {
     @NotNull
     private String source = null;
 
-    @JsonProperty("boundaryCodeAncestralMaterializedPath")
+    @JsonProperty("boundaryAncestralPath")
     @NotNull
-    private String materializedPath = null;
+    private String boundaryAncestralPath = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

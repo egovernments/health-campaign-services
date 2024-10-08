@@ -39,9 +39,8 @@ public class CensusSearchCriteria {
     @JsonProperty("assignee")
     private String assignee = null;
 
-    @JsonProperty("boundaryCodeAncestralMaterializedPath")
-    private List<String> materializedPath = null;
-
+    @JsonProperty("jurisdiction")
+    private List<String> jurisdiction = null;
 
     public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {
         if (this.areaCodes == null) {
