@@ -222,8 +222,10 @@ public class PlanConfigurationValidator {
         Set<String> assumptionKeys = new HashSet<>();
 
         for (Assumption assumption : planConfig.getAssumptions()) {
-            if (!assumptionKeys.add(assumption.getKey())) {
-                throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
+            if (assumption.getActive() != Boolean.FALSE) {
+                if (!assumptionKeys.add(assumption.getKey())) {
+                    throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
+                }
             }
         }
     }
