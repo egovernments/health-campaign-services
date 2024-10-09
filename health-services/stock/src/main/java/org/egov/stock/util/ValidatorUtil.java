@@ -13,6 +13,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.service.UserService;
 import org.egov.stock.service.FacilityService;
 import org.egov.tracer.model.CustomException;
@@ -266,15 +267,19 @@ public class ValidatorUtil {
 		for (Stock stock : validEntities) {
 
 			String senderId = stock.getSenderId();
+			String receiverId = stock.getReceiverId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
 			if (!CollectionUtils.isEmpty(facilityIds)) {
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 					populateErrorForStock(stock, senderId, errorDetailsMap);
 				}
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
+					populateErrorForStock(stock, receiverId, errorDetailsMap);
+				}
 			} else {
-				populateErrorForStock(stock, senderId, errorDetailsMap);
+				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 			}
 		}
 	}
