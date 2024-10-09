@@ -56,48 +56,24 @@ public class CensusRepositoryImpl implements CensusRepository {
      */
     @Override
     public List<Census> search(CensusSearchCriteria censusSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String searchQuery = queryBuilder.getCensusQuery(censusSearchCriteria, preparedStmtList);
 
-        // Fetch census ids from database
-        List<String> censusIds = queryDatabaseForCensusIds(censusSearchCriteria);
-
-        // Return empty list back as response if no census ids are found
-        if (CollectionUtils.isEmpty(censusIds)) {
-            log.info("No census ids found for provided census search criteria.");
-            return new ArrayList<>();
-        }
-
-        return searchCensusByIds(censusIds);
+        return jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
     }
 
     /**
-     * Helper method to search for census records based on the provided census ids.
+     * Counts the number of census records based on the provided search criteria.
      *
-     * @param censusIds list of census ids to search for census records.
-     * @return a list of census records.
+     * @param censusSearchCriteria The search criteria for filtering census records.
+     * @return The total count of census matching the search criteria.
      */
-    private List<Census> searchCensusByIds(List<String> censusIds) {
-        List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getCensusQuery(censusIds, preparedStmtList);
-        log.info("Census query: " + query);
-        return jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
-    }
-
-    /**
-     * Helper method to query database for census ids based on the provided search criteria.
-     *
-     * @param censusSearchCriteria The criteria to use for searching census records.
-     * @return a list of census ids that matches the provided search criteria
-     */
-    private List<String> queryDatabaseForCensusIds(CensusSearchCriteria censusSearchCriteria) {
-        List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getCensusSearchQuery(censusSearchCriteria, preparedStmtList);
-        log.info("Census search query: " + query);
-        return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
-    }
-
     @Override
     public Integer count(CensusSearchCriteria censusSearchCriteria) {
-        return 0;
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getCensusCountQuery(censusSearchCriteria, preparedStmtList);
+
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
     }
 
     /**

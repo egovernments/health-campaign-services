@@ -1,11 +1,11 @@
 package digit.web.models;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.validation.constraints.NotNull;
@@ -76,7 +76,7 @@ public class Census {
     @NotNull
     private String source = null;
 
-    @JsonProperty("boundaryAncestralPath")
+    @JsonIgnore
     private List<String> boundaryAncestralPath = null;
 
     @JsonProperty("additionalDetails")
