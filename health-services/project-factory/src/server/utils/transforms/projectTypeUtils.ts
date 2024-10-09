@@ -58,10 +58,17 @@ export const projectTypeConversion = (
   campaignObject: any = {}
 ) => {
   const deliveryRules = campaignObject.deliveryRules;
-  const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e: { products: any }) =>
-    [...e.products].map((ele, ind) => ({
+  // const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e: { products: any }) =>
+  //   [...e.products].map((ele, ind) => ({
+  //     isBaseUnitVariant: ind == 0,
+  //     productVariantId: ele.value,
+  //   }))
+  // ));
+/* Temporay fix for project creation of LLIN since the structure of delivery rules is getting changed */
+  const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e:any) =>
+    [...e.deliveries].map((ele, ind) => ({
       isBaseUnitVariant: ind == 0,
-      productVariantId: ele.value,
+      productVariantId: ele.deliveryRules?.[0]?.products?.[0]?.value,
     }))
   ));
   const minAndMaxAge = getMinAndMaxAge(deliveryRules);
