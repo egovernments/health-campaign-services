@@ -522,9 +522,10 @@ function validateHeadersOfTabsWithTargetInTargetSheet(targetWorkbook: any, expec
     targetWorkbook.eachSheet((worksheet: any, sheetId: any) => {
         if (sheetId > 2) { // Starting from the second sheet
             // Convert the sheet to an array of headers
-            const headersToValidate = worksheet.getRow(1).values
+            var headersToValidate = worksheet.getRow(1).values
                 .filter((header: any) => header !== undefined && header !== null && header.toString().trim() !== '')
                 .map((header: any) => header.toString().trim());
+            headersToValidate = headersToValidate.filter((header: string) => header !== '#status#' && header !== '#errorDetails#');
             if (!_.isEqual(expectedHeadersForTargetSheet, headersToValidate)) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in Target sheet ${worksheet.name}`);
             }

@@ -1556,15 +1556,13 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         const [mainSheetData, uniqueDistrictsForMainSheet, districtLevelRowBoundaryCodeMap] = createBoundaryDataMainSheet(request, boundaryData, differentTabsBasedOnLevel, hierarchy, localizationMap)
         const responseFromCampaignSearch = await getCampaignSearchResponse(request);
         const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-        const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
-        if (!(isSourceMicroplan)) {
-            const mainSheet = workbook.addWorksheet(getLocalizedName(getBoundaryTabName(), localizationMap));
-            const columnWidths = Array(12).fill(30);
-            mainSheet.columns = columnWidths.map(width => ({ width }));
-            // mainSheetData.forEach(row => mainSheet.addRow(row));
-            addDataToSheet(request, mainSheet, mainSheetData, 'F3842D', 30, false, true);
-            mainSheet.state = 'hidden';
-        }
+        // const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+        const mainSheet = workbook.addWorksheet(getLocalizedName(getBoundaryTabName(), localizationMap));
+        const columnWidths = Array(12).fill(30);
+        mainSheet.columns = columnWidths.map(width => ({ width }));
+        // mainSheetData.forEach(row => mainSheet.addRow(row));
+        addDataToSheet(request, mainSheet, mainSheetData, 'F3842D', 30, false, true);
+        mainSheet.state = 'hidden';
         logger.info("appending different districts tab in the sheet started")
         await appendDistricts(request, workbook, uniqueDistrictsForMainSheet, differentTabsBasedOnLevel, boundaryData, localizationMap, districtLevelRowBoundaryCodeMap, hierarchy, campaignObject, fileUrl);
         logger.info("Sheet with different tabs generated successfully");
@@ -1981,9 +1979,16 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase());
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     const index = localizedHierarchy.indexOf(getLocalizedName(differentTabsBasedOnLevel, localizationMap));
-    const expectedHeadersForTargetSheetUptoHierarchy = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+    var expectedHeadersForTargetSheetUptoHierarchy: any;
+    if (isSourceMicroplan) {
+        expectedHeadersForTargetSheetUptoHierarchy = localizedHierarchy;
+    }
+    else {
+        expectedHeadersForTargetSheetUptoHierarchy = index !== -1 ? localizedHierarchy.slice(index) : throwError("COMMON", 400, "VALIDATION_ERROR", `${getLocalizedName(config?.boundary?.generateDifferentTabsOnBasisOf, localizationMap)} level not present in the hierarchy`);
+    }
     const columnFromSchemaOfTargetTemplate = await generateDynamicTargetHeaders(request, campaignObject, localizationMap);
     const localizedcolumnFromSchemaOfTargetTemplate = getLocalizedHeaders(columnFromSchemaOfTargetTemplate, localizationMap);
     let updatedLocalizedcolumnFromSchemaOfTargetTemplate = localizedcolumnFromSchemaOfTargetTemplate;
