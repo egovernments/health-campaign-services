@@ -1,7 +1,5 @@
 package digit.service;
 
-import digit.config.Configuration;
-import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
@@ -21,11 +19,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class PlanConfigurationService {
 
-    private Producer producer;
-
     private EnrichmentService enrichmentService;
-
-    private Configuration config;
 
     private PlanConfigurationValidator validator;
 
@@ -35,11 +29,8 @@ public class PlanConfigurationService {
 
     private WorkflowService workflowService;
 
-    public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
-            , PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService) {
-        this.producer = producer;
+    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService) {
         this.enrichmentService = enrichmentService;
-        this.config = config;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
@@ -57,12 +48,11 @@ public class PlanConfigurationService {
         validator.validateCreate(request);
         enrichmentService.enrichCreate(request);
         repository.create(request);
-        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
+
+        return PlanConfigurationResponse.builder()
                 .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))
-                .responseInfo(responseInfoFactory
-                        .createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .build();
-        return response;
     }
 
     /**
@@ -73,13 +63,12 @@ public class PlanConfigurationService {
      */
     public PlanConfigurationResponse search(PlanConfigurationSearchRequest request) {
         validator.validateSearchRequest(request);
-        PlanConfigurationResponse response = PlanConfigurationResponse.builder().
+
+        return PlanConfigurationResponse.builder().
                 responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .planConfiguration(repository.search(request.getPlanConfigurationSearchCriteria()))
                 .totalCount(repository.count(request.getPlanConfigurationSearchCriteria()))
                 .build();
-
-        return response;
     }
 
     /**
@@ -94,11 +83,9 @@ public class PlanConfigurationService {
         workflowService.invokeWorkflowForStatusUpdate(request);
         repository.update(request);
 
-        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
+        return PlanConfigurationResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
                 .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))
                 .build();
-
-        return response;
     }
 }
