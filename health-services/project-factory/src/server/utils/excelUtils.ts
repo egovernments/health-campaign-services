@@ -37,13 +37,14 @@ const getExcelWorkbookFromFileURL = async (
   );
   logger.info("received the file response");
 
-  // Create a new workbook instance
+
   const workbook = getNewExcelWorkbook();
   await workbook.xlsx.load(responseFile);
   logger.info("workbook created based on the fileresponse");
 
   // Check if the specified sheet exists in the workbook
   const worksheet = workbook.getWorksheet(sheetName);
+
   if (sheetName && !worksheet) {
     throwError(
       "FILE",
@@ -58,7 +59,7 @@ const getExcelWorkbookFromFileURL = async (
 };
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
-  worksheet.eachRow({ includeEmpty: true }, (row) => {
+  worksheet?.eachRow({ includeEmpty: true }, (row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
       // Preserve existing font properties
       const existingFont = cell.font || {};
@@ -99,7 +100,7 @@ function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
 
   worksheet.getColumn(1).width = 130;
   logger.info(`Freezing the whole sheet ${worksheet.name}`);
-  worksheet.eachRow((row: any) => {
+  worksheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -131,7 +132,7 @@ function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) 
 
 function performFreezeWholeSheet(sheet: any) {
   logger.info(`Freezing the whole sheet ${sheet.name}`);
-  sheet.eachRow((row: any) => {
+  sheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -257,7 +258,7 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
   // Make every cell locked by default
-  newSheet.eachRow((row: any) => {
+  newSheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -273,7 +274,7 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
       const targetColumnNumber = headers.indexOf(header) + 1; // Excel columns are 1-based
       logger.info(`Header: ${header}, Target Column Index: ${targetColumnNumber}`);
       if (targetColumnNumber > -1) {
-        newSheet.eachRow((row: any, rowNumber: number) => {
+        newSheet?.eachRow((row: any, rowNumber: number) => {
           changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
           if (rowNumber === 1) return;
 

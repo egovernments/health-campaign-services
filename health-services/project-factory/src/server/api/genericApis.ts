@@ -89,7 +89,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];
 
-  worksheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+  worksheet?.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
     const rowData: any[] = [];
 
     row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {

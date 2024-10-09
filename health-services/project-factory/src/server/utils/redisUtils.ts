@@ -18,8 +18,11 @@ const redis = new Redis({
 
 async function checkRedisConnection(): Promise<boolean> {
     try {
-        await redis.ping();
+        if(config?.cacheValues?.cacheEnabled){
+            await redis.ping();
+        }
         return true;
+
     } catch (error) {
         console.error("Redis connection error:", error);
         return false;
