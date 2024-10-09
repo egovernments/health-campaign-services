@@ -52,6 +52,15 @@ public class Operation {
     @NotNull
     private Boolean showOnEstimationDashboard = true;
 
+    @JsonProperty("source")
+    @NotNull(message = "Source cannot be null. Please specify a valid source.")
+    private Source source = null;
+
+    @JsonProperty("category")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String category = null;
+
     @JsonProperty("active")
     @NotNull
     private Boolean active = true;
