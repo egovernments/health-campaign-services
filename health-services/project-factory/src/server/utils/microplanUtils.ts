@@ -150,7 +150,7 @@ function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
 
 function enrichInconsistencies(overallInconsistencies: any, userMapping: any, nameKey: string, emailKey: string) {
   for (const phoneNumber in userMapping) {
-    if (phoneNumber) {
+    if (phoneNumber && phoneNumber != 'undefined') {
       const users = userMapping[phoneNumber];
       let userRecords: any[] = [];
 
