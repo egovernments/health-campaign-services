@@ -34,6 +34,9 @@ public class ServiceConstants {
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS ";
 
+    public static final String DUPLICATE_ASSUMPTION_KEY_CODE = "DUPLICATE_ASSUMPTION_KEY";
+    public static final String DUPLICATE_ASSUMPTION_KEY_MESSAGE = "Duplicate Assumption key found : ";
+
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_CODE = "VEHICLE_ID_NOT_FOUND_IN_MDMS";
     public static final String VEHICLE_ID_NOT_FOUND_IN_MDMS_MESSAGE = "Vehicle Id is not present in MDMS";
 
