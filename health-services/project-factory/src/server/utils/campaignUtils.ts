@@ -1771,13 +1771,49 @@ async function boundaryBulkUpload(request: any, localizationMap?: any) {
     }
 }
 
+function updateBoundaryDataForBoundaryManagement(
+    request: any, 
+    boundaryData: any[], 
+    localizationMap: any
+): { updatedData: any[], latLongData: [number, number][] } {
+    const latLongData: [number, number][] = [];
+    const latKey = getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap);
+    const longKey = getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap);
+
+    boundaryData.forEach((row) => {
+        // Check if the row contains both latitude and longitude keys
+        if (latKey in row && longKey in row) {
+            // Push latitude and longitude to the latLongData array
+            latLongData.push([row[latKey], row[longKey]]);
+
+            // Remove the latitude and longitude from the original row
+            delete row[latKey];
+            delete row[longKey];
+        }
+    });
+
+    // Return both the updated boundary data and latLongData
+    return {
+        updatedData: boundaryData,
+        latLongData
+    };
+}
+
 const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) => {
     const { hierarchyType, tenantId } = request?.body?.ResourceDetails || {};
+    const type = request?.body?.ResourceDetails?.type;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
-    const updatedBoundaryData = updateBoundaryData(boundaryData);
+    var boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
+    var latLongData: any;
+    if(type === "boundaryManagement"){
+        const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
+        latLongData = result.latLongData;
+        boundaryData = result.updatedData;
+        console.log(latLongData);
+    }
     const hierarchy = await getHierarchy(request, tenantId, hierarchyType) || [];
+    const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
     const modifiedBoundaryData = modifyBoundaryDataHeaders(updatedBoundaryData, hierarchy, localizationMap);
     const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(modifiedBoundaryData, localizationMap);
     const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
@@ -1793,8 +1829,14 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     logger.info("Initiated the localisation message creation for the uploaded boundary");
     transformAndCreateLocalisation(boundaryMap, request);
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
-    const headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
+    var headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
+    if(type === "boundaryManagement"){
+        headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
+        data.forEach((row: any[], index: string | number) => {
+            row.push(latLongData[index][0], latLongData[index][1]);
+        });
+    }
     const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
@@ -1806,12 +1848,12 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
 
 
 
-function updateBoundaryData(boundaryData: any[]): any[] {
+function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
     const map: Map<string, string> = new Map();
     const count: Map<string, number> = new Map();
 
     boundaryData.forEach((row) => {
-        const keys = Object.keys(row);
+        const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
         keys.forEach((key, index) => {
             if (index > 0) {
                 const element = row[key];
@@ -2104,3 +2146,5 @@ export {
     createUniqueUserNameViaIdGen,
     getRootBoundaryCode
 }
+
+
