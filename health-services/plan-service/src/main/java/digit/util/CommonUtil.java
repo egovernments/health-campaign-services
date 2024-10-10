@@ -9,6 +9,7 @@ import org.apache.commons.text.StringEscapeUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,24 +47,48 @@ public class CommonUtil {
      *
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
      * @param fieldToExtract the name of the field to be extracted from the additional details
-     * @param valueType the class type to which the extracted field should be converted
-     * @return the value of the specified field, converted to the specified type
-     * @throws CustomException if the field does not exist or cannot be converted to the specified type
-
+     * @return the value of the specified field as a string
+     * @throws CustomException if the field does not exist
      */
-    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> valueType) {
+    public String extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
             JsonNode node = rootNode.get(fieldToExtract);
-            if (node != null && node.isArray()) {
-                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructCollectionType(List.class, valueType));
-            } else if (node != null) {
-                return objectMapper.convertValue(node, valueType);
+            if (node != null) {
+                // Convert the node to a String
+                return objectMapper.convertValue(node, String.class);
             }
-            // In case the node is of other type like object
-            return (T) node;
+            // Return null if the node is empty
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
+
+    /**
+     * Extracts provided field from the additional details object
+     *
+     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
+     * @param fieldToExtract the name of the field to be extracted from the additional details
+     * @return the value of the specified field as a list of string
+     * @throws CustomException if the field does not exist
+     */
+    public List<String> extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<List> valueType) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            JsonNode node = rootNode.get(fieldToExtract);
+            List<String> list = new ArrayList<>();
+            if (node != null && node.isArray()) {
+                for (JsonNode idNode : node) {
+                    list.add(idNode.asText());
+                }
+            }
+            return list;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);

@@ -172,6 +172,18 @@ public class ServiceConstants {
     public static final String PROCESS_INSTANCE_NOT_FOUND_CODE = "PROCESS_INSTANCE_NOT_FOUND";
     public static final String PROCESS_INSTANCE_NOT_FOUND_MESSAGE = "No process instance found with businessId: ";
 
+    public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
+    public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";
+
+    public static final String RESOURCE_MAPPING_NOT_FOUND_CODE = "RESOURCE_MAPPING_NOT_FOUND";
+    public static final String RESOURCE_MAPPING_NOT_FOUND_MESSAGE = "Resource mapping is not present in Plan Configuration.";
+
+    public static final String ASSUMPTIONS_NOT_FOUND_CODE = "ASSUMPTIONS_NOT_FOUND";
+    public static final String ASSUMPTIONS_NOT_FOUND_MESSAGE = "Assumptions are not present in Plan Configuration.";
+
+    public static final String OPERATIONS_NOT_FOUND_CODE = "OPERATIONS_NOT_FOUND";
+    public static final String OPERATIONS_NOT_FOUND_MESSAGE = "Operations are not present in Plan Configuration.";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
@@ -253,6 +265,8 @@ public class ServiceConstants {
     public static final String MODULE_NAME_VALUE = "plan-service";
 
     public static final String DRAFT_STATUS = "DRAFT";
+
+    public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
 
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
