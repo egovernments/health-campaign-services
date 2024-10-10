@@ -494,7 +494,7 @@ public class ProjectValidator {
                 throw new CustomException("INVALID_PROJECT_MODIFY", "The project id " + project.getId() + " that you are trying to update does not exists for the project");
             }
 
-            validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp, nextDateTimestampUTC);
+            // validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp, nextDateTimestampUTC);
 
             validateUpdateTargetAgainstDB(project, projectFromDB);
 
