@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.models.attendance.AttendanceLog;
 
+import java.util.Map;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -35,5 +37,9 @@ public class AttendanceLogIndexV1 {
     private String registerName;
     @JsonProperty("registerNumber")
     private String registerNumber;
+    @JsonProperty("boundaryHierarchy")
+    private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
 
 }
