@@ -396,7 +396,7 @@ const createAndSearch: any = {
             column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
         }
     },
-    "boundaryWithCoordinates": {
+    "boundaryManagement": {
         parseArrayConfig: {
             sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
         },

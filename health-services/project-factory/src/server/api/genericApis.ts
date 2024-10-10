@@ -681,11 +681,11 @@ async function getBoundarySheetData(
       localizationMap
     );
     var headerColumnsAfterHierarchy;
-    if(request?.query?.type != "boundaryWithCoordinates"){
+    if(request?.query?.type != "boundaryManagement"){
       headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
     }
 
-    if(request?.query?.type === "boundaryWithCoordinates"){
+    if(request?.query?.type === "boundaryManagement"){
       headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
@@ -711,7 +711,7 @@ async function getBoundarySheetData(
         }
       };
     }
-    else if(request?.query?.type !== "boundaryWithCoordinates") {
+    else if(request?.query?.type !== "boundaryManagement") {
       // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
       const responseFromCampaignSearch =
         await getCampaignSearchResponse(request);

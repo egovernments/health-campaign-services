@@ -506,7 +506,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const type = request?.body?.ResourceDetails?.type;
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
-        if(type !== "boundaryWithCoordinates"){
+        if(type !== "boundaryManagement" && request?.body?.ResourceDetails.campaignId !== "default"){
             await validateCampaignId(request);
         }
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);

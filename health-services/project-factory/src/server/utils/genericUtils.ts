@@ -374,7 +374,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    if(type != 'boundaryWithCoordinates'){
+    if(type != 'boundaryManagement' && request?.query?.campaignId != 'default'){
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
       await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
@@ -405,7 +405,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == 'boundaryWithCoordinates'){
+    else if (type == 'boundaryManagement'){
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
       const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
@@ -1086,6 +1086,10 @@ async function enrichResourceDetails(request: any) {
   else {
     request.body.ResourceDetails.status = resourceDataStatuses.started
   }
+
+  if(request?.body?.ResourceDetails?.type === 'boundaryManagement') {
+    request.body.ResourceDetails.campaignId = "default";
+  }
   request.body.ResourceDetails.auditDetails = {
     createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
     createdTime: Date.now(),
@@ -1233,7 +1237,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }
-  if(type == "boundaryWithCoordinates"){
+  if(type == "boundaryManagement"){
     configurableColumnHeadersBasedOnCampaignType = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
@@ -1260,8 +1264,8 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
-  if(type == "boundaryWithCoordinates"){
-    logger.info("Processing data for boundaryWithCoordinates type")
+  if(type == "boundaryManagement"){
+    logger.info("Processing data for boundaryManagement type")
     const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
     for (let d of data) {
       const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
