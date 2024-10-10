@@ -1,5 +1,6 @@
 package org.egov.servicerequest.helper;
 
+import org.egov.servicerequest.web.models.AdditionalFields;
 import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 
@@ -35,6 +36,7 @@ public class ServiceTestBuilder {
                         .additionalDetails("additional-value").build()))
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .additionalDetails("value")
+                .additionalFields(AdditionalFields.builder().build())
                 .accountId("account-id")
                 .clientId("client-id").build();
 
