@@ -89,9 +89,10 @@ public class Census {
      * The status used in the Census
      */
     public enum StatusEnum {
-        DRAFT,
-        GENERATED,
-        INVALID_DATA
+        VALIDATED,
+        APPROVED,
+        PENDING_FOR_APPROVAL,
+        PENDING_FOR_VALIDATION
     }
 
     /**
