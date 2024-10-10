@@ -1087,9 +1087,6 @@ async function enrichResourceDetails(request: any) {
     request.body.ResourceDetails.status = resourceDataStatuses.started
   }
 
-  if(request?.body?.ResourceDetails?.type === 'boundaryManagement') {
-    request.body.ResourceDetails.campaignId = "default";
-  }
   request.body.ResourceDetails.auditDetails = {
     createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
     createdTime: Date.now(),
