@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @Data
 @Import({TracerConfiguration.class})
@@ -15,12 +17,30 @@ import org.springframework.stereotype.Component;
 @Getter
 public class Configuration {
 
-    //Persister Topic
+    // Allowed roles for census
+    @Value("#{${allowed.census.roles}}")
+    private List<String> allowedCensusRoles;
+
+    // Persister Topic
     @Value("${census.create.topic}")
     private String censusCreateTopic;
 
     @Value("${census.update.topic}")
     private String censusUpdateTopic;
+
+    // Boundary Service
+    @Value("${egov.boundary.service.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndpoint;
+
+    // Plan Service
+    @Value("${egov.plan.service.host}")
+    private String planServiceHost;
+
+    @Value("${egov.plan.employee.assignment.search.endpoint}")
+    private String planEmployeeAssignmentSearchEndpoint;
 
     // User Config
     @Value("${egov.user.host}")

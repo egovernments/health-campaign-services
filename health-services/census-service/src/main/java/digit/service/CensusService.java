@@ -38,6 +38,7 @@ public class CensusService {
      * @return The created census reponse.
      */
     public CensusResponse create(CensusRequest request) {
+        validator.validateCreate(request); // Validate census create request
         enrichment.enrichCreate(request); // Enrich census create request
         repository.create(request); // Delegate creation request to repository
         return CensusResponse.builder()
@@ -53,6 +54,7 @@ public class CensusService {
      * @return A list of census record that matches the search criteria.
      */
     public CensusResponse search(CensusSearchRequest request) {
+        validator.validateSearch(request); // Validate census search request
         List<Census> censusList = repository.search(request.getCensusSearchCriteria()); // Delegate search request to repository
         return CensusResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
@@ -67,6 +69,7 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
+        validator.validateUpdate(request); // Validate census update request
         enrichment.enrichUpdate(request); // Enrich census update request
         repository.update(request); // Delegate update request to repository
         return CensusResponse.builder()
