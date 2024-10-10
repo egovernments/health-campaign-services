@@ -199,14 +199,12 @@ public class PlanConfigurationValidator {
                 throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
             }
 
-            HashSet<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
+            Set<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
             planConfiguration.getAssumptions().forEach(assumption -> {
-                if (assumption.getSource() == Source.MDMS) {
-                    if (!assumptionSetFromMDMS.contains(assumption.getKey())) {
+                    if (assumption.getSource() == Source.MDMS && !assumptionSetFromMDMS.contains(assumption.getKey())) {
                         log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
                         throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
                     }
-                }
             });
         }
     }
