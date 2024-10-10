@@ -1,11 +1,13 @@
 package org.egov.servicerequest.repository.rowmapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.AuditDetails;
 import org.apache.commons.lang.StringUtils;
+import org.egov.servicerequest.web.models.AdditionalFields;
 import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 import org.egov.tracer.model.CustomException;
@@ -50,16 +52,22 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
                     AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("createdby"))
                             .createdTime(rs.getLong("createdtime")).lastModifiedBy(rs.getString("lastmodifiedby"))
                             .lastModifiedTime(rs.getLong("lastmodifiedtime")).build();
-                    currentService = Service.builder()
-                            .id(rs.getString("id"))
-                            .tenantId(rs.getString("tenantid"))
-                            .serviceDefId(rs.getString("servicedefid"))
-                            .referenceId(rs.getString("referenceid"))
-                            .auditDetails(auditDetails)
-                            .additionalDetails(getAdditionalDetail((PGobject) rs.getObject("additionaldetails")))
-                            .accountId(rs.getString("accountid"))
-                            .clientId(rs.getString("clientid"))
-                            .build();
+                    try {
+                        currentService = Service.builder()
+                                .id(rs.getString("id"))
+                                .tenantId(rs.getString("tenantid"))
+                                .serviceDefId(rs.getString("servicedefid"))
+                                .referenceId(rs.getString("referenceid"))
+                                .auditDetails(auditDetails)
+                                .additionalFields(rs.getString("additionalDetails") == null ? null :
+                                        mapper.readValue(rs.getString("additionalDetails"),
+                                                AdditionalFields.class))
+                                .accountId(rs.getString("accountid"))
+                                .clientId(rs.getString("clientid"))
+                                .build();
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
 
                 }
 
