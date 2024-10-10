@@ -4,7 +4,7 @@ export const createRequestSchema = {
     "properties": {
         "type": {
             "type": "string",
-            "enum": ["boundary", "facility", "user", "boundaryWithTarget", "facilityMicroplan"]
+            "enum": ["boundary", "facility", "user", "boundaryWithTarget", "facilityMicroplan","boundaryWithCoordinates"]
         },
         "tenantId": {
             "type": "string",

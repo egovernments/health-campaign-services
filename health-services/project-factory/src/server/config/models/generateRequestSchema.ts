@@ -13,6 +13,7 @@ export const generateRequestSchema = {
       "minLength": 1,
       "enum": [
         "boundary",
+        "boundaryWithCoordinates",
         "facilityWithBoundary",
         "userWithBoundary"
       ]
@@ -33,6 +34,6 @@ export const generateRequestSchema = {
       "type": "string",
     }
   },
-  "required": ["tenantId", "type", "hierarchyType", "campaignId"],
+  "required": ["tenantId", "type", "hierarchyType"],
   "additionalProperties": false
 }

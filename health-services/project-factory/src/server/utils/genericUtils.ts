@@ -12,7 +12,7 @@ import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan, rolesForMicroplanMapping } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
-import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
+import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
 import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
@@ -374,9 +374,11 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+    if(type != 'boundaryWithCoordinates'){
+      const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+      const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+      await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
+    }
     if (request?.body?.parentCampaignObject) {
       const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
       const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
@@ -398,6 +400,18 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      request.body.generatedResource = finalResponse;
+    }
+    else if (type == 'boundaryWithCoordinates'){
+      // get boundary data from boundary relationship search api
+      logger.info("Generating Boundary Data")
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
+      logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
+      // get boundary sheet data after being generated
+      const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       // send to update topic
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
@@ -1219,7 +1233,9 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }
-
+  if(type == "boundaryWithCoordinates"){
+    configurableColumnHeadersBasedOnCampaignType = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+  }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
       ...modifiedReducedHierarchy,
@@ -1230,9 +1246,11 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
       getBoundaryColumnName()
     ];
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-  const data = boundaryList.map(boundary => {
+  var boundaryCodeList: any[] = [];
+  var data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
+    boundaryCodeList.push(boundaryCode);
     const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
     // localize the boundary codes
     const mappedRowData = rowData.map((cell: any, index: number) =>
@@ -1242,6 +1260,19 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
+  if(type == "boundaryWithCoordinates"){
+    logger.info("Processing data for boundaryWithCoordinates type")
+    const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
+    for (let d of data) {
+      const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
+    
+      if (latLongBoundaryMap[boundaryCode]) {
+        const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
+        d.push(latitude);   // Append latitude
+        d.push(longitude);  // Append longitude
+      }
+    }
+  }
   const sheetRowCount = data.length;
   if (type != "facilityWithBoundary") {
     request.body.generatedResourceCount = sheetRowCount;

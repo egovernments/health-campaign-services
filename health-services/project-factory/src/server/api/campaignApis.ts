@@ -806,7 +806,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
 async function processGenericRequest(request: any, localizationMap?: { [key: string]: string }) {
 
   // Process generic requests
-  if (request?.body?.ResourceDetails?.type != "boundary") {
+  if (request?.body?.ResourceDetails?.type != "boundary" && request?.body?.ResourceDetails?.type != "boundaryWithCoordinates") {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
@@ -913,15 +913,14 @@ async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request?.body?.ResourceDetails?.tenantId;
-  if (type == "boundary") {
+  if (type == "boundary" || type == 'boundaryWithCoordinates') {
     boundaryBulkUpload(request, localizationMap);
   }
   else {
     // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
-    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-    const campaignType = responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
+    let campaignType = "";
     if (checkIfSourceIsMicroplan(request?.body?.ResourceDetails)) {
       logger.info(`Data create Source is MICROPLAN`);
       if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {

@@ -680,7 +680,14 @@ async function getBoundarySheetData(
       modifiedHierarchy,
       localizationMap
     );
-    const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    var headerColumnsAfterHierarchy;
+    if(request?.query?.type != "boundaryWithCoordinates"){
+      headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    }
+
+    if(request?.query?.type === "boundaryWithCoordinates"){
+      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+    }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
     // const localizedBoundaryTab = getLocalizedName(
@@ -704,7 +711,7 @@ async function getBoundarySheetData(
         }
       };
     }
-    else {
+    else if(request?.query?.type !== "boundaryWithCoordinates") {
       // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
       const responseFromCampaignSearch =
         await getCampaignSearchResponse(request);
