@@ -59,8 +59,9 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
                                 .serviceDefId(rs.getString("servicedefid"))
                                 .referenceId(rs.getString("referenceid"))
                                 .auditDetails(auditDetails)
-                                .additionalFields(rs.getString("additionalDetails") == null ? null :
-                                        mapper.readValue(rs.getString("additionalDetails"),
+                                .additionalDetails(getAdditionalDetail((PGobject) rs.getObject("additionaldetails")))
+                                .additionalFields(rs.getString("additionalFields") == null ? null :
+                                        mapper.readValue(rs.getString("additionalFields"),
                                                 AdditionalFields.class))
                                 .accountId(rs.getString("accountid"))
                                 .clientId(rs.getString("clientid"))

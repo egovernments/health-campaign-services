@@ -35,6 +35,7 @@ public class ServiceTestBuilder {
                         .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                         .additionalDetails("additional-value").build()))
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
+                .additionalDetails("value")
                 .additionalFields(AdditionalFields.builder().build())
                 .accountId("account-id")
                 .clientId("client-id").build();
