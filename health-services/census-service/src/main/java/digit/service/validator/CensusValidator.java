@@ -1,15 +1,18 @@
 package digit.service.validator;
 
 import digit.config.Configuration;
+import digit.repository.CensusRepository;
 import digit.util.BoundaryUtil;
 import digit.util.PlanEmployeeAssignmnetUtil;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
+import digit.web.models.CensusSearchCriteria;
 import digit.web.models.CensusSearchRequest;
 import digit.web.models.boundary.BoundarySearchResponse;
 import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -30,10 +33,13 @@ public class CensusValidator {
 
     private Configuration configs;
 
-    public CensusValidator(BoundaryUtil boundaryUtil, PlanEmployeeAssignmnetUtil employeeAssignmnetUtil, Configuration configs) {
+    private CensusRepository repository;
+
+    public CensusValidator(BoundaryUtil boundaryUtil, PlanEmployeeAssignmnetUtil employeeAssignmnetUtil, Configuration configs, CensusRepository repository) {
         this.boundaryUtil = boundaryUtil;
         this.employeeAssignmnetUtil = employeeAssignmnetUtil;
         this.configs = configs;
+        this.repository = repository;
     }
 
     /**
@@ -53,7 +59,7 @@ public class CensusValidator {
         validateUserInfo(request);
 
         // Validate partner assignment and jurisdiction against plan service
-        validatePartnerForCensus(request, flag);
+        validatePartnerForCensus(request.getRequestInfo(), census, flag);
     }
 
     /**
@@ -88,15 +94,15 @@ public class CensusValidator {
     /**
      * Validates partner assignment and jurisdiction against plan service
      *
-     * @param request the request whose partner assignment is to be validated
-     * @param flag    Validates only when flag is true
+     * @param requestInfo the requestInfo from the request
+     * @param census      the census to be validated
+     * @param flag        Validates only when flag is true
      */
-    private void validatePartnerForCensus(CensusRequest request, boolean flag) {
+    private void validatePartnerForCensus(RequestInfo requestInfo, Census census, boolean flag) {
         if (flag) {
-            User userInfo = request.getRequestInfo().getUserInfo();
-            Census census = request.getCensus();
+            User userInfo = requestInfo.getUserInfo();
             List<String> jurisdiction = Arrays.asList(census.getBoundaryAncestralPath().get(0).split("\\|"));
-            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(request.getRequestInfo(), userInfo.getUuid(), census.getSource(), census.getTenantId(), configs.getAllowedCensusRoles(), jurisdiction);
+            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(requestInfo, userInfo.getUuid(), census.getSource(), census.getTenantId(), configs.getAllowedCensusRoles(), jurisdiction);
 
             if (CollectionUtils.isEmpty(employeeAssignmentResponse.getPlanEmployeeAssignment())) {
                 throw new CustomException(INVALID_PARTNER_CODE, INVALID_PARTNER_MESSAGE);
@@ -129,7 +135,36 @@ public class CensusValidator {
     }
 
     public void validateUpdate(CensusRequest request) {
+        boolean flag = true;
 
+        // Validate if Census record to be updated exists
+        Census census = validateCensusExistence(request);
+
+        // Validate partner assignment and jurisdiction against plan service
+        validatePartnerForCensus(request.getRequestInfo(), census, flag);
+    }
+
+    /**
+     * Validates the existence of census record in the repository
+     *
+     * @param request The request containing the census to be validated
+     * @return the census that exist in the repository
+     */
+    private Census validateCensusExistence(CensusRequest request) {
+        Census census = request.getCensus();
+        CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
+                .id(census.getId())
+                .tenantId(census.getTenantId())
+                .areaCodes(Collections.singletonList(census.getBoundaryCode()))
+                .build();
+
+        List<Census> censusList = repository.search(searchCriteria);
+
+        if (CollectionUtils.isEmpty(censusList)) {
+            throw new CustomException(INVALID_CENSUS_CODE, INVALID_CENSUS_MESSAGE);
+        }
+
+        return censusList.get(0);
     }
 
 }

@@ -61,4 +61,6 @@ public class ServiceConstants {
     public static final String INVALID_PARTNER_CODE = "INVALID_PARTNER";
     public static final String INVALID_PARTNER_MESSAGE = "Invalid partner assignment or invalid jurisdiction of the assigned partner";
 
+    public static final String INVALID_CENSUS_CODE = "INVALID_CENSUS";
+    public static final String INVALID_CENSUS_MESSAGE = "Provided census does not exist";
 }
