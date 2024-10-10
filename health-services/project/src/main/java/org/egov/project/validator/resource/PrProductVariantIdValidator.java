@@ -1,34 +1,27 @@
 package org.egov.project.validator.resource;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.MdmsResponse;
-import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.product.ProductVariant;
-import org.egov.common.models.product.ProductVariantResponse;
-import org.egov.common.models.product.ProductVariantSearch;
-import org.egov.common.models.product.ProductVariantSearchRequest;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.repository.ProjectRepository;
+import org.egov.project.web.models.mdmsv2.Mdms;
+import org.egov.project.web.models.mdmsv2.MdmsCriteriaReqV2;
+import org.egov.project.web.models.mdmsv2.MdmsCriteriaV2;
+import org.egov.project.web.models.mdmsv2.MdmsResponseV2;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,31 +33,24 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.project.Constants.ERROR_WHILE_FETCHING_FROM_MDMS;
-import static org.egov.project.Constants.MDMS_PRODUCT_VARIANT_MASTER_NAME;
-import static org.egov.project.Constants.MDMS_PRODUCT_VARIANT_MODULE_NAME;
-import static org.egov.project.Constants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE;
-import static org.egov.project.Constants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE;
+import static org.egov.project.config.ServiceConstants.*;
 
 @Component
 @Order(value = 8)
 @Slf4j
 public class PrProductVariantIdValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
 
-    private final ProjectRepository projectRepository;
-
-    private final ServiceRequestClient serviceRequestClient;
-
-    private final ProjectConfiguration projectConfiguration;
+    private final RestTemplate restTemplate;
 
     private final ObjectMapper mapper;
 
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
-    public PrProductVariantIdValidator(ProjectRepository projectRepository, ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration, ObjectMapper mapper) {
-        this.projectRepository = projectRepository;
-        this.serviceRequestClient = serviceRequestClient;
-        this.projectConfiguration = projectConfiguration;
+    public PrProductVariantIdValidator(RestTemplate restTemplate, @Qualifier("objectMapper") ObjectMapper mapper, ProjectConfiguration projectConfiguration) {
+        this.restTemplate = restTemplate;
         this.mapper = mapper;
+        this.projectConfiguration = projectConfiguration;
     }
 
 
@@ -103,7 +89,7 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
     }
 
     private Map<String, List<ProjectResource>> getProductVariantMap(List<ProjectResource> entities) {
-       return entities.stream().collect(
+        return entities.stream().collect(
                 Collectors.toMap(
                         obj -> obj.getResource().getProductVariantId(),
                         obj -> {
@@ -119,55 +105,54 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
     }
 
     private List<ProductVariant> checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
-
         List<String> productVariantIds = new ArrayList<>(pvIds);
-        log.info("validation if stock reconciliation product variant exist");
-
-        StringBuilder url = new StringBuilder(projectConfiguration.getMdmsHost()
-                + projectConfiguration.getMdmsEndPoint());
-        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, productVariantIds);
-        MdmsResponse mdmsResponse = new MdmsResponse();
-        Object result;
+        StringBuilder uri = new StringBuilder();
+        uri.append(projectConfiguration.getMdmsHost()).append(projectConfiguration.getMdmsEndPoint());
+        MdmsCriteriaReqV2 mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, productVariantIds, productVariantIds.size());
+        Object mdmsResponseMap  = new HashMap<>();
+        MdmsResponseV2 mdmsResponse = new MdmsResponseV2();
         try {
-            mdmsResponse = serviceRequestClient.fetchResult(url, mdmsCriteriaReq, MdmsResponse.class);
-            result = mdmsResponse.getMdmsRes();
-            if (result == null || ObjectUtils.isEmpty(result)) {
-                log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
-                throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
-            }
+            mdmsResponseMap  = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
+            mdmsResponse = mapper.convertValue(mdmsResponseMap , MdmsResponseV2.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
-            throw new CustomException("PRODUCT_VARIANT",
-                    String.format(ERROR_WHILE_FETCHING_FROM_MDMS + ": %s", e.getMessage()));
         }
-        log.info("stock reconciliation product variant exist validation completed successfully");
 
-        List<ProductVariant> productVariants = Collections.emptyList();
-        try {
-            log.debug("Parsing product variants from MDMS response");
-            Object jsonArray = JsonPath.read(result, "$.HCM-Product.ProductVariants");
-            // Convert JSON string to List<Product>
-            productVariants = mapper.convertValue(jsonArray, new TypeReference<List<ProductVariant>>() {});
-            log.debug("Successfully parsed {} product variants from MDMS response", productVariants.size());
-        } catch (Exception e) {
-            log.error("Error while converting MDMS response to ProductVariant list", e);
-            throw new CustomException("PRODUCT_VARIANT_CONVERSION_ERROR",
-                    "Failed to convert MDMS response to ProductVariant list: " + e.getMessage());
+        List <Mdms> result = mdmsResponse.getMdms();
+        if (result == null || ObjectUtils.isEmpty(result)) {
+            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS_MESSAGE + " - " + tenantId);
+            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS, NO_MDMS_DATA_FOUND_FOR_GIVEN_PARAMETERS_MESSAGE);
         }
+        log.info(result.toString());
+
+        List<ProductVariant> productVariants = new ArrayList<>();
+
+        result.forEach(data -> {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                // Convert JsonNode to ProductVariant object
+                ProductVariant productVariant = objectMapper.treeToValue(data.getData(), ProductVariant.class);
+                productVariants.add(productVariant);
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+            }
+        });
 
         return productVariants;
     }
 
-    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, List<String> productVariantIds) {
-        String filter = "[?(@.id in ['" + String.join("', '", productVariantIds) + "'])]";
-        MasterDetail productMaster = MasterDetail.builder().name(MDMS_PRODUCT_VARIANT_MASTER_NAME).filter(filter).build();
-        ModuleDetail moduleDetail = ModuleDetail.builder()
-                .moduleName(MDMS_PRODUCT_VARIANT_MODULE_NAME)
-                .masterDetails(Collections.singletonList(productMaster))
-                .build();
-        MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(Collections.singletonList(moduleDetail)).tenantId(tenantId).build();
+    public MdmsCriteriaReqV2 getMdmsRequest(RequestInfo requestInfo, String tenantId, List <String> productVarientIds, Integer limit) {
 
-        return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
+        MdmsCriteriaV2 mdmsCriteria = getProductVariantsMdmsCriteria(tenantId, productVarientIds, limit);
+
+        return MdmsCriteriaReqV2.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
+    }
+
+    private MdmsCriteriaV2 getProductVariantsMdmsCriteria(String tenantId,List <String> productVarientids, Integer limit) {
+        final String schemaCode = MDMS_PRODUCT_VARIANT_MODULE_NAME + DOT_SEPARATOR + MDMS_PRODUCT_VARIANT_MASTER_NAME;
+
+        return MdmsCriteriaV2.builder().tenantId(tenantId).schemaCode(schemaCode).uniqueIdentifiers(productVarientids).limit(limit).build();
     }
 }
 
