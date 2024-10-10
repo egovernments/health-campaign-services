@@ -12,6 +12,7 @@ import digit.web.models.boundary.BoundarySearchResponse;
 import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -130,10 +131,35 @@ public class CensusValidator {
         census.setBoundaryAncestralPath(Collections.singletonList(boundaryAncestralPath.toString()));
     }
 
+    /**
+     * Validates the search request for Census.
+     *
+     * @param request The search request for Census
+     */
     public void validateSearch(CensusSearchRequest request) {
-
+        validateSearchCriteria(request.getCensusSearchCriteria());
     }
 
+    /**
+     * Validates the census search criteria.
+     *
+     * @param searchCriteria the search criteria for census search
+     */
+    private void validateSearchCriteria(CensusSearchCriteria searchCriteria) {
+        if (ObjectUtils.isEmpty(searchCriteria)) {
+            throw new CustomException(SEARCH_CRITERIA_EMPTY_CODE, SEARCH_CRITERIA_EMPTY_MESSAGE);
+        }
+
+        if (StringUtils.isEmpty(searchCriteria.getTenantId())) {
+            throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
+        }
+    }
+
+    /**
+     * Validates partner assignment and jurisdiction for census update request.
+     *
+     * @param request the update request for Census.
+     */
     public void validateUpdate(CensusRequest request) {
         boolean flag = true;
 

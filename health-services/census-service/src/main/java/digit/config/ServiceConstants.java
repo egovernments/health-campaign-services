@@ -63,4 +63,11 @@ public class ServiceConstants {
 
     public static final String INVALID_CENSUS_CODE = "INVALID_CENSUS";
     public static final String INVALID_CENSUS_MESSAGE = "Provided census does not exist";
+
+    public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
+    public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
+
+    public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
+    public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
+
 }
