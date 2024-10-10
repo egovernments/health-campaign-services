@@ -223,9 +223,10 @@ public class PlanConfigurationValidator {
 
         for (Assumption assumption : planConfig.getAssumptions()) {
             if (assumption.getActive() != Boolean.FALSE) {
-                if (!assumptionKeys.add(assumption.getKey())) {
+                if (assumptionKeys.contains(assumption.getKey())) {
                     throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
                 }
+                assumptionKeys.add(assumption.getKey());
             }
         }
     }
