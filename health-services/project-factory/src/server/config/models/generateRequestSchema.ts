@@ -13,6 +13,7 @@ export const generateRequestSchema = {
       "minLength": 1,
       "enum": [
         "boundary",
+        "boundaryManagement",
         "facilityWithBoundary",
         "userWithBoundary"
       ]

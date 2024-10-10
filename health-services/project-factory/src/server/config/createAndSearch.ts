@@ -395,6 +395,14 @@ const createAndSearch: any = {
         boundaryValidation: {
             column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
         }
+    },
+    "boundaryManagement": {
+        parseArrayConfig: {
+            sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+        },
+        boundaryValidation: {
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
+        }
     }
 }
 
