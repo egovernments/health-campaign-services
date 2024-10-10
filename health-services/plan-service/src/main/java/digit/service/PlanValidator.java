@@ -374,7 +374,7 @@ public class PlanValidator {
     /**
      * This method validates if the plan id provided in the update request exists
      *
-     * @param request
+     * @param request the PlanRequest containing the plan
      */
     private void validatePlanExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
