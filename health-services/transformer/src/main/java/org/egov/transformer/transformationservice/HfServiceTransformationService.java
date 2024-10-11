@@ -75,9 +75,9 @@ public class HfServiceTransformationService {
         }
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-
-        if (service.getAdditionalDetails() != null) {
-            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), service.getTenantId());
+        String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(service.getAdditionalDetails());
+        if (localityCode != null) {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
         } else {
             boundaryHierarchyResult = boundaryService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
         }
