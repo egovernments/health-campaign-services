@@ -192,11 +192,14 @@ public class ProjectService {
         /*
          * Ensure that start and end dates are not being updated when flag is false
          */
-        if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
-            !project.getEndDate().equals(projectFromDB.getEndDate())) {
-            throw new CustomException("PROJECT_CASCADE_UPDATE_DATE_ERROR",
-                "Can't Update Date Range if Cascade Project Date Update  false");
+        if(null!=project.getStartDate() && null!= project.getEndDate() && null!=projectFromDB.getStartDate() && null!= projectFromDB.getEndDate()){
+            if (!project.getStartDate().equals(projectFromDB.getStartDate()) ||
+                    !project.getEndDate().equals(projectFromDB.getEndDate())) {
+                throw new CustomException("PROJECT_CASCADE_UPDATE_DATE_ERROR",
+                        "Can't Update Date Range if Cascade Project Date Update  false");
+            }
         }
+
 
         /*
          * Enrich the project with values other than the start, end dates, and AdditionalDetails,
