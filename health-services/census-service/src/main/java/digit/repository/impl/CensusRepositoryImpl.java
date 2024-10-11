@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.CensusRepository;
 import digit.repository.querybuilder.CensusQueryBuilder;
 import digit.repository.rowmapper.CensusRowMapper;
+import digit.repository.rowmapper.StatusCountRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,16 +25,19 @@ public class CensusRepositoryImpl implements CensusRepository {
 
     private CensusQueryBuilder queryBuilder;
 
-    private CensusRowMapper rowMapper;
+    private CensusRowMapper censusRowMapper;
 
     private JdbcTemplate jdbcTemplate;
 
-    public CensusRepositoryImpl(Producer producer, Configuration config, CensusQueryBuilder queryBuilder, CensusRowMapper rowMapper, JdbcTemplate jdbcTemplate) {
+    private StatusCountRowMapper statusCountRowMapper;
+
+    public CensusRepositoryImpl(Producer producer, Configuration config, CensusQueryBuilder queryBuilder, CensusRowMapper censusRowMapper, JdbcTemplate jdbcTemplate, StatusCountRowMapper statusCountRowMapper) {
         this.producer = producer;
         this.config = config;
         this.queryBuilder = queryBuilder;
-        this.rowMapper = rowMapper;
+        this.censusRowMapper = censusRowMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.statusCountRowMapper = statusCountRowMapper;
     }
 
     /**
@@ -58,7 +62,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCensusQuery(censusSearchCriteria, preparedStmtList);
 
-        return jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
+        return jdbcTemplate.query(query, censusRowMapper, preparedStmtList.toArray());
     }
 
     /**
@@ -86,7 +90,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCensusStatusCountQuery(censusSearchCriteria, preparedStmtList);
 
-        return jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
+        return jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
     }
 
     /**

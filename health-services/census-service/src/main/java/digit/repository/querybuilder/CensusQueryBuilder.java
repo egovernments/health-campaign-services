@@ -26,6 +26,8 @@ public class CensusQueryBuilder {
 
     private static final String CENSUS_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
 
+    private static final String CENSUS_STATUS_COUNT_WRAPPER = "SELECT COUNT(census_id) as census_status_count, census_status FROM ({INTERNAL_QUERY}) GROUP BY census_status";
+
     /**
      * Constructs a SQL query string for searching Census records based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -35,7 +37,7 @@ public class CensusQueryBuilder {
      * @return A complete SQL query string for searching Census records.
      */
     public String getCensusQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        String query = buildCensusQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildCensusQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, CENSUS_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = queryUtil.getPaginatedQuery(query, preparedStmtList);
         return query;
@@ -54,6 +56,7 @@ public class CensusQueryBuilder {
 
     /**
      * Constructs the status count query to get the count of census based on their current status for the given search criteria
+     *
      * @param searchCriteria   The criteria used for filtering Census records.
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return A SQL query string to get the status count of Census records for a given search criteria.
@@ -117,8 +120,9 @@ public class CensusQueryBuilder {
             return countQuery.toString();
         }
 
-        if(isStatusCount) {
-            //TODO
+        if (isStatusCount) {
+            String statusCountQuery = CENSUS_STATUS_COUNT_WRAPPER.replace("{INTERNAL_QUERY}", builder);
+            return statusCountQuery;
         }
 
         return builder.toString();
