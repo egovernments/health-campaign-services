@@ -1007,7 +1007,7 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     var boundaryFound = false;
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes.replace(/’/g, '') || ''}${params?.includeChildren || ''}`,
     }
     while (!boundaryFound && retry >= 0) {
       const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);

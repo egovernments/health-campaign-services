@@ -1812,7 +1812,6 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
         const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
         latLongData = result.latLongData;
         boundaryData = result.updatedData;
-        console.log(latLongData);
     }
     const hierarchy = await getHierarchy(request, tenantId, hierarchyType) || [];
     const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
