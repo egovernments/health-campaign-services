@@ -90,8 +90,8 @@ public class AttendanceTransformationService {
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
-        Map<String, String> boundaryHierarchy = new HashMap<>();
-        Map<String, String> boundaryHierarchyCode = new HashMap<>();
+        Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             String projectId = projectIdProjectTypeId.split(":")[0];
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, attendanceLog.getTenantId());
