@@ -96,9 +96,9 @@ public class StockTransformationService {
             facilityName = facility != null ? facility.getName() : facilityId;
         } else {
             facilityName = userService.getUserInfo(tenantId, facilityId).get(USERNAME);
-            ProjectStaff projectStaff = projectService.searchProjectStaff(facilityId, tenantId);
-            if (projectStaff != null) {
-                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+            List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(new ArrayList<>(Collections.singleton(facilityId)), tenantId);
+            if (projectStaffList != null) {
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectStaffList.get(0).getProjectId(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
