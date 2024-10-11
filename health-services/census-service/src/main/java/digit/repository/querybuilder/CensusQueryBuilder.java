@@ -49,7 +49,17 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the total count of Census records for a given search criteria.
      */
     public String getCensusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        return buildCensusQuery(searchCriteria, preparedStmtList, Boolean.TRUE);
+        return buildCensusQuery(searchCriteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
+    }
+
+    /**
+     * Constructs the status count query to get the count of census based on their current status for the given search criteria
+     * @param searchCriteria   The criteria used for filtering Census records.
+     * @param preparedStmtList A list to store prepared statement parameters.
+     * @return A SQL query string to get the status count of Census records for a given search criteria.
+     */
+    public String getCensusStatusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
+        return buildCensusQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
     }
 
     /**
@@ -59,7 +69,7 @@ public class CensusQueryBuilder {
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return SQL query string for searching Census records
      */
-    private String buildCensusQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
+    private String buildCensusQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount, Boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(CENSUS_SEARCH_BASE_QUERY);
 
         if (criteria.getId() != null) {
@@ -105,6 +115,10 @@ public class CensusQueryBuilder {
             countQuery.append(") AS subquery");
 
             return countQuery.toString();
+        }
+
+        if(isStatusCount) {
+            //TODO
         }
 
         return builder.toString();

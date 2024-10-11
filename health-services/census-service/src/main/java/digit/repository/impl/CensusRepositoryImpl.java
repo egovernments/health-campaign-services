@@ -8,12 +8,11 @@ import digit.repository.rowmapper.CensusRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Repository
@@ -57,9 +56,9 @@ public class CensusRepositoryImpl implements CensusRepository {
     @Override
     public List<Census> search(CensusSearchCriteria censusSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String searchQuery = queryBuilder.getCensusQuery(censusSearchCriteria, preparedStmtList);
+        String query = queryBuilder.getCensusQuery(censusSearchCriteria, preparedStmtList);
 
-        return jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
+        return jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
     }
 
     /**
@@ -74,6 +73,20 @@ public class CensusRepositoryImpl implements CensusRepository {
         String query = queryBuilder.getCensusCountQuery(censusSearchCriteria, preparedStmtList);
 
         return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+    }
+
+    /**
+     * Counts the census record based on their current status for the provided search criteria.
+     *
+     * @param censusSearchCriteria The search criteria for filtering census records.
+     * @return The status count of census records for the given search criteria.
+     */
+    @Override
+    public Map<String, Integer> statusCount(CensusSearchCriteria censusSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getCensusStatusCountQuery(censusSearchCriteria, preparedStmtList);
+
+        return jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
     }
 
     /**

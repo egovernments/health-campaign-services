@@ -100,7 +100,7 @@ public class CensusValidator {
      * @param flag        Validates only when flag is true
      */
     private void validatePartnerForCensus(RequestInfo requestInfo, Census census, boolean flag) {
-        if (flag) {
+        if (!flag) {
             User userInfo = requestInfo.getUserInfo();
             List<String> jurisdiction = Arrays.asList(census.getBoundaryAncestralPath().get(0).split("\\|"));
             PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(requestInfo, userInfo.getUuid(), census.getSource(), census.getTenantId(), configs.getAllowedCensusRoles(), jurisdiction);
