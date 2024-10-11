@@ -1,0 +1,36 @@
+name: Enforce Branch Naming Convention
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  branch-name-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Enforce branch naming convention
+      run: |
+        # Get the branch name
+        branch_name=$(echo "${GITHUB_REF#refs/heads/}")
+
+        # Define the branch name pattern
+        branch_regex="^(master|develop|(HCMPRE|HCMPOST|HCMSUB)-[0-9]{3,}-[a-zA-Z0-9-]+)$"
+
+        # Check if the branch name matches the pattern
+        if [[ ! "$branch_name" =~ $branch_regex ]]; then
+          echo "Branch name '$branch_name' does not follow the required naming convention."
+          echo "Branch names must follow the pattern: (feature|bugfix|hotfix|release)/PROJ-1234-description"
+          exit 1
+        fi
+
+    - name: Success message
+      run: |
+        branch_name=$(echo "${GITHUB_REF#refs/heads/}")
+        echo "Branch name '$branch_name' follows the required naming convention: 'master', 'develop', or (HCMPRE|HCMPOST|HCMSUB)-123-description"
