@@ -447,36 +447,6 @@ public class ProjectService {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
-    // TODO commented below code as staff model is changed and this search call is not being used as of now
-//    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
-//
-//        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
-//                .requestInfo(RequestInfo.builder()
-//                        .userInfo(User.builder()
-//                                .uuid("transformer-uuid")
-//                                .build())
-//                        .build())
-//                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
-//                .build();
-//
-//        ProjectStaffBulkResponse response;
-//        try {
-//            StringBuilder uri = new StringBuilder();
-//            uri.append(transformerProperties.getProjectHost())
-//                    .append(transformerProperties.getProjectStaffSearchUrl())
-//                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
-//                    .append("&offset=0")
-//                    .append("&tenantId=").append(tenantId);
-//            response = serviceRequestClient.fetchResult(uri,
-//                    request,
-//                    ProjectStaffBulkResponse.class);
-//        } catch (Exception e) {
-//            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
-//
-//            return null;
-//        }
-//        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
-//    }
 
     public List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
         ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
