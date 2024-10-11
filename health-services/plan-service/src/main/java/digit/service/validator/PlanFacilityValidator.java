@@ -140,6 +140,14 @@ public class PlanFacilityValidator {
      * @param planFacility
      */
     private void validateServiceBoundaries(Set<String> boundaryCodes, PlanFacility planFacility) {
+        List<String> serviceBoundaries = planFacility.getServiceBoundaries();
+
+        // Check for duplicate service boundaries
+        Set<String> uniqueBoundaries = new HashSet<>(serviceBoundaries);
+        if (uniqueBoundaries.size() != serviceBoundaries.size()) {
+            throw new CustomException(INVALID_SERVICE_BOUNDARY_CODE, "Duplicate service boundaries are not allowed");
+        }
+
         planFacility.getServiceBoundaries().forEach(serviceBoundary -> {
             if (!boundaryCodes.contains(serviceBoundary)) {
                 throw new CustomException(INVALID_SERVICE_BOUNDARY_CODE, INVALID_SERVICE_BOUNDARY_MESSAGE);
