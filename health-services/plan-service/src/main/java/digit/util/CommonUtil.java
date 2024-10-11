@@ -7,8 +7,10 @@ import digit.repository.PlanConfigurationRepository;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -147,6 +149,20 @@ public class CommonUtil {
     }
 
     /**
+     * Validates the user information within the provided PlanConfigurationRequest.
+     *
+     * @param requestInfo the request info containing the user information to be validated
+     * @throws CustomException if the user information is missing in the request
+     */
+    public void validateUserInfo(RequestInfo requestInfo)
+    {
+        if (ObjectUtils.isEmpty(requestInfo.getUserInfo())) {
+            log.error(USERINFO_MISSING_MESSAGE);
+            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
+        }
+    }
+
+    /**
      * This is a helper method to get the lowest and highest hierarchy for microplan from MDMS
      *
      * @param mdmsData the mdms data
@@ -172,5 +188,4 @@ public class CommonUtil {
 
         return hierarchyMap;
     }
-
 }

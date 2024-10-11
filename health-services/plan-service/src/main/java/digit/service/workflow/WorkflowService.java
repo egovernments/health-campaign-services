@@ -3,8 +3,11 @@ package digit.service.workflow;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
+import digit.util.CommonUtil;
+import digit.web.models.Plan;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
+import digit.web.models.PlanRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
 import org.egov.common.contract.request.User;
@@ -28,11 +31,14 @@ public class WorkflowService {
 
 	private ObjectMapper mapper;
 
-	public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper) {
+	private CommonUtil commonUtil;
+
+	public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil) {
 		this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
 		this.mapper = mapper;
-	}
+        this.commonUtil = commonUtil;
+    }
 
 	/**
 	 * Integrates with the workflow for the given plan configuration request.
@@ -49,6 +55,23 @@ public class WorkflowService {
 
 		// Setting the status back to the plan configuration object from workflow response
 		planConfigurationRequest.getPlanConfiguration().setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
+	}
+
+	/**
+	 * Integrates with the workflow for the given plan configuration request.
+	 * If the action is null, it does not proceed with integration.
+	 *
+	 * @param planRequest The request containing the plan configuration to integrate with the workflow.
+	 */
+	public void invokeWorkflowForStatusUpdate(PlanRequest planRequest) {
+		if (ObjectUtils.isEmpty(planRequest.getPlan().getWorkflow()))
+			return;
+
+		ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(planRequest);
+		ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
+
+		// Setting the status back to the plan configuration object from workflow response
+		planRequest.getPlan().setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
 	}
 
 	/**
@@ -97,6 +120,32 @@ public class WorkflowService {
 	}
 
 	/**
+	 * Creates a workflow request from the given plan configuration request.
+	 *
+	 * @param planRequest The request containing the plan to create a workflow request.
+	 * @return The constructed process instance request for the workflow.
+	 */
+	public ProcessInstanceRequest createWorkflowRequest(PlanRequest planRequest) {
+		Plan plan = planRequest.getPlan();
+		ProcessInstance processInstance = ProcessInstance.builder()
+				.businessId(plan.getId())
+				.tenantId(plan.getTenantId())
+				.businessService(PLAN_ESTIMATION_BUSINESS_SERVICE)
+				.moduleName(MODULE_NAME_VALUE)
+				.action(plan.getWorkflow().getAction())
+				.comment(plan.getWorkflow().getComments())
+				.documents(plan.getWorkflow().getDocuments())
+				.build();
+
+		enrichAssignesInWorkflow(processInstance, plan.getWorkflow());
+
+		return ProcessInstanceRequest.builder()
+				.requestInfo(planRequest.getRequestInfo())
+				.processInstances(Collections.singletonList(processInstance))
+				.build();
+	}
+
+	/**
 	 * Enriches the process instance with assignees from the given workflow.
 	 *
 	 * @param processInstance The process instance to enrich with assignees.
@@ -121,5 +170,9 @@ public class WorkflowService {
 		return new StringBuilder().append(config.getWfHost()).append(config.getWfTransitionPath());
 	}
 
+	private void autoAssignAssignee(Workflow workflow, PlanRequest planRequest) {
+		String[] heirarchysBoundaryCodes = planRequest.getPlan().getBoundaryAncestralPath().split("//|");
+
+	}
 
 }
