@@ -21,7 +21,7 @@ jobs:
         branch_name=$(echo "${GITHUB_REF#refs/heads/}")
 
         # Define the branch name pattern
-        branch_regex="^(HCMPRE|HCMPOST|HCMSUB)-[0-9]{3,}-[a-zA-Z0-9-]+$"
+        branch_regex="^(master|develop|(HCMPRE|HCMPOST|HCMSUB)-[0-9]{3,}-[a-zA-Z0-9-]+)$"
 
         # Check if the branch name matches the pattern
         if [[ ! "$branch_name" =~ $branch_regex ]]; then
