@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Component
@@ -85,10 +86,10 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getEmployeeId());
         }
 
-        if (searchCriteria.getRole() != null) {
+        if (!CollectionUtils.isEmpty(searchCriteria.getRole())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" role = ?");
-            preparedStmtList.add(searchCriteria.getRole());
+            builder.append(" role IN ( ").append(queryUtil.createQuery(searchCriteria.getRole().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getRole()));
         }
 
         if (searchCriteria.getActive() != null) {

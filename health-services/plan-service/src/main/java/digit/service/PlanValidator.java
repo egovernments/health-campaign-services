@@ -1,6 +1,7 @@
 package digit.service;
 
 import com.jayway.jsonpath.JsonPath;
+import digit.config.Configuration;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.CampaignUtil;
@@ -34,13 +35,19 @@ public class PlanValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
+    private PlanEmployeeService planEmployeeService;
+
+    private Configuration config;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
+        this.planEmployeeService = planEmployeeService;
+        this.config = config;
     }
 
     /**
@@ -78,7 +85,13 @@ public class PlanValidator {
         validateMetricDetailUnit(request, mdmsData);
 
         // Validate if campaign id exists against project factory
-        validateCampaignId(campaignResponse);
+//        validateCampaignId(campaignResponse);
+
+        // Validate the user information in the request
+        commonUtil.validateUserInfo(request.getRequestInfo());
+
+        // Validate plan-employee assignment and jurisdiction
+        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -314,6 +327,12 @@ public class PlanValidator {
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
+
+        // Validate the user information in the request
+        commonUtil.validateUserInfo(request.getRequestInfo());
+
+        // Validate plan-employee assignment and jurisdiction
+        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -448,6 +467,25 @@ public class PlanValidator {
                 throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
             }
         });
+
+    }
+
+    public void validatePlanEmployeeAssignmentAndJurisdiction(PlanRequest planRequest) {
+        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
+                .builder()
+                .tenantId(planRequest.getPlan().getTenantId())
+                .employeeId(planRequest.getRequestInfo().getUserInfo().getUuid())
+                .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
+                .role(config.getPlanEstimationApproverRoles())
+                .jurisdiction(Collections.singletonList(planRequest.getPlan().getLocality()))
+                .build();
+
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
+                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                .requestInfo(planRequest.getRequestInfo()).build());
+
+        if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
+            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
 
     }
 

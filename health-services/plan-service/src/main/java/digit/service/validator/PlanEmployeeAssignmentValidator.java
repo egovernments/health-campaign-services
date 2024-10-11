@@ -140,7 +140,7 @@ public class PlanEmployeeAssignmentValidator {
                     .tenantId(planEmployeeAssignment.getTenantId())
                     .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
                     .employeeId(planEmployeeAssignment.getEmployeeId())
-                    .role(roleMap.get(planEmployeeAssignment.getRole())).build());
+                    .role(Collections.singletonList(roleMap.get(planEmployeeAssignment.getRole()))).build());
 
             // If there are any conflicting assignments found, throw a custom exception
             if (!CollectionUtils.isEmpty(response)) {
