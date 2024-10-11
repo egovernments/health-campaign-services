@@ -26,7 +26,7 @@ jobs:
         # Check if the branch name matches the pattern
         if [[ ! "$branch_name" =~ $branch_regex ]]; then
           echo "Branch name '$branch_name' does not follow the required naming convention."
-          echo "Branch names must follow the pattern: (feature|bugfix|hotfix|release)/PROJ-1234-description"
+          echo "Branch names must follow the pattern: (HCMPRE|HCMPOST|HCMSUB)-123-description"
           exit 1
         fi
 
