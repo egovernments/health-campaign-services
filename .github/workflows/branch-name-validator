@@ -31,4 +31,6 @@ jobs:
         fi
 
     - name: Success message
-      run: echo "Branch name '$branch_name' follows the required naming convention. (Jira ticket)-name like HCMPRE-172-branch-feature"
+      run: |
+        branch_name=$(echo "${GITHUB_REF#refs/heads/}")
+        echo "Branch name '$branch_name' follows the required naming convention: 'master', 'develop', or (HCMPRE|HCMPOST|HCMSUB)-123-description"
