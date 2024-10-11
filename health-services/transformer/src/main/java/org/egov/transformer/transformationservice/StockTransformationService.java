@@ -11,6 +11,7 @@ import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -34,10 +35,11 @@ public class StockTransformationService {
     private final ProjectService projectService;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final BoundaryService boundaryService;
     private final ProductService productService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
 
-    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService) {
+    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
         this.facilityService = facilityService;
         this.transformerProperties = transformerProperties;
@@ -45,6 +47,7 @@ public class StockTransformationService {
         this.projectService = projectService;
         this.userService = userService;
         this.objectMapper = objectMapper;
+        this.boundaryService = boundaryService;
         this.productService = productService;
     }
 
@@ -79,7 +82,13 @@ public class StockTransformationService {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
-                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            } else if (stock.getReferenceIdType().equals(PROJECT)) {
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
             facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
             facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
@@ -89,7 +98,9 @@ public class StockTransformationService {
             facilityName = userService.getUserInfo(tenantId, facilityId).get(USERNAME);
             ProjectStaff projectStaff = projectService.searchProjectStaff(facilityId, tenantId);
             if (projectStaff != null) {
-                boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
         }
 
