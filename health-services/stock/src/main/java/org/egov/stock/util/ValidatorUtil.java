@@ -270,7 +270,8 @@ public class ValidatorUtil {
 			String receiverId = stock.getReceiverId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
-			if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) || SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType())) {
+
+			if ((SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) || (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
 				if (!CollectionUtils.isEmpty(facilityIds)) {
 					if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 						populateErrorForStock(stock, senderId, errorDetailsMap);
