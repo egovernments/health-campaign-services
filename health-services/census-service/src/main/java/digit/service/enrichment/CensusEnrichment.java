@@ -18,7 +18,7 @@ public class CensusEnrichment {
     /**
      * Enriches the CensusRequest for creating a new census record.
      * Enriches the given census record with generated IDs for Census and PopulationByDemographics.
-     * Validates user information and enriches audit details for create operation.
+     * Validates user information, enriches audit details and effectiveFrom for create operation.
      *
      * @param request The CensusRequest to be enriched.
      * @throws CustomException if user information is missing in the request.
@@ -32,7 +32,11 @@ public class CensusEnrichment {
         // Generate id for PopulationByDemographics
         census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
 
+        // Set audit details for census record
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
+
+        // Enrich effectiveFrom for the census record
+        census.setEffectiveFrom(census.getAuditDetails().getCreatedTime());
     }
 
     /**

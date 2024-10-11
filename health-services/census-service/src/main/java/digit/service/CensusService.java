@@ -2,6 +2,7 @@ package digit.service;
 
 import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
+import digit.service.enrichment.CensusTimeframeEnrichment;
 import digit.service.validator.CensusValidator;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.CensusRequest;
@@ -22,11 +23,14 @@ public class CensusService {
 
     private CensusEnrichment enrichment;
 
-    public CensusService(ResponseInfoFactory responseInfoFactory, CensusRepository repository, CensusValidator validator, CensusEnrichment enrichment) {
+    private CensusTimeframeEnrichment timeframeEnrichment;
+
+    public CensusService(ResponseInfoFactory responseInfoFactory, CensusRepository repository, CensusValidator validator, CensusEnrichment enrichment, CensusTimeframeEnrichment timeframeEnrichment) {
         this.responseInfoFactory = responseInfoFactory;
         this.repository = repository;
         this.validator = validator;
         this.enrichment = enrichment;
+        this.timeframeEnrichment = timeframeEnrichment;
     }
 
     /**
@@ -38,6 +42,7 @@ public class CensusService {
     public CensusResponse create(CensusRequest request) {
         validator.validateCreate(request); // Validate census create request
         enrichment.enrichCreate(request); // Enrich census create request
+        timeframeEnrichment.enrichPreviousTimeframe(request); // Enrich timeframe for previous census
         repository.create(request); // Delegate creation request to repository
         return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))

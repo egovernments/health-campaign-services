@@ -99,6 +99,16 @@ public class CensusQueryBuilder {
             preparedStmtList.add(criteria.getAssignee());
         }
 
+        if (criteria.getEffectiveTo() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            if (criteria.getEffectiveTo() == 0) {
+                builder.append(" cen.effective_to IS NULL ");
+            } else {
+                builder.append(" cen.effective_to = ?");
+                preparedStmtList.add(criteria.getEffectiveTo());
+            }
+        }
+
         if (!CollectionUtils.isEmpty(criteria.getAreaCodes())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.boundary_code IN ( ").append(queryUtil.createQuery(criteria.getAreaCodes().size())).append(" )");
