@@ -1810,7 +1810,6 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
         const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
         latLongData = result.latLongData;
         boundaryData = result.updatedData;
-        console.log(latLongData);
     }
     const hierarchy = await getHierarchy(request, tenantId, hierarchyType) || [];
     const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
@@ -1841,7 +1840,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
     const workbook = getNewExcelWorkbook();
     const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    addDataToSheet(request, boundarySheet, boundarySheetData);
+    addDataToSheet(request, boundarySheet, boundarySheetData, '93C47D', 40, true);
     const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
     request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
