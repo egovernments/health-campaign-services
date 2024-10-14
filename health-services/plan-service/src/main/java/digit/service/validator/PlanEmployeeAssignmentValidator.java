@@ -64,6 +64,9 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
         EmployeeResponse employeeResponse = hrmsUtil.fetchHrmsData(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
 
+        // Validate if a same assignment already exists
+        validateEmployeeAssignmentExistence(request);
+
         // Validate if plan config id exists
         validatePlanConfigId(planConfigurations);
 
@@ -79,6 +82,26 @@ public class PlanEmployeeAssignmentValidator {
         // Validate campaign id, employee jurisdiction and highest root jurisdiction in case of National role
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
+    }
+
+    /**
+     * Validates if the plan employee assignment for the provided details already exists
+     *
+     * @param request the employee assignment create request
+     */
+    private void validateEmployeeAssignmentExistence(PlanEmployeeAssignmentRequest request) {
+        PlanEmployeeAssignment employeeAssignment = request.getPlanEmployeeAssignment();
+
+        List<PlanEmployeeAssignment> planEmployeeAssignmentsFromSearch = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
+                .tenantId(employeeAssignment.getTenantId())
+                .planConfigurationId(employeeAssignment.getPlanConfigurationId())
+                .employeeId(employeeAssignment.getEmployeeId())
+                .role(employeeAssignment.getRole())
+                .build());
+
+        if (!CollectionUtils.isEmpty(planEmployeeAssignmentsFromSearch)) {
+            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE, PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     /**
