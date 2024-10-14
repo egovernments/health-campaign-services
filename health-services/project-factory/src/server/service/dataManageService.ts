@@ -73,7 +73,7 @@ const getBoundaryDataService = async (
         const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-        addDataToSheet(request,boundarySheet, boundarySheetData);
+        addDataToSheet(request,boundarySheet, boundarySheetData, '93C47D', 40, true);
         const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
         // Return boundary file details
         logger.info("RETURNS THE BOUNDARY RESPONSE");
