@@ -107,6 +107,18 @@ public class CommonUtils {
         }
     }
 
+    public List<Double> getGeoPointFromAdditionalDetails(JsonNode additionalDetails) {
+        List<Double> geoPoint = null;
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
+                && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
+            geoPoint = Arrays.asList(
+                    additionalDetails.get(LNG).asDouble(),
+                    additionalDetails.get(LAT).asDouble()
+            );
+        }
+        return geoPoint;
+    }
+
     public String getLocalityCodeFromAdditionalDetails(JsonNode additionalDetails) {
         String localityCode = null;
         if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())) {

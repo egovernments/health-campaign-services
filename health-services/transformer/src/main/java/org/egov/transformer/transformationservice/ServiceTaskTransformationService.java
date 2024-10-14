@@ -78,14 +78,7 @@ public class ServiceTaskTransformationService {
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(serviceAdditionalDetails);
-        List<Double> geoPoint = null;
-        if (serviceAdditionalDetails != null && JsonNodeType.OBJECT.equals(serviceAdditionalDetails.getNodeType())
-        && serviceAdditionalDetails.hasNonNull(LAT) && serviceAdditionalDetails.hasNonNull(LNG)) {
-                geoPoint = Arrays.asList(
-                        serviceAdditionalDetails.get(LNG).asDouble(),
-                        serviceAdditionalDetails.get(LAT).asDouble()
-                );
-        }
+        List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(serviceAdditionalDetails);
         if (localityCode != null) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
