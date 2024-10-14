@@ -86,6 +86,7 @@ public class PlanEmployeeAssignmentValidator {
 
     /**
      * Validates if the plan employee assignment for the provided details already exists
+     *
      * @param request the employee assignment create request
      */
     private void validateEmployeeAssignmentExistence(PlanEmployeeAssignmentRequest request) {
