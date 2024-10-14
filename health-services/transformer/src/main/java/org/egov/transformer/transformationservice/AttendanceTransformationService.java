@@ -1,6 +1,7 @@
 package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
@@ -16,6 +17,7 @@ import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -89,15 +91,11 @@ public class AttendanceTransformationService {
                         attendanceLog.getTenantId())
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
-        Map<String, String> boundaryHierarchy = null;
-        Map<String, String> boundaryHierarchyCode = null;
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            String projectId = projectIdProjectTypeId.split(":")[0];
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, attendanceLog.getTenantId());
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
-        }
+
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
                 .attendeeName(attendeeName)
@@ -122,6 +120,27 @@ public class AttendanceTransformationService {
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
                 .build();
         return attendanceRegisterIndexV1;
+    }
+
+    private BoundaryHierarchyResult getBoundaryHierarchyResult(Object additionalDetails, String createdBy, String tenantId) {
+        BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
+        if (ObjectUtils.isNotEmpty(additionalDetails) && additionalDetails instanceof JsonNode) {
+            JsonNode detailsNode = (JsonNode) additionalDetails;
+            // Check if 'boundaryCode' exists and is a non-null field
+            if (detailsNode.has(BOUNDARY_CODE) && !detailsNode.get(BOUNDARY_CODE).isNull()) {
+                String boundaryCode = detailsNode.get(BOUNDARY_CODE).asText();
+
+                boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
+            }
+        }
+        else {
+            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
+            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+                String projectId = projectIdProjectTypeId.split(":")[0];
+                boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+            }
+        }
+        return boundaryHierarchyResult;
     }
 
 }
