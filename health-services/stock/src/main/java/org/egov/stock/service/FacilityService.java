@@ -100,9 +100,10 @@ public class FacilityService {
 				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 					facilityIds.add(stock.getSenderId());
 				}
-                if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
-                    facilityIds.add(stock.getReceiverId());
-                }
+
+        else if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
+           facilityIds.add(stock.getReceiverId());
+        }
 			}
 		}
 

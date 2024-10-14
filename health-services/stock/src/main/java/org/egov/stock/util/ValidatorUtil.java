@@ -267,12 +267,13 @@ public class ValidatorUtil {
 		for (Stock stock : validEntities) {
 
 			String senderId = stock.getSenderId();
-			String receiverId = stock.getReceiverId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
 
 			if ((SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) || (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+        
 				if (!CollectionUtils.isEmpty(facilityIds)) {
+          
 					if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 						populateErrorForStock(stock, senderId, errorDetailsMap);
 					}
@@ -282,6 +283,8 @@ public class ValidatorUtil {
 				} else {
 					populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 				}
+			} else {
+				populateErrorForStock(stock, senderId, errorDetailsMap);
 			}
 		}
 	}
