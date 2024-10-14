@@ -45,6 +45,13 @@ public class Configuration {
     @Value("${egov.project.factory.search.endpoint}")
     private String projectFactorySearchEndPoint;
 
+    //User Service
+    @Value("${egov.user.service.host}")
+    private String userServiceHost;
+
+    @Value("${egov.user.search.endpoint}")
+    private String userSearchEndPoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;

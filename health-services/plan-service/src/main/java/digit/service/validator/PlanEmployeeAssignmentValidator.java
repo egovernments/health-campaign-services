@@ -3,18 +3,15 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
 import digit.repository.PlanEmployeeAssignmentRepository;
-import digit.util.CampaignUtil;
-import digit.util.CommonUtil;
-import digit.util.HrmsUtil;
-import digit.util.MdmsUtil;
+import digit.util.*;
 import digit.web.models.*;
-import digit.web.models.hrms.EmployeeResponse;
 import digit.web.models.projectFactory.Boundary;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.Role;
+import org.egov.common.contract.user.UserDetailResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -33,7 +30,7 @@ public class PlanEmployeeAssignmentValidator {
 
     private MdmsUtil mdmsUtil;
 
-    private HrmsUtil hrmsUtil;
+    private UserUtil userUtil;
 
     private CommonUtil commonUtil;
 
@@ -43,10 +40,10 @@ public class PlanEmployeeAssignmentValidator {
 
     private Configuration config;
 
-    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, HrmsUtil hrmsUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeAssignmentRepository repository, Configuration config) {
+    public PlanEmployeeAssignmentValidator(MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, UserUtil userUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeAssignmentRepository repository, Configuration config) {
         this.centralInstanceUtil = centralInstanceUtil;
         this.mdmsUtil = mdmsUtil;
-        this.hrmsUtil = hrmsUtil;
+        this.userUtil = userUtil;
         this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
         this.repository = repository;
@@ -62,7 +59,7 @@ public class PlanEmployeeAssignmentValidator {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
-        EmployeeResponse employeeResponse = hrmsUtil.fetchHrmsData(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
+        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
 
         // Validate if a same assignment already exists
         validateEmployeeAssignmentExistence(request);
@@ -70,11 +67,11 @@ public class PlanEmployeeAssignmentValidator {
         // Validate if plan config id exists
         validatePlanConfigId(planConfigurations);
 
-        // Validate if employee exists against HRMS
-        validateEmployeeAgainstHRMS(employeeResponse);
+        // Validate if employee exists against User Service
+        validateEmployeeAgainstUserService(userDetailResponse);
 
-        // Validate role of employee against HRMS
-        validateRoleAgainstHRMS(planEmployeeAssignment, employeeResponse);
+        // Validate role of employee against User Service
+        validateRoleAgainstUserService(planEmployeeAssignment, userDetailResponse);
 
         // Validate if role of employee is a conflicting role
         validateRoleConflict(planEmployeeAssignment);
@@ -82,6 +79,33 @@ public class PlanEmployeeAssignmentValidator {
         // Validate campaign id, employee jurisdiction and highest root jurisdiction in case of National role
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
+    }
+
+    /**
+     * This method validates the provided roles of the employee against User Service
+     *
+     * @param planEmployeeAssignment The plan employee assignment provided in request
+     * @param userDetailResponse     The user detail response from user service for the provided employeeId
+     */
+    private void validateRoleAgainstUserService(PlanEmployeeAssignment planEmployeeAssignment, UserDetailResponse userDetailResponse) {
+        Set<String> userRolesFromUserService = userDetailResponse.getUser().get(0).getRoles().stream()
+                .map(Role::getCode)
+                .collect(Collectors.toSet());
+
+        if (!userRolesFromUserService.contains(planEmployeeAssignment.getRole())) {
+            throw new CustomException(INVALID_EMPLOYEE_ROLE_CODE, INVALID_EMPLOYEE_ROLE_MESSAGE);
+        }
+    }
+
+    /**
+     * This method validates if the employee provided in plan employee assignment request exist in User Service
+     *
+     * @param userDetailResponse The user detail response from User Service for provided employeeId
+     */
+    private void validateEmployeeAgainstUserService(UserDetailResponse userDetailResponse) {
+        if (CollectionUtils.isEmpty(userDetailResponse.getUser())) {
+            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
+        }
     }
 
     /**
@@ -173,23 +197,6 @@ public class PlanEmployeeAssignmentValidator {
     }
 
     /**
-     * This method validates the provided roles of the employee against HRMS
-     *
-     * @param planEmployeeAssignment The plan employee assignment provided in request
-     * @param employeeResponse       The employee response from HRMS for the provided employeeId
-     */
-    private void validateRoleAgainstHRMS(PlanEmployeeAssignment planEmployeeAssignment, EmployeeResponse employeeResponse) {
-        Set<String> rolesFromHRMS = employeeResponse.getEmployees().get(0).getUser().getRoles().stream()
-                .map(Role::getCode)
-                .collect(Collectors.toSet());
-
-        if (!rolesFromHRMS.contains(planEmployeeAssignment.getRole())) {
-            throw new CustomException(INVALID_EMPLOYEE_ROLE_CODE, INVALID_EMPLOYEE_ROLE_MESSAGE);
-        }
-    }
-
-
-    /**
      * This method validates campaign id and employee's jurisdiction against project factory
      * If the employee has a national role, it validates that the employee has the highest root jurisdiction only
      *
@@ -246,18 +253,6 @@ public class PlanEmployeeAssignmentValidator {
     }
 
     /**
-     * This method validates if the employee provided in plan employee assignment request exist in HRMS
-     *
-     * @param employeeResponse The employee response from HRMS for provided employeeId
-     */
-    private void validateEmployeeAgainstHRMS(EmployeeResponse employeeResponse) {
-        if (CollectionUtils.isEmpty(employeeResponse.getEmployees())) {
-            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
-        }
-    }
-
-
-    /**
      * This method validates if the plan configuration id provided in the request exists
      *
      * @param planConfigurations The list of plan configuration for the provided plan config id
@@ -297,7 +292,7 @@ public class PlanEmployeeAssignmentValidator {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
-        EmployeeResponse employeeResponse = hrmsUtil.fetchHrmsData(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
+        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId());
 
         // Validate if Plan employee assignment exists
         PlanEmployeeAssignment existingPlanEmployeeAssignment = validatePlanEmployeeAssignment(planEmployeeAssignment);
@@ -308,8 +303,8 @@ public class PlanEmployeeAssignmentValidator {
         // Validate campaign id and employee jurisdiction
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
-        // Validate role of employee against HRMS
-        validateRoleAgainstHRMS(planEmployeeAssignment, employeeResponse);
+        // Validate role of employee against User service
+        validateRoleAgainstUserService(planEmployeeAssignment, userDetailResponse);
     }
 
     /**
