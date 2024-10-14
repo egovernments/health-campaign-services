@@ -32,7 +32,7 @@ public class ServiceConstants {
     public static final String FILESTORE_ID_INVALID_MESSAGE = " Resource mapping does not have a Valid File Store Id ";
 
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
-    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS ";
+    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS - ";
 
     public static final String DUPLICATE_ASSUMPTION_KEY_CODE = "DUPLICATE_ASSUMPTION_KEY";
     public static final String DUPLICATE_ASSUMPTION_KEY_MESSAGE = "Duplicate Assumption key found : ";
