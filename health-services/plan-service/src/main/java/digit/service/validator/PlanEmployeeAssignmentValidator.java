@@ -92,14 +92,14 @@ public class PlanEmployeeAssignmentValidator {
     private void validateEmployeeAssignmentExistence(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment employeeAssignment = request.getPlanEmployeeAssignment();
 
-        List<PlanEmployeeAssignment> planEmployeeSearchResponse = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
+        List<PlanEmployeeAssignment> planEmployeeAssignmentsFromSearch = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                 .tenantId(employeeAssignment.getTenantId())
                 .planConfigurationId(employeeAssignment.getPlanConfigurationId())
                 .employeeId(employeeAssignment.getEmployeeId())
                 .role(employeeAssignment.getRole())
                 .build());
 
-        if (!CollectionUtils.isEmpty(planEmployeeSearchResponse)) {
+        if (!CollectionUtils.isEmpty(planEmployeeAssignmentsFromSearch)) {
             throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE, PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE);
         }
     }
