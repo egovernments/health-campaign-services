@@ -97,7 +97,6 @@ public class PlanEmployeeAssignmentValidator {
                 .planConfigurationId(employeeAssignment.getPlanConfigurationId())
                 .employeeId(employeeAssignment.getEmployeeId())
                 .role(employeeAssignment.getRole())
-                .jurisdiction(employeeAssignment.getJurisdiction())
                 .build());
 
         if (!CollectionUtils.isEmpty(planEmployeeAssignments)) {
