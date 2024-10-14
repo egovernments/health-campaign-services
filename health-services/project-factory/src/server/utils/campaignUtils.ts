@@ -356,6 +356,7 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+    const isLockSheetNeeded = request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan' ? true : false
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");
@@ -378,6 +379,7 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
             worksheet.getColumn(index + 1).width = colWidth.width;
         }
     });
+    if (isLockSheetNeeded) lockSheet(request, workbook);
     const responseData = await createAndUploadFile(workbook, request);
 
     logger.info('File updated successfully:' + JSON.stringify(responseData));
@@ -392,7 +394,7 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
-    const isLockSheetNeeded = (request?.body?.ResourceDetails?.type == 'user' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') ? true : false
+    const isLockSheetNeeded = request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan' ? true : false
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");

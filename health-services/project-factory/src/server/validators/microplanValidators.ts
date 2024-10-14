@@ -111,7 +111,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
                 const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
                 const value = item[element];
                 const rowNum = item['!row#number!'];
-                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName] && value != 'undefined') {
+                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName] && value != undefined) {
                     if (uniqueMap.has(value)) {
                         if (!rowMapping[rowNum]) {
                             rowMapping[rowNum] = [];
@@ -197,21 +197,19 @@ export function validateLatLongForMicroplanCampaigns(data: any, errors: any, loc
 
 
 function validateLatLongForFacility(data: any, errors: any) {
-    data.forEach((obj: any, index: number) => {
-        for (const column of Object.keys(obj)) {
-            if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
-                const value = obj[column];
-                if (typeof value !== 'number') {
-                    errors.push({
-                        status: "INVALID",
-                        rowNumber: obj["!row#number!"],
-                        errorDetails: `Data in column '${column}' must comply with the guideline structure, please update the data and re-upload`
-                    });
-                }
+    for (const column of Object.keys(data)) {
+        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+            const value = data[column];
+            if (typeof value !== 'number') {
+                errors.push({
+                    status: "INVALID",
+                    rowNumber: data["!row#number!"],
+                    errorDetails: `Data in column '${column}' must comply with the guideline structure, please update the data and re-upload`
+                });
             }
         }
-    });
-}
+    }
+};
 
 export function validateMicroplanFacility(request: any, data: any, localizationMap: any) {
     const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
@@ -229,9 +227,9 @@ export function validateMicroplanFacility(request: any, data: any, localizationM
         const active = activeColumnName ? item[activeColumnName] : "Active";
         if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
             enrichErrorForFcailityMicroplan(request, item, errors, localizationMap);
+            validateLatLongForFacility(item, errors);
         }
     });
-    validateLatLongForFacility(data, errors);
     request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
     if (request?.body?.sheetErrorDetails && Array.isArray(request?.body?.sheetErrorDetails) && request?.body?.sheetErrorDetails?.length > 0) {
         request.body.ResourceDetails.status = resourceDataStatuses.invalid;
