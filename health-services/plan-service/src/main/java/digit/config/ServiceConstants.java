@@ -94,8 +94,8 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
 
-    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXIST_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXIST";
-    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXIST_MESSAGE = "Plan employee assignment for the provided details already exists";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
