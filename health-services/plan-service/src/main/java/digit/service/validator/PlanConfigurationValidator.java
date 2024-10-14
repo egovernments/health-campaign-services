@@ -201,9 +201,9 @@ public class PlanConfigurationValidator {
 
             Set<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
             planConfiguration.getAssumptions().forEach(assumption -> {
-                    if (assumption.getSource() == Source.MDMS && !assumptionSetFromMDMS.contains(assumption.getKey())) {
+                    if (assumption.getActive() && assumption.getSource() == Source.MDMS && !assumptionSetFromMDMS.contains(assumption.getKey())) {
                         log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
-                        throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
+                        throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey() + " at JSONPath: " + jsonPathForAssumption);
                     }
             });
         }
