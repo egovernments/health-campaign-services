@@ -1,5 +1,8 @@
+import { getBoundaryTabName } from "../utils/boundaryUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocalizedName } from "../utils/campaignUtils";
+import { resourceDataStatuses } from "../config/constants";
+import config from "../config";
 
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
@@ -108,7 +111,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
                 const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
                 const value = item[element];
                 const rowNum = item['!row#number!'];
-                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
+                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName] && value != 'undefined') {
                     if (uniqueMap.has(value)) {
                         if (!rowMapping[rowNum]) {
                             rowMapping[rowNum] = [];
@@ -120,5 +123,151 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
                 }
             }
         }
+    }
+}
+
+export function validateTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, config: any, localizationMap?: { [key: string]: string }) {
+    for (const key in data) {
+        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+            if (Array.isArray(data[key])) {
+                const boundaryData = data[key];
+                boundaryData.forEach((obj: any, index: number) => {
+                    for (const targetColumn of localizedTargetColumnNames) {
+                        const target = obj[targetColumn];
+                        if (target !== 0 && !target) {
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Data in column '${targetColumn}' can’t be empty, please update the data and re-upload`,
+                                sheetName: key
+                            });
+                        } else if (typeof target !== 'number') {
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number, please update the data and re-upload`,
+                                sheetName: key
+                            });
+                        } else if (target < 0 || target > 100000000) {
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number less than 100000000, please update the data and re-upload`,
+                                sheetName: key
+                            });
+                        } else if (!Number.isInteger(target)) {
+                            errors.push({
+                                status: "INVALID",
+                                rowNumber: obj["!row#number!"],
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number, please update the data and re-upload`,
+                                sheetName: key
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    }
+}
+
+export function validateLatLongForMicroplanCampaigns(data: any, errors: any, localizationMap?: { [key: string]: string }) {
+    for (const key in data) {
+        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+            if (Array.isArray(data[key])) {
+                const boundaryData = data[key];
+                boundaryData.forEach((obj: any, index: number) => {
+                    for (const column of Object.keys(obj)) {
+                        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+                            const value = obj[column];
+                            if (typeof value !== 'number') {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${column}' must comply with the guideline structure, please update the data and re-upload`,
+                                    sheetName: key
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+}
+
+
+function validateLatLongForFacility(data: any, errors: any) {
+    data.forEach((obj: any, index: number) => {
+        for (const column of Object.keys(obj)) {
+            if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+                const value = obj[column];
+                if (typeof value !== 'number') {
+                    errors.push({
+                        status: "INVALID",
+                        rowNumber: obj["!row#number!"],
+                        errorDetails: `Data in column '${column}' must comply with the guideline structure, please update the data and re-upload`
+                    });
+                }
+            }
+        }
+    });
+}
+
+export function validateMicroplanFacility(request: any, data: any, localizationMap: any) {
+    const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
+    const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+    var errors: any = []
+    data.forEach((item: any) => {
+        if (activeColumnName) {
+            if (!item?.[activeColumnName]) {
+                errors.push({ starus: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column can’t be empty, please update the data and re-upload` });
+            }
+            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
+                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are Active, Inactive` });
+            }
+        }
+        const active = activeColumnName ? item[activeColumnName] : "Active";
+        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+            enrichErrorForFcailityMicroplan(request, item, errors, localizationMap);
+        }
+    });
+    validateLatLongForFacility(data, errors);
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+    if (request?.body?.sheetErrorDetails && Array.isArray(request?.body?.sheetErrorDetails) && request?.body?.sheetErrorDetails?.length > 0) {
+        request.body.ResourceDetails.status = resourceDataStatuses.invalid;
+    }
+}
+
+function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = [], localizationMap?: { [key: string]: string }) {
+    const projectType = request?.body?.projectTypeCode;
+    const nameColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME_MICROPLAN", localizationMap);
+    if (!item?.[nameColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${nameColumn} column can’t be empty, please update the data and re-upload` })
+    }
+    const facilityTypeColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE_MICROPLAN", localizationMap);
+    if (!item?.[facilityTypeColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityTypeColumn} column can’t be empty, please update the data and re-upload` })
+    }
+    const faciltyStatusColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS_MICROPLAN", localizationMap);
+    if (!item?.[faciltyStatusColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${faciltyStatusColumn} column can’t be empty, please update the data and re-upload` })
+    }
+    const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
+    if (!item?.[facilityCapacityColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column can’t be empty, please update the data and re-upload` })
+    }
+    else if (typeof (item?.[facilityCapacityColumn]) != "number") {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 1 and 100000000` })
+    }
+    else if (item?.[facilityCapacityColumn] < 1 || item?.[facilityCapacityColumn] > 100000000) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 1 and 100000000` })
+    }
+    const fixedPostColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN", localizationMap);
+    if (request?.body?.showFixedPost && !item?.[fixedPostColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${fixedPostColumn} column can’t be empty, please update the data and re-upload` })
+    }
+    const boundaryColumn = getLocalizedName("HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN", localizationMap);
+    if (!item?.[boundaryColumn]) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${boundaryColumn} column can’t be empty, please update the data and re-upload` })
     }
 }

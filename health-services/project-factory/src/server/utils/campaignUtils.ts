@@ -262,13 +262,13 @@ function adjustRef(worksheet: any, lastColumn: any) {
 
 function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const errorData = request.body.sheetErrorDetails;
+    var errorData = request.body.sheetErrorDetails;
     const userNameAndPassword = request.body.userNameAndPassword;
     const columns: any = findColumns(worksheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
     const additionalDetailsErrors: any[] = [];
-
+    errorData = mergeErrors(errorData);
     enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
     enrichActiveColumn(worksheet, createAndSearchConfig, request);
 
@@ -1772,8 +1772,8 @@ async function boundaryBulkUpload(request: any, localizationMap?: any) {
 }
 
 function updateBoundaryDataForBoundaryManagement(
-    request: any, 
-    boundaryData: any[], 
+    request: any,
+    boundaryData: any[],
     localizationMap: any
 ): { updatedData: any[], latLongData: [number, number][] } {
     const latLongData: [number, number][] = [];
@@ -1806,7 +1806,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
     var boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
     var latLongData: any;
-    if(type === "boundaryManagement"){
+    if (type === "boundaryManagement") {
         const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
         latLongData = result.latLongData;
         boundaryData = result.updatedData;
@@ -1831,7 +1831,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
     var headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-    if(type === "boundaryManagement"){
+    if (type === "boundaryManagement") {
         headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
         data.forEach((row: any[], index: string | number) => {
             row.push(latLongData[index][0], latLongData[index][1]);
