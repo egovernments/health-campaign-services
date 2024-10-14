@@ -227,7 +227,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
         if (searchObject.getIndividualName() != null) {
             query = query + "AND givenname LIKE :individualName ";
-            paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
+            paramsMap.put("individualName", "%"+searchObject.getIndividualName().replace("%", "\\%").replace("_", "\\_")+"%");
         }
         if (searchObject.getGender() != null) {
             query = query + "AND gender =:gender ";
@@ -238,7 +238,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("dateOfBirth", searchObject.getDateOfBirth());
         }
         if (searchObject.getSocialCategory() != null) {
-            query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
+            query += " AND additionaldetails->'fields' @> :socialCategory ";
+            String socialCategoryJson = "[{\"key\": \"SOCIAL_CATEGORY\", \"value\": \"" + searchObject.getSocialCategory() + "\"}]";
+            paramsMap.put("socialCategory", socialCategoryJson);
         }
         if (searchObject.getCreatedFrom() != null) {
 
@@ -264,14 +266,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
-            query = query + "AND roles @> '[";
-            for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}";
-                if (i != searchObject.getRoleCodes().size() - 1) {
-                    query = query + ",";
-                }
-            }
-            query = query + "]' ";
+            query = query + "AND roles @> :roleCodesJson ";
+            String roleCodesJson = searchObject.getRoleCodes().stream()
+                        .map(code -> "{\"code\": \"" + code + "\"}")
+                        .collect(Collectors.joining(",", "[", "]"));
+            paramsMap.put("roleCodesJson", roleCodesJson);
         }
 
         if (searchObject.getUsername() != null) {
