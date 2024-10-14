@@ -6,7 +6,9 @@ import java.sql.SQLException;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.individual.Identifier;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
+@Component
 public class IdentifierRowMapper implements RowMapper<Identifier> {
     @Override
     public Identifier mapRow(ResultSet resultSet, int i) throws SQLException {

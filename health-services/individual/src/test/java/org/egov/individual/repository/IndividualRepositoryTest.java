@@ -10,6 +10,7 @@ import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.individual.repository.rowmapper.SkillRowMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,12 @@ class IndividualRepositoryTest {
 
     @Mock
     private HashOperations hashOperations;
+    @Mock
+    private SkillRowMapper skillRowMapper;
+    @Mock
+    private AddressRowMapper addressRowMapper;
+    @Mock
+    private IdentifierRowMapper identifierRowMapper;
 
     @BeforeEach
     void setUp() {
