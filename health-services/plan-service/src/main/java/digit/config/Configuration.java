@@ -31,13 +31,6 @@ public class Configuration {
     @Value("${egov.mdms.search.v2.endpoint}")
     private String mdmsV2EndPoint;
 
-    //HRMS
-    @Value("${egov.hrms.host}")
-    private String hrmsHost;
-
-    @Value("${egov.hrms.search.endpoint}")
-    private String hrmsEndPoint;
-
     //Project Factory
     @Value("${egov.project.factory.host}")
     private String projectFactoryHost;

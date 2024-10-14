@@ -22,7 +22,7 @@ public class ServiceConstants {
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
 
-    public static final String NATIONAL_ROLE = "NATIONAL";
+    public static final String ROOT_ROLE = "ROOT";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
@@ -93,8 +93,8 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_MESSAGE = "Plan employee assignment to be updated doesn't exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";

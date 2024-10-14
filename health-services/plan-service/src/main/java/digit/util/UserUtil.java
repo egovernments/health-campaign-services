@@ -16,34 +16,29 @@ import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_USER_SERVI
 @Component
 public class UserUtil {
 
-    private Configuration configs;
+    private Configuration config;
 
     private RestTemplate restTemplate;
 
-    public UserUtil(RestTemplate restTemplate, Configuration configs) {
+    public UserUtil(RestTemplate restTemplate, Configuration config) {
         this.restTemplate = restTemplate;
-        this.configs = configs;
+        this.config = config;
     }
 
     /**
-     * This method fetches user details from User Service for the provided employeeID
+     * This method fetches user details from User Service for the provided search request
      *
-     * @param requestInfo request info from the request
-     * @param employeeId  employee id provided in the request
-     * @param tenantId    tenant id from the request
+     * @param userSearchReq Search request to search for user detail response
      */
-    public UserDetailResponse fetchUserDetail(RequestInfo requestInfo, String employeeId, String tenantId) {
-        StringBuilder uri = getUserServiceUri();
+    public UserDetailResponse fetchUserDetail(UserSearchRequest userSearchReq) {
 
-        UserSearchRequest userSearchReq = getSearchReq(requestInfo, employeeId, tenantId);
         UserDetailResponse userDetailResponse = new UserDetailResponse();
         try {
-            userDetailResponse = restTemplate.postForObject(uri.toString(), userSearchReq, UserDetailResponse.class);
+            userDetailResponse = restTemplate.postForObject(getUserServiceUri().toString(), userSearchReq, UserDetailResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_USER_SERVICE, e);
         }
 
-        log.info(userDetailResponse.getUser().toString());
         return userDetailResponse;
     }
 
@@ -53,26 +48,6 @@ public class UserUtil {
      * @return uri for user detail search
      */
     private StringBuilder getUserServiceUri() {
-        StringBuilder uri = new StringBuilder();
-        return uri.append(configs.getUserServiceHost()).append(configs.getUserSearchEndPoint());
-    }
-
-    /**
-     * This method creates the search request body for user detail search
-     *
-     * @param requestInfo Request Info from the request body
-     * @param employeeId  Employee id for the provided plan employee assignment request
-     * @param tenantId    Tenant id from the plan employee assignment request
-     * @return Search request body for user detail search
-     */
-    private UserSearchRequest getSearchReq(RequestInfo requestInfo, String employeeId, String tenantId) {
-
-        UserSearchRequest userSearchRequest = new UserSearchRequest();
-
-        userSearchRequest.setRequestInfo(requestInfo);
-        userSearchRequest.setTenantId(tenantId);
-        userSearchRequest.setUuid(Collections.singletonList(employeeId));
-
-        return userSearchRequest;
+        return new StringBuilder().append(config.getUserServiceHost()).append(config.getUserSearchEndPoint());
     }
 }
