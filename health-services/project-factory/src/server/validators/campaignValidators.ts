@@ -147,11 +147,11 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
     }
     const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
     if (request?.body?.ResourceDetails?.additionalDetails?.source === "microplan") {
-        validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, request?.body?.ResourceDetails?.additionalDetails?.config, localizationMap);
+        validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
-        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, request?.body?.ResourceDetails?.additionalDetails?.config, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
     }
 }
 

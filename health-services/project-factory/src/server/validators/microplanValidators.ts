@@ -126,7 +126,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
     }
 }
 
-export function validateTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, config: any, localizationMap?: { [key: string]: string }) {
+export function validateTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
@@ -220,7 +220,7 @@ export function validateMicroplanFacility(request: any, data: any, localizationM
     data.forEach((item: any) => {
         if (activeColumnName) {
             if (!item?.[activeColumnName]) {
-                errors.push({ starus: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column can’t be empty, please update the data and re-upload` });
+                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column can’t be empty, please update the data and re-upload` });
             }
             else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
                 errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are Active, Inactive` });
