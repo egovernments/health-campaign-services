@@ -1,6 +1,8 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
@@ -74,8 +76,11 @@ public class ServiceTaskTransformationService {
         Map<String, String> boundaryHierarchyCode;
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-        if (service.getAdditionalDetails() != null) {
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), tenantId);
+        JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
+        String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(serviceAdditionalDetails);
+        List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(serviceAdditionalDetails);
+        if (localityCode != null) {
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
@@ -111,6 +116,7 @@ public class ServiceTaskTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
+                .geoPoint(geoPoint)
                 .build();
         return serviceIndexV1;
     }

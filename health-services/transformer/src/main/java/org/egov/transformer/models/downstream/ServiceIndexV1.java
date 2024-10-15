@@ -62,4 +62,6 @@ public class ServiceIndexV1 {
     private String taskDates;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
+    @JsonProperty("geoPoint")
+    private List<Double> geoPoint;
 }

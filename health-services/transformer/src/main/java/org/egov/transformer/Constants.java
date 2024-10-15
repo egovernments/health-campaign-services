@@ -105,4 +105,5 @@ public interface Constants {
     String LAT = "lat";
     String LNG = "lng";
     String STAFF = "STAFF";
+    String BOUNDARY_CODE_KEY = "boundaryCode";
 }
