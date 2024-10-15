@@ -9,21 +9,21 @@ CREATE TABLE census (
   effective_from                            bigint NOT NULL,
   effective_to                              bigint,
   source                                    character varying(255) NOT NULL,
-  status                                    character varying(255),
+  status                                    character varying(255) NOT NULL,
   assignee                                  character varying(255),
-  boundary_ancestral_path                   TEXT,
+  boundary_ancestral_path                   TEXT NOT NULL,
   additional_details                        JSONB,
-  created_by                                character varying(64),
-  created_time                              bigint,
-  last_modified_by                          character varying(64),
-  last_modified_time                        bigint,
+  created_by                                character varying(64) NOT NULL,
+  created_time                              bigint NOT NULL,
+  last_modified_by                          character varying(64) NOT NULL,
+  last_modified_time                        bigint NOT NULL,
   CONSTRAINT uk_census_id PRIMARY KEY (id)
 );
 
 -- Table: population_by_demographics
 CREATE TABLE population_by_demographics (
-  id                                        character varying(64) NOT NULL,
-  census_id                                 character varying(64) NOT NULL,
+  id                                        character varying(64),
+  census_id                                 character varying(64),
   demographic_variable                      character varying(64),
   population_distribution                   JSONB,
   created_by                                character varying(64),

@@ -5,6 +5,7 @@ import digit.web.models.CensusRequest;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
@@ -30,7 +31,9 @@ public class CensusEnrichment {
         UUIDEnrichmentUtil.enrichRandomUuid(census, "id");
 
         // Generate id for PopulationByDemographics
-        census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
+        if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
+            census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
+        }
 
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
     }
@@ -46,11 +49,13 @@ public class CensusEnrichment {
         Census census = request.getCensus();
 
         // Generate id for populationByDemographics
-        census.getPopulationByDemographics().forEach(populationByDemographics -> {
-            if (ObjectUtils.isEmpty(populationByDemographics.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id");
-            }
-        });
+        if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
+            census.getPopulationByDemographics().forEach(populationByDemographics -> {
+                if (ObjectUtils.isEmpty(populationByDemographics.getId())) {
+                    UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id");
+                }
+            });
+        }
 
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
     }
