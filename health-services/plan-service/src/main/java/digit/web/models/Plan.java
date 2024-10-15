@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
@@ -73,6 +74,9 @@ public class Plan {
     @JsonProperty("boundaryAncestralPath")
     @NotNull
     private String boundaryAncestralPath = null;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
 
     @JsonProperty("workflow")
     @Valid
