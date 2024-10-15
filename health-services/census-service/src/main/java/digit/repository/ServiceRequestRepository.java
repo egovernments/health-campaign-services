@@ -22,8 +22,6 @@ public class ServiceRequestRepository {
 
     private RestTemplate restTemplate;
 
-
-    @Autowired
     public ServiceRequestRepository(ObjectMapper mapper, RestTemplate restTemplate) {
         this.mapper = mapper;
         this.restTemplate = restTemplate;

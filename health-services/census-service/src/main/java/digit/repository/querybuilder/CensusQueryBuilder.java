@@ -4,6 +4,7 @@ import digit.util.QueryUtil;
 import digit.web.models.CensusSearchCriteria;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -62,25 +63,25 @@ public class CensusQueryBuilder {
     private String buildCensusQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
         StringBuilder builder = new StringBuilder(CENSUS_SEARCH_BASE_QUERY);
 
-        if (criteria.getId() != null) {
+        if (ObjectUtils.isEmpty(criteria.getId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.id = ?");
             preparedStmtList.add(criteria.getId());
         }
 
-        if (criteria.getTenantId() != null) {
+        if (ObjectUtils.isEmpty(criteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.tenant_id = ?");
             preparedStmtList.add(criteria.getTenantId());
         }
 
-        if (criteria.getStatus() != null) {
+        if (ObjectUtils.isEmpty(criteria.getStatus())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.status = ?");
             preparedStmtList.add(criteria.getStatus());
         }
 
-        if (criteria.getAssignee() != null) {
+        if (ObjectUtils.isEmpty(criteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.assignee = ?");
             preparedStmtList.add(criteria.getAssignee());
