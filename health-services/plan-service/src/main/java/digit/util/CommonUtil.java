@@ -149,10 +149,10 @@ public class CommonUtil {
     /**
      * This is a helper method to get the lowest and highest hierarchy for microplan from MDMS
      *
-     * @param mdmsData        the mdms data
+     * @param mdmsData the mdms data
      * @return returns the lowest and highest hierarchy for microplan
      */
-    public Map<String,String> getMicroplanHierarchy(Object mdmsData) {
+    public Map<String, String> getMicroplanHierarchy(Object mdmsData) {
 
         String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
 
