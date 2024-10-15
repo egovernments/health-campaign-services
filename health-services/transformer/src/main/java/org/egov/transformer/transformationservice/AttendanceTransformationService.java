@@ -1,8 +1,6 @@
 package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.kafka.common.protocol.types.Field;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
