@@ -262,7 +262,6 @@ public class ServiceConstants {
     public static final String JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE = "resourceDistributionStrategyCode";
     public static final String JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER = "isRegistrationAndDistributionHappeningTogetherOrSeparately";
     public static final String JSON_FIELD_VEHICLE_ID = "vehicleIds";
-    public static final String JSON_FIELD_BOUNDARY_ANCESTRAL_PATH = "boundaryAncestralPath";
 
     // JSON path constants for campaign details
     public static final String JSONPATH_FILTER_PREFIX = "[?(";

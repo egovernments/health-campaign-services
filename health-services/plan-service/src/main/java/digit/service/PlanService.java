@@ -84,6 +84,9 @@ public class PlanService {
         // Enrich plan update request
         planEnricher.enrichPlanUpdate(body);
 
+        // Call workflow transition API for status update
+        workflowService.invokeWorkflowForStatusUpdate(body);
+
         // Delegate update request to repository
         planRepository.update(body);
 

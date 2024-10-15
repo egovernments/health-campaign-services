@@ -45,9 +45,11 @@ public class Plan {
     private String planConfigurationId = null;
 
     @JsonProperty("status")
+    @Size(max = 64)
     private String status = null;
 
     @JsonProperty("assignee")
+    @Size(max = 64)
     private String assignee = null;
 
     @JsonProperty("additionalDetails")

@@ -58,10 +58,10 @@ public class WorkflowService {
 	}
 
 	/**
-	 * Integrates with the workflow for the given plan configuration request.
+	 * Integrates with the workflow for the given plan request.
 	 * If the action is null, it does not proceed with integration.
 	 *
-	 * @param planRequest The request containing the plan configuration to integrate with the workflow.
+	 * @param planRequest The request containing the plan estimate to integrate with the workflow.
 	 */
 	public void invokeWorkflowForStatusUpdate(PlanRequest planRequest) {
 		if (ObjectUtils.isEmpty(planRequest.getPlan().getWorkflow()))
@@ -168,11 +168,6 @@ public class WorkflowService {
 	 */
 	private StringBuilder getWorkflowTransitionUri() {
 		return new StringBuilder().append(config.getWfHost()).append(config.getWfTransitionPath());
-	}
-
-	private void autoAssignAssignee(Workflow workflow, PlanRequest planRequest) {
-		String[] heirarchysBoundaryCodes = planRequest.getPlan().getBoundaryAncestralPath().split("//|");
-
 	}
 
 }
