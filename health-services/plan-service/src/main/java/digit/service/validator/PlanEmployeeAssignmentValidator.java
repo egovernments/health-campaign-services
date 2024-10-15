@@ -1,6 +1,5 @@
 package digit.service.validator;
 
-import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
 import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.util.*;
@@ -128,7 +127,7 @@ public class PlanEmployeeAssignmentValidator {
      * @param campaignDetail         the campaign details for the corresponding campaign id
      */
     private void validateRootEmployeeJurisdiction(PlanEmployeeAssignment planEmployeeAssignment, Object mdmsData, CampaignDetail campaignDetail) {
-        if (planEmployeeAssignment.getRole().contains(ROOT_ROLE)) {
+        if (planEmployeeAssignment.getRole().contains(ROOT_PREFIX)) {
             List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Validate that National role employee should not have more than one jurisdiction assigned
@@ -213,7 +212,7 @@ public class PlanEmployeeAssignmentValidator {
      * @param campaignDetail         the campaign details for the corresponding campaign id
      */
     private void validateEmployeeJurisdiction(PlanEmployeeAssignment planEmployeeAssignment, Object mdmsData, CampaignDetail campaignDetail) {
-        if (!planEmployeeAssignment.getRole().contains(ROOT_ROLE)) {
+        if (!planEmployeeAssignment.getRole().contains(ROOT_PREFIX)) {
             List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Fetch the highest and lowest hierarchy for Microplan from MDMS
