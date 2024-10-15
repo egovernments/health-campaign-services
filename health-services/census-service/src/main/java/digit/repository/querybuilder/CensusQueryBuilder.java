@@ -76,25 +76,25 @@ public class CensusQueryBuilder {
     private String buildCensusQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount, Boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(CENSUS_SEARCH_BASE_QUERY);
 
-        if (ObjectUtils.isEmpty(criteria.getId())) {
+        if (!ObjectUtils.isEmpty(criteria.getId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.id = ?");
             preparedStmtList.add(criteria.getId());
         }
 
-        if (ObjectUtils.isEmpty(criteria.getTenantId())) {
+        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.tenant_id = ?");
             preparedStmtList.add(criteria.getTenantId());
         }
 
-        if (ObjectUtils.isEmpty(criteria.getStatus())) {
+        if (!ObjectUtils.isEmpty(criteria.getStatus())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.status = ?");
             preparedStmtList.add(criteria.getStatus());
         }
 
-        if (ObjectUtils.isEmpty(criteria.getAssignee())) {
+        if (!ObjectUtils.isEmpty(criteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.assignee = ?");
             preparedStmtList.add(criteria.getAssignee());
