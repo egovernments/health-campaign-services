@@ -122,7 +122,7 @@ public class CommonUtils {
     public String getLocalityCodeFromAdditionalDetails(JsonNode additionalDetails) {
         String localityCode = null;
         if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())) {
-            localityCode = additionalDetails.get(LOCALITY_CODE_KEY).asText();
+            localityCode = additionalDetails.get(BOUNDARY_CODE_KEY).asText();
         } else if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
             localityCode = additionalDetails.asText();
         }
