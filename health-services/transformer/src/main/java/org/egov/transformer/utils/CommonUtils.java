@@ -3,6 +3,7 @@ package org.egov.transformer.utils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -104,6 +105,28 @@ public class CommonUtils {
             log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
             return null;
         }
+    }
+
+    public List<Double> getGeoPointFromAdditionalDetails(JsonNode additionalDetails) {
+        List<Double> geoPoint = null;
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
+                && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
+            geoPoint = Arrays.asList(
+                    additionalDetails.get(LNG).asDouble(),
+                    additionalDetails.get(LAT).asDouble()
+            );
+        }
+        return geoPoint;
+    }
+
+    public String getLocalityCodeFromAdditionalDetails(JsonNode additionalDetails) {
+        String localityCode = null;
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())) {
+            localityCode = additionalDetails.get(LOCALITY_CODE_KEY).asText();
+        } else if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
+            localityCode = additionalDetails.asText();
+        }
+        return localityCode;
     }
 
     public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
