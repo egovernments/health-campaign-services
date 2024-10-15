@@ -12,6 +12,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_USER_SERVICE = "Exception occurred while fetching user details from user service: ";
+
     public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
 
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
@@ -20,7 +22,7 @@ public class ServiceConstants {
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
 
-    public static final String NATIONAL_ROLE = "NATIONAL";
+    public static final String ROOT_PREFIX = "ROOT";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
@@ -91,8 +93,8 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_MESSAGE = "Plan employee assignment to be updated doesn't exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";
@@ -240,6 +242,8 @@ public class ServiceConstants {
     public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
 
     public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
+
+    public static final String LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN = "lowestHierarchy";
 
     public static final String NAME_VALIDATION_DATA = "Data";
 
