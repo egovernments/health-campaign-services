@@ -85,7 +85,7 @@ public class PlanValidator {
         validateMetricDetailUnit(request, mdmsData);
 
         // Validate if campaign id exists against project factory
-//        validateCampaignId(campaignResponse);
+        validateCampaignId(campaignResponse);
 
         // Validate the user information in the request
         commonUtil.validateUserInfo(request.getRequestInfo());
