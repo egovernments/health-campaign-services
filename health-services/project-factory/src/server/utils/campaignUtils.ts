@@ -272,7 +272,7 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
     enrichActiveColumn(worksheet, createAndSearchConfig, request);
 
-    request.body.additionalDetailsErrors = additionalDetailsErrors;
+    request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors) : additionalDetailsErrors;
 
     // Determine the last column to set the worksheet ref
     const lastColumn = deterMineLastColumnAndEnrichUserDetails(worksheet, errorDetailsColumn, userNameAndPassword, request, createAndSearchConfig);
@@ -346,7 +346,7 @@ function processErrorDataForEachSheets(request: any, createAndSearchConfig: any,
         }
     }
     deterMineLastColumnAndEnrichUserDetails(desiredSheet, errorDetailsColumn, newUserNameAndPassword, request, createAndSearchConfig);
-    request.body.additionalDetailsErrors = additionalDetailsErrors;
+    request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors) : additionalDetailsErrors;
     updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
 }
