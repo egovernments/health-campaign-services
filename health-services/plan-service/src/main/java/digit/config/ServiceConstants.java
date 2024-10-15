@@ -243,6 +243,8 @@ public class ServiceConstants {
 
     public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 
+    public static final String LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN = "lowestHierarchy";
+
     public static final String NAME_VALIDATION_DATA = "Data";
 
     // Constants for constructing logical expressions or queries

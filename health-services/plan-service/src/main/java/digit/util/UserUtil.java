@@ -33,6 +33,7 @@ public class UserUtil {
     public UserDetailResponse fetchUserDetail(UserSearchRequest userSearchReq) {
 
         UserDetailResponse userDetailResponse = new UserDetailResponse();
+
         try {
             userDetailResponse = restTemplate.postForObject(getUserServiceUri().toString(), userSearchReq, UserDetailResponse.class);
         } catch (Exception e) {
@@ -43,11 +44,30 @@ public class UserUtil {
     }
 
     /**
-     * This method create the uri for User service
+     * This method creates the uri for User service
      *
      * @return uri for user detail search
      */
     private StringBuilder getUserServiceUri() {
         return new StringBuilder().append(config.getUserServiceHost()).append(config.getUserSearchEndPoint());
+    }
+
+    /**
+     * This method creates the search request body for user detail search
+     *
+     * @param requestInfo Request Info from the request body
+     * @param employeeId  Employee id for the provided plan employee assignment request
+     * @param tenantId    Tenant id from the plan employee assignment request
+     * @return Search request body for user detail search
+     */
+    public UserSearchRequest getUserSearchReq(RequestInfo requestInfo, String employeeId, String tenantId) {
+
+        UserSearchRequest userSearchRequest = new UserSearchRequest();
+
+        userSearchRequest.setRequestInfo(requestInfo);
+        userSearchRequest.setTenantId(tenantId);
+        userSearchRequest.setUuid(Collections.singletonList(employeeId));
+
+        return userSearchRequest;
     }
 }

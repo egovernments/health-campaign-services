@@ -10,10 +10,8 @@ import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.Role;
 import org.egov.common.contract.user.UserDetailResponse;
-import org.egov.common.contract.user.UserSearchRequest;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -61,16 +59,13 @@ public class PlanEmployeeAssignmentValidator {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
-        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(getUserSearchReq(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId()));
+        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(userUtil.getUserSearchReq(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId()));
 
         // Validate if a same assignment already exists
-        validateEmployeeAssignmentExistence(request);
+        validateDuplicateRecord(request);
 
         // Validate if plan config id exists
         validatePlanConfigId(planConfigurations);
-
-        // Validate if employee exists against User Service
-        validateEmployeeAgainstUserService(userDetailResponse);
 
         // Validate role of employee against User Service
         validateRoleAgainstUserService(planEmployeeAssignment, userDetailResponse);
@@ -90,6 +85,12 @@ public class PlanEmployeeAssignmentValidator {
      * @param userDetailResponse     The user detail response from user service for the provided employeeId
      */
     private void validateRoleAgainstUserService(PlanEmployeeAssignment planEmployeeAssignment, UserDetailResponse userDetailResponse) {
+
+        // Validate if employee exists against User Service
+        if (CollectionUtils.isEmpty(userDetailResponse.getUser())) {
+            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
+        }
+
         List<String> userRolesFromUserService = userDetailResponse.getUser().get(0).getRoles().stream()
                 .map(Role::getCode)
                 .toList();
@@ -100,22 +101,11 @@ public class PlanEmployeeAssignmentValidator {
     }
 
     /**
-     * This method validates if the employee provided in plan employee assignment request exist in User Service
-     *
-     * @param userDetailResponse The user detail response from User Service for provided employeeId
-     */
-    private void validateEmployeeAgainstUserService(UserDetailResponse userDetailResponse) {
-        if (CollectionUtils.isEmpty(userDetailResponse.getUser())) {
-            throw new CustomException(INVALID_EMPLOYEE_ID_CODE, INVALID_EMPLOYEE_ID_MESSAGE);
-        }
-    }
-
-    /**
      * Validates if the plan employee assignment for the provided details already exists
      *
      * @param request the employee assignment create request
      */
-    private void validateEmployeeAssignmentExistence(PlanEmployeeAssignmentRequest request) {
+    private void validateDuplicateRecord(PlanEmployeeAssignmentRequest request) {
         PlanEmployeeAssignment employeeAssignment = request.getPlanEmployeeAssignment();
 
         List<PlanEmployeeAssignment> planEmployeeAssignmentsFromSearch = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
@@ -147,26 +137,17 @@ public class PlanEmployeeAssignmentValidator {
             }
 
             // Fetch the highest hierarchy for Microplan from MDMS
-            String jsonPathForHighestHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN + DOT_SEPARATOR + HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN;
-
-            List<String> highestHirarchyForPlan = null;
-            try {
-                log.info(jsonPathForHighestHierarchy);
-                highestHirarchyForPlan = JsonPath.read(mdmsData, jsonPathForHighestHierarchy);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-            }
+            String highestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.FALSE);
 
             // Filter out the boundary details for the jurisdiction assigned to employee
-            Boundary jurisdictionBoundary = campaignDetail.getBoundaries().stream()
-                    .filter(boundary -> boundary.getCode().equals(planEmployeeAssignment.getJurisdiction().get(0)))
-                    .findFirst().get();
-
-            // Throw exception if jurisdiction assigned to National role employee is not the highest hierarchy
-            if (!jurisdictionBoundary.getType().equals(highestHirarchyForPlan.get(0))) {
-                throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
-            }
+            // Throw exception if jurisdiction assigned to Root role employee is not the highest hierarchy
+            campaignDetail.getBoundaries().stream()
+                    .filter(boundary -> boundary.getCode().equals(jurisdiction.get(0)))
+                    .forEach(boundary -> {
+                        if (!boundary.getType().equals(highestHierarchy)) {
+                            throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+                        }
+                    });
         }
     }
 
@@ -225,6 +206,34 @@ public class PlanEmployeeAssignmentValidator {
     }
 
     /**
+     * This is a helper method to get the lowest or highest hierarchy for microplan from MDMS
+     *
+     * @param mdmsData        the mdms data
+     * @param lowestHierarchy if true, returns the lowest hierarchy for microplan
+     * @return returns the lowest or highest hierarchy for microplan
+     */
+    private String getMicroplanHierarchy(Object mdmsData, boolean lowestHierarchy) {
+
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+
+        List<Map<String, String>> hierarchyForMicroplan;
+
+        try {
+            log.info(jsonPathForMicroplanHierarchy);
+            hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        if (lowestHierarchy) {
+            return hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
+        }
+
+        return hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN);
+    }
+
+    /**
      * Validates that a non-Root role employee is not assigned to the highest or lowest hierarchy against MDMS
      *
      * @param planEmployeeAssignment The plan employee assignment provided in request
@@ -236,19 +245,8 @@ public class PlanEmployeeAssignmentValidator {
             List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Fetch the highest and lowest hierarchy for Microplan from MDMS
-            String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
-
-            List<Map<String, String>> hierarchyForMicroplan = null;
-            try {
-                log.info(jsonPathForMicroplanHierarchy);
-                hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-            }
-
-            String lowestHierarchy = hierarchyForMicroplan.get(0).get("lowestHierarchy");
-            String highestHierarchy = hierarchyForMicroplan.get(0).get("highestHierarchy");
+            String lowestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.TRUE);
+            String highestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.FALSE);
 
             // Filter out the boundary details for the jurisdiction assigned to employee
             // Simultaneously validating if employee is assigned to lowest or highest hierarchy
@@ -276,7 +274,7 @@ public class PlanEmployeeAssignmentValidator {
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
 
-        planEmployeeAssignment.getJurisdiction().stream()
+        planEmployeeAssignment.getJurisdiction()
                 .forEach(jurisdiction -> {
                     if (!boundaryCode.contains(jurisdiction)) {
                         throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
@@ -338,7 +336,7 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
 
         // Validate if Plan employee assignment exists
-        validatePlanEmployeeAssignment(planEmployeeAssignment);
+        validatePlanEmployeeAssignmentExistance(planEmployeeAssignment);
 
         // Validate campaign id and employee jurisdiction
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
@@ -350,7 +348,7 @@ public class PlanEmployeeAssignmentValidator {
      *
      * @param planEmployeeAssignment The plan employee assignment details from the request
      */
-    private void validatePlanEmployeeAssignment(PlanEmployeeAssignment planEmployeeAssignment) {
+    private void validatePlanEmployeeAssignmentExistance(PlanEmployeeAssignment planEmployeeAssignment) {
         if (ObjectUtils.isEmpty(planEmployeeAssignment.getId())) {
             throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE, PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE);
         }
@@ -369,22 +367,4 @@ public class PlanEmployeeAssignmentValidator {
         }
     }
 
-    /**
-     * This method creates the search request body for user detail search
-     *
-     * @param requestInfo Request Info from the request body
-     * @param employeeId  Employee id for the provided plan employee assignment request
-     * @param tenantId    Tenant id from the plan employee assignment request
-     * @return Search request body for user detail search
-     */
-    private UserSearchRequest getUserSearchReq(RequestInfo requestInfo, String employeeId, String tenantId) {
-
-        UserSearchRequest userSearchRequest = new UserSearchRequest();
-
-        userSearchRequest.setRequestInfo(requestInfo);
-        userSearchRequest.setTenantId(tenantId);
-        userSearchRequest.setUuid(Collections.singletonList(employeeId));
-
-        return userSearchRequest;
-    }
 }
