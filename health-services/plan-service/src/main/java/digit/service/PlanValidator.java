@@ -487,6 +487,8 @@ public class PlanValidator {
         if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
             throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
 
+        //enrich jurisdiction of current assignee
+        planRequest.getPlan().setAssigneeJurisdiction(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
     }
 
 }
