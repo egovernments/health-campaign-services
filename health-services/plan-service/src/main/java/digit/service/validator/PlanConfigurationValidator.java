@@ -61,6 +61,9 @@ public class PlanConfigurationValidator {
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
+        // Validate if the plan configuration for the provided name and campaign id already exists
+        validateDuplicateRecord(planConfiguration);
+
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
 
@@ -96,6 +99,23 @@ public class PlanConfigurationValidator {
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
+    }
+
+    /**
+     * Validates if plan configuration for the provided name and campaign id already exists
+     *
+     * @param planConfiguration the plan configuration from the create request
+     */
+    private void validateDuplicateRecord(PlanConfiguration planConfiguration) {
+        List<PlanConfiguration> planConfigurationsFromSearch = planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
+                .tenantId(planConfiguration.getTenantId())
+                .campaignId(planConfiguration.getCampaignId())
+                .name(planConfiguration.getName())
+                .build());
+
+        if (!CollectionUtils.isEmpty(planConfigurationsFromSearch)) {
+            throw new CustomException(PLAN_CONFIGURATION_ALREADY_EXISTS_CODE, PLAN_CONFIGURATION_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     /**
