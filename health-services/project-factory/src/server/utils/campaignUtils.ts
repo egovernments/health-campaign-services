@@ -576,7 +576,7 @@ function getRootBoundaryCode(boundaries: any[] = []) {
 
 function enrichRootProjectId(requestBody: any) {
     var rootBoundary;
-    for (const boundary of requestBody?.CampaignDetails?.boundaries) {
+    for (const boundary of requestBody?.boundariesCombined) {
         if (boundary?.isRoot) {
             rootBoundary = boundary?.code
             break;
