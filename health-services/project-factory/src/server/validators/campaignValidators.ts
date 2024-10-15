@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validatePhoneNumberSheetWise, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 
 
 
@@ -84,24 +84,7 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-
-async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
-    let columnsToValidate: any;
-    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
-
-        const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
-        columnsToValidate = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
-
-    }
-    else {
-        const mdmsResponse = await getMdmsDataBasedOnCampaignType(request);
-        const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
-        const requiredColumns = mdmsResponse?.required;
-        columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
-    }
-    const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, config: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
@@ -142,6 +125,33 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
                 });
             }
         }
+    }
+}
+
+
+async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
+    let columnsToValidate: any;
+    const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+    const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
+
+        const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
+        columnsToValidate = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
+
+    }
+    else {
+        const mdmsResponse = await getMdmsDataBasedOnCampaignType(request);
+        const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
+        const requiredColumns = mdmsResponse?.required;
+        columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
+    }
+    const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+    if (request?.body?.ResourceDetails?.additionalDetails?.source === "microplan") {
+        validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
+    }
+    else {
+        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
     }
 }
 
@@ -282,11 +292,12 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
         if (request?.body?.ResourceDetails?.type == "user") {
             validatePhoneNumber(data, localizationMap);
         }
-        if (data?.length > 0) {
+        if (data?.length > 0 && request?.body?.ResourceDetails?.additionalDetails?.source != "microplan") {
             validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
             validateUnique(newSchema, data, request, localizationMap);
             enrichRowMappingViaValidation(validationErrors, request?.body?.rowMapping, localizationMap);
-        } else {
+        }
+        if (data?.length == 0) {
             throwError("FILE", 400, "INVALID_FILE_ERROR", "Data rows cannot be empty");
         }
     } else {
@@ -506,7 +517,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const type = request?.body?.ResourceDetails?.type;
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
-        if(type !== "boundaryManagement" && request?.body?.ResourceDetails.campaignId !== "default"){
+        if (type !== "boundaryManagement" && request?.body?.ResourceDetails.campaignId !== "default") {
             await validateCampaignId(request);
         }
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
@@ -678,8 +689,13 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     // Fetch file response
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
-
-    const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
+    var boundaryColumn: any;
+    if (resource?.additionalDetails?.source == 'microplan') {
+        boundaryColumn = getLocalizedName(createAndSearch?.[`${resource.type}Microplan`]?.boundaryValidation?.column, localizationMap);
+    }
+    else {
+        boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
+    }
     // Initialize resource boundary codes as a set for uniqueness
     const resourceBoundaryCodesArray: any[] = [];
     var activeColumnName: any = null;
