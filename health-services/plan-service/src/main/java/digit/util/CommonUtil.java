@@ -2,6 +2,7 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static digit.config.ServiceConstants.*;
@@ -142,4 +144,28 @@ public class CommonUtil {
 
         return planConfigurations;
     }
+
+    /**
+     * This is a helper method to get the lowest and highest hierarchy for microplan from MDMS
+     *
+     * @param mdmsData        the mdms data
+     * @return returns the lowest and highest hierarchy for microplan
+     */
+    public Map<String,String> getMicroplanHierarchy(Object mdmsData) {
+
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+
+        List<Map<String, String>> hierarchyForMicroplan;
+
+        try {
+            log.info(jsonPathForMicroplanHierarchy);
+            hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        return hierarchyForMicroplan.get(0);
+    }
+
 }

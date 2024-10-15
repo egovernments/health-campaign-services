@@ -137,7 +137,7 @@ public class PlanEmployeeAssignmentValidator {
             }
 
             // Fetch the highest hierarchy for Microplan from MDMS
-            String highestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.FALSE);
+            String highestHierarchy = commonUtil.getMicroplanHierarchy(mdmsData).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN);
 
             // Filter out the boundary details for the jurisdiction assigned to employee
             // Throw exception if jurisdiction assigned to Root role employee is not the highest hierarchy
@@ -206,34 +206,6 @@ public class PlanEmployeeAssignmentValidator {
     }
 
     /**
-     * This is a helper method to get the lowest or highest hierarchy for microplan from MDMS
-     *
-     * @param mdmsData        the mdms data
-     * @param lowestHierarchy if true, returns the lowest hierarchy for microplan
-     * @return returns the lowest or highest hierarchy for microplan
-     */
-    private String getMicroplanHierarchy(Object mdmsData, boolean lowestHierarchy) {
-
-        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
-
-        List<Map<String, String>> hierarchyForMicroplan;
-
-        try {
-            log.info(jsonPathForMicroplanHierarchy);
-            hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-        }
-
-        if (lowestHierarchy) {
-            return hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
-        }
-
-        return hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN);
-    }
-
-    /**
      * Validates that a non-Root role employee is not assigned to the highest or lowest hierarchy against MDMS
      *
      * @param planEmployeeAssignment The plan employee assignment provided in request
@@ -245,8 +217,9 @@ public class PlanEmployeeAssignmentValidator {
             List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Fetch the highest and lowest hierarchy for Microplan from MDMS
-            String lowestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.TRUE);
-            String highestHierarchy = getMicroplanHierarchy(mdmsData, Boolean.FALSE);
+            Map<String, String> hierarchyMap = commonUtil.getMicroplanHierarchy(mdmsData);
+            String lowestHierarchy = hierarchyMap.get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
+            String highestHierarchy = hierarchyMap.get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN);
 
             // Filter out the boundary details for the jurisdiction assigned to employee
             // Simultaneously validating if employee is assigned to lowest or highest hierarchy
