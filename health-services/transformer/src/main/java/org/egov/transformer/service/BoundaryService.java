@@ -1,13 +1,17 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.RequestInfoWrapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.boundary.*;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.util.CollectionUtils;
@@ -28,12 +32,14 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private final CommonUtils commonUtils;
 
-    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService) {
+    public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
+        this.commonUtils = commonUtils;
     }
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
@@ -199,6 +205,24 @@ public class BoundaryService {
                 .boundaryHierarchy(localizedBoundaryHierarchy)
                 .boundaryHierarchyCode(nonLocalizedBoundaryHierarchyCode)
                 .build();
+    }
+
+    public BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
+        BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
+        if (ObjectUtils.isNotEmpty(additionalDetails)) {
+            String boundaryCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
+            if (StringUtils.isNotEmpty(boundaryCode)) {
+                boundaryHierarchyResult =  getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
+            }
+        }
+        else {
+            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
+            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+                String projectId = projectIdProjectTypeId.split(":")[0];
+                boundaryHierarchyResult = getBoundaryHierarchyWithProjectId(projectId, tenantId);
+            }
+        }
+        return boundaryHierarchyResult;
     }
 
 

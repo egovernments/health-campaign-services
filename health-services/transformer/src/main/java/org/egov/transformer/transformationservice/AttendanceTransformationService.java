@@ -92,7 +92,7 @@ public class AttendanceTransformationService {
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
 
-        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyResult(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyByCodeOrProjectId(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
@@ -120,27 +120,6 @@ public class AttendanceTransformationService {
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
                 .build();
         return attendanceRegisterIndexV1;
-    }
-
-    private BoundaryHierarchyResult getBoundaryHierarchyResult(Object additionalDetails, String createdBy, String tenantId) {
-        BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        if (ObjectUtils.isNotEmpty(additionalDetails) && additionalDetails instanceof JsonNode) {
-            JsonNode detailsNode = (JsonNode) additionalDetails;
-            // Check if 'boundaryCode' exists and is a non-null field
-            if (detailsNode.has(BOUNDARY_CODE) && !detailsNode.get(BOUNDARY_CODE).isNull()) {
-                String boundaryCode = detailsNode.get(BOUNDARY_CODE).asText();
-
-                boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
-            }
-        }
-        else {
-            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
-            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-                String projectId = projectIdProjectTypeId.split(":")[0];
-                boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
-            }
-        }
-        return boundaryHierarchyResult;
     }
 
 }
