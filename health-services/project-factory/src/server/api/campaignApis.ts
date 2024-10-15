@@ -815,7 +815,7 @@ async function processGenericRequest(request: any, localizationMap?: { [key: str
   if (request?.body?.ResourceDetails?.type != "boundary" && request?.body?.ResourceDetails?.type != "boundaryManagement") {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    if (campaignObject?.additionalDetails?.resorceDistributionStrategy == "HOUSE_TO_HOUSE") {
+    if (campaignObject?.additionalDetails?.resourceDistributionStrategy == "HOUSE_TO_HOUSE") {
       request.body.showFixedPost = false;
     }
     else {
