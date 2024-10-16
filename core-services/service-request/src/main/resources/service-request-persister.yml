@@ -150,7 +150,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.id
 
-        - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET datatype=EXCLUDED.datatype, "values"=EXCLUDED."values", required=EXCLUDED.required, "order"=EXCLUDED."order";
+        - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET datatype=EXCLUDED.datatype, "values"=to_jsonb(EXCLUDED."values")::TEXT, required=EXCLUDED.required, "order"=EXCLUDED."order";
           basePath: $.ServiceDefinition.attributes.*
           jsonMaps:
             - jsonPath: $.ServiceDefinition.attributes.*.id
