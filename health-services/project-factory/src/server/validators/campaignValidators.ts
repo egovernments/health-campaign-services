@@ -474,7 +474,7 @@ function validateStorageCapacity(obj: any, index: any) {
 
 
 async function validateCampaignId(request: any) {
-    const { campaignId, tenantId, type } = request?.body?.ResourceDetails;
+    const { campaignId, tenantId, type, additionalDetails } = request?.body?.ResourceDetails;
     if (type == "boundary") {
         return;
     }
@@ -503,7 +503,9 @@ async function validateCampaignId(request: any) {
             }
         }
         else {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while validating campaignId");
+            if(!(additionalDetails?.source == "microplan" && type == "user")) {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while validating campaignId");
+            }
         }
     }
 }
