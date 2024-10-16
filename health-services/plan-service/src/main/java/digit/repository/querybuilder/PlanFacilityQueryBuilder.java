@@ -13,10 +13,13 @@ import java.util.Set;
 @Component
 public class PlanFacilityQueryBuilder {
 
-    private Configuration configuration;
+    private Configuration config;
 
-    public PlanFacilityQueryBuilder(Configuration configuration) {
-        this.configuration = configuration;
+    private QueryUtil queryUtil;
+
+    public PlanFacilityQueryBuilder(Configuration config, QueryUtil queryUtil) {
+        this.config = config;
+        this.queryUtil = queryUtil;
     }
 
     private static final String PLAN_FACILITY_QUERY =
@@ -38,7 +41,7 @@ public class PlanFacilityQueryBuilder {
 
     public String getPlanFacilitySearchQuery(PlanFacilitySearchCriteria planFacilitySearchCriteria, List<Object> preparedStmtList) {
         String query = buildPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
-        query = QueryUtil.addOrderByClause(query, PLAN_FACILITY_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        query = queryUtil.addOrderByClause(query, PLAN_FACILITY_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planFacilitySearchCriteria, preparedStmtList);
         return query;
     }
@@ -48,28 +51,28 @@ public class PlanFacilityQueryBuilder {
 
         if (!CollectionUtils.isEmpty(planFacilitySearchCriteria.getIds())) {
             Set<String> ids = planFacilitySearchCriteria.getIds();
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getTenantId())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ? ");
             preparedStmtList.add(planFacilitySearchCriteria.getTenantId());
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getPlanConfigurationId())) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ? ");
             preparedStmtList.add(planFacilitySearchCriteria.getPlanConfigurationId());
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getResidingBoundaries())) {
             List<String> residingBoundaries = planFacilitySearchCriteria.getResidingBoundaries();
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" residing_boundary IN ( ").append(QueryUtil.createQuery(residingBoundaries.size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" residing_boundary IN ( ").append(queryUtil.createQuery(residingBoundaries.size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));
         }
 
         return builder.toString();
@@ -80,11 +83,11 @@ public class PlanFacilityQueryBuilder {
 
         // Append offset
         paginatedQuery.append(" OFFSET ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getOffset()) ? configuration.getDefaultOffset() : planFacilitySearchCriteria.getOffset());
+        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getOffset()) ? config.getDefaultOffset() : planFacilitySearchCriteria.getOffset());
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getLimit()) ? configuration.getDefaultLimit() : planFacilitySearchCriteria.getLimit());
+        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getLimit()) ? config.getDefaultLimit() : planFacilitySearchCriteria.getLimit());
 
         return paginatedQuery.toString();
     }

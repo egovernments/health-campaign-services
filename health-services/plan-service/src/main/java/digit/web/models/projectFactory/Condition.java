@@ -24,3 +24,4 @@ public class Condition {
     @JsonProperty("attribute")
     private String attribute;
 }
+

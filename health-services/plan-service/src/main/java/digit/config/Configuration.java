@@ -1,16 +1,12 @@
 package digit.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 import org.egov.tracer.config.TracerConfiguration;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 
-import java.util.TimeZone;
+import java.util.Map;
 
 @Component
 @Data
@@ -20,6 +16,10 @@ import java.util.TimeZone;
 @Setter
 @Getter
 public class Configuration {
+
+    //Role Map
+    @Value("#{${role.map}}")
+    public Map<String, String> roleMap;
 
     //MDMS
     @Value("${egov.mdms.host}")
@@ -31,12 +31,32 @@ public class Configuration {
     @Value("${egov.mdms.search.v2.endpoint}")
     private String mdmsV2EndPoint;
 
+    //Project Factory
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchEndPoint;
+
+    //User Service
+    @Value("${egov.user.service.host}")
+    private String userServiceHost;
+
+    @Value("${egov.user.search.endpoint}")
+    private String userSearchEndPoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;
 
     @Value("${plan.configuration.update.topic}")
     private String planConfigUpdateTopic;
+
+    @Value("${plan.employee.assignment.create.topic}")
+    private String planEmployeeAssignmentCreateTopic;
+
+    @Value("${plan.employee.assignment.update.topic}")
+    private String planEmployeeAssignmentUpdateTopic;
 
     @Value("${plan.create.topic}")
     private String planCreateTopic;
@@ -63,11 +83,11 @@ public class Configuration {
     @Value("${egov.facility.search.endpoint}")
     private String facilitySearchEndPoint;
 
-    //Project Factory
-    @Value("${egov.project.factory.host}")
-    private String projectFactoryHost;
+    //Workflow
+    @Value("${egov.workflow.host}")
+    private String wfHost;
 
-    @Value("${egov.project.factory.search.endpoint}")
-    private String projectFactorySearchEndPoint;
+    @Value("${egov.workflow.transition.path}")
+    private String wfTransitionPath;
 
 }

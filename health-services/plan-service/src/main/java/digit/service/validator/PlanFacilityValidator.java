@@ -166,7 +166,7 @@ public class PlanFacilityValidator {
         String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
 
         // Define the JSON path to fetch hierarchy configurations from MDMS data
-        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_HCM_ADMIN_CONSOLE + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
+        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
 
         List<Map<String, Object>> hierarchyConfigList = null;
         try {
@@ -179,7 +179,7 @@ public class PlanFacilityValidator {
         for (Map<String, Object> hierarchyConfig : hierarchyConfigList) {
             if (hierarchyType.equals(hierarchyConfig.get(MDMS_MASTER_HIERARCHY))) {
                 // Return the lowest hierarchy value from the configuration
-                return (String) hierarchyConfig.get(MDMS_MASTER_LOWEST_HIERARCHY);
+                return (String) hierarchyConfig.get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
             }
         }
         // Throw exception if no matching hierarchy is found

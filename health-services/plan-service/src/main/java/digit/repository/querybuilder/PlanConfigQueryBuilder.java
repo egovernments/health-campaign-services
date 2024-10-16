@@ -4,27 +4,33 @@ import digit.config.Configuration;
 
 import digit.util.QueryUtil;
 import digit.web.models.PlanConfigurationSearchCriteria;
+
 import java.util.LinkedHashSet;
 import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
 
 @Component
 public class PlanConfigQueryBuilder {
 
     private Configuration config;
 
-    public PlanConfigQueryBuilder(Configuration config) {
+    private QueryUtil queryUtil;
+
+    public PlanConfigQueryBuilder(Configuration config, QueryUtil queryUtil) {
         this.config = config;
+        this.queryUtil = queryUtil;
     }
 
     private static final String PLAN_CONFIG_SEARCH_BASE_QUERY = "SELECT id FROM plan_configuration pc ";
 
-    private static final String PLAN_CONFIG_QUERY = "SELECT pc.id as plan_configuration_id, pc.tenant_id as plan_configuration_tenant_id, pc.name as plan_configuration_name, pc.campaign_id as plan_configuration_campaign_id, pc.status as plan_configuration_status, pc.created_by as plan_configuration_created_by, pc.created_time as plan_configuration_created_time, pc.last_modified_by as plan_configuration_last_modified_by, pc.last_modified_time as plan_configuration_last_modified_time, \n" +
+    private static final String PLAN_CONFIG_QUERY = "SELECT pc.id as plan_configuration_id, pc.tenant_id as plan_configuration_tenant_id, pc.name as plan_configuration_name, pc.campaign_id as plan_configuration_campaign_id, pc.status as plan_configuration_status, pc.additional_details as plan_configuration_additional_details, pc.created_by as plan_configuration_created_by, pc.created_time as plan_configuration_created_time, pc.last_modified_by as plan_configuration_last_modified_by, pc.last_modified_time as plan_configuration_last_modified_time, \n" +
             "\t   pcf.id as plan_configuration_files_id, pcf.plan_configuration_id as plan_configuration_files_plan_configuration_id, pcf.filestore_id as plan_configuration_files_filestore_id, pcf.input_file_type as plan_configuration_files_input_file_type, pcf.template_identifier as plan_configuration_files_template_identifier, pcf.active as plan_configuration_files_active, pcf.created_by as plan_configuration_files_created_by, pcf.created_time as plan_configuration_files_created_time, pcf.last_modified_by as plan_configuration_files_last_modified_by, pcf.last_modified_time as plan_configuration_files_last_modified_time,\n" +
-            "\t   pca.id as plan_configuration_assumptions_id, pca.key as plan_configuration_assumptions_key, pca.value as plan_configuration_assumptions_value, pca.active as plan_configuration_assumptions_active, pca.plan_configuration_id as plan_configuration_assumptions_plan_configuration_id, pca.created_by as plan_configuration_assumptions_created_by, pca.created_time as plan_configuration_assumptions_created_time, pca.last_modified_by as plan_configuration_assumptions_last_modified_by, pca.last_modified_time as plan_configuration_assumptions_last_modified_time,\n" +
-            "\t   pco.id as plan_configuration_operations_id, pco.input as plan_configuration_operations_input, pco.operator as plan_configuration_operations_operator, pco.assumption_value as plan_configuration_operations_assumption_value, pco.output as plan_configuration_operations_output, pco.active as plan_configuration_operations_active, pco.show_on_estimation_dashboard as plan_configuration_operations_show_on_estimation_dashboard,pco.plan_configuration_id as plan_configuration_operations_plan_configuration_id, pco.created_by as plan_configuration_operations_created_by, pco.created_time as plan_configuration_operations_created_time, pco.last_modified_by as plan_configuration_operations_last_modified_by, pco.last_modified_time as plan_configuration_operations_last_modified_time,\n" +
+            "\t   pca.id as plan_configuration_assumptions_id, pca.key as plan_configuration_assumptions_key, pca.value as plan_configuration_assumptions_value, pca.source as plan_configuration_assumptions_source, pca.category as plan_configuration_assumptions_category, pca.active as plan_configuration_assumptions_active, pca.plan_configuration_id as plan_configuration_assumptions_plan_configuration_id, pca.created_by as plan_configuration_assumptions_created_by, pca.created_time as plan_configuration_assumptions_created_time, pca.last_modified_by as plan_configuration_assumptions_last_modified_by, pca.last_modified_time as plan_configuration_assumptions_last_modified_time,\n" +
+            "\t   pco.id as plan_configuration_operations_id, pco.input as plan_configuration_operations_input, pco.operator as plan_configuration_operations_operator, pco.assumption_value as plan_configuration_operations_assumption_value, pco.output as plan_configuration_operations_output, pco.source as plan_configuration_operations_source, pco.category as plan_configuration_operations_category, pco.active as plan_configuration_operations_active, pco.show_on_estimation_dashboard as plan_configuration_operations_show_on_estimation_dashboard,pco.plan_configuration_id as plan_configuration_operations_plan_configuration_id, pco.created_by as plan_configuration_operations_created_by, pco.created_time as plan_configuration_operations_created_time, pco.last_modified_by as plan_configuration_operations_last_modified_by, pco.last_modified_time as plan_configuration_operations_last_modified_time,\n" +
             "\t   pcm.id as plan_configuration_mapping_id, pcm.filestore_id as plan_configuration_mapping_filestore_id,  pcm.mapped_from as plan_configuration_mapping_mapped_from, pcm.mapped_to as plan_configuration_mapping_mapped_to, pcm.active as plan_configuration_mapping_active, pcm.plan_configuration_id as plan_configuration_mapping_plan_configuration_id, pcm.created_by as plan_configuration_mapping_created_by, pcm.created_time as plan_configuration_mapping_created_time, pcm.last_modified_by as plan_configuration_mapping_last_modified_by, pcm.last_modified_time as plan_configuration_mapping_last_modified_time\n" +
             "\t   FROM plan_configuration pc\n" +
             "\t   LEFT JOIN plan_configuration_files pcf ON pc.id = pcf.plan_configuration_id\n" +
@@ -44,14 +50,14 @@ public class PlanConfigQueryBuilder {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_QUERY);
 
         if (!CollectionUtils.isEmpty(ids)) {
-            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" pc.id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
-            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" pc.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
         }
 
         addActiveWhereClause(builder, preparedStmtList);
 
-        return QueryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        return queryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     /**
@@ -64,7 +70,7 @@ public class PlanConfigQueryBuilder {
      */
     public String getPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
-        query = QueryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        query = queryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, criteria, preparedStmtList);
 
         return query;
@@ -105,8 +111,8 @@ public class PlanConfigQueryBuilder {
 
         if (criteria.getName() != null) {
             addClauseIfRequired(preparedStmtList, builder);
-            builder.append(" pc.name = ?");
-            preparedStmtList.add(criteria.getName());
+            builder.append(" pc.name LIKE ?");
+            preparedStmtList.add(criteria.getName() + PERCENTAGE_WILDCARD);
         }
 
         if (criteria.getStatus() != null) {
@@ -162,22 +168,21 @@ public class PlanConfigQueryBuilder {
         return paginatedQuery.toString();
     }
 
-    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList)
-    {
+    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList) {
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pcf.active = ?");
+        builder.append(" ( pcf.active = ? OR pcf.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pca.active = ?");
+        builder.append(" ( pca.active = ? OR pca.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pco.active = ?");
+        builder.append(" ( pco.active = ? OR pco.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
         addClauseIfRequired(preparedStmtList, builder);
-        builder.append(" pcm.active = ?");
+        builder.append(" ( pcm.active = ? OR pcm.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
     }
 
