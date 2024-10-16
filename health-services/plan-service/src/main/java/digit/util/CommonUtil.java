@@ -154,7 +154,7 @@ public class CommonUtil {
      */
     public Map<String, String> getMicroplanHierarchy(Object mdmsData) {
 
-        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
 
         List<Map<String, String>> hierarchyForMicroplan;
 

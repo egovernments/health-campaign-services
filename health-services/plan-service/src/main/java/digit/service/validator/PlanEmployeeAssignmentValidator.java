@@ -111,7 +111,7 @@ public class PlanEmployeeAssignmentValidator {
                 .tenantId(employeeAssignment.getTenantId())
                 .planConfigurationId(employeeAssignment.getPlanConfigurationId())
                 .employeeId(employeeAssignment.getEmployeeId())
-                .role(employeeAssignment.getRole())
+                .role(Collections.singletonList(employeeAssignment.getRole()))
                 .build());
 
         if (!CollectionUtils.isEmpty(planEmployeeAssignmentsFromSearch)) {
@@ -169,7 +169,7 @@ public class PlanEmployeeAssignmentValidator {
                     .tenantId(planEmployeeAssignment.getTenantId())
                     .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
                     .employeeId(planEmployeeAssignment.getEmployeeId())
-                    .role(roleMap.get(planEmployeeAssignment.getRole())).build());
+                    .role(Collections.singletonList(roleMap.get(planEmployeeAssignment.getRole()))).build());
 
             // If there are any conflicting assignments found, throw a custom exception
             if (!CollectionUtils.isEmpty(response)) {
@@ -329,7 +329,7 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanEmployeeAssignment> planEmployeeAssignments = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                 .tenantId(planEmployeeAssignment.getTenantId())
                 .id(planEmployeeAssignment.getId())
-                .role(planEmployeeAssignment.getRole())
+                .role(Collections.singletonList(planEmployeeAssignment.getRole()))
                 .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
                 .employeeId(planEmployeeAssignment.getEmployeeId())
                 .build());

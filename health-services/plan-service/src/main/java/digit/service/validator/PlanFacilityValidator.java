@@ -166,7 +166,7 @@ public class PlanFacilityValidator {
         String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
 
         // Define the JSON path to fetch hierarchy configurations from MDMS data
-        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
+        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
 
         List<Map<String, Object>> hierarchyConfigList = null;
         try {
