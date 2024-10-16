@@ -64,6 +64,9 @@ public class PlanConfigurationValidator {
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
 
+        // Validate that the assumption keys in the request are unique
+        validateAssumptionUniqueness(planConfiguration);
+
         // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);
 
@@ -196,15 +199,33 @@ public class PlanConfigurationValidator {
                 throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
             }
 
-            HashSet<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
+            Set<Object> assumptionSetFromMDMS = new HashSet<>(assumptionListFromMDMS);
             planConfiguration.getAssumptions().forEach(assumption -> {
-                        if (!assumptionSetFromMDMS.contains(assumption.getKey())) {
-                            log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
-                            throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + " at JSONPath: " + jsonPathForAssumption);
-                        }
+                    if (assumption.getActive() && assumption.getSource() == Source.MDMS && !assumptionSetFromMDMS.contains(assumption.getKey())) {
+                        log.error(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey());
+                        throw new CustomException(ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE + assumption.getKey() + " at JSONPath: " + jsonPathForAssumption);
                     }
-            );
+            });
+        }
+    }
 
+    /**
+     * Validates the uniqueness of assumption keys in the provided PlanConfiguration.
+     * If any duplicate keys are found, a CustomException is thrown.
+     *
+     * @param planConfig the PlanConfiguration object containing a list of Assumptions to validate
+     * @throws CustomException if a duplicate assumption key is found
+     */
+    public void validateAssumptionUniqueness(PlanConfiguration planConfig) {
+        Set<String> assumptionKeys = new HashSet<>();
+
+        for (Assumption assumption : planConfig.getAssumptions()) {
+            if (assumption.getActive() != Boolean.FALSE) {
+                if (assumptionKeys.contains(assumption.getKey())) {
+                    throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
+                }
+                assumptionKeys.add(assumption.getKey());
+            }
         }
     }
 
@@ -427,6 +448,9 @@ public class PlanConfigurationValidator {
 
         // Validate that the assumption keys in the request are present in the MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
+
+        // Validate that the assumption keys in the request are unique
+        validateAssumptionUniqueness(planConfiguration);
 
         // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);

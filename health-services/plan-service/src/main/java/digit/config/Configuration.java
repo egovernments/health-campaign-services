@@ -31,19 +31,19 @@ public class Configuration {
     @Value("${egov.mdms.search.v2.endpoint}")
     private String mdmsV2EndPoint;
 
-    //HRMS
-    @Value("${egov.hrms.host}")
-    private String hrmsHost;
-
-    @Value("${egov.hrms.search.endpoint}")
-    private String hrmsEndPoint;
-
     //Project Factory
     @Value("${egov.project.factory.host}")
     private String projectFactoryHost;
 
     @Value("${egov.project.factory.search.endpoint}")
     private String projectFactorySearchEndPoint;
+
+    //User Service
+    @Value("${egov.user.service.host}")
+    private String userServiceHost;
+
+    @Value("${egov.user.search.endpoint}")
+    private String userSearchEndPoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
