@@ -84,9 +84,9 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, config: any, localizationMap?: { [key: string]: string }) {
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
-        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+        if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
