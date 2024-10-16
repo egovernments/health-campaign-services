@@ -264,14 +264,19 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
-            query = query + "AND (";
+            // Start building the query
+            query = query + "AND EXISTS (SELECT 1 FROM jsonb_array_elements(roles) elem WHERE elem->>'code' IN (";
+
+            // Loop through role codes and append them to the IN clause
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
+                query = query + "'" + searchObject.getRoleCodes().get(i) + "'";
                 if (i != searchObject.getRoleCodes().size() - 1) {
-                    query = query + " OR ";  // Add OR between conditions
+                    query = query + ", ";  // Add commas between role codes
                 }
             }
-            query = query + ") ";
+
+            // Close the IN clause and the subquery
+            query = query + ")) ";
         }
 
         if (searchObject.getUsername() != null) {
