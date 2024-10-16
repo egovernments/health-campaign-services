@@ -91,7 +91,7 @@ public class PlanValidator {
         commonUtil.validateUserInfo(request.getRequestInfo());
 
         // Validate plan-employee assignment and jurisdiction
-        validatePlanEmployeeAssignmentAndJurisdiction(request);
+//        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -477,7 +477,6 @@ public class PlanValidator {
                 .employeeId(planRequest.getRequestInfo().getUserInfo().getUuid())
                 .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
                 .role(config.getPlanEstimationApproverRoles())
-                .jurisdiction(Collections.singletonList(planRequest.getPlan().getLocality()))
                 .build();
 
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
