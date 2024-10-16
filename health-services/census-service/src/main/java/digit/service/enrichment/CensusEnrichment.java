@@ -2,11 +2,15 @@ package digit.service.enrichment;
 
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
+import digit.web.models.boundary.EnrichedBoundary;
+import digit.web.models.boundary.HierarchyRelation;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
+import java.util.Collections;
 
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
@@ -40,6 +44,26 @@ public class CensusEnrichment {
 
         // Enrich effectiveFrom for the census record
         census.setEffectiveFrom(census.getAuditDetails().getCreatedTime());
+    }
+
+    /**
+     * Enriches the boundary ancestral path for the provided boundary code in the census request.
+     *
+     * @param census         The census record whose boundary ancestral path has to be enriched.
+     * @param tenantBoundary boundary relationship from the boundary service for the given boundary code.
+     */
+    public void enrichBoundaryAncestralPath(Census census, HierarchyRelation tenantBoundary) {
+        EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
+        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
+
+        // Iterate through the child boundary until there are no more
+        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+            boundary = boundary.getChildren().get(0);
+            boundaryAncestralPath.append("|").append(boundary.getCode());
+        }
+
+        // Setting the boundary ancestral path for the provided boundary
+        census.setBoundaryAncestralPath(Collections.singletonList(boundaryAncestralPath.toString()));
     }
 
     /**
