@@ -37,6 +37,8 @@ public class PlanQueryBuilder {
 
     private static final String PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE = " order by plan.last_modified_time desc ";
 
+    private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+
     public String getPlanQuery(List<String> ids, List<Object> preparedStmtList) {
         return buildPlanQuery(ids, preparedStmtList);
     }
@@ -54,9 +56,21 @@ public class PlanQueryBuilder {
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList);
+        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
+        return query;
+    }
+
+    /**
+     * Method to build a query to get the toatl count of plans based on the given search criteria
+     *
+     * @param criteria
+     * @param preparedStmtList
+     * @return
+     */
+    public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
+        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE);
         return query;
     }
 
@@ -67,7 +81,7 @@ public class PlanQueryBuilder {
      * @param preparedStmtList
      * @return
      */
-    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
+    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
@@ -98,6 +112,15 @@ public class PlanQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ? ");
             preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
+        }
+
+        StringBuilder countQuery = new StringBuilder();
+        if (isCount) {
+
+            countQuery.append(PLAN_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
+            countQuery.append(") AS subquery");
+
+            return countQuery.toString();
         }
 
         return builder.toString();

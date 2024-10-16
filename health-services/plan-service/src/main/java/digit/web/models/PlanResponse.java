@@ -28,4 +28,8 @@ public class PlanResponse {
     @Valid
     private List<Plan> plan = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    private Integer totalCount = null;
+
 }

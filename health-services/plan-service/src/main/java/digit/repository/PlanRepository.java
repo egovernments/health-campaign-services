@@ -13,4 +13,6 @@ public interface PlanRepository {
 
     public void update(PlanRequest planRequest);
 
+    public Integer count(PlanSearchCriteria planSearchCriteria);
+
 }

@@ -89,6 +89,18 @@ public class PlanRepositoryImpl implements PlanRepository {
 	}
 
     /**
+     * Counts the number of plans based on the provided search criteria.
+     * @param planSearchCriteria The search criteria for filtering plans.
+     * @return The total count of plans matching the search criteria.
+     */
+    @Override
+    public Integer count(PlanSearchCriteria planSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planQueryBuilder.getPlanCountQuery(planSearchCriteria, preparedStmtList);
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+    }
+
+    /**
      * Helper method to query database for plan ids based on the provided search criteria.
      * @param planSearchCriteria
      * @return
