@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class ServiceRequestEnrichmentService {
@@ -109,5 +110,71 @@ public class ServiceRequestEnrichmentService {
         serviceRequest.getService().getAttributes().forEach(attributeValue -> {
             attributeValue.setValue(attributeCodeVsValueMap.get(attributeValue.getAttributeCode()));
         });
+    }
+
+    private void updateAttributeDefinition(AttributeDefinition attributeDefinition, AttributeDefinition existingAttributeDefinition, RequestInfo requestInfo){
+
+        attributeDefinition.setId(existingAttributeDefinition.getId());
+
+        attributeDefinition.setAuditDetails(existingAttributeDefinition.getAuditDetails());
+
+        attributeDefinition.setReferenceId(existingAttributeDefinition.getReferenceId());
+
+        attributeDefinition.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeDefinition.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+
+    }
+    private void upsertAttributeDefinition(AttributeDefinition attributeDefinition, ServiceDefinitionRequest serviceDefinitionRequest){
+        RequestInfo requestInfo = serviceDefinitionRequest.getRequestInfo();
+
+        attributeDefinition.setId(UUID.randomUUID().toString());
+
+        attributeDefinition.setAuditDetails(
+          AuditDetails.builder()
+            .createdBy(requestInfo.getUserInfo().getUuid())
+            .createdTime(System.currentTimeMillis())
+            .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+            .lastModifiedTime(System.currentTimeMillis())
+            .build()
+        );
+
+        attributeDefinition.setReferenceId(serviceDefinitionRequest.getServiceDefinition().getId());
+    }
+    public void enrichServiceDefinitionUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest, List<ServiceDefinition> serviceDefinitionList){
+        List<AttributeDefinition> attributeDefinitions = serviceDefinitionRequest.getServiceDefinition().getAttributes();
+
+        //For quick lookup of Attribute Definition with Code
+        Map<String,AttributeDefinition> existingAttributeCode = serviceDefinitionList.get(0)
+          .getAttributes()
+          .stream()
+          .collect(Collectors.toMap(AttributeDefinition::getCode, a->a));
+
+        RequestInfo requestInfo = serviceDefinitionRequest.getRequestInfo();
+
+        ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        serviceDefinition.setId(serviceDefinitionList.get(0).getId());
+        serviceDefinition.setAuditDetails(serviceDefinitionList.get(0).getAuditDetails());
+        serviceDefinition.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+        serviceDefinition.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeDefinitions.forEach(attributeDefinition -> {
+            if(existingAttributeCode.containsKey(attributeDefinition.getCode())){
+                updateAttributeDefinition(attributeDefinition, existingAttributeCode.get(attributeDefinition.getCode()), requestInfo);
+            }
+            else{
+                upsertAttributeDefinition(attributeDefinition, serviceDefinitionRequest);
+            }
+        });
+
+        attributeDefinitions.forEach(attributeDefinition -> {
+            if(!(attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST) || attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST))){
+                List<String> emptyStringList = new ArrayList<>();
+                emptyStringList.add("");
+                attributeDefinition.setValues(emptyStringList);
+            }
+        });
+
     }
 }
