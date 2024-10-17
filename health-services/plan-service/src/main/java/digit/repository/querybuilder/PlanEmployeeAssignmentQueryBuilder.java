@@ -80,10 +80,10 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
         }
 
-        if (searchCriteria.getEmployeeId() != null) {
+        if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" employee_id = ?");
-            preparedStmtList.add(searchCriteria.getEmployeeId());
+            builder.append(" employee_id IN ( ").append(queryUtil.createQuery(searchCriteria.getEmployeeId().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getEmployeeId()));
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getRole())) {
