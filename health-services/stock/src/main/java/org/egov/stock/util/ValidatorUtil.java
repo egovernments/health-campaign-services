@@ -13,6 +13,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.service.UserService;
 import org.egov.stock.service.FacilityService;
 import org.egov.tracer.model.CustomException;
@@ -268,10 +269,19 @@ public class ValidatorUtil {
 			String senderId = stock.getSenderId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
-			if (!CollectionUtils.isEmpty(facilityIds)) {
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
-					populateErrorForStock(stock, senderId, errorDetailsMap);
+			if ((SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) || (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+        
+				if (!CollectionUtils.isEmpty(facilityIds)) {
+          
+					if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
+						populateErrorForStock(stock, senderId, errorDetailsMap);
+					}
+					if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
+						populateErrorForStock(stock, receiverId, errorDetailsMap);
+					}
+				} else {
+					populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 				}
 			} else {
 				populateErrorForStock(stock, senderId, errorDetailsMap);
