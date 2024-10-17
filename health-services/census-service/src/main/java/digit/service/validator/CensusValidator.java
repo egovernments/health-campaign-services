@@ -53,13 +53,12 @@ public class CensusValidator {
     public void validateCreate(CensusRequest request) {
         Census census = request.getCensus();
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), census.getBoundaryCode(), census.getTenantId(), census.getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
-        boolean flag = true;
 
         // Validate boundary code against boundary service
         validateBoundaryCode(boundarySearchResponse, census);
 
         // Validate partner assignment and jurisdiction against plan service
-        validatePartnerForCensus(request, flag);
+        validatePartnerForCensus(request);
     }
 
     /**
@@ -84,16 +83,17 @@ public class CensusValidator {
      * Also validates the user information within the provided CensusRequest.
      *
      * @param request the census request
-     * @param flag    Validates only when flag is true
      */
-    private void validatePartnerForCensus(CensusRequest request, boolean flag) {
+    private void validatePartnerForCensus(CensusRequest request) {
+
+        Census census = request.getCensus();
 
         // Validate the user information in the request
         if (ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo())) {
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
         }
 
-        if (!flag) {
+        if (census.isPartnerAssignmentValidationEnabled()) {
             User userInfo = request.getRequestInfo().getUserInfo();
             List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
             PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(request.getRequestInfo(), userInfo.getUuid(), request.getCensus().getSource(), request.getCensus().getTenantId(), configs.getAllowedCensusRoles(), jurisdiction);
@@ -125,13 +125,13 @@ public class CensusValidator {
      * @param request the update request for Census.
      */
     public void validateUpdate(CensusRequest request) {
-        boolean flag = true;
 
         // Validate if Census record to be updated exists
         Census census = validateCensusExistence(request);
+        request.setCensus(census);
 
         // Validate partner assignment and jurisdiction against plan service
-        validatePartnerForCensus(CensusRequest.builder().requestInfo(request.getRequestInfo()).census(census).build(), flag);
+        validatePartnerForCensus(request);
     }
 
     /**

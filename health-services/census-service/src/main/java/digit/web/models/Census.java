@@ -79,6 +79,9 @@ public class Census {
     @JsonIgnore
     private List<String> boundaryAncestralPath = null;
 
+    @JsonIgnore
+    private boolean partnerAssignmentValidationEnabled;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 

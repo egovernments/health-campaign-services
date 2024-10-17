@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -74,6 +75,9 @@ public class CensusDTO {
 
     @JsonProperty("boundaryAncestralPath")
     private String boundaryAncestralPath = null;
+
+    @JsonIgnore
+    private boolean partnerAssignmentValidationEnabled;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
