@@ -68,7 +68,17 @@ public class ServiceDefinitionRequestService {
 
     public ServiceDefinition updateServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) {
 
-        // TO DO
+        ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        //Validate incoming service definition request
+        List<ServiceDefinition> serviceDefinitionList = serviceDefinitionRequestValidator.validateUpdateRequest(serviceDefinitionRequest);
+
+        //Enrich incoming service definition request
+        enrichmentService.enrichServiceDefinitionUpdateRequest(serviceDefinitionRequest, serviceDefinitionList);
+
+        producer.push(config.getServiceDefinitionUpdateTopic(), serviceDefinitionRequest);
+
+        enrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinition);
 
         return serviceDefinitionRequest.getServiceDefinition();
     }
