@@ -18,7 +18,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
         this.queryUtil = queryUtil;
     }
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_type, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
@@ -92,10 +92,10 @@ public class PlanEmployeeAssignmentQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getRole()));
         }
 
-        if(searchCriteria.getHierarchyType() != null) {
+        if(searchCriteria.getHierarchyLevel() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" hierarchy_type = ?");
-            preparedStmtList.add(searchCriteria.getHierarchyType());
+            builder.append(" hierarchy_level = ?");
+            preparedStmtList.add(searchCriteria.getHierarchyLevel());
         }
 
         if (searchCriteria.getActive() != null) {
