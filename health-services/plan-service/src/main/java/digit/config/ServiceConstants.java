@@ -102,6 +102,12 @@ public class ServiceConstants {
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
 
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE = "No plan-employee assignment found for the provided boundary - ";
+
+    public static final String JURISDICTION_NOT_FOUND_CODE = "JURISDICTION_NOT_FOUND";
+    public static final String JURISDICTION_NOT_FOUND_MESSAGE = "Employee doesn't have the jurisdiction to take action for the provided locality.";
+
     public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
     public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
 
@@ -211,6 +217,8 @@ public class ServiceConstants {
 
     public static final String DOT_REGEX = "\\.";
 
+    public static final String PIPE_REGEX = "\\|";
+
     public static final String FILTER_CODE = "$.*.code";
 
     public static final String FILTER_ID = "$.*.id";
@@ -271,6 +279,8 @@ public class ServiceConstants {
 
     // Workflow Constants
     public static final String PLAN_CONFIGURATION_BUSINESS_SERVICE = "PLAN_CONFIGURATION";
+
+    public static final String PLAN_ESTIMATION_BUSINESS_SERVICE = "PLAN_ESTIMATION";
 
     public static final String MODULE_NAME_VALUE = "plan-service";
 

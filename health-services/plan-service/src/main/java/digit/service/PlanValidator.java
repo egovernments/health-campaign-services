@@ -1,6 +1,7 @@
 package digit.service;
 
 import com.jayway.jsonpath.JsonPath;
+import digit.config.Configuration;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.CampaignUtil;
@@ -34,13 +35,19 @@ public class PlanValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil) {
+    private PlanEmployeeService planEmployeeService;
+
+    private Configuration config;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.commonUtil = commonUtil;
         this.campaignUtil = campaignUtil;
+        this.planEmployeeService = planEmployeeService;
+        this.config = config;
     }
 
     /**
@@ -79,6 +86,9 @@ public class PlanValidator {
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
+
+        // Validate the user information in the request
+        commonUtil.validateUserInfo(request.getRequestInfo());
     }
 
     /**
@@ -314,6 +324,12 @@ public class PlanValidator {
 
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
+
+        // Validate the user information in the request
+        commonUtil.validateUserInfo(request.getRequestInfo());
+
+        // Validate plan-employee assignment and jurisdiction
+        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -448,6 +464,52 @@ public class PlanValidator {
                 throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
             }
         });
+
+    }
+
+    /**
+     * Validates the plan's employee assignment and ensures the jurisdiction is valid based on tenant, employee, role, and plan configuration.
+     * If no assignment is found, throws a custom exception.
+     *
+     * @param planRequest the request containing the plan and workflow details
+     * @throws CustomException if no employee assignment is found or jurisdiction is invalid
+     */
+    public void validatePlanEmployeeAssignmentAndJurisdiction(PlanRequest planRequest) {
+        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
+                .builder()
+                .tenantId(planRequest.getPlan().getTenantId())
+                .employeeId(planRequest.getRequestInfo().getUserInfo().getUuid())
+                .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
+                .role(config.getPlanEstimationApproverRoles())
+                .build();
+
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
+                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                .requestInfo(planRequest.getRequestInfo()).build());
+
+        if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
+            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
+
+        validateJurisdictionPresent(planRequest, planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+
+        //enrich jurisdiction of current assignee
+        planRequest.getPlan().setAssigneeJurisdiction(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+    }
+
+    /**
+     * Validates that at least one jurisdiction exists within the hierarchy's boundary codes.
+     * If no jurisdiction is found in the boundary set, throws a custom exception.
+     *
+     * @param planRequest the request containing the boundary ancestral path
+     * @param jurisdictions the list of jurisdictions to check against the boundary set
+     * @throws CustomException if none of the jurisdictions are present in the boundary codes
+     */
+    public void validateJurisdictionPresent(PlanRequest planRequest, List<String> jurisdictions) {
+        Set<String> boundarySet = new HashSet<>(Arrays.asList(planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX)));
+
+        // Check if any jurisdiction is present in the boundary set
+        if (jurisdictions.stream().noneMatch(boundarySet::contains))
+            throw new CustomException(JURISDICTION_NOT_FOUND_CODE, JURISDICTION_NOT_FOUND_MESSAGE);
 
     }
 

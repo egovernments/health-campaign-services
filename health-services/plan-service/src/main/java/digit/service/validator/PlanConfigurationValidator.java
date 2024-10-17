@@ -16,6 +16,7 @@ import digit.web.models.mdmsV2.Mdms;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -89,7 +90,7 @@ public class PlanConfigurationValidator {
         validatePlanConfigName(request, mdmsData);
 
         // Validate the user information in the request
-        validateUserInfo(request);
+        commonUtil.validateUserInfo(request.getRequestInfo());
 
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
@@ -477,7 +478,7 @@ public class PlanConfigurationValidator {
         validatePlanConfigName(request, mdmsData);
 
         // Validate the user information in the request
-        validateUserInfo(request);
+        commonUtil.validateUserInfo(request.getRequestInfo());
 
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
@@ -605,19 +606,6 @@ public class PlanConfigurationValidator {
             });
         }
         return finalData;
-    }
-
-    /**
-     * Validates the user information within the provided PlanConfigurationRequest.
-     *
-     * @param request the PlanConfigurationRequest containing the user information to be validated
-     * @throws CustomException if the user information is missing in the request
-     */
-    public void validateUserInfo(PlanConfigurationRequest request) {
-        if (ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo())) {
-            log.error(USERINFO_MISSING_MESSAGE);
-            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
-        }
     }
 
     /**
