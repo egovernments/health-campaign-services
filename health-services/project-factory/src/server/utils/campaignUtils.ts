@@ -549,7 +549,10 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-        persistMessage.ResourceDetails.additionalDetails = { source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
+        persistMessage.ResourceDetails.additionalDetails = { 
+            source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null,
+            fileName: request?.body?.ResourceDetails?.additionalDetails?.fileName || null
+         }
     }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
