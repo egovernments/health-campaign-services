@@ -150,7 +150,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.id
 
-        - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET datatype=EXCLUDED.datatype, "values"=to_jsonb(EXCLUDED."values")::TEXT, required=EXCLUDED.required, "order"=EXCLUDED."order";
+        - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET datatype=?, "values"=?, isactive=?, required=?, regex=?, "order"=?, lastmodifiedby=?, lastmodifiedtime=?, additionaldetails=?;
           basePath: $.ServiceDefinition.attributes.*
           jsonMaps:
             - jsonPath: $.ServiceDefinition.attributes.*.id
@@ -180,6 +180,28 @@ serviceMaps:
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedBy
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.createdTime
+
+            - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.ServiceDefinition.attributes.*.dataType
+
+            - jsonPath: $.ServiceDefinition.attributes.*.values
+              type: ARRAY
+              dbType: STRING
+
+            - jsonPath: $.ServiceDefinition.attributes.*.isActive
+
+            - jsonPath: $.ServiceDefinition.attributes.*.required
+
+            - jsonPath: $.ServiceDefinition.attributes.*.regex
+
+            - jsonPath: $.ServiceDefinition.attributes.*.order
+
+            - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedBy
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
