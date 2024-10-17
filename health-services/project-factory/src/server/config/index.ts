@@ -146,6 +146,8 @@ const config = {
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     mdmsV2SchemaSearch: "mdms-v2/schema/v1/_search",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
+    projectFacilitySearch: "health-project/facility/v1/_search",
+    projectStaffSearch: "health-project/staff/v1/_search"
   },
   // Values configuration
   values: {
