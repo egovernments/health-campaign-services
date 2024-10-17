@@ -33,10 +33,19 @@ public class Assumption {
     @JsonProperty("value")
     @NotNull
     @Valid
-    @DecimalMin(value = "0.01", inclusive = true, message = "Assumption value must be greater than 0")
-    @DecimalMax(value = "999.99", inclusive = true, message = "Assumption value must be less than 1000")
-    @Digits(integer = 3, fraction = 2, message = "Assumption value must have up to 3 digits and up to 2 decimal points")
+    @DecimalMin(value = "0.01", inclusive = true, message = "The Assumption value must be greater than 0")
+    @DecimalMax(value = "9999999999.99", inclusive = true, message = "The assumption value must not exceed 10 digits in total, including up to 2 decimal places.")
+    @Digits(integer = 10, fraction = 2, message = "The Assumption value must have up to 10 digits and up to 2 decimal points")
     private BigDecimal value = null;
+
+    @JsonProperty("source")
+    @NotNull(message = "Source cannot be null. Please specify a valid source.")
+    private Source source = null;
+
+    @JsonProperty("category")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String category = null;
 
     @JsonProperty("active")
     @NotNull
