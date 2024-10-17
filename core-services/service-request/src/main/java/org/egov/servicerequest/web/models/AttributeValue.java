@@ -35,7 +35,6 @@ public class AttributeValue {
     private String attributeCode = null;
 
     @JsonProperty("value")
-    @NotNull
     private Object value = null;
 
     @JsonProperty("auditDetails")
