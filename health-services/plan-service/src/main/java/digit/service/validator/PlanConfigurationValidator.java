@@ -648,34 +648,34 @@ public class PlanConfigurationValidator {
 
 
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        return Objects.equals(planConfiguration.getStatus(), config.getFinalStatus());
+        return Objects.equals(planConfiguration.getStatus(), config.getFinalStatusForPlanConfig());
     }
 
     // Checks for whether file, assumption, operation or resource mapping is empty or null at a certain status
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            log.error("Files cannot be empty at status = " + config.getFinalStatus());
+            log.error("Files cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(FILES_NOT_FOUND_CODE, FILES_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            log.error("Assumptions cannot be empty at status = " + config.getFinalStatus());
+            log.error("Assumptions cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(ASSUMPTIONS_NOT_FOUND_CODE, ASSUMPTIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            log.error("Operations cannot be empty at status = " + config.getFinalStatus());
+            log.error("Operations cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(OPERATIONS_NOT_FOUND_CODE, OPERATIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyResourceMapping(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
-            log.error("Resource mapping cannot be empty at status = " + config.getFinalStatus());
+            log.error("Resource mapping cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(RESOURCE_MAPPING_NOT_FOUND_CODE, RESOURCE_MAPPING_NOT_FOUND_MESSAGE);
         }
     }
