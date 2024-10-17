@@ -8,7 +8,9 @@ import org.egov.common.models.core.Boundary;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
+@Component
 public class AddressRowMapper implements RowMapper<Address> {
     @Override
     public Address mapRow(ResultSet resultSet, int i) throws SQLException {

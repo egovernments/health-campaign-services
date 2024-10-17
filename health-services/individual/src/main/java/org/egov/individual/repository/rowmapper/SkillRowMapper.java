@@ -6,7 +6,9 @@ import java.sql.SQLException;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.individual.Skill;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
+@Component
 public class SkillRowMapper implements RowMapper<Skill> {
     @Override
     public Skill mapRow(ResultSet resultSet, int i) throws SQLException {
