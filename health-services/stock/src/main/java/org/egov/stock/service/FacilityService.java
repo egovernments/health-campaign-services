@@ -21,6 +21,7 @@ import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -96,10 +97,10 @@ public class FacilityService {
 
 				Stock stock = (Stock) entity;
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType())) {
-					facilityIds.add(stock.getSenderId());
-				}
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType())) {
+                if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
+                    facilityIds.add(stock.getSenderId());
+                }
+                if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
 					facilityIds.add(stock.getReceiverId());
 				}
 			}

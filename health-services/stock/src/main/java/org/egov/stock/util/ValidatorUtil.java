@@ -13,6 +13,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.service.UserService;
 import org.egov.stock.service.FacilityService;
 import org.egov.tracer.model.CustomException;
@@ -140,7 +141,7 @@ public class ValidatorUtil {
 
 	/**
 	 * Private method to enrich facility id and staff id
-	 * 
+	 *
 	 * @param validStockEntities
 	 * @param facilityIds
 	 * @param staffIds
@@ -166,9 +167,9 @@ public class ValidatorUtil {
 	}
 
 	/**
-	 * 
+	 *
 	 * creates the error map from the stock objects with invalid party ids
-	 * 
+	 *
 	 * @param errorDetailsMap
 	 * @param validStockEntities
 	 * @param invalidStaffIds
@@ -205,7 +206,7 @@ public class ValidatorUtil {
 
 	/**
 	 * method to populate error details map
-	 * 
+	 *
 	 * @param <T>
 	 * @param errorDetailsMap
 	 * @param entity
@@ -218,7 +219,7 @@ public class ValidatorUtil {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param <R>
 	 * @param <T>
 	 * @param request
@@ -269,13 +270,17 @@ public class ValidatorUtil {
 			String receiverId = stock.getReceiverId();
 
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
+			if (!(SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType()))
+					&& !(SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+				continue;
+			}
 			if (!CollectionUtils.isEmpty(facilityIds)) {
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 					populateErrorForStock(stock, senderId, errorDetailsMap);
 				}
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId))
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId)&& TransactionType.RECEIVED.equals(stock.getTransactionType()))
 					populateErrorForStock(stock, receiverId, errorDetailsMap);
 			} else {
 				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
@@ -309,7 +314,7 @@ public class ValidatorUtil {
 				populateErrorForStockReconciliation(stockReconciliation, errorDetailsMap);
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private static <T> void populateErrorForStockReconciliation(StockReconciliation stockReconciliation,
 			Map<T, List<Error>> errorDetailsMap) {
