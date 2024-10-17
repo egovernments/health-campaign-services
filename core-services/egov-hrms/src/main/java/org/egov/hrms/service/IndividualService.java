@@ -37,6 +37,7 @@ import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.egov.hrms.utils.HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS;
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
@@ -210,6 +211,7 @@ public class IndividualService implements UserService {
                                 mobileNumberList
                         )
                         .id((List<String>) userSearchCriteria.get("uuid"))
+                        .userUuid((List<String>) userSearchCriteria.get(HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS))
                         .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
                         .username(usernameList)
                         // given name

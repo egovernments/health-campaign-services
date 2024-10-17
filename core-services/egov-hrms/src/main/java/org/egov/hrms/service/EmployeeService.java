@@ -194,6 +194,30 @@ public class EmployeeService {
 				else
 					criteria.setUuids(userUUIDs);
 			}
+
+			if(!CollectionUtils.isEmpty(criteria.getUserServiceUuids())) {
+				List<String> userUUIDs = new ArrayList<>();
+				Map<String, Object> userSearchCriteria = new HashMap<>();
+
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, criteria.getTenantId());
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS, criteria.getUserServiceUuids());
+				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+				totalCount = userResponse.getTotalCount();
+				userChecked =true;
+				if(!CollectionUtils.isEmpty(userResponse.getUser())) {
+					mapOfUsers.putAll(userResponse.getUser().stream()
+							.collect(Collectors.toMap(User::getUuid, Function.identity())));
+				}
+
+				List<String> uuids = userResponse.getUser().stream().map(User :: getUuid).collect(Collectors.toList());
+				userUUIDs.addAll(uuids);
+
+				if(!CollectionUtils.isEmpty(criteria.getUuids()))
+					criteria.setUuids(criteria.getUuids().stream().filter(userUUIDs::contains).collect(Collectors.toList()));
+				else
+					criteria.setUuids(userUUIDs);
+			}
 		}
 		if(userChecked)
 			criteria.setTenantId(null);

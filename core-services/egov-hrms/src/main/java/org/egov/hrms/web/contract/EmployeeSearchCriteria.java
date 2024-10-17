@@ -42,6 +42,8 @@ public class EmployeeSearchCriteria {
 	public List<String> employeetypes;
 	
 	public List<String> uuids;
+
+	public List<String> userServiceUuids;
 	
 	public List<Long> positions;
 	
