@@ -137,6 +137,7 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse search(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
 		boolean  userChecked = false;
+		Long totalCount = 0L;
 		/*if(null == criteria.getIsActive() || criteria.getIsActive())
 			criteria.setIsActive(true);
 		else
@@ -156,6 +157,7 @@ public class EmployeeService {
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME, criteria.getCodes().get(0));
 			}
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			userChecked =true;
             if(!CollectionUtils.isEmpty(userResponse.getUser())) {
                  mapOfUsers.putAll(userResponse.getUser().stream()
@@ -178,6 +180,7 @@ public class EmployeeService {
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,criteria.getTenantId());
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME,name);
 					UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+					totalCount = userResponse.getTotalCount();
 					userChecked =true;
 					if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 						mapOfUsers.putAll(userResponse.getUser().stream()
@@ -207,6 +210,7 @@ public class EmployeeService {
             if(mapOfUsers.isEmpty()){
 				log.info("searching in user service");
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 				mapOfUsers = userResponse.getUser().stream()
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));
@@ -217,7 +221,8 @@ public class EmployeeService {
             }
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
-				.employees(employees).build();
+				.employees(employees)
+				.totalCount(totalCount).build();
 	}
 	
 	
