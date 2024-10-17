@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData, validateViaSchemaSheetWise } from '../validators/campaignValidators';
 import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan, createIdRequests, createUniqueUserNameViaIdGen } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan, createIdRequests, createUniqueUserNameViaIdGen, boundaryGeometryManagement } from "../utils/campaignUtils";
 const _ = require('lodash');
 import { produceModifiedMessages } from "../kafka/Producer";
 import { createDataService } from "../service/dataManageService";
@@ -928,6 +928,9 @@ async function processCreate(request: any, localizationMap?: any) {
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   if (type == "boundary" || type == 'boundaryManagement') {
     boundaryBulkUpload(request, localizationMap);
+  }
+  else if(type == "boundaryGeometryManagement"){
+    await boundaryGeometryManagement(request, localizationMap);
   }
   else {
     // console.log(`Source is MICROPLAN -->`, source);
