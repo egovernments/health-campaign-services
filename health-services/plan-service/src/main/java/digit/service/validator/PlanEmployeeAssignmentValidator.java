@@ -243,8 +243,13 @@ public class PlanEmployeeAssignmentValidator {
 
         // Collect all boundary code for the campaign
         Set<String> boundaryCode = campaignDetail.getBoundaries().stream()
+                .filter(boundary -> planEmployeeAssignment.getHierarchyLevel().equals(boundary.getType()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
+
+        if(CollectionUtils.isEmpty(boundaryCode)) {
+            throw new CustomException(INVALID_HIERARCHY_LEVEL_CODE, INVALID_HIERARCHY_LEVEL_MESSAGE);
+        }
 
         planEmployeeAssignment.getJurisdiction()
                 .forEach(jurisdiction -> {
