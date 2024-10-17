@@ -89,9 +89,6 @@ public class PlanValidator {
 
         // Validate the user information in the request
         commonUtil.validateUserInfo(request.getRequestInfo());
-
-        // Validate plan-employee assignment and jurisdiction
-//        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
