@@ -21,6 +21,10 @@ public class Configuration {
     @Value("#{${role.map}}")
     public Map<String, String> roleMap;
 
+    //Final plan config status
+    @Value("${final.status.for.plan.config}")
+    private String finalStatusForPlanConfig;
+
     //MDMS
     @Value("${egov.mdms.host}")
     private String mdmsHost;
