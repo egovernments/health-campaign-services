@@ -25,12 +25,12 @@ public class ProductVariantTestBuilder {
                 .tenantId("some-tenant-id")
                 .variation("some-variation")
                 .sku("some-sku-code")
-                .rowVersion(1);
+                .rowVersion(1).isDeleted(Boolean.valueOf("false"));
         return this;
     }
 
-    public ProductVariantTestBuilder withId() {
-        withIdNull().builder.id("some-id");
+    public ProductVariantTestBuilder withId(String id101) {
+        withIdNull().builder.id(id101);
         return this;
     }
 
