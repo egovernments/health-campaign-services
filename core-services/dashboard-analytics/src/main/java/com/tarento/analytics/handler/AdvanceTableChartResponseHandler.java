@@ -1,5 +1,6 @@
 package com.tarento.analytics.handler;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,6 +50,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         String plotLabel = chartNode.get(PLOT_LABEL).asText();
         JsonNode computedFields = chartNode.get(COMPUTED_FIELDS);
         JsonNode excludedFields = chartNode.get(EXCLUDED_COLUMNS);
+        List<String> parsedExcludedFields = parseExcludedFields(excludedFields);
 
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
         List<JsonNode> aggrNodes = aggregationNode.findValues(BUCKETS);
@@ -91,7 +93,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                     processWithSpecifiedKeys(aggrsPaths, bucket, mappings, key, plotMap,chartNode);
 
                 } else {
-                    processNestedObjects(bucket, mappings, key, plotMap,chartNode);
+                    processNestedObjects(parsedExcludedFields, bucket, mappings, key, plotMap,chartNode);
                 }
 
                 if (plotMap.size() > 0) {
@@ -152,9 +154,8 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
 
                         });
                         // exclude the fields no to be displayed
-                        if(excludedFields!=null){
-                            List<String> list = mapper.readValue(excludedFields.toString(), new TypeReference<List<String>>(){});
-                            List<Plot> removeplots = data.getPlots().stream().filter(c -> list.contains(c.getName())).collect(Collectors.toList());
+                        if(parsedExcludedFields!=null){
+                            List<Plot> removeplots = data.getPlots().stream().filter(c -> parsedExcludedFields.contains(c.getName())).collect(Collectors.toList());
                             data.getPlots().removeAll(removeplots);
                         }
 
@@ -219,6 +220,18 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         }
     }
 
+    private List<String> parseExcludedFields(JsonNode excludedFields) {
+        List<String> list = null;
+        if(excludedFields!=null){
+            try {
+                list = mapper.readValue(excludedFields.toString(), new TypeReference<List<String>>(){});
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return list;
+    }
+
     /**
      * Recursively processing the nodes
      * @param node
@@ -226,11 +239,14 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
      * @param key
      * @param plotMap
      */
-    private void processNestedObjects(JsonNode node, Map<String, Map<String, Plot>> mappings, String key, Map<String, Plot> plotMap,JsonNode chartNode ){
+    private void processNestedObjects(List<String> excludedFields, JsonNode node, Map<String, Map<String, Plot>> mappings, String key, Map<String, Plot> plotMap,JsonNode chartNode ){
 
         Iterator<String> fieldNames = node.fieldNames();
         while(fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
+            if (excludedFields != null && excludedFields.contains(fieldName)) {
+                continue;
+            }
             if(node.get(fieldName).isArray()){
                 ArrayNode bucketNodes = (ArrayNode) node.get(fieldName);
                 bucketNodes.forEach(bucketNode -> {
@@ -241,7 +257,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                 process(node.get(fieldName), mappings, key, fieldName , plotMap,chartNode);
 
             } else {
-                processNestedObjects(node.get(fieldName), mappings, key, plotMap,chartNode );
+                processNestedObjects(excludedFields, node.get(fieldName), mappings, key, plotMap,chartNode );
             }
 
         }
