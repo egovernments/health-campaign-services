@@ -615,7 +615,12 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
       processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
     }
     else {
-      processSheetWise(false, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+      if (dataFromSheet && Object.keys(dataFromSheet).length > 0) {
+        processSheetWise(false, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+      }
+      else {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "No data filled in the sheet.");
+      }
     }
   }
 }
@@ -929,7 +934,7 @@ async function processCreate(request: any, localizationMap?: any) {
   if (type == "boundary" || type == 'boundaryManagement') {
     boundaryBulkUpload(request, localizationMap);
   }
-  else if(type == "boundaryGeometryManagement"){
+  else if (type == "boundaryGeometryManagement") {
     await boundaryGeometryManagement(request, localizationMap);
   }
   else {
