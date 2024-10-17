@@ -64,11 +64,24 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.facility.create.topic}")
+    private String planFacilityCreateTopic;
+
+    @Value("${plan.facility.update.topic}")
+    private String planFacilityUpdateTopic;
+
     @Value("${plan.default.offset}")
     private Integer defaultOffset;
 
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
+
+    //Facility
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.facility.search.endpoint}")
+    private String facilitySearchEndPoint;
 
     //Workflow
     @Value("${egov.workflow.host}")
