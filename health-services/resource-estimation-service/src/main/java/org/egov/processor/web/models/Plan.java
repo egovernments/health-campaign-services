@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
 
 /**
  * Plan
@@ -34,9 +35,9 @@ public class Plan {
     @Size(min = 1, max = 64)
     private String locality = null;
 
-    @JsonProperty("executionPlanId")
+    @JsonProperty("campaignId")
     @Size(max = 64)
-    private String executionPlanId = null;
+    private String campaignId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)
@@ -47,15 +48,15 @@ public class Plan {
 
     @JsonProperty("activities")
     @Valid
-    private List<Activity> activities = null;
+    private List<Activity> activities;
 
     @JsonProperty("resources")
     @Valid
-    private List<Resource> resources = null;
+    private List<Resource> resources;
 
     @JsonProperty("targets")
     @Valid
-    private List<Target> targets = null;
+    private List<Target> targets;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
