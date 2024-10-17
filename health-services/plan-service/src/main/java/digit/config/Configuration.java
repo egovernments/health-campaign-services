@@ -49,6 +49,13 @@ public class Configuration {
     @Value("${egov.user.search.endpoint}")
     private String userSearchEndPoint;
 
+    // Boundary Service
+    @Value("${egov.boundary.service.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndpoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;

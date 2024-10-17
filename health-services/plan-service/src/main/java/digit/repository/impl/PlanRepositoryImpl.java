@@ -5,9 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanRepository;
 import digit.repository.querybuilder.PlanQueryBuilder;
 import digit.repository.rowmapper.PlanRowMapper;
-import digit.web.models.Plan;
-import digit.web.models.PlanRequest;
-import digit.web.models.PlanSearchCriteria;
+import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
@@ -47,7 +45,8 @@ public class PlanRepositoryImpl implements PlanRepository {
     @Override
     public void create(PlanRequest planRequest) {
 		try {
-			producer.push(config.getPlanCreateTopic(), planRequest);
+            PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
+			producer.push(config.getPlanCreateTopic(), planRequestDTO);
 		} catch (Exception e) {
 			log.info("Pushing message to topic " + config.getPlanCreateTopic() + " failed.", e);
 		}
@@ -82,7 +81,8 @@ public class PlanRepositoryImpl implements PlanRepository {
     @Override
 	public void update(PlanRequest planRequest) {
 		try {
-			producer.push(config.getPlanUpdateTopic(), planRequest);
+            PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
+            producer.push(config.getPlanUpdateTopic(), planRequestDTO);
 		} catch (Exception e) {
 			log.info("Pushing message to topic " + config.getPlanUpdateTopic() + " failed.", e);
 		}
@@ -111,5 +111,39 @@ public class PlanRepositoryImpl implements PlanRepository {
         log.info("Plan query: " + query);
         return jdbcTemplate.query(query, planRowMapper, preparedStmtList.toArray());
     }
+
+    /**
+     * Converts the PlanRequest to a data transfer object (DTO)
+     *
+     * @param planRequest The request to be converted to DTO
+     * @return a DTO for PlanRequest
+     */
+    private PlanRequestDTO convertToPlanReqDTO(PlanRequest planRequest) {
+        Plan plan = planRequest.getPlan();
+
+        // Creating a new data transfer object (DTO) for Plan
+        PlanDTO planDTO = PlanDTO.builder()
+                .id(plan.getId())
+                .tenantId(plan.getTenantId())
+                .locality(plan.getLocality())
+                .campaignId(plan.getCampaignId())
+                .planConfigurationId(plan.getPlanConfigurationId())
+                .status(plan.getStatus())
+                .assignee(plan.getAssignee())
+                .additionalDetails(plan.getAdditionalDetails())
+                .activities(plan.getActivities())
+                .resources(plan.getResources())
+                .targets(plan.getTargets())
+                .auditDetails(plan.getAuditDetails())
+                .boundaryAncestralPath(plan.getBoundaryAncestralPath())
+                .build();
+
+        // Returning the PlanRequestDTO
+        return PlanRequestDTO.builder()
+                .requestInfo(planRequest.getRequestInfo())
+                .planDTO(planDTO)
+                .build();
+    }
+
 
 }

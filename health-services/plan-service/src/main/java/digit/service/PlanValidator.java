@@ -4,10 +4,13 @@ import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
+import digit.util.BoundaryUtil;
 import digit.util.CampaignUtil;
 import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
+import digit.web.models.boundary.BoundarySearchResponse;
+import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.projectFactory.CampaignResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
@@ -39,7 +42,11 @@ public class PlanValidator {
 
     private Configuration config;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config) {
+    private PlanEnricher planEnricher;
+
+    private BoundaryUtil boundaryUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config, PlanEnricher planEnricher, BoundaryUtil boundaryUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
@@ -48,6 +55,8 @@ public class PlanValidator {
         this.campaignUtil = campaignUtil;
         this.planEmployeeService = planEmployeeService;
         this.config = config;
+        this.planEnricher = planEnricher;
+        this.boundaryUtil = boundaryUtil;
     }
 
     /**
@@ -59,6 +68,10 @@ public class PlanValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
+        BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
+
+        // Validate locality against boundary service
+        validateBoundaryCode(boundarySearchResponse, request.getPlan());
 
         // Validate activities
         validateActivities(request);
@@ -89,6 +102,10 @@ public class PlanValidator {
 
         // Validate the user information in the request
         commonUtil.validateUserInfo(request.getRequestInfo());
+
+        // Validate plan-employee assignment and jurisdiction is request is from Resource Estimation Consumer
+        if(request.getPlan().isRequestFromResourceEstimationConsumer())
+            validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -288,6 +305,10 @@ public class PlanValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
+        BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
+
+        // Validate locality against boundary service
+        validateBoundaryCode(boundarySearchResponse, request.getPlan());
 
         // Validate activities
         validateActivities(request);
@@ -512,5 +533,24 @@ public class PlanValidator {
             throw new CustomException(JURISDICTION_NOT_FOUND_CODE, JURISDICTION_NOT_FOUND_MESSAGE);
 
     }
+
+    /**
+     * Validates the boundary code provided in census request against boundary service.
+     *
+     * @param boundarySearchResponse response from the boundary service.
+     * @param plan                 Plan record whose loclality is to be validated.
+     */
+    private void validateBoundaryCode(BoundarySearchResponse boundarySearchResponse, Plan plan) {
+        HierarchyRelation tenantBoundary = boundarySearchResponse.getTenantBoundary().get(0);
+
+        if (CollectionUtils.isEmpty(tenantBoundary.getBoundary())) {
+            throw new CustomException(NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE);
+        }
+
+        // Enrich the boundary ancestral path for the provided boundary code
+        if(plan.isRequestFromResourceEstimationConsumer())
+            planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
+    }
+
 
 }

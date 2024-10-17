@@ -2,18 +2,18 @@ package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.List;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.Data;
-import lombok.Builder;
+
+import java.util.List;
 
 /**
  * Plan
@@ -23,7 +23,7 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Plan {
+public class PlanDTO {
 
     @JsonProperty("id")
     private String id = null;
@@ -71,11 +71,11 @@ public class Plan {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
 
-    @JsonIgnore
+    @JsonProperty("boundaryAncestralPath")
     private String boundaryAncestralPath = null;
 
     @JsonIgnore
-    private boolean isRequestFromResourceEstimationConsumer;
+    private Boolean partnerAssignmentValidationEnabled;
 
     @JsonIgnore
     private List<String> assigneeJurisdiction;
