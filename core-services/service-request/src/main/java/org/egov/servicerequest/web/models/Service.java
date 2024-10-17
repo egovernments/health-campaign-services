@@ -54,6 +54,10 @@ public class Service {
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields;
+
     @JsonProperty("accountId")
     @NotNull
     @Size(max = 64)
