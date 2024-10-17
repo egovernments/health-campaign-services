@@ -37,8 +37,7 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String planConfigurationId = null;
 
     @JsonProperty("role")
-    @Size(min = 2, max = 64)
-    private String role = null;
+    private List<String> role = null;
 
     @JsonProperty("jurisdiction")
     @Valid
