@@ -266,6 +266,7 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/census-service/src/main/resources/db"
         image-name: "census-service-db"
+
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
