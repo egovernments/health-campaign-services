@@ -76,6 +76,7 @@ public class PlanFacilityService {
         return PlanFacilityResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(planFacilitySearchRequest.getRequestInfo(), Boolean.TRUE))
                 .planFacility(planFacilityList)
+                .totalCount(planFacilityRepository.count(planFacilitySearchRequest.getPlanFacilitySearchCriteria()))
                 .build();
     }
 
