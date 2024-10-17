@@ -39,6 +39,9 @@ public class PlanEmployeeAssignmentSearchCriteria {
     @JsonProperty("role")
     private List<String> role = null;
 
+    @JsonProperty("hierarchyLevel")
+    private String hierarchyLevel = null;
+
     @JsonProperty("jurisdiction")
     @Valid
     private List<String> jurisdiction = null;
