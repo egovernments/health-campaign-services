@@ -49,7 +49,7 @@ public class PlanEmployeeAssignmentRowMapper implements ResultSetExtractor<List<
                 planEmployeeAssignment.setPlanConfigurationId(rs.getString("plan_configuration_id"));
                 planEmployeeAssignment.setEmployeeId(rs.getString("employee_id"));
                 planEmployeeAssignment.setRole(rs.getString("role"));
-                planEmployeeAssignment.setHierarchyType(rs.getString("hierarchy_type"));
+                planEmployeeAssignment.setHierarchyLevel(rs.getString("hierarchy_level"));
                 planEmployeeAssignment.setJurisdiction(jurisdictionList);
                 planEmployeeAssignment.setActive(rs.getBoolean("active"));
                 planEmployeeAssignment.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("additional_details")));
