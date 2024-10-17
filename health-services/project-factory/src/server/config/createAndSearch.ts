@@ -140,7 +140,7 @@ const createAndSearch: any = {
             }
         ],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+            column: "HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN"
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",

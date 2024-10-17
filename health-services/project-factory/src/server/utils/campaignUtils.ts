@@ -262,17 +262,17 @@ function adjustRef(worksheet: any, lastColumn: any) {
 
 function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const errorData = request.body.sheetErrorDetails;
+    var errorData = request.body.sheetErrorDetails;
     const userNameAndPassword = request.body.userNameAndPassword;
     const columns: any = findColumns(worksheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
     const additionalDetailsErrors: any[] = [];
-
+    errorData = mergeErrors(errorData);
     enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
     enrichActiveColumn(worksheet, createAndSearchConfig, request);
 
-    request.body.additionalDetailsErrors = additionalDetailsErrors;
+    request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors) : additionalDetailsErrors;
 
     // Determine the last column to set the worksheet ref
     const lastColumn = deterMineLastColumnAndEnrichUserDetails(worksheet, errorDetailsColumn, userNameAndPassword, request, createAndSearchConfig);
@@ -346,7 +346,7 @@ function processErrorDataForEachSheets(request: any, createAndSearchConfig: any,
         }
     }
     deterMineLastColumnAndEnrichUserDetails(desiredSheet, errorDetailsColumn, newUserNameAndPassword, request, createAndSearchConfig);
-    request.body.additionalDetailsErrors = additionalDetailsErrors;
+    request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors) : additionalDetailsErrors;
     updateFontNameToRoboto(desiredSheet)
     workbook.worksheets[sheetName] = desiredSheet;
 }
@@ -356,6 +356,7 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+    const isLockSheetNeeded = request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan' ? true : false
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");
@@ -378,6 +379,7 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
             worksheet.getColumn(index + 1).width = colWidth.width;
         }
     });
+    if (isLockSheetNeeded) lockSheet(request, workbook);
     const responseData = await createAndUploadFile(workbook, request);
 
     logger.info('File updated successfully:' + JSON.stringify(responseData));
@@ -392,7 +394,7 @@ async function updateStatusFileForEachSheets(request: any, localizationMap?: { [
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
-    const isLockSheetNeeded = (request?.body?.ResourceDetails?.type == 'user' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') ? true : false
+    const isLockSheetNeeded = request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan' ? true : false
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 500, "INVALID_FILE");
@@ -543,7 +545,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
         },
-        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null } || {}
+        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
@@ -576,7 +578,7 @@ function getRootBoundaryCode(boundaries: any[] = []) {
 
 function enrichRootProjectId(requestBody: any) {
     var rootBoundary;
-    for (const boundary of requestBody?.CampaignDetails?.boundaries) {
+    for (const boundary of requestBody?.boundariesCombined) {
         if (boundary?.isRoot) {
             rootBoundary = boundary?.code
             break;
@@ -1782,8 +1784,8 @@ async function boundaryBulkUpload(request: any, localizationMap?: any) {
 }
 
 function updateBoundaryDataForBoundaryManagement(
-    request: any, 
-    boundaryData: any[], 
+    request: any,
+    boundaryData: any[],
     localizationMap: any
 ): { updatedData: any[], latLongData: [number, number][] } {
     const latLongData: [number, number][] = [];
@@ -1876,7 +1878,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
     var boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
     var latLongData: any;
-    if(type === "boundaryManagement"){
+    if (type === "boundaryManagement") {
         const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
         latLongData = result.latLongData;
         boundaryData = result.updatedData;
@@ -1900,7 +1902,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
     var headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-    if(type === "boundaryManagement"){
+    if (type === "boundaryManagement") {
         headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
         data.forEach((row: any[], index: string | number) => {
             row.push(latLongData[index][0], latLongData[index][1]);

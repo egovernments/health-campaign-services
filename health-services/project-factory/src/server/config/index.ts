@@ -104,7 +104,7 @@ const config = {
     redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
     mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
-    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-uat.digit.org/",
+    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-dev.digit.org/",
     projectFactoryBff: "http://localhost:8080/",
     idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
     facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-dev.digit.org/",
