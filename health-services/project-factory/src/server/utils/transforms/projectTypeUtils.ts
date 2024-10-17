@@ -103,6 +103,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
     "project type : " + getFormattedStringForDebug(projectTypeObject)
   );
   const defaultProject = projectTypeConversion( CampaignDetails);
+  const createdDate= new Date(CampaignDetails?.auditDetails?.createdTimes);
   return [
     {
       tenantId,
@@ -111,7 +112,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
       endDate,
       projectSubType: projectType,
       department: defaultProject?.group,
-      description:`${defaultProject?.name}, disease ${defaultProject?.group} campaign created through Admin Console with Campaign Id as ${CampaignDetails?.campaignNumber} on ${new Date(CampaignDetails?.auditDetails?.createdTimes).toISOString()}`,
+      description:`${defaultProject?.name}, disease ${defaultProject?.group} campaign created through Admin Console with Campaign Id as ${CampaignDetails?.campaignNumber} on ${createdDate?.toISOString?.()}`,
       projectTypeId: defaultProject?.id,
       name: campaignName,
       additionalDetails: {
