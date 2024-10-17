@@ -81,8 +81,14 @@ public class ServiceConstants {
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
 
+    public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE = "INVALID_ROOT_EMPLOYEE_JURISDICTION";
+    public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE = "The root employee's jurisdiction should be at highest hierarchy";
+
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
-    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
+    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction can't be at highest or lowest hierarchy";
+
+    public static final String INVALID_JURISDICTION_CODE = "INVALID_JURISDICTION";
+    public static final String INVALID_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
 
     public static final String INVALID_HIERARCHY_LEVEL_CODE = "INVALID_HIERARCHY_LEVEL";
     public static final String INVALID_HIERARCHY_LEVEL_MESSAGE = "The hierarchy level provided is invalid";
