@@ -10,6 +10,7 @@ import { createCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
+import { delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary } from "./onGoingCampaignUpdateUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -156,8 +157,28 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                         active = data[activeColumn];
                     }
                     if (boundaryCode && active === "Active") {
-                        if (!messageObject?.parentCampaign || (messageObject?.parentCampaign && data["#status#"] === "CREATED")) {
+                        if (!messageObject?.parentCampaign) {
                             mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
+                        }
+                        else {
+                            const existingBoundaryColumn = data[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)].split(',');
+                            const newBoundaryColumn = boundaryCode.includes(',') ? boundaryCode.split(',') : [boundaryCode];
+                            await Promise.all(existingBoundaryColumn.map(async (element: any) => {
+                                if (!newBoundaryColumn.includes(element)) {
+                                    const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource,
+                                        messageObject, element, code, true);
+                                    logger.info("Mapping  present :->", isMappingAlreadyPresent);
+                                }
+                            }));
+
+                            newBoundaryColumn.forEach(async (boundaryCode: any) => {
+                                // Call mapBoundaryCodes for each element in the newBoundaryColumn
+                                const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource,
+                                    messageObject, boundaryCode, code, false);
+                                if (!isMappingAlreadyPresent) {
+                                    mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
+                                }
+                            });
                         }
                     }
                     
