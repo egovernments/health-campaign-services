@@ -467,6 +467,13 @@ public class PlanValidator {
 
     }
 
+    /**
+     * Validates the plan's employee assignment and ensures the jurisdiction is valid based on tenant, employee, role, and plan configuration.
+     * If no assignment is found, throws a custom exception.
+     *
+     * @param planRequest the request containing the plan and workflow details
+     * @throws CustomException if no employee assignment is found or jurisdiction is invalid
+     */
     public void validatePlanEmployeeAssignmentAndJurisdiction(PlanRequest planRequest) {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
                 .builder()
@@ -489,6 +496,14 @@ public class PlanValidator {
         planRequest.getPlan().setAssigneeJurisdiction(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
     }
 
+    /**
+     * Validates that at least one jurisdiction exists within the hierarchy's boundary codes.
+     * If no jurisdiction is found in the boundary set, throws a custom exception.
+     *
+     * @param planRequest the request containing the boundary ancestral path
+     * @param jurisdictions the list of jurisdictions to check against the boundary set
+     * @throws CustomException if none of the jurisdictions are present in the boundary codes
+     */
     public void validateJurisdictionPresent(PlanRequest planRequest, List<String> jurisdictions) {
         Set<String> boundarySet = new HashSet<>(Arrays.asList(planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX)));
 

@@ -247,7 +247,17 @@ public class WorkflowService {
         planRequest.getPlan().setAssignee(assignee);
     }
 
-    public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, PlanRequest planRequest, Map<String, String> jurisdictionToEmployeeMap) {
+/**
+ * Assigns an employee from a higher-level jurisdiction in the hierarchy.
+ * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
+ * If a higher-level boundary has an assigned employee, returns that employee's ID.
+ *
+ * @param heirarchysBoundaryCodes boundary codes representing the hierarchy
+ * @param planRequest the request with plan and jurisdiction details
+ * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
+ * @return the employee ID from the higher boundary, or null if
+ */
+public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, PlanRequest planRequest, Map<String, String> jurisdictionToEmployeeMap) {
         for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
             String boundaryCode = heirarchysBoundaryCodes[i];
 
