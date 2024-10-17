@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
 import org.egov.common.contract.request.User;
 import org.egov.common.contract.workflow.*;
+import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -74,6 +75,11 @@ public class WorkflowService {
 
         // Setting the status back to the plan configuration object from workflow response
         planRequest.getPlan().setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
+
+        // Enrich audit details after auto assignment is complete
+        planRequest.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
+                .prepareAuditDetails( planRequest.getPlan().getAuditDetails(),  planRequest.getRequestInfo(), Boolean.FALSE));
+
     }
 
     /**
@@ -142,6 +148,7 @@ public class WorkflowService {
         autoAssignAssignee(plan.getWorkflow(), planRequest);
         enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
 
+        log.info("Process Instance assignes - " + processInstance.getAssignes());
         return ProcessInstanceRequest.builder()
                 .requestInfo(planRequest.getRequestInfo())
                 .processInstances(Collections.singletonList(processInstance))
@@ -187,7 +194,7 @@ public class WorkflowService {
      * @param planRequest the plan request containing workflow and jurisdiction details
      */
     private void autoAssignAssignee(Workflow workflow, PlanRequest planRequest) {
-        String[] allheirarchysBoundaryCodes = planRequest.getPlan().getBoundaryAncestralPath().split("//|");
+        String[] allheirarchysBoundaryCodes = planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX);
         String[] heirarchysBoundaryCodes = Arrays.copyOf(allheirarchysBoundaryCodes, allheirarchysBoundaryCodes.length - 1);
 
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
@@ -220,25 +227,28 @@ public class WorkflowService {
                 ));
 
         String assignee = null; //assignee will remain null in case terminate actions are being taken
-        int length = heirarchysBoundaryCodes.length;
 
         String action = planRequest.getPlan().getWorkflow().getAction();
         if (config.getWfInitiateActions().contains(action)) {
-            if (length - 1 >= 0)
-                assignee = jurisdictionToEmployeeMap.get(heirarchysBoundaryCodes[length - 1]);
+            for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
+                assignee = jurisdictionToEmployeeMap.get(heirarchysBoundaryCodes[i]);
+                if (assignee != null)
+                    break; // Stop iterating once an assignee is found
+            }
         } else if (config.getWfIntermediateActions().contains(action)) {
-            if (!planRequest.getRequestInfo().getUserInfo().getRoles().contains("ROOT_ESTIMATION_APPROVER"))
-                assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, planRequest, jurisdictionToEmployeeMap);
+            assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, planRequest, jurisdictionToEmployeeMap);
         } else if (config.getWfSendBackActions().contains(action)) {
             assignee = planRequest.getPlan().getAuditDetails().getLastModifiedBy();
         }
 
-        workflow.setAssignes(Collections.singletonList(assignee));
+        if(!ObjectUtils.isEmpty(assignee))
+            workflow.setAssignes(Collections.singletonList(assignee));
+
         planRequest.getPlan().setAssignee(assignee);
     }
 
     public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, PlanRequest planRequest, Map<String, String> jurisdictionToEmployeeMap) {
-        for (int i = heirarchysBoundaryCodes.length - 2; i >= 0; i--) {
+        for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
             String boundaryCode = heirarchysBoundaryCodes[i];
 
             // Check if this boundary code is present in assigneeJurisdiction
