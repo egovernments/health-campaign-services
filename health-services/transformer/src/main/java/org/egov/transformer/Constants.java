@@ -104,5 +104,6 @@ public interface Constants {
     String NO_OF_ROOMS_SPRAYED_KEY = "noOfRoomsSprayedKey";
     String LAT = "lat";
     String LNG = "lng";
+    String STAFF = "STAFF";
     String BOUNDARY_CODE_KEY = "boundaryCode";
 }
