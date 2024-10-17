@@ -22,7 +22,6 @@ import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualResponse;
 import org.egov.common.models.individual.Name;
@@ -33,6 +32,7 @@ import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
+import org.egov.hrms.web.models.IndividualBulkResponse;
 import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -331,6 +331,7 @@ public class IndividualService implements UserService {
                 .responseInfo(response.getResponseInfo())
                 .user(response.getIndividual().stream()
                         .map(IndividualService::getUser).collect(Collectors.toList()))
+                .totalCount(response.getTotalCount())
                 .build();
         return userResponse;
     }
