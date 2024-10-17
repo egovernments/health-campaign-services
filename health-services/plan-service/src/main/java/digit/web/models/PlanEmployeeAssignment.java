@@ -46,6 +46,11 @@ public class PlanEmployeeAssignment {
     @Size(min = 2, max = 64)
     private String role = null;
 
+    @JsonProperty("hierarchyType")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String hierarchyType = null;
+
     @JsonProperty("jurisdiction")
     @Valid
     @NotEmpty
