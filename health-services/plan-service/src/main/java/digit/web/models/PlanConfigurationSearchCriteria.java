@@ -51,5 +51,4 @@ public class PlanConfigurationSearchCriteria {
     @Min(1)
     @Max(50)
     private Integer limit;
-
 }
