@@ -6,15 +6,20 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.IndividualEntry;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
 import org.egov.transformer.models.downstream.AttendanceRegisterIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.AttendanceRegisterService;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,15 +33,17 @@ public class AttendanceTransformationService {
     private final TransformerProperties transformerProperties;
     private final Producer producer;
     private final UserService userService;
+    private final BoundaryService boundaryService;
 
     private final CommonUtils commonUtils;
 
     private final AttendanceRegisterService attendanceRegisterService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
+        this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
     }
@@ -83,6 +90,11 @@ public class AttendanceTransformationService {
                         attendanceLog.getTenantId())
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
+
+        BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+        Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+        Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
                 .attendeeName(attendeeName)
@@ -92,6 +104,8 @@ public class AttendanceTransformationService {
                 .registerName(attendanceRegister != null ? attendanceRegister.getName() : null)
                 .registerServiceCode(attendanceRegister != null ? attendanceRegister.getServiceCode() : null)
                 .registerNumber(attendanceRegister != null ? attendanceRegister.getRegisterNumber() : null)
+                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
         return attendanceLogIndexV1;
     }
@@ -105,6 +119,22 @@ public class AttendanceTransformationService {
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
                 .build();
         return attendanceRegisterIndexV1;
+    }
+
+    private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
+        BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
+        String boundaryCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
+        if (StringUtils.isNotEmpty(boundaryCode)) {
+            boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
+        }
+        else {
+            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
+            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+                String projectId = projectIdProjectTypeId.split(":")[0];
+                boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+            }
+        }
+        return boundaryHierarchyResult;
     }
 
 }

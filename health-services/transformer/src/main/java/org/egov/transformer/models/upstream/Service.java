@@ -1,6 +1,7 @@
 package org.egov.transformer.models.upstream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,7 +41,7 @@ public class Service {
     private AuditDetails auditDetails = null;
 
     @JsonProperty("additionalDetails")
-    private Object additionalDetails = null;
+    private JsonNode additionalDetails = null;
 
     @JsonProperty("accountId")
     private String accountId = null;

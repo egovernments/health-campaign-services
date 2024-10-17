@@ -2,11 +2,13 @@ package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
 import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.Address;
 import org.egov.transformer.models.pgr.Boundary;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.MdmsService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
@@ -27,8 +29,9 @@ public class PGRTransformationService {
     private final CommonUtils commonUtils;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private final BoundaryService boundaryService;
 
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService) {
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, BoundaryService boundaryService) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
@@ -36,6 +39,7 @@ public class PGRTransformationService {
         this.commonUtils = commonUtils;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<Service> pgrList) {
@@ -54,6 +58,7 @@ public class PGRTransformationService {
 
     private PGRIndex transform(Service service) {
         Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
         String localityCode = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
@@ -62,7 +67,9 @@ public class PGRTransformationService {
                 .map(Boundary::getCode);
         if (localityCodeOptional.isPresent()) {
             localityCode = localityCodeOptional.get();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
@@ -77,6 +84,7 @@ public class PGRTransformationService {
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
                 .build();

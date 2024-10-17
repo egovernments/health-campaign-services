@@ -97,4 +97,13 @@ public interface Constants {
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
     String NO_OF_ROOMS= "noOfRooms";
+    String PROJECT_ID = "projectId";
+    String PROJECT_TYPE_ID = "projectTypeId";
+    String PROJECT_TARGET_NUMBER_TYPE_PER_DAY = "PER_DAY";
+    String PROJECT_TARGET_NUMBER_TYPE_OVERALL = "OVERALL";
+    String NO_OF_ROOMS_SPRAYED_KEY = "noOfRoomsSprayedKey";
+    String LAT = "lat";
+    String LNG = "lng";
+    String STAFF = "STAFF";
+    String BOUNDARY_CODE_KEY = "boundaryCode";
 }

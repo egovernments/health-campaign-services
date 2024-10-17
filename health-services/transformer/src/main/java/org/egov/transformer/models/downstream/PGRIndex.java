@@ -28,6 +28,8 @@ public class PGRIndex {
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("taskDates")
     private String taskDates;
     @JsonProperty("localityCode")

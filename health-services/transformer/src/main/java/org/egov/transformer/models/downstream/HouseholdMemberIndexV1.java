@@ -22,6 +22,8 @@ public class HouseholdMemberIndexV1  {
     private HouseholdMember householdMember;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("dateOfBirth")
     private Long dateOfBirth;
     @JsonProperty("age")
