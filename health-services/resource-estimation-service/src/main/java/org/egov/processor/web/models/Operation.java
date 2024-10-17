@@ -13,6 +13,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Arrays;
+
 /**
  * Operation
  */
@@ -45,6 +47,19 @@ public class Operation {
     @NotNull
     @Size(min = 1, max = 64)
     private String output = null;
+
+    @JsonProperty("showOnEstimationDashboard")
+    @NotNull
+    private Boolean showOnEstimationDashboard = true;
+
+    @JsonProperty("source")
+    @NotNull(message = "Source cannot be null. Please specify a valid source.")
+    private Source source = null;
+
+    @JsonProperty("category")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String category = null;
 
     @JsonProperty("active")
     @NotNull
@@ -80,12 +95,10 @@ public class Operation {
 
         @JsonCreator
         public static OperatorEnum fromValue(String text) {
-            for (OperatorEnum b : OperatorEnum.values()) {
-                if (String.valueOf(b.value).equals(text)) {
-                    return b;
-                }
-            }
-            return null;
+            return Arrays.stream(OperatorEnum.values())
+                    .filter(b -> String.valueOf(b.value).equals(text))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Unexpected value '" + text + "'"));
         }
     }
 
