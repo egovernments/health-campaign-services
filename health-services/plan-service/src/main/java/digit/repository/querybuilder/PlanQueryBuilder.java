@@ -116,7 +116,7 @@ public class PlanQueryBuilder {
         if (!CollectionUtils.isEmpty(planSearchCriteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ")
-                    .append(queryUtil.createQuery(planSearchCriteria.getJurisdiction().size()))  // Create placeholders (?, ?, ?...)
+                    .append(queryUtil.createQuery(planSearchCriteria.getJurisdiction().size()))
                     .append(" ]::text[] ");
 
             builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
