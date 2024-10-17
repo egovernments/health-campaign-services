@@ -50,7 +50,9 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         String plotLabel = chartNode.get(PLOT_LABEL).asText();
         JsonNode computedFields = chartNode.get(COMPUTED_FIELDS);
         JsonNode excludedFields = chartNode.get(EXCLUDED_COLUMNS);
-        List<String> parsedExcludedFields = parseExcludedFields(excludedFields);
+        JsonNode excludedBucketKeys = chartNode.get(EXCLUDED_BUCKET_KEYS);
+        List<String> parsedExcludedFields = parseAsList(excludedFields);
+        List<String> parsedExcludedBucketKeys = parseAsList(excludedBucketKeys);
 
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
         List<JsonNode> aggrNodes = aggregationNode.findValues(BUCKETS);
@@ -93,7 +95,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                     processWithSpecifiedKeys(aggrsPaths, bucket, mappings, key, plotMap,chartNode);
 
                 } else {
-                    processNestedObjects(parsedExcludedFields, bucket, mappings, key, plotMap,chartNode);
+                    processNestedObjects(parsedExcludedBucketKeys, bucket, mappings, key, plotMap,chartNode);
                 }
 
                 if (plotMap.size() > 0) {
@@ -220,11 +222,11 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         }
     }
 
-    private List<String> parseExcludedFields(JsonNode excludedFields) {
+    private List<String> parseAsList(JsonNode property) {
         List<String> list = null;
-        if(excludedFields!=null){
+        if(property!=null){
             try {
-                list = mapper.readValue(excludedFields.toString(), new TypeReference<List<String>>(){});
+                list = mapper.readValue(property.toString(), new TypeReference<List<String>>(){});
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
@@ -239,12 +241,12 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
      * @param key
      * @param plotMap
      */
-    private void processNestedObjects(List<String> excludedFields, JsonNode node, Map<String, Map<String, Plot>> mappings, String key, Map<String, Plot> plotMap,JsonNode chartNode ){
+    private void processNestedObjects(List<String> excludedBucketKeys, JsonNode node, Map<String, Map<String, Plot>> mappings, String key, Map<String, Plot> plotMap,JsonNode chartNode ){
 
         Iterator<String> fieldNames = node.fieldNames();
         while(fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
-            if (excludedFields != null && excludedFields.contains(fieldName)) {
+            if (excludedBucketKeys != null && excludedBucketKeys.contains(fieldName)) {
                 continue;
             }
             if(node.get(fieldName).isArray()){
@@ -257,7 +259,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                 process(node.get(fieldName), mappings, key, fieldName , plotMap,chartNode);
 
             } else {
-                processNestedObjects(excludedFields, node.get(fieldName), mappings, key, plotMap,chartNode );
+                processNestedObjects(excludedBucketKeys, node.get(fieldName), mappings, key, plotMap,chartNode );
             }
 
         }
