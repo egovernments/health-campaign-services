@@ -1,6 +1,7 @@
 package digit.service.validator;
 
 import com.jayway.jsonpath.JsonPath;
+import digit.config.Configuration;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.CampaignUtil;
@@ -40,13 +41,16 @@ public class PlanConfigurationValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil) {
+    private Configuration config;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil, Configuration config) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
         this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.campaignUtil = campaignUtil;
+        this.config = config;
     }
 
     /**
@@ -644,34 +648,34 @@ public class PlanConfigurationValidator {
 
 
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        return Objects.equals(planConfiguration.getStatus(), SETUP_COMPLETED_STATUS);
+        return Objects.equals(planConfiguration.getStatus(), config.getFinalStatus());
     }
 
     // Checks for whether file, assumption, operation or resource mapping is empty or null at a certain status
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            log.error("Files cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Files cannot be empty at status = " + config.getFinalStatus());
             throw new CustomException(FILES_NOT_FOUND_CODE, FILES_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            log.error("Assumptions cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Assumptions cannot be empty at status = " + config.getFinalStatus());
             throw new CustomException(ASSUMPTIONS_NOT_FOUND_CODE, ASSUMPTIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            log.error("Operations cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Operations cannot be empty at status = " + config.getFinalStatus());
             throw new CustomException(OPERATIONS_NOT_FOUND_CODE, OPERATIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyResourceMapping(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
-            log.error("Resource mapping cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Resource mapping cannot be empty at status = " + config.getFinalStatus());
             throw new CustomException(RESOURCE_MAPPING_NOT_FOUND_CODE, RESOURCE_MAPPING_NOT_FOUND_MESSAGE);
         }
     }
