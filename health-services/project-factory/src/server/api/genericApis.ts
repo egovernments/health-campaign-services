@@ -478,6 +478,49 @@ async function createAndUploadFile(
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
 }
 
+async function createAndUploadJsonFile(
+  jsonData: any, // Expecting JSON data as an argument
+  request: any,
+  tenantId?: any
+) {
+  // Convert JSON data to a string
+  const jsonString = JSON.stringify(jsonData);
+  const buffer = Buffer.from(jsonString);
+
+  // Create form data for file upload
+  const formData = new FormData();
+  formData.append("file", buffer, { filename: "filename.json", contentType: "application/json" });
+  formData.append(
+    "tenantId",
+    tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
+  );
+  formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+  // Make HTTP request to upload file
+  var fileCreationResult = await httpRequest(
+    config.host.filestore + config.paths.filestore,
+    formData,
+    undefined,
+    undefined,
+    undefined,
+    {
+      "Content-Type": "multipart/form-data",
+      "auth-token": request?.body?.RequestInfo?.authToken,
+    }
+  );
+
+  // Extract response data
+  const responseData = fileCreationResult?.files;
+  if (!responseData) {
+    throw new Error(
+      "Error while uploading JSON file: INTERNAL_SERVER_ERROR"
+    );
+  }
+
+  return responseData; // Return the response data
+}
+
+
 // Function to generate a list of hierarchy codes
 function generateHierarchyList(data: any[], parentChain: any = []) {
   let result: any[] = [];
@@ -714,12 +757,12 @@ async function getBoundarySheetData(
       localizationMap
     );
     var headerColumnsAfterHierarchy;
-    if(request?.query?.type != "boundaryManagement"){
+    if(request?.query?.type != "boundaryManagement"  && request?.query?.type !== 'boundaryGeometryManagement'){
       headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
     }
 
-    if(request?.query?.type === "boundaryManagement"){
-      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+    if(request?.query?.type === "boundaryManagement"  || request?.query?.type === 'boundaryGeometryManagement'){
+      headerColumnsAfterHierarchy = [hierarchyType + "_BOUNDARY_CODE", hierarchyType + "_LAT", hierarchyType + "_LONG"]
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
@@ -1316,5 +1359,6 @@ export {
   callMdmsTypeSchema,
   getSheetDataFromWorksheet,
   createStaffHelper,
-  createProjectFacilityHelper, createProjectResourceHelper
+  createProjectFacilityHelper, createProjectResourceHelper,
+  createAndUploadJsonFile
 };

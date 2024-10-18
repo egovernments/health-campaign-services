@@ -934,7 +934,7 @@ async function processCreate(request: any, localizationMap?: any) {
   if (type == "boundary" || type == 'boundaryManagement') {
     boundaryBulkUpload(request, localizationMap);
   }
-  else if (type == "boundaryGeometryManagement") {
+  else if(type == "boundaryGeometryManagement"){
     await boundaryGeometryManagement(request, localizationMap);
   }
   else {

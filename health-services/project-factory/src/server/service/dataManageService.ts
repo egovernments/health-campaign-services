@@ -1,7 +1,7 @@
 import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
-import { getLocalizedName, processDataSearchRequest } from "../utils/campaignUtils";
+import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
 import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
@@ -30,13 +30,24 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = request.query.type;
     // Get response data from the database
-    const responseData = await searchGeneratedResources(request);
+    var responseData = await searchGeneratedResources(request);
+    const resourceDetails = await getResourceDetails(request);
+
     // Check if response data is available
     if (!responseData || responseData.length === 0 && !request?.query?.id) {
         logger.error("No data of type  " + type + " with status Completed or with given id presnt in db ")
         // Throw error if data is not found
         throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
+
+    // Send response with resource details
+    if (resourceDetails != null && responseData != null && responseData.length > 0) {
+        responseData[0].additionalDetails = {
+            ...responseData[0].additionalDetails, 
+            ...resourceDetails.additionalDetails // Spread the properties of resourceDetails.additionalDetails
+        };
+    }
+    
     return responseData;
 }
 
