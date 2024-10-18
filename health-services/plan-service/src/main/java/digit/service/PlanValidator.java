@@ -70,6 +70,9 @@ public class PlanValidator {
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
 
+        //TODO: remove after setting the flag in consumer
+        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
+
         // Validate locality against boundary service
         validateBoundaryCode(boundarySearchResponse, request.getPlan());
 
@@ -104,7 +107,7 @@ public class PlanValidator {
         commonUtil.validateUserInfo(request.getRequestInfo());
 
         // Validate plan-employee assignment and jurisdiction is request is from Resource Estimation Consumer
-        if(request.getPlan().isRequestFromResourceEstimationConsumer())
+        if(!request.getPlan().isRequestFromResourceEstimationConsumer())
             validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
@@ -306,6 +309,10 @@ public class PlanValidator {
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
+        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
+
+        //TODO: remove after setting the flag in consumer
+        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
 
         // Validate locality against boundary service
         validateBoundaryCode(boundarySearchResponse, request.getPlan());
@@ -546,6 +553,8 @@ public class PlanValidator {
         if (CollectionUtils.isEmpty(tenantBoundary.getBoundary())) {
             throw new CustomException(NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE);
         }
+
+        //TODO: change to if(!plan.isRequestFromResourceEstimationConsumer()) after triggering from consumer
 
         // Enrich the boundary ancestral path for the provided boundary code
         if(plan.isRequestFromResourceEstimationConsumer())
