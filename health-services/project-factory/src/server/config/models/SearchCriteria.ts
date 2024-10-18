@@ -18,6 +18,9 @@ export const searchCriteriaSchema = {
         "status": {
             "type": "string"
         },
+        "hierarchyType": {
+            "type": "string"
+        },
         "source": {
             "type": "string"
         }
