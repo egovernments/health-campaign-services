@@ -77,6 +77,7 @@ public interface IResponseHandler {
 	public final String PLOT_LABEL = "plotLabel";
 	public final String COMPUTED_FIELDS = "computedFields";
 	public final String EXCLUDED_COLUMNS = "excludedColumns";
+	public final String EXCLUDED_BUCKET_KEYS = "excludedBucketKeys";
 	public final String LIMIT = "limit";
 	public final String ORDER = "order";
 	public final String ACTION = "action";
