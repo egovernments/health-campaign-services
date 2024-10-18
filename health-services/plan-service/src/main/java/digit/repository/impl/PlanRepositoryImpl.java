@@ -7,6 +7,7 @@ import digit.repository.querybuilder.PlanQueryBuilder;
 import digit.repository.rowmapper.PlanRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.tracer.model.CustomException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
@@ -44,12 +45,8 @@ public class PlanRepositoryImpl implements PlanRepository {
      */
     @Override
     public void create(PlanRequest planRequest) {
-		try {
-            PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
-			producer.push(config.getPlanCreateTopic(), planRequestDTO);
-		} catch (Exception e) {
-			log.info("Pushing message to topic " + config.getPlanCreateTopic() + " failed.", e);
-		}
+        PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
+        producer.push(config.getPlanCreateTopic(), planRequestDTO);
     }
 
     /**
@@ -80,12 +77,8 @@ public class PlanRepositoryImpl implements PlanRepository {
      */
     @Override
 	public void update(PlanRequest planRequest) {
-		try {
-            PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
-            producer.push(config.getPlanUpdateTopic(), planRequestDTO);
-		} catch (Exception e) {
-			log.info("Pushing message to topic " + config.getPlanUpdateTopic() + " failed.", e);
-		}
+        PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
+        producer.push(config.getPlanUpdateTopic(), planRequestDTO);
 	}
 
     /**
