@@ -84,6 +84,9 @@ public class ServiceConstants {
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
     public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
 
+    public static final String INVALID_HIERARCHY_LEVEL_CODE = "INVALID_HIERARCHY_LEVEL";
+    public static final String INVALID_HIERARCHY_LEVEL_MESSAGE = "The hierarchy level provided is invalid";
+
     public static final String INVALID_EMPLOYEE_ROLE_CODE = "INVALID_EMPLOYEE_ROLE";
     public static final String INVALID_EMPLOYEE_ROLE_MESSAGE = "The employee's role provided is invalid";
 
