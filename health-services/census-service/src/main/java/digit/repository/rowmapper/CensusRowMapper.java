@@ -60,6 +60,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setStatus(Census.StatusEnum.valueOf(rs.getString("census_status").toUpperCase()));
                 censusEntry.setAssignee(rs.getString("census_assignee"));
                 censusEntry.setBoundaryAncestralPath(Collections.singletonList(rs.getString("census_boundary_ancestral_path")));
+                censusEntry.setFacilityAssigned(rs.getBoolean("census_facility_assigned"));
                 censusEntry.setAdditionalDetails(queryUtil.parseJson((PGobject) rs.getObject("census_additional_details")));
                 censusEntry.setAuditDetails(auditDetails);
             }

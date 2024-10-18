@@ -79,6 +79,9 @@ public class CensusDTO {
     @JsonIgnore
     private boolean partnerAssignmentValidationEnabled;
 
+    @JsonProperty("facilityAssigned")
+    private boolean facilityAssigned;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
