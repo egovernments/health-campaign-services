@@ -86,6 +86,9 @@ public class ServiceConstants {
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
     public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
 
+    public static final String INVALID_HIERARCHY_LEVEL_CODE = "INVALID_HIERARCHY_LEVEL";
+    public static final String INVALID_HIERARCHY_LEVEL_MESSAGE = "The hierarchy level provided is invalid";
+
     public static final String INVALID_EMPLOYEE_ROLE_CODE = "INVALID_EMPLOYEE_ROLE";
     public static final String INVALID_EMPLOYEE_ROLE_MESSAGE = "The employee's role provided is invalid";
 
@@ -295,5 +298,29 @@ public class ServiceConstants {
 
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
+
+    public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
+
+    public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
+
+    public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
+    public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";
+
+    public static final String INVALID_SERVICE_BOUNDARY_CODE = "INVALID_SERVICE_BOUNDARY";
+    public static final String INVALID_SERVICE_BOUNDARY_MESSAGE = "The provided service boundary is invalid";
+
+    public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
+    public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
+
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE = "HIERARCHY_NOT_FOUND_IN_MDMS";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE = "Hierarchy key not found in mdms";
+
+    public static final String FAILED_MESSAGE = "Failed to push message to topic";
+
+    public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "name";
+
+    public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "status";
+
+    public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
 }
