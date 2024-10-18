@@ -307,7 +307,6 @@ public class PlanValidator {
 
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
 
         //TODO: remove after setting the flag in consumer
         request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
