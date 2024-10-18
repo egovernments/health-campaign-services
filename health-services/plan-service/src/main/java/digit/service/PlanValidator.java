@@ -498,7 +498,7 @@ public class PlanValidator {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
                 .builder()
                 .tenantId(planRequest.getPlan().getTenantId())
-                .employeeId(planRequest.getRequestInfo().getUserInfo().getUuid())
+                .employeeId(Collections.singletonList(planRequest.getRequestInfo().getUserInfo().getUuid()))
                 .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
                 .role(config.getPlanEstimationApproverRoles())
                 .build();
