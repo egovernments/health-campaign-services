@@ -128,7 +128,7 @@ public class CensusRepositoryImpl implements CensusRepository {
                 .effectiveTo(census.getEffectiveTo())
                 .source(census.getSource())
                 .boundaryAncestralPath(census.getBoundaryAncestralPath().get(0))
-                .facilityAssigned(census.isFacilityAssigned())
+                .facilityAssigned(census.getFacilityAssigned())
                 .additionalDetails(census.getAdditionalDetails())
                 .auditDetails(census.getAuditDetails())
                 .build();

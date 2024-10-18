@@ -106,10 +106,10 @@ public class CensusQueryBuilder {
             preparedStmtList.add(criteria.getSource());
         }
 
-        if (!ObjectUtils.isEmpty(criteria.isFacilityAssigned())) {
+        if (!ObjectUtils.isEmpty(criteria.getFacilityAssigned())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.facility_assigned = ?");
-            preparedStmtList.add(criteria.isFacilityAssigned());
+            preparedStmtList.add(criteria.getFacilityAssigned());
         }
 
         if (!ObjectUtils.isEmpty(criteria.getEffectiveTo())) {

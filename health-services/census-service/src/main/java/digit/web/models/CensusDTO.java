@@ -80,7 +80,7 @@ public class CensusDTO {
     private boolean partnerAssignmentValidationEnabled;
 
     @JsonProperty("facilityAssigned")
-    private boolean facilityAssigned;
+    private Boolean facilityAssigned = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
