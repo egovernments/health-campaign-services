@@ -101,14 +101,15 @@ public class FacilityService {
 
 				Stock stock = (Stock) entity;
 
-                // Add the sender ID if the sender is a warehouse and the transaction type is DISPATCHED
+         // Add the sender ID if the sender is a warehouse and the transaction type is DISPATCHED
 				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 					facilityIds.add(stock.getSenderId());
 				}
-                // Add the receiver ID if the receiver is a warehouse and the transaction type is RECEIVED
-                if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
-                    facilityIds.add(stock.getReceiverId());
-                }
+
+        // Add the receiver ID if the receiver is a warehouse and the transaction type is RECEIVED
+        else if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
+           facilityIds.add(stock.getReceiverId());
+        }
 			}
 		}
 
