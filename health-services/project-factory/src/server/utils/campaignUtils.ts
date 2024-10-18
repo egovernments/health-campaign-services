@@ -1884,6 +1884,7 @@ async function updateAndPersistResourceDetails(request: any, boundaryFileDetails
 
 async function getResourceDetails(request: any) {
     const { tenantId, type, hierarchyType } = request?.body?.ResourceDetails || request?.query;
+    const resourceDetails = request?.body?.ResourceDetails;
 
     request.body.SearchCriteria = request.body.SearchCriteria || {};
 
@@ -1895,7 +1896,7 @@ async function getResourceDetails(request: any) {
     };
 
     const response = await searchDataService(request);
-
+    request.body.ResourceDetails = resourceDetails;
     if(response.length > 0){
         response.sort((a: any, b: any) => b.auditDetails.lastModifiedTime - a.auditDetails.lastModifiedTime);
         return response[0];
