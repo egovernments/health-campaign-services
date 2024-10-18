@@ -137,16 +137,14 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: UPDATE eg_service_definition SET createdby = ?, lastmodifiedby = ?, createdtime = ?, lastmodifiedtime = ? WHERE id = ?
+        - query: UPDATE eg_service_definition SET lastmodifiedby = ?, lastmodifiedtime = ?, isactive = ? WHERE id = ?
           basePath: $.ServiceDefinition
           jsonMaps:
-            - jsonPath: $.ServiceDefinition.auditDetails.createdBy
-
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedBy
 
-            - jsonPath: $.ServiceDefinition.auditDetails.createdTime
-
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
+
+            - jsonPath: $.ServiceDefinition.isActive
 
             - jsonPath: $.ServiceDefinition.id
 
