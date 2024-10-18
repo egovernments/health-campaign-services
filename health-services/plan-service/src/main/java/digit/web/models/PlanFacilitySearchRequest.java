@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
+import javax.validation.constraints.NotNull;
+
 /**
  * PlanFacilitySearchRequest
  */
@@ -20,10 +22,12 @@ import org.springframework.validation.annotation.Validated;
 public class PlanFacilitySearchRequest {
 
     @JsonProperty("RequestInfo")
+    @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
     @JsonProperty("PlanFacilitySearchCriteria")
+    @NotNull
     @Valid
     private PlanFacilitySearchCriteria planFacilitySearchCriteria = null;
 
