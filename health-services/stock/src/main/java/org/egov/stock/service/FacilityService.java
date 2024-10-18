@@ -84,36 +84,45 @@ public class FacilityService {
                                                 Map<T, List<Error>> errorDetailsMap,
                                                 RequestInfo requestInfo) {
 
-
+        // Get a list of project reference IDs from the entities using reflection
         List<String> projectIds = getIdList(entities, getMethod(GET_REFERENCE_ID, entities.get(0).getClass()));
         List<String> facilityIds = null;
 
+        // Check the type of entities being processed (either StockReconciliation or Stock)
 		if (entities.get(0) instanceof StockReconciliation) {
+
+            // If the entity is StockReconciliation, extract facility IDs directly
 			facilityIds = getIdList(entities, getMethod(GET_FACILITY_ID, entities.get(0).getClass()));
 		} else if (entities.get(0) instanceof Stock) {
 
+            // If the entity is Stock, manually gather facility IDs based on sender/receiver type and transaction type
 			facilityIds = new ArrayList<>();
 			for (T entity : entities) {
 
 				Stock stock = (Stock) entity;
 
+                // Add the sender ID if the sender is a warehouse and the transaction type is DISPATCHED
 				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
 					facilityIds.add(stock.getSenderId());
 				}
+                // Add the receiver ID if the receiver is a warehouse and the transaction type is RECEIVED
                 if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType())) {
                     facilityIds.add(stock.getReceiverId());
                 }
 			}
 		}
 
+        // Calculate the search limit based on the number of project and facility IDs
         Integer searchLimit = projectIds.size() * facilityIds.size();
 
+        // Build a request object to search for project-facility mappings
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
                 .projectFacility(ProjectFacilitySearch.builder().projectId(projectIds).facilityId(facilityIds).build())
                 .requestInfo(requestInfo)
                 .build();
 
         try {
+            // Call an external service to fetch project-facility mappings using the constructed request
             ProjectFacilityBulkResponse response = serviceRequestClient.fetchResult(
                     new StringBuilder(stockConfiguration.getProjectFacilityServiceHost()
                             + stockConfiguration.getProjectFacilityServiceSearchUrl()
@@ -122,11 +131,13 @@ public class FacilityService {
                     projectFacilitySearchRequest,
                     ProjectFacilityBulkResponse.class);
 
+            // Group the response by project ID and collect facility IDs associated with each project
 			return response.getProjectFacilities().stream()
 					.collect(Collectors.groupingBy(projectFacility -> projectFacility.getProjectId(),
 							Collectors.mapping(projectFacility -> projectFacility.getFacilityId(), Collectors.toList())));
 
         } catch (Exception e) {
+            // If an exception occurs, log the error and add network error details to each entity in the errorDetailsMap
             log.error("error while fetching project facility list: {}", ExceptionUtils.getStackTrace(e));
             entities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
