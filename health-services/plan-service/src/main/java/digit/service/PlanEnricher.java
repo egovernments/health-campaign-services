@@ -1,16 +1,16 @@
 package digit.service;
 
+import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
+import digit.web.models.boundary.EnrichedBoundary;
+import digit.web.models.boundary.HierarchyRelation;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Component
 public class PlanEnricher {
@@ -105,5 +105,25 @@ public class PlanEnricher {
             }
         });
 
+    }
+
+    /**
+     * Enriches the boundary ancestral path for the provided boundary code in the census request.
+     *
+     * @param plan         The plan record whose boundary ancestral path has to be enriched.
+     * @param tenantBoundary boundary relationship from the boundary service for the given boundary code.
+     */
+    public void enrichBoundaryAncestralPath(Plan plan, HierarchyRelation tenantBoundary) {
+        EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
+        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
+
+        // Iterate through the child boundary until there are no more
+        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+            boundary = boundary.getChildren().get(0);
+            boundaryAncestralPath.append("|").append(boundary.getCode());
+        }
+
+        // Setting the boundary ancestral path for the provided boundary
+        plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
     }
 }

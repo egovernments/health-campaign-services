@@ -1,6 +1,7 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
+import digit.service.workflow.WorkflowService;
 import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
 import digit.web.models.PlanResponse;
@@ -21,10 +22,13 @@ public class PlanService {
 
     private PlanRepository planRepository;
 
-    public PlanService(PlanValidator planValidator, PlanEnricher planEnricher, PlanRepository planRepository) {
+    private WorkflowService workflowService;
+
+    public PlanService(PlanValidator planValidator, PlanEnricher planEnricher, PlanRepository planRepository, WorkflowService workflowService) {
         this.planValidator = planValidator;
         this.planEnricher = planEnricher;
         this.planRepository = planRepository;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -38,6 +42,9 @@ public class PlanService {
 
         // Enrich plan create request
         planEnricher.enrichPlanCreate(body);
+
+        // Call workflow transition API for status update
+        workflowService.invokeWorkflowForStatusUpdate(body);
 
         // Delegate creation request to repository
         planRepository.create(body);
@@ -76,6 +83,9 @@ public class PlanService {
 
         // Enrich plan update request
         planEnricher.enrichPlanUpdate(body);
+
+        // Call workflow transition API for status update
+        workflowService.invokeWorkflowForStatusUpdate(body);
 
         // Delegate update request to repository
         planRepository.update(body);

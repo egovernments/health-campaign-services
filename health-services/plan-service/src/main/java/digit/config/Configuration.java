@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -20,6 +21,9 @@ public class Configuration {
     //Role Map
     @Value("#{${role.map}}")
     public Map<String, String> roleMap;
+
+    @Value("${plan.estimation.approver.roles}")
+    public List<String> planEstimationApproverRoles;
 
     //MDMS
     @Value("${egov.mdms.host}")
@@ -44,6 +48,13 @@ public class Configuration {
 
     @Value("${egov.user.search.endpoint}")
     private String userSearchEndPoint;
+
+    // Boundary Service
+    @Value("${egov.boundary.service.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndpoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
@@ -89,5 +100,14 @@ public class Configuration {
 
     @Value("${egov.workflow.transition.path}")
     private String wfTransitionPath;
+
+    @Value("${workflow.initiate.action}")
+    private List<String> wfInitiateActions;
+
+    @Value("${workflow.intermediate.action}")
+    private List<String> wfIntermediateActions;
+
+    @Value("${workflow.send.back.actions}")
+    private List<String> wfSendBackActions;
 
 }
