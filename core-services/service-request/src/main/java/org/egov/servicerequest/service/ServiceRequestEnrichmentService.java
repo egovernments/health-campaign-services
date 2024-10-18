@@ -3,6 +3,7 @@ package org.egov.servicerequest.service;
 import digit.models.coremodels.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.servicerequest.constants.Constants;
+import org.egov.servicerequest.util.CommonUtils;
 import org.egov.servicerequest.web.models.AttributeDefinition;
 import org.egov.servicerequest.web.models.Service;
 import org.egov.servicerequest.web.models.ServiceDefinition;
@@ -141,11 +142,11 @@ public class ServiceRequestEnrichmentService {
 
         attributeDefinition.setReferenceId(serviceDefinitionRequest.getServiceDefinition().getId());
     }
-    public void enrichServiceDefinitionUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest, List<ServiceDefinition> serviceDefinitionList){
+    public void enrichServiceDefinitionUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest, ServiceDefinition definitionFromDb) {
         List<AttributeDefinition> attributeDefinitions = serviceDefinitionRequest.getServiceDefinition().getAttributes();
 
         //For quick lookup of Attribute Definition with Code
-        Map<String,AttributeDefinition> existingAttributeCode = serviceDefinitionList.get(0)
+        Map<String,AttributeDefinition> existingAttributeCode = definitionFromDb
           .getAttributes()
           .stream()
           .collect(Collectors.toMap(AttributeDefinition::getCode, a->a));
@@ -154,8 +155,8 @@ public class ServiceRequestEnrichmentService {
 
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
 
-        serviceDefinition.setId(serviceDefinitionList.get(0).getId());
-        serviceDefinition.setAuditDetails(serviceDefinitionList.get(0).getAuditDetails());
+        serviceDefinition.setId(definitionFromDb.getId());
+        serviceDefinition.setAuditDetails(definitionFromDb.getAuditDetails());
         serviceDefinition.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
         serviceDefinition.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
 
@@ -166,9 +167,7 @@ public class ServiceRequestEnrichmentService {
             else{
                 upsertAttributeDefinition(attributeDefinition, serviceDefinitionRequest);
             }
-        });
 
-        attributeDefinitions.forEach(attributeDefinition -> {
             if(!(attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST) || attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST))){
                 List<String> emptyStringList = new ArrayList<>();
                 emptyStringList.add("");

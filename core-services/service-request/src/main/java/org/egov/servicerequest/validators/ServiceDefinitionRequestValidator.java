@@ -89,14 +89,13 @@ public class ServiceDefinitionRequestValidator {
 
     private List<ServiceDefinition> validateExistence(ServiceDefinition serviceDefinition) {
         List<ServiceDefinition> serviceDefinitionList = serviceDefinitionRequestRepository.
-          getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(serviceDefinition.getTenantId()).code(Collections.singletonList(serviceDefinition.getCode())).build()).build());
-        //check if valid service definition exists
+          getServiceDefinitions(ServiceDefinitionSearchRequest.builder()
+            .includeDeleted(true)
+            .serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(serviceDefinition.getTenantId()).code(Collections.singletonList(serviceDefinition.getCode())).build()).build());
+
+        //Check if valid service definition exists
         if (CollectionUtils.isEmpty(serviceDefinitionList)) {
             throw new CustomException(SERVICE_DEFINITION_NOT_EXIST_ERR_CODE, SERVICE_DEFINITION_NOT_EXIST_ERR_MSG);
-        }
-        //check if service definition is active or not
-        if (!serviceDefinitionList.get(0).getIsActive()) {
-            throw new CustomException(INACTIVE_SERVICE_DEFINITION_ERR_CODE, INACTIVE_SERVICE_DEFINITION_ERR_MSG);
         }
 
         return serviceDefinitionList;
@@ -114,22 +113,25 @@ public class ServiceDefinitionRequestValidator {
         }
     }
 
-    public List<ServiceDefinition> validateUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest) {
+    public ServiceDefinition validateUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest) {
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
 
-        //Check if valid Service Definition exists
+        //Validate if a  Service Definition exists
         List<ServiceDefinition> serviceDefinitionList = validateExistence(serviceDefinition);
 
-        //Check if a service exists corresponding to this service definition
+        //Validate if a Service exists corresponding to this Service Definition
         validateService(serviceDefinitionList);
 
+        // Validate if all attribute definitions provided as part of service definitions have unique code
         validateAttributeDefinitionUniqueness(serviceDefinition);
 
+        // Validate values provided in attribute definitions as per data type
         validateAttributeValuesAsPerDataType(serviceDefinition);
 
+        // Validate regex values provided in attribute definitions
         validateRegex(serviceDefinition);
 
-        return serviceDefinitionList;
+        return serviceDefinitionList.get(0);
     }
 
 }
