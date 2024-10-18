@@ -243,9 +243,11 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
       columnIndexesToBeFreezed.push(columnIndex);
     });
     const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
+    const boundaryCodeMandatoryColumnWhichIsNotToBeFreezed = getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap);
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
-    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn]); // Example columns to freeze and unfreeze
+    const columnIndexOfBoundaryCodeMandatory = getColumnIndexByHeader(sheet, boundaryCodeMandatoryColumnWhichIsNotToBeFreezed);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]); // Example columns to freeze and unfreeze
     hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);

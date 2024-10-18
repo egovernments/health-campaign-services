@@ -434,6 +434,9 @@ async function createAndUploadFile(
   request: any,
   tenantId?: any
 ) {
+  let retries: any = 3;
+  while(retries--){
+    try{
   // Write the updated workbook to a buffer
   const buffer = await updatedWorkbook.xlsx.writeBuffer();
 
@@ -447,27 +450,32 @@ async function createAndUploadFile(
   formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
 
   // Make HTTP request to upload file
-  var fileCreationResult = await httpRequest(
-    config.host.filestore + config.paths.filestore,
-    formData,
-    undefined,
-    undefined,
-    undefined,
-    {
-      "Content-Type": "multipart/form-data",
-      "auth-token": request?.body?.RequestInfo?.authToken,
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data",
+          "auth-token": request?.body?.RequestInfo?.authToken,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
     }
-  );
+    catch (error:any) {
+      console.error(`Attempt failed:`, error.message);
 
-  // Extract response data
-  const responseData = fileCreationResult?.files;
-  if (!responseData) {
-    throw new Error(
-      "Error while uploading excel file: INTERNAL_SERVER_ERROR"
-    );
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
   }
-
-  return responseData; // Return the response data
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
 }
 
 async function createAndUploadJsonFile(

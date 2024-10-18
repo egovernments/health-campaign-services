@@ -15,6 +15,7 @@ import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
 import { persistTrack } from "../utils/processTrackUtils";
 import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
+import { validateMicroplanFacility } from "../validators/microplanValidators";
 
 
 
@@ -521,6 +522,9 @@ async function confirmCreation(createAndSearchConfig: any, request: any, dataToC
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
   try {
+    if (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'facility') {
+      validateMicroplanFacility(request, dataFromSheet, localizationMap);
+    }
     const typeData = await convertToTypeData(request, dataFromSheet, createAndSearchConfig, request.body, localizationMap)
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
@@ -605,11 +609,18 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     if (Array.isArray(dataFromSheet)) {
-      await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
+      if (request?.body?.ResourceDetails?.additionalDetails?.source != "microplan") {
+        await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
+      }
       processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
     }
     else {
-      processSheetWise(false, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+      if (dataFromSheet && Object.keys(dataFromSheet).length > 0) {
+        processSheetWise(false, dataFromSheet, request, createAndSearchConfig, translatedSchema, localizationMap)
+      }
+      else {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "No data filled in the sheet.");
+      }
     }
   }
 }
@@ -809,6 +820,13 @@ async function processGenericRequest(request: any, localizationMap?: { [key: str
   if (request?.body?.ResourceDetails?.type != "boundary" && request?.body?.ResourceDetails?.type != "boundaryManagement") {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+    if (campaignObject?.additionalDetails?.resourceDistributionStrategy == "HOUSE_TO_HOUSE") {
+      request.body.showFixedPost = false;
+    }
+    else {
+      request.body.showFixedPost = true;
+    }
+    request.body.projectTypeCode = campaignObject?.projectType;
     await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
   }
 
