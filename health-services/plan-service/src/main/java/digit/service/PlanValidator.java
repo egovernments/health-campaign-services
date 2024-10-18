@@ -307,15 +307,11 @@ public class PlanValidator {
 
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
-        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
-        BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
         request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
 
         //TODO: remove after setting the flag in consumer
         request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
 
-        // Validate locality against boundary service
-        validateBoundaryCode(boundarySearchResponse, request.getPlan());
 
         // Validate activities
         validateActivities(request);
@@ -349,9 +345,6 @@ public class PlanValidator {
 
         // Validate Metric Detail's Unit against MDMS
         validateMetricDetailUnit(request, mdmsData);
-
-        // Validate if campaign id exists against project factory
-        validateCampaignId(campaignResponse);
 
         // Validate the user information in the request
         commonUtil.validateUserInfo(request.getRequestInfo());
