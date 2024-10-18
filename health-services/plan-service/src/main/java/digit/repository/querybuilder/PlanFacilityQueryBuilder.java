@@ -75,6 +75,13 @@ public class PlanFacilityQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));
         }
 
+        if(!CollectionUtils.isEmpty(planFacilitySearchCriteria.getFiltersMap())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" additional_details @> CAST( ? AS jsonb )");
+            String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planFacilitySearchCriteria.getFiltersMap());
+            preparedStmtList.add(partialQueryJsonString);
+        }
+
         return builder.toString();
     }
 
