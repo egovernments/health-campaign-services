@@ -1,17 +1,19 @@
 package org.egov.processor.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
-
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Data;
+import lombok.Builder;
 
 /**
  * Plan
@@ -43,6 +45,14 @@ public class Plan {
     @Size(max = 64)
     private String planConfigurationId = null;
 
+    @JsonProperty("status")
+    @Size(max = 64)
+    private String status = null;
+
+    @JsonProperty("assignee")
+    @Size(max = 64)
+    private String assignee = null;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
@@ -60,5 +70,16 @@ public class Plan {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("boundaryAncestralPath")
+    @NotNull
+    private String boundaryAncestralPath = null;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
+
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
 
 }

@@ -63,6 +63,8 @@ public class ParsingUtil {
         }       
         return columnNames;
     }
+
+
     public void validateColumnNames(List<String> columnNamesList, PlanConfiguration planConfig, String fileStoreId ) {
         Set<String> mappedFromSet = planConfig.getResourceMapping().stream()
                 .filter(mapping -> Objects.equals(mapping.getFilestoreId(), fileStoreId))
