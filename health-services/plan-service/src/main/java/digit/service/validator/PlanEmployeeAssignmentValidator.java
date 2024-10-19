@@ -132,7 +132,7 @@ public class PlanEmployeeAssignmentValidator {
 
             // Validate that National role employee should not have more than one jurisdiction assigned
             if (jurisdiction.size() > 1) {
-                throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+                throw new CustomException(INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE, INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE);
             }
 
             // Fetch the highest hierarchy for Microplan from MDMS
@@ -144,7 +144,7 @@ public class PlanEmployeeAssignmentValidator {
                     .filter(boundary -> boundary.getCode().equals(jurisdiction.get(0)))
                     .forEach(boundary -> {
                         if (!boundary.getType().equals(highestHierarchy)) {
-                            throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+                            throw new CustomException(INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE, INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE);
                         }
                     });
         }
@@ -254,7 +254,7 @@ public class PlanEmployeeAssignmentValidator {
         planEmployeeAssignment.getJurisdiction()
                 .forEach(jurisdiction -> {
                     if (!boundaryCode.contains(jurisdiction)) {
-                        throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
+                        throw new CustomException(INVALID_JURISDICTION_CODE, INVALID_JURISDICTION_MESSAGE);
                     }
                 });
 
