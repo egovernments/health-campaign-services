@@ -30,14 +30,18 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("employeeId")
-    private String employeeId = null;
+    private List<String> employeeId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)
     private String planConfigurationId = null;
 
     @JsonProperty("role")
+    @Valid
     private List<String> role = null;
+
+    @JsonProperty("hierarchyLevel")
+    private String hierarchyLevel = null;
 
     @JsonProperty("jurisdiction")
     @Valid

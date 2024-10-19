@@ -1,8 +1,10 @@
 package digit.web.models;
 
+import java.util.List;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
@@ -36,6 +38,16 @@ public class PlanSearchCriteria {
 
     @JsonProperty("planConfigurationId")
     private String planConfigurationId = null;
+
+    @JsonProperty("status")
+    private String status = null;
+
+    @JsonProperty("assignee")
+    private String assignee = null;
+
+    @JsonProperty("jurisdiction")
+    @Valid
+    private List<String> jurisdiction = null;
 
     @JsonProperty("offset")
     private Integer offset = null;

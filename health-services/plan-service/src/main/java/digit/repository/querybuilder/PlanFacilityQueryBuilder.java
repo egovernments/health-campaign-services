@@ -89,6 +89,13 @@ public class PlanFacilityQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));
         }
 
+        if(!CollectionUtils.isEmpty(planFacilitySearchCriteria.getFiltersMap())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" additional_details @> CAST( ? AS jsonb )");
+            String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planFacilitySearchCriteria.getFiltersMap());
+            preparedStmtList.add(partialQueryJsonString);
+        }
+
         StringBuilder countQuery = new StringBuilder();
         if (isCount) {
             countQuery.append(PLAN_FACILITY_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
@@ -113,4 +120,5 @@ public class PlanFacilityQueryBuilder {
 
         return paginatedQuery.toString();
     }
+
 }

@@ -58,18 +58,10 @@ public class PlanFacilityService {
      * @return PlanFacilityResponse object containing the search results and response information.
      */
     public PlanFacilityResponse searchPlanFacility(PlanFacilitySearchRequest planFacilitySearchRequest) {
+        // Enrich search request
+        planFacilityEnricher.enrichSearchRequest(planFacilitySearchRequest);
 
-        // search validations
-        if (planFacilitySearchRequest == null || planFacilitySearchRequest.getPlanFacilitySearchCriteria() == null) {
-            throw new IllegalArgumentException("Search request or criteria cannot be null");
-        }
-        else if (planFacilitySearchRequest.getPlanFacilitySearchCriteria().getTenantId().isEmpty()) {
-            throw new IllegalArgumentException("Tenant Id cannot be null");
-        }
-        else if (planFacilitySearchRequest.getPlanFacilitySearchCriteria().getPlanConfigurationId().isEmpty()) {
-            throw new IllegalArgumentException("Plan Configuration ID cannot be null");
-        }
-
+        // Delegate request to repository
         List<PlanFacility> planFacilityList = planFacilityRepository.search(planFacilitySearchRequest.getPlanFacilitySearchCriteria());
 
         // Build and return response back to controller

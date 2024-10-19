@@ -94,8 +94,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     @Override
     public List<PlanFacility> search(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         // Fetch plan facility from database
-        List<PlanFacility> planFacilities = queryDatabaseForPlanFacilities(planFacilitySearchCriteria);
-        return planFacilities;
+        return queryDatabaseForPlanFacilities(planFacilitySearchCriteria);
     }
 
     /**
@@ -138,8 +137,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     private List<PlanFacility> queryDatabaseForPlanFacilities(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planFacilityQueryBuilder.getPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
-        log.debug("Plan facility search {}", query);
-        log.debug(preparedStmtList.toString());
+        log.info("Plan facility search {}", query);
+        log.info(preparedStmtList.toString());
         return jdbcTemplate.query(query, planFacilityRowMapper, preparedStmtList.toArray());
     }
 
