@@ -107,7 +107,7 @@ public class Configuration {
     @Value("${workflow.intermediate.action}")
     private List<String> wfIntermediateActions;
 
-    @Value("${workflow.send.back.action}")
+    @Value("${workflow.send.back.actions}")
     private List<String> wfSendBackActions;
 
 }

@@ -68,6 +68,12 @@ public class PlanFacilityQueryBuilder {
             preparedStmtList.add(planFacilitySearchCriteria.getPlanConfigurationId());
         }
 
+        if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" facility_id = ? ");
+            preparedStmtList.add(planFacilitySearchCriteria.getFacilityId());
+        }
+
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getResidingBoundaries())) {
             List<String> residingBoundaries = planFacilitySearchCriteria.getResidingBoundaries();
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
