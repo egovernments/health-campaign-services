@@ -94,7 +94,7 @@ public class CensusQueryBuilder {
             preparedStmtList.add(criteria.getStatus());
         }
 
-        if (!ObjectUtils.isEmpty(criteria.getAssignee())) {
+        if (!isStatusCount && !ObjectUtils.isEmpty(criteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.assignee = ?");
             preparedStmtList.add(criteria.getAssignee());
