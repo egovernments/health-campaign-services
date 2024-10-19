@@ -18,7 +18,7 @@ public class PlanStatusCountRowMapper  implements ResultSetExtractor<Map<String,
         Map<String, Integer> statusCountMap = new HashMap<>();
 
         while (rs.next()) {
-            String status = rs.getString("plan_status");
+            String status = rs.getString("status");
             Integer statusCount = rs.getInt("plan_status_count");
             statusCountMap.put(status, statusCount);
         }

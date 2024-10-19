@@ -40,7 +40,7 @@ public class PlanQueryBuilder {
 
     private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
 
-    private static final String PLAN_STATUS_COUNT_WRAPPER = "SELECT COUNT(plan_id) as plan_status_count, plan_status FROM ({INTERNAL_QUERY}) as plan_status_map GROUP BY plan_status";
+    private static final String PLAN_STATUS_COUNT_QUERY = "SELECT COUNT(id) as plan_status_count, status FROM (SELECT id, status FROM plan {INTERNAL_QUERY}) as plan_status_map GROUP BY status";
 
     public String getPlanQuery(List<String> ids, List<Object> preparedStmtList) {
         return buildPlanQuery(ids, preparedStmtList);
@@ -98,6 +98,10 @@ public class PlanQueryBuilder {
     private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount, boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
+        if(isStatusCount) {
+            builder = new StringBuilder();
+        }
+
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ? ");
@@ -134,11 +138,12 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
+        if (!isStatusCount && !ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" assignee = ? ");
             preparedStmtList.add(planSearchCriteria.getAssignee());
         }
+
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
@@ -161,7 +166,7 @@ public class PlanQueryBuilder {
         }
 
         if (isStatusCount) {
-            return PLAN_STATUS_COUNT_WRAPPER.replace("{INTERNAL_QUERY}", builder);
+            return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
 
         return builder.toString();
