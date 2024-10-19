@@ -12,7 +12,11 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_USER_SERVICE = "Exception occurred while fetching user details from user service: ";
+
     public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
+
+    public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
 
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
 
@@ -20,7 +24,7 @@ public class ServiceConstants {
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
 
-    public static final String NATIONAL_ROLE = "NATIONAL";
+    public static final String ROOT_PREFIX = "ROOT";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
@@ -82,6 +86,9 @@ public class ServiceConstants {
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
     public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
 
+    public static final String INVALID_HIERARCHY_LEVEL_CODE = "INVALID_HIERARCHY_LEVEL";
+    public static final String INVALID_HIERARCHY_LEVEL_MESSAGE = "The hierarchy level provided is invalid";
+
     public static final String INVALID_EMPLOYEE_ROLE_CODE = "INVALID_EMPLOYEE_ROLE";
     public static final String INVALID_EMPLOYEE_ROLE_MESSAGE = "The employee's role provided is invalid";
 
@@ -91,14 +98,23 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID";
-    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_ID_MESSAGE = "Plan employee assignment id provided is invalid";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT";
+    public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_MESSAGE = "Plan employee assignment to be updated doesn't exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
+
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND";
+    public static final String PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE = "No plan-employee assignment found for the provided boundary - ";
+
+    public static final String JURISDICTION_NOT_FOUND_CODE = "JURISDICTION_NOT_FOUND";
+    public static final String JURISDICTION_NOT_FOUND_MESSAGE = "Employee doesn't have the jurisdiction to take action for the provided locality.";
+
+    public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE = "NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE";
+    public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE = "Invalid or incorrect boundaryCode. No boundary data found.";
 
     public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
     public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
@@ -209,6 +225,8 @@ public class ServiceConstants {
 
     public static final String DOT_REGEX = "\\.";
 
+    public static final String PIPE_REGEX = "\\|";
+
     public static final String FILTER_CODE = "$.*.code";
 
     public static final String FILTER_ID = "$.*.id";
@@ -241,6 +259,8 @@ public class ServiceConstants {
 
     public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 
+    public static final String LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN = "lowestHierarchy";
+
     public static final String NAME_VALIDATION_DATA = "Data";
 
     // Constants for constructing logical expressions or queries
@@ -268,6 +288,8 @@ public class ServiceConstants {
     // Workflow Constants
     public static final String PLAN_CONFIGURATION_BUSINESS_SERVICE = "PLAN_CONFIGURATION";
 
+    public static final String PLAN_ESTIMATION_BUSINESS_SERVICE = "PLAN_ESTIMATION";
+
     public static final String MODULE_NAME_VALUE = "plan-service";
 
     public static final String DRAFT_STATUS = "DRAFT";
@@ -276,5 +298,29 @@ public class ServiceConstants {
 
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
+
+    public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
+
+    public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
+
+    public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
+    public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";
+
+    public static final String INVALID_SERVICE_BOUNDARY_CODE = "INVALID_SERVICE_BOUNDARY";
+    public static final String INVALID_SERVICE_BOUNDARY_MESSAGE = "The provided service boundary is invalid";
+
+    public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
+    public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
+
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE = "HIERARCHY_NOT_FOUND_IN_MDMS";
+    public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE = "Hierarchy key not found in mdms";
+
+    public static final String FAILED_MESSAGE = "Failed to push message to topic";
+
+    public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "name";
+
+    public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "status";
+
+    public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
 }

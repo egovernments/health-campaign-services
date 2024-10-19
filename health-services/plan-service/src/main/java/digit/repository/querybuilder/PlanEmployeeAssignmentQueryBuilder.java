@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Component
@@ -17,7 +18,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
         this.queryUtil = queryUtil;
     }
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
@@ -79,16 +80,22 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
         }
 
-        if (searchCriteria.getEmployeeId() != null) {
+        if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" employee_id = ?");
-            preparedStmtList.add(searchCriteria.getEmployeeId());
+            builder.append(" employee_id IN ( ").append(queryUtil.createQuery(searchCriteria.getEmployeeId().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getEmployeeId()));
         }
 
-        if (searchCriteria.getRole() != null) {
+        if (!CollectionUtils.isEmpty(searchCriteria.getRole())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" role = ?");
-            preparedStmtList.add(searchCriteria.getRole());
+            builder.append(" role IN ( ").append(queryUtil.createQuery(searchCriteria.getRole().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getRole()));
+        }
+
+        if(searchCriteria.getHierarchyLevel() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" hierarchy_level = ?");
+            preparedStmtList.add(searchCriteria.getHierarchyLevel());
         }
 
         if (searchCriteria.getActive() != null) {
