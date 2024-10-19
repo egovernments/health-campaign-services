@@ -77,4 +77,10 @@ public class Configuration {
 	@Value("${egov.locale.search.endpoint}")
 	private String egovLocaleSearchEndpoint;
 
+	//trigger statuses
+	@Value("${plan.config.trigger.plan.estimates.status}")
+	private String planConfigTriggerPlanEstimatesStatus;
+
+	@Value("${plan.config.trigger.census.records.status}")
+	private String planConfigTriggerCensusRecordsStatus;
 }

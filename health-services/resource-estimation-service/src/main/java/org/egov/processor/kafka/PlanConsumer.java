@@ -31,10 +31,8 @@ public class PlanConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
-            if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(PlanConfiguration.StatusEnum.GENERATED)) {
                 resourceEstimationService.estimateResources(planConfigurationRequest);
                 log.info("Successfully estimated resources for plan.");
-            }
         } catch (Exception exception) {
             log.error("Error processing record from topic "+topic+" with exception :"+exception);
             throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),

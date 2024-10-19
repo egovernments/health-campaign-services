@@ -83,7 +83,7 @@ public class CampaignIntegrationUtil {
 			log.info("Campaign Integration successful.");
 		} catch (Exception e) {
 			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_CAMPAIGN
-					+ planConfigurationRequest.getPlanConfiguration().getExecutionPlanId(), e);
+					+ planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
 			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
 		}
 	}
@@ -279,7 +279,7 @@ public class CampaignIntegrationUtil {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		List<String> id = new ArrayList<String>();
-		id.add(planConfig.getExecutionPlanId());
+		id.add(planConfig.getCampaignId());
 		return CampaignSearchRequest.builder().requestInfo(planConfigurationRequest.getRequestInfo())
 				.campaignDetails(CampaignDetails.builder().ids(id).tenantId(planConfig.getTenantId()).build()).build();
 
