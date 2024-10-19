@@ -85,7 +85,16 @@ public class PlanQueryBuilder {
      * @return A SQL query string to get the status count of Plans for a given search criteria.
      */
     public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        return buildPlanSearchQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
+        PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
+                .tenantId(searchCriteria.getTenantId())
+                .ids(searchCriteria.getIds())
+                .planConfigurationId(searchCriteria.getPlanConfigurationId())
+                .locality(searchCriteria.getLocality())
+                .campaignId(searchCriteria.getCampaignId())
+                .status(searchCriteria.getStatus())
+                .jurisdiction(searchCriteria.getJurisdiction())
+                .build();
+        return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
     }
 
     /**
@@ -138,7 +147,7 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
-        if (!isStatusCount && !ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" assignee = ? ");
             preparedStmtList.add(planSearchCriteria.getAssignee());
