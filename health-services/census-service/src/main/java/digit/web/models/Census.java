@@ -83,7 +83,7 @@ public class Census {
     private boolean partnerAssignmentValidationEnabled;
 
     @JsonProperty("facilityAssigned")
-    private boolean facilityAssigned;
+    private Boolean facilityAssigned = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

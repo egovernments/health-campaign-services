@@ -43,7 +43,7 @@ public class CensusSearchCriteria {
     private String source = null;
 
     @JsonProperty("facilityAssigned")
-    private boolean facilityAssigned;
+    private Boolean facilityAssigned = null;
 
     @JsonProperty("jurisdiction")
     private List<String> jurisdiction = null;

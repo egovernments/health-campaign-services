@@ -27,7 +27,7 @@ public class CensusQueryBuilder {
 
     private static final String CENSUS_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
 
-    private static final String CENSUS_STATUS_COUNT_WRAPPER = "SELECT COUNT(census_id) as census_status_count, census_status FROM ({INTERNAL_QUERY}) GROUP BY census_status";
+    private static final String CENSUS_STATUS_COUNT_WRAPPER = "SELECT COUNT(census_id) as census_status_count, census_status FROM ({INTERNAL_QUERY}) as census_status_map GROUP BY census_status";
 
     /**
      * Constructs a SQL query string for searching Census records based on the provided search criteria.
@@ -106,10 +106,10 @@ public class CensusQueryBuilder {
             preparedStmtList.add(criteria.getSource());
         }
 
-        if (!ObjectUtils.isEmpty(criteria.isFacilityAssigned())) {
+        if (!ObjectUtils.isEmpty(criteria.getFacilityAssigned())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.facility_assigned = ?");
-            preparedStmtList.add(criteria.isFacilityAssigned());
+            preparedStmtList.add(criteria.getFacilityAssigned());
         }
 
         if (!ObjectUtils.isEmpty(criteria.getEffectiveTo())) {

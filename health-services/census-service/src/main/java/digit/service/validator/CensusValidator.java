@@ -128,7 +128,7 @@ public class CensusValidator {
 
         // Validate if Census record to be updated exists
         Census census = validateCensusExistence(request);
-        request.setCensus(census);
+        request.getCensus().setBoundaryAncestralPath(census.getBoundaryAncestralPath());
 
         // Validate partner assignment and jurisdiction against plan service
         validatePartnerForCensus(request);
