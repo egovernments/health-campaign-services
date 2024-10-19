@@ -48,5 +48,6 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private List<String> jurisdiction = null;
 
     @JsonProperty("active")
-    private Boolean active = null;
+    @Builder.Default
+    private Boolean active = Boolean.TRUE;
 }
