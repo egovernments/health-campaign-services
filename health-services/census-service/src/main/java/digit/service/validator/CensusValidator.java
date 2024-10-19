@@ -100,7 +100,7 @@ public class CensusValidator {
             List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
 
             PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                    .employeeId(userInfo.getUuid())
+                    .employeeId(Collections.singletonList(userInfo.getUuid()))
                     .planConfigurationId(request.getCensus().getSource())
                     .tenantId(request.getCensus().getTenantId())
                     .role(configs.getAllowedCensusRoles())
