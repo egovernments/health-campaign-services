@@ -12,6 +12,8 @@ import digit.web.models.CensusSearchRequest;
 import digit.web.models.boundary.BoundarySearchResponse;
 import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
+import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
+import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -96,11 +98,26 @@ public class CensusValidator {
         if (census.isPartnerAssignmentValidationEnabled()) {
             User userInfo = request.getRequestInfo().getUserInfo();
             List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
-            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(request.getRequestInfo(), userInfo.getUuid(), request.getCensus().getSource(), request.getCensus().getTenantId(), configs.getAllowedCensusRoles(), jurisdiction);
+
+            PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
+                    .employeeId(userInfo.getUuid())
+                    .planConfigurationId(request.getCensus().getSource())
+                    .tenantId(request.getCensus().getTenantId())
+                    .role(configs.getAllowedCensusRoles())
+                    .jurisdiction(jurisdiction)
+                    .build();
+
+            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
+                    .requestInfo(request.getRequestInfo())
+                    .planEmployeeAssignmentSearchCriteria(searchCriteria)
+                    .build());
 
             if (CollectionUtils.isEmpty(employeeAssignmentResponse.getPlanEmployeeAssignment())) {
                 throw new CustomException(INVALID_PARTNER_CODE, INVALID_PARTNER_MESSAGE);
             }
+
+            //enrich jurisdiction of current assignee
+            request.getCensus().setAssigneeJurisdiction(employeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
         }
     }
 

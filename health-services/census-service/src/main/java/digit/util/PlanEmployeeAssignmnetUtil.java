@@ -28,56 +28,23 @@ public class PlanEmployeeAssignmnetUtil {
 
     /**
      * This method fetches plan employee assignment from plan service for provided employeeID.
-     *
-     * @param requestInfo  request info from the request.
-     * @param employeeId   employee id from the request.
-     * @param planConfigId plan configuration id from the request.
-     * @param tenantId     tenant id from the request.
-     * @param roles        allowed roles for census
-     * @param jurisdiction list of ancestral boundary codes for the given boundary
+     * @param planEmployeeAssignmentSearchRequest request containint the planEmployeeAssignment search criteria
      * @return returns planEmployeeAssignment for provided search criteria.
      */
-    public PlanEmployeeAssignmentResponse fetchPlanEmployeeAssignment(RequestInfo requestInfo, String employeeId, String planConfigId, String tenantId, List<String> roles, List<String> jurisdiction) {
+    public PlanEmployeeAssignmentResponse fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest) {
+
         // Get plan employee assignment uri
         StringBuilder uri = getPlanEmployeeAssignmentUri();
 
-        // Get search request body for plan employee assignment
-        PlanEmployeeAssignmentSearchRequest searchRequest = getPlanEmployeeAssignmentRequest(requestInfo, employeeId, planConfigId, tenantId, roles, jurisdiction);
         PlanEmployeeAssignmentResponse response = new PlanEmployeeAssignmentResponse();
 
         try {
-            response = restTemplate.postForObject(uri.toString(), searchRequest, PlanEmployeeAssignmentResponse.class);
+            response = restTemplate.postForObject(uri.toString(), planEmployeeAssignmentSearchRequest, PlanEmployeeAssignmentResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGNMENT_DETAILS, e);
         }
 
         return response;
-    }
-
-    /**
-     * This method builds the search request body for plan employee assignment search
-     *
-     * @param requestInfo  request info from the request.
-     * @param employeeId   employee id from the request.
-     * @param planConfigId plan configuration id from the request.
-     * @param tenantId     tenant id from the request.
-     * @param roles        allowed roles for census
-     * @param jurisdiction list of ancestral boundary codes for the given boundary
-     * @return the search request for pln employee assignment search
-     */
-    private PlanEmployeeAssignmentSearchRequest getPlanEmployeeAssignmentRequest(RequestInfo requestInfo, String employeeId, String planConfigId, String tenantId, List<String> roles, List<String> jurisdiction) {
-        PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .tenantId(tenantId)
-                .planConfigurationId(planConfigId)
-                .employeeId(employeeId)
-                .role(roles)
-                .jurisdiction(jurisdiction)
-                .build();
-
-        return PlanEmployeeAssignmentSearchRequest.builder()
-                .requestInfo(requestInfo)
-                .planEmployeeAssignmentSearchCriteria(searchCriteria)
-                .build();
     }
 
     /**

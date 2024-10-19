@@ -42,6 +42,22 @@ public class Configuration {
     @Value("${egov.plan.employee.assignment.search.endpoint}")
     private String planEmployeeAssignmentSearchEndpoint;
 
+    //Workflow
+    @Value("${egov.workflow.host}")
+    private String wfHost;
+
+    @Value("${egov.workflow.transition.path}")
+    private String wfTransitionPath;
+
+    @Value("${workflow.initiate.action}")
+    private List<String> wfInitiateActions;
+
+    @Value("${workflow.intermediate.action}")
+    private List<String> wfIntermediateActions;
+
+    @Value("${workflow.send.back.actions}")
+    private List<String> wfSendBackActions;
+
     //SMSNotification
     @Value("${egov.sms.notification.topic}")
     private String smsNotificationTopic;

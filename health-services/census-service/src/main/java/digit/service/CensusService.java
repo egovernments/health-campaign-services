@@ -4,6 +4,7 @@ import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
 import digit.service.enrichment.CensusTimeframeEnrichment;
 import digit.service.validator.CensusValidator;
+import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
@@ -25,12 +26,15 @@ public class CensusService {
 
     private CensusTimeframeEnrichment timeframeEnrichment;
 
-    public CensusService(ResponseInfoFactory responseInfoFactory, CensusRepository repository, CensusValidator validator, CensusEnrichment enrichment, CensusTimeframeEnrichment timeframeEnrichment) {
+    private WorkflowService workflow;
+
+    public CensusService(ResponseInfoFactory responseInfoFactory, CensusRepository repository, CensusValidator validator, CensusEnrichment enrichment, CensusTimeframeEnrichment timeframeEnrichment, WorkflowService workflow) {
         this.responseInfoFactory = responseInfoFactory;
         this.repository = repository;
         this.validator = validator;
         this.enrichment = enrichment;
         this.timeframeEnrichment = timeframeEnrichment;
+        this.workflow = workflow;
     }
 
     /**
@@ -75,6 +79,7 @@ public class CensusService {
     public CensusResponse update(CensusRequest request) {
         validator.validateUpdate(request); // Validate census update request
         enrichment.enrichUpdate(request); // Enrich census update request
+        workflow.invokeWorkflowForStatusUpdate(request); // Call workflow transition API for status update
         repository.update(request); // Delegate update request to repository
         return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))

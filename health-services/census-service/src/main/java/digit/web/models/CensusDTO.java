@@ -12,6 +12,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 
@@ -81,6 +82,13 @@ public class CensusDTO {
 
     @JsonProperty("facilityAssigned")
     private boolean facilityAssigned;
+
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

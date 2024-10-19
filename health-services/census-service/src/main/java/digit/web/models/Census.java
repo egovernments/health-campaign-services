@@ -15,6 +15,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 
@@ -47,12 +48,12 @@ public class Census {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    @NotNull
+    @Size(max = 64)
     private String assignee = null;
 
     @JsonProperty("status")
-    @NotNull
-    private StatusEnum status = null;
+    @Size(max = 64)
+    private String status = null;
 
     @JsonProperty("type")
     @NotNull
@@ -85,21 +86,18 @@ public class Census {
     @JsonProperty("facilityAssigned")
     private boolean facilityAssigned;
 
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
-
-    /**
-     * The status used in the Census
-     */
-    public enum StatusEnum {
-        VALIDATED,
-        APPROVED,
-        PENDING_FOR_APPROVAL,
-        PENDING_FOR_VALIDATION
-    }
 
     /**
      * Gets or Sets type
