@@ -57,7 +57,9 @@ export const CONSTANTS: any = {
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
             PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
             PROJECT_STAFF_SEARCH_ERROR: "Error occured during project search , check projectId and staffId",
-            PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId"
+            PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId",
+            PROJECT_FACILITY_DELETE_ERROR: "Error occured while deleting project facility mapping",
+            PROJECT_STAFF_DELETE_ERROR: "Error occured while deleting project staff mapping"
         },
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config",

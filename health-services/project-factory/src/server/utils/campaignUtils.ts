@@ -174,13 +174,15 @@ function enrichErrors(errorData: any, worksheet: any, statusColumn: any, errorDe
     }
 }
 
-function enrichActiveColumn(worksheet: any, createAndSearchConfig: any, request: any) {
+function enrichActiveAndUUidColumn(worksheet: any, createAndSearchConfig: any, request: any) {
     if (createAndSearchConfig?.activeColumn && request?.body?.dataToCreate) {
         const dataToCreate = request.body.dataToCreate;
         for (const data of dataToCreate) {
             const rowNumber = data['!row#number!'];
             const activeCell = worksheet.getCell(`${createAndSearchConfig?.activeColumn}${rowNumber}`);
+            const uniqueIdentifierCell = worksheet.getCell(`${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`);
             activeCell.value = "Active";
+            uniqueIdentifierCell.value = data['uuid'];
         }
     }
 }
@@ -270,7 +272,7 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     const additionalDetailsErrors: any[] = [];
     errorData = mergeErrors(errorData);
     enrichErrors(errorData, worksheet, statusColumn, errorDetailsColumn, additionalDetailsErrors, createAndSearchConfig, localizationMap);
-    enrichActiveColumn(worksheet, createAndSearchConfig, request);
+    enrichActiveAndUUidColumn(worksheet, createAndSearchConfig, request);
 
     request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors) : additionalDetailsErrors;
 

@@ -358,10 +358,9 @@ async function fetchProjectsWithParentRootProjectId(request: any) {
   }
 }
 
-async function fetchProjectsWithBoundaryCode(request: any, boundaryCode: any) {
-  const { tenantId } = request?.body?.parentCampaign || request?.parentCampaign;
+async function fetchProjectsWithBoundaryCode(messageObject: any, boundaryCode: any, tenantId: any,) {
   const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
+    RequestInfo: messageObject?.RequestInfo,
     Projects: [
       {
         address: {
@@ -420,68 +419,75 @@ function getBoundaryProjectMappingFromParentCampaign(request: any, project: any)
 
 
 async function fetchProjectFacilityWithProjectId(request: any, projectId: any, facilityId: any) {
-  const { tenantId } = request?.body?.parentCampaign || request?.parentCampaign;
-  const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
-    ProjectFacility: {
-      projectId: [
-        projectId
-      ],
-      facilityId: [
-        facilityId
-      ]
+  try {
+    const { tenantId } = request?.body?.parentCampaign || request?.parentCampaign;
+    const projectSearchBody = {
+      RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
+      ProjectFacility: {
+        projectId: [
+          projectId
+        ],
+        facilityId: [
+          facilityId
+        ]
+      }
     }
-  }
-  const projectSearchParams = {
-    tenantId: tenantId,
-    offset: 0,
-    limit: 1
-  }
-  logger.info("Project search params " + JSON.stringify(projectSearchParams))
-  const projectFacilitySearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilitySearch, projectSearchBody, projectSearchParams);
-  if (projectFacilitySearchResponse?.ProjectFacilities && Array.isArray(projectFacilitySearchResponse?.ProjectFacilities) && projectFacilitySearchResponse?.ProjectFacilities?.length > 0) {
-    return projectFacilitySearchResponse;
-  }
-  else {
+    const projectSearchParams = {
+      tenantId: tenantId,
+      offset: 0,
+      limit: 1
+    }
+    logger.info("Project search params " + JSON.stringify(projectSearchParams))
+    const projectFacilitySearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilitySearch, projectSearchBody, projectSearchParams);
+
+    if (projectFacilitySearchResponse?.ProjectFacilities && Array.isArray(projectFacilitySearchResponse?.ProjectFacilities) && projectFacilitySearchResponse?.ProjectFacilities?.length > 0) {
+      return projectFacilitySearchResponse;
+    }
+    else {
+      return null
+    }
+  } catch (error: any) {
     throwError("PROJECT", 500, "PROJECT_FACILTY_SEARCH_ERROR")
-    return null
   }
 }
 
 
 async function fetchProjectStaffWithProjectId(request: any, projectId: any, staffId: any) {
-  const { tenantId } = request?.body?.parentCampaign || request?.parentCampaign;
-  const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
-    ProjectFacility: {
-      projectId: [
-        projectId
-      ],
-      staffId: [
-        staffId
-      ]
+  try {
+    const { tenantId } = request?.body?.parentCampaign || request?.parentCampaign;
+    const projectSearchBody = {
+      RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
+      ProjectStaff: {
+        projectId: [
+          projectId
+        ],
+        staffId: [
+          staffId
+        ]
+      }
     }
-  }
 
-  const projectSearchParams = {
-    tenantId: tenantId,
-    offset: 0,
-    limit: 1
-  }
-  logger.info("Project search params " + JSON.stringify(projectSearchParams))
-  const projectStaffSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectStaffSearch, projectSearchBody, projectSearchParams);
-  if (projectStaffSearchResponse?.ProjectFacilities && Array.isArray(projectStaffSearchResponse?.ProjectFacilities) && projectStaffSearchResponse?.ProjectFacilities?.length > 0) {
-    return projectStaffSearchResponse;
-  }
-  else {
+    const projectSearchParams = {
+      tenantId: tenantId,
+      offset: 0,
+      limit: 1
+    }
+    logger.info("Project search params " + JSON.stringify(projectSearchParams))
+    const projectStaffSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectStaffSearch, projectSearchBody, projectSearchParams);
+    if (projectStaffSearchResponse?.ProjectStaff && Array.isArray(projectStaffSearchResponse?.ProjectStaff) && projectStaffSearchResponse?.ProjectStaff?.length > 0) {
+      return projectStaffSearchResponse;
+    }
+    else {
+      return null
+    }
+  } catch (error: any) {
     throwError("PROJECT", 500, "PROJECT_STAFF_SEARCH_ERROR")
-    return null
   }
 
 }
 
 async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource: any, messageObject: any, boundaryCode: any, uniqueIdentifier: any, isDelink: boolean) {
-  const projectResponse = await fetchProjectsWithBoundaryCode(messageObject, boundaryCode);
+  const projectResponse = await fetchProjectsWithBoundaryCode(messageObject, boundaryCode, messageObject?.parentCampaign?.tenantId);
   let matchingProjectObject: any;
   if (projectResponse) {
     matchingProjectObject = projectResponse?.Project.find((project: any) => project.name === messageObject?.CampaignDetails?.campaignName);
@@ -496,7 +502,7 @@ async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(res
     const projectFacilityResponse = await fetchProjectFacilityWithProjectId(messageObject, matchingProjectId, uniqueIdentifier);
     if (projectFacilityResponse) {
       if (isDelink) {
-        projectFacilityResponse.ProjectFacilities[0].isDeleted = true;
+        await deleteProjectFacilityMapping(messageObject, projectFacilityResponse)
       }
       return true;
     } else {
@@ -507,7 +513,7 @@ async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(res
     const projectStaffResponse = await fetchProjectStaffWithProjectId(messageObject, matchingProjectId, uniqueIdentifier);
     if (projectStaffResponse) {
       if (isDelink) {
-        projectStaffResponse.ProjectStaff[0].isDeleted = true;
+        await deleteProjectStaffMapping(messageObject, projectStaffResponse)
       }
       return true;
     } else {
@@ -515,6 +521,37 @@ async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(res
     }
   }
   else return false;
+}
+
+
+async function deleteProjectFacilityMapping(messageObject: any, projectFacilityResponse: any) {
+  const projectFacilityDeleteBody = {
+    RequestInfo: messageObject?.RequestInfo,
+    ProjectFacilities: [
+      projectFacilityResponse?.ProjectFacilities[0]
+    ]
+  }
+  try {
+    await httpRequest(config?.host?.projectHost + config?.paths?.projectFacilityDelete, projectFacilityDeleteBody);
+  }
+  catch (error: any) {
+    throwError("PROJECT", 500, "PROJECT_FACILITY_DELETE_ERROR")
+  }
+}
+
+async function deleteProjectStaffMapping(messageObject: any, projectStaffResponse: any) {
+  const projectStaffDeleteBody = {
+    RequestInfo: messageObject?.RequestInfo,
+    ProjectStaff: [
+      projectStaffResponse?.ProjectStaff[0]
+    ]
+  }
+  try {
+    await httpRequest(config?.host?.projectHost + config?.paths?.projectStaffDelete, projectStaffDeleteBody);
+  }
+  catch (error: any) {
+    throwError("PROJECT", 500, "PROJECT_STAFF_DELETE_ERROR")
+  }
 }
 
 
