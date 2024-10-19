@@ -80,7 +80,7 @@ public class PlanUtil {
 				.requestInfo(planConfigurationRequest.getRequestInfo())
 				.plan(Plan.builder()
 						.tenantId(planConfig.getTenantId())
-						.executionPlanId(planConfig.getExecutionPlanId())
+						.campaignId(planConfig.getCampaignId())
 						.locality(getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE,
 								feature, mappedValues))
 						.resources(resultMap.entrySet().stream().map(result -> {
