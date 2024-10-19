@@ -5,9 +5,9 @@ import digit.kafka.Producer;
 import digit.repository.PlanRepository;
 import digit.repository.querybuilder.PlanQueryBuilder;
 import digit.repository.rowmapper.PlanRowMapper;
+import digit.repository.rowmapper.PlanStatusCountRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.tracer.model.CustomException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
@@ -15,6 +15,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Repository
@@ -30,13 +31,16 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     private Configuration config;
 
+    private PlanStatusCountRowMapper statusCountRowMapper;
+
     public PlanRepositoryImpl(Producer producer, PlanQueryBuilder planQueryBuilder, PlanRowMapper planRowMapper,
-                              JdbcTemplate jdbcTemplate, Configuration config) {
+                              JdbcTemplate jdbcTemplate, Configuration config, PlanStatusCountRowMapper statusCountRowMapper) {
         this.producer = producer;
         this.planQueryBuilder = planQueryBuilder;
         this.planRowMapper = planRowMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.config = config;
+        this.statusCountRowMapper = statusCountRowMapper;
     }
 
     /**
@@ -69,6 +73,20 @@ public class PlanRepositoryImpl implements PlanRepository {
         List<Plan> plans = searchPlanByIds(planIds);
 
         return plans;
+    }
+
+    /**
+     * Counts the plan based on their current status for the provided search criteria.
+     *
+     * @param planSearchCriteria The search criteria for filtering plans.
+     * @return The status count of plans for the given search criteria.
+     */
+    @Override
+    public Map<String, Integer> statusCount(PlanSearchCriteria planSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planQueryBuilder.getPlanStatusCountQuery(planSearchCriteria, preparedStmtList);
+
+        return jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
     }
 
     /**

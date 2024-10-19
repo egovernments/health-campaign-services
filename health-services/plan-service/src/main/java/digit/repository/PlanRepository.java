@@ -5,6 +5,7 @@ import digit.web.models.PlanRequest;
 import digit.web.models.PlanSearchCriteria;
 
 import java.util.List;
+import java.util.Map;
 
 public interface PlanRepository {
     public void create(PlanRequest planRequest);
@@ -15,4 +16,5 @@ public interface PlanRepository {
 
     public Integer count(PlanSearchCriteria planSearchCriteria);
 
+    public Map<String, Integer> statusCount(PlanSearchCriteria planSearchCriteria);
 }

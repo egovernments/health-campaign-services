@@ -25,7 +25,7 @@ public class PlanQueryBuilder {
 
     private static final String PLAN_SEARCH_BASE_QUERY = "SELECT id FROM plan ";
 
-    private static final String PLAN_QUERY = "SELECT plan.id as plan_id, plan.tenant_id as plan_tenant_id, plan.locality as plan_locality, plan.campaign_id as plan_campaign_id, plan.plan_configuration_id as plan_plan_configuration_id, plan.boundary_ancestral_path as plan_boundary_ancestral_path, plan.additional_details as plan_additional_details, plan.created_by as plan_created_by, plan.created_time as plan_created_time, plan.last_modified_by as plan_last_modified_by, plan.last_modified_time as plan_last_modified_time,\n" +
+    private static final String PLAN_QUERY = "SELECT plan.id as plan_id, plan.tenant_id as plan_tenant_id, plan.locality as plan_locality, plan.campaign_id as plan_campaign_id, plan.plan_configuration_id as plan_plan_configuration_id, plan.boundary_ancestral_path as plan_boundary_ancestral_path, plan.status as plan_status, plan.assignee as plan_assignee, plan.additional_details as plan_additional_details, plan.created_by as plan_created_by, plan.created_time as plan_created_time, plan.last_modified_by as plan_last_modified_by, plan.last_modified_time as plan_last_modified_time,\n" +
             "\t   plan_activity.id as plan_activity_id, plan_activity.code as plan_activity_code, plan_activity.description as plan_activity_description, plan_activity.planned_start_date as plan_activity_planned_start_date, plan_activity.planned_end_date as plan_activity_planned_end_date, plan_activity.dependencies as plan_activity_dependencies, plan_activity.plan_id as plan_activity_plan_id, plan_activity.created_by as plan_activity_created_by, plan_activity.created_time as plan_activity_created_time, plan_activity.last_modified_by as plan_activity_last_modified_by, plan_activity.last_modified_time as plan_activity_last_modified_time,\n" +
             "\t   plan_activity_condition.id as plan_activity_condition_id, plan_activity_condition.entity as plan_activity_condition_entity, plan_activity_condition.entity_property as plan_activity_condition_entity_property, plan_activity_condition.expression as plan_activity_condition_expression, plan_activity_condition.activity_id as plan_activity_condition_activity_id, plan_activity_condition.is_active as plan_activity_condition_is_active, plan_activity_condition.created_by as plan_activity_condition_created_by, plan_activity_condition.created_time as plan_activity_condition_created_time, plan_activity_condition.last_modified_by as plan_activity_condition_last_modified_by, plan_activity_condition.last_modified_time as plan_activity_condition_last_modified_time,\n" +
             "\t   plan_resource.id as plan_resource_id, plan_resource.resource_type as plan_resource_resource_type, plan_resource.estimated_number as plan_resource_estimated_number, plan_resource.plan_id as plan_resource_plan_id, plan_resource.activity_code as plan_resource_activity_code, plan_resource.created_by as plan_resource_created_by, plan_resource.created_time as plan_resource_created_time, plan_resource.last_modified_by as plan_resource_last_modified_by, plan_resource.last_modified_time as plan_resource_last_modified_time,\n" +
@@ -39,6 +39,8 @@ public class PlanQueryBuilder {
     private static final String PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE = " order by plan.last_modified_time desc ";
 
     private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+
+    private static final String PLAN_STATUS_COUNT_WRAPPER = "SELECT COUNT(plan_id) as plan_status_count, plan_status FROM ({INTERNAL_QUERY}) as plan_status_map GROUP BY plan_status";
 
     public String getPlanQuery(List<String> ids, List<Object> preparedStmtList) {
         return buildPlanQuery(ids, preparedStmtList);
@@ -57,7 +59,7 @@ public class PlanQueryBuilder {
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
         return query;
@@ -71,8 +73,19 @@ public class PlanQueryBuilder {
      * @return
      */
     public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE);
+        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
         return query;
+    }
+
+    /**
+     * Constructs the status count query to get the count of plans based on their current status for the given search criteria
+     *
+     * @param searchCriteria   The criteria used for filtering Plans.
+     * @param preparedStmtList A list to store prepared statement parameters.
+     * @return A SQL query string to get the status count of Plans for a given search criteria.
+     */
+    public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
+        return buildPlanSearchQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
     }
 
     /**
@@ -82,7 +95,7 @@ public class PlanQueryBuilder {
      * @param preparedStmtList
      * @return
      */
-    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount) {
+    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount, boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
@@ -145,6 +158,10 @@ public class PlanQueryBuilder {
             countQuery.append(") AS subquery");
 
             return countQuery.toString();
+        }
+
+        if (isStatusCount) {
+            return PLAN_STATUS_COUNT_WRAPPER.replace("{INTERNAL_QUERY}", builder);
         }
 
         return builder.toString();
