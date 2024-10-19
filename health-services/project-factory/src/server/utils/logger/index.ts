@@ -12,7 +12,7 @@ const getCallerFile = (count = 4) => {
   // Filter the stack to remove unwanted paths
   const filteredStack = stack.filter((callSite:any) => {
       const filePath = callSite.getFileName();
-      return !filePath?.includes('node_modules') && !filePath?.includes('/utils/logger/') &&  !filePath?.includes('.js')    ;
+      return !filePath?.includes('node_modules') && !filePath?.includes('/utils/logger/') &&  !filePath?.includes('events.js')    ;
   })
 
   // Get the last 'count' valid callers from the filtered stack
