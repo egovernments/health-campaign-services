@@ -762,7 +762,7 @@ async function getBoundarySheetData(
     }
 
     if(request?.query?.type === "boundaryManagement"  || request?.query?.type === 'boundaryGeometryManagement'){
-      headerColumnsAfterHierarchy = [hierarchyType + "_BOUNDARY_CODE", hierarchyType + "_LAT", hierarchyType + "_LONG"]
+      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT",  "HCM_ADMIN_CONSOLE_LONG"]
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system

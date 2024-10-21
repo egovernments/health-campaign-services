@@ -1235,7 +1235,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }
-  if(type == "boundaryManagement"){
+  if(type == "boundaryManagement" || type == "boundaryGeometryManagement"){
     configurableColumnHeadersBasedOnCampaignType = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
