@@ -42,6 +42,7 @@ public class ServiceConstants {
     public static final String CITIZEN_LOWER = "Citizen";
     public static final String USER = "user";
     public static final String PIPE_REGEX = "\\|";
+    public static final String FACILITY_ID_FIELD = "facilityId";
 
     public static final String PARSING_ERROR_CODE = "PARSING ERROR";
     public static final String PARSING_ERROR_MESSAGE = "Failed to parse JSON data from PGobject";
@@ -58,6 +59,9 @@ public class ServiceConstants {
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
+
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE = "ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS";
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while updating additional details  : ";
 
     public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
     public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
