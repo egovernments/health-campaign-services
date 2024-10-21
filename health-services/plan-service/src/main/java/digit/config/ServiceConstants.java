@@ -16,6 +16,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_CENSUS = "Exception occurred while fetching records from census: ";
+
     public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
 
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
@@ -82,6 +84,10 @@ public class ServiceConstants {
 
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_CENSUS_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records does not exists for the given details: ";
+
 
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
     public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
