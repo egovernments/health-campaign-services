@@ -82,9 +82,6 @@ public class PlanValidator {
         // Validate plan configuration existence
         validatePlanConfigurationExistence(request);
 
-        // Validate resources
-        validateResources(request);
-
         // Validate resource-activity linkage
         validateResourceActivityLinkage(request);
 
@@ -230,32 +227,6 @@ public class PlanValidator {
     }
 
     /**
-     * This method validates the resources provided in the request
-     *
-     * @param request
-     */
-    private void validateResources(PlanRequest request) {
-        // If plan configuration id is not provided, providing resources is mandatory
-        if (ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
-                && CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
-        }
-
-        // If plan configuration id is provided, providing resources is not allowed
-        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
-                && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
-        }
-
-        // Validate resource type existence
-        if (!CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            request.getPlan().getResources().forEach(resource -> {
-                // Validate resource type existence
-            });
-        }
-    }
-
-    /**
      * This method validates the linkage between resources and activities
      *
      * @param request
@@ -320,9 +291,6 @@ public class PlanValidator {
 
         // Validate plan configuration existence
         validatePlanConfigurationExistence(request);
-
-        // Validate resources
-        validateResources(request);
 
         // Validate resource uuid uniqueness
         validateResourceUuidUniqueness(request);
