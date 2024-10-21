@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PlanService {
@@ -65,10 +66,18 @@ public class PlanService {
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 
+        // Get the total count of plans for given search criteria
+        Integer count = planRepository.count(body.getPlanSearchCriteria());
+
+        // Get the status count of plans for given search criteria
+        Map<String, Integer> statusCountMap = planRepository.statusCount(body.getPlanSearchCriteria());
+
         // Build and return response back to controller
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(planList)
+                .totalCount(count)
+                .statusCount(statusCountMap)
                 .build();
     }
 
