@@ -114,6 +114,21 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     }
 
     /**
+     * Counts the number of plan facilities based on the provided search criteria.
+     *
+     * @param planFacilitySearchCriteria The search criteria for filtering plan facilities.
+     * @return The total count of plan facilities matching the search criteria.
+     */
+    @Override
+    public Integer count(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planFacilityQueryBuilder.getPlanFacilityCountQuery(planFacilitySearchCriteria, preparedStmtList);
+        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+
+        return count;
+    }
+
+    /**
      * Helper method to query database for plan facilities based on the provided search criteria.
      *
      * @param planFacilitySearchCriteria

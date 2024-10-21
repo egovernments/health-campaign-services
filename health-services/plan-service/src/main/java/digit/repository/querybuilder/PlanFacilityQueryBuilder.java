@@ -39,14 +39,28 @@ public class PlanFacilityQueryBuilder {
 
     private static final String PLAN_FACILITY_SEARCH_QUERY_ORDER_BY_CLAUSE = " order by plan_facility_linkage.last_modified_time desc ";
 
+    private static final String PLAN_FACILITY_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+
     public String getPlanFacilitySearchQuery(PlanFacilitySearchCriteria planFacilitySearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
+        String query = buildPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, PLAN_FACILITY_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planFacilitySearchCriteria, preparedStmtList);
         return query;
     }
 
-    private String buildPlanFacilitySearchQuery(PlanFacilitySearchCriteria planFacilitySearchCriteria, List<Object> preparedStmtList) {
+    /**
+     * Constructs the count query to get the total count of plan facilities based on search criteria.
+     *
+     * @param planFacilitySearchCriteria The criteria used for filtering PlanFacility objects.
+     * @param preparedStmtList           A list to store prepared statement parameters.
+     * @return A SQL query string to get the total count of plan facilities.
+     */
+    public String getPlanFacilityCountQuery(PlanFacilitySearchCriteria planFacilitySearchCriteria, List<Object> preparedStmtList) {
+        String query = buildPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList, Boolean.TRUE);
+        return query;
+    }
+
+    private String buildPlanFacilitySearchQuery(PlanFacilitySearchCriteria planFacilitySearchCriteria, List<Object> preparedStmtList, boolean isCount) {
         StringBuilder builder = new StringBuilder(PLAN_FACILITY_QUERY);
 
         if (!CollectionUtils.isEmpty(planFacilitySearchCriteria.getIds())) {
@@ -86,6 +100,14 @@ public class PlanFacilityQueryBuilder {
             builder.append(" additional_details @> CAST( ? AS jsonb )");
             String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planFacilitySearchCriteria.getFiltersMap());
             preparedStmtList.add(partialQueryJsonString);
+        }
+
+        StringBuilder countQuery = new StringBuilder();
+        if (isCount) {
+            countQuery.append(PLAN_FACILITY_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
+            countQuery.append(") AS subquery");
+
+            return countQuery.toString();
         }
 
         return builder.toString();
