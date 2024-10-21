@@ -110,7 +110,7 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanEmployeeAssignment> planEmployeeAssignmentsFromSearch = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                 .tenantId(employeeAssignment.getTenantId())
                 .planConfigurationId(employeeAssignment.getPlanConfigurationId())
-                .employeeId(employeeAssignment.getEmployeeId())
+                .employeeId(Collections.singletonList(employeeAssignment.getEmployeeId()))
                 .role(Collections.singletonList(employeeAssignment.getRole()))
                 .build());
 
@@ -168,7 +168,7 @@ public class PlanEmployeeAssignmentValidator {
             List<PlanEmployeeAssignment> response = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                     .tenantId(planEmployeeAssignment.getTenantId())
                     .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
-                    .employeeId(planEmployeeAssignment.getEmployeeId())
+                    .employeeId(Collections.singletonList(planEmployeeAssignment.getEmployeeId()))
                     .role(Collections.singletonList(roleMap.get(planEmployeeAssignment.getRole()))).build());
 
             // If there are any conflicting assignments found, throw a custom exception
@@ -243,8 +243,13 @@ public class PlanEmployeeAssignmentValidator {
 
         // Collect all boundary code for the campaign
         Set<String> boundaryCode = campaignDetail.getBoundaries().stream()
+                .filter(boundary -> planEmployeeAssignment.getHierarchyLevel().equals(boundary.getType()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
+
+        if(CollectionUtils.isEmpty(boundaryCode)) {
+            throw new CustomException(INVALID_HIERARCHY_LEVEL_CODE, INVALID_HIERARCHY_LEVEL_MESSAGE);
+        }
 
         planEmployeeAssignment.getJurisdiction()
                 .forEach(jurisdiction -> {
@@ -331,7 +336,7 @@ public class PlanEmployeeAssignmentValidator {
                 .id(planEmployeeAssignment.getId())
                 .role(Collections.singletonList(planEmployeeAssignment.getRole()))
                 .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
-                .employeeId(planEmployeeAssignment.getEmployeeId())
+                .employeeId(Collections.singletonList(planEmployeeAssignment.getEmployeeId()))
                 .build());
 
         if (CollectionUtils.isEmpty(planEmployeeAssignments)) {

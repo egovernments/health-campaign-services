@@ -35,7 +35,7 @@ public class ServiceRequestRepository {
             response = restTemplate.postForObject(uri.toString(), request, Map.class);
         } catch (HttpClientErrorException e) {
             log.error(EXTERNAL_SERVICE_EXCEPTION, e);
-            throw new ServiceCallException(e.getResponseBodyAsString());
+            throw new CustomException(EXTERNAL_SERVICE_EXCEPTION, e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error(SEARCHER_SERVICE_EXCEPTION, e);
             throw new CustomException(EXTERNAL_SERVICE_EXCEPTION, e.getMessage());
