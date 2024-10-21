@@ -42,6 +42,15 @@ public class Assumption {
     @Digits(integer = 10, fraction = 2, message = "The Assumption value must have up to 10 digits and up to 2 decimal points")
     private BigDecimal value = null;
 
+    @JsonProperty("source")
+    @NotNull(message = "Source cannot be null. Please specify a valid source.")
+    private Source source = null;
+
+    @JsonProperty("category")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String category = null;
+
     @JsonProperty("active")
     @NotNull
     private Boolean active = true;

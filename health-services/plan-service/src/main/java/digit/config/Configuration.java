@@ -1,19 +1,13 @@
 package digit.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 import org.egov.tracer.config.TracerConfiguration;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 @Component
 @Data
@@ -28,6 +22,9 @@ public class Configuration {
     @Value("#{${role.map}}")
     public Map<String, String> roleMap;
 
+    @Value("${plan.estimation.approver.roles}")
+    public List<String> planEstimationApproverRoles;
+
     //MDMS
     @Value("${egov.mdms.host}")
     private String mdmsHost;
@@ -38,19 +35,26 @@ public class Configuration {
     @Value("${egov.mdms.search.v2.endpoint}")
     private String mdmsV2EndPoint;
 
-    //HRMS
-    @Value("${egov.hrms.host}")
-    private String hrmsHost;
-
-    @Value("${egov.hrms.search.endpoint}")
-    private String hrmsEndPoint;
-
     //Project Factory
     @Value("${egov.project.factory.host}")
     private String projectFactoryHost;
 
     @Value("${egov.project.factory.search.endpoint}")
     private String projectFactorySearchEndPoint;
+
+    //User Service
+    @Value("${egov.user.service.host}")
+    private String userServiceHost;
+
+    @Value("${egov.user.search.endpoint}")
+    private String userSearchEndPoint;
+
+    // Boundary Service
+    @Value("${egov.boundary.service.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndpoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
@@ -71,11 +75,24 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.facility.create.topic}")
+    private String planFacilityCreateTopic;
+
+    @Value("${plan.facility.update.topic}")
+    private String planFacilityUpdateTopic;
+
     @Value("${plan.default.offset}")
     private Integer defaultOffset;
 
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
+
+    //Facility
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.facility.search.endpoint}")
+    private String facilitySearchEndPoint;
 
     //Workflow
     @Value("${egov.workflow.host}")
@@ -83,5 +100,14 @@ public class Configuration {
 
     @Value("${egov.workflow.transition.path}")
     private String wfTransitionPath;
+
+    @Value("${workflow.initiate.action}")
+    private List<String> wfInitiateActions;
+
+    @Value("${workflow.intermediate.action}")
+    private List<String> wfIntermediateActions;
+
+    @Value("${workflow.send.back.actions}")
+    private List<String> wfSendBackActions;
 
 }

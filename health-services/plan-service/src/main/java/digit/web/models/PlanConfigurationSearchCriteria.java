@@ -1,6 +1,5 @@
 package digit.web.models;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
 import lombok.Builder;
+
+import java.util.List;
 
 /**
  * PlanConfigurationSearchCriteria
@@ -37,7 +38,7 @@ public class PlanConfigurationSearchCriteria {
     private String campaignId = null;
 
     @JsonProperty("status")
-    private String status = null;
+    private List<String> status = null;
 
     @JsonProperty("userUuid")
     private String userUuid = null;

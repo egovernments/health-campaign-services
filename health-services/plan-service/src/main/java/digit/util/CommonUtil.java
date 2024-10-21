@@ -2,14 +2,20 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static digit.config.ServiceConstants.*;
@@ -46,24 +52,48 @@ public class CommonUtil {
      *
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
      * @param fieldToExtract the name of the field to be extracted from the additional details
-     * @param valueType the class type to which the extracted field should be converted
-     * @return the value of the specified field, converted to the specified type
-     * @throws CustomException if the field does not exist or cannot be converted to the specified type
-
+     * @return the value of the specified field as a string
+     * @throws CustomException if the field does not exist
      */
-    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> valueType) {
+    public String extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
             JsonNode node = rootNode.get(fieldToExtract);
-            if (node != null && node.isArray()) {
-                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructCollectionType(List.class, valueType));
-            } else if (node != null) {
-                return objectMapper.convertValue(node, valueType);
+            if (node != null) {
+                // Convert the node to a String
+                return objectMapper.convertValue(node, String.class);
             }
-            // In case the node is of other type like object
-            return (T) node;
+            // Return null if the node is empty
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
+
+    /**
+     * Extracts provided field from the additional details object
+     *
+     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
+     * @param fieldToExtract the name of the field to be extracted from the additional details
+     * @return the value of the specified field as a list of string
+     * @throws CustomException if the field does not exist
+     */
+    public List<String> extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<List> valueType) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            JsonNode node = rootNode.get(fieldToExtract);
+            List<String> list = new ArrayList<>();
+            if (node != null && node.isArray()) {
+                for (JsonNode idNode : node) {
+                    list.add(idNode.asText());
+                }
+            }
+            return list;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
@@ -116,5 +146,46 @@ public class CommonUtil {
                 .build());
 
         return planConfigurations;
+    }
+
+    /**
+     * Validates the user information within the provided PlanConfigurationRequest.
+     *
+     * @param requestInfo the request info containing the user information to be validated
+     * @throws CustomException if the user information is missing in the request
+     */
+    public void validateUserInfo(RequestInfo requestInfo)
+    {
+        if (ObjectUtils.isEmpty(requestInfo.getUserInfo())) {
+            log.error(USERINFO_MISSING_MESSAGE);
+            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
+        }
+    }
+
+    /**
+     * This is a helper method to get the lowest and highest hierarchy for microplan from MDMS
+     *
+     * @param mdmsData the mdms data
+     * @return returns the lowest and highest hierarchy for microplan
+     */
+    public Map<String, String> getMicroplanHierarchy(Object mdmsData) {
+
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+
+        List<Map<String, String>> hierarchyForMicroplan;
+
+        try {
+            log.info(jsonPathForMicroplanHierarchy);
+            hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        Map<String, String> hierarchyMap = new HashMap<>();
+        hierarchyMap.put(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN));
+        hierarchyMap.put(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN));
+
+        return hierarchyMap;
     }
 }

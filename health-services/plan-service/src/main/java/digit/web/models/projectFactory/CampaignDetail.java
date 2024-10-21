@@ -83,5 +83,3 @@ public class CampaignDetail {
     @Valid
     private AuditDetails auditDetails;
 }
-
-

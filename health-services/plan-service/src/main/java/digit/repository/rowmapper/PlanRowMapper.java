@@ -1,6 +1,5 @@
 package digit.repository.rowmapper;
 
-import digit.util.CommonUtil;
 import digit.util.QueryUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
@@ -55,6 +54,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 planEntry.setLocality(rs.getString("plan_locality"));
                 planEntry.setCampaignId(rs.getString("plan_campaign_id"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
+                planEntry.setBoundaryAncestralPath(rs.getString("plan_boundary_ancestral_path"));
                 planEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 
