@@ -1,5 +1,6 @@
 package digit.repository;
 
+import digit.web.models.BulkPlanRequest;
 import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
 import digit.web.models.PlanSearchCriteria;
@@ -13,4 +14,5 @@ public interface PlanRepository {
 
     public void update(PlanRequest planRequest);
 
+    public void bulkUpdate(BulkPlanRequest body);
 }
