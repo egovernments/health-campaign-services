@@ -31,7 +31,7 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("employeeId")
-    private String employeeId = null;
+    private List<String> employeeId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)

@@ -84,8 +84,6 @@ public class CensusEnrichment {
                 }
             });
         }
-
-        census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
     }
 
 }

@@ -63,7 +63,8 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the status count of Census records for a given search criteria.
      */
     public String getCensusStatusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        return buildCensusQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
+        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder().tenantId(searchCriteria.getTenantId()).source(searchCriteria.getSource()).jurisdiction(searchCriteria.getJurisdiction()).build();
+        return buildCensusQuery(censusSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
     }
 
     /**
@@ -94,7 +95,7 @@ public class CensusQueryBuilder {
             preparedStmtList.add(criteria.getStatus());
         }
 
-        if (!isStatusCount && !ObjectUtils.isEmpty(criteria.getAssignee())) {
+        if (!ObjectUtils.isEmpty(criteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.assignee = ?");
             preparedStmtList.add(criteria.getAssignee());

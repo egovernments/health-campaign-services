@@ -41,6 +41,7 @@ public class ServiceConstants {
     public static final String CITIZEN_UPPER = "CITIZEN";
     public static final String CITIZEN_LOWER = "Citizen";
     public static final String USER = "user";
+    public static final String PIPE_REGEX = "\\|";
 
     public static final String PARSING_ERROR_CODE = "PARSING ERROR";
     public static final String PARSING_ERROR_MESSAGE = "Failed to parse JSON data from PGobject";
@@ -58,6 +59,9 @@ public class ServiceConstants {
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 
+    public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
+    public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
+
     public static final String INVALID_PARTNER_CODE = "INVALID_PARTNER";
     public static final String INVALID_PARTNER_MESSAGE = "Invalid partner assignment or invalid jurisdiction of the assigned partner";
 
@@ -70,4 +74,8 @@ public class ServiceConstants {
     public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
     public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
 
+    //Workflow constants
+    public static final String MODULE_NAME_VALUE = "census-service";
+
+    public static final String CENSUS_BUSINESS_SERVICE = "CENSUS";
 }
