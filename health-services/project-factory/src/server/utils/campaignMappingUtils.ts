@@ -25,18 +25,21 @@ async function createBoundaryWithProjectMapping(projects: any, boundaryWithProje
 }
 
 function getPvarIds(messageObject: any) {
+    //update to set now
+    logger.info("campaign product resource mapping started");
     const deliveryRules = messageObject?.CampaignDetails?.deliveryRules;
     const uniquePvarIds = new Set(); // Create a Set to store unique pvar IDs
     if (deliveryRules) {
         for (const deliveryRule of deliveryRules) {
-            const products = deliveryRule?.products;
+            const products = deliveryRule?.resources;
             if (products) {
                 for (const product of products) {
-                    uniquePvarIds.add(product?.value); // Add pvar ID to the Set
+                    uniquePvarIds.add(product?.productVariantId); // Add pvar ID to the Set
                 }
             }
         }
     }
+    logger.info("campaign product resource found items  : " + JSON.stringify(uniquePvarIds));
     return Array.from(uniquePvarIds); // Convert Set to array before returning
 }
 
