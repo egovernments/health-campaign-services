@@ -374,7 +374,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    if(type != 'boundaryManagement' && request?.query?.campaignId != 'default'){
+    if(type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement'){
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
       await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
@@ -396,8 +396,9 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
+      var boundaryDataSheetGeneratedAfterDifferentTabSeparation = boundaryDataSheetGeneratedBeforeDifferentTabSeparation;
       logger.info("generating different tabs logic ")
-      const boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
+      boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
@@ -405,7 +406,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == 'boundaryManagement'){
+    else if (type == 'boundaryManagement'  || type === 'boundaryGeometryManagement'){
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
       const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
