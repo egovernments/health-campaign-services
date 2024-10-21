@@ -211,6 +211,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             delinkData.code,
             delinkData.isDelink
         );
+        logger.info(`Delinking ${delinkData.boundary} from ${delinkData.code} resource`);
         logger.info("Delink operation complete, mapping present:", isMappingAlreadyPresent);
     }));
 
@@ -223,7 +224,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             linkData.isDelink
         );
         if (!isMappingAlreadyPresent) {
-            mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundaryCode, boundaryCodes, allBoundaries);
+            mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundary, boundaryCodes, allBoundaries);
         }
     }));
 }
