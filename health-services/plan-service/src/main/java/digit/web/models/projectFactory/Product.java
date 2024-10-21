@@ -24,4 +24,3 @@ public class Product {
     @JsonProperty("value")
     private String value;
 }
-

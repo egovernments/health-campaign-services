@@ -115,10 +115,10 @@ public class PlanConfigQueryBuilder {
             preparedStmtList.add(criteria.getName() + PERCENTAGE_WILDCARD);
         }
 
-        if (criteria.getStatus() != null) {
+        if (!CollectionUtils.isEmpty(criteria.getStatus())) {
             addClauseIfRequired(preparedStmtList, builder);
-            builder.append(" pc.status = ?");
-            preparedStmtList.add(criteria.getStatus());
+            builder.append(" pc.status IN ( ").append(queryUtil.createQuery(criteria.getStatus().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(criteria.getStatus()));
         }
 
         if (criteria.getUserUuid() != null) {
