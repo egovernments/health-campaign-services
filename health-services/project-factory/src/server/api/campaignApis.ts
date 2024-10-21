@@ -714,12 +714,21 @@ function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any, re
   const createdEmployees = responsePayload?.Employees;
   // create an object which have keys as employee.code and values as employee.uuid  
   const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
-    map[employee.code] = employee.uuid;
+    map[employee.code] = {
+      uuid: employee?.uuid,
+      userServiceUuid: employee?.user?.userServiceUuid
+    };
     return map;
   }, {});
   for (const employee of dataToCreate) {
-    if (!employee?.uuid && employeeMap[employee?.code]) {
-      employee.uuid = employeeMap[employee?.code];
+    const mappedEmployee = employeeMap[employee?.code];
+    if (mappedEmployee) {
+      if (!employee?.userServiceUuid) {
+        employee.userServiceUuid = mappedEmployee.userServiceUuid;
+      }
+      if (!employee?.uuid) {
+        employee.uuid = mappedEmployee.uuid;
+      }
     }
   }
 }
