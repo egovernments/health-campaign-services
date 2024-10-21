@@ -50,4 +50,9 @@ public class PlanEmployeeAssignmentSearchCriteria {
     @JsonProperty("active")
     @Builder.Default
     private Boolean active = Boolean.TRUE;
+
+    @JsonProperty("filterUniqueByPlanConfig")
+    @Builder.Default
+    private Boolean filterUniqueByPlanConfig = Boolean.FALSE;
+
 }
