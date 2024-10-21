@@ -166,9 +166,10 @@ public class DownsyncService {
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         List<Household> households = null;
 
-        if (configs.getEnableMatviewSearch()) {
+        if (configs.isEnableMatviewSearch()) {
             Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null);
             households = res.getY();
+            downsync.getDownsyncCriteria().setTotalCount(res.getX());
         } else {
             RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
@@ -187,9 +188,9 @@ public class DownsyncService {
 
             HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
             households = res.getHouseholds();
+            downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
         }
         downsync.setHouseholds(households);
-        downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
 
         if(CollectionUtils.isEmpty(households))
             return Collections.emptyList();
