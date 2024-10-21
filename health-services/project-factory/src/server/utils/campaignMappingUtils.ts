@@ -10,6 +10,7 @@ import { createCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
+import { delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary } from "./onGoingCampaignUpdateUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -110,7 +111,11 @@ function findCommonParent(codes: string[], root: any) {
 
 function mapBoundaryCodes(resource: any, code: string, boundaryCode: string, boundaryCodes: any, allBoundaries: any) {
     // Split boundary codes if they have comma separated values
-    const boundaryCodesArray = boundaryCode.split(',').map((bc: string) => bc.trim());
+    const boundaryCodesArray = boundaryCode
+        ? boundaryCode.includes(',')
+            ? boundaryCode.split(',').map((bc: string) => bc.trim()).filter(Boolean)
+            : [boundaryCode.trim()]
+        : [];
     if (resource?.type == "user" && boundaryCodesArray?.length > 1 && config.user.mapUserViaCommonParent) {
         const commonParent = findCommonParent(boundaryCodesArray, allBoundaries);
         if (commonParent) {
@@ -143,6 +148,8 @@ function mapBoundaryCodes(resource: any, code: string, boundaryCode: string, bou
 async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
     const localizationMap: any = messageObject?.localizationMap
     const allBoundaries = await getAllBoundaries(messageObject, messageObject?.Campaign?.tenantId, messageObject?.Campaign?.boundaryCode, messageObject?.Campaign?.hierarchyType);
+    const delinkOperations: any = [];
+    const linkOperations: any = [];
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
         if (processedFilestoreId) {
@@ -159,11 +166,35 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                         active = data[activeColumn];
                     }
                     if (boundaryCode && active === "Active") {
-                        if (!messageObject?.parentCampaign || (messageObject?.parentCampaign && data["#status#"] === "CREATED")) {
+                        if (!messageObject?.parentCampaign) {
                             mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
                         }
+                        else {
+                            const existingBoundaryColumnRaw = data[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)];
+                            const existingBoundaryColumn = existingBoundaryColumnRaw ?
+                                (existingBoundaryColumnRaw.includes(',') ?
+                                    existingBoundaryColumnRaw.split(',').map((code: string) => code.trim()).filter(Boolean) :
+                                    [existingBoundaryColumnRaw.trim()].filter(Boolean)) : [];
+                            const newBoundaryColumn = boundaryCode.includes(',') ?
+                                boundaryCode.split(',').map((code: string) => code.trim()).filter(Boolean) :
+                                [boundaryCode.trim()].filter(Boolean);
+
+                            existingBoundaryColumn.forEach((boundary: any) => {
+                                if (!newBoundaryColumn.includes(boundary)) {
+                                    delinkOperations.push({
+                                        resource, messageObject, boundary, code, isDelink: true
+                                    });
+                                }
+                            });
+
+                            // Collect link operations for new boundaries
+                            newBoundaryColumn.forEach((boundary: any) => {
+                                linkOperations.push({
+                                    resource, messageObject, boundary, code, isDelink: false
+                                });
+                            });
+                        }
                     }
-                    
                 }
                 else {
                     logger.info(`Code ${code} is somehow null or empty for resource ${resource?.type} for uniqueCodeColumn ${uniqueCodeColumn}`)
@@ -171,6 +202,30 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             }
         }
     }
+
+    await Promise.all(delinkOperations.map(async (delinkData: any) => {
+        const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
+            delinkData.resource,
+            delinkData.messageObject,
+            delinkData.boundary,
+            delinkData.code,
+            delinkData.isDelink
+        );
+        logger.info("Delink operation complete, mapping present:", isMappingAlreadyPresent);
+    }));
+
+    await Promise.all(linkOperations.map(async (linkData: any) => {
+        const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
+            linkData.resource,
+            linkData.messageObject,
+            linkData.boundary,
+            linkData.code,
+            linkData.isDelink
+        );
+        if (!isMappingAlreadyPresent) {
+            mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundaryCode, boundaryCodes, allBoundaries);
+        }
+    }));
 }
 
 
