@@ -787,7 +787,7 @@ async function getBoundarySheetData(
         }
       };
     }
-    else if(request?.query?.type !== "boundaryManagement") {
+    else if(request?.query?.type !== "boundaryManagement" && request?.query?.type !== 'boundaryGeometryManagement'){ {
       // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
       const responseFromCampaignSearch =
         await getCampaignSearchResponse(request);

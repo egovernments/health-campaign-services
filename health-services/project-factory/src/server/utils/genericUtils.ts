@@ -1220,6 +1220,7 @@ async function getBoundaryRelationshipData(request: any, params: any) {
 
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
+  const heirarchyType = request?.query?.hierarchyType;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
@@ -1235,8 +1236,8 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }
-  if(type == "boundaryManagement"){
-    configurableColumnHeadersBasedOnCampaignType = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+  if(type == "boundaryManagement" || type == "boundaryGeometryManagement"){
+    configurableColumnHeadersBasedOnCampaignType = [heirarchyType + "_BOUNDARY_CODE", heirarchyType + "_LAT", heirarchyType + "_LONG"]
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
@@ -1262,7 +1263,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
-  if(type == "boundaryManagement"){
+  if(type == "boundaryManagement" || type == "boundaryGeometryManagement"){
     logger.info("Processing data for boundaryManagement type")
     const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
     for (let d of data) {
