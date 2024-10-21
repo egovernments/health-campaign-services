@@ -115,4 +115,7 @@ public class ReferralManagementConfiguration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsSearchUrl;
 
+    @Value("${egov.enable.matview.search}")
+    private String enableMatviewSearch;
+
 }
