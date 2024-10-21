@@ -38,7 +38,7 @@ public class PlanQueryBuilder {
 
     private static final String PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE = " order by plan.last_modified_time desc ";
 
-    private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+    private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
 
     private static final String PLAN_STATUS_COUNT_QUERY = "SELECT COUNT(id) as plan_status_count, status FROM (SELECT id, status FROM plan {INTERNAL_QUERY}) as plan_status_map GROUP BY status";
 
