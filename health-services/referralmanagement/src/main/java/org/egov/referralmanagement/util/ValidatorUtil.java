@@ -1,7 +1,7 @@
 package org.egov.referralmanagement.util;
 
-import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.user.UserSearchRequest;
 import org.egov.common.service.UserService;
 import org.springframework.util.CollectionUtils;
 
