@@ -382,11 +382,14 @@ public class PlanValidator {
      */
     private void validatePlanExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if (CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
+        List<Plan> planFromDatabase = planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
-                .build()))) {
+                .build());
+        if (CollectionUtils.isEmpty(planFromDatabase)) {
             throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
         }
+        // enriching boundary ancestral path for incoming plan request from the database
+        request.getPlan().setBoundaryAncestralPath(planFromDatabase.get(0).getBoundaryAncestralPath());
     }
 
     /**
