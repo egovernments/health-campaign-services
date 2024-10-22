@@ -51,8 +51,11 @@ public class CensusSearchCriteria {
     @JsonProperty("effectiveTo")
     private Long effectiveTo = null;
 
-    @JsonProperty("pagination")
-    private Pagination pagination = null;
+    @JsonProperty("limit")
+    private Integer limit = null;
+
+    @JsonProperty("offset")
+    private Integer offset = null;
 
     public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {
         if (this.areaCodes == null) {

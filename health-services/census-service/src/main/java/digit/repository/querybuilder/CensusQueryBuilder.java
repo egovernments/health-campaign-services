@@ -167,11 +167,11 @@ public class CensusQueryBuilder {
 
         // Append offset
         paginatedQuery.append(" OFFSET ? ");
-        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getPagination()) && !ObjectUtils.isEmpty(searchCriteria.getPagination().getOffset()) ? searchCriteria.getPagination().getOffset() : config.getDefaultOffset());
+        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getOffset()) ? searchCriteria.getOffset() : config.getDefaultOffset());
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getPagination()) && !ObjectUtils.isEmpty(searchCriteria.getPagination().getLimit()) ? searchCriteria.getPagination().getLimit() : config.getDefaultLimit());
+        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getLimit()) ? searchCriteria.getLimit() : config.getDefaultLimit());
 
         return paginatedQuery.toString();
     }
