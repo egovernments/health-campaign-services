@@ -128,12 +128,14 @@ public class PlanEmployeeAssignmentValidator {
      */
     private void validateRootEmployeeJurisdiction(PlanEmployeeAssignment planEmployeeAssignment, Object mdmsData, CampaignDetail campaignDetail) {
         if (planEmployeeAssignment.getRole().contains(ROOT_PREFIX)) {
-            List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
+            Set<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Validate that National role employee should not have more than one jurisdiction assigned
             if (jurisdiction.size() > 1) {
                 throw new CustomException(INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE, INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE);
             }
+
+            String rootLevelJurisdiction = jurisdiction.stream().findFirst().orElse(null);
 
             // Fetch the highest hierarchy for Microplan from MDMS
             String highestHierarchy = commonUtil.getMicroplanHierarchy(mdmsData).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN);
@@ -141,7 +143,7 @@ public class PlanEmployeeAssignmentValidator {
             // Filter out the boundary details for the jurisdiction assigned to employee
             // Throw exception if jurisdiction assigned to Root role employee is not the highest hierarchy
             campaignDetail.getBoundaries().stream()
-                    .filter(boundary -> boundary.getCode().equals(jurisdiction.get(0)))
+                    .filter(boundary -> boundary.getCode().equals(rootLevelJurisdiction))
                     .forEach(boundary -> {
                         if (!boundary.getType().equals(highestHierarchy)) {
                             throw new CustomException(INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE, INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE);
@@ -213,7 +215,7 @@ public class PlanEmployeeAssignmentValidator {
      */
     private void validateEmployeeJurisdiction(PlanEmployeeAssignment planEmployeeAssignment, Object mdmsData, CampaignDetail campaignDetail) {
         if (!planEmployeeAssignment.getRole().contains(ROOT_PREFIX)) {
-            List<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
+            Set<String> jurisdiction = planEmployeeAssignment.getJurisdiction();
 
             // Fetch the highest and lowest hierarchy for Microplan from MDMS
             Map<String, String> hierarchyMap = commonUtil.getMicroplanHierarchy(mdmsData);

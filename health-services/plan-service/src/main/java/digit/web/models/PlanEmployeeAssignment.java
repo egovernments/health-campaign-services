@@ -1,7 +1,8 @@
 package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.List;
+import java.util.Set;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -53,7 +54,7 @@ public class PlanEmployeeAssignment {
     @JsonProperty("jurisdiction")
     @Valid
     @NotEmpty
-    private List<String> jurisdiction = null;
+    private Set<String> jurisdiction = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
