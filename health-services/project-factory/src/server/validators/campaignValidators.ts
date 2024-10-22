@@ -6,7 +6,7 @@ import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, han
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
+import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -23,6 +23,7 @@ import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { produceModifiedMessages } from "../kafka/Producer";
 
 
 
@@ -1065,7 +1066,6 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         if (!id) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "id is required for update");
         }
-        await validateById(request);
     }
     if (!CampaignDetails) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
@@ -1073,8 +1073,11 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!action) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.action is required and must be either 'create' or 'draft'")
     }
-    if (!(action == "create" || action == "draft" || action == "changeDates")) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create, draft or changeDates");
+    if (!(action == "create" || action == "draft" || action == "changeDates" || action == "retry")) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create, draft, retry or changeDates");
+    }
+    if(actionInUrl == "retry"){
+        await validateForRetry(request);
     }
     if (actionInUrl == "update") {
         await validateById(request);
@@ -1089,6 +1092,60 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "changeDates is not allowed during create");
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+}
+
+async function validateForRetry(request: any) {
+    const { id, tenantId } = request?.body?.CampaignDetails
+    if (!id) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
+    }
+    if (!tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
+    }
+    const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        CampaignDetails: {
+            tenantId: tenantId,
+            ids: [id]
+        }
+    }
+    const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(req)
+    if (Array.isArray(searchResponse?.CampaignDetails)) {
+        if (searchResponse?.CampaignDetails?.length > 0) {
+            logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
+            request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
+            if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.failed) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be retried in failed state.`);
+            }
+            request.body.CampaignDetails.status = campaignStatuses?.drafted;
+            var updatedInnerCampaignDetails = {}
+            enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+            request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
+            const producerMessage: any = {
+                CampaignDetails: request?.body?.CampaignDetails
+            }
+            await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+            
+            if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
+                // If not present, initialize it as an empty array
+                request.body.CampaignDetails.additionalDetails.retryCycle = [];
+            }
+            
+            // Step 2: Push new data to the `retryCycle` array
+            request.body.CampaignDetails.additionalDetails.retryCycle.push({
+                error: request.body.CampaignDetails.additionalDetails.error,
+                retriedAt: Date.now(),
+                failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
+            });
+        }
+        else {
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+        }
+    }
+    else {
+        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
+    }
 }
 
 async function validateIsActive(request: any) {
@@ -1287,5 +1344,8 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateSearchProcessTracksRequest,
-    validateParent
+    validateParent, 
+    validateForRetry
 }
+
+
