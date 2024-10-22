@@ -62,6 +62,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.stock.reconciliation.index.v1.topic}")
     private String transformerProducerStockReconciliationRegisterIndexV1Topic;
 
+    @Value("${transformer.producer.checklist.answer.index.v1.topic}")
+    private String transformerProducerChecklistAnswerIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -212,4 +215,7 @@ public class TransformerProperties {
 
     @Value("${egov.project.target.number-type}")
     private String projectTargetNumberType;
+
+    @Value("${checklist.answer.index.checklist.names}")
+    private String checklistNameList;
 }
