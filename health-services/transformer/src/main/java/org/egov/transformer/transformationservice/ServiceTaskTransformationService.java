@@ -35,8 +35,9 @@ public class ServiceTaskTransformationService {
     private final CommonUtils commonUtils;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final ChecklistAnswerTransformationService checklistAnswerTransformationService;
 
-    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
+    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService, ChecklistAnswerTransformationService checklistAnswerTransformationService) {
         this.producer = producer;
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
@@ -45,6 +46,7 @@ public class ServiceTaskTransformationService {
         this.commonUtils = commonUtils;
         this.userService = userService;
         this.boundaryService = boundaryService;
+        this.checklistAnswerTransformationService = checklistAnswerTransformationService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -118,6 +120,15 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
+        checkAndTransformChecklistAnswers(serviceIndexV1);
         return serviceIndexV1;
+    }
+
+    private void checkAndTransformChecklistAnswers(ServiceIndexV1 serviceIndexV1) {
+        String checklistName = serviceIndexV1.getChecklistName();
+        List<String> checklistNames = Arrays.asList(transformerProperties.getChecklistNameList().split(","));
+        if (checklistNames.contains(checklistName)) {
+            checklistAnswerTransformationService.transform(serviceIndexV1);
+        }
     }
 }
