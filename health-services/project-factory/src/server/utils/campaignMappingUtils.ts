@@ -259,15 +259,21 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
+
+
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            const pvarIds = getPvarIds(messageObject);
-            if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
-                resources.push({
-                    type: "resource",
-                    resourceIds: pvarIds
-                })
+            if (messageObject?.Campaign?.newBoundaryProjectMapping?.hasOwnProperty(key)) {
+                if (messageObject.Campaign.newBoundaryProjectMapping[key]?.projectId) {
+                    const pvarIds = getPvarIds(messageObject);
+                    if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
+                        resources.push({
+                            type: "resource",
+                            resourceIds: pvarIds
+                        })
+                    }
+                }
             }
             for (const type of Object.keys(boundaryCodes)) {
                 if (boundaryCodes[type][key] && Array.isArray(boundaryCodes[type][key]) && boundaryCodes[type][key].length > 0) {
@@ -280,7 +286,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
             Campaign.CampaignDetails.push({
                 projectId: boundaryWithProject[key],
                 resources: resources
-            })
+            });
         }
     }
     return {
