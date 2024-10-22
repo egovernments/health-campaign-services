@@ -3,15 +3,15 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
-import digit.util.CampaignUtil;
-import digit.util.MdmsUtil;
-import digit.util.MdmsV2Util;
-import digit.util.CommonUtil;
+import digit.util.*;
 import digit.web.models.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+import digit.web.models.census.CensusResponse;
+import digit.web.models.census.CensusSearchCriteria;
+import digit.web.models.census.CensusSearchRequest;
 import digit.web.models.mdmsV2.Mdms;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,6 @@ import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.ObjectUtils;
 
 import static digit.config.ServiceConstants.*;
 
@@ -41,13 +40,16 @@ public class PlanConfigurationValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil) {
+    private CensusUtil censusUtil;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil, CensusUtil censusUtil) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
         this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.campaignUtil = campaignUtil;
+        this.censusUtil = censusUtil;
     }
 
     /**
@@ -630,6 +632,51 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Validates if all the census records are validated before approving census data for the given planConfigId.
+     *
+     * @param planConfigurationRequest request with plan config id.
+     */
+    public void validateCensusData(PlanConfigurationRequest planConfigurationRequest) {
+        PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+        CensusSearchRequest censusSearchRequest = getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+
+        // Fetches census records for given planConfigId
+        CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
+
+        Map<String, Integer> statusCount = censusResponse.getStatusCount();
+
+        // Throws exception if all census records are not validated
+        if (statusCount.size() > 1 || !statusCount.containsKey(VALIDATED_STATUS)) {
+            throw new CustomException(CANNOT_APPROVE_CENSUS_DATA_CODE, CANNOT_APPROVE_CENSUS_DATA_MESSAGE);
+        }
+    }
+
+    /**
+     * Validates if all boundaries have facility assigned before finalizing catchment mapping for a given planConfigID.
+     *
+     * @param planConfigurationRequest request with plan config id.
+     */
+    public void validateCatchmentMapping(PlanConfigurationRequest planConfigurationRequest) {
+        PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+        CensusSearchRequest censusSearchRequest = getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+
+        // Fetches all census records for given planConfigId
+        CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
+        Integer totalCensusCount = censusResponse.getTotalCount();
+
+        censusSearchRequest.getCensusSearchCriteria().setFacilityAssigned(Boolean.TRUE);
+
+        // Fetches all census records for given planConfigId where facility is assigned
+        CensusResponse censusWithFacilityAssigned = censusUtil.fetchCensusRecords(censusSearchRequest);
+        Integer totalCensusWithFacilityAssigned = censusWithFacilityAssigned.getTotalCount();
+
+        if (!totalCensusCount.equals(totalCensusWithFacilityAssigned)) {
+            throw new CustomException(CANNOT_FINALIZE_CATCHMENT_MAPPING_CODE, CANNOT_FINALIZE_CATCHMENT_MAPPING_MESSAGE);
+        }
+    }
 
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
         return Objects.equals(planConfiguration.getStatus(), SETUP_COMPLETED_STATUS);
@@ -664,4 +711,16 @@ public class PlanConfigurationValidator {
         }
     }
 
+    // Prepares Census search request for given planConfigId
+    private CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
+                .tenantId(tenantId)
+                .source(planConfigId)
+                .build();
+
+        return CensusSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .censusSearchCriteria(searchCriteria)
+                .build();
+    }
 }

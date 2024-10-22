@@ -305,6 +305,12 @@ public class ServiceConstants {
 
     public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
 
+    public static final String APPROVE_CENSUS_DATA_ACTION = "APPROVE_CENSUS_DATA";
+
+    public static final String FINALIZE_CATCHMENT_MAPPING_ACTION = "FINALIZE_CATCHMENT_MAPPING";
+
+    public static final String VALIDATED_STATUS = "VALIDATED";
+
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
 
@@ -320,6 +326,12 @@ public class ServiceConstants {
 
     public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
     public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
+
+    public static final String CANNOT_APPROVE_CENSUS_DATA_CODE = "CANNOT_APPROVE_CENSUS_DATA";
+    public static final String CANNOT_APPROVE_CENSUS_DATA_MESSAGE = "Census data can't be approved until all the census records are validated";
+
+    public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_CODE = "CANNOT_FINALIZE_CATCHMENT_MAPPING";
+    public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_MESSAGE = "Catchment mapping can't be finalized until all boundaries have facility assigned";
 
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE = "HIERARCHY_NOT_FOUND_IN_MDMS";
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE = "Hierarchy key not found in mdms";

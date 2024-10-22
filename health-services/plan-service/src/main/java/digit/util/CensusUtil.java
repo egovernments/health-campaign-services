@@ -37,7 +37,7 @@ public class CensusUtil {
 
         CensusResponse censusResponse = null;
         try {
-            censusResponse = restTemplate.postForObject(uri.toString(), searchRequest, CensusResponse.class);
+            censusResponse = restTemplate.postForObject(uri, searchRequest, CensusResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_CENSUS, e);
         }
