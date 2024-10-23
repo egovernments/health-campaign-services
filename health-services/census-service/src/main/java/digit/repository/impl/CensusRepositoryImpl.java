@@ -114,8 +114,8 @@ public class CensusRepositoryImpl implements CensusRepository {
         // Get bulk census update query
         String bulkCensusUpdateQuery = queryBuilder.getBulkCensusQuery();
 
-        // Prepare arguments for batch update
-        List<Object[]> batchArgs = request.getCensus().stream().map(census -> new Object[] {
+        // Prepare rows for bulk update
+        List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
                 census.getStatus(),
                 census.getAssignee(),
                 census.getAuditDetails().getLastModifiedBy(),
@@ -123,8 +123,8 @@ public class CensusRepositoryImpl implements CensusRepository {
                 census.getId()
         }).toList();
 
-        // Perform batch update
-        jdbcTemplate.batchUpdate(bulkCensusUpdateQuery, batchArgs);
+        // Perform bulk update
+        jdbcTemplate.batchUpdate(bulkCensusUpdateQuery, rows);
     }
 
     /**
