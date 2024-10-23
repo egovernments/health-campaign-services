@@ -120,7 +120,7 @@ public class CensusRepositoryImpl implements CensusRepository {
                 .hierarchyType(census.getHierarchyType())
                 .boundaryCode(census.getBoundaryCode())
                 .assignee(census.getAssignee())
-                .status(census.getStatus().toString())
+                .status(census.getStatus())
                 .type(census.getType().toString())
                 .totalPopulation(census.getTotalPopulation())
                 .populationByDemographics(census.getPopulationByDemographics())
