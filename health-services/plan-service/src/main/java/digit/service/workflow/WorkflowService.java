@@ -147,7 +147,12 @@ public class WorkflowService {
                 .build();
 
         String assignee = getAssigneeForAutoAssignment(plan, planRequest.getRequestInfo());
-        plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+        // Set Assignee
+        if(!ObjectUtils.isEmpty(assignee))
+            plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+        plan.setAssignee(assignee);
 
         enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
 
@@ -244,11 +249,6 @@ public class WorkflowService {
             assignee = plan.getAuditDetails().getLastModifiedBy();
         }
 
-        if(!ObjectUtils.isEmpty(assignee))
-            plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
-
-        plan.setAssignee(assignee);
-
         return assignee;
     }
 
@@ -313,8 +313,12 @@ public class WorkflowService {
                 bulkPlanRequest.getRequestInfo());
 
         bulkPlanRequest.getPlans().forEach(plan -> {
+
             // Set assignee
-            plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+            if(!ObjectUtils.isEmpty(assignee))
+                plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+            plan.setAssignee(assignee);
 
             // Create process instance object from plan
             ProcessInstance processInstance = ProcessInstance.builder()
