@@ -714,12 +714,21 @@ function enrichDataToCreateForUser(dataToCreate: any[], responsePayload: any, re
   const createdEmployees = responsePayload?.Employees;
   // create an object which have keys as employee.code and values as employee.uuid  
   const employeeMap = createdEmployees.reduce((map: any, employee: any) => {
-    map[employee.code] = employee.uuid;
+    map[employee.code] = {
+      uuid: employee?.uuid,
+      userServiceUuid: employee?.user?.userServiceUuid
+    };
     return map;
   }, {});
   for (const employee of dataToCreate) {
-    if (!employee?.uuid && employeeMap[employee?.code]) {
-      employee.uuid = employeeMap[employee?.code];
+    const mappedEmployee = employeeMap[employee?.code];
+    if (mappedEmployee) {
+      if (!employee?.userServiceUuid) {
+        employee.userServiceUuid = mappedEmployee.userServiceUuid;
+      }
+      if (!employee?.uuid) {
+        employee.uuid = mappedEmployee.uuid;
+      }
     }
   }
 }
@@ -1088,12 +1097,18 @@ async function confirmProjectParentCreation(request: any, projectId: any) {
 async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation API started")
   logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
-  const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody, undefined, undefined, undefined, undefined, undefined, true);
+  if (!request.body.newlyCreatedBoundaryProjectMap) {
+    request.body.newlyCreatedBoundaryProjectMap = {};
+  } const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody, undefined, undefined, undefined, undefined, undefined, true);
   logger.debug("Project creation response" + getFormattedStringForDebug(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info("Project created successfully with name " + JSON.stringify(projectCreateResponse?.Project[0]?.name))
     logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`)
+    if (!request.body.newlyCreatedBoundaryProjectMap[projectCreateBody?.Projects?.[0]?.address?.boundary]) {
+      request.body.newlyCreatedBoundaryProjectMap[projectCreateBody?.Projects?.[0]?.address?.boundary] = {};
+    }
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
+    request.body.newlyCreatedBoundaryProjectMap[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
     throwError("PROJECT", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));

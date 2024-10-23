@@ -183,7 +183,7 @@ function enrichActiveAndUUidColumn(worksheet: any, createAndSearchConfig: any, r
             const activeCell = worksheet.getCell(`${createAndSearchConfig?.activeColumn}${rowNumber}`);
             const uniqueIdentifierCell = worksheet.getCell(`${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`);
             activeCell.value = "Active";
-            uniqueIdentifierCell.value = data['uuid'];
+            uniqueIdentifierCell.value = data['userServiceUuid'];
         }
     }
 }
@@ -552,10 +552,10 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     };
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
-        persistMessage.ResourceDetails.additionalDetails = { 
+        persistMessage.ResourceDetails.additionalDetails = {
             source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null,
             fileName: request?.body?.ResourceDetails?.additionalDetails?.fileName || null
-         }
+        }
     }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
@@ -757,6 +757,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
             Campaign: {}
         }
         requestBody.Campaign.id = request?.body?.CampaignDetails?.id
+        requestBody.Campaign.newlyCreatedBoundaryProjectMap = request?.body?.newlyCreatedBoundaryProjectMap
         requestBody.Campaign.hierarchyType = request?.body?.CampaignDetails?.hierarchyType
         requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId
         requestBody.Campaign.campaignName = request?.body?.CampaignDetails?.campaignName
@@ -1058,6 +1059,9 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
         query += ` AND id IN (${idParams.join(', ')})`;
         values.push(...ids);
         index = index + ids.length;
+    } else {
+        // If no IDs are provided, filter by isActive = true
+        query += ` AND isActive = true`;
     }
 
     var status = searchFields?.status;
@@ -1492,13 +1496,14 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
 
                     // Set the reference ID and project targets
                     Projects[0].referenceID = request?.body?.CampaignDetails?.id;
-                    Projects[0].targets = [
-                        {
-                            beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
-                            totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode],
-                            targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode]
-                        }
-                    ];
+                    Projects[0].department = request?.body?.CampaignDetails?.campaignName,
+                        Projects[0].targets = [
+                            {
+                                beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                                totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode],
+                                targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundaryCode]
+                            }
+                        ];
                     await projectCreate(projectCreateBody, request);
                 }
             }
