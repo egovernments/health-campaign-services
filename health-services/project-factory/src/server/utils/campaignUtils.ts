@@ -757,6 +757,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
             Campaign: {}
         }
         requestBody.Campaign.id = request?.body?.CampaignDetails?.id
+        requestBody.Campaign.newlyCreatedBoundaryProjectMap = request?.body?.newlyCreatedBoundaryProjectMap
         requestBody.Campaign.hierarchyType = request?.body?.CampaignDetails?.hierarchyType
         requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId
         requestBody.Campaign.campaignName = request?.body?.CampaignDetails?.campaignName
@@ -1058,6 +1059,9 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
         query += ` AND id IN (${idParams.join(', ')})`;
         values.push(...ids);
         index = index + ids.length;
+    } else {
+        // If no IDs are provided, filter by isActive = true
+        query += ` AND isActive = true`;
     }
 
     var status = searchFields?.status;
