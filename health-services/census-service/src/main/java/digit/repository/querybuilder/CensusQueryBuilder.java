@@ -1,5 +1,6 @@
 package digit.repository.querybuilder;
 
+import digit.config.Configuration;
 import digit.util.QueryUtil;
 import digit.web.models.CensusSearchCriteria;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,10 @@ public class CensusQueryBuilder {
 
     private QueryUtil queryUtil;
 
-    public CensusQueryBuilder(QueryUtil queryUtil) {
+    private Configuration config;
+
+    public CensusQueryBuilder(QueryUtil queryUtil, Configuration config) {
+        this.config = config;
         this.queryUtil = queryUtil;
     }
 
@@ -42,7 +46,7 @@ public class CensusQueryBuilder {
     public String getCensusQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         String query = buildCensusQuery(searchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, CENSUS_SEARCH_QUERY_ORDER_BY_CLAUSE);
-        query = queryUtil.getPaginatedQuery(query, preparedStmtList);
+        query = getPaginatedQuery(query, preparedStmtList, searchCriteria);
         return query;
     }
 
@@ -161,5 +165,26 @@ public class CensusQueryBuilder {
 
     public String getBulkCensusQuery() {
         return BULK_CENSUS_UPDATE_QUERY;
+    }
+
+    /**
+     * This method appends pagination i.e. limit and offset to the query.
+     *
+     * @param query            the query to which pagination is to be added.
+     * @param preparedStmtList prepared statement list to add limit and offset.
+     * @return a query with pagination
+     */
+    public String getPaginatedQuery(String query, List<Object> preparedStmtList, CensusSearchCriteria searchCriteria) {
+        StringBuilder paginatedQuery = new StringBuilder(query);
+
+        // Append offset
+        paginatedQuery.append(" OFFSET ? ");
+        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getOffset()) ? searchCriteria.getOffset() : config.getDefaultOffset());
+
+        // Append limit
+        paginatedQuery.append(" LIMIT ? ");
+        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getLimit()) ? searchCriteria.getLimit() : config.getDefaultLimit());
+
+        return paginatedQuery.toString();
     }
 }
