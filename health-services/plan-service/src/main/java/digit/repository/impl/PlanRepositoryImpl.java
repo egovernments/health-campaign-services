@@ -84,8 +84,8 @@ public class PlanRepositoryImpl implements PlanRepository {
         // Get bulk plan update query
         String bulkPlanUpdateQuery = planQueryBuilder.getBulkPlanQuery();
 
-        // Prepare arguments for batch update
-        List<Object[]> batchArgs = body.getPlans().stream().map(plan -> new Object[] {
+        // Prepare rows for bulk update
+        List<Object[]> rows = body.getPlans().stream().map(plan -> new Object[] {
                 plan.getStatus(),
                 plan.getAssignee(),
                 plan.getAuditDetails().getLastModifiedBy(),
@@ -94,7 +94,7 @@ public class PlanRepositoryImpl implements PlanRepository {
         }).toList();
 
         // Perform batch update
-        jdbcTemplate.batchUpdate(bulkPlanUpdateQuery, batchArgs);
+        jdbcTemplate.batchUpdate(bulkPlanUpdateQuery, rows);
     }
 
     /**
