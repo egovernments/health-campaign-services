@@ -757,7 +757,7 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
             Campaign: {}
         }
         requestBody.Campaign.id = request?.body?.CampaignDetails?.id
-        requestBody.Campaign.boundaryProjectMappingForProjectResourceCreation = request?.body?.boundaryProjectMappingForProjectResourceCreation
+        requestBody.Campaign.newlyCreatedBoundaryProjectMap = request?.body?.newlyCreatedBoundaryProjectMap
         requestBody.Campaign.hierarchyType = request?.body?.CampaignDetails?.hierarchyType
         requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId
         requestBody.Campaign.campaignName = request?.body?.CampaignDetails?.campaignName

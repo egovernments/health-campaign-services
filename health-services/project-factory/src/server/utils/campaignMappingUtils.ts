@@ -264,8 +264,8 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            if (messageObject?.Campaign?.boundaryProjectMappingForProjectResourceCreation?.hasOwnProperty(key)) {
-                if (messageObject.Campaign.boundaryProjectMappingForProjectResourceCreation[key]?.projectId) {
+            if (messageObject?.Campaign?.newlyCreatedBoundaryProjectMap?.hasOwnProperty(key)) {
+                if (messageObject.Campaign.newlyCreatedBoundaryProjectMap[key]?.projectId) {
                     const pvarIds = getPvarIds(messageObject);
                     if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                         resources.push({
