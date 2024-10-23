@@ -1,6 +1,7 @@
 package digit.web.controllers;
 
 import digit.service.CensusService;
+import digit.web.models.BulkCensusRequest;
 import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
 import digit.web.models.CensusSearchRequest;
@@ -59,5 +60,17 @@ public class CensusController {
     public ResponseEntity<CensusResponse> update(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody CensusRequest body) {
         CensusResponse response = censusService.update(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * Request handler for serving bulk census update requests
+     *
+     * @param body
+     * @return
+     */
+    @RequestMapping(value = "/bulk/_update", method = RequestMethod.POST)
+    public ResponseEntity<CensusResponse> bulkUpdate(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody BulkCensusRequest body) {
+        CensusResponse response = censusService.bulkUpdate(body);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

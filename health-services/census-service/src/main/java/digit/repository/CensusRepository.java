@@ -13,6 +13,8 @@ public interface CensusRepository {
 
     public void update(CensusRequest censusRequest);
 
+    public void bulkUpdate(BulkCensusRequest request);
+
     public Integer count(CensusSearchCriteria censusSearchCriteria);
 
     public Map<String, Integer> statusCount(CensusSearchCriteria censusSearchCriteria);

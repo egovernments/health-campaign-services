@@ -6,6 +6,7 @@ import digit.service.enrichment.CensusTimeframeEnrichment;
 import digit.service.validator.CensusValidator;
 import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
+import digit.web.models.BulkCensusRequest;
 import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
 import digit.web.models.CensusSearchRequest;
@@ -44,10 +45,19 @@ public class CensusService {
      * @return The created census reponse.
      */
     public CensusResponse create(CensusRequest request) {
-        validator.validateCreate(request); // Validate census create request
-        enrichment.enrichCreate(request); // Enrich census create request
-        timeframeEnrichment.enrichPreviousTimeframe(request); // Enrich timeframe for previous census
-        repository.create(request); // Delegate creation request to repository
+
+        // Validate census create request
+        validator.validateCreate(request);
+
+        // Enrich census create request
+        enrichment.enrichCreate(request);
+
+        // Enrich timeframe for previous census
+        timeframeEnrichment.enrichPreviousTimeframe(request);
+
+        // Delegate creation request to repository
+        repository.create(request);
+
         return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
@@ -61,7 +71,7 @@ public class CensusService {
      * @return A list of census record that matches the search criteria.
      */
     public CensusResponse search(CensusSearchRequest request) {
-        validator.validateSearch(request); // Validate census search request
+
         return CensusResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .census(repository.search(request.getCensusSearchCriteria()))
@@ -77,12 +87,38 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
-        validator.validateUpdate(request); // Validate census update request
-        enrichment.enrichUpdate(request); // Enrich census update request
-        workflow.invokeWorkflowForStatusUpdate(request); // Call workflow transition API for status update
-        repository.update(request); // Delegate update request to repository
+
+        // Validate census update request
+        validator.validateUpdate(request);
+
+        // Enrich census update request
+        enrichment.enrichUpdate(request);
+
+        // Call workflow transition API for status update
+        workflow.invokeWorkflowForStatusUpdate(request);
+
+        // Delegate update request to repository
+        repository.update(request);
+
         return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .build();
+    }
+
+    public CensusResponse bulkUpdate(BulkCensusRequest request) {
+
+        // Validate census bulk update request
+        validator.validateBulkUpdate(request);
+
+        // Call workflow transition for updating status and assignee
+        workflow.invokeWorkflowForStatusUpdate(request);
+
+        // Delegate bulk update request to repository
+        repository.bulkUpdate(request);
+
+        return CensusResponse.builder()
+                .census(request.getCensus())
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .build();
     }

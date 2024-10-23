@@ -72,6 +72,18 @@ public class ServiceConstants {
     public static final String INVALID_CENSUS_CODE = "INVALID_CENSUS";
     public static final String INVALID_CENSUS_MESSAGE = "Provided census does not exist";
 
+    public static final String DUPLICATE_CENSUS_ID_IN_BULK_UPDATE_CODE = "DUPLICATE_CENSUS_ID_IN_BULK_UPDATE";
+    public static final String DUPLICATE_CENSUS_ID_IN_BULK_UPDATE_MESSAGE = "Census provided in the bulk update request are not unique.";
+
+    public static final String INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE_CODE = "INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE";
+    public static final String INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE_MESSAGE = "Tenant id and source should be same across all entries for bulk update.";
+
+    public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_CODE = "WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE";
+    public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_MESSAGE = "Workflow information is mandatory for each entry for bulk update";
+
+    public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_CODE = "DIFFERENT_WORKFLOW_FOR_BULK_UPDATE";
+    public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_MESSAGE = "All entries should be in the same state for bulk transitioning census records.";
+
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
 

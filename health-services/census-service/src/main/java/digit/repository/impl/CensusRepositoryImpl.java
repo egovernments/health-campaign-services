@@ -105,6 +105,29 @@ public class CensusRepositoryImpl implements CensusRepository {
     }
 
     /**
+     * Updates workflow status of a list of census records.
+     *
+     * @param request The bulk request containing the census records.
+     */
+    @Override
+    public void bulkUpdate(BulkCensusRequest request) {
+        // Get bulk census update query
+        String bulkCensusUpdateQuery = queryBuilder.getBulkCensusQuery();
+
+        // Prepare arguments for batch update
+        List<Object[]> batchArgs = request.getCensus().stream().map(census -> new Object[] {
+                census.getStatus(),
+                census.getAssignee(),
+                census.getAuditDetails().getLastModifiedBy(),
+                census.getAuditDetails().getLastModifiedTime(),
+                census.getId()
+        }).toList();
+
+        // Perform batch update
+        jdbcTemplate.batchUpdate(bulkCensusUpdateQuery, batchArgs);
+    }
+
+    /**
      * Converts the CensusRequest to a data transfer object (DTO)
      *
      * @param censusRequest The request to be converted to DTO
