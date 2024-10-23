@@ -55,6 +55,9 @@ public class CensusService {
         // Enrich timeframe for previous census
         timeframeEnrichment.enrichPreviousTimeframe(request);
 
+        // Call workflow transition API for status update
+        workflow.invokeWorkflowForStatusUpdate(request);
+
         // Delegate creation request to repository
         repository.create(request);
 
@@ -87,7 +90,7 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
-
+        request.getCensus().setPartnerAssignmentValidationEnabled(true);
         // Validate census update request
         validator.validateUpdate(request);
 
