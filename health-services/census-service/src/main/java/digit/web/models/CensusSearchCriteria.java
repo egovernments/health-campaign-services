@@ -39,8 +39,17 @@ public class CensusSearchCriteria {
     @JsonProperty("assignee")
     private String assignee = null;
 
+    @JsonProperty("source")
+    private String source = null;
+
+    @JsonProperty("facilityAssigned")
+    private Boolean facilityAssigned = null;
+
     @JsonProperty("jurisdiction")
     private List<String> jurisdiction = null;
+
+    @JsonProperty("effectiveTo")
+    private Long effectiveTo = null;
 
     public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {
         if (this.areaCodes == null) {

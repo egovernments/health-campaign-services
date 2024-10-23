@@ -15,6 +15,10 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
+
+    public static final String ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGNMENT_DETAILS = "Exception occurred while fetching plan employee assignment details from plan service: ";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
@@ -48,5 +52,22 @@ public class ServiceConstants {
     public static final String TENANTID = "?tenantId=";
     public static final String BUSINESS_SERVICES = "&businessServices=";
 
+    public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE = "NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE";
+    public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE = "Invalid or incorrect boundaryCode. No boundary data found.";
+
+    public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
+    public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
+
+    public static final String INVALID_PARTNER_CODE = "INVALID_PARTNER";
+    public static final String INVALID_PARTNER_MESSAGE = "Invalid partner assignment or invalid jurisdiction of the assigned partner";
+
+    public static final String INVALID_CENSUS_CODE = "INVALID_CENSUS";
+    public static final String INVALID_CENSUS_MESSAGE = "Provided census does not exist";
+
+    public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
+    public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
+
+    public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
+    public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
 
 }

@@ -2,8 +2,8 @@ package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
@@ -31,13 +31,12 @@ public class CensusResponse {
     @Valid
     private List<Census> census = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    private Integer totalCount = null;
 
-    public CensusResponse addCensusItem(Census censusItem) {
-        if (this.census == null) {
-            this.census = new ArrayList<>();
-        }
-        this.census.add(censusItem);
-        return this;
-    }
+    @JsonProperty("StatusCount")
+    @Valid
+    private Map<String, Integer> statusCount = null;
 
 }
