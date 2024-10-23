@@ -91,8 +91,6 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
             log.info("fetch the projects");
             List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
-//            List<Project> existingProjects = new ArrayList<>();
-//            existingProjects.add(Project.builder().additionalDetails());
             log.info("fetch the project types");
 //            List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
             List<ProjectType> projectTypes = getProjectType(existingProjects);

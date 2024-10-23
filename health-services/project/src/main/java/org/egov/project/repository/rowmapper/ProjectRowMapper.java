@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static org.egov.common.utils.CommonUtils.objectMapper;
-
 @Component
 public class ProjectRowMapper implements RowMapper<Project> {
 

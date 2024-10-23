@@ -1,9 +1,9 @@
 package org.egov.project.validator.staff;
 
-import digit.models.coremodels.UserSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.User;
+import org.egov.common.contract.user.UserSearchRequest;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
