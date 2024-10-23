@@ -69,11 +69,21 @@ async function searchProcessTracksService(
     return resultArray
 };
 
+async function retryProjectTypeCampaignService(request: express.Request) {
+    logger.info("RETRYING THE PROJECT TYPE CAMPAIGN");
+    await validateProjectCampaignRequest(request, "retry");
+    logger.info("VALIDATED THE PROJECT TYPE RETRY REQUEST");
+    request.body.CampaignDetails.action = "draft";
+    await processBasedOnAction(request, "update");
+    return request?.body?.CampaignDetails;
+}
+
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     createCampaignService,
-    searchProcessTracksService
+    searchProcessTracksService,
+    retryProjectTypeCampaignService
 }

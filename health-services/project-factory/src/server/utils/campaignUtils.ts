@@ -2333,7 +2333,8 @@ export {
     createUniqueUserNameViaIdGen,
     getRootBoundaryCode,
     boundaryGeometryManagement,
-    getResourceDetails
+    getResourceDetails,
+    enrichInnerCampaignDetails
 }
 
 
