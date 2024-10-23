@@ -1,33 +1,28 @@
 package org.egov.processor.util;
 
-import static org.egov.processor.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY;
-import static org.egov.processor.config.ServiceConstants.PROPERTIES;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.egov.common.contract.models.Workflow;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.kafka.Producer;
-import org.egov.processor.web.models.Activity;
 import org.egov.processor.web.models.Plan;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.PlanConfigurationResponse;
 import org.egov.processor.web.models.PlanRequest;
 import org.egov.processor.web.models.Resource;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
 @Slf4j
@@ -55,7 +50,7 @@ public class PlanUtil {
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
 		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues);
-		try {			
+		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
 			log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + planRequest.getPlan().getLocality(), e); 
@@ -80,6 +75,7 @@ public class PlanUtil {
 				.requestInfo(planConfigurationRequest.getRequestInfo())
 				.plan(Plan.builder()
 						.tenantId(planConfig.getTenantId())
+						.planConfigurationId(planConfig.getId())
 						.campaignId(planConfig.getCampaignId())
 						.locality(getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE,
 								feature, mappedValues))
@@ -91,6 +87,8 @@ public class PlanUtil {
 						}).collect(Collectors.toList()))
 						.activities(new ArrayList())
 						.targets(new ArrayList())
+						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).comments(WORKFLOW_COMMENTS_INITIATING_ESTIMATES).build())
+						.isRequestFromResourceEstimationConsumer(true)
 						.build())
 				.build();
 

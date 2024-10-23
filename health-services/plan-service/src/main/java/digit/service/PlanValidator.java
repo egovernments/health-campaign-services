@@ -240,19 +240,6 @@ public class PlanValidator {
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
             throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
-
-        // If plan configuration id is provided, providing resources is not allowed
-        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
-                && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
-        }
-
-        // Validate resource type existence
-        if (!CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            request.getPlan().getResources().forEach(resource -> {
-                // Validate resource type existence
-            });
-        }
     }
 
     /**
