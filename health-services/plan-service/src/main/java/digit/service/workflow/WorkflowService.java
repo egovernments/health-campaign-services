@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.service.PlanEmployeeService;
+import digit.service.validator.PlanConfigurationValidator;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
@@ -35,12 +36,15 @@ public class WorkflowService {
 
     private PlanEmployeeService planEmployeeService;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService) {
+    private PlanConfigurationValidator validator;
+
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, PlanConfigurationValidator validator) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
         this.commonUtil = commonUtil;
         this.planEmployeeService = planEmployeeService;
+        this.validator = validator;
     }
 
     /**
@@ -52,6 +56,14 @@ public class WorkflowService {
     public void invokeWorkflowForStatusUpdate(PlanConfigurationRequest planConfigurationRequest) {
         if (ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()))
             return;
+
+        String workflowAction = planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction();
+
+        if(workflowAction.equals(APPROVE_CENSUS_DATA_ACTION)) {
+            validator.validateCensusData(planConfigurationRequest);
+        } else if(workflowAction.equals(FINALIZE_CATCHMENT_MAPPING_ACTION)) {
+            validator.validateCatchmentMapping(planConfigurationRequest);
+        }
 
         ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(planConfigurationRequest);
         ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
