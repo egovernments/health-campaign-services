@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -19,11 +18,9 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import com.fasterxml.jackson.databind.node.DecimalNode;
 import org.apache.commons.io.FileUtils;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
@@ -33,6 +30,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
+
+import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 
 @Slf4j
 @Component
@@ -101,12 +101,40 @@ public class ParsingUtil {
             String columnHeader = dataFormatter.formatCellValue(cell);
             columnIndexMap.put(columnHeader, i);
         }
-        List<Map.Entry<String, Integer>> sortedColumnList = new ArrayList<>(columnIndexMap.entrySet());
-        Collections.sort(sortedColumnList, (o1, o2) -> (o1.getValue()).compareTo(o2.getValue()));
-        for (Map.Entry<String, Integer> entry : sortedColumnList) {
-            sortedMap.put(entry.getKey(), entry.getValue());
+        return columnIndexMap;
+    }
+
+    /**
+     * Retrieves the mapped value from the feature JSON node using the mapped value for the given input,
+     * returning it as the appropriate data type.
+     *
+     * @param input        The input value.
+     * @param feature      The feature JSON node.
+     * @param mappedValues The mapped values.
+     * @return The value of the corresponding data type (Long, String, Boolean, etc.).
+     * @throws CustomException if the input value is not found in the feature JSON node or if the value type is unsupported.
+     */
+    public Object extractMappedValueFromFeatureForAnInput(String input, JsonNode feature, Map<String, String> mappedValues) {
+        // Get the value as a JsonNode, not a String
+        JsonNode mappedValueNode = feature.get(PROPERTIES).get(mappedValues.get(input));
+
+        // Check if the value exists in the JSON
+        if (!ObjectUtils.isEmpty(mappedValueNode)) {
+
+            // Now return the value based on its actual type in the JsonNode
+            if (mappedValueNode instanceof DecimalNode) {
+                return ((DecimalNode) mappedValueNode).decimalValue(); // Returns BigDecimal
+            } else if (mappedValueNode.isBoolean()) {
+                return mappedValueNode.asBoolean();
+            } else if (mappedValueNode.isTextual()) {
+                return mappedValueNode.asText();
+            } else {
+                return null;
+            }
         }
-        return sortedMap;
+        else {
+            return null;
+        }
     }
 
     /**

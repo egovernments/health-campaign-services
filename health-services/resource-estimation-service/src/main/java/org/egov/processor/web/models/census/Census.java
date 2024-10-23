@@ -1,13 +1,11 @@
 package org.egov.processor.web.models.census;
 
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-
-import java.util.List;
-
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -15,8 +13,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 
 /**
@@ -47,12 +48,12 @@ public class Census {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    @NotNull
+    @Size(max = 64)
     private String assignee = null;
 
     @JsonProperty("status")
-    @NotNull
-    private StatusEnum status = null;
+    @Size(max = 64)
+    private String status = null;
 
     @JsonProperty("type")
     @NotNull
@@ -60,7 +61,7 @@ public class Census {
 
     @JsonProperty("totalPopulation")
     @NotNull
-    private Long totalPopulation = null;
+    private BigDecimal totalPopulation = null;
 
     @JsonProperty("populationByDemographics")
     @Valid
@@ -85,21 +86,18 @@ public class Census {
     @JsonProperty("facilityAssigned")
     private Boolean facilityAssigned = null;
 
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
-
-    /**
-     * The status used in the Census
-     */
-    public enum StatusEnum {
-        VALIDATED,
-        APPROVED,
-        PENDING_FOR_APPROVAL,
-        PENDING_FOR_VALIDATION
-    }
 
     /**
      * Gets or Sets type

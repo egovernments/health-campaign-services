@@ -16,14 +16,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.util.BoundaryUtil;
-import org.egov.processor.util.CalculationUtil;
-import org.egov.processor.util.CampaignIntegrationUtil;
-import org.egov.processor.util.FilestoreUtil;
-import org.egov.processor.util.LocaleUtil;
-import org.egov.processor.util.MdmsUtil;
-import org.egov.processor.util.ParsingUtil;
-import org.egov.processor.util.PlanUtil;
+import org.egov.processor.util.*;
 import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.Operation;
@@ -46,6 +39,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
+import static org.egov.processor.config.ServiceConstants.READ_ME_SHEET_NAME;
 
 @Slf4j
 @Service
@@ -71,9 +67,11 @@ public class ExcelParser implements FileParser {
 	
 	private LocaleUtil localeUtil;
 
+	private CensusUtil censusUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
-			CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-			Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil,LocaleUtil localeUtil) {
+                       CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -84,7 +82,8 @@ public class ExcelParser implements FileParser {
 		this.mdmsUtil = mdmsUtil;
 		this.boundaryUtil = boundaryUtil;
 		this.localeUtil = localeUtil;
-	}
+        this.censusUtil = censusUtil;
+    }
 
 	/**
 	 * Parses file data, extracts information from the file, and processes it.
@@ -132,9 +131,8 @@ public class ExcelParser implements FileParser {
 			DataFormatter dataFormatter = new DataFormatter();
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, planConfig, workbook,
 					campaignBoundaryList, dataFormatter);
-			String uploadedFileStoreId = uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-					planConfig, workbook, campaignBoundaryList, campaignResourcesList);
-			return uploadedFileStoreId;
+            return uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
+                    planConfig, workbook, campaignBoundaryList, campaignResourcesList);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -205,16 +203,21 @@ public class ExcelParser implements FileParser {
 			DataFormatter dataFormatter) {
 		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
 		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(planConfigurationRequest,
 				fileStoreId, campaign, planConfig);
 		List<String> boundaryCodeList = getBoundaryCodeList(planConfigurationRequest, campaign, planConfig);
 
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (isSheetAllowedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName(),localeResponse)) {
-				//TODO: remove validateColumnNames()
-				if(planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) 
+			if (isSheetAllowedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName(), localeResponse)) {
+
+				if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					processRows(planConfigurationRequest, excelWorkbookSheet, dataFormatter, fileStoreId,
-						campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
+							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
+				} else if (planConfig.getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+					processRowsForCensusRecords(planConfigurationRequest, excelWorkbookSheet,
+							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
+				}
 			}
 		});
 	}
@@ -240,6 +243,35 @@ public class ExcelParser implements FileParser {
 	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, planConfig, attributeNameVsDataTypeMap, boundaryCodeList);
+	}
+
+	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+
+		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
+				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+
+		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
+				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Row firstRow = null;
+
+		for (Row row : sheet) {
+			if (isRowEmpty(row))
+				continue;
+
+			if (row.getRowNum() == 0) {
+				firstRow = row;
+				continue;
+			}
+
+			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
+					planConfigurationRequest, boundaryCodeList, sheet);
+			JsonNode currentRow = createFeatureNodeFromRow(row, mapOfColumnNameAndIndex);
+
+			censusUtil.create(planConfigurationRequest, currentRow, mappedValues, hierarchyType);
+		}
 	}
 
 	/**
@@ -313,6 +345,16 @@ public class ExcelParser implements FileParser {
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
 			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList)  {
 		Row firstRow = null;
+		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
+				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+		Map<String, BigDecimal> assumptionValueMap = calculationUtil
+				.convertAssumptionsToMap(planConfig.getAssumptions());
+		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+
+		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
+				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
 		for (Row row : sheet) {
 			if(isRowEmpty(row))
 				continue;
@@ -323,24 +365,15 @@ public class ExcelParser implements FileParser {
 			}
 
 			Map<String, BigDecimal> resultMap = new HashMap<>();
-			Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-					.filter(f -> f.getFilestoreId().equals(fileStoreId))
-					.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
-			Map<String, BigDecimal> assumptionValueMap = calculationUtil
-					.convertAssumptionsToMap(planConfig.getAssumptions());
-			Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-
-			Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-					campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
 					planConfigurationRequest, boundaryCodeList, sheet);
-			JsonNode feature = createFeatureNodeFromRow(row, dataFormatter, mapOfColumnNameAndIndex);
+			JsonNode feature = createFeatureNodeFromRow(row, mapOfColumnNameAndIndex);
 			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
 					assumptionValueMap, feature);
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
-				planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
+			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
 			// TODO: remove after testing
 			printRow(sheet, row);
 		}
@@ -456,12 +489,10 @@ public class ExcelParser implements FileParser {
 	 * Creates a JSON feature node from a row in the Excel sheet.
 	 *
 	 * @param row            The row in the Excel sheet.
-	 * @param dataFormatter  The data formatter for formatting cell values.
 	 * @param columnIndexMap The mapping of column names to column indices.
 	 * @return The JSON feature node representing the row.
 	 */
-	private JsonNode createFeatureNodeFromRow(Row row, DataFormatter dataFormatter,
-			Map<String, Integer> columnIndexMap) {
+	private JsonNode createFeatureNodeFromRow(Row row, Map<String, Integer> columnIndexMap) {
 		ObjectNode featureNode = objectMapper.createObjectNode();
 		ObjectNode propertiesNode = featureNode.putObject("properties");
 
@@ -472,12 +503,33 @@ public class ExcelParser implements FileParser {
 
 			// Get the cell value from the row based on the columnIndex
 			Cell cell = row.getCell(columnIndex);
-			String cellValue = dataFormatter.formatCellValue(cell);
+			if (cell == null) {
+				// Handle null cells if needed
+				propertiesNode.putNull(columnName);
+				continue;
+			}
 
-			// Add the columnName and cellValue to the propertiesNode
-			propertiesNode.put(columnName, cellValue);
+			switch (cell.getCellType()) {
+				case STRING:
+					propertiesNode.put(columnName, cell.getStringCellValue());
+					break;
+				case NUMERIC:
+					if (DateUtil.isCellDateFormatted(cell)) {
+						// Handle date values
+						propertiesNode.put(columnName, cell.getDateCellValue().toString());
+					} else {
+						propertiesNode.put(columnName, BigDecimal.valueOf(cell.getNumericCellValue()));
+					}
+					break;
+				case BOOLEAN:
+					propertiesNode.put(columnName, cell.getBooleanCellValue());
+					break;
+                default:
+					propertiesNode.putNull(columnName);
+					break;
+			}
 		}
-//        System.out.println("Feature Node ---- > " + featureNode);
+
 		return featureNode;
 	}
 
@@ -716,13 +768,14 @@ public class ExcelParser implements FileParser {
 	 * @throws JsonMappingException If there's an issue mapping JSON response to Java objects.
 	 * @throws JsonProcessingException If there's an issue processing JSON during conversion.
 	 */
-	private boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName,LocaleResponse localeResponse) {
+	private boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
 		Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
 				planConfigurationRequest.getRequestInfo(),
 				planConfigurationRequest.getPlanConfiguration().getTenantId());
-		String value = (String) mdmsDataConstants.get("readMeSheetName");
+
 		for (Locale locale : localeResponse.getMessages()) {
-			if ((locale.getCode().equalsIgnoreCase(value))) {
+			if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
+					|| locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
 				if (sheetName.equals(locale.getMessage()))
 					return false;
 			}

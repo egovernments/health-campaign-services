@@ -36,10 +36,13 @@ public class ServiceConstants {
     public static final String NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE = "NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM";
     public static final String NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE = "Not able to fetch byte stream from a multipart file";
     
-    public static final String BOUNDARY_CODE = "boundaryCode";
+    public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+    public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
+
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
-    
+    public static final String ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_SEARCHING_CAMPAIGN = "Exception occurred while searching/updating campaign.";
+
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER = "Population";
@@ -68,5 +71,14 @@ public class ServiceConstants {
     public static final String MDMS_LOCALE_SEARCH_MODULE ="rainmaker-microplanning,rainmaker-boundary-undefined,rainmaker-hcm-admin-schemas";
     public static final String ERROR_WHILE_SEARCHING_LOCALE = "Exception occurred while searching locale. ";
     public static final String MDMS_MASTER_COMMON_CONSTANTS = "CommonConstants";
+
+    //override sheet names
+    public static final String HCM_ADMIN_CONSOLE_BOUNDARY_DATA = "HCM_ADMIN_CONSOLE_BOUNDARY_DATA";
+    public static final String READ_ME_SHEET_NAME = "readMeSheetName";
+
+    //Workflow constants
+    public static final String WORKFLOW_ACTION_INITIATE = "INITIATE";
+    public static final String WORKFLOW_COMMENTS_INITIATING_CENSUS = "Initiating census record creation";
+    public static final String WORKFLOW_COMMENTS_INITIATING_ESTIMATES = "Initiating plan estimation record creation";
 
 }

@@ -56,14 +56,8 @@ public class Configuration {
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 
-	@Value("${resource.microplan.create.topic}")
-	private String resourceMicroplanCreateTopic;
-
 	@Value("${integrate.with.admin.console}")
 	private boolean isIntegrateWithAdminConsole;
-
-	@Value("${resource.update.plan.config.consumer.topic}")
-	private String resourceUpdatePlanConfigConsumerTopic;
 
 	@Value("${egov.boundary.service.host}")
 	private String egovBoundaryServiceHost;
@@ -83,4 +77,15 @@ public class Configuration {
 
 	@Value("${plan.config.trigger.census.records.status}")
 	private String planConfigTriggerCensusRecordsStatus;
+
+	//Kafka topics for creating or updating records in dependent microservices
+	@Value("${resource.microplan.create.topic}")
+	private String resourceMicroplanCreateTopic;
+
+	@Value("${resource.update.plan.config.consumer.topic}")
+	private String resourceUpdatePlanConfigConsumerTopic;
+
+	@Value("${resource.census.create.topic}")
+	private String resourceCensusCreateTopic;
+
 }
