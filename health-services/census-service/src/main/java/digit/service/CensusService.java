@@ -77,6 +77,7 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
+        request.getCensus().setPartnerAssignmentValidationEnabled(true);
         validator.validateUpdate(request); // Validate census update request
         enrichment.enrichUpdate(request); // Enrich census update request
         workflow.invokeWorkflowForStatusUpdate(request); // Call workflow transition API for status update
