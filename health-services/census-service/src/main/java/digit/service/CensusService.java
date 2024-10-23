@@ -47,6 +47,7 @@ public class CensusService {
         validator.validateCreate(request); // Validate census create request
         enrichment.enrichCreate(request); // Enrich census create request
         timeframeEnrichment.enrichPreviousTimeframe(request); // Enrich timeframe for previous census
+        workflow.invokeWorkflowForStatusUpdate(request); // Call workflow transition API for status update
         repository.create(request); // Delegate creation request to repository
         return CensusResponse.builder()
                 .census(Collections.singletonList(request.getCensus()))

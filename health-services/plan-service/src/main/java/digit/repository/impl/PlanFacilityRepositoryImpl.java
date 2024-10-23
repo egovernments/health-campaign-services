@@ -107,6 +107,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
         try {
             PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
             producer.push(config.getPlanFacilityUpdateTopic(), requestDTO);
+            producer.push(config.getBoundaryCatchmentUpdateTopic(), requestDTO);
+
             log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
         } catch (Exception e) {
             throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());
