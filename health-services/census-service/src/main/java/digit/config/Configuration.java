@@ -28,8 +28,8 @@ public class Configuration {
     @Value("${census.update.topic}")
     private String censusUpdateTopic;
 
-    @Value("${boundary.facility.catchment.update.topic}")
-    private String facitilyCatchmentUpdateTopic;
+    @Value("${plan.facility.update.topic}")
+    private String planFcailityUpdateTopic;
 
     // Boundary Service
     @Value("${egov.boundary.service.host}")
@@ -51,6 +51,9 @@ public class Configuration {
 
     @Value("${egov.workflow.transition.path}")
     private String wfTransitionPath;
+
+    @Value("${egov.business.service.search.endpoint}")
+    private String businessServiceSearchEndpoint;
 
     @Value("${workflow.initiate.action}")
     private List<String> wfInitiateActions;

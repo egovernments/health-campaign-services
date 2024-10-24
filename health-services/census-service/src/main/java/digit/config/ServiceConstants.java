@@ -19,6 +19,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGNMENT_DETAILS = "Exception occurred while fetching plan employee assignment details from plan service: ";
 
+    public static final String ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS = "Exception occurred while fetching business service details: ";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
@@ -57,6 +59,9 @@ public class ServiceConstants {
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE = "NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE";
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE = "Invalid or incorrect boundaryCode. No boundary data found.";
 
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_CODE = "NO_BUSINESS_SERVICE_DATA_FOUND";
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE = "Invalid or incorrect businessService. No business service data found.";
+
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 
@@ -71,6 +76,18 @@ public class ServiceConstants {
 
     public static final String INVALID_CENSUS_CODE = "INVALID_CENSUS";
     public static final String INVALID_CENSUS_MESSAGE = "Provided census does not exist";
+
+    public static final String DUPLICATE_CENSUS_ID_IN_BULK_UPDATE_CODE = "DUPLICATE_CENSUS_ID_IN_BULK_UPDATE";
+    public static final String DUPLICATE_CENSUS_ID_IN_BULK_UPDATE_MESSAGE = "Census provided in the bulk update request are not unique.";
+
+    public static final String INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE_CODE = "INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE";
+    public static final String INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE_MESSAGE = "Tenant id and source should be same across all entries for bulk update.";
+
+    public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_CODE = "WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE";
+    public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_MESSAGE = "Workflow information is mandatory for each entry for bulk update";
+
+    public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_CODE = "DIFFERENT_WORKFLOW_FOR_BULK_UPDATE";
+    public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_MESSAGE = "All entries should be in the same state for bulk transitioning census records.";
 
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";

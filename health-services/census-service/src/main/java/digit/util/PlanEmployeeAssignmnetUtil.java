@@ -19,11 +19,11 @@ public class PlanEmployeeAssignmnetUtil {
 
     private RestTemplate restTemplate;
 
-    private Configuration configs;
+    private Configuration config;
 
     public PlanEmployeeAssignmnetUtil(RestTemplate restTemplate, Configuration configs) {
         this.restTemplate = restTemplate;
-        this.configs = configs;
+        this.config = configs;
     }
 
     /**
@@ -54,6 +54,6 @@ public class PlanEmployeeAssignmnetUtil {
      */
     private StringBuilder getPlanEmployeeAssignmentUri() {
         StringBuilder uri = new StringBuilder();
-        return uri.append(configs.getPlanServiceHost()).append(configs.getPlanEmployeeAssignmentSearchEndpoint());
+        return uri.append(config.getPlanServiceHost()).append(config.getPlanEmployeeAssignmentSearchEndpoint());
     }
 }

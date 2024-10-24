@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.util.PlanEmployeeAssignmnetUtil;
+import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
@@ -11,6 +12,7 @@ import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.contract.workflow.*;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
@@ -61,8 +63,83 @@ public class WorkflowService {
 
         // Enrich audit details after auto assignment is complete
         censusRequest.getCensus().setAuditDetails(AuditDetailsEnrichmentUtil
-                .prepareAuditDetails( censusRequest.getCensus().getAuditDetails(),  censusRequest.getRequestInfo(), Boolean.FALSE));
+                .prepareAuditDetails(censusRequest.getCensus().getAuditDetails(), censusRequest.getRequestInfo(), Boolean.FALSE));
 
+    }
+
+    /**
+     * Integrates with the workflow for the given bulk census request.
+     *
+     * @param request The request containing the list of census objects to integrate with the workflow.
+     */
+    public void invokeWorkflowForStatusUpdate(BulkCensusRequest request) {
+
+        ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(request);
+        ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
+
+        enrichCensusPostTransition(processInstanceResponse, request);
+    }
+
+    /**
+     * Enriches the census records in bulk update with audit details and workflow status.
+     *
+     * @param processInstanceResponse process instance response containing the current workflow status
+     * @param request                 the bulk census request
+     */
+    private void enrichCensusPostTransition(ProcessInstanceResponse processInstanceResponse, BulkCensusRequest request) {
+        // Update status and audit information post transition
+        request.getCensus().forEach(census -> {
+            // Update status of Census
+            census.setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
+
+            // Update audit information of census
+            census.setAuditDetails(AuditDetailsEnrichmentUtil
+                    .prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
+        });
+    }
+
+    /**
+     * Creates a workflow request from the given list of census records in bulk request.
+     *
+     * @param request The request containing the list of census to create a workflow request.
+     * @return The constructed process instance request for the workflow.
+     */
+    private ProcessInstanceRequest createWorkflowRequest(BulkCensusRequest request) {
+        List<ProcessInstance> processInstanceList = new ArrayList<>();
+
+        // Perform auto assignment
+        String assignee = getAssigneeForAutoAssignment(request.getCensus().get(0), request.getRequestInfo());
+
+        request.getCensus().forEach(census -> {
+
+            // Set assignee
+            if (!ObjectUtils.isEmpty(assignee))
+                census.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+            census.setAssignee(assignee);
+
+            // Create process instance object from census
+            ProcessInstance processInstance = ProcessInstance.builder()
+                    .businessId(census.getId())
+                    .tenantId(census.getTenantId())
+                    .businessService(CENSUS_BUSINESS_SERVICE)
+                    .moduleName(MODULE_NAME_VALUE)
+                    .action(census.getWorkflow().getAction())
+                    .comment(census.getWorkflow().getComments())
+                    .documents(census.getWorkflow().getDocuments())
+                    .build();
+
+            // Enrich user list for process instance
+            enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
+
+            // Add entry for bulk transition
+            processInstanceList.add(processInstance);
+        });
+
+        return ProcessInstanceRequest.builder()
+                .requestInfo(request.getRequestInfo())
+                .processInstances(processInstanceList)
+                .build();
     }
 
     /**
@@ -92,6 +169,8 @@ public class WorkflowService {
      */
     public ProcessInstanceRequest createWorkflowRequest(CensusRequest censusRequest) {
         Census census = censusRequest.getCensus();
+
+        // Create process instance object from census
         ProcessInstance processInstance = ProcessInstance.builder()
                 .businessId(census.getId())
                 .tenantId(census.getTenantId())
@@ -102,7 +181,16 @@ public class WorkflowService {
                 .documents(census.getWorkflow().getDocuments())
                 .build();
 
-        autoAssignAssignee(census.getWorkflow(), censusRequest);
+        // Perform auto assignment
+        String assignee = getAssigneeForAutoAssignment(census, censusRequest.getRequestInfo());
+
+        // Set Assignee
+        if (!ObjectUtils.isEmpty(assignee))
+            census.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+        census.setAssignee(assignee);
+
+        // Enrich user for process instance
         enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
 
         log.info("Process Instance assignes - " + processInstance.getAssignes());
@@ -138,42 +226,40 @@ public class WorkflowService {
     }
 
     /**
-     * Automatically assigns an assignee based on the workflow action and jurisdiction hierarchy.
+     * Returns an assignee based on the workflow action and jurisdiction hierarchy.
      * Retrieves jurisdiction boundaries from the census request and searches for matching employee assignments.
      *
      * For INITIATE actions, assigns the employee from the lowest boundary.
      * For INTERMEDIATE actions (non-ROOT_APPROVER), assigns an employee from a higher-level boundary.
      * For SEND_BACK actions, assigns the last modified user.
      *
-     * The assignee is set in both the workflow and the census request.
-     *
-     * @param workflow the workflow object to set the assignee
-     * @param censusRequest the census request containing workflow and jurisdiction details
+     * @param census      the census object containing workflow and jurisdiction details
+     * @param requestInfo the requestInfo
      */
-    private void autoAssignAssignee(Workflow workflow, CensusRequest censusRequest) {
-        String[] allheirarchysBoundaryCodes = censusRequest.getCensus().getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
-        String[] heirarchysBoundaryCodes = Arrays.copyOf(allheirarchysBoundaryCodes, allheirarchysBoundaryCodes.length - 1);
+    private String getAssigneeForAutoAssignment(Census census, RequestInfo requestInfo) {
+        String[] allHierarchiesBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
+        String[] hierarchiesBoundaryCodes = Arrays.copyOf(allHierarchiesBoundaryCodes, allHierarchiesBoundaryCodes.length - 1);
 
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
                 PlanEmployeeAssignmentSearchCriteria.builder()
-                        .tenantId(censusRequest.getCensus().getTenantId())
-                        .jurisdiction(Arrays.stream(heirarchysBoundaryCodes).toList())
-                        .planConfigurationId(censusRequest.getCensus().getSource())
+                        .tenantId(census.getTenantId())
+                        .jurisdiction(Arrays.stream(hierarchiesBoundaryCodes).toList())
+                        .planConfigurationId(census.getSource())
                         .role(config.getAllowedCensusRoles())
                         .build();
 
         //search for plan-employee assignments for the ancestral heirarchy codes.
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
-                .requestInfo(censusRequest.getRequestInfo()).build());
+                .requestInfo(requestInfo).build());
 
         // Create a map of jurisdiction to employeeId
         Map<String, String> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
-                .filter(assignment -> assignment.getJurisdiction() != null && !assignment.getJurisdiction().isEmpty())
+                .filter(assignment -> !CollectionUtils.isEmpty(assignment.getJurisdiction()))
                 .flatMap(assignment -> {
                     String employeeId = assignment.getEmployeeId();
                     return assignment.getJurisdiction().stream()
-                            .filter(jurisdiction -> Arrays.asList(heirarchysBoundaryCodes).contains(jurisdiction))
+                            .filter(jurisdiction -> Arrays.asList(hierarchiesBoundaryCodes).contains(jurisdiction))
                             .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
                 })
                 .collect(Collectors.toMap(
@@ -185,23 +271,20 @@ public class WorkflowService {
 
         String assignee = null; //assignee will remain null in case terminate actions are being taken
 
-        String action = censusRequest.getCensus().getWorkflow().getAction();
+        String action = census.getWorkflow().getAction();
         if (config.getWfInitiateActions().contains(action)) {
-            for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
-                assignee = jurisdictionToEmployeeMap.get(heirarchysBoundaryCodes[i]);
+            for (int i = hierarchiesBoundaryCodes.length - 1; i >= 0; i--) {
+                assignee = jurisdictionToEmployeeMap.get(hierarchiesBoundaryCodes[i]);
                 if (assignee != null)
                     break; // Stop iterating once an assignee is found
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
-            assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, censusRequest, jurisdictionToEmployeeMap);
+            assignee = assignToHigherBoundaryLevel(hierarchiesBoundaryCodes, census, jurisdictionToEmployeeMap);
         } else if (config.getWfSendBackActions().contains(action)) {
-            assignee = censusRequest.getCensus().getAuditDetails().getLastModifiedBy();
+            assignee = census.getAuditDetails().getLastModifiedBy();
         }
 
-        if(!ObjectUtils.isEmpty(assignee))
-            workflow.setAssignes(Collections.singletonList(assignee));
-
-        censusRequest.getCensus().setAssignee(assignee);
+        return assignee;
     }
 
     /**
@@ -209,17 +292,17 @@ public class WorkflowService {
      * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
      * If a higher-level boundary has an assigned employee, returns that employee's ID.
      *
-     * @param heirarchysBoundaryCodes boundary codes representing the hierarchy
-     * @param censusRequest the request with census and jurisdiction details
+     * @param heirarchysBoundaryCodes   boundary codes representing the hierarchy
+     * @param census                    the census object with jurisdiction details
      * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
      * @return the employee ID from the higher boundary, or null if
      */
-    public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, CensusRequest censusRequest, Map<String, String> jurisdictionToEmployeeMap) {
+    public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Census census, Map<String, String> jurisdictionToEmployeeMap) {
         for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
             String boundaryCode = heirarchysBoundaryCodes[i];
 
             // Check if this boundary code is present in assigneeJurisdiction
-            if (censusRequest.getCensus().getAssigneeJurisdiction().contains(boundaryCode)) {
+            if (census.getAssigneeJurisdiction().contains(boundaryCode)) {
 
                 if (i - 1 >= 0) {
                     // Check the next higher level in the hierarchy (one index above the match)

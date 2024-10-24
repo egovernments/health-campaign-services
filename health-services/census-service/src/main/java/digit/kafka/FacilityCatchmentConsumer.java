@@ -35,7 +35,7 @@ public class FacilityCatchmentConsumer {
         this.commonUtil = commonUtil;
     }
 
-    @KafkaListener(topics = {"${boundary.facility.catchment.update.topic}"})
+    @KafkaListener(topics = {"${plan.facility.update.topic}"})
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanFacilityRequestDTO planFacilityRequestDTO = objectMapper.convertValue(consumerRecord, PlanFacilityRequestDTO.class);
@@ -48,6 +48,8 @@ public class FacilityCatchmentConsumer {
 
             censusFromSearch.forEach(census -> {
                 census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
+                census.setFacilityAssigned(Boolean.TRUE);
+
                 service.update(CensusRequest.builder().census(census).build());
             });
         } catch (Exception exception) {
