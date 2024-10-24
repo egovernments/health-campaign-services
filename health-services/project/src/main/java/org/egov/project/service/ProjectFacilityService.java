@@ -1,11 +1,13 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityRequest;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
@@ -21,7 +23,6 @@ import org.egov.project.validator.facility.PfProjectIdValidator;
 import org.egov.project.validator.facility.PfRowVersionValidator;
 import org.egov.project.validator.facility.PfUniqueCombinationValidator;
 import org.egov.project.validator.facility.PfUniqueEntityValidator;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -121,7 +122,7 @@ public class ProjectFacilityService {
                 log.info("successfully created project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project facility: {}", exception.getMessage());
+            log.error("error occurred while creating project facility: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -155,7 +156,7 @@ public class ProjectFacilityService {
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project facility", exception);
+            log.error("error occurred while updating project facility", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -187,7 +188,7 @@ public class ProjectFacilityService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 

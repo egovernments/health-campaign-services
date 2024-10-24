@@ -49,7 +49,7 @@ public class PbRowVersionValidator implements Validator<BeneficiaryBulkRequest, 
         if (!iMap.isEmpty()) {
             List<String> individualIds = new ArrayList<>(iMap.keySet());
             List<ProjectBeneficiary> existingProjectBeneficiaries = projectBeneficiaryRepository.findById(individualIds,
-                    false, getIdFieldName(idMethod));
+                    getIdFieldName(idMethod), false).getResponse();
             List<ProjectBeneficiary> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(iMap, existingProjectBeneficiaries, idMethod);
             entitiesWithMismatchedRowVersion.forEach(projectBeneficiary -> {
