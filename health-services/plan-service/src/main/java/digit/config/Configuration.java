@@ -81,6 +81,9 @@ public class Configuration {
     @Value("${plan.facility.update.topic}")
     private String planFacilityUpdateTopic;
 
+    @Value("${boundary.facility.catchment.update.topic}")
+    private String boundaryCatchmentUpdateTopic;
+
     @Value("${plan.default.offset}")
     private Integer defaultOffset;
 
