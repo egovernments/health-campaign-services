@@ -2,7 +2,7 @@ package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.project.Document;
 import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
