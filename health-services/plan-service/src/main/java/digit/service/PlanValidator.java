@@ -240,19 +240,6 @@ public class PlanValidator {
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
             throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
-
-        // If plan configuration id is provided, providing resources is not allowed
-        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
-                && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
-        }
-
-        // Validate resource type existence
-        if (!CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            request.getPlan().getResources().forEach(resource -> {
-                // Validate resource type existence
-            });
-        }
     }
 
     /**
@@ -317,6 +304,9 @@ public class PlanValidator {
 
         // Validate activities uuid uniqueness
         validateActivitiesUuidUniqueness(request);
+
+        // Validate plan configuration existence
+        validatePlanConfigurationExistence(request);
 
         // Validate resources
         validateResources(request);
@@ -410,17 +400,14 @@ public class PlanValidator {
      * @param request the PlanRequest containing the plan
      */
     private void validatePlanExistence(PlanRequest request) {
-        // Fetch plan from database
+        // If plan id provided is invalid, throw an exception
         List<Plan> planFromDatabase = planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
                 .build());
-
-        // Throw exception if plan being updated does not exist in the database
         if (CollectionUtils.isEmpty(planFromDatabase)) {
             throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
         }
-
-        // Enrich boundary ancestral path for incoming plan update from the database
+        // enriching boundary ancestral path for incoming plan request from the database
         request.getPlan().setBoundaryAncestralPath(planFromDatabase.get(0).getBoundaryAncestralPath());
     }
 

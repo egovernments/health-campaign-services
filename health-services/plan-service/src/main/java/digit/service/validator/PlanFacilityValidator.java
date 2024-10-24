@@ -50,6 +50,9 @@ public class PlanFacilityValidator {
         // Retrieve the root-level tenant ID (state-level) based on the facility's tenant ID
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
 
+        // Validate duplicate records for plan facility
+        validateDuplicateRecords(planFacilityRequest);
+
         // Validate PlanConfiguration Existence and fetch the plan configuration details using the PlanConfigurationId
         List<PlanConfiguration> planConfigurations = fetchPlanConfigurationById(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
 
@@ -58,6 +61,23 @@ public class PlanFacilityValidator {
 
         // Validate service boundaries and residing boundaries with campaign id
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, planFacilityRequest);
+    }
+
+    /**
+     * Validates if plan facility linkage for the provided planConfiguration id and facility id already exists
+     *
+     * @param planFacilityRequest The plan facility linkage create request
+     */
+    private void validateDuplicateRecords(@Valid PlanFacilityRequest planFacilityRequest) {
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+
+        PlanFacilitySearchCriteria searchCriteria = PlanFacilitySearchCriteria.builder().planConfigurationId(planFacility.getPlanConfigurationId()).facilityId(planFacility.getFacilityId()).build();
+
+        List<PlanFacility> planFacilityList = planFacilityRepository.search(searchCriteria);
+
+        if (!CollectionUtils.isEmpty(planFacilityList)) {
+            throw new CustomException(PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_CODE, PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     /**
