@@ -36,6 +36,9 @@ public class AttendanceLog {
     @JsonProperty("individualId")
     private String individualId = null;
 
+    @JsonProperty("userName")
+    private String userName = null;
+
     @JsonProperty("tenantId")
     private String tenantId = null;
 
