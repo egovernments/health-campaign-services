@@ -70,9 +70,7 @@ public class PlanRepositoryImpl implements PlanRepository {
         }
 
         // Fetch plans from database based on the acquired ids
-        List<Plan> plans = searchPlanByIds(planIds);
-
-        return plans;
+        return searchPlanByIds(planIds);
     }
 
     /**
@@ -98,6 +96,24 @@ public class PlanRepositoryImpl implements PlanRepository {
         PlanRequestDTO planRequestDTO = convertToPlanReqDTO(planRequest);
         producer.push(config.getPlanUpdateTopic(), planRequestDTO);
 	}
+
+    @Override
+    public void bulkUpdate(BulkPlanRequest body) {
+        // Get bulk plan update query
+        String bulkPlanUpdateQuery = planQueryBuilder.getBulkPlanQuery();
+
+        // Prepare rows for bulk update
+        List<Object[]> rows = body.getPlans().stream().map(plan -> new Object[] {
+                plan.getStatus(),
+                plan.getAssignee(),
+                plan.getAuditDetails().getLastModifiedBy(),
+                plan.getAuditDetails().getLastModifiedTime(),
+                plan.getId()
+        }).toList();
+
+        // Perform batch update
+        jdbcTemplate.batchUpdate(bulkPlanUpdateQuery, rows);
+    }
 
     /**
      * Counts the number of plans based on the provided search criteria.
