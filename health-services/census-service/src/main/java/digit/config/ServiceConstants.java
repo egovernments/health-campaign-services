@@ -19,6 +19,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGNMENT_DETAILS = "Exception occurred while fetching plan employee assignment details from plan service: ";
 
+    public static final String ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS = "Exception occurred while fetching business service details: ";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
@@ -56,6 +58,9 @@ public class ServiceConstants {
 
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE = "NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE";
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE = "Invalid or incorrect boundaryCode. No boundary data found.";
+
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_CODE = "NO_BUSINESS_SERVICE_DATA_FOUND";
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE = "Invalid or incorrect businessService. No business service data found.";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";

@@ -17,5 +17,5 @@ public interface CensusRepository {
 
     public Integer count(CensusSearchCriteria censusSearchCriteria);
 
-    public Map<String, Integer> statusCount(CensusSearchCriteria censusSearchCriteria);
+    public Map<String, Integer> statusCount(CensusSearchRequest censusSearchRequest);
 }

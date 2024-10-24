@@ -79,7 +79,7 @@ public class CensusService {
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .census(repository.search(request.getCensusSearchCriteria()))
                 .totalCount(repository.count(request.getCensusSearchCriteria()))
-                .statusCount(repository.statusCount(request.getCensusSearchCriteria()))
+                .statusCount(repository.statusCount(request))
                 .build();
     }
 

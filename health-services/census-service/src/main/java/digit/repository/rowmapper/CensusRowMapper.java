@@ -57,7 +57,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setEffectiveFrom(rs.getLong("census_effective_from"));
                 censusEntry.setEffectiveTo(rs.getLong("census_effective_to"));
                 censusEntry.setSource(rs.getString("census_source"));
-                censusEntry.setStatus(rs.getString("census_status").toUpperCase());
+                censusEntry.setStatus(rs.getString("census_status"));
                 censusEntry.setAssignee(rs.getString("census_assignee"));
                 censusEntry.setBoundaryAncestralPath(Collections.singletonList(rs.getString("census_boundary_ancestral_path")));
                 censusEntry.setFacilityAssigned(rs.getBoolean("census_facility_assigned"));

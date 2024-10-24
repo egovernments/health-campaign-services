@@ -6,14 +6,18 @@ import digit.repository.CensusRepository;
 import digit.repository.querybuilder.CensusQueryBuilder;
 import digit.repository.rowmapper.CensusRowMapper;
 import digit.repository.rowmapper.StatusCountRowMapper;
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static digit.config.ServiceConstants.CENSUS_BUSINESS_SERVICE;
 
 @Slf4j
 @Repository
@@ -31,13 +35,16 @@ public class CensusRepositoryImpl implements CensusRepository {
 
     private StatusCountRowMapper statusCountRowMapper;
 
-    public CensusRepositoryImpl(Producer producer, Configuration config, CensusQueryBuilder queryBuilder, CensusRowMapper censusRowMapper, JdbcTemplate jdbcTemplate, StatusCountRowMapper statusCountRowMapper) {
+    private CommonUtil commonUtil;
+
+    public CensusRepositoryImpl(Producer producer, Configuration config, CensusQueryBuilder queryBuilder, CensusRowMapper censusRowMapper, JdbcTemplate jdbcTemplate, StatusCountRowMapper statusCountRowMapper,CommonUtil commonUtil) {
         this.producer = producer;
         this.config = config;
         this.queryBuilder = queryBuilder;
         this.censusRowMapper = censusRowMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.statusCountRowMapper = statusCountRowMapper;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -82,15 +89,23 @@ public class CensusRepositoryImpl implements CensusRepository {
     /**
      * Counts the census record based on their current status for the provided search criteria.
      *
-     * @param censusSearchCriteria The search criteria for filtering census records.
+     * @param censusSearchRequest The request with search criteria for filtering census records.
      * @return The status count of census records for the given search criteria.
      */
     @Override
-    public Map<String, Integer> statusCount(CensusSearchCriteria censusSearchCriteria) {
+    public Map<String, Integer> statusCount(CensusSearchRequest censusSearchRequest) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getCensusStatusCountQuery(censusSearchCriteria, preparedStmtList);
+        List<String> statusList = commonUtil.getStatusFromBusinessService(censusSearchRequest.getRequestInfo(), CENSUS_BUSINESS_SERVICE, censusSearchRequest.getCensusSearchCriteria().getTenantId());
 
-        return jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
+        String query = queryBuilder.getCensusStatusCountQuery(censusSearchRequest.getCensusSearchCriteria(), preparedStmtList);
+        Map<String, Integer> statusCountMap = jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
+
+        statusList.forEach(status -> {
+            if(ObjectUtils.isEmpty(statusCountMap.get(status)))
+                statusCountMap.put(status, 0);
+        });
+
+        return statusCountMap;
     }
 
     /**

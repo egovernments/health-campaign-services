@@ -48,6 +48,8 @@ public class FacilityCatchmentConsumer {
 
             censusFromSearch.forEach(census -> {
                 census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
+                census.setFacilityAssigned(Boolean.TRUE);
+
                 service.update(CensusRequest.builder().census(census).build());
             });
         } catch (Exception exception) {
