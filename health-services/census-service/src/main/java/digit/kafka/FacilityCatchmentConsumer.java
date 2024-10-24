@@ -35,7 +35,7 @@ public class FacilityCatchmentConsumer {
         this.commonUtil = commonUtil;
     }
 
-    @KafkaListener(topics = {"${boundary.facility.catchment.update.topic}"})
+    @KafkaListener(topics = {"${plan.facility.update.topic}"})
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanFacilityRequestDTO planFacilityRequestDTO = objectMapper.convertValue(consumerRecord, PlanFacilityRequestDTO.class);

@@ -28,8 +28,8 @@ public class Configuration {
     @Value("${census.update.topic}")
     private String censusUpdateTopic;
 
-    @Value("${boundary.facility.catchment.update.topic}")
-    private String facitilyCatchmentUpdateTopic;
+    @Value("${plan.facility.update.topic}")
+    private String planFcailityUpdateTopic;
 
     // Boundary Service
     @Value("${egov.boundary.service.host}")
