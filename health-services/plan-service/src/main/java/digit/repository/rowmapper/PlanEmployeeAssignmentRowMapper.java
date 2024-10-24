@@ -13,6 +13,7 @@ import org.springframework.util.ObjectUtils;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -41,7 +42,7 @@ public class PlanEmployeeAssignmentRowMapper implements ResultSetExtractor<List<
 
                 // Converting jurisdiction from comma separated string to a list of string
                 String jurisdiction = rs.getString("jurisdiction");
-                List<String> jurisdictionList = Arrays.asList(jurisdiction.split(","));
+                Set<String> jurisdictionList = Arrays.stream(jurisdiction.split(",")).collect(Collectors.toSet());
 
                 // Prepare PlanEmployeeAssignment object
                 planEmployeeAssignment.setId(planEmployeeAssignmentId);

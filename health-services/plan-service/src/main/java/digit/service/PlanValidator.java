@@ -503,7 +503,7 @@ public class PlanValidator {
         validateJurisdictionPresent(planRequest, planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
 
         //enrich jurisdiction of current assignee
-        planRequest.getPlan().setAssigneeJurisdiction(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+        planRequest.getPlan().setAssigneeJurisdiction(new ArrayList<>(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction()));
     }
 
     /**
@@ -514,7 +514,7 @@ public class PlanValidator {
      * @param jurisdictions the list of jurisdictions to check against the boundary set
      * @throws CustomException if none of the jurisdictions are present in the boundary codes
      */
-    public void validateJurisdictionPresent(PlanRequest planRequest, List<String> jurisdictions) {
+    public void validateJurisdictionPresent(PlanRequest planRequest, Set<String> jurisdictions) {
         Set<String> boundarySet = new HashSet<>(Arrays.asList(planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX)));
 
         // Check if any jurisdiction is present in the boundary set
