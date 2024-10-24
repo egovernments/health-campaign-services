@@ -9,10 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Boundary;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.web.models.boundary.BoundaryResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -23,16 +23,11 @@ import org.springframework.util.CollectionUtils;
 @Slf4j
 public class BoundaryV2Util {
 
-    // Injecting boundary host value from configuration
-    @Value("${egov.boundary.host}")
-    private String boundaryHost;
-
-    // Injecting boundary search URL value from configuration
-    @Value("${egov.boundary.search.url}")
-    private String boundarySearchUrl;
-
     @Autowired
     private ServiceRequestClient serviceRequestClient;
+
+    @Autowired
+    private ProjectConfiguration configs;
 
     /**
      * Validates boundary details against the egov-location service response.
@@ -52,8 +47,8 @@ public class BoundaryV2Util {
             // Fetch boundary details from the service
             log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
             BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-                    new StringBuilder(boundaryHost
-                            + boundarySearchUrl
+                    new StringBuilder(configs.getBoundaryHost()
+                            + configs.getBoundarySearchUrl()
                             + "?limit=" + boundaries.size()
                             + "&offset=0&tenantId=" + tenantId
                             + "&codes=" + String.join(",", boundaries)),

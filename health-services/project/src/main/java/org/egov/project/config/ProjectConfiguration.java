@@ -215,7 +215,7 @@ public class ProjectConfiguration {
     private String createLocationCaptureTopic;
 
     @Value("${egov.boundary.host}")
-    private String boundaryServiceHost;
+    private String boundaryHost;
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
@@ -223,6 +223,6 @@ public class ProjectConfiguration {
     @Value("${project.task.no.resource.validation.status}")
     private List<String> noResourceStatuses;
 
-    @Value("${project.attendance.feature.enabled:true}")
+    @Value("${project.attendance.feature.enabled:false}")
     private Boolean isAttendanceFeatureEnabled;
 }
