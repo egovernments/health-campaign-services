@@ -259,6 +259,13 @@ config:
     build:
       - work-dir: "analytics/auth-proxy"
         image-name: "auth-proxy"
+  - name: "builds/health-campaign-services/health-services/census-service"
+    build:
+      - work-dir: "health-services/census-service"
+        image-name: "census-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/census-service/src/main/resources/db"
+        image-name: "census-service-db"
 
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
