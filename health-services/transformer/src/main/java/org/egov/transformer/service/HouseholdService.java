@@ -20,7 +20,7 @@ import static org.egov.transformer.Constants.*;
 public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
-    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PREGNANTWOMEN, CHILDREN, NO_OF_ROOMS));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PREGNANTWOMEN, CHILDREN, NO_OF_ROOMS, MEN_COUNT, WOMEN_COUNT));
 
     public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
         this.transformerProperties = transformerProperties;
