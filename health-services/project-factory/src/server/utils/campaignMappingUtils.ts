@@ -203,30 +203,40 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
         }
     }
 
-    await Promise.all(delinkOperations.map(async (delinkData: any) => {
-        const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
-            delinkData.resource,
-            delinkData.messageObject,
-            delinkData.boundary,
-            delinkData.code,
-            delinkData.isDelink
-        );
-        logger.info(`Delinking ${delinkData.boundary} from ${delinkData.code} resource`);
-        logger.info("Delink operation complete, mapping present:", isMappingAlreadyPresent);
-    }));
-
-    await Promise.all(linkOperations.map(async (linkData: any) => {
-        const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
-            linkData.resource,
-            linkData.messageObject,
-            linkData.boundary,
-            linkData.code,
-            linkData.isDelink
-        );
-        if (!isMappingAlreadyPresent) {
-            mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundary, boundaryCodes, allBoundaries);
+     // Process delink operations sequentially
+     for (const delinkData of delinkOperations) {
+        try {
+            const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
+                delinkData.resource,
+                delinkData.messageObject,
+                delinkData.boundary,
+                delinkData.code,
+                delinkData.isDelink
+            );
+            logger.info(`Delinking ${delinkData.boundary} from ${delinkData.code} resource`);
+            logger.info("Delink operation complete, mapping present:", isMappingAlreadyPresent);
+        } catch (err:any) {
+            logger.error(`Error during delink operation for ${delinkData.boundary}: ${err.message}`);
         }
-    }));
+    }
+
+    // Process link operations sequentially
+    for (const linkData of linkOperations) {
+        try {
+            const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
+                linkData.resource,
+                linkData.messageObject,
+                linkData.boundary,
+                linkData.code,
+                linkData.isDelink
+            );
+            if (!isMappingAlreadyPresent) {
+                mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundary, boundaryCodes, allBoundaries);
+            }
+        } catch (err:any) {
+            logger.error(`Error during link operation for ${linkData.boundary}: ${err.message}`);
+        }
+    }
 }
 
 
