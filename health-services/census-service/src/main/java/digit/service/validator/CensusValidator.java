@@ -91,7 +91,7 @@ public class CensusValidator {
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
         }
 
-        if (census.isPartnerAssignmentValidationEnabled()) {
+        if (census.getPartnerAssignmentValidationEnabled()) {
             User userInfo = request.getRequestInfo().getUserInfo();
             List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
 
