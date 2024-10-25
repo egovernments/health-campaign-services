@@ -83,7 +83,7 @@ public class HouseholdTransformationService {
         AdditionalFields additionalFields = household.getAdditionalFields();
         if (additionalFields != null && additionalFields.getFields() != null
                 && !CollectionUtils.isEmpty(additionalFields.getFields())) {
-            householdService.additionalFieldsToDetails(additionalDetails, additionalFields);
+            householdService.additionalFieldsToDetails(additionalDetails, additionalFields.getFields());
         }
         int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
         int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
