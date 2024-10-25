@@ -46,8 +46,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
         List<StockReconciliation> entities = request.getStockReconciliation();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, StockReconciliation> eMap = getIdToObjMap(entities
-                .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        Map<String, StockReconciliation> eMap = getIdToObjMap(entities, idMethod);
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
         List<String> clientReferenceIdList = new ArrayList<>();

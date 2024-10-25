@@ -59,7 +59,6 @@ public class SrExistentEntityValidator implements Validator<StockReconciliationB
 
         // Extract client reference IDs from StockReconciliation entities that do not already have errors
         List<String> clientReferenceIdList = entities.stream()
-                .filter(notHavingErrors()) // Filter out entities with existing errors
                 .map(StockReconciliation::getClientReferenceId) // Map entities to their client reference IDs
                 .collect(Collectors.toList()); // Collect IDs into a list
 

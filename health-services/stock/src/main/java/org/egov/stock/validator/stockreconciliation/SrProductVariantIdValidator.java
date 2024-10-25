@@ -52,8 +52,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating stock reconciliation product variant id");
-        List<StockReconciliation> entities = request.getStockReconciliation().stream().filter(notHavingErrors())
-                .collect(Collectors.toList());
+        List<StockReconciliation> entities = request.getStockReconciliation();
         if (!entities.isEmpty()) {
             Set<String> productVariantIds = entities.stream().map(StockReconciliation::getProductVariantId).collect(Collectors.toSet());
             Map<String, StockReconciliation> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));

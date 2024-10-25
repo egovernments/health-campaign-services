@@ -51,8 +51,8 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating stock product variant id");
-        List<Stock> entities = request.getStock().stream().filter(notHavingErrors())
-                .collect(Collectors.toList());
+        List<Stock> entities = request.getStock();
+
         if (!entities.isEmpty()) {
             Set<String> productVariantIds = entities.stream().map(Stock::getProductVariantId).collect(Collectors.toSet());
             Map<String, Stock> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));

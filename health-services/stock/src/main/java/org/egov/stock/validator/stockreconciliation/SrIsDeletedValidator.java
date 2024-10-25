@@ -11,9 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
@@ -25,9 +23,9 @@ public class SrIsDeletedValidator implements Validator<StockReconciliationBulkRe
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         HashMap<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating is deleted stock reconciliation");
-        List<StockReconciliation> validEntities = request.getStockReconciliation()
-                .stream().filter(notHavingErrors()).collect(Collectors.toList());
-        validEntities.stream().filter(StockReconciliation::getIsDeleted).forEach(individual -> {
+        List<StockReconciliation> entities = request.getStockReconciliation();
+
+        entities.stream().filter(StockReconciliation::getIsDeleted).forEach(individual -> {
             Error error = getErrorForIsDelete();
             populateErrorDetails(individual, error, errorDetailsMap);
         });
