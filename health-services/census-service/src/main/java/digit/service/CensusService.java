@@ -90,7 +90,6 @@ public class CensusService {
      * @return The updated census response.
      */
     public CensusResponse update(CensusRequest request) {
-        request.getCensus().setPartnerAssignmentValidationEnabled(true);
         // Validate census update request
         validator.validateUpdate(request);
 

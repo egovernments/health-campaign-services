@@ -1,6 +1,7 @@
 package digit.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.repository.CensusRepository;
 import digit.service.CensusService;
 import digit.util.CommonUtil;
 import digit.web.models.Census;
@@ -49,7 +50,7 @@ public class FacilityCatchmentConsumer {
             censusFromSearch.forEach(census -> {
                 census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
                 census.setFacilityAssigned(Boolean.TRUE);
-
+                census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
                 service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
             });
         } catch (Exception exception) {

@@ -81,7 +81,8 @@ public class Census {
     private List<String> boundaryAncestralPath = null;
 
     @JsonIgnore
-    private boolean partnerAssignmentValidationEnabled;
+    @Builder.Default
+    private Boolean partnerAssignmentValidationEnabled = Boolean.TRUE;
 
     @JsonProperty("facilityAssigned")
     private Boolean facilityAssigned = null;
