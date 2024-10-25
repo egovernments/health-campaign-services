@@ -276,4 +276,41 @@ public class ParsingUtil {
         return shpFile;
     }
 
+    /**
+     * Extracts the names of properties defined within the "numberProperties" and "stringProperties" arrays from admin schema
+     *
+     * @param rootNode The root JSON node from which to extract property names.
+     * @return A list of property names found in "numberProperties" and "stringProperties".
+     */
+    public List<String> extractPropertyNamesFromAdminSchema(JsonNode rootNode) {
+        List<String> names = new ArrayList<>();
+
+        // Access the "properties" node directly from the root node
+        JsonNode propertiesNode = rootNode.path("properties");
+
+        // Extract names from "numberProperties"
+        JsonNode numberProperties = propertiesNode.path("numberProperties");
+        if (numberProperties.isArray()) {
+            for (JsonNode property : numberProperties) {
+                String name = property.path("name").asText(null);
+                if (name != null) {
+                    names.add(name);
+                }
+            }
+        }
+
+        // Extract names from "stringProperties"
+        JsonNode stringProperties = propertiesNode.path("stringProperties");
+        if (stringProperties.isArray()) {
+            for (JsonNode property : stringProperties) {
+                String name = property.path("name").asText(null);
+                if (name != null) {
+                    names.add(name);
+                }
+            }
+        }
+
+        return names;
+    }
+
 }

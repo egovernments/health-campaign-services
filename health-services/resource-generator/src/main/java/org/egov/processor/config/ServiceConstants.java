@@ -26,8 +26,6 @@ public class ServiceConstants {
 
     public static final String MICROPLANNING_MODULE = "microplan";
 
-    public static final String PROPERTIES = "properties";
-
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
@@ -53,7 +51,19 @@ public class ServiceConstants {
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_CAMPAIGN_TYPE = "campaignType";
-    
+    public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
+    public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
+    public static final String BOUNDARY = "boundary";
+    public static final String DOT_SEPARATOR = ".";
+    public static final String MICROPLAN_PREFIX = "MP-";
+
+    //MDMS field Constants
+    public static final String DATA = "data";
+    public static final String PROPERTIES = "properties";
+    public static final String NUMBER_PROPERTIES = "numberProperties";
+    public static final String STRING_PROPERTIES = "stringProperties";
+    public static final String NAME = "name";
+
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";

@@ -27,6 +27,9 @@ public class Configuration {
 	@Value("${egov.mdms.search.endpoint}")
 	private String mdmsEndPoint;
 
+	@Value("${egov.mdms.search.v2.endpoint}")
+	private String mdmsV2EndPoint;
+
 	@Value("${egov.plan.config.host}")
 	private String planConfigHost;
 
@@ -87,5 +90,12 @@ public class Configuration {
 
 	@Value("${resource.census.create.topic}")
 	private String resourceCensusCreateTopic;
+
+	//Default
+	@Value("${resource.default.offset}")
+	private Integer defaultOffset;
+
+	@Value("${resource.default.limit}")
+	private Integer defaultLimit;
 
 }
