@@ -50,7 +50,7 @@ public class FacilityCatchmentConsumer {
                 census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
                 census.setFacilityAssigned(Boolean.TRUE);
 
-                service.update(CensusRequest.builder().census(census).build());
+                service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
             });
         } catch (Exception exception) {
             log.error("Error in census consumer", exception);
