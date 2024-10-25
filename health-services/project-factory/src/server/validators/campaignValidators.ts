@@ -801,10 +801,11 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             missingTypes.push(type);
         }
     }
-
-    if (missingTypes.length > 0) {
-        const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
-        throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+    if (!request?.body?.parentCampaign) {
+        if (missingTypes.length > 0) {
+            const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
+            throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+        }
     }
 
     if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
