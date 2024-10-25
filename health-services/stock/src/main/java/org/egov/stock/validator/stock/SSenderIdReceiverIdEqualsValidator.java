@@ -15,6 +15,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.stock.Constants.S_SENDER_RECEIVER_ID_EQUALS_VALIDATION_ERROR;
 
 /**
  * Validator class to check if senderId and receiverId are equal in a list of Stock entities.
@@ -47,9 +48,9 @@ public class SSenderIdReceiverIdEqualsValidator implements Validator<StockBulkRe
                 // Create an error object for the entity
                 Error error = Error.builder()
                         .errorMessage("Sender Id and Receiver Id cannot be the same")
-                        .errorCode("SENDER_RECEIVER_CANNOT_BE_EQUAL")
+                        .errorCode(S_SENDER_RECEIVER_ID_EQUALS_VALIDATION_ERROR)
                         .type(Error.ErrorType.NON_RECOVERABLE)
-                        .exception(new CustomException("SENDER_RECEIVER_CANNOT_BE_EQUAL", "Sender Id and Receiver Id cannot be the same"))
+                        .exception(new CustomException(S_SENDER_RECEIVER_ID_EQUALS_VALIDATION_ERROR, "Sender Id and Receiver Id cannot be the same"))
                         .build();
 
                 // Populate error details for the entity

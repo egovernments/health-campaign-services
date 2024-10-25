@@ -25,7 +25,7 @@ import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
-import static org.egov.stock.Constants.GET_ID;
+import static org.egov.stock.Constants.*;
 
 @Component
 @Slf4j
@@ -69,7 +69,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for Stock with error: {}", e.getMessage(), e);
-                throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage()); 
+                throw new CustomException(S_VALIDATION_STOCK_SEARCH_FAILED, "Search Failed for Stock, " + e.getMessage());
             }
             List<Stock> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

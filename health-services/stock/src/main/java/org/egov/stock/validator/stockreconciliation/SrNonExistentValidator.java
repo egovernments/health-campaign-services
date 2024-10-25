@@ -26,6 +26,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.stock.Constants.GET_ID;
+import static org.egov.stock.Constants.SR_VALIDATOR_STOCK_SEARCH_FAILED;
 
 @Component
 @Slf4j
@@ -69,7 +70,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
-                throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
+                throw new CustomException(SR_VALIDATOR_STOCK_SEARCH_FAILED, "Search Failed for StockReconciliation, " + e.getMessage());
             }
             List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

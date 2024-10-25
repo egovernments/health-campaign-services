@@ -31,7 +31,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.stock.Constants.GET_PRODUCT_VARIANT_ID;
+import static org.egov.stock.Constants.*;
 
 @Component
 @Slf4j
@@ -93,7 +93,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
         try {
             response = serviceRequestClient.fetchResult(url, request, ProductVariantResponse.class);
         } catch (Exception e) {
-            throw new CustomException("PRODUCT_VARIANT",
+            throw new CustomException(SR_PRODUCT_VARIANT_ID_VALIDATION_ERROR,
                     String.format("Something went wrong: %s", e.getMessage()));
         }
         log.info("stock reconciliation product variant exist validation completed successfully");

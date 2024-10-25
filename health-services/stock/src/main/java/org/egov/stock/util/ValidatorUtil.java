@@ -26,8 +26,7 @@ import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.stock.Constants.GET_REQUEST_INFO;
-import static org.egov.stock.Constants.NO_PROJECT_FACILITY_MAPPING_EXISTS;
+import static org.egov.stock.Constants.*;
 
 public class ValidatorUtil {
 
@@ -285,9 +284,9 @@ public class ValidatorUtil {
 		String errorMessage = String.format("No mapping exists for project id: %s & facility id: %s",
 				stock.getReferenceId(), facilityId);
 
-		Error error = Error.builder().errorMessage(errorMessage).errorCode(NO_PROJECT_FACILITY_MAPPING_EXISTS)
+		Error error = Error.builder().errorMessage(errorMessage).errorCode(S_REFERENCEID_VALIDATION_ERROR)
 				.type(Error.ErrorType.NON_RECOVERABLE)
-				.exception(new CustomException(NO_PROJECT_FACILITY_MAPPING_EXISTS, errorMessage)).build();
+				.exception(new CustomException(S_REFERENCEID_VALIDATION_ERROR, errorMessage)).build();
 		populateErrorDetails((T) stock, error, errorDetailsMap);
 	}
 
@@ -313,9 +312,9 @@ public class ValidatorUtil {
 		String errorMessage = String.format("No mapping exists for project id: %s & facility id: %s",
 				stockReconciliation.getReferenceId(), stockReconciliation.getFacilityId());
 
-		Error error = Error.builder().errorMessage(errorMessage).errorCode(NO_PROJECT_FACILITY_MAPPING_EXISTS)
+		Error error = Error.builder().errorMessage(errorMessage).errorCode(SR_REFERENCEID_VALIDATION_ERROR)
 				.type(Error.ErrorType.NON_RECOVERABLE)
-				.exception(new CustomException(NO_PROJECT_FACILITY_MAPPING_EXISTS, errorMessage)).build();
+				.exception(new CustomException(SR_REFERENCEID_VALIDATION_ERROR, errorMessage)).build();
 		populateErrorDetails((T) stockReconciliation, error, errorDetailsMap);
 	}
 }

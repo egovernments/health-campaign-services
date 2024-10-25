@@ -39,9 +39,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
-import static org.egov.stock.Constants.GET_STOCK_RECONCILIATION;
-import static org.egov.stock.Constants.SET_STOCK_RECONCILIATION;
-import static org.egov.stock.Constants.VALIDATION_ERROR;
+import static org.egov.stock.Constants.*;
 
 
 @Service
@@ -96,7 +94,7 @@ public class StockReconciliationService {
         log.info("starting create method for stock reconciliation");
 
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
+                isApplicableForCreate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, SR_CREATE_VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -112,7 +110,7 @@ public class StockReconciliationService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, SR_CREATE_VALIDATION_ERROR);
         log.info("completed create method for stock reconciliation");
         return validEntities;
     }
@@ -128,7 +126,7 @@ public class StockReconciliationService {
     public List<StockReconciliation> update(StockReconciliationBulkRequest request, boolean isBulk) {
         log.info("starting update method for stock reconciliation");
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
+                isApplicableForUpdate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, SR_UPDATE_VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -144,7 +142,7 @@ public class StockReconciliationService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, SR_UPDATE_VALIDATION_ERROR);
 
         log.info("completed update method for stock reconciliation");
         return validEntities;
@@ -161,7 +159,7 @@ public class StockReconciliationService {
     public List<StockReconciliation> delete(StockReconciliationBulkRequest request, boolean isBulk) {
         log.info("starting delete method for stock reconciliation");
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
+                isApplicableForDelete, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, SR_DELETE_VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -177,7 +175,7 @@ public class StockReconciliationService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, SR_DELETE_VALIDATION_ERROR);
         log.info("completed delete method for stock reconciliation");
         return validEntities;
     }
