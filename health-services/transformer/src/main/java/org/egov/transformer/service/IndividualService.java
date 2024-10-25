@@ -39,10 +39,24 @@ public class IndividualService {
                                 .build())
                         .build())
                 .build();
-        IndividualBulkResponse response;
+        return fetchIndividual(individualSearchRequest, tenantId);
+    }
 
+    public Individual getIndividualById(String id, String tenantId) {
+        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                .individual(IndividualSearch.builder().id(Collections.singletonList(id)).build())
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .build();
+        return fetchIndividual(individualSearchRequest, tenantId);
+    }
+
+    private Individual fetchIndividual(IndividualSearchRequest individualSearchRequest, String tenantId) {
         try {
-            response = serviceRequestClient.fetchResult(
+            IndividualBulkResponse response = serviceRequestClient.fetchResult(
                     new StringBuilder(properties.getIndividualHost()
                             + properties.getIndividualSearchUrl()
                             + "?limit=1"
@@ -53,7 +67,8 @@ public class IndividualService {
             // Check if response or individual list is null or empty
             return (response != null && !CollectionUtils.isEmpty(response.getIndividual())) ? response.getIndividual().get(0) : null;
         } catch (Exception e) {
-            log.error("Error while fetching Individual Details for clRefId {}, Exception: {}", clientReferenceId, ExceptionUtils.getStackTrace(e));
+            log.error("Error while fetching Individual Details for id {}, clRefId {}, Exception: {}",
+                    individualSearchRequest.getIndividual().getId(), individualSearchRequest.getIndividual().getClientReferenceId(), ExceptionUtils.getStackTrace(e));
             return null;
         }
     }
@@ -86,36 +101,6 @@ public class IndividualService {
         }
 
         return individualDetails;
-    }
-
-    public Name getIndividualNameById(String id, String tenantId) {
-        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
-                .individual(IndividualSearch.builder().id(Collections.singletonList(id)).build())
-                .requestInfo(RequestInfo.builder()
-                        .userInfo(User.builder()
-                                .uuid("transformer-uuid")
-                                .build())
-                        .build())
-                .build();
-        IndividualBulkResponse response;
-
-        try {
-            response = serviceRequestClient.fetchResult(
-                    new StringBuilder(properties.getIndividualHost()
-                            + properties.getIndividualSearchUrl()
-                            + "?limit=1"
-                            + "&offset=0&tenantId=" + tenantId),
-                    individualSearchRequest,
-                    IndividualBulkResponse.class);
-
-            // Check if response or individual list is null or empty
-            Individual individual = (response != null && !CollectionUtils.isEmpty(response.getIndividual())) ? response.getIndividual().get(0) : null;
-
-            return (individual != null) ? individual.getName() : null;
-        } catch (Exception e) {
-            log.error("Error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
-            return null;
-        }
     }
 
     private void addIndividualAdditionalDetails(AdditionalFields additionalFields, Map<String, Object> individualDetails) {
