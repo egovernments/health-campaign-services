@@ -326,4 +326,5 @@ public class ServiceConstants {
 
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
+    public static final String COMMA_DELIMITER = ",";
 }
