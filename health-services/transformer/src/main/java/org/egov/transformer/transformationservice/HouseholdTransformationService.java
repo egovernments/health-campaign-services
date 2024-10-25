@@ -83,7 +83,7 @@ public class HouseholdTransformationService {
         AdditionalFields additionalFields = household.getAdditionalFields();
         if (additionalFields != null && additionalFields.getFields() != null
                 && !CollectionUtils.isEmpty(additionalFields.getFields())) {
-            additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+            householdService.additionalFieldsToDetails(additionalDetails, additionalFields);
         }
         int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
         int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
@@ -92,7 +92,7 @@ public class HouseholdTransformationService {
         }
 
         if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
-            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy() ,household.getTenantId());
+            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
         }
 
         return HouseholdIndexV1.builder()
@@ -111,11 +111,4 @@ public class HouseholdTransformationService {
                 .build();
     }
 
-    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
-        fields.forEach(
-                f -> additionalDetails.put(f.getKey(), f.getValue())
-        );
-        return additionalDetails;
-    }
 }
