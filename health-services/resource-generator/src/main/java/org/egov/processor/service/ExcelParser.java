@@ -69,9 +69,11 @@ public class ExcelParser implements FileParser {
 
 	private CensusUtil censusUtil;
 
+	private EnrichmentUtil enrichmentUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -83,6 +85,7 @@ public class ExcelParser implements FileParser {
 		this.boundaryUtil = boundaryUtil;
 		this.localeUtil = localeUtil;
         this.censusUtil = censusUtil;
+        this.enrichmentUtil = enrichmentUtil;
     }
 
 	/**
@@ -129,7 +132,7 @@ public class ExcelParser implements FileParser {
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
-			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, planConfig, workbook,
+			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
             return uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
                     planConfig, workbook, campaignBoundaryList, campaignResourcesList);
@@ -188,34 +191,36 @@ public class ExcelParser implements FileParser {
 	 * Processes each sheet in the workbook for plan configuration data.
 	 * Validates column names, processes rows, and integrates campaign details.
 	 * 
-	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
+	 * @param request The request containing configuration details including tenant ID.
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaignResponse The response object containing campaign details.
-	 * @param planConfig The configuration details specific to the plan.
 	 * @param excelWorkbook The workbook containing sheets to be processed.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
 	//TODO: processsheetforestimate and processsheetforcensus
-	private void processSheets(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-			Object campaignResponse, PlanConfiguration planConfig, Workbook excelWorkbook,
+	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
+			Object campaignResponse, Workbook excelWorkbook,
 			List<Boundary> campaignBoundaryList,
 			DataFormatter dataFormatter) {
-		LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
 		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+		LocaleResponse localeResponse = localeUtil.searchLocale(request);
+		Object mdmsData = mdmsUtil. fetchMdmsData(request.getRequestInfo(),
+				request.getPlanConfiguration().getTenantId());
+		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
+		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
+				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
 
-		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(planConfigurationRequest,
-				fileStoreId, campaign, planConfig);
-		List<String> boundaryCodeList = getBoundaryCodeList(planConfigurationRequest, campaign, planConfig);
+		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
 
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (isSheetAllowedToProcess(planConfigurationRequest, excelWorkbookSheet.getSheetName(), localeResponse)) {
+			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 
-				if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
-					processRows(planConfigurationRequest, excelWorkbookSheet, dataFormatter, fileStoreId,
+				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
 							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
-				} else if (planConfig.getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
-					processRowsForCensusRecords(planConfigurationRequest, excelWorkbookSheet,
+				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				}
 			}
@@ -279,12 +284,11 @@ public class ExcelParser implements FileParser {
 	 *
 	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
 	 * @param campaign The campaign response object containing campaign details.
-	 * @param planConfig The configuration details specific to the plan.
 	 * @return A list of boundary codes corresponding to the specified hierarchy type and tenant ID.
 	 */
 	private List<String> getBoundaryCodeList(PlanConfigurationRequest planConfigurationRequest,
-			CampaignResponse campaign, PlanConfiguration planConfig) {
-		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfig.getTenantId(),
+			CampaignResponse campaign) {
+		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfigurationRequest.getPlanConfiguration().getTenantId(),
 				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
 		List<String> boundaryList = new ArrayList<>();
 		List<String> boundaryCodeList = getAllBoundaryPresentforHierarchyType(
@@ -304,14 +308,11 @@ public class ExcelParser implements FileParser {
 
 	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
-			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig) {
-		Object mdmsData = mdmsUtil.fetchMdmsData(planConfigurationRequest.getRequestInfo(),
-				planConfigurationRequest.getPlanConfiguration().getTenantId());
+			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
-		Map<String, Object> attributeNameVsDataTypeMap = mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
-				file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
-		return attributeNameVsDataTypeMap;
+        return mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
+                file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
 	}
 
 	

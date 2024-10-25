@@ -5,12 +5,9 @@ import java.util.List;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
+import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.boundary.BoundarySearchResponse;
-import org.egov.processor.web.models.campaignManager.Boundary;
-import org.egov.processor.web.models.campaignManager.CampaignResources;
-import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -71,10 +68,19 @@ public class LocaleUtil {
 			log.info("Locale Search successful.");
 			return localeResponse;
 		} catch (Exception e) {
-			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_LOCALE + localeToUse + " and tenantId" + tenantId, e);
+			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_LOCALE + localeToUse + " and tenantId " + tenantId, e);
 			throw new CustomException(
-					ServiceConstants.ERROR_WHILE_SEARCHING_LOCALE + localeToUse + " and tenantId" + tenantId,
+					ServiceConstants.ERROR_WHILE_SEARCHING_LOCALE + localeToUse + " and tenantId  " + tenantId,
 					e.toString());
 		}
+	}
+
+	public String localeSearch(List<Locale> localeMessages, String code) {
+		for (Locale locale : localeMessages) {
+			if (locale.getCode().equalsIgnoreCase(code)) {
+				return locale.getMessage(); // Return the message if code matches
+			}
+		}
+		return null;
 	}
 }
