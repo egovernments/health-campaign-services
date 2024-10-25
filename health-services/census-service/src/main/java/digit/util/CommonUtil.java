@@ -64,12 +64,11 @@ public class CommonUtil {
      */
     public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary) {
         List<String> areaCodesForSearch = List.of(serviceBoundary.split(","));
-        
+
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
                 .areaCodes(areaCodesForSearch)
-                .effectiveTo(0L)
                 .offset(0)
                 .limit(areaCodesForSearch.size())
                 .build();
