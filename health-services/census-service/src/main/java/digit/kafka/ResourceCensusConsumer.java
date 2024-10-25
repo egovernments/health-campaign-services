@@ -28,6 +28,7 @@ public class ResourceCensusConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             CensusRequest censusRequest = mapper.convertValue(consumerRecord, CensusRequest.class);
+            censusRequest.getCensus().setPartnerAssignmentValidationEnabled(Boolean.FALSE);
             censusService.create(censusRequest);
         } catch (Exception exception) {
             log.error("Error in resource census consumer", exception);
