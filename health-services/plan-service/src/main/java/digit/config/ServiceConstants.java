@@ -26,7 +26,7 @@ public class ServiceConstants {
 
     public static final String ROOT_PREFIX = "ROOT";
 
-    public static final String PLAN_CONFIG_NAME_FIELD = "planConfigNames";
+    public static final String PLAN_CONFIG_NAME_FIELD = "planConfigName";
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
@@ -200,7 +200,7 @@ public class ServiceConstants {
     public static final String PROCESS_INSTANCE_NOT_FOUND_MESSAGE = "No process instance found with businessId: ";
 
     public static final String ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS_CODE = "ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS";
-    public static final String ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS_MESSAGE = "Exception occured while enriching additional details with plan config names: ";
+    public static final String ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while enriching additional details: ";
 
     public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
     public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";

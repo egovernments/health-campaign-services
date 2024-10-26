@@ -51,7 +51,7 @@ public class PlanEmployeeAssignmentEnricher {
                 request.getRequestInfo(),
                 Boolean.TRUE));
 
-        // Add a list of plan config names to which the employee is mapped
+        // Add plan config name to which the employee is mapped
         enrichWithPlanConfigName(planEmployeeAssignment);
     }
 
@@ -70,27 +70,21 @@ public class PlanEmployeeAssignmentEnricher {
     }
 
     /**
-     * This method enriches the additional details of plan employee assignment object with the name of all the plan configs to which the employee is mapped to.
+     * This method enriches the additional details of plan employee assignment object with the planConfigName to which employee is mapped.
      *
      * @param planEmployeeAssignment the object whose additional details is to be enriched
      */
     private void enrichWithPlanConfigName(PlanEmployeeAssignment planEmployeeAssignment) {
 
-        String tenantId = planEmployeeAssignment.getTenantId();
-        List<PlanEmployeeAssignment> employeeAssignmentListFromSearch = getAllEmployeeAssignment(planEmployeeAssignment.getEmployeeId(), tenantId);
+        String planConfigName = getPlanConfigNameById(planEmployeeAssignment.getPlanConfigurationId(), planEmployeeAssignment.getTenantId());
+
         try {
 
             // Get or create the additionalDetails as an ObjectNode
             ObjectNode objectNode = objectMapper.convertValue(planEmployeeAssignment.getAdditionalDetails(), ObjectNode.class);
 
-            // Create an ArrayNode to hold the list of plan configuration names
-            ArrayNode planConfigNamesNode = objectNode.putArray(PLAN_CONFIG_NAME_FIELD);
-
-            // Populate the ArrayNode with the plan configuration names
-            employeeAssignmentListFromSearch.stream()
-                    .map(PlanEmployeeAssignment::getPlanConfigurationId)
-                    .map(id -> getPlanConfigNameById(id, tenantId))
-                    .forEach(planConfigNamesNode::add);
+            // Update or Add the field in additional details object
+            objectNode.put(PLAN_CONFIG_NAME_FIELD, planConfigName);
 
             // Set the updated additionalDetails back into the planEmployeeAssignment
             planEmployeeAssignment.setAdditionalDetails(objectMapper.convertValue(objectNode, Map.class));
@@ -103,14 +97,5 @@ public class PlanEmployeeAssignmentEnricher {
     private String getPlanConfigNameById(String planConfigId, String tenantId) {
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planConfigId, tenantId);
         return planConfigurations.get(0).getName();
-    }
-
-    private List<PlanEmployeeAssignment> getAllEmployeeAssignment(String employeeId, String tenantId) {
-        PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .tenantId(tenantId)
-                .employeeId(Collections.singletonList(employeeId))
-                .build();
-
-        return repository.search(searchCriteria);
     }
 }
