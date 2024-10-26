@@ -240,19 +240,6 @@ public class PlanValidator {
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
             throw new CustomException(PLAN_RESOURCES_MANDATORY_CODE, PLAN_RESOURCES_MANDATORY_MESSAGE);
         }
-
-        // If plan configuration id is provided, providing resources is not allowed
-        if (!ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
-                && !CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            throw new CustomException(PLAN_RESOURCES_NOT_ALLOWED_CODE, PLAN_RESOURCES_NOT_ALLOWED_MESSAGE);
-        }
-
-        // Validate resource type existence
-        if (!CollectionUtils.isEmpty(request.getPlan().getResources())) {
-            request.getPlan().getResources().forEach(resource -> {
-                // Validate resource type existence
-            });
-        }
     }
 
     /**
@@ -414,11 +401,14 @@ public class PlanValidator {
      */
     private void validatePlanExistence(PlanRequest request) {
         // If plan id provided is invalid, throw an exception
-        if (CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
+        List<Plan> planFromDatabase = planRepository.search(PlanSearchCriteria.builder()
                 .ids(Collections.singleton(request.getPlan().getId()))
-                .build()))) {
+                .build());
+        if (CollectionUtils.isEmpty(planFromDatabase)) {
             throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
         }
+        // enriching boundary ancestral path for incoming plan request from the database
+        request.getPlan().setBoundaryAncestralPath(planFromDatabase.get(0).getBoundaryAncestralPath());
     }
 
     /**

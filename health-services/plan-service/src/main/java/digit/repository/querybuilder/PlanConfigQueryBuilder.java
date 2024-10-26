@@ -103,6 +103,12 @@ public class PlanConfigQueryBuilder {
             preparedStmtList.add(criteria.getId());
         }
 
+        if (!CollectionUtils.isEmpty(criteria.getIds())) {
+            addClauseIfRequired(preparedStmtList, builder);
+            builder.append(" pc.id IN ( ").append(queryUtil.createQuery(criteria.getIds().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(criteria.getIds()));
+        }
+
         if (criteria.getCampaignId() != null) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.campaign_id = ?");
