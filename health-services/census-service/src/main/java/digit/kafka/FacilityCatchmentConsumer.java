@@ -15,8 +15,10 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static digit.config.ServiceConstants.FACILITY_ID_FIELD;
 
@@ -42,17 +44,34 @@ public class FacilityCatchmentConsumer {
             PlanFacilityRequestDTO planFacilityRequestDTO = objectMapper.convertValue(consumerRecord, PlanFacilityRequestDTO.class);
             PlanFacilityDTO planFacilityDTO = planFacilityRequestDTO.getPlanFacilityDTO();
 
-            CensusResponse censusResponse = service.search(commonUtil.getCensusSearchRequest(planFacilityDTO.getTenantId(), planFacilityDTO.getPlanConfigurationId(), planFacilityDTO.getServiceBoundaries()));
+            CensusResponse censusResponse = service.search(commonUtil.getCensusSearchRequest(planFacilityDTO.getTenantId(), planFacilityDTO.getPlanConfigurationId(), planFacilityDTO.getServiceBoundaries(), planFacilityDTO.getInitiallySetServiceBoundaries(), planFacilityRequestDTO.getRequestInfo()));
             List<Census> censusFromSearch = censusResponse.getCensus();
 
             String facilityId = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityId();
 
-            censusFromSearch.forEach(census -> {
-                census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
-                census.setFacilityAssigned(Boolean.TRUE);
-                census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
-                service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
-            });
+            Set<String> boundariesWithFacility = new HashSet<>(List.of(planFacilityDTO.getServiceBoundaries().split(",")));
+            Set<String> boundariesWithNoFacility = new HashSet<>(planFacilityDTO.getInitiallySetServiceBoundaries());
+
+            // Unassigning facilities to the boundaries which were initially assigned that facility
+            censusFromSearch.stream()
+                    .filter(census -> boundariesWithNoFacility.contains(census.getBoundaryCode()))
+                    .forEach(census -> {
+                        census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD));
+                        census.setFacilityAssigned(Boolean.FALSE);
+                        census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
+                        service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
+                    });
+
+            // Assigning facilities to the boundaries in the update request.
+            censusFromSearch.stream()
+                    .filter(census -> boundariesWithFacility.contains(census.getBoundaryCode()))
+                    .forEach(census -> {
+                        census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
+                        census.setFacilityAssigned(Boolean.TRUE);
+                        census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
+                        service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
+                    });
+
         } catch (Exception exception) {
             log.error("Error in census consumer", exception);
         }

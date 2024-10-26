@@ -12,8 +12,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static digit.config.ServiceConstants.*;
 
@@ -56,24 +55,38 @@ public class CommonUtil {
     }
 
     /**
+     * Removes the field to be removed from the additional details object.
+     * @param additionalDetails
+     * @param fieldToBeRemoved
+     * @return
+     */
+    public Map<String, Object> removeFieldFromAdditionalDetails(Object additionalDetails, String fieldToBeRemoved) {
+        Map<String, Object> additionalDetailsMap = objectMapper.convertValue(additionalDetails, Map.class);
+        additionalDetailsMap.remove(fieldToBeRemoved);
+
+        return additionalDetailsMap;
+    }
+
+    /**
      * Creates the census search request for the provided details.
      * @param tenantId
      * @param planConfigId
      * @param serviceBoundary
      * @return
      */
-    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary) {
-        List<String> areaCodesForSearch = List.of(serviceBoundary.split(","));
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary, List<String> initiallySetServiceBoundaries, RequestInfo requestInfo) {
+        Set<String> areaCodesForSearch = new HashSet<>(Arrays.asList(serviceBoundary.split(",")));
+        areaCodesForSearch.addAll(initiallySetServiceBoundaries);
 
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
-                .areaCodes(areaCodesForSearch)
+                .areaCodes(areaCodesForSearch.stream().toList())
                 .offset(0)
                 .limit(areaCodesForSearch.size())
                 .build();
 
-        return CensusSearchRequest.builder().censusSearchCriteria(searchCriteria).build();
+        return CensusSearchRequest.builder().requestInfo(requestInfo).censusSearchCriteria(searchCriteria).build();
     }
 
     /**

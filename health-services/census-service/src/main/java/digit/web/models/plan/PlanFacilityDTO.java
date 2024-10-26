@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.List;
+
 /**
  * Plan Facility DTO
  */
@@ -47,6 +49,9 @@ public class PlanFacilityDTO {
     @NotNull
     @Size(min = 1)
     private String serviceBoundaries = null; // Store as JSON string
+
+    @JsonProperty("initiallySetServiceBoundaries")
+    private List<String> initiallySetServiceBoundaries;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
