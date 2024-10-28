@@ -69,7 +69,7 @@ public class PlanConfigurationValidator {
         validateAssumptionUniqueness(planConfiguration);
 
         // Validate that the assumption values in the plan configuration are correct
-        validateAssumptionValue(planConfiguration);
+//        validateAssumptionValue(planConfiguration);
 
         // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
@@ -424,7 +424,7 @@ public class PlanConfigurationValidator {
         validateAssumptionUniqueness(planConfiguration);
 
         // Validate that the assumption values in the plan configuration are correct
-        validateAssumptionValue(planConfiguration);
+//        validateAssumptionValue(planConfiguration);
 
         // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
