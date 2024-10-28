@@ -89,11 +89,8 @@ public class PlanQueryBuilder {
     public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
                 .tenantId(searchCriteria.getTenantId())
-                .ids(searchCriteria.getIds())
                 .planConfigurationId(searchCriteria.getPlanConfigurationId())
-                .locality(searchCriteria.getLocality())
                 .campaignId(searchCriteria.getCampaignId())
-                .status(searchCriteria.getStatus())
                 .jurisdiction(searchCriteria.getJurisdiction())
                 .build();
         return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
