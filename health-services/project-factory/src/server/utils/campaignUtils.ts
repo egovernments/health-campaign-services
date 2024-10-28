@@ -1337,9 +1337,11 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
         if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
             const codesTargetMapping = await getCodesTarget(request, localizationMap)
-            mapTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping)
-            request.body.CampaignDetails.codesTargetMapping = codesTargetMapping
-            logger.debug("codesTargetMapping mapping :: " + getFormattedStringForDebug(codesTargetMapping));
+            if (codesTargetMapping) {
+                mapTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping)
+                request.body.CampaignDetails.codesTargetMapping = codesTargetMapping
+                logger.debug("codesTargetMapping mapping :: " + getFormattedStringForDebug(codesTargetMapping));
+            }
             mapBoundariesParent(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0], request, null)
             var boundaryChildren = boundaries.reduce((acc: any, boundary: any) => {
                 acc[boundary.code] = boundary?.includeAllChildren;
@@ -1428,27 +1430,29 @@ async function updateProjectDates(request: any, actionInUrl: any) {
 async function getCodesTarget(request: any, localizationMap?: any) {
     const { tenantId, resources } = request?.body?.CampaignDetails;
     const boundaryWithTargetResource = resources?.filter((resource: any) => resource?.type == "boundaryWithTarget");
-    const fileId = boundaryWithTargetResource[0]?.filestoreId
-    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileId }, "get");
-    if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
-    }
-    const codeColumnName = getLocalizedName(createAndSearch?.boundaryWithTarget?.boundaryValidation?.column, localizationMap)
-    const targetData = await getTargetSheetDataAfterCode(fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
-    const boundaryTargetMapping: any = {};
-    // Iterate through each key in targetData
-    for (const key in targetData) {
-        // Iterate through each entry in the array under the current key
-        targetData[key].forEach(entry => {
-            // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
-            if (entry[codeColumnName] !== undefined && entry['Target at the Selected Boundary level'] !== undefined) {
-                // Add the mapping to the boundaryTargetMapping object
-                boundaryTargetMapping[entry[codeColumnName]] = entry['Target at the Selected Boundary level'];
-            }
-        });
-    }
-    logger.info("Boundary target mapping count" + Object.keys(boundaryTargetMapping)?.length);
-    return boundaryTargetMapping;
+    if (boundaryWithTargetResource && boundaryWithTargetResource.length > 0) {
+        const fileId = boundaryWithTargetResource[0]?.filestoreId
+        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileId }, "get");
+        if (!fileResponse?.fileStoreIds?.[0]?.url) {
+            throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
+        }
+        const codeColumnName = getLocalizedName(createAndSearch?.boundaryWithTarget?.boundaryValidation?.column, localizationMap)
+        const targetData = await getTargetSheetDataAfterCode(fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
+        const boundaryTargetMapping: any = {};
+        // Iterate through each key in targetData
+        for (const key in targetData) {
+            // Iterate through each entry in the array under the current key
+            targetData[key].forEach(entry => {
+                // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
+                if (entry[codeColumnName] !== undefined && entry['Target at the Selected Boundary level'] !== undefined) {
+                    // Add the mapping to the boundaryTargetMapping object
+                    boundaryTargetMapping[entry[codeColumnName]] = entry['Target at the Selected Boundary level'];
+                }
+            });
+        }
+        logger.info("Boundary target mapping count" + Object.keys(boundaryTargetMapping)?.length);
+        return boundaryTargetMapping;
+    } else return null;
 }
 
 async function createProject(request: any, actionUrl: any, localizationMap?: any) {
