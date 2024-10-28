@@ -80,7 +80,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
      * @return a string
      */
     private String convertArrayToString(List<String> stringList) {
-        return String.join(",", stringList);
+        return String.join(COMMA_DELIMITER, stringList);
     }
 
 
