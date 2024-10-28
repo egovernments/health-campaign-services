@@ -1,5 +1,6 @@
 package digit.repository;
 
+import digit.web.models.BulkPlanRequest;
 import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
 import digit.web.models.PlanSearchCriteria;
@@ -17,4 +18,6 @@ public interface PlanRepository {
     public Integer count(PlanSearchCriteria planSearchCriteria);
 
     public Map<String, Integer> statusCount(PlanSearchCriteria planSearchCriteria);
+
+    public void bulkUpdate(BulkPlanRequest body);
 }
