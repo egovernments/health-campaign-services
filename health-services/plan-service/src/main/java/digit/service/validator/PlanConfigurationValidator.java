@@ -75,7 +75,7 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
 
         // Validate that the inputs for operations in the request match those in the MDMS data
-        validateOperationsInputAgainstMDMS(request, mdmsData);
+//        validateOperationsInputAgainstMDMS(request, mdmsData);
 
         // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
@@ -430,7 +430,7 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
 
         // Validate that the inputs for operations in the request match those in the MDMS data
-        validateOperationsInputAgainstMDMS(request, mdmsData);
+//        validateOperationsInputAgainstMDMS(request, mdmsData);
 
         // Validate the dependencies between operations in the plan configuration
         validateOperationDependencies(planConfiguration);
