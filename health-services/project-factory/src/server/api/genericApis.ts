@@ -136,7 +136,12 @@ function getRawCellValue(cell: any) {
       return cell.value.richText.map((rt: any) => rt.text).join('');
     }
     else if ('hyperlink' in cell.value) {
-      return cell.value.text.richText.map((t: any) => t.text).join('');
+      if(cell?.value?.text?.richText?.length > 0){
+        return cell.value.text.richText.map((t: any) => t.text).join('');
+      }
+      else{
+        return cell.value.text;
+      }
     }
     else if ('formula' in cell.value) {
       // Get the result of the formula
