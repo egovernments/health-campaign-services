@@ -16,11 +16,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
+import static digit.config.ServiceConstants.NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE;
 
 @Service
 @Slf4j
@@ -36,12 +38,15 @@ public class WorkflowService {
 
     private PlanEmployeeService planEmployeeService;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService) {
+    private RestTemplate restTemplate;
+
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, RestTemplate restTemplate) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
         this.commonUtil = commonUtil;
         this.planEmployeeService = planEmployeeService;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -343,4 +348,71 @@ public class WorkflowService {
                 .processInstances(processInstanceList)
                 .build();
     }
+
+    /**
+     * Creates a list of all the workflow states for the provided business service.
+     * @param requestInfo
+     * @param businessService
+     * @param tenantId
+     * @return
+     */
+    public List<String> getStatusFromBusinessService(RequestInfo requestInfo, String businessService, String tenantId) {
+        BusinessService businessServices = fetchBusinessService(requestInfo, businessService, tenantId);
+
+        return businessServices.getStates().stream()
+                .map(State::getState)
+                .filter(state -> !ObjectUtils.isEmpty(state))
+                .toList();
+    }
+
+    /**
+     * This method fetches business service details for the given tenant id and business service.
+     *
+     * @param requestInfo     the request info from request.
+     * @param businessService businessService whose details are to be searched.
+     * @param tenantId        tenantId from request.
+     * @return returns the business service response for the given tenant id and business service.
+     */
+    public BusinessService fetchBusinessService(RequestInfo requestInfo, String businessService, String tenantId) {
+
+        // Get business service uri
+        Map<String, String> uriParameters = new HashMap<>();
+        String uri = getBusinessServiceUri(businessService, tenantId, uriParameters);
+
+        // Create request body
+        RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
+        BusinessServiceResponse businessServiceResponse = new BusinessServiceResponse();
+
+        try {
+            businessServiceResponse = restTemplate.postForObject(uri, requestInfoWrapper, BusinessServiceResponse.class, uriParameters);
+        } catch (Exception e) {
+            log.error(ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS, e);
+        }
+
+        if (CollectionUtils.isEmpty(businessServiceResponse.getBusinessServices())) {
+            throw new CustomException(NO_BUSINESS_SERVICE_DATA_FOUND_CODE, NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE);
+        }
+
+        return businessServiceResponse.getBusinessServices().get(0);
+    }
+
+    /**
+     * This method creates business service uri with query parameters
+     *
+     * @param businessService businessService whose details are to be searched.
+     * @param tenantId        tenant id from the request.
+     * @param uriParameters   map that stores values corresponding to the placeholder in uri
+     * @return
+     */
+    private String getBusinessServiceUri(String businessService, String tenantId, Map<String, String> uriParameters) {
+
+        StringBuilder uri = new StringBuilder();
+        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append("?tenantId={tenantId}&businessServices={businessService}");
+
+        uriParameters.put("tenantId", tenantId);
+        uriParameters.put("businessService", businessService);
+
+        return uri.toString();
+    }
+
 }

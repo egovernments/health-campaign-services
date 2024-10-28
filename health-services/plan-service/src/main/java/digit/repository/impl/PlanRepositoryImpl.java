@@ -6,16 +6,20 @@ import digit.repository.PlanRepository;
 import digit.repository.querybuilder.PlanQueryBuilder;
 import digit.repository.rowmapper.PlanRowMapper;
 import digit.repository.rowmapper.PlanStatusCountRowMapper;
+import digit.service.workflow.WorkflowService;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static digit.config.ServiceConstants.PLAN_ESTIMATION_BUSINESS_SERVICE;
 
 @Slf4j
 @Repository
@@ -33,14 +37,17 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     private PlanStatusCountRowMapper statusCountRowMapper;
 
+    private WorkflowService workflowService;
+
     public PlanRepositoryImpl(Producer producer, PlanQueryBuilder planQueryBuilder, PlanRowMapper planRowMapper,
-                              JdbcTemplate jdbcTemplate, Configuration config, PlanStatusCountRowMapper statusCountRowMapper) {
+                              JdbcTemplate jdbcTemplate, Configuration config, PlanStatusCountRowMapper statusCountRowMapper, WorkflowService workflowService) {
         this.producer = producer;
         this.planQueryBuilder = planQueryBuilder;
         this.planRowMapper = planRowMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.config = config;
         this.statusCountRowMapper = statusCountRowMapper;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -76,15 +83,23 @@ public class PlanRepositoryImpl implements PlanRepository {
     /**
      * Counts the plan based on their current status for the provided search criteria.
      *
-     * @param planSearchCriteria The search criteria for filtering plans.
+     * @param planSearchRequest The search criteria for filtering plans.
      * @return The status count of plans for the given search criteria.
      */
     @Override
-    public Map<String, Integer> statusCount(PlanSearchCriteria planSearchCriteria) {
+    public Map<String, Integer> statusCount(PlanSearchRequest planSearchRequest) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = planQueryBuilder.getPlanStatusCountQuery(planSearchCriteria, preparedStmtList);
+        List<String> statusList = workflowService.getStatusFromBusinessService(planSearchRequest.getRequestInfo(), PLAN_ESTIMATION_BUSINESS_SERVICE, planSearchRequest.getPlanSearchCriteria().getTenantId());
 
-        return jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
+        String query = planQueryBuilder.getPlanStatusCountQuery(planSearchRequest.getPlanSearchCriteria(), preparedStmtList);
+        Map<String, Integer> statusCountMap = jdbcTemplate.query(query, statusCountRowMapper, preparedStmtList.toArray());
+
+        statusList.forEach(status -> {
+            if(ObjectUtils.isEmpty(statusCountMap.get(status)))
+                statusCountMap.put(status, 0);
+        });
+
+        return statusCountMap;
     }
 
     /**

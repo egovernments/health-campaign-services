@@ -209,6 +209,9 @@ public class ServiceConstants {
     public static final String OPERATIONS_NOT_FOUND_CODE = "OPERATIONS_NOT_FOUND";
     public static final String OPERATIONS_NOT_FOUND_MESSAGE = "Operations are not present in Plan Configuration.";
 
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_CODE = "NO_BUSINESS_SERVICE_DATA_FOUND";
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE = "Invalid or incorrect businessService. No business service data found.";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
@@ -305,6 +308,8 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
 
     public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
+
+    public static final String ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS = "Exception occurred while fetching business service details: ";
 
     public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
     public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";
