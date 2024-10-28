@@ -300,7 +300,7 @@ public class ServiceConstants {
 
     public static final String DRAFT_STATUS = "DRAFT";
 
-    public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
+    public static final String SETUP_COMPLETED_ACTION = "INITIATE";
 
     public static final String URI_TENANT_ID_PARAM = "tenantId";
 
