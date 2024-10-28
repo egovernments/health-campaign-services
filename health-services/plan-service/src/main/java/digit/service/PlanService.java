@@ -68,7 +68,7 @@ public class PlanService {
         Integer count = planRepository.count(body.getPlanSearchCriteria());
 
         // Get the status count of plans for given search criteria
-        Map<String, Integer> statusCountMap = planRepository.statusCount(body.getPlanSearchCriteria());
+        Map<String, Integer> statusCountMap = planRepository.statusCount(body);
 
         // Build and return response back to controller
         return PlanResponse.builder()

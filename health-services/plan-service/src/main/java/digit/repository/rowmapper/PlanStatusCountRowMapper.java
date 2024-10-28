@@ -3,6 +3,7 @@ package digit.repository.rowmapper;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,7 +21,9 @@ public class PlanStatusCountRowMapper  implements ResultSetExtractor<Map<String,
         while (rs.next()) {
             String status = rs.getString("status");
             Integer statusCount = rs.getInt("plan_status_count");
-            statusCountMap.put(status, statusCount);
+
+            if(!ObjectUtils.isEmpty(status))
+                statusCountMap.put(status, statusCount);
         }
 
         return statusCountMap;
