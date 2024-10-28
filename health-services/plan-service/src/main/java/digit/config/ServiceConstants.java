@@ -297,7 +297,7 @@ public class ServiceConstants {
 
     public static final String DRAFT_STATUS = "DRAFT";
 
-    public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
+    public static final String SETUP_COMPLETED_ACTION = "INITIATE";
 
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
