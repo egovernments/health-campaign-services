@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity } from "../utils/genericUtils";
+import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity, getLocalizedMessagesHandler } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData, validateViaSchemaSheetWise } from '../validators/campaignValidators';
 import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan, createIdRequests, createUniqueUserNameViaIdGen, boundaryGeometryManagement } from "../utils/campaignUtils";
@@ -16,6 +16,8 @@ import { processTrackStatuses, processTrackTypes, resourceDataStatuses } from ".
 import { persistTrack } from "../utils/processTrackUtils";
 import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 import { validateMicroplanFacility } from "../validators/microplanValidators";
+import { createPlanFacilityForMicroplan, updateFacilityDetailsForMicroplan } from "../utils/microplanUtils";
+import { getTransformedLocale } from "../utils/localisationUtils";
 
 
 
@@ -210,6 +212,7 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
       }
       if (match) {
         foundMatch = true;
+        createdElement.id = searchedElement.id;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
         errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
         break;
@@ -238,6 +241,7 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
       })
     }
     updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
+    updateFacilityDetailsForMicroplan(request, newCreatedData);
   }
   else {
     var userNameAndPassword: any = []
@@ -589,6 +593,13 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet: any = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
+    const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+    const hierarchyModule = `${config.localisation.boundaryPrefix}-${getTransformedLocale(hierarchyType)}`?.toLowerCase();
+    const localizationMapForHierarchy = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId, hierarchyModule);
+    localizationMap = {
+      ...localizationMap,
+      ...localizationMapForHierarchy,
+    };
     let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
     differentTabsBasedOnLevel = getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
     logger.info("target sheet format validation started");
@@ -815,6 +826,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     logger.info(`Waiting for 10 seconds`);
     await new Promise(resolve => setTimeout(resolve, 10000));
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
+    await createPlanFacilityForMicroplan(request, localizationMap);
   }
   await generateProcessedFileAndPersist(request, localizationMap);
 }
@@ -943,7 +955,7 @@ async function processCreate(request: any, localizationMap?: any) {
   if (type == "boundary" || type == 'boundaryManagement') {
     boundaryBulkUpload(request, localizationMap);
   }
-  else if(type == "boundaryGeometryManagement"){
+  else if (type == "boundaryGeometryManagement") {
     await boundaryGeometryManagement(request, localizationMap);
   }
   else {

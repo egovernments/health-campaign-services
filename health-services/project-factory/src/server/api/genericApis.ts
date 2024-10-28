@@ -134,7 +134,11 @@ function getRawCellValue(cell: any) {
     if ('richText' in cell.value) {
       // Handle rich text
       return cell.value.richText.map((rt: any) => rt.text).join('');
-    } else if ('formula' in cell.value) {
+    }
+    else if ('hyperlink' in cell.value) {
+      return cell.value.text.richText.map((t: any) => t.text).join('');
+    }
+    else if ('formula' in cell.value) {
       // Get the result of the formula
       return cell.value.result;
     } else if ('error' in cell.value) {
@@ -143,7 +147,8 @@ function getRawCellValue(cell: any) {
     } else if (cell.value instanceof Date) {
       // Handle date values
       return cell.value.toISOString();
-    } else {
+    }
+    else {
       // Return as-is for other object types
       return cell.value;
     }
@@ -435,21 +440,21 @@ async function createAndUploadFile(
   tenantId?: any
 ) {
   let retries: any = 3;
-  while(retries--){
-    try{
-  // Write the updated workbook to a buffer
-  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
 
-  // Create form data for file upload
-  const formData = new FormData();
-  formData.append("file", buffer, "filename.xlsx");
-  formData.append(
-    "tenantId",
-    tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
-  );
-  formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
 
-  // Make HTTP request to upload file
+      // Make HTTP request to upload file
       var fileCreationResult = await httpRequest(
         config.host.filestore + config.paths.filestore,
         formData,
@@ -468,7 +473,7 @@ async function createAndUploadFile(
         return responseData;
       }
     }
-    catch (error:any) {
+    catch (error: any) {
       console.error(`Attempt failed:`, error.message);
 
       // Add a delay before the next retry (2 seconds)
@@ -757,12 +762,12 @@ async function getBoundarySheetData(
       localizationMap
     );
     var headerColumnsAfterHierarchy;
-    if(request?.query?.type != "boundaryManagement"  && request?.query?.type !== 'boundaryGeometryManagement'){
+    if (request?.query?.type != "boundaryManagement" && request?.query?.type !== 'boundaryGeometryManagement') {
       headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
     }
 
-    if(request?.query?.type === "boundaryManagement"  || request?.query?.type === 'boundaryGeometryManagement'){
-      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT",  "HCM_ADMIN_CONSOLE_LONG"]
+    if (request?.query?.type === "boundaryManagement" || request?.query?.type === 'boundaryGeometryManagement') {
+      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
@@ -787,7 +792,7 @@ async function getBoundarySheetData(
         }
       };
     }
-    else if(request?.query?.type !== "boundaryManagement") {
+    else if (request?.query?.type !== "boundaryManagement") {
       // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
       const responseFromCampaignSearch =
         await getCampaignSearchResponse(request);

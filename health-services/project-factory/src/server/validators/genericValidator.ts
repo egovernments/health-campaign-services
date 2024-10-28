@@ -214,6 +214,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
     const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
     if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
         logger.info(`hierarchyType : ${hierarchyType} :: got validated`);
+        request.body.hierarchyType = response?.BoundaryHierarchy?.[0];
     }
     else {
         throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);
