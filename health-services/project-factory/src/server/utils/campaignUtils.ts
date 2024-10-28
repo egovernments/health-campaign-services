@@ -21,7 +21,7 @@ import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from 
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
-import { lockSheet } from "./microplanUtils";
+import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { searchDataService } from "../service/dataManageService";
 
@@ -176,7 +176,7 @@ function enrichErrors(errorData: any, worksheet: any, statusColumn: any, errorDe
 }
 
 function enrichActiveAndUUidColumn(worksheet: any, createAndSearchConfig: any, request: any) {
-    if (createAndSearchConfig?.activeColumn && request?.body?.dataToCreate) {
+    if (createAndSearchConfig?.activeColumn && request?.body?.dataToCreate && request?.body?.dataToCreate?.length > 0 && request?.body?.ResourceDetails?.type == "user") {
         const dataToCreate = request.body.dataToCreate;
         for (const data of dataToCreate) {
             const rowNumber = data['!row#number!'];
@@ -291,14 +291,14 @@ function mergeErrors(errorData: any) {
     const errorMap: any = {};
 
     errorData.forEach((item: any) => {
-        const { rowNumber, sheetName, status, errorDetails } = item;
+        const { rowNumber, sheetName, status, errorDetails, ...rest } = item;
 
         // If the rowNumber already exists, merge the errorDetails
         if (errorMap[rowNumber]) {
             errorMap[rowNumber].errorDetails += "; " + errorDetails;
         } else {
             // If not, add a new entry
-            errorMap[rowNumber] = { rowNumber, sheetName, status, errorDetails };
+            errorMap[rowNumber] = { rowNumber, sheetName, status, errorDetails, ...rest };
         }
     });
 
@@ -472,6 +472,7 @@ function setTenantId(
 async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
     const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
     const requiresToSearchFromSheet = createAndSearchConfig?.requiresToSearchFromSheet;
+    const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
     var createData = [], searchData = [];
     for (const data of dataFromSheet) {
         const resultantElement: any = {};
@@ -494,6 +495,9 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
             for (const key of requiresToSearchFromSheet) {
                 const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
                 if (data[localizedSheetColumnName] || data[localizedSheetColumnName] == "CREATED") {
+                    if (isSourceMicroplan) {
+                        changeCreateDataForMicroplan(request, resultantElement, data, localizationMap);
+                    }
                     searchData.push(resultantElement)
                     addToCreate = false;
                     break;
@@ -501,6 +505,9 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
             }
         }
         if (addToCreate) {
+            if (isSourceMicroplan) {
+                changeCreateDataForMicroplan(request, resultantElement, data, localizationMap);
+            }
             createData.push(resultantElement)
         }
     }
@@ -1117,7 +1124,7 @@ async function processDataSearchRequest(request: any) {
 
 
 function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; values: any[] } {
-    const { id, tenantId, type, status, hierarchyType, source } = SearchCriteria;
+    const { id, tenantId, type, status, hierarchyType } = SearchCriteria;
     let conditions = [];
     let values = [];
 
@@ -1149,11 +1156,6 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): { query: string; va
     if (hierarchyType) {
         conditions.push(`hierarchyType = $${values.length + 1}`);
         values.push(hierarchyType);
-    }
-    // Check for source within additionaldetails (JSONB)
-    if (source) {
-        conditions.push(`additionaldetails->>'source' = $${values.length + 1}`);
-        values.push(source);
     }
 
     // Build the WHERE clause
@@ -1778,10 +1780,10 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 }
 
 async function boundaryGeometryManagement(request: any, localizationMap: any) {
-    try{
+    try {
         logger.info("Boundary Relationship Creation Starts For Geometry Data");
         await autoGenerateBoundaryCodesForGeoJson(request, localizationMap);
-    }catch(error: any){
+    } catch (error: any) {
         console.log(error)
         await handleResouceDetailsError(request, error)
     }
@@ -1856,7 +1858,7 @@ async function updateAndPersistResourceDetails(request: any, boundaryFileDetails
     const fileStoreId = boundaryFileDetails[0]?.fileStoreId;
     const getLatestResourceDetails = await getResourceDetails(request);
 
-    if(getLatestResourceDetails == null){
+    if (getLatestResourceDetails == null) {
         request.body.ResourceDetails = {
             ...request?.body?.ResourceDetails,
             processedFileStoreId: fileStoreId,
@@ -1868,7 +1870,7 @@ async function updateAndPersistResourceDetails(request: any, boundaryFileDetails
             },
             additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null, [name]: [fileStoreId] } || {}
         };
-    }else{
+    } else {
         request.body.ResourceDetails = {
             ...getLatestResourceDetails,
             processedFileStoreId: fileStoreId,
@@ -1878,12 +1880,12 @@ async function updateAndPersistResourceDetails(request: any, boundaryFileDetails
                 lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
                 lastModifiedTime: Date.now()
             },
-            additionalDetails: { ...getLatestResourceDetails.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (getLatestResourceDetails.additionalDetails?.source == "microplan") ? "microplan" : null} || {}
+            additionalDetails: { ...getLatestResourceDetails.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (getLatestResourceDetails.additionalDetails?.source == "microplan") ? "microplan" : null } || {}
         };
         let additionalDetails = request?.body?.ResourceDetails?.additionalDetails;
-        if(additionalDetails && additionalDetails[name]){
+        if (additionalDetails && additionalDetails[name]) {
             additionalDetails[name].push(fileStoreId);
-        }else{
+        } else {
             additionalDetails = { ...additionalDetails, [name]: [fileStoreId] };
         }
         request.body.ResourceDetails.additionalDetails = additionalDetails;
@@ -1892,7 +1894,7 @@ async function updateAndPersistResourceDetails(request: any, boundaryFileDetails
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info(`ResourceDetails to persist : ${request.body.ResourceDetails.type}`);
-}    
+}
 
 async function getResourceDetails(request: any) {
     const { tenantId, type, hierarchyType } = request?.body?.ResourceDetails || request?.query;
@@ -1909,56 +1911,56 @@ async function getResourceDetails(request: any) {
 
     const response = await searchDataService(request);
     request.body.ResourceDetails = resourceDetails;
-    if(response.length > 0){
+    if (response.length > 0) {
         response.sort((a: any, b: any) => b.auditDetails.lastModifiedTime - a.auditDetails.lastModifiedTime);
         return response[0];
-    }else{
+    } else {
         return null;
     }
 }
-const addBoundaryCodeToGeoJsonData = (boundaryData: any, hiearchy: any, boundaryMap: Map<any,any>) => {
+const addBoundaryCodeToGeoJsonData = (boundaryData: any, hiearchy: any, boundaryMap: Map<any, any>) => {
     // const objectMap = boundaryMap.forEach((value, key) => {return { key: key.value, value: value });
     // Create the updatedBoundaryMap using a Map
-const updatedBoundaryMap = new Map();
-boundaryMap.forEach((value, key) => {
-    const newKey = key.key + '_' + key.value; // Concatenate key and value
-    updatedBoundaryMap.set(newKey, value); // Set in the updated map
-});
-
-// Iterate through the boundary data
-boundaryData.features.forEach((feature: any) => {
-    // Extract the properties object from the feature
-    const properties = feature.properties;
-
-    // Iterate through the hierarchy
-    hiearchy.forEach((h: string) => {
-        // Build the field name
-        const field = h.toLowerCase() + '_name';
-
-        // Check if the field exists in the properties object
-        if (properties[field]) {
-            const boundaryName = h + '_' + properties[field];
-            // Assign the boundary code to the properties object
-            properties[config.boundary.boundaryCode] = updatedBoundaryMap.get(boundaryName); // Use .get() to access the Map
-        }
+    const updatedBoundaryMap = new Map();
+    boundaryMap.forEach((value, key) => {
+        const newKey = key.key + '_' + key.value; // Concatenate key and value
+        updatedBoundaryMap.set(newKey, value); // Set in the updated map
     });
-});
 
-return boundaryData;
+    // Iterate through the boundary data
+    boundaryData.features.forEach((feature: any) => {
+        // Extract the properties object from the feature
+        const properties = feature.properties;
+
+        // Iterate through the hierarchy
+        hiearchy.forEach((h: string) => {
+            // Build the field name
+            const field = h.toLowerCase() + '_name';
+
+            // Check if the field exists in the properties object
+            if (properties[field]) {
+                const boundaryName = h + '_' + properties[field];
+                // Assign the boundary code to the properties object
+                properties[config.boundary.boundaryCode] = updatedBoundaryMap.get(boundaryName); // Use .get() to access the Map
+            }
+        });
+    });
+
+    return boundaryData;
 
 }
 const getGeoJsonData = (boundaryData: any, hiearchy: any) => {
-    var data:any = [];
+    var data: any = [];
     boundaryData.features?.forEach((feature: any) => {
         const properties = feature.properties;
         var row: any = [];
         hiearchy.forEach((h: string) => {
             const field = h.toLowerCase() + '_name';
-            if(properties[field]){
+            if (properties[field]) {
                 const d = {
                     key: h,
                     value: properties[field]
-                  };
+                };
                 row.push(d);
             }
         });
@@ -1969,22 +1971,22 @@ const getGeoJsonData = (boundaryData: any, hiearchy: any) => {
 
 const getDataFromGeoJson = async (url: string) => {
     // Define headers for HTTP request
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-  logger.info("loading for the file based on fileurl");
-  // Make HTTP request to retrieve Excel file as arraybuffer
-  const responseFile = await httpRequest(
-    url,
-    null,
-    {},
-    "get",
-    "json",
-    headers
-  );
-  logger.info("received the file response");
-  return responseFile;
+    const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+    };
+    logger.info("loading for the file based on fileurl");
+    // Make HTTP request to retrieve Excel file as arraybuffer
+    const responseFile = await httpRequest(
+        url,
+        null,
+        {},
+        "get",
+        "json",
+        headers
+    );
+    logger.info("received the file response");
+    return responseFile;
 }
 
 const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) => {

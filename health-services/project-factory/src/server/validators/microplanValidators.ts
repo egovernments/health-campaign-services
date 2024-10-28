@@ -132,7 +132,9 @@ export function validateTargetsForMicroplanCampaigns(data: any, errors: any, loc
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
-                    for (const targetColumn of localizedTargetColumnNames) {
+                    var totalTarget = 0, totalTargetSumFromColumns = 0;
+                    for (let i = 0; i < localizedTargetColumnNames.length; i++) {
+                        const targetColumn = localizedTargetColumnNames[i];
                         const target = obj[targetColumn];
                         if (target !== 0 && !target) {
                             errors.push({
@@ -163,6 +165,20 @@ export function validateTargetsForMicroplanCampaigns(data: any, errors: any, loc
                                 sheetName: key
                             });
                         }
+                        if (i == 0) {
+                            totalTarget = target;
+                        }
+                        else {
+                            totalTargetSumFromColumns += target;
+                        }
+                    }
+                    if (totalTargetSumFromColumns > totalTarget) {
+                        errors.push({
+                            status: "INVALID",
+                            rowNumber: obj["!row#number!"],
+                            errorDetails: `Data in other target columns must be less than or equal to '${localizedTargetColumnNames[0]}'`,
+                            sheetName: key
+                        });
                     }
                 });
             }
@@ -267,5 +283,18 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
     const boundaryColumn = getLocalizedName("HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN", localizationMap);
     if (!item?.[boundaryColumn]) {
         errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${boundaryColumn} column can’t be empty, please update the data and re-upload` })
+    }
+}
+
+export function validateFacilityBoundaryForLowestLevel(request: any, boundaries: any, rowData: any, errors: any = [], localizationMap?: { [key: string]: string }) {
+    if (request?.body?.ResourceDetails?.type == "facility" && request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
+        const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy
+        const lastLevel = hierarchy?.[hierarchy.length - 1]?.boundaryType
+        for (const data of rowData?.boundaryCodes) {
+            const boundaryFromBoundariesType = boundaries.find((boundary: any) => boundary.code == data)?.type
+            if (boundaryFromBoundariesType != lastLevel) {
+                errors.push({ status: "INVALID", rowNumber: rowData?.rowNumber, errorDetails: `${data} is not a ${lastLevel} level boundary` })
+            }
+        }
     }
 }

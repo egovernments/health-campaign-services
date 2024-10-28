@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 
 
@@ -502,9 +502,10 @@ async function validateCampaignId(request: any) {
             if (boundaries?.length === 0) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign with given campaignId does not have any boundaries");
             }
+            request.body.campaignBoundaries = boundaries
         }
         else {
-            if(!(additionalDetails?.source == "microplan" && type == "user")) {
+            if (!(additionalDetails?.source == "microplan" && type == "user")) {
                 throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found while validating campaignId");
             }
         }
@@ -723,6 +724,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
             const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
             errors.push({ status: "BOUNDARYERROR", rowNumber: rowData.rowNumber, errorDetails: errorString })
         }
+        validateFacilityBoundaryForLowestLevel(request, boundaries, rowData, errors, localizationMap);
     }
     if (errors?.length > 0) {
         request.body.ResourceDetails.status = resourceDataStatuses.invalid
@@ -1076,7 +1078,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!(action == "create" || action == "draft" || action == "changeDates" || action == "retry")) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create, draft, retry or changeDates");
     }
-    if(actionInUrl == "retry"){
+    if (actionInUrl == "retry") {
         await validateForRetry(request);
     }
     if (actionInUrl == "update") {
@@ -1126,12 +1128,12 @@ async function validateForRetry(request: any) {
                 CampaignDetails: request?.body?.CampaignDetails
             }
             await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
-            
+
             if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
                 // If not present, initialize it as an empty array
                 request.body.CampaignDetails.additionalDetails.retryCycle = [];
             }
-            
+
             // Step 2: Push new data to the `retryCycle` array
             request.body.CampaignDetails.additionalDetails.retryCycle.push({
                 error: request.body.CampaignDetails.additionalDetails.error,
@@ -1317,6 +1319,23 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
                 throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tab ${tab} not present in the Target Sheet Uploaded`);
             }
         }
+        const MissingDistricts: any = [];
+        const campaignBoundaries = request?.body?.campaignBoundaries;
+        if (campaignBoundaries && campaignBoundaries?.length > 0) {
+            const districtsUnlocalised = campaignBoundaries
+                .filter((data: any) => data?.type == differentTabsBasedOnLevel)
+                .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
+
+            tabsOfDistrict.forEach((tab: any) => {
+                if (!districtsUnlocalised.includes(tab)) {
+                    MissingDistricts.push(tab);
+                }
+            });
+        }
+
+        if (MissingDistricts.length > 0) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `Districts ${MissingDistricts.join(', ')} not present in the Target Sheet Uploaded`);
+        }
     }
 
 }
@@ -1344,7 +1363,7 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateSearchProcessTracksRequest,
-    validateParent, 
+    validateParent,
     validateForRetry
 }
 

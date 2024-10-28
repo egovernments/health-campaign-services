@@ -1,9 +1,12 @@
 import { resourceDataStatuses, rolesForMicroplan } from "../config/constants";
+import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { getSheetData } from "./../api/genericApis";
 import { getLocalizedName } from "./campaignUtils";
+import createAndSearch from "../config/createAndSearch";
+import { produceModifiedMessages } from "../kafka/Producer";
 
 
 export const filterData = (data: any) => {
@@ -272,5 +275,81 @@ function findStatusColumn(sheet: any) {
 
   // Return the found statusCell, or null if not found
   return statusCell;
+}
+
+export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, localizationMap?: any) {
+  const type = request?.body?.ResourceDetails?.type;
+  const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+  if (type == 'facility') {
+    const projectType = request?.body?.projectTypeCode;
+    const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
+    if (rowData[facilityCapacityColumn] >= 0) {
+      element.storageCapacity = rowData[facilityCapacityColumn]
+    }
+    if (activeColumnName && rowData[activeColumnName] == "Active") {
+      if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
+        request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
+      }
+      else {
+        request.body.facilityDataForMicroplan = [{ ...rowData, facilityDetails: element }]
+      }
+    }
+  }
+}
+
+export function updateFacilityDetailsForMicroplan(request: any, createdData: any) {
+  const facilityDataForMicroplan = request?.body?.facilityDataForMicroplan;
+  if (Array.isArray(facilityDataForMicroplan) && facilityDataForMicroplan.length > 0) {
+    for (const element of facilityDataForMicroplan) {
+      const rowNumber = element['!row#number!'];
+      const createdDataWithMatchingRowNumber = createdData.find((data: any) => data['!row#number!'] == rowNumber) || null;
+      if (createdDataWithMatchingRowNumber) {
+        element.facilityDetails.id = createdDataWithMatchingRowNumber.id
+      }
+    }
+  }
+}
+
+
+export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
+  if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
+    const allFacilityDatas = request?.body?.facilityDataForMicroplan;
+    const planConfigurationId = request?.body?.ResourceDetails?.additionalDetails?.microplanId;
+    for (const element of allFacilityDatas) {
+      const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
+      const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
+      const facilityType = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
+      const currTime = new Date().getTime();
+      const produceObject: any = {
+        PlanFacility: {
+          id: uuidv4(),
+          tenantId: element?.facilityDetails?.tenantId,
+          planConfigurationId: planConfigurationId,
+          facilityId: element?.facilityDetails?.id,
+          residingBoundary: singularResidingBoundary,
+          serviceBoundaries: null,
+          additionalDetails: {
+            capacity: element?.facilityDetails?.storageCapacity,
+            facilityName: element?.facilityDetails?.name,
+            facilityType: facilityType,
+            facilityStatus: "Active",
+            assignedVillages: []
+          },
+          active: true,
+          auditDetails: {
+            createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+            lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+            createdTime: currTime,
+            lastModifiedTime: currTime
+          }
+        }
+      }
+      const fixedPostColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN`, localizationMap);
+      if (element?.[fixedPostColumn]) {
+        produceObject.PlanFacility.additionalDetails.fixedPost = element?.[fixedPostColumn]
+      }
+      await produceModifiedMessages(produceObject, config?.kafka?.KAFKA_SAVE_PLAN_FACILITY_TOPIC);
+    }
+  }
 }
 
