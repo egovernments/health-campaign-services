@@ -407,10 +407,10 @@ public class WorkflowService {
     private String getBusinessServiceUri(String businessService, String tenantId, Map<String, String> uriParameters) {
 
         StringBuilder uri = new StringBuilder();
-        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append("?tenantId={tenantId}&businessServices={businessService}");
+        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append(URI_BUSINESS_SERVICE_QUERY_TEMPLATE);
 
-        uriParameters.put("tenantId", tenantId);
-        uriParameters.put("businessService", businessService);
+        uriParameters.put(URI_TENANT_ID_PARAM, tenantId);
+        uriParameters.put(URI_BUSINESS_SERVICE_PARAM, businessService);
 
         return uri.toString();
     }

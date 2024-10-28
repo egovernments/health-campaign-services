@@ -302,6 +302,12 @@ public class ServiceConstants {
 
     public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
 
+    public static final String URI_TENANT_ID_PARAM = "tenantId";
+
+    public static final String URI_BUSINESS_SERVICE_PARAM = "businessService";
+
+    public static final String URI_BUSINESS_SERVICE_QUERY_TEMPLATE = "?tenantId={tenantId}&businessServices={businessService}";
+
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
 
