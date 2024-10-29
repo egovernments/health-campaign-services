@@ -18,6 +18,7 @@ import org.egov.transformer.service.ServiceDefinitionService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -58,6 +59,7 @@ public class ServiceTaskTransformationService {
                 .map(ServiceIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
+        filterFinanceChecklists(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -119,5 +121,16 @@ public class ServiceTaskTransformationService {
                 .geoPoint(geoPoint)
                 .build();
         return serviceIndexV1;
+    }
+
+    public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List){
+        List<String> checklistNames = Arrays.asList(transformerProperties.getFinanceChecklistNameList().split(","));
+        List<ServiceIndexV1> financeChecklistList = serviceIndexV1List.stream()
+                .filter(service -> checklistNames.contains(service.getChecklistName()))
+                .collect(Collectors.toList());
+        String topic = transformerProperties.getTransformerProducerFinanceChecklistIndexV1Topic();
+        if (!CollectionUtils.isEmpty(financeChecklistList)) {
+            producer.push(topic, financeChecklistList);
+        }
     }
 }

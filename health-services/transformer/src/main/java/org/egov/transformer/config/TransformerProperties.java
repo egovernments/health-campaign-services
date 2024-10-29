@@ -44,6 +44,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.hfreferral.service.index.topic}")
     private String transformerProducerHfReferralServiceIndexTopic;
 
+    @Value("${transformer.producer.finance.checklist.index.v1.topic}")
+    private String transformerProducerFinanceChecklistIndexV1Topic;
+
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
 
@@ -212,4 +215,7 @@ public class TransformerProperties {
 
     @Value("${egov.project.target.number-type}")
     private String projectTargetNumberType;
+
+    @Value("${finance.checklist.index.checklist.names}")
+    private String financeChecklistNameList;
 }
