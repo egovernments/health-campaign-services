@@ -1324,7 +1324,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         const campaignBoundaries = request?.body?.campaignBoundaries;
         if (campaignBoundaries && campaignBoundaries?.length > 0) {
             const districtsUnlocalised = campaignBoundaries
-                .filter((data: any) => data?.type == differentTabsBasedOnLevel)
+                .filter((data: any) => data?.type?.toLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
             tabsOfDistrict.forEach((tab: any) => {
