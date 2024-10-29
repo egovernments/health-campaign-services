@@ -271,12 +271,14 @@ public class PlanConfigurationValidator {
             }
 
             // Ensure at least one active file for each required template identifier
-            requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
-                if (!activeRequiredTemplates.contains(requiredTemplate)) {
-                    log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
-                    throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
-                }
-            });
+            if(isSetupCompleted(planConfiguration)){
+                requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
+                    if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                        log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                        throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+                    }
+                });
+            }
 
         }
     }
