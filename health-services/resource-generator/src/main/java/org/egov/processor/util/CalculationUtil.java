@@ -16,6 +16,7 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 
@@ -117,31 +118,30 @@ public class CalculationUtil {
         }
     }
 
-    private BigDecimal getInputValueFromFeatureOrMap(JsonNode feature, Map<String, BigDecimal> resultMap, Map<String, BigDecimal> assumptionValueMap, String key, String columnName) {
-        // Try to fetch the value from resultMap
-        if (resultMap.containsKey(key)) {
-            return resultMap.get(key);
-        }
+    private BigDecimal getInputValueFromFeatureOrMap(JsonNode feature, Map<String, BigDecimal> resultMap, Map<String, BigDecimal> assumptionValueMap, String assumptionKey, String columnName) {
+        // Try to fetch the value from resultMap, If not found in the resultMap, use the assumptionValueMap as a fallback
+        BigDecimal assumptionValue = resultMap.getOrDefault(assumptionKey, assumptionValueMap.get(assumptionKey));
+
         // Try to fetch the value from the feature (if it exists)
-        if (feature.has(PROPERTIES) && feature.get(PROPERTIES).has(columnName)) {
-            try {
-                String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
-                BigDecimal value;
-                if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
-                    value = new BigDecimal(cellValue);
-                } else {
-                    String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
-                    value = new BigDecimal(cleanedValue);
-                }
-                return value;
-            } catch (NumberFormatException | NullPointerException e) {
-                // Handle potential parsing issues
-                return BigDecimal.ZERO;
+        if(ObjectUtils.isEmpty(assumptionValue)) {
+            if (feature.has(PROPERTIES) && feature.get(PROPERTIES).has(columnName)) {
+                try {
+                    String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
+                    BigDecimal value;
+                    if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
+                        value = new BigDecimal(cellValue);
+                    } else {
+                        String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
+                        value = new BigDecimal(cleanedValue);
+                    }
+                    return value;
+                } catch (NumberFormatException | NullPointerException e) {
+                    // Handle potential parsing issues
+                    throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + assumptionKey);                }
             }
         }
 
-        // If not found in the resultMap, use the assumptionValueMap as a fallback
-        return assumptionValueMap.getOrDefault(key, BigDecimal.ZERO);
+        return assumptionValue;
     }
 
     /**
