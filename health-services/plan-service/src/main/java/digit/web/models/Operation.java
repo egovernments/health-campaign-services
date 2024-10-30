@@ -45,7 +45,7 @@ public class Operation {
 
     @JsonProperty("output")
     @NotNull
-    @Size(min = 1, max = 64)
+    @Size(min = 1, max = 256)
     private String output = null;
 
     @JsonProperty("showOnEstimationDashboard")

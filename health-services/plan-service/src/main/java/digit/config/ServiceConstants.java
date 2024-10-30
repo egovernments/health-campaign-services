@@ -104,6 +104,9 @@ public class ServiceConstants {
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";
 
+    public static final String PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_CODE = "PLAN_FACILITY_LINKAGE_ALREADY_EXISTS";
+    public static final String PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_MESSAGE = "Plan facility linkage for the provided facilityId and planConfigId already exists";
+
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY_MESSAGE = "Plan employee assignment id cannot be empty";
 
@@ -206,6 +209,9 @@ public class ServiceConstants {
     public static final String OPERATIONS_NOT_FOUND_CODE = "OPERATIONS_NOT_FOUND";
     public static final String OPERATIONS_NOT_FOUND_MESSAGE = "Operations are not present in Plan Configuration.";
 
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_CODE = "NO_BUSINESS_SERVICE_DATA_FOUND";
+    public static final String NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE = "Invalid or incorrect businessService. No business service data found.";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
@@ -294,7 +300,13 @@ public class ServiceConstants {
 
     public static final String DRAFT_STATUS = "DRAFT";
 
-    public static final String SETUP_COMPLETED_STATUS = "SETUP_COMPLETED";
+    public static final String SETUP_COMPLETED_ACTION = "INITIATE";
+
+    public static final String URI_TENANT_ID_PARAM = "tenantId";
+
+    public static final String URI_BUSINESS_SERVICE_PARAM = "businessService";
+
+    public static final String URI_BUSINESS_SERVICE_QUERY_TEMPLATE = "?tenantId={tenantId}&businessServices={businessService}";
 
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
@@ -302,6 +314,8 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_HIERARCHY= "hierarchy";
 
     public static final String ERROR_WHILE_FETCHING_FROM_FACILITY = "Exception occurred while fetching facility details from facility service ";
+
+    public static final String ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS = "Exception occurred while fetching business service details: ";
 
     public static final String INVALID_PLAN_FACILITY_ID_CODE = "INVALID_PLAN_FACILITY_ID";
     public static final String INVALID_PLAN_FACILITY_ID_MESSAGE = "Plan facility id provided is invalid";
@@ -317,10 +331,11 @@ public class ServiceConstants {
 
     public static final String FAILED_MESSAGE = "Failed to push message to topic";
 
-    public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "name";
+    public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "facilityName";
 
-    public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "status";
+    public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "facilityStatus";
 
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
+    public static final String COMMA_DELIMITER = ",";
 }

@@ -71,17 +71,11 @@ public class PlanConfigurationValidator {
         // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);
 
-        // Validate the filestore ID in the plan configuration's request mappings
-        validateFilestoreId(planConfiguration);
-
         // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
 
         // Validate that the inputs for operations in the request match those in the MDMS data
         validateOperationsInputAgainstMDMS(request, mdmsData);
-
-        // Validate that the resource mappings in the request match those in the MDMS data
-        validateResourceMappingAgainstMDMS(request, mdmsData);
 
         // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
@@ -231,30 +225,6 @@ public class PlanConfigurationValidator {
     }
 
     /**
-     * Validates the file store IDs in the provided PlanConfiguration's Resource Mapping list.
-     *
-     * @param planConfiguration The PlanConfiguration to validate.
-     */
-    public void validateFilestoreId(PlanConfiguration planConfiguration) {
-        if (isSetupCompleted(planConfiguration)) {
-            checkForEmptyFiles(planConfiguration);
-            checkForEmptyResourceMapping(planConfiguration);
-
-            Set<String> fileStoreIds = planConfiguration.getFiles().stream()
-                    .map(File::getFilestoreId)
-                    .collect(Collectors.toSet());
-
-            planConfiguration.getResourceMapping().forEach(mapping -> {
-                if (!fileStoreIds.contains(mapping.getFilestoreId())) {
-                    log.error("Resource Mapping " + mapping.getMappedTo() + " does not have valid fileStoreId " + mapping.getFilestoreId());
-                    throw new CustomException(FILESTORE_ID_INVALID_CODE, FILESTORE_ID_INVALID_MESSAGE);
-                }
-            });
-
-        }
-    }
-
-    /**
      * Validates the template identifiers of files in the PlanConfigurationRequest against the list of template identifiers
      * obtained from MDMS (Master Data Management System) data.
      *
@@ -301,12 +271,14 @@ public class PlanConfigurationValidator {
             }
 
             // Ensure at least one active file for each required template identifier
-            requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
-                if (!activeRequiredTemplates.contains(requiredTemplate)) {
-                    log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
-                    throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
-                }
-            });
+            if(isSetupCompleted(planConfiguration)){
+                requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
+                    if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                        log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                        throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+                    }
+                });
+            }
 
         }
     }
@@ -456,9 +428,6 @@ public class PlanConfigurationValidator {
         // Validate that the assumption values in the plan configuration are correct
         validateAssumptionValue(planConfiguration);
 
-        // Validate the filestore ID in the plan configuration's request mappings
-        validateFilestoreId(planConfiguration);
-
         // Validate that the template identifiers in the request match those in the MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
 
@@ -467,9 +436,6 @@ public class PlanConfigurationValidator {
 
         // Validate the dependencies between operations in the plan configuration
         validateOperationDependencies(planConfiguration);
-
-        // Validate that the resource mappings in the request match those in the MDMS data
-        validateResourceMappingAgainstMDMS(request, mdmsData);
 
         // Validate the uniqueness of the 'mappedTo' fields in the resource mappings
         validateMappedToUniqueness(planConfiguration.getResourceMapping());
@@ -531,84 +497,6 @@ public class PlanConfigurationValidator {
 
 
     /**
-     * Validate input (BCode) against MDMS data.
-     *
-     * @param request  plan configauration request.
-     * @param mdmsData MDMS data object.
-     */
-    public void validateResourceMappingAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
-        PlanConfiguration planConfiguration = request.getPlanConfiguration();
-
-        if (isSetupCompleted(planConfiguration)) {
-            checkForEmptyFiles(planConfiguration);
-            checkForEmptyResourceMapping(planConfiguration);
-
-            List<File> files = planConfiguration.getFiles();
-            List<String> templateIds = files.stream()
-                    .map(File::getTemplateIdentifier)
-                    .toList();
-            List<String> inputFileTypes = files.stream()
-                    .map(File::getInputFileType)
-                    .map(File.InputFileTypeEnum::toString)
-                    .toList();
-
-            final String jsonPathForRuleInputs = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_SCHEMAS;
-            List<Object> ruleInputsListFromMDMS = null;
-            try {
-                log.info(jsonPathForRuleInputs);
-                ruleInputsListFromMDMS = JsonPath.read(mdmsData, jsonPathForRuleInputs);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-            }
-            HashSet<Object> ruleInputsSetFromMDMS = new HashSet<>(ruleInputsListFromMDMS);
-            HashSet<String> requiredColumns = getRequiredColumnsFromSchema(ruleInputsSetFromMDMS, templateIds, inputFileTypes);
-            List<ResourceMapping> resourceMappings = planConfiguration.getResourceMapping();
-
-            // Throw a custom exception if no active mappings with BOUNDARY_CODE are found
-            if (requiredColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
-                boolean exists = resourceMappings.stream()
-                        .anyMatch(mapping -> mapping.getActive() && mapping.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
-
-                if (!exists) {
-                    throw new CustomException(BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE, BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE);
-                }
-            }
-        }
-
-    }
-
-    /**
-     * Filters the Schema MDMS data by type and section
-     * returns the list of columns which have the property 'isRequired' as true
-     *
-     * @param schemas        List of schemas from MDMS
-     * @param templateIds    The list of template identifiers from request object
-     * @param inputFileTypes The list of input file type from request object
-     * @return List of Columns that are required
-     */
-    public static HashSet<String> getRequiredColumnsFromSchema(HashSet<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
-        if (CollectionUtils.isEmpty(schemas)) {
-            return new HashSet<>();
-        }
-        HashSet<String> finalData = new HashSet<>();
-        for (Object item : schemas) {
-            LinkedHashMap<?, ?> schemaEntity = (LinkedHashMap<?, ?>) item;
-            if (!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE)))
-                continue;
-            LinkedHashMap<String, LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>) ((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
-            if (columns == null) return new HashSet<>();
-            columns.forEach((key, value) -> {
-                LinkedHashMap<String, Boolean> data = value;
-                if (data.get(MDMS_SCHEMA_PROPERTIES_IS_REQUIRED)) {
-                    finalData.add(key);
-                }
-            });
-        }
-        return finalData;
-    }
-
-    /**
      * Validates Vehicle ids from additional details against MDMS V2
      *
      * @param request    plan configuration request
@@ -632,35 +520,31 @@ public class PlanConfigurationValidator {
 
 
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        return Objects.equals(planConfiguration.getStatus(), SETUP_COMPLETED_STATUS);
+        if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
+            return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
+
+        return false;
     }
 
     // Checks for whether file, assumption, operation or resource mapping is empty or null at a certain status
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            log.error("Files cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Files cannot be empty at action = " + SETUP_COMPLETED_ACTION);
             throw new CustomException(FILES_NOT_FOUND_CODE, FILES_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            log.error("Assumptions cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Assumptions cannot be empty at action = " + SETUP_COMPLETED_ACTION);
             throw new CustomException(ASSUMPTIONS_NOT_FOUND_CODE, ASSUMPTIONS_NOT_FOUND_MESSAGE);
         }
     }
 
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            log.error("Operations cannot be empty at status = " + SETUP_COMPLETED_STATUS);
+            log.error("Operations cannot be empty at action = " + SETUP_COMPLETED_ACTION);
             throw new CustomException(OPERATIONS_NOT_FOUND_CODE, OPERATIONS_NOT_FOUND_MESSAGE);
-        }
-    }
-
-    private void checkForEmptyResourceMapping(PlanConfiguration planConfiguration) {
-        if (CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
-            log.error("Resource mapping cannot be empty at status = " + SETUP_COMPLETED_STATUS);
-            throw new CustomException(RESOURCE_MAPPING_NOT_FOUND_CODE, RESOURCE_MAPPING_NOT_FOUND_MESSAGE);
         }
     }
 
