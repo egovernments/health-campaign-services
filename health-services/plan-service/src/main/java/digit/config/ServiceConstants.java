@@ -30,10 +30,7 @@ public class ServiceConstants {
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 
     public static final String ASSUMPTION_VALUE_NOT_FOUND_CODE = "ASSUMPTION_VALUE_NOT_FOUND";
-    public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in active assumptions list ";
-
-    public static final String FILESTORE_ID_INVALID_CODE = "FILESTORE_ID_INVALID";
-    public static final String FILESTORE_ID_INVALID_MESSAGE = " Resource mapping does not have a Valid File Store Id ";
+    public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value is not present in allowed columns, previous outputs, or active Assumption Keys ";
 
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS - ";
@@ -57,16 +54,7 @@ public class ServiceConstants {
     public static final String ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE = "Only one file of the required template identifier should be present ";
 
     public static final String INPUT_KEY_NOT_FOUND_CODE = "INPUT_KEY_NOT_FOUND";
-    public static final String INPUT_KEY_NOT_FOUND_MESSAGE = "Operation's Input key not present in MDMS ";
-
-    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE = "LOCALITY_NOT_PRESENT_IN_MAPPED_TO";
-    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE = "Resource Mapping's MappedTo must contain 'Locality' ";
-
-    public static final String DUPLICATE_MAPPED_TO_VALIDATION_ERROR_CODE = "DUPLICATE_MAPPED_TO_VALIDATION_ERROR";
-    public static final String DUPLICATE_MAPPED_TO_VALIDATION_ERROR_MESSAGE = "Duplicate MappedTo found in Resource Mapping";
-
-    public static final String TENANT_NOT_FOUND_IN_MDMS_CODE = "TENANT_ID_NOT_FOUND_IN_MDMS";
-    public static final String TENANT_NOT_FOUND_IN_MDMS_MESSAGE = "Tenant Id is not present in MDMS";
+    public static final String INPUT_KEY_NOT_FOUND_MESSAGE = "Operation's Input key is not present in allowed columns or previous outputs - ";
 
     public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
     public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
@@ -131,9 +119,6 @@ public class ServiceConstants {
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
-    public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_CODE = "BOUNDARY_CODE_MAPPING_NOT_FOUND";
-    public static final String BOUNDARY_CODE_MAPPING_NOT_FOUND_MESSAGE = "Boundary Code Mapping is required column is not found.";
-
     public static final String NAME_VALIDATION_LIST_EMPTY_CODE = "NAME_VALIDATION_LIST_EMPTY";
     public static final String NAME_VALIDATION_LIST_EMPTY_MESSAGE = "Name Validation list from MDMS is empty";
 
@@ -167,9 +152,6 @@ public class ServiceConstants {
     public static final String PLAN_RESOURCES_MANDATORY_CODE = "PLAN_RESOURCES_MANDATORY";
     public static final String PLAN_RESOURCES_MANDATORY_MESSAGE = "Resources are mandatory if plan configuration id is not provided";
 
-    public static final String PLAN_RESOURCES_NOT_ALLOWED_CODE = "PLAN_RESOURCES_NOT_ALLOWED";
-    public static final String PLAN_RESOURCES_NOT_ALLOWED_MESSAGE = "Resources are not allowed if plan configuration id is provided";
-
     public static final String INVALID_RESOURCE_ACTIVITY_LINKAGE_CODE = "INVALID_RESOURCE_ACTIVITY_LINKAGE";
     public static final String INVALID_RESOURCE_ACTIVITY_LINKAGE_MESSAGE = "Resource-Activity linkage is invalid";
 
@@ -200,9 +182,6 @@ public class ServiceConstants {
     public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
     public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";
 
-    public static final String RESOURCE_MAPPING_NOT_FOUND_CODE = "RESOURCE_MAPPING_NOT_FOUND";
-    public static final String RESOURCE_MAPPING_NOT_FOUND_MESSAGE = "Resource mapping is not present in Plan Configuration.";
-
     public static final String ASSUMPTIONS_NOT_FOUND_CODE = "ASSUMPTIONS_NOT_FOUND";
     public static final String ASSUMPTIONS_NOT_FOUND_MESSAGE = "Assumptions are not present in Plan Configuration.";
 
@@ -222,8 +201,17 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_METRIC = "Metric";
     public static final String MDMS_MASTER_UOM = "Uom";
-    public static final String MDMS_CODE = "mdms";
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
+    public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
+    public static final String BOUNDARY = "boundary";
+
+    //MDMS field Constants
+    public static final String PROPERTIES = "properties";
+    public static final String NUMBER_PROPERTIES = "numberProperties";
+    public static final String STRING_PROPERTIES = "stringProperties";
+    public static final String NAME = "name";
+
+    public static final String MICROPLAN_PREFIX = "MP-";
 
     public static final String JSON_ROOT_PATH = "$.";
 
