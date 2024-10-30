@@ -381,7 +381,12 @@ public class PlanConfigurationValidator {
         }
     }
 
-
+    /**
+     * Checks if the setup process is completed based on the workflow action in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     * @return true if the setup is completed, otherwise false.
+     */
     public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
         if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
             return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
@@ -389,7 +394,11 @@ public class PlanConfigurationValidator {
         return false;
     }
 
-    // Checks for whether file, assumption, operation or resource mapping is empty or null at a certain status
+    /**
+     * Checks if files are empty or null when the setup action is marked as completed.
+     *
+     * @param planConfiguration The plan configuration to check.
+     */
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             log.error("Files cannot be empty at action = " + SETUP_COMPLETED_ACTION);
@@ -397,6 +406,11 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Checks if assumptions are empty or null when the setup action is marked as completed.
+     *
+     * @param planConfiguration The plan configuration to check.
+     */
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
             log.error("Assumptions cannot be empty at action = " + SETUP_COMPLETED_ACTION);
@@ -404,6 +418,11 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Checks if operations are empty or null when the setup action is marked as completed.
+     *
+     * @param planConfiguration The plan configuration to check.
+     */
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
             log.error("Operations cannot be empty at action = " + SETUP_COMPLETED_ACTION);
@@ -411,7 +430,12 @@ public class PlanConfigurationValidator {
         }
     }
 
-
+    /**
+     * Validates the inputs and assumption values in the plan configuration after verifying the setup action is completed.
+     *
+     * @param request          The plan configuration request to validate.
+     * @param campaignResponse The campaign response containing details for validation.
+     */
     public void validateOperations(PlanConfigurationRequest request, CampaignResponse campaignResponse) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
@@ -426,12 +450,24 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Performs checks for empty files, assumptions, and operations in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     */
     private void performEmptyChecks(PlanConfiguration planConfiguration) {
         checkForEmptyFiles(planConfiguration);
         checkForEmptyOperation(planConfiguration);
         checkForEmptyAssumption(planConfiguration);
     }
 
+    /**
+     * Retrieves allowed columns based on MDMS data and campaign type.
+     *
+     * @param request      The plan configuration request containing tenant information.
+     * @param campaignType The type of campaign for which allowed columns are fetched.
+     * @return A set of allowed column names.
+     */
     private HashSet<String> getAllowedColumnsFromMDMS(PlanConfigurationRequest request, String campaignType) {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanConfiguration().getTenantId());
         String uniqueIndentifier = BOUNDARY + DOT_SEPARATOR  + MICROPLAN_PREFIX + campaignType;
@@ -441,7 +477,7 @@ public class PlanConfigurationValidator {
     }
 
     /**
-     * Extracts the names of properties defined within the "numberProperties" and "stringProperties" arrays from admin schema
+     * Extracts the names of properties defined within the "numberProperties" and "stringProperties" arrays from admin schema.
      *
      * @param rootNode The root JSON node from which to extract property names.
      * @return A list of property names found in "numberProperties" and "stringProperties".
@@ -477,7 +513,12 @@ public class PlanConfigurationValidator {
         return names;
     }
 
-
+    /**
+     * Gets keys of active assumptions in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration containing assumptions.
+     * @return A set of keys of active assumptions.
+     */
     private Set<String> getActiveAssumptionKeys(PlanConfiguration planConfiguration) {
         return planConfiguration.getAssumptions().stream()
                 .filter(Assumption::getActive)
@@ -485,6 +526,12 @@ public class PlanConfigurationValidator {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Validates the input values of operations against allowed columns and previous outputs.
+     *
+     * @param planConfiguration The plan configuration containing operations.
+     * @param allowedColumns    The allowed column names for input validation.
+     */
     private void validateOperationInputs(PlanConfiguration planConfiguration, HashSet<String> allowedColumns) {
         // Set to keep track of previous outputs
         Set<String> previousOutputs = new HashSet<>();
@@ -503,6 +550,13 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Validates the assumption values of operations against allowed columns, active keys, and previous outputs.
+     *
+     * @param planConfiguration    The plan configuration containing operations.
+     * @param allowedColumns       The allowed column names for assumption validation.
+     * @param activeAssumptionKeys The set of active assumption keys.
+     */
     private void validateOperationAssumptionValues(PlanConfiguration planConfiguration, HashSet<String> allowedColumns, Set<String> activeAssumptionKeys) {
         // Set to keep track of previous outputs
         Set<String> previousOutputs = new HashSet<>();
@@ -522,7 +576,5 @@ public class PlanConfigurationValidator {
             }
         }
     }
-
-
 
 }
