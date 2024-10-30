@@ -92,7 +92,7 @@ public class CalculationUtil {
      * @param columnName The input from mapping.
      * @return The input value.
      */
-    public BigDecimal getInputValueFromJsonFeature(Map<String, BigDecimal> resultMap, JsonNode feature, String input, String columnName) {
+    public BigDecimal getInputValueFromJsonFeature(JsonNode feature, Map<String, BigDecimal> resultMap, String input, String columnName) {
         if (resultMap.containsKey(input)) {
             return resultMap.get(input);
         } else {
@@ -117,6 +117,33 @@ public class CalculationUtil {
         }
     }
 
+    private BigDecimal getInputValueFromFeatureOrMap(JsonNode feature, Map<String, BigDecimal> resultMap, Map<String, BigDecimal> assumptionValueMap, String key, String columnName) {
+        // Try to fetch the value from resultMap
+        if (resultMap.containsKey(key)) {
+            return resultMap.get(key);
+        }
+        // Try to fetch the value from the feature (if it exists)
+        if (feature.has(PROPERTIES) && feature.get(PROPERTIES).has(columnName)) {
+            try {
+                String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
+                BigDecimal value;
+                if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
+                    value = new BigDecimal(cellValue);
+                } else {
+                    String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
+                    value = new BigDecimal(cleanedValue);
+                }
+                return value;
+            } catch (NumberFormatException | NullPointerException e) {
+                // Handle potential parsing issues
+                return BigDecimal.ZERO;
+            }
+        }
+
+        // If not found in the resultMap, use the assumptionValueMap as a fallback
+        return assumptionValueMap.getOrDefault(key, BigDecimal.ZERO);
+    }
+
     /**
      * Calculates a result based on the provided operation and inputs.
      *
@@ -127,12 +154,18 @@ public class CalculationUtil {
      * @param resultMap A map to store and update the calculated results.
      * @return The calculated result as a BigDecimal.
      */
-    public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, String> mappedValues, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap)
-    {
+    public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, String> mappedValues, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap) {
+        // Fetch the input value
         String input = operation.getInput();
         String inputFromMapping = mappedValues.get(input);
-        BigDecimal inputValue = getInputValueFromJsonFeature(resultMap, feature, operation.getInput(), inputFromMapping);
-        BigDecimal assumptionValue = assumptionValueMap.get(operation.getAssumptionValue());
+        BigDecimal inputValue = getInputValueFromJsonFeature(feature, resultMap, input, inputFromMapping);
+
+        // Fetch the assumption value with priority: feature -> resultMap -> assumptionValueMap
+        String assumptionKey = operation.getAssumptionValue();
+        String assumptionFromMapping = mappedValues.get(assumptionKey);
+        BigDecimal assumptionValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, assumptionKey, assumptionFromMapping);
+
+        // Calculate and return the output
         return calculateOutputValue(inputValue, operation.getOperator(), assumptionValue);
     }
 
