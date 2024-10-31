@@ -9,6 +9,7 @@ import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
+import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
@@ -129,6 +130,32 @@ public class ServiceTaskTransformationService {
         List<ServiceIndexV1> financeChecklistList = serviceIndexV1List.stream()
                 .filter(service -> checklistNames.contains(service.getChecklistName()))
                 .collect(Collectors.toList());
+        financeChecklistList.forEach(
+                f -> {
+                    List<AttributeValue> attributeValues = f.getAttributes();
+                    attributeValues.forEach(
+                            att -> {
+                                if (att.getValue() instanceof Map) {
+                                    Map<String, Object> valueMap = (Map<String, Object>) att.getValue();
+                                    Object valueObj = valueMap.get("value");
+
+                                    if (valueObj instanceof String) {
+                                        Double value = 0.0;
+                                        try {
+                                            value = Double.parseDouble((String) valueObj);
+
+                                            valueMap.put("value", value);
+                                        } catch (NumberFormatException e) {
+                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
+                                            valueMap.put("value", value);
+                                        }
+                                    }
+                                }
+                                att.getValue();
+                            }
+                    );
+                }
+        );
         String topic = transformerProperties.getTransformerProducerFinanceChecklistIndexV1Topic();
         if (!CollectionUtils.isEmpty(financeChecklistList)) {
             producer.push(topic, financeChecklistList);

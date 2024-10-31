@@ -31,18 +31,16 @@ public class PGRTransformationService {
     private final Producer producer;
     private final CommonUtils commonUtils;
     private final MdmsService mdmsService;
-    private final ProjectService projectService;
     private final BoundaryService boundaryService;
     private final ObjectMapper objectMapper;
 
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, BoundaryService boundaryService, ObjectMapper objectMapper) {
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, BoundaryService boundaryService, ObjectMapper objectMapper) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
         this.mdmsService = mdmsService;
-        this.projectService = projectService;
         this.boundaryService = boundaryService;
         this.objectMapper = objectMapper;
     }

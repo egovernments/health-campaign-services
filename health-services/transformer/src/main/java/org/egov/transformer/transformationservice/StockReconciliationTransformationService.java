@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
@@ -73,6 +74,7 @@ public class StockReconciliationTransformationService {
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
+        String projectTypeId = null;
 
         if (facility != null && facility.getAddress() != null &&
                 facility.getAddress().getLocality() != null &&
@@ -91,6 +93,12 @@ public class StockReconciliationTransformationService {
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(stockReconciliation.getClientAuditDetails().getCreatedBy(), tenantId);
+
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
