@@ -15,6 +15,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
 
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.*;
 
@@ -28,6 +29,7 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
 
     public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
@@ -123,15 +125,27 @@ public class BoundaryService {
         return boundaries;
     }
 
-    private Map<String, String> getBoundaryCodeToLocalizedNameMap(List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
+    private Map<String, String> getBoundaryCodeToLocalizedNameMap(
+            List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
         Map<String, String> boundaryMap = new HashMap<>();
+
         for (EnrichedBoundary boundary : boundaries) {
-            String boundaryName = getBoundaryNameFromLocalisationService(boundary.getCode(), requestInfo, tenantId);
+            String boundaryCode = boundary.getCode();
+            String boundaryName = boundaryCodeVsLocalizedName.getOrDefault(boundaryCode, null);
+
             if (boundaryName == null) {
-                boundaryName = boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1);
+                boundaryName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId);
+                if (boundaryName == null) {
+                    boundaryName = boundaryCode.substring(boundaryCode.lastIndexOf('_') + 1);
+                }
+                boundaryCodeVsLocalizedName.put(boundaryCode, boundaryName); // Cache the result
+                log.info("Fetched Localization from service for code: {}, value: {}. And put in cache", boundaryCode, boundaryName);
+
             }
+
             boundaryMap.put(boundary.getBoundaryType(), boundaryName);
         }
+
         return boundaryMap;
     }
 

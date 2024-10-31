@@ -1,6 +1,9 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
@@ -28,18 +31,18 @@ public class PGRTransformationService {
     private final Producer producer;
     private final CommonUtils commonUtils;
     private final MdmsService mdmsService;
-    private final ProjectService projectService;
     private final BoundaryService boundaryService;
+    private final ObjectMapper objectMapper;
 
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, BoundaryService boundaryService) {
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, BoundaryService boundaryService, ObjectMapper objectMapper) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
         this.mdmsService = mdmsService;
-        this.projectService = projectService;
         this.boundaryService = boundaryService;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<Service> pgrList) {
@@ -61,6 +64,7 @@ public class PGRTransformationService {
         Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
         String localityCode = null;
+        String projectTypeId = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
                 .map(Service::getAddress)
                 .map(Address::getLocality)
@@ -77,6 +81,14 @@ public class PGRTransformationService {
         service.setApplicationStatus(mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
         service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
 
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
+
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)
                 .userName(userInfoMap.get(USERNAME))
@@ -87,6 +99,7 @@ public class PGRTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
+                .additionalDetails(additionalDetails)
                 .build();
         return pgrIndex;
     }

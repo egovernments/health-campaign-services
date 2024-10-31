@@ -128,6 +128,9 @@ public class StockTransformationService {
         if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
             addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
         }
+        if (!additionalDetails.has(PROJECT_TYPE_ID)) {
+            additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        }
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())

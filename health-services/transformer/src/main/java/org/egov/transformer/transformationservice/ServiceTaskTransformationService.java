@@ -9,6 +9,7 @@ import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
+import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
@@ -18,6 +19,7 @@ import org.egov.transformer.service.ServiceDefinitionService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -58,6 +60,7 @@ public class ServiceTaskTransformationService {
                 .map(ServiceIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
+        filterFinanceChecklists(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -93,6 +96,7 @@ public class ServiceTaskTransformationService {
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
@@ -119,5 +123,42 @@ public class ServiceTaskTransformationService {
                 .geoPoint(geoPoint)
                 .build();
         return serviceIndexV1;
+    }
+
+    public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List){
+        List<String> checklistNames = Arrays.asList(transformerProperties.getFinanceChecklistNameList().split(","));
+        List<ServiceIndexV1> financeChecklistList = serviceIndexV1List.stream()
+                .filter(service -> checklistNames.contains(service.getChecklistName()))
+                .collect(Collectors.toList());
+        financeChecklistList.forEach(
+                f -> {
+                    List<AttributeValue> attributeValues = f.getAttributes();
+                    attributeValues.forEach(
+                            att -> {
+                                if (att.getValue() instanceof Map) {
+                                    Map<String, Object> valueMap = (Map<String, Object>) att.getValue();
+                                    Object valueObj = valueMap.get("value");
+
+                                    if (valueObj instanceof String) {
+                                        Double value = 0.0;
+                                        try {
+                                            value = Double.parseDouble((String) valueObj);
+
+                                            valueMap.put("value", value);
+                                        } catch (NumberFormatException e) {
+                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
+                                            valueMap.put("value", value);
+                                        }
+                                    }
+                                }
+                                att.getValue();
+                            }
+                    );
+                }
+        );
+        String topic = transformerProperties.getTransformerProducerFinanceChecklistIndexV1Topic();
+        if (!CollectionUtils.isEmpty(financeChecklistList)) {
+            producer.push(topic, financeChecklistList);
+        }
     }
 }

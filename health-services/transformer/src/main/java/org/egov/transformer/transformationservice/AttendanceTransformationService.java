@@ -1,5 +1,7 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
@@ -37,17 +39,19 @@ public class AttendanceTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final ObjectMapper objectMapper;
 
     private final CommonUtils commonUtils;
 
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.boundaryService = boundaryService;
+        this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
         this.individualService = individualService;
@@ -101,11 +105,19 @@ public class AttendanceTransformationService {
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
         Individual individual = individualService.getIndividualById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
-        String individualUsername = null;
+        String individualUsername;
+        String projectTypeId = null;
         if(individual.getUserDetails() != null) {
             individualUsername = individual.getUserDetails().getUsername();
             attendanceLog.setUserName(individualUsername);
         }
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
@@ -118,6 +130,7 @@ public class AttendanceTransformationService {
                 .registerNumber(attendanceRegister != null ? attendanceRegister.getRegisterNumber() : null)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
+                .additionalDetails(additionalDetails)
                 .build();
         return attendanceLogIndexV1;
     }
