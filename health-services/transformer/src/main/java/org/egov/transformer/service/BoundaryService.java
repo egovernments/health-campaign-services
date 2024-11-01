@@ -95,7 +95,7 @@ public class BoundaryService {
                 return path;
             }
         }
-        return null;
+        return Collections.emptyList();
     }
 
     private List<EnrichedBoundary> getEnrichedBoundaryPath(EnrichedBoundary enrichedBoundary, String locationCode) {
@@ -124,7 +124,7 @@ public class BoundaryService {
             }
         }
 
-        return null;
+        return Collections.emptyList();
     }
 
 
@@ -185,9 +185,6 @@ public class BoundaryService {
             List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
 
         Map<String, String> boundaryMap = new HashMap<>();
-
-        if (boundaries == null || boundaries.isEmpty())
-            return boundaryMap;
 
         for (EnrichedBoundary boundary : boundaries) {
             String boundaryCode = boundary.getCode();
