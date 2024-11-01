@@ -124,7 +124,7 @@ public class BoundaryService {
             }
         }
 
-        return Collections.emptyList();
+        return null;
     }
 
 
