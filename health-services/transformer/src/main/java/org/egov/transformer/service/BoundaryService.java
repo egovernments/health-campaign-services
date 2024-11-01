@@ -186,6 +186,9 @@ public class BoundaryService {
 
         Map<String, String> boundaryMap = new HashMap<>();
 
+        if (boundaries == null || boundaries.isEmpty())
+            return boundaryMap;
+
         for (EnrichedBoundary boundary : boundaries) {
             String boundaryCode = boundary.getCode();
             String boundaryName = getLocalizedBoundaryName(boundaryCode, requestInfo, tenantId);
