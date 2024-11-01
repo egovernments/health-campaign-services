@@ -72,6 +72,9 @@ public class MdmsService {
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, TRANSFORMER_LOCALIZATIONS, transformerProperties.getTransformerLocalizationsMdmsModule(), "");
         try {
             MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+
+//            TODO null checks has to be set below get mdms module and master because response is not having those
+//            if there no mdms data in that module-master
             transformerLocalizationsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerLocalizationsMdmsModule())
                     .get(TRANSFORMER_LOCALIZATIONS);
             ObjectMapper objectMapper = new ObjectMapper();

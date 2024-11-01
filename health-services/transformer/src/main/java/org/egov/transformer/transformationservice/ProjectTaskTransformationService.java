@@ -102,9 +102,13 @@ public class ProjectTaskTransformationService {
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
                                                                Map<String, String> userInfoMap, String localityCode) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-        List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
-        String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
-
+        List<String> variantList = Optional.ofNullable(taskResource.getProductVariantId())
+                .map(Collections::singletonList)
+                .orElse(new ArrayList<>());
+        String productName = null;
+        if (!variantList.isEmpty()) {
+            productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+        }
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
                 .taskId(task.getId())
