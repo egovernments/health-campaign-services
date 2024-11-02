@@ -191,11 +191,11 @@ public class ServiceTaskTransformationService {
                     attributeValues.forEach(
                             att -> {
                                 String attCode = att.getAttributeCode();
-                                Map<String, Object> valueMap = new HashMap<>();
+                                Map<String, Object> valueMap;
                                 Object valueObj = null;
                                 if (att.getValue() instanceof Map<?, ?>) {
                                     valueMap = (Map<String, Object>) att.getValue();
-                                    valueObj = valueMap.get("value");
+                                    valueObj = valueMap.getOrDefault("value", null);
                                 }
                                 if (specialSprayingNumberValueKeys.containsKey(attCode)) {
                                     double value = 0.0;
@@ -206,7 +206,7 @@ public class ServiceTaskTransformationService {
                                             log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
                                         }
                                     }
-                                    valueMap.put("value", value);
+                                    ss.getAdditionalDetails().put(specialSprayingNumberValueKeys.get(attCode), value);
                                 } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
                                     ss.getAdditionalDetails()
                                             .put(specialSprayingStringValueKeys.get(attCode),
