@@ -209,7 +209,7 @@ public class ServiceTaskTransformationService {
                                     valueMap.put("value", value);
                                 } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
                                     ss.getAdditionalDetails()
-                                            .put(specialSprayingNumberValueKeys.get(attCode),
+                                            .put(specialSprayingStringValueKeys.get(attCode),
                                                     valueObj != null ? valueObj.toString() : "");
                                 }
                             }
