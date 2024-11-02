@@ -207,11 +207,10 @@ public class ServiceTaskTransformationService {
                                         }
                                     }
                                     valueMap.put("value", value);
+                                } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
                                     ss.getAdditionalDetails()
                                             .put(specialSprayingNumberValueKeys.get(attCode),
                                                     valueObj != null ? valueObj.toString() : "");
-                                } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
-                                    ss.getAdditionalDetails().put(specialSprayingStringValueKeys.get(attCode), valueObj.toString());
                                 }
                             }
                     );
