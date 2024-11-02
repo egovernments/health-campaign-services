@@ -157,12 +157,10 @@ public class ServiceTaskTransformationService {
                                         double value = 0.0;
                                         try {
                                             value = Double.parseDouble((String) valueObj);
-
-                                            valueMap.put("value", value);
                                         } catch (NumberFormatException e) {
                                             log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
-                                            valueMap.put("value", value);
                                         }
+                                        valueMap.put("value", value);
                                     }
                                 }
                             }
@@ -199,7 +197,9 @@ public class ServiceTaskTransformationService {
                                 }
                                 if (specialSprayingNumberValueKeys.containsKey(attCode)) {
                                     double value = 0.0;
-                                    if (valueObj instanceof String) {
+                                    if (valueObj instanceof Number) {
+                                        value = ((Number) valueObj).doubleValue();
+                                    } else if (valueObj instanceof String) {
                                         try {
                                             value = Double.parseDouble((String) valueObj);
                                         } catch (NumberFormatException e) {
