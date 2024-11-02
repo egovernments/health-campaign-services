@@ -47,6 +47,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.finance.checklist.index.v1.topic}")
     private String transformerProducerFinanceChecklistIndexV1Topic;
 
+    @Value("${transformer.producer.special.spraying.checklist.index.v1.topic}")
+    private String transformerProducerSpecialSprayingChecklistIndexV1Topic;
+
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
 
@@ -218,4 +221,7 @@ public class TransformerProperties {
 
     @Value("${finance.checklist.index.checklist.names}")
     private String financeChecklistNameList;
+
+    @Value("${special.spraying.checklist.name}")
+    private String specialSprayingChecklistName;
 }
