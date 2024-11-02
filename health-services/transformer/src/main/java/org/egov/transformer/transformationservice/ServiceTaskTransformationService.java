@@ -183,7 +183,7 @@ public class ServiceTaskTransformationService {
 
         String checklistName = transformerProperties.getSpecialSprayingChecklistName();
         List<ServiceIndexV1> specialSprayingChecklists = serviceIndexV1List.stream()
-                .filter(service -> checklistName.contains(service.getChecklistName()))
+                .filter(service -> checklistName.equals(service.getChecklistName()))
                 .collect(Collectors.toList());
         specialSprayingChecklists.forEach(
                 ss -> {
@@ -197,7 +197,7 @@ public class ServiceTaskTransformationService {
                                     valueMap = (Map<String, Object>) att.getValue();
                                     valueObj = valueMap.get("value");
                                 }
-                                if (specialSprayingStringValueKeys.containsKey(attCode)) {
+                                if (specialSprayingNumberValueKeys.containsKey(attCode)) {
                                     double value = 0.0;
                                     if (valueObj instanceof String) {
                                         try {
@@ -208,9 +208,9 @@ public class ServiceTaskTransformationService {
                                     }
                                     valueMap.put("value", value);
                                     ss.getAdditionalDetails()
-                                            .put(specialSprayingStringValueKeys.get(attCode),
+                                            .put(specialSprayingNumberValueKeys.get(attCode),
                                                     valueObj != null ? valueObj.toString() : "");
-                                } else if (specialSprayingNumberValueKeys.containsKey(attCode)) {
+                                } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
                                     ss.getAdditionalDetails().put(specialSprayingStringValueKeys.get(attCode), valueObj.toString());
                                 }
                             }
