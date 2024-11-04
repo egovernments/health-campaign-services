@@ -4,14 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.CampaignUtil;
+import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
 import digit.util.MdmsV2Util;
-import digit.util.CommonUtil;
 import digit.web.models.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
 import digit.web.models.mdmsV2.Mdms;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +17,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -538,13 +537,13 @@ public class PlanConfigurationValidator {
 
         for (Operation operation : planConfiguration.getOperations()) {
             // Validate input
-            if (!allowedColumns.contains(operation.getInput()) && !previousOutputs.contains(operation.getInput())) {
+            if (!allowedColumns.contains(operation.getInput()) && !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
                 log.error("Input Value " + operation.getInput() + " is not present in allowed columns or previous outputs");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
             }
 
             // Add current operation's output to previousOutputs if it's active
-            if (operation.getActive()) {
+            if (operation.getActive() && operation.getSource() == Source.MDMS) {
                 previousOutputs.add(operation.getOutput());
             }
         }
@@ -565,13 +564,13 @@ public class PlanConfigurationValidator {
             String assumptionValue = operation.getAssumptionValue();
 
             // Validate assumption value
-            if (!allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue)) {
+            if (!allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue) && operation.getSource() == Source.MDMS) {
                 log.error("Assumption Value " + assumptionValue + " is not present in allowed columns, previous outputs, or active Assumption Keys");
                 throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + assumptionValue);
             }
 
             // Add current operation's output to previousOutputs if it's active
-            if (operation.getActive()) {
+            if (operation.getActive() && operation.getSource() == Source.MDMS) {
                 previousOutputs.add(operation.getOutput());
             }
         }
