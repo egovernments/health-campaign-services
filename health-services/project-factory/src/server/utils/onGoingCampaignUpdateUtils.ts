@@ -40,7 +40,7 @@ function getCreatedResourceIds(resources: any, type: any) {
 function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   let processedType = type === 'boundary'
     ? 'boundaryWithTarget'
-    : (type === 'boundaryWithTarget' ? type : (type.includes('With') ? type.split('With')[0] : type));
+    : (type === 'boundaryWithtarget' ? type : (type.includes('With') ? type.split('With')[0] : type));
 
   const requestInfo = request?.body
     ? request.body.RequestInfo
