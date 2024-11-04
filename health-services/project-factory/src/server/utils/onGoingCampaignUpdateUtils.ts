@@ -573,8 +573,8 @@ async function getParentAndCurrentFileUrl(mappingObject: any, resource: any, par
   const parentResourceSearchResponse = await getResourceFromResourceId(mappingObject, parentCreateResourceId, parentResource);
   const parentProcessedFileStoreId = parentResourceSearchResponse?.[0]?.processedFilestoreId;
 
-  const createResourceId = resource?.createResourceId ? [resource.createResourceId] : [];
-  const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, createResourceId, resource);
+  const currentCreateResourceId = resource?.createResourceId ? [resource.createResourceId] : [];
+  const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, currentCreateResourceId, resource);
   const currentProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
 
   const currentFileUrl = await getFileUrl(currentProcessedFileStoreId, mappingObject?.CampaignDetails?.tenantId);
@@ -676,7 +676,7 @@ async function addDataToWorkbook(newWorkbook: any, workbook: any, currentFileUrl
 async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource: any) {
   const responseData = await createAndUploadFile(newWorkbook, mappingObject, mappingObject?.CampaignDetails?.tenantId);
   const fileStoreId = responseData?.[0]?.fileStoreId;
-  const resourceDetails = (await getResourceFromResourceId(mappingObject, resource.createResourceId, resource))[0];
+  const resourceDetails = (await getResourceFromResourceId(mappingObject, [resource.createResourceId], resource))[0];
   resourceDetails.processedFilestoreId = fileStoreId;
   resourceDetails.processedFileStoreId = resourceDetails.processedFilestoreId;
   delete resourceDetails.processedFilestoreId;
