@@ -63,16 +63,6 @@ public class WorkflowService {
         if (ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()))
             return;
 
-        String workflowAction = planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction();
-
-        if(workflowAction.equals(APPROVE_CENSUS_DATA_ACTION)) {
-            planConfigurationValidator.validateCensusData(planConfigurationRequest);
-        } else if(workflowAction.equals(FINALIZE_CATCHMENT_MAPPING_ACTION)) {
-            planConfigurationValidator.validateCatchmentMapping(planConfigurationRequest);
-        } else if(workflowAction.equals(APPROVE_ESTIMATIONS_ACTION)) {
-            planConfigurationValidator.validateResourceEstimations(planConfigurationRequest);
-        }
-
         ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(planConfigurationRequest);
         ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
 
