@@ -468,7 +468,7 @@ async function createAndUploadFile(
         undefined,
         {
           "Content-Type": "multipart/form-data",
-          "auth-token": request?.body?.RequestInfo?.authToken,
+          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
         }
       );
 
@@ -975,7 +975,7 @@ async function createRelatedEntity(
       mappingArray.push(mappingObject)
     }
   }
-  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo }
+  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo , parentCampaign: requestBody?.parentCampaign }
   await processMapping(mappingObject)
 }
 

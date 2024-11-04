@@ -5,6 +5,11 @@ import config from "../config/index";
 import { getLocalizedName } from "./campaignUtils";
 import { logger } from "./logger";
 import { callGenerate } from "./generateUtils";
+// import { getCampaignSearchResponse } from "server/api/campaignApis";
+import { getExcelWorkbookFromFileURL, getNewExcelWorkbook } from "./excelUtils";
+import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
+import { searchDataService } from "../service/dataManageService";
+import { produceModifiedMessages } from "../kafka/Producer";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -35,12 +40,16 @@ function getCreatedResourceIds(resources: any, type: any) {
 function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   let processedType = type === 'boundary'
     ? 'boundaryWithTarget'
-    : (type.includes('With') ? type.split('With')[0] : type);
+    : (type === 'boundaryWithtarget' ? type : (type.includes('With') ? type.split('With')[0] : type));
+
+  const requestInfo = request?.body
+    ? request.body.RequestInfo
+    : { RequestInfo: request?.RequestInfo };
   return {
-    RequestInfo: request.body.RequestInfo,
+    RequestInfo: requestInfo,
     SearchCriteria: {
-      id: createdResourceId,
-      tenantId: request?.query?.tenantId,
+      id: [createdResourceId],
+      tenantId: request?.query?.tenantId || request?.CampaignDetails?.tenantId,
       type: processedType
     }
   };
@@ -559,6 +568,219 @@ async function deleteProjectStaffMapping(messageObject: any, projectStaffRespons
 }
 
 
+async function getParentAndCurrentFileUrl(mappingObject: any, resource: any, parentResource: any) {
+  const parentCreateResourceId = parentResource?.createResourceId;
+  const parentResourceSearchResponse = await getResourceFromResourceId(mappingObject, parentCreateResourceId, parentResource);
+  const parentProcessedFileStoreId = parentResourceSearchResponse?.[0]?.processedFilestoreId;
+
+  const createResourceId = resource?.createResourceId;
+  const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, createResourceId, resource);
+  const currentProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
+
+  const currentFileUrl = await getFileUrl(currentProcessedFileStoreId, mappingObject?.CampaignDetails?.tenantId);
+  const parentFileUrl = await getFileUrl(parentProcessedFileStoreId, mappingObject?.CampaignDetails?.tenantId);
+
+  return { currentFileUrl, parentFileUrl };
+}
+
+function findParentResource(resource: any, resourcesArrayFromParentCampaign: any) {
+  return resourcesArrayFromParentCampaign.find(
+    (parentResource: any) => parentResource.type === resource.type
+  );
+}
+
+function copySheet(sourceSheet: any, targetWorkbook: any) {
+  const newSheet = targetWorkbook.addWorksheet(sourceSheet.name);
+
+  sourceSheet.eachRow((row: any, rowNumber: any) => {
+    const newRow = newSheet.getRow(rowNumber);
+    row.eachCell((cell: any, colNumber: any) => {
+      newRow.getCell(colNumber).value = cell.value;
+    });
+    newRow.commit();
+  });
+}
+
+async function getHeadersAccordingToWhichWeReorder(mappingObject: any, parentFileUrl: string, resource: any) {
+  // Retrieve the workbook from the parent file URL
+  const workbook = await getExcelWorkbookFromFileURL(parentFileUrl);
+
+  // Determine the sheet name dynamically based on resource type
+  const headerSourceSheetName: any = resource?.type === 'boundaryWithTarget'
+    ? workbook.worksheets[2]?.name  // Use the third sheet for 'boundaryWithTarget' type
+    : workbook.worksheets[1]?.name; // Use the second sheet for other types
+
+  // Fetch the target sheet data
+  const targetSheetData = await getSheetData(parentFileUrl, headerSourceSheetName, false);
+
+  // Extract headers from the target sheet data
+  let headers: string[] = [];
+  if (Array.isArray(targetSheetData) && targetSheetData.length > 0) {
+    headers = Object.keys(targetSheetData[0]); // Get headers from the first object
+  } else if (typeof targetSheetData === "object" && targetSheetData[headerSourceSheetName]) {
+    const dataArray = targetSheetData[headerSourceSheetName];
+    headers = dataArray?.[0] ? Object.keys(dataArray[0]) : [];
+  }
+
+  return headers;
+}
+
+
+
+async function addDataToWorkbook(newWorkbook: any, workbook: any, currentFileUrl: any, resource: any, headersAccordingToWhichWeReorder: any) {
+  const sourceSheet = workbook.worksheets[1];
+  if (resource?.type === 'boundaryWithTarget') {
+    const boundaryWithTargetSheetData = await getTargetSheetData(currentFileUrl, false, false);
+    const sheetNames = Object.keys(boundaryWithTargetSheetData); // Get sheet names
+    for (let i = 2; i < sheetNames.length; i++) { // Start from index 2 for the third sheet
+      const sheetName = sheetNames[i];
+      const sheetData = boundaryWithTargetSheetData[sheetName];
+
+      // Reorder each row in the current sheet's data
+      const reorderedData = sheetData.map((row: any) => {
+        // Map each header in `targetHeaders` to the corresponding value in `row`,
+        // or set to an empty string if the header is missing
+        return headersAccordingToWhichWeReorder.map((header: any) => row[header] || "");
+      });
+
+      await addConsolidatedDataToSheet(newWorkbook, sheetName, headersAccordingToWhichWeReorder, reorderedData);
+    }
+  } else {
+    // Perform further processing using the filestoreId
+    const sourceSheetData: any = await getSheetData(currentFileUrl, sourceSheet.name, false)
+
+    const reorderedData = sourceSheetData.map((row: any) => {
+      // Map each header in `targetHeaders` to the corresponding value in the row,
+      // or set to an empty string if the header is missing in the row
+      return headersAccordingToWhichWeReorder.map((header: any) => row[header] || "");
+    });
+
+    // addDataToSheet(mappingObject,secondSheet.name,,40,)
+
+    await addConsolidatedDataToSheet(newWorkbook, sourceSheet.name, headersAccordingToWhichWeReorder, reorderedData);
+
+
+    const newThirdSheet = newWorkbook.addWorksheet(workbook.worksheets[2].name);
+
+    workbook.worksheets[2].eachRow((row: any, rowNumber: any) => {
+      const newRow = newThirdSheet.getRow(rowNumber);
+      row.eachCell((cell: any, colNumber: any) => {
+        newRow.getCell(colNumber).value = cell.value; // Copy cell value
+      });
+      newRow.commit(); // Commit the row to finalize it in the new sheet
+    });
+  }
+}
+
+
+async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource: any) {
+  const responseData = await createAndUploadFile(newWorkbook, mappingObject, mappingObject?.CampaignDetails?.tenantId);
+  const fileStoreId = responseData?.[0]?.fileStoreId;
+  const resourceDetails = (await getResourceFromResourceId(mappingObject, resource.createResourceId, resource))[0];
+  resourceDetails.processedFilestoreId = fileStoreId;
+  resourceDetails.processedFileStoreId = resourceDetails.processedFilestoreId;
+  delete resourceDetails.processedFilestoreId;
+
+  const persistMessage: any = { ResourceDetails: resourceDetails };
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+}
+
+
+
+
+async function processIndividualResource(mappingObject: any, resource: any, resourcesArrayFromParentCampaign: any) {
+  const newWorkbook = getNewExcelWorkbook();
+  const parentResource = findParentResource(resource, resourcesArrayFromParentCampaign);
+  const fileUrls = await getParentAndCurrentFileUrl(mappingObject, resource, parentResource);
+
+  const workbook = await getExcelWorkbookFromFileURL(fileUrls.currentFileUrl);
+  copySheet(workbook.worksheets[0], newWorkbook); // Copy first sheet to new workbook
+
+  if (resource?.type === 'boundaryWithTarget') {
+    copySheet(workbook.worksheets[1], newWorkbook); // Copy second sheet if `boundaryWithTarget`
+  }
+
+  const headersAccordingToWhichWeReorder = await getHeadersAccordingToWhichWeReorder(mappingObject, fileUrls.parentFileUrl, resource);
+  await addDataToWorkbook(newWorkbook, workbook, fileUrls?.currentFileUrl, resource, headersAccordingToWhichWeReorder);
+
+  await finalizeAndUpload(newWorkbook, mappingObject, resource);
+}
+
+
+function mergeParentResources(mappingObject: any, resources: any[], resourcesArrayFromParentCampaign: any[]) {
+  for (const resource of resourcesArrayFromParentCampaign) {
+    if (!resources.some((r: any) => r.type === resource.type)) {
+      resources.push(resource);
+    }
+  }
+  mappingObject.CampaignDetails.resources = resources;
+}
+
+async function processResources(mappingObject: any) {
+
+  const resources = mappingObject?.CampaignDetails?.resources;
+  const resourcesArrayFromParentCampaign = mappingObject?.parentCampaign?.resources;
+
+  for (const resource of resources) {
+    try {
+      await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
+    } catch (error: any) {
+      throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
+        `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
+    }
+  }
+
+  mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
+}
+
+async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
+  const searchCriteria = buildSearchCriteria(mappingObject, createResourceId, resource?.type);
+  const requestBody = replicateRequest(mappingObject, searchCriteria);
+  const responseFromDataSearch = await searchDataService(requestBody);
+  return responseFromDataSearch;
+}
+
+
+async function addConsolidatedDataToSheet(workbook: any, sheetName: string, targetHeaders: string[], reorderedData: any[]) {
+  // Get or create a worksheet
+  let sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) {
+    sheet = workbook.addWorksheet(sheetName);
+  }
+
+  // Set headers in the first row
+  sheet.addRow(targetHeaders);
+
+  // Add each modified row to the sheet
+  reorderedData.forEach(row => {
+    sheet.addRow(row);
+  });
+
+
+  // Optionally, auto-fit columns to content
+  sheet.columns.forEach((column: any) => {
+    column.width = Math.max(...column.values.map((value: any) => (value ? value.toString().length : 10))) + 2;
+  });
+}
+
+
+async function getFileUrl(fileStoreId: any, tenantId: any) {
+  const fileResponse = await httpRequest(
+    `${config.host.filestore}${config.paths.filestore}/url`,
+    {},
+    { tenantId, fileStoreIds: fileStoreId },
+    "get"
+  );
+
+  if (!fileResponse || !fileResponse.fileStoreIds || !fileResponse.fileStoreIds[0] || !fileResponse.fileStoreIds[0].url) {
+    throwError("FILE", 400, "INVALID_FILE");
+  } else {
+    return fileResponse.fileStoreIds[0].url;
+  }
+}
+
+
+
 
 export {
   getParentCampaignObject,
@@ -579,5 +801,6 @@ export {
   getBoundaryProjectMappingFromParentCampaign,
   fetchProjectFacilityWithProjectId,
   fetchProjectsWithBoundaryCodeAndName,
-  delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary
+  delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
+  processResources
 }

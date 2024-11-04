@@ -10,7 +10,7 @@ import { createCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
-import { delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary } from "./onGoingCampaignUpdateUtils";
+import { delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -302,7 +302,8 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     return {
         RequestInfo: messageObject?.RequestInfo,
         Campaign: Campaign,
-        CampaignDetails: messageObject?.CampaignDetails
+        CampaignDetails: messageObject?.CampaignDetails,
+        parentCampaign : messageObject?.parentCampaign
     }
 }
 
@@ -507,6 +508,9 @@ export async function processMapping(mappingObject: any) {
         }
         logger.info("Mapping completed successfully for campaign: " + mappingObject?.CampaignDetails?.id);
         mappingObject.CampaignDetails.status = campaignStatuses.inprogress
+        if (mappingObject.CampaignDetails.parentId) {
+            await processResources(mappingObject);
+        }
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
         }
