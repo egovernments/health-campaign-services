@@ -1,48 +1,25 @@
 package org.egov.processor.util;
 
-import static org.egov.processor.config.ServiceConstants.PROPERTIES;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.service.ExcelParser;
 import org.egov.processor.web.models.File;
-import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.ResourceMapping;
-import org.egov.processor.web.models.campaignManager.Boundary;
-import org.egov.processor.web.models.campaignManager.CampaignDetails;
-import org.egov.processor.web.models.campaignManager.CampaignRequest;
-import org.egov.processor.web.models.campaignManager.CampaignResources;
-import org.egov.processor.web.models.campaignManager.CampaignResponse;
-import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
+import org.egov.processor.web.models.campaignManager.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.Map.Entry;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
 @Slf4j
@@ -283,5 +260,31 @@ public class CampaignIntegrationUtil {
 		return CampaignSearchRequest.builder().requestInfo(planConfigurationRequest.getRequestInfo())
 				.campaignDetails(CampaignDetails.builder().ids(id).tenantId(planConfig.getTenantId()).build()).build();
 
+	}
+
+	/**
+	 * Parses an object representing campaign response into a CampaignResponse object.
+	 *
+	 * @param campaignResponse The object representing campaign response to be parsed.
+	 * @return CampaignResponse object parsed from the campaignResponse.
+	 */
+    public CampaignResponse parseCampaignResponse(Object campaignResponse) {
+		CampaignResponse campaign = null;
+		campaign = mapper.convertValue(campaignResponse, CampaignResponse.class);
+		return campaign;
+	}
+
+	public JsonNode createAdditionalDetailsforFacilityCreate(String source, String microplanId) {
+		try {
+			// Create a map to hold the additional details
+			Map<String, String> additionalDetailsMap = new HashMap<>();
+			additionalDetailsMap.put(SOURCE_KEY, source);
+			additionalDetailsMap.put(MICROPLAN_ID_KEY, microplanId);
+
+			// Convert the map to a JsonNode
+			return mapper.valueToTree(additionalDetailsMap);
+		} catch (Exception e) {
+			throw new CustomException(UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE, UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE);// Or throw a custom exception
+		}
 	}
 }

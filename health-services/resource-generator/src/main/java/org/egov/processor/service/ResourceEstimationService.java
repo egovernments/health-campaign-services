@@ -1,9 +1,7 @@
 package org.egov.processor.service;
 
 
-import java.util.HashMap;
-import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
@@ -11,10 +9,16 @@ import org.egov.processor.util.CampaignIntegrationUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
+import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
+import org.egov.processor.web.models.campaignManager.ResourceDetails;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Service
 @Slf4j
@@ -49,6 +53,7 @@ public class ResourceEstimationService {
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
         Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
         processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
+		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
     }
 
     /**
@@ -108,5 +113,27 @@ public class ResourceEstimationService {
 
         return parserMap;
     }
+
+	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, Object campaignResponseObject) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+		CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
+		String facilityFilestoreId = String.valueOf(planConfig.getFiles().stream()
+				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
+				.map(File::getFilestoreId)
+				.findFirst()
+				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
+
+		ResourceDetails.builder()
+				.type(TYPE_FACILITY)
+				.hierarchyType(campaignResponse.getCampaign().get(0).getHierarchyType())
+				.tenantId(planConfig.getTenantId())
+				.fileStoreId(facilityFilestoreId)
+				.action(ACTION_CREATE)
+				.campaignId(planConfig.getCampaignId())
+				.additionalDetails(campaignIntegrationUtil.createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
+				.build();
+
+	}
+
 }
 
