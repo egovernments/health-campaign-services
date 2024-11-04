@@ -38,6 +38,7 @@ export const CONSTANTS: any = {
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
             PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
+            RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow "
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

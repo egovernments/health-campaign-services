@@ -18,7 +18,7 @@ const getNewExcelWorkbook = () => {
 // Function to retrieve workbook from Excel file URL and sheet name
 const getExcelWorkbookFromFileURL = async (
   fileUrl: string,
-  sheetName: string
+  sheetName?: string
 ) => {
   // Define headers for HTTP request
   const headers = {
@@ -42,16 +42,18 @@ const getExcelWorkbookFromFileURL = async (
   await workbook.xlsx.load(responseFile);
   logger.info("workbook created based on the fileresponse");
 
-  // Check if the specified sheet exists in the workbook
-  const worksheet = workbook.getWorksheet(sheetName);
 
-  if (sheetName && !worksheet) {
-    throwError(
-      "FILE",
-      400,
-      "INVALID_SHEETNAME",
-      `Sheet with name "${sheetName}" is not present in the file.`
-    );
+  if (sheetName) {
+    // Check if the specified sheet exists in the workbook
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) {
+      throwError(
+        "FILE",
+        400,
+        "INVALID_SHEETNAME",
+        `Sheet with name "${sheetName}" is not present in the file.`
+      );
+    }
   }
 
   // Return the workbook
