@@ -212,12 +212,22 @@ public class PlanFacilityValidator {
      * @param planFacilityRequest
      */
     private void validatePlanFacilityExistence(PlanFacilityRequest planFacilityRequest) {
-        // If plan facility id provided is invalid, throw an exception
-        if (CollectionUtils.isEmpty(planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
+        List<PlanFacility> planFacilityListFromSearch = planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
                 .ids(Collections.singleton(planFacilityRequest.getPlanFacility().getId()))
-                .build()))) {
+                .build());
+
+        // If plan facility id provided is invalid, throw an exception
+        if (CollectionUtils.isEmpty(planFacilityListFromSearch)) {
             throw new CustomException(INVALID_PLAN_FACILITY_ID_CODE, INVALID_PLAN_FACILITY_ID_MESSAGE);
         }
+
+        enrichInitialServiceBoundaries(planFacilityListFromSearch, planFacilityRequest);
+    }
+
+    private void enrichInitialServiceBoundaries(List<PlanFacility> planFacilityListFromSearch, PlanFacilityRequest planFacilityRequest) {
+
+        List<String> initiallySetServiceBoundaries = planFacilityListFromSearch.get(0).getServiceBoundaries();
+        planFacilityRequest.getPlanFacility().setInitiallySetServiceBoundaries(initiallySetServiceBoundaries);
     }
 
     /**
