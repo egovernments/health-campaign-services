@@ -1,5 +1,6 @@
 package digit.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.web.models.CensusSearchCriteria;
@@ -9,9 +10,11 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.workflow.BusinessService;
 import org.egov.common.contract.workflow.State;
 import org.egov.tracer.model.CustomException;
+import org.postgresql.util.PGobject;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.SQLException;
 import java.util.*;
 
 import static digit.config.ServiceConstants.*;
@@ -105,5 +108,22 @@ public class CommonUtil {
                 .map(State::getState)
                 .filter(state -> !ObjectUtils.isEmpty(state))
                 .toList();
+    }
+
+    public PGobject convertToPgObject(Object additionalDetails) {
+        PGobject pGobject = new PGobject();
+
+        try {
+            String json = objectMapper.writeValueAsString(additionalDetails);
+
+            pGobject.setType("jsonb");
+            pGobject.setValue(json);
+        } catch (JsonProcessingException e) {
+            log.error("Error while processing JSON object to string", e);
+        } catch (SQLException e) {
+            log.error("Error while setting JSONB object", e);
+        }
+
+        return pGobject;
     }
 }

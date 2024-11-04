@@ -9,12 +9,10 @@ import digit.repository.rowmapper.StatusCountRowMapper;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
-import org.postgresql.util.PGobject;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -137,6 +135,8 @@ public class CensusRepositoryImpl implements CensusRepository {
                     census.getAssignee(),
                     census.getAuditDetails().getLastModifiedBy(),
                     census.getAuditDetails().getLastModifiedTime(),
+                    commonUtil.convertToPgObject(census.getAdditionalDetails()),
+                    census.getFacilityAssigned(),
                     census.getId()
         }).toList();
 
