@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.repository.CensusRepository;
 import digit.service.CensusService;
 import digit.util.CommonUtil;
+import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
-import digit.web.models.CensusRequest;
 import digit.web.models.CensusResponse;
 import digit.web.models.plan.PlanFacilityDTO;
 import digit.web.models.plan.PlanFacilityRequestDTO;
@@ -30,12 +30,15 @@ public class FacilityCatchmentConsumer {
 
     private CensusService service;
 
+    private CensusRepository repository;
+
     private CommonUtil commonUtil;
 
-    public FacilityCatchmentConsumer(ObjectMapper objectMapper, CensusService service, CommonUtil commonUtil) {
+    public FacilityCatchmentConsumer(ObjectMapper objectMapper, CensusService service, CommonUtil commonUtil, CensusRepository repository) {
         this.objectMapper = objectMapper;
         this.service = service;
         this.commonUtil = commonUtil;
+        this.repository = repository;
     }
 
     @KafkaListener(topics = {"${plan.facility.update.topic}"})
@@ -52,25 +55,26 @@ public class FacilityCatchmentConsumer {
             Set<String> boundariesWithFacility = new HashSet<>(List.of(planFacilityDTO.getServiceBoundaries().split(",")));
             Set<String> boundariesWithNoFacility = new HashSet<>(planFacilityDTO.getInitiallySetServiceBoundaries());
 
-            // Unassigning facilities to the boundaries which were initially assigned that facility
-            censusFromSearch.stream()
-                    .filter(census -> boundariesWithNoFacility.contains(census.getBoundaryCode()))
-                    .forEach(census -> {
-                        census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD));
-                        census.setFacilityAssigned(Boolean.FALSE);
-                        census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
-                        service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
-                    });
+            censusFromSearch.forEach(census -> {
+                String boundaryCode = census.getBoundaryCode();
 
-            // Assigning facilities to the boundaries in the update request.
-            censusFromSearch.stream()
-                    .filter(census -> boundariesWithFacility.contains(census.getBoundaryCode()))
-                    .forEach(census -> {
-                        census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
-                        census.setFacilityAssigned(Boolean.TRUE);
-                        census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
-                        service.update(CensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(census).build());
-                    });
+                if (!boundariesWithFacility.contains(boundaryCode)) {
+
+                    // Unassigning facilities to the boundaries which were initially assigned that facility
+                    census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD));
+                    census.setFacilityAssigned(Boolean.FALSE);
+                    census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
+
+                } else if (!boundariesWithNoFacility.contains(boundaryCode)) {
+
+                    // Assigning facilities to the newly added boundaries in the update request.
+                    census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
+                    census.setFacilityAssigned(Boolean.TRUE);
+                    census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
+                }
+            });
+
+            repository.bulkUpdate(BulkCensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(censusFromSearch).build());
 
         } catch (Exception exception) {
             log.error("Error in census consumer", exception);

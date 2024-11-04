@@ -135,6 +135,8 @@ public class CensusRepositoryImpl implements CensusRepository {
                 census.getAssignee(),
                 census.getAuditDetails().getLastModifiedBy(),
                 census.getAuditDetails().getLastModifiedTime(),
+                census.getAdditionalDetails(),
+                census.getFacilityAssigned(),
                 census.getId()
         }).toList();
 

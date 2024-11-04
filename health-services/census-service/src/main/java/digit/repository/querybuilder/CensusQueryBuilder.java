@@ -33,7 +33,7 @@ public class CensusQueryBuilder {
 
     private static final String CENSUS_STATUS_COUNT_WRAPPER = "SELECT COUNT(census_id) as census_status_count, census_status FROM ({INTERNAL_QUERY}) as census_status_map GROUP BY census_status";
 
-    private static final String BULK_CENSUS_UPDATE_QUERY = "UPDATE census SET status = ?, assignee = ?, last_modified_by = ?, last_modified_time = ? WHERE id = ?";
+    private static final String BULK_CENSUS_UPDATE_QUERY = "UPDATE census SET status = ?, assignee = ?, last_modified_by = ?, last_modified_time = ?, additional_details = ?, facility_assigned = ? WHERE id = ?";
 
     /**
      * Constructs a SQL query string for searching Census records based on the provided search criteria.

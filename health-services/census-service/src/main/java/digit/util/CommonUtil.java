@@ -75,7 +75,9 @@ public class CommonUtil {
      * @return
      */
     public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary, List<String> initiallySetServiceBoundaries, RequestInfo requestInfo) {
-        Set<String> areaCodesForSearch = new HashSet<>(Arrays.asList(serviceBoundary.split(",")));
+        Set<String> areaCodesForSearch = new HashSet<>();
+
+        areaCodesForSearch.addAll(Arrays.asList(serviceBoundary.split(",")));
         areaCodesForSearch.addAll(initiallySetServiceBoundaries);
 
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
