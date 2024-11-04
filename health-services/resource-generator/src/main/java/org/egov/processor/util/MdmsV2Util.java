@@ -1,18 +1,23 @@
-package digit.util;
+package org.egov.processor.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.config.Configuration;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.processor.config.Configuration;
+import org.egov.processor.web.models.mdmsV2.Mdms;
+import org.egov.processor.web.models.mdmsV2.MdmsCriteriaReqV2;
+import org.egov.processor.web.models.mdmsV2.MdmsCriteriaV2;
+import org.egov.processor.web.models.mdmsV2.MdmsResponseV2;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
-import digit.web.models.mdmsV2.*;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 
-import static digit.config.ServiceConstants.*;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Component
@@ -22,13 +27,13 @@ public class MdmsV2Util {
 
     private ObjectMapper objectMapper;
 
-    private Configuration configs;
+    private Configuration config;
 
-    public MdmsV2Util(RestTemplate restTemplate, ObjectMapper objectMapper, Configuration configs)
+    public MdmsV2Util(RestTemplate restTemplate, ObjectMapper objectMapper, Configuration config)
     {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
-        this.configs = configs;
+        this.config = config;
     }
 
     public List<Mdms> fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
@@ -54,7 +59,7 @@ public class MdmsV2Util {
     private StringBuilder getMdmsV2Uri()
     {
         StringBuilder uri = new StringBuilder();
-        return uri.append(configs.getMdmsHost()).append(configs.getMdmsV2EndPoint());
+        return uri.append(config.getMdmsHost()).append(config.getMdmsV2EndPoint());
     }
 
     private MdmsCriteriaReqV2 getMdmsV2Request(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
@@ -62,11 +67,9 @@ public class MdmsV2Util {
         MdmsCriteriaV2 mdmsCriteriaV2 = MdmsCriteriaV2.builder()
                 .tenantId(tenantId)
                 .schemaCode(schemaCode)
-                .limit(configs.getDefaultLimit())
-                .offset(configs.getDefaultOffset()).build();
-
-        if(!ObjectUtils.isEmpty(uniqueIdentifier))
-            mdmsCriteriaV2.setUniqueIdentifiers(Collections.singletonList(uniqueIdentifier));
+                .uniqueIdentifiers(Collections.singletonList(uniqueIdentifier))
+                .limit(config.getDefaultLimit())
+                .offset(config.getDefaultOffset()).build();
 
         return MdmsCriteriaReqV2.builder()
                 .requestInfo(requestInfo)
