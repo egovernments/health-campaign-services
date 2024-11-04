@@ -1,4 +1,4 @@
-package digit.web.models;
+package org.egov.processor.web.models;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -45,7 +45,7 @@ public class Operation {
 
     @JsonProperty("output")
     @NotNull
-    @Size(min = 1, max = 256)
+    @Size(min = 1, max = 64)
     private String output = null;
 
     @JsonProperty("showOnEstimationDashboard")

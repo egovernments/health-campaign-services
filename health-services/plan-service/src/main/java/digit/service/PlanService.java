@@ -2,10 +2,8 @@ package digit.service;
 
 import digit.repository.PlanRepository;
 import digit.service.workflow.WorkflowService;
-import digit.web.models.Plan;
-import digit.web.models.PlanRequest;
-import digit.web.models.PlanResponse;
-import digit.web.models.PlanSearchRequest;
+import digit.web.models.*;
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
@@ -70,7 +68,7 @@ public class PlanService {
         Integer count = planRepository.count(body.getPlanSearchCriteria());
 
         // Get the status count of plans for given search criteria
-        Map<String, Integer> statusCountMap = planRepository.statusCount(body.getPlanSearchCriteria());
+        Map<String, Integer> statusCountMap = planRepository.statusCount(body);
 
         // Build and return response back to controller
         return PlanResponse.builder()
@@ -103,6 +101,27 @@ public class PlanService {
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(Collections.singletonList(body.getPlan()))
+                .build();
+    }
+
+    /**
+     * This method processes bulk update requests for plan.
+     * @param bulkPlanRequest
+     * @return
+     */
+    public PlanResponse bulkUpdate(BulkPlanRequest bulkPlanRequest) {
+        // Validate bulk plan update request
+        planValidator.validateBulkPlanUpdate(bulkPlanRequest);
+
+        // Call workflow transition for updating status and assignee
+        workflowService.invokeWorkflowForStatusUpdate(bulkPlanRequest);
+
+        // Delegate bulk update request to repository
+        planRepository.bulkUpdate(bulkPlanRequest);
+
+        // Build and return response back to controller
+        return PlanResponse.builder().responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(bulkPlanRequest.getRequestInfo(), Boolean.TRUE))
+                .plan(bulkPlanRequest.getPlans())
                 .build();
     }
 }
