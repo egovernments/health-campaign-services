@@ -1026,7 +1026,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
-        await validateParent(request, actionInUrl);
+        await validateParent(request, actionInUrl)
         validateBoundariesIfParentPresent(request);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
