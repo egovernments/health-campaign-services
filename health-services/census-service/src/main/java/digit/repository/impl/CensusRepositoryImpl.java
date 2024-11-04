@@ -132,25 +132,12 @@ public class CensusRepositoryImpl implements CensusRepository {
         String bulkCensusUpdateQuery = queryBuilder.getBulkCensusQuery();
 
         // Prepare rows for bulk update
-        List<Object[]> rows = request.getCensus().stream().map(census -> {
-
-            PGobject jsonObject = new PGobject();
-            jsonObject.setType("jsonb");
-            try {
-                jsonObject.setValue(census.getAdditionalDetails().toString());  // Convert ObjectNode to JSON string
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-
-            return new Object[] {
+        List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
                     census.getStatus(),
                     census.getAssignee(),
                     census.getAuditDetails().getLastModifiedBy(),
                     census.getAuditDetails().getLastModifiedTime(),
-                    jsonObject, // Pass PGobject instead of plain string
-                    census.getFacilityAssigned(),
                     census.getId()
-            };
         }).toList();
 
         // Perform bulk update
