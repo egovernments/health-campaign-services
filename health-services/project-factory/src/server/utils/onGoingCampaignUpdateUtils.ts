@@ -48,7 +48,7 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   return {
     RequestInfo: requestInfo,
     SearchCriteria: {
-      id: [createdResourceId],
+      id: createdResourceId,
       tenantId: request?.query?.tenantId || request?.CampaignDetails?.tenantId,
       type: processedType
     }
@@ -569,11 +569,11 @@ async function deleteProjectStaffMapping(messageObject: any, projectStaffRespons
 
 
 async function getParentAndCurrentFileUrl(mappingObject: any, resource: any, parentResource: any) {
-  const parentCreateResourceId = parentResource?.createResourceId;
+  const parentCreateResourceId = parentResource?.createResourceId ? [parentResource.createResourceId] : [];
   const parentResourceSearchResponse = await getResourceFromResourceId(mappingObject, parentCreateResourceId, parentResource);
   const parentProcessedFileStoreId = parentResourceSearchResponse?.[0]?.processedFilestoreId;
 
-  const createResourceId = resource?.createResourceId;
+  const createResourceId = resource?.createResourceId ? [resource.createResourceId] : [];
   const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, createResourceId, resource);
   const currentProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
 
