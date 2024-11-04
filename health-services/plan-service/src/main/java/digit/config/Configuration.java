@@ -94,9 +94,6 @@ public class Configuration {
     @Value("${egov.facility.search.endpoint}")
     private String facilitySearchEndPoint;
 
-    @Value("${boundary.facility.catchment.update.topic}")
-    private String boundaryCatchmentUpdateTopic;
-
     //Workflow
     @Value("${egov.workflow.host}")
     private String wfHost;
