@@ -103,6 +103,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
                 .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
                 .employeeId(planEmployeeAssignment.getEmployeeId())
                 .role(planEmployeeAssignment.getRole())
+                .planConfigurationName(planEmployeeAssignment.getPlanConfigurationName())
                 .hierarchyLevel(planEmployeeAssignment.getHierarchyLevel())
                 .jurisdiction(String.join(",", planEmployeeAssignment.getJurisdiction()))
                 .additionalDetails(planEmployeeAssignment.getAdditionalDetails())

@@ -36,6 +36,9 @@ public class PlanFacilityDTO {
     @Size(max = 64)
     private String planConfigurationId = null;
 
+    @JsonProperty("planConfigurationName")
+    private String planConfigurationName = null;
+
     @JsonProperty("facilityId")
     @NotNull
     @Size(max = 64)

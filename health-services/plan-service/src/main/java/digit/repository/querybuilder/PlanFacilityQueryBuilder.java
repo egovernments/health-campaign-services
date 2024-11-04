@@ -26,6 +26,7 @@ public class PlanFacilityQueryBuilder {
             "SELECT plan_facility_linkage.id as plan_facility_id, " +
                     "plan_facility_linkage.tenant_id as plan_facility_tenant_id, " +
                     "plan_facility_linkage.plan_configuration_id as plan_facility_plan_configuration_id, " +
+                    "plan_facility_linkage.plan_configuration_name as plan_facility_plan_configuration_name, " +
                     "plan_facility_linkage.facility_id as plan_facility_facility_id, " +
                     "plan_facility_linkage.residing_boundary as plan_facility_residing_boundary, " +
                     "plan_facility_linkage.service_boundaries as plan_facility_service_boundaries, " +
@@ -66,6 +67,12 @@ public class PlanFacilityQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ? ");
             preparedStmtList.add(planFacilitySearchCriteria.getPlanConfigurationId());
+        }
+
+        if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getPlanConfigurationName())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_name = ? ");
+            preparedStmtList.add(planFacilitySearchCriteria.getPlanConfigurationName());
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityId())) {

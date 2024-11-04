@@ -18,9 +18,9 @@ public class PlanEmployeeAssignmentQueryBuilder {
         this.queryUtil = queryUtil;
     }
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, plan_configuration_name, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (plan_configuration_id) id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (plan_configuration_id) id, tenant_id, plan_configuration_id, plan_configuration_name, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
@@ -84,6 +84,12 @@ public class PlanEmployeeAssignmentQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ?");
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
+        }
+
+        if (searchCriteria.getPlanConfigurationName() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_name = ?");
+            preparedStmtList.add(searchCriteria.getPlanConfigurationName());
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {

@@ -1,9 +1,7 @@
 package digit.service.enrichment;
 
-import digit.web.models.PlanFacility;
-import digit.web.models.PlanFacilityRequest;
-import digit.web.models.PlanFacilitySearchCriteria;
-import digit.web.models.PlanFacilitySearchRequest;
+import digit.util.CommonUtil;
+import digit.web.models.*;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
@@ -13,6 +11,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static digit.config.ServiceConstants.*;
@@ -21,6 +20,12 @@ import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetai
 @Component
 @Slf4j
 public class PlanFacilityEnricher {
+
+    private CommonUtil commonUtil;
+
+    public PlanFacilityEnricher(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
+    }
 
     /**
      * Enriches the plan facility create request
@@ -39,6 +44,8 @@ public class PlanFacilityEnricher {
         //Set Active
         planFacilityRequest.getPlanFacility().setActive(Boolean.TRUE);
 
+        // Add plan config name to which the facility is mapped
+        enrichWithPlanConfigName(planFacilityRequest.getPlanFacility());
     }
 
     /**
@@ -81,5 +88,21 @@ public class PlanFacilityEnricher {
 
         if(!CollectionUtils.isEmpty(filtersMap))
             planFacilitySearchCriteria.setFiltersMap(filtersMap);
+    }
+
+    /**
+     * This method enriches the plan facility object with the planConfigName to which facility is mapped.
+     *
+     * @param planFacility the object to be enriched
+     */
+    private void enrichWithPlanConfigName(PlanFacility planFacility) {
+
+        String planConfigName = getPlanConfigNameById(planFacility.getPlanConfigurationId(), planFacility.getTenantId());
+        planFacility.setPlanConfigurationName(planConfigName);
+    }
+
+    private String getPlanConfigNameById(String planConfigId, String tenantId) {
+        List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planConfigId, tenantId);
+        return planConfigurations.get(0).getName();
     }
 }

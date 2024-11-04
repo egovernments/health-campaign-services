@@ -70,28 +70,14 @@ public class PlanEmployeeAssignmentEnricher {
     }
 
     /**
-     * This method enriches the additional details of plan employee assignment object with the planConfigName to which employee is mapped.
+     * This method enriches the plan employee assignment object with the planConfigName to which employee is mapped.
      *
-     * @param planEmployeeAssignment the object whose additional details is to be enriched
+     * @param planEmployeeAssignment the object to be enriched
      */
     private void enrichWithPlanConfigName(PlanEmployeeAssignment planEmployeeAssignment) {
 
         String planConfigName = getPlanConfigNameById(planEmployeeAssignment.getPlanConfigurationId(), planEmployeeAssignment.getTenantId());
-
-        try {
-
-            // Get or create the additionalDetails as an ObjectNode
-            ObjectNode objectNode = objectMapper.convertValue(planEmployeeAssignment.getAdditionalDetails(), ObjectNode.class);
-
-            // Update or Add the field in additional details object
-            objectNode.put(PLAN_CONFIG_NAME_FIELD, planConfigName);
-
-            // Set the updated additionalDetails back into the planEmployeeAssignment
-            planEmployeeAssignment.setAdditionalDetails(objectMapper.convertValue(objectNode, Map.class));
-
-        } catch (Exception e) {
-            throw new CustomException(ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_ENRICHING_ADDITIONAL_DETAILS_MESSAGE);
-        }
+        planEmployeeAssignment.setPlanConfigurationName(planConfigName);
     }
 
     private String getPlanConfigNameById(String planConfigId, String tenantId) {
