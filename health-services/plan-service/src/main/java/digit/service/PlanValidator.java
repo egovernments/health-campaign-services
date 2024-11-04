@@ -500,26 +500,28 @@ public class PlanValidator {
         if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
             throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
 
-        validateJurisdictionPresent(planRequest, planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
-
-        //enrich jurisdiction of current assignee
-        planRequest.getPlan().setAssigneeJurisdiction(planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+        validateJurisdiction(planRequest.getPlan(),
+                planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
     }
 
     /**
      * Validates that at least one jurisdiction exists within the hierarchy's boundary codes.
      * If no jurisdiction is found in the boundary set, throws a custom exception.
      *
-     * @param planRequest the request containing the boundary ancestral path
+     * @param plan the plan containing the boundary ancestral path
      * @param jurisdictions the list of jurisdictions to check against the boundary set
      * @throws CustomException if none of the jurisdictions are present in the boundary codes
      */
-    public void validateJurisdictionPresent(PlanRequest planRequest, List<String> jurisdictions) {
-        Set<String> boundarySet = new HashSet<>(Arrays.asList(planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX)));
+    public void validateJurisdiction(Plan plan, List<String> jurisdictions) {
+        Set<String> boundarySet = new HashSet<>(Arrays.asList(plan.getBoundaryAncestralPath()
+                .split(PIPE_REGEX)));
 
         // Check if any jurisdiction is present in the boundary set
         if (jurisdictions.stream().noneMatch(boundarySet::contains))
             throw new CustomException(JURISDICTION_NOT_FOUND_CODE, JURISDICTION_NOT_FOUND_MESSAGE);
+
+        // Enrich jurisdiction of current assignee
+        plan.setAssigneeJurisdiction(jurisdictions);
 
     }
 
@@ -543,5 +545,121 @@ public class PlanValidator {
             planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
     }
 
+    /**
+     * TODO - 1. plan existence 2. plan employee assignment 3. uniqueness check across records
+     * @param bulkPlanRequest
+     */
+    public void validateBulkPlanUpdate(BulkPlanRequest bulkPlanRequest) {
+        // Validate attributes across each plan in the bulk request
+        validatePlanAttributes(bulkPlanRequest);
 
+        // Validate if plans provided in the request body exist
+        validatePlanExistence(bulkPlanRequest);
+
+        // Validate plan employee assignment and jurisdiction
+        validatePlanEmployeeAssignmentAndJurisdiction(bulkPlanRequest);
+    }
+
+    /**
+     *
+     * @param bulkPlanRequest
+     */
+    private void validatePlanEmployeeAssignmentAndJurisdiction(BulkPlanRequest bulkPlanRequest) {
+        // Prepare plan employee assignment search criteria
+        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
+                .builder()
+                .tenantId(bulkPlanRequest.getPlans().get(0).getTenantId())
+                .employeeId(Collections.singletonList(bulkPlanRequest.getRequestInfo().getUserInfo().getUuid()))
+                .planConfigurationId(bulkPlanRequest.getPlans().get(0).getPlanConfigurationId())
+                .role(config.getPlanEstimationApproverRoles())
+                .build();
+
+        // Fetch plan employee assignment
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
+                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                .requestInfo(bulkPlanRequest.getRequestInfo())
+                .build());
+
+        // Throw exception if the employee taking action is not a part of plan
+        if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment())) {
+            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE,
+                    PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE);
+        }
+
+        // Validate jurisdiction for each plan
+        bulkPlanRequest.getPlans().forEach(plan -> validateJurisdiction(plan,
+                planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction()));
+
+    }
+
+    /**
+     *
+     * @param bulkPlanRequest
+     */
+    private void validatePlanAttributes(BulkPlanRequest bulkPlanRequest) {
+        if(bulkPlanRequest.getPlans().stream().map(Plan :: getId).collect(Collectors.toSet()).size()
+                != bulkPlanRequest.getPlans().size()) {
+            throw new CustomException("BULK_UPDATE_ERROR",
+                    "Plans provided in the bulk update request are not unique.");
+        }
+
+        if(!bulkPlanRequest.getPlans().stream().allMatch(plan ->
+                plan.getTenantId().equals(bulkPlanRequest.getPlans().get(0).getTenantId()) &&
+                        plan.getPlanConfigurationId().equals(bulkPlanRequest.getPlans().get(0).getPlanConfigurationId()))) {
+            throw new CustomException("BULK_UPDATE_ERROR",
+                    "Tenant id and plan configuration ids should be same across all entries for bulk update.");
+        }
+
+        bulkPlanRequest.getPlans().forEach(plan -> {
+            if(ObjectUtils.isEmpty(plan.getWorkflow())) {
+                throw new CustomException("BULK_UPDATE_ERROR",
+                        "Workflow information is mandatory for each entry for bulk update");
+            }
+        });
+
+        if(!bulkPlanRequest.getPlans().stream().allMatch(plan ->
+                plan.getStatus().equals(bulkPlanRequest.getPlans().get(0).getStatus()) &&
+                        plan.getWorkflow().getAction().equals(bulkPlanRequest.getPlans().get(0).getWorkflow().getAction()))) {
+            throw new CustomException("BULK_UPDATE_ERROR",
+                    "All entries should be in the same state for bulk transitioning plan records.");
+        }
+
+    }
+
+    /**
+     *
+     * @param bulkPlanRequest
+     */
+    private void validatePlanExistence(BulkPlanRequest bulkPlanRequest) {
+        // Get all plan ids to validate existence
+        List<Plan> planListFromDatabase = planRepository.search(PlanSearchCriteria.builder()
+                .ids(bulkPlanRequest.getPlans().stream().map(Plan :: getId).collect(Collectors.toSet()))
+                .offset(0)
+                .limit(bulkPlanRequest.getPlans().size())
+                .build());
+
+        // If plan id provided is invalid, throw an exception
+        if (planListFromDatabase.size() != bulkPlanRequest.getPlans().size()) {
+            throw new CustomException(INVALID_PLAN_ID_CODE, INVALID_PLAN_ID_MESSAGE);
+        }
+
+        // Enrich ancestral materialized path for each plan object being passed in the request
+        enrichAncestralMaterializedPath(bulkPlanRequest, planListFromDatabase);
+
+    }
+
+    /**
+     *
+     * @param bulkPlanRequest
+     * @param planListFromDatabase
+     */
+    private void enrichAncestralMaterializedPath(BulkPlanRequest bulkPlanRequest, List<Plan> planListFromDatabase) {
+        Map<String, String> planIdVsAncestralMaterializedPathMap = planListFromDatabase.stream()
+                .collect(Collectors.toMap(Plan :: getId, Plan :: getBoundaryAncestralPath));
+
+        bulkPlanRequest.getPlans().forEach(plan ->
+                plan.setBoundaryAncestralPath(planIdVsAncestralMaterializedPathMap
+                        .get(plan.getId()))
+        );
+    }
 }
