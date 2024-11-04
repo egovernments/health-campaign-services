@@ -9,10 +9,12 @@ import digit.repository.rowmapper.StatusCountRowMapper;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
+import org.postgresql.util.PGobject;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -130,14 +132,25 @@ public class CensusRepositoryImpl implements CensusRepository {
         String bulkCensusUpdateQuery = queryBuilder.getBulkCensusQuery();
 
         // Prepare rows for bulk update
-        List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
-                census.getStatus(),
-                census.getAssignee(),
-                census.getAuditDetails().getLastModifiedBy(),
-                census.getAuditDetails().getLastModifiedTime(),
-                census.getAdditionalDetails().toString(),
-                census.getFacilityAssigned(),
-                census.getId()
+        List<Object[]> rows = request.getCensus().stream().map(census -> {
+
+            PGobject jsonObject = new PGobject();
+            jsonObject.setType("jsonb");
+            try {
+                jsonObject.setValue(census.getAdditionalDetails().toString());  // Convert ObjectNode to JSON string
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+
+            return new Object[] {
+                    census.getStatus(),
+                    census.getAssignee(),
+                    census.getAuditDetails().getLastModifiedBy(),
+                    census.getAuditDetails().getLastModifiedTime(),
+                    jsonObject, // Pass PGobject instead of plain string
+                    census.getFacilityAssigned(),
+                    census.getId()
+            };
         }).toList();
 
         // Perform bulk update
