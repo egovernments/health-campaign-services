@@ -3,6 +3,7 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.config.ServiceConstants;
 import digit.repository.PlanConfigurationRepository;
+import digit.service.PlanService;
 import digit.util.*;
 import digit.web.models.*;
 
@@ -42,7 +43,9 @@ public class PlanConfigurationValidator {
 
     private CensusUtil censusUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil, CensusUtil censusUtil) {
+    private PlanService planService;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil, CensusUtil censusUtil, PlanService planService) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
@@ -50,6 +53,7 @@ public class PlanConfigurationValidator {
         this.centralInstanceUtil = centralInstanceUtil;
         this.campaignUtil = campaignUtil;
         this.censusUtil = censusUtil;
+        this.planService = planService;
     }
 
     /**
@@ -646,9 +650,10 @@ public class PlanConfigurationValidator {
         CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
 
         Map<String, Integer> statusCount = censusResponse.getStatusCount();
+        Integer totalCount = censusResponse.getTotalCount();
 
         // Throws exception if all census records are not validated
-        if (statusCount.size() > 1 || !statusCount.containsKey(VALIDATED_STATUS)) {
+        if (!statusCount.get(VALIDATED_STATUS).equals(totalCount)) {
             throw new CustomException(CANNOT_APPROVE_CENSUS_DATA_CODE, CANNOT_APPROVE_CENSUS_DATA_MESSAGE);
         }
     }
@@ -675,6 +680,28 @@ public class PlanConfigurationValidator {
 
         if (!totalCensusCount.equals(totalCensusWithFacilityAssigned)) {
             throw new CustomException(CANNOT_FINALIZE_CATCHMENT_MAPPING_CODE, CANNOT_FINALIZE_CATCHMENT_MAPPING_MESSAGE);
+        }
+    }
+
+    /**
+     * Validates if all the plan estimations are validated before approving estimations for the given planConfigId.
+     *
+     * @param planConfigurationRequest request with plan config id.
+     */
+    public void validateResourceEstimations(PlanConfigurationRequest planConfigurationRequest) {
+        PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+        PlanSearchRequest searchRequest = getPlanSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+
+        // Fetches plans for given planConfigId
+        PlanResponse planResponse = planService.searchPlan(searchRequest);
+
+        Map<String, Integer> statusCount = planResponse.getStatusCount();
+        Integer totalCount = planResponse.getTotalCount();
+
+        // Throws exception if all plans are not validated
+        if (!statusCount.get(VALIDATED_STATUS).equals(totalCount)) {
+            throw new CustomException(CANNOT_APPROVE_ESTIMATIONS_CODE, CANNOT_APPROVE_ESTIMATIONS_MESSAGE);
         }
     }
 
@@ -721,6 +748,19 @@ public class PlanConfigurationValidator {
         return CensusSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .censusSearchCriteria(searchCriteria)
+                .build();
+    }
+
+    // Prepares Plan search request for given planConfigId
+    private PlanSearchRequest getPlanSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        PlanSearchCriteria searchCriteria = PlanSearchCriteria.builder()
+                .tenantId(tenantId)
+                .planConfigurationId(planConfigId)
+                .build();
+
+        return PlanSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .planSearchCriteria(searchCriteria)
                 .build();
     }
 }

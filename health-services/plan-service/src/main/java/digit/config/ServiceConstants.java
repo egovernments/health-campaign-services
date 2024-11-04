@@ -309,6 +309,8 @@ public class ServiceConstants {
 
     public static final String FINALIZE_CATCHMENT_MAPPING_ACTION = "FINALIZE_CATCHMENT_MAPPING";
 
+    public static final String APPROVE_ESTIMATIONS_ACTION = "APPROVE_ESTIMATIONS";
+
     public static final String VALIDATED_STATUS = "VALIDATED";
 
     //Query constants
@@ -329,6 +331,9 @@ public class ServiceConstants {
 
     public static final String CANNOT_APPROVE_CENSUS_DATA_CODE = "CANNOT_APPROVE_CENSUS_DATA";
     public static final String CANNOT_APPROVE_CENSUS_DATA_MESSAGE = "Census data can't be approved until all the census records are validated";
+
+    public static final String CANNOT_APPROVE_ESTIMATIONS_CODE = "CANNOT_APPROVE_ESTIMATIONS";
+    public static final String CANNOT_APPROVE_ESTIMATIONS_MESSAGE = "Estimations can't be approved until all the estimations are validated";
 
     public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_CODE = "CANNOT_FINALIZE_CATCHMENT_MAPPING";
     public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_MESSAGE = "Catchment mapping can't be finalized until all boundaries have facility assigned";

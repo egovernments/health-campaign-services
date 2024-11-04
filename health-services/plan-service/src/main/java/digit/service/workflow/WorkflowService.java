@@ -63,6 +63,8 @@ public class WorkflowService {
             validator.validateCensusData(planConfigurationRequest);
         } else if(workflowAction.equals(FINALIZE_CATCHMENT_MAPPING_ACTION)) {
             validator.validateCatchmentMapping(planConfigurationRequest);
+        } else if(workflowAction.equals(APPROVE_ESTIMATIONS_ACTION)) {
+            validator.validateResourceEstimations(planConfigurationRequest);
         }
 
         ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(planConfigurationRequest);
