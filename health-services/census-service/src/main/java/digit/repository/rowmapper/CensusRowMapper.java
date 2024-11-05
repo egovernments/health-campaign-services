@@ -1,6 +1,7 @@
 package digit.repository.rowmapper;
 
 import digit.util.QueryUtil;
+import digit.web.models.AdditionalField;
 import digit.web.models.Census;
 import digit.web.models.PopulationByDemographic;
 import org.egov.common.contract.models.AuditDetails;
@@ -36,6 +37,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     public List<Census> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, Census> censusMap = new LinkedHashMap<>();
         Map<String, PopulationByDemographic> populationByDemographicMap = new LinkedHashMap<>();
+        Map<String, AdditionalField> additionalFieldMap = new LinkedHashMap<>();
 
         while (rs.next()) {
             String censusId = rs.getString("census_id");
@@ -65,11 +67,46 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setAuditDetails(auditDetails);
             }
             addPopulationByDemographic(rs, populationByDemographicMap, censusEntry);
+            addAdditionalField(rs, additionalFieldMap, censusEntry);
 
             censusMap.put(censusId, censusEntry);
         }
 
         return new ArrayList<>(censusMap.values());
+    }
+
+    /**
+     * Adds a AdditionalField object to the census entry based on the result set.
+     *
+     * @param rs                The ResultSet containing the data.
+     * @param additionalFieldMap A map to keep track of added AdditionalField objects.
+     * @param censusEntry       The Census entry to which the AdditionalField object will be added.
+     * @throws SQLException If an SQL error occurs.
+     */
+    private void addAdditionalField(ResultSet rs, Map<String, AdditionalField> additionalFieldMap, Census censusEntry) throws SQLException {
+        String additionalFieldId = rs.getString("additional_field_id");
+
+        if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldMap.containsKey(additionalFieldId)) {
+            return;
+        }
+
+        AdditionalField additionalField = new AdditionalField();
+        additionalField.setId(rs.getString("additional_field_id"));
+        additionalField.setKey(rs.getString("additional_field_key"));
+        additionalField.setValue(rs.getString("additional_field_value"));
+        additionalField.setShowOnUi(rs.getBoolean("additional_field_show_on_ui"));
+        additionalField.setEditable(rs.getBoolean("additional_field_editable"));
+        additionalField.setOrder(rs.getInt("additional_field_order"));
+
+        if (CollectionUtils.isEmpty(censusEntry.getAdditionalFields())) {
+            List<AdditionalField> additionalFields = new ArrayList<>();
+            additionalFields.add(additionalField);
+            censusEntry.setAdditionalFields(additionalFields);
+        } else {
+            censusEntry.getAdditionalFields().add(additionalField);
+        }
+
+        additionalFieldMap.put(additionalFieldId, additionalField);
     }
 
 

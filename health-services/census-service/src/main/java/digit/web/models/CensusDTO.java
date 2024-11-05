@@ -64,6 +64,10 @@ public class CensusDTO {
     @Valid
     private List<PopulationByDemographic> populationByDemographics = null;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private List<AdditionalField> additionalFields = null;
+
     @JsonProperty("effectiveFrom")
     private Long effectiveFrom = null;
 
