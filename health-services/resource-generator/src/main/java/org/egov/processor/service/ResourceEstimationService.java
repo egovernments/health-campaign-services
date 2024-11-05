@@ -48,8 +48,8 @@ public class ResourceEstimationService {
 
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
         Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
-        processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
 		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
+		processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
 
     /**
