@@ -67,7 +67,7 @@ public class CensusRepositoryImpl implements CensusRepository {
     @Override
     public List<Census> search(CensusSearchCriteria censusSearchCriteria) {
 
-        if(censusSearchCriteria.getAreaCodes().isEmpty())
+        if(censusSearchCriteria.getAreaCodes() != null && censusSearchCriteria.getAreaCodes().isEmpty())
             return new ArrayList<>();
 
         List<Object> preparedStmtList = new ArrayList<>();
@@ -85,7 +85,7 @@ public class CensusRepositoryImpl implements CensusRepository {
     @Override
     public Integer count(CensusSearchCriteria censusSearchCriteria) {
 
-        if(censusSearchCriteria.getAreaCodes().isEmpty())
+        if(censusSearchCriteria.getAreaCodes() != null && censusSearchCriteria.getAreaCodes().isEmpty())
             return 0;
 
         List<Object> preparedStmtList = new ArrayList<>();
