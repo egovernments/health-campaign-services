@@ -1,5 +1,27 @@
 package org.egov.processor.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.processor.config.Configuration;
+import org.egov.processor.config.ServiceConstants;
+import org.egov.processor.util.*;
+import org.egov.processor.web.models.*;
+import org.egov.processor.web.models.boundary.BoundarySearchResponse;
+import org.egov.processor.web.models.boundary.EnrichedBoundary;
+import org.egov.processor.web.models.campaignManager.Boundary;
+import org.egov.processor.web.models.campaignManager.CampaignResources;
+import org.egov.processor.web.models.campaignManager.CampaignResponse;
+import org.egov.tracer.model.CustomException;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -10,35 +32,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.util.*;
-import org.egov.processor.web.models.Locale;
-import org.egov.processor.web.models.LocaleResponse;
-import org.egov.processor.web.models.Operation;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.ResourceMapping;
-import org.egov.processor.web.models.boundary.BoundarySearchResponse;
-import org.egov.processor.web.models.boundary.EnrichedBoundary;
-import org.egov.processor.web.models.campaignManager.Boundary;
-import org.egov.processor.web.models.campaignManager.CampaignResources;
-import org.egov.processor.web.models.campaignManager.CampaignResponse;
-import org.egov.tracer.model.CustomException;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import lombok.extern.slf4j.Slf4j;
 
 import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
 import static org.egov.processor.config.ServiceConstants.READ_ME_SHEET_NAME;
@@ -203,7 +196,7 @@ public class ExcelParser implements FileParser {
 			Object campaignResponse, Workbook excelWorkbook,
 			List<Boundary> campaignBoundaryList,
 			DataFormatter dataFormatter) {
-		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil. fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
@@ -315,18 +308,6 @@ public class ExcelParser implements FileParser {
                 file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
 	}
 
-	
-	/**
-	 * Parses an object representing campaign response into a CampaignResponse object.
-	 * 
-	 * @param campaignResponse The object representing campaign response to be parsed.
-	 * @return CampaignResponse object parsed from the campaignResponse.
-	 */
-	private CampaignResponse parseCampaignResponse(Object campaignResponse) {
-		CampaignResponse campaign = null;
-		campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
-		return campaign;
-	}
 
 	/**
 	 * Performs row-level calculations and processing on each row in the sheet.

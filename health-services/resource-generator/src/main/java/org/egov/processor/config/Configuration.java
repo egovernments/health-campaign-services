@@ -56,6 +56,9 @@ public class Configuration {
 	@Value("${egov.project.factory.update.endpoint}")
 	private String campaignIntegrationUpdateEndPoint;
 
+	@Value("${egov.project.factory.data.create.endpoint}")
+	private String campaignIntegrationDataCreateEndPoint;
+
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 
@@ -80,6 +83,9 @@ public class Configuration {
 
 	@Value("${plan.config.trigger.census.records.status}")
 	private String planConfigTriggerCensusRecordsStatus;
+
+	@Value("${plan.config.trigger.plan.facility.mappings.status}")
+	private String planConfigTriggerPlanFacilityMappingsStatus;
 
 	//Kafka topics for creating or updating records in dependent microservices
 	@Value("${resource.microplan.create.topic}")
