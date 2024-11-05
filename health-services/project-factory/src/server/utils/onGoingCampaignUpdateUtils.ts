@@ -713,7 +713,7 @@ function mergeParentResources(mappingObject: any, resources: any[], resourcesArr
       resources.push(resource);
     }
   }
-  mappingObject.CampaignDetails.resources = resources;
+  mappingObject.CampaignDetails.campaignDetails.resources = resources;
 }
 
 async function processResources(mappingObject: any) {
