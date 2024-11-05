@@ -88,6 +88,7 @@ public class ProjectService {
             Boolean includeDeleted,
             Boolean includeAncestors,
             Boolean includeDescendants,
+            Boolean includeImmediateChildren,
             Long createdFrom,
             Long createdTo
     ) {
@@ -101,6 +102,7 @@ public class ProjectService {
                 includeDeleted,
                 includeAncestors,
                 includeDescendants,
+                includeImmediateChildren,
                 createdFrom,
                 createdTo
         );
