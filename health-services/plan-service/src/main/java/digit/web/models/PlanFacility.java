@@ -56,6 +56,9 @@ public class PlanFacility {
     @Valid
     private List<String> serviceBoundaries;
 
+    @JsonIgnore
+    private List<String> initiallySetServiceBoundaries;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
