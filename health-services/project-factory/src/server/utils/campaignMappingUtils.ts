@@ -203,8 +203,8 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
         }
     }
 
-     // Process delink operations sequentially
-     for (const delinkData of delinkOperations) {
+    // Process delink operations sequentially
+    for (const delinkData of delinkOperations) {
         try {
             const isMappingAlreadyPresent = await delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(
                 delinkData.resource,
@@ -215,7 +215,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             );
             logger.info(`Delinking ${delinkData.boundary} from ${delinkData.code} resource`);
             logger.info("Delink operation complete, mapping present:", isMappingAlreadyPresent);
-        } catch (err:any) {
+        } catch (err: any) {
             logger.error(`Error during delink operation for ${delinkData.boundary}: ${err.message}`);
         }
     }
@@ -233,7 +233,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
             if (!isMappingAlreadyPresent) {
                 mapBoundaryCodes(linkData.resource, linkData.code, linkData.boundary, boundaryCodes, allBoundaries);
             }
-        } catch (err:any) {
+        } catch (err: any) {
             logger.error(`Error during link operation for ${linkData.boundary}: ${err.message}`);
         }
     }
@@ -303,7 +303,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         RequestInfo: messageObject?.RequestInfo,
         Campaign: Campaign,
         CampaignDetails: messageObject?.CampaignDetails,
-        parentCampaign : messageObject?.parentCampaign
+        parentCampaign: messageObject?.parentCampaign
     }
 }
 
@@ -508,8 +508,12 @@ export async function processMapping(mappingObject: any) {
         }
         logger.info("Mapping completed successfully for campaign: " + mappingObject?.CampaignDetails?.id);
         mappingObject.CampaignDetails.status = campaignStatuses.inprogress
-        if (mappingObject.CampaignDetails.parentId) {
+        if (mappingObject?.parentCampaign) {
             await processResources(mappingObject);
+            mappingObject.CampaignDetails.campaignDetails.boundaries = [
+                ...mappingObject.CampaignDetails.campaignDetails.boundaries,
+                ...mappingObject.parentCampaign.campaignDetails.boundaries
+            ];
         }
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
