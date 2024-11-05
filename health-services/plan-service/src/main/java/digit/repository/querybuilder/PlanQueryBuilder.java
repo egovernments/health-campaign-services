@@ -36,6 +36,8 @@ public class PlanQueryBuilder {
             "\t   LEFT JOIN plan_resource ON plan.id = plan_resource.plan_id\n" +
             "\t   LEFT JOIN plan_target ON plan.id = plan_target.plan_id";
 
+    private static final String BULK_PLAN_UPDATE_QUERY = "UPDATE plan SET status = ?, assignee = ?, last_modified_by = ?, last_modified_time = ? WHERE id = ?";
+
     private static final String PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE = " order by plan.last_modified_time desc ";
 
     private static final String PLAN_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
@@ -87,11 +89,8 @@ public class PlanQueryBuilder {
     public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
                 .tenantId(searchCriteria.getTenantId())
-                .ids(searchCriteria.getIds())
                 .planConfigurationId(searchCriteria.getPlanConfigurationId())
-                .locality(searchCriteria.getLocality())
                 .campaignId(searchCriteria.getCampaignId())
-                .status(searchCriteria.getStatus())
                 .jurisdiction(searchCriteria.getJurisdiction())
                 .build();
         return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
@@ -195,4 +194,7 @@ public class PlanQueryBuilder {
         return paginatedQuery.toString();
     }
 
+    public String getBulkPlanQuery() {
+        return BULK_PLAN_UPDATE_QUERY;
+    }
 }

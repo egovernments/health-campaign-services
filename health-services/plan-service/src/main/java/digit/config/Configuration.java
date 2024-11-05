@@ -101,6 +101,9 @@ public class Configuration {
     @Value("${egov.workflow.transition.path}")
     private String wfTransitionPath;
 
+    @Value("${egov.business.service.search.endpoint}")
+    private String businessServiceSearchEndpoint;
+
     @Value("${workflow.initiate.action}")
     private List<String> wfInitiateActions;
 
