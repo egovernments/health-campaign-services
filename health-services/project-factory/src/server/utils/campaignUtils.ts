@@ -494,7 +494,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
                 const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
-                if (data[localizedSheetColumnName] || data[localizedSheetColumnName] == "CREATED") {
+                if (data[localizedSheetColumnName]) {
                     if (isSourceMicroplan) {
                         changeCreateDataForMicroplan(request, resultantElement, data, localizationMap);
                     }
