@@ -127,7 +127,7 @@ public class ProjectService {
         List<Project> projectsFromDB = searchProject(
             getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
             projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(),
-            request.getProjects().get(0).getTenantId(), null, false, false, false, null, null
+            request.getProjects().get(0).getTenantId(), null, false, false, false, false,null, null
         );
         log.info("Fetched projects for update request");
 
@@ -281,6 +281,7 @@ public class ProjectService {
             false,
             true,
             true,
+            false,
             null,
             null
         );
@@ -303,7 +304,7 @@ public class ProjectService {
         List<Project> parentProjects = null;
         List<Project> projectsForSearchRequest = projectRequest.getProjects().stream().filter(p -> StringUtils.isNotBlank(p.getParent())).collect(Collectors.toList());
         if (projectsForSearchRequest.size() > 0) {
-            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
+            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, false, null, null);
         }
         log.info("Fetched parent projects from DB");
         return parentProjects;
