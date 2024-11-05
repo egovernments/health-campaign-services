@@ -118,9 +118,11 @@ public class ResourceEstimationService {
 	 * @param campaignResponseObject the campaign response object to be parsed
 	 */
 	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, Object campaignResponseObject) {
-		CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
-		campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
-		log.info("Facility Data creation successful.");
+		if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
+			CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
+			campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
+			log.info("Facility Data creation successful.");
+		}
 	}
 
 }

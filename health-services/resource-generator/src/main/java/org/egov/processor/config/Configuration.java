@@ -84,6 +84,9 @@ public class Configuration {
 	@Value("${plan.config.trigger.census.records.status}")
 	private String planConfigTriggerCensusRecordsStatus;
 
+	@Value("${plan.config.trigger.plan.facility.mappings.status}")
+	private String planConfigTriggerPlanFacilityMappingsStatus;
+
 	//Kafka topics for creating or updating records in dependent microservices
 	@Value("${resource.microplan.create.topic}")
 	private String resourceMicroplanCreateTopic;

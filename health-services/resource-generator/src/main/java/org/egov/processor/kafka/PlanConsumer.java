@@ -35,7 +35,8 @@ public class PlanConsumer {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
             if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())
-                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())
+                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
                 resourceEstimationService.estimateResources(planConfigurationRequest);
                 log.info("Successfully estimated resources for plan.");
             }
