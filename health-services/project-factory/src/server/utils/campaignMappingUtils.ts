@@ -512,7 +512,7 @@ export async function processMapping(mappingObject: any) {
             await processResources(mappingObject);
             mappingObject.CampaignDetails.campaignDetails.boundaries = [
                 ...mappingObject.CampaignDetails.campaignDetails.boundaries,
-                ...mappingObject.parentCampaign.campaignDetails.boundaries
+                ...mappingObject.parentCampaign.boundaries
             ];
         }
         const produceMessage: any = {
