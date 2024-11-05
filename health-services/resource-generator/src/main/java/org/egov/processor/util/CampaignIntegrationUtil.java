@@ -66,6 +66,27 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
+	 * Sends a data creation request to the Project Factory service using the provided
+	 * plan and campaign details.
+	 *
+	 * @param planConfigurationRequest the plan configuration request containing campaign data
+	 * @param campaignResponse         the response with additional campaign information
+	 * @throws CustomException if the data creation call fails
+	 */
+	public void createProjectFactoryDataCall(PlanConfigurationRequest planConfigurationRequest, CampaignResponse campaignResponse) {
+		try {
+			serviceRequestRepository.fetchResult(
+					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationDataCreateEndPoint()),
+					buildResourceDetailsObjectForFacilityCreate(planConfigurationRequest, campaignResponse));
+			log.info("Campaign Data create successful.");
+		} catch (Exception e) {
+			log.error(ServiceConstants.ERROR_WHILE_DATA_CREATE_CALL
+					+ planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
+			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
+		}
+	}
+
+	/**
 	 * Updates the campaign resources in the given campaign response based on the files specified in the plan configuration request.
 	 *
 	 * @param campaignResponse The campaign response object to be updated with resources.
@@ -97,6 +118,42 @@ public class CampaignIntegrationUtil {
 			CampaignResponse campaignResponse) {
 		return CampaignRequest.builder().requestInfo(planConfigurationRequest.getRequestInfo())
 				.campaignDetails(campaignResponse.getCampaign().get(0)).build();
+
+	}
+
+	/**
+	 * Builds a {@link ResourceDetailsRequest} object for facility creation using the provided
+	 * plan configuration and campaign details.
+	 *
+	 * @param planConfigurationRequest the request containing plan configuration data
+	 * @param campaignResponse the campaign response with additional data
+	 * @return a {@link ResourceDetailsRequest} for facility creation
+	 * @throws CustomException if the required facility file is not found
+	 */
+	private ResourceDetailsRequest buildResourceDetailsObjectForFacilityCreate(PlanConfigurationRequest planConfigurationRequest,
+																			   CampaignResponse campaignResponse) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+
+		String facilityFilestoreId = String.valueOf(planConfig.getFiles().stream()
+				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
+				.map(File::getFilestoreId)
+				.findFirst()
+				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
+
+		ResourceDetails resourceDetails = ResourceDetails.builder()
+				.type(TYPE_FACILITY)
+				.hierarchyType(campaignResponse.getCampaign().get(0).getHierarchyType())
+				.tenantId(planConfig.getTenantId())
+				.fileStoreId(facilityFilestoreId)
+				.action(ACTION_CREATE)
+				.campaignId(planConfig.getCampaignId())
+				.additionalDetails(createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
+				.build();
+
+		return ResourceDetailsRequest.builder()
+				.requestInfo(planConfigurationRequest.getRequestInfo())
+				.resourceDetails(resourceDetails)
+				.build();
 
 	}
 

@@ -56,6 +56,9 @@ public class Configuration {
 	@Value("${egov.project.factory.update.endpoint}")
 	private String campaignIntegrationUpdateEndPoint;
 
+	@Value("${egov.project.factory.data.create.endpoint}")
+	private String campaignIntegrationDataCreateEndPoint;
+
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 

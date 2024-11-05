@@ -11,14 +11,10 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
-import org.egov.processor.web.models.campaignManager.ResourceDetails;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.egov.processor.config.ServiceConstants.*;
 
 @Service
 @Slf4j
@@ -114,25 +110,17 @@ public class ResourceEstimationService {
         return parserMap;
     }
 
+	/**
+	 * Processes the facility file by parsing the campaign response and initiating
+	 * a data creation call to the Project Factory service.
+	 *
+	 * @param planConfigurationRequest the request containing plan configuration details
+	 * @param campaignResponseObject the campaign response object to be parsed
+	 */
 	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, Object campaignResponseObject) {
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
-		String facilityFilestoreId = String.valueOf(planConfig.getFiles().stream()
-				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
-				.map(File::getFilestoreId)
-				.findFirst()
-				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
-
-		ResourceDetails.builder()
-				.type(TYPE_FACILITY)
-				.hierarchyType(campaignResponse.getCampaign().get(0).getHierarchyType())
-				.tenantId(planConfig.getTenantId())
-				.fileStoreId(facilityFilestoreId)
-				.action(ACTION_CREATE)
-				.campaignId(planConfig.getCampaignId())
-				.additionalDetails(campaignIntegrationUtil.createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
-				.build();
-
+		campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
+		log.info("Facility Data creation successful.");
 	}
 
 }
