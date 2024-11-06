@@ -1437,7 +1437,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
             throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
         }
         const codeColumnName = getLocalizedName(createAndSearch?.boundaryWithTarget?.boundaryValidation?.column, localizationMap)
-        const targetData = await getTargetSheetDataAfterCode(fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
+        const targetData = await getTargetSheetDataAfterCode(request, fileResponse?.fileStoreIds?.[0]?.url, true, true, codeColumnName);
         const boundaryTargetMapping: any = {};
         // Iterate through each key in targetData
         for (const key in targetData) {

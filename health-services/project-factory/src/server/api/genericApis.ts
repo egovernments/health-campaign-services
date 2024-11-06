@@ -185,6 +185,7 @@ const getTargetSheetData = async (
 };
 
 const getTargetSheetDataAfterCode = async (
+  request: any,
   fileUrl: string,
   getRow = false,
   getSheetName = false,
@@ -206,15 +207,15 @@ const getTargetSheetDataAfterCode = async (
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
-    let targetColumnIndex = -1;
+    let boundaryCodeColumnIndex = -1;
     for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
       if (firstRow[colIndex] === codeColumnName) {
-        targetColumnIndex = colIndex;
+        boundaryCodeColumnIndex = colIndex;
         break;
       }
     }
 
-    if (targetColumnIndex === -1) {
+    if (boundaryCodeColumnIndex === -1) {
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
@@ -223,11 +224,19 @@ const getTargetSheetDataAfterCode = async (
     const processedData = sheetData.map((row: any, rowIndex: any) => {
       if (rowIndex <= 0) return null; // Skip header row
 
-      let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
+      let rowData: any = { [codeColumnName]: row[boundaryCodeColumnIndex] };
 
       // Add integer values in the target column for the current row
       let sum = 0;
-      for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
+      let startColIndex = boundaryCodeColumnIndex + 1;
+  
+      if (request?.body?.parentCampaign) {
+        // Calculate middle point of remaining columns
+        const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
+        const halfPoint = Math.floor(remainingColumns / 2);
+        startColIndex = boundaryCodeColumnIndex + 1 + halfPoint;
+      }
+      for (let colIndex = startColIndex; colIndex < row.length; colIndex++) {
         const value = row[colIndex];
         if (typeof value === 'number' && Number.isInteger(value)) {
           sum += value;
