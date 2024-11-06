@@ -60,7 +60,6 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the total count of Census records for a given search criteria.
      */
     public String getCensusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder().build();
         return buildCensusQuery(searchCriteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
     }
 
