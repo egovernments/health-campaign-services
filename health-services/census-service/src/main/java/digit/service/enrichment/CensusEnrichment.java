@@ -39,6 +39,9 @@ public class CensusEnrichment {
             census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
         }
 
+        // Generate id for additionalFields
+        census.getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+
         // Set audit details for census record
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
 
@@ -84,6 +87,13 @@ public class CensusEnrichment {
                 }
             });
         }
+
+        //Generate id for additionalFields
+        census.getAdditionalFields().forEach(additionalField -> {
+            if (ObjectUtils.isEmpty(additionalField.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id");
+            }
+        });
     }
 
 }

@@ -172,6 +172,7 @@ public class CensusRepositoryImpl implements CensusRepository {
                 .type(census.getType().toString())
                 .totalPopulation(census.getTotalPopulation())
                 .populationByDemographics(census.getPopulationByDemographics())
+                .additionalFields(census.getAdditionalFields())
                 .effectiveFrom(census.getEffectiveFrom())
                 .effectiveTo(census.getEffectiveTo())
                 .source(census.getSource())
