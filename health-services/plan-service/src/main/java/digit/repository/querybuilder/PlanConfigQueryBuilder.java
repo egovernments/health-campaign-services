@@ -118,7 +118,7 @@ public class PlanConfigQueryBuilder {
         if (criteria.getName() != null) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.name LIKE ?");
-            preparedStmtList.add(criteria.getName() + PERCENTAGE_WILDCARD);
+            preparedStmtList.add(PERCENTAGE_WILDCARD + criteria.getName() + PERCENTAGE_WILDCARD);
         }
 
         if (!CollectionUtils.isEmpty(criteria.getStatus())) {

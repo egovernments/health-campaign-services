@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
+
 @Component
 public class PlanEmployeeAssignmentQueryBuilder {
 
@@ -88,8 +90,8 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         if (searchCriteria.getPlanConfigurationName() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_name = ?");
-            preparedStmtList.add(searchCriteria.getPlanConfigurationName());
+            builder.append(" plan_configuration_name LIKE ?");
+            preparedStmtList.add(PERCENTAGE_WILDCARD + searchCriteria.getPlanConfigurationName() + PERCENTAGE_WILDCARD);
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {

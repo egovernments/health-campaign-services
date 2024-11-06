@@ -10,6 +10,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
+
 @Component
 public class PlanFacilityQueryBuilder {
 
@@ -71,8 +73,8 @@ public class PlanFacilityQueryBuilder {
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getPlanConfigurationName())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_name = ? ");
-            preparedStmtList.add(planFacilitySearchCriteria.getPlanConfigurationName());
+            builder.append(" plan_configuration_name LIKE ? ");
+            preparedStmtList.add(PERCENTAGE_WILDCARD + planFacilitySearchCriteria.getPlanConfigurationName() + PERCENTAGE_WILDCARD);
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityId())) {
