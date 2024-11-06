@@ -110,7 +110,7 @@ public class CensusUtil {
             // Check if the value exists in the JSON
             if (!ObjectUtils.isEmpty(valueFromRow)) {
                 // Add additional fields with "UPLOADED" and "CONFIRMED" prefixes if key is in override list
-                if (config.getCensusAdditionalFieldOverrideKeys().contains(key)) {
+                if (config.getCensusAdditionalPrefixAppendKeys().contains(key)) {
                     AdditionalField uploadedField = AdditionalField.builder()
                             .key(UPLOADED_KEY + key)
                             .value((BigDecimal) valueFromRow)
