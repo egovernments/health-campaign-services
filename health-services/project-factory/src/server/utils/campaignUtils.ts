@@ -978,6 +978,10 @@ async function getTotalCount(request: any) {
         values.push(...ids);
         index = index + ids.length;
     }
+    else {
+        // If no IDs are provided, filter by isActive = true
+        query += ` AND isActive = true`;
+    }
     var status = searchFields?.status;
     if (status) {
         if (typeof status === 'string') {
