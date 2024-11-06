@@ -202,7 +202,7 @@ function unhideColumnsOfProcessedFile(sheet: any, columnsToUnide: any) {
   });
 }
 
-function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, headers: any, localizationMap?: any) {
+function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, headers: any, oldTargetColumnsToHide: any[], localizationMap?: any) {
   let modifiedData = [];
   let localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   if (processedDistrictSheetData && processedDistrictSheetData.length > 0) {
@@ -215,12 +215,12 @@ function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, 
     modifiedData = [newSheetData];
   }
 
-  const newData = updateTargetValues(modifiedData, newSheetData, localizedHeaders, localizationMap);
+  const newData = updateTargetValues(modifiedData, newSheetData, localizedHeaders, oldTargetColumnsToHide, localizationMap);
   return newData;
 }
 
 
-function updateTargetValues(originalData: any, newData: any, localizedHeaders: any, localizationMap?: any) {
+function updateTargetValues(originalData: any, newData: any, localizedHeaders: any, oldTargetColumnsToHide: any[], localizationMap?: any) {
 
   const boundaryCodeIndex = localizedHeaders.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
 
@@ -241,7 +241,9 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
     for (let i = boundaryCodeIndex + 1; i < localizedHeaders.length; i++) {
       updatedValues.push(newRow[i]);  // Store original value
       if (rowIndex === 0) {  // Only modify the first row
-        newRow[i] = newRow[i] + "(OLD)"; // Modify value with (OLD) for the first row
+        const modifiedValue = newRow[i] + "(OLD)"; // Create modified value with (OLD) suffix
+        newRow[i] = modifiedValue; // Update newRow[i] with the modified value
+        oldTargetColumnsToHide.push(modifiedValue); // Push the modified value      
       }
     }
     // Concatenate original values at the end of every row
