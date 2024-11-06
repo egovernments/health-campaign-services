@@ -20,7 +20,7 @@ import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, upd
 import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
-import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, getColumnIndexByHeader, hideColumnsOfProcessedFile, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { searchDataService } from "../service/dataManageService";
@@ -1629,15 +1629,25 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
 async function createNewSheet(request: any, workbook: any, newSheetData: any, uniqueData: any, localizationMap: any, districtLevelRowBoundaryCodeMap: any, localizedHeaders: any, campaignObject: any, sheetNamesOfProcessedFile: any, fileUrl?: any) {
     const newSheet = workbook.addWorksheet(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap));
     let modifiedNewSheetData: any = newSheetData;
+    const oldTargetColumnsToHide: any[] = [];
     if (fileUrl) {
         let processedDistrictSheetData: any;
         if (sheetNamesOfProcessedFile.includes(getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap))) {
             processedDistrictSheetData = await getSheetData(fileUrl, getLocalizedName(districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap),
                 false, undefined, localizationMap);
         }
-        modifiedNewSheetData = modifyNewSheetData(processedDistrictSheetData, newSheetData, localizedHeaders, localizationMap)
+        modifiedNewSheetData = modifyNewSheetData(processedDistrictSheetData, newSheetData, localizedHeaders, oldTargetColumnsToHide, localizationMap)
     }
     addDataToSheet(request, newSheet, modifiedNewSheetData, 'F3842D', 40);
+    if (oldTargetColumnsToHide && oldTargetColumnsToHide.length > 0) {
+        const columnIndexesToBeHidden: any[] = [];
+        oldTargetColumnsToHide.forEach((column: any) => {
+            const localizedColumn = getLocalizedName(column, localizationMap);
+            const columnIndex = getColumnIndexByHeader(newSheet, localizedColumn);
+            columnIndexesToBeHidden.push(columnIndex);
+        });
+        hideColumnsOfProcessedFile(newSheet, columnIndexesToBeHidden);
+    }
     let columnsNotToBeFreezed: any;
     const boundaryCodeColumnIndex = localizedHeaders.findIndex((header: any) => header === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
