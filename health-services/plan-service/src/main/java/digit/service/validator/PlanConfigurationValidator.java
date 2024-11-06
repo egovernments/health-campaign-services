@@ -3,11 +3,12 @@ package digit.service.validator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.util.CampaignUtil;
-import digit.util.CommonUtil;
-import digit.util.MdmsUtil;
-import digit.util.MdmsV2Util;
+import digit.util.*;
 import digit.web.models.*;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
 import digit.web.models.mdmsV2.Mdms;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +18,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 

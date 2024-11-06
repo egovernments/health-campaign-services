@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.service.PlanEmployeeService;
+import digit.service.validator.PlanConfigurationValidator;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
@@ -38,14 +39,17 @@ public class WorkflowService {
 
     private PlanEmployeeService planEmployeeService;
 
+    private PlanConfigurationValidator planConfigurationValidator;
+
     private RestTemplate restTemplate;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, RestTemplate restTemplate) {
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, PlanConfigurationValidator planConfigurationValidator, RestTemplate restTemplate) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
         this.commonUtil = commonUtil;
         this.planEmployeeService = planEmployeeService;
+        this.planConfigurationValidator = planConfigurationValidator;
         this.restTemplate = restTemplate;
     }
 
