@@ -7,14 +7,17 @@ import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.kafka.Producer;
 import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.web.models.*;
+import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
+import org.egov.processor.web.models.census.AdditionalField;
 import org.egov.processor.web.models.census.Census;
 import org.egov.processor.web.models.census.CensusRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.*;
@@ -79,7 +82,7 @@ public class CensusUtil {
                         .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
                         .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).comments(WORKFLOW_COMMENTS_INITIATING_CENSUS).build())
                         .source(planConfig.getId())
-                        .additionalDetails(enrichAdditionalDetails(feature, mappedValues)).build())
+                        .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
     }
@@ -91,21 +94,54 @@ public class CensusUtil {
      * @param mappedValues The mapped values for extracting properties.
      * @return A map containing enriched additional details based on the extracted values.
      */
-    public Map<String, Object> enrichAdditionalDetails(JsonNode feature, Map<String, String> mappedValues) {
-        // Create additionalDetails object to hold the enriched data
-        Map<String, Object> additionalDetails = new HashMap<>();
+    public List<AdditionalField> enrichAdditionalField(JsonNode feature, Map<String, String> mappedValues) {
+        // Initialize orderCounter inside the function
+        List<AdditionalField> additionalFieldList =  new ArrayList<>();
+        int orderCounter = 1;
 
-        // Iterate over mappedValues keys
         for (String key : mappedValues.keySet()) {
+            // Skip keys in the override list
+            if (config.getCensusAdditionalFieldOverrideKeys().contains(key))
+                continue;
+
             // Get the corresponding value from the feature JsonNode
             Object valueFromRow = parsingUtil.extractMappedValueFromFeatureForAnInput(key, feature, mappedValues);
-            // Check if the value exists in the JSON and add it to additonalDetails map
+
+            // Check if the value exists in the JSON
             if (!ObjectUtils.isEmpty(valueFromRow)) {
-                additionalDetails.put(key, valueFromRow);
+                // Add additional fields with "UPLOADED" and "CONFIRMED" prefixes if key is in override list
+                if (config.getCensusAdditionalFieldOverrideKeys().contains(key)) {
+                    AdditionalField uploadedField = AdditionalField.builder()
+                            .key(UPLOADED_KEY + key)
+                            .value((BigDecimal) valueFromRow)
+                            .editable(Boolean.TRUE)
+                            .showOnUi(Boolean.TRUE)
+                            .order(orderCounter++)  // Increment for "UPLOADED" field
+                            .build();
+                    additionalFieldList.add(uploadedField);
+
+                    AdditionalField confirmedField = AdditionalField.builder()
+                            .key(CONFIRMED_KEY + key)
+                            .value((BigDecimal) valueFromRow)
+                            .editable(Boolean.TRUE)
+                            .showOnUi(Boolean.TRUE)
+                            .order(orderCounter++)  // Increment for "CONFIRMED" field
+                            .build();
+                    additionalFieldList.add(confirmedField);
+                } else {
+                    AdditionalField additionalField = AdditionalField.builder()
+                            .key(key)
+                            .value((BigDecimal) valueFromRow)
+                            .editable(Boolean.TRUE)
+                            .showOnUi(Boolean.TRUE)
+                            .order(orderCounter++)  // Use and increment the local orderCounter
+                            .build();
+                    additionalFieldList.add(additionalField);
+                }
             }
         }
 
-        return additionalDetails;
+        return additionalFieldList;
     }
 
 }

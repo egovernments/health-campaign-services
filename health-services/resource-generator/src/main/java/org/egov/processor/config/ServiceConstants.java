@@ -105,4 +105,8 @@ public class ServiceConstants {
     public static final String SOURCE_KEY = "source";
     public static final String MICROPLAN_SOURCE_KEY = "microplan";
     public static final String MICROPLAN_ID_KEY = "microplanId";
+
+    //Census additional field constants
+    public static final String UPLOADED_KEY = "UPLOADED_";
+    public static final String CONFIRMED_KEY = "CONFIRMED_";
 }

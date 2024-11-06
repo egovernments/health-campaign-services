@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Component
 @Data
 @Import({ TracerConfiguration.class })
@@ -103,5 +105,12 @@ public class Configuration {
 
 	@Value("${resource.default.limit}")
 	private Integer defaultLimit;
+
+	//census additonal field configs
+	@Value("${census.additional.field.override.keys}")
+	public List<String> censusAdditionalFieldOverrideKeys;
+
+	@Value("${census.additional.field.prefix.append.keys}")
+	public List<String> censusAdditionalPrefixAppendKeys;
 
 }

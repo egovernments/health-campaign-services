@@ -13,6 +13,7 @@ import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.*;
 import org.egov.processor.web.models.*;
+import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
@@ -27,10 +28,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
@@ -248,7 +246,12 @@ public class ExcelParser implements FileParser {
 
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
-				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+				.collect(Collectors.toMap(
+						ResourceMapping::getMappedTo,
+						ResourceMapping::getMappedFrom,
+						(existing, replacement) -> existing,
+						LinkedHashMap::new
+				));
 
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
