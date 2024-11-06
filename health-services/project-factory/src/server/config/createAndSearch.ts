@@ -272,7 +272,7 @@ const createAndSearch: any = {
     "user": {
         requiresToSearchFromSheet: [
             {
-                sheetColumnName: "#status#",
+                sheetColumnName: "UserService Uuids",
                 searchPath: "user.mobileNumber"
             }],
         boundaryValidation: {
