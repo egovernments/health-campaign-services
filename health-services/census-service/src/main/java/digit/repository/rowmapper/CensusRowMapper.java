@@ -93,7 +93,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
         AdditionalField additionalField = new AdditionalField();
         additionalField.setId(rs.getString("additional_field_id"));
         additionalField.setKey(rs.getString("additional_field_key"));
-        additionalField.setValue(rs.getString("additional_field_value"));
+        additionalField.setValue(rs.getBigDecimal("additional_field_value"));
         additionalField.setShowOnUi(rs.getBoolean("additional_field_show_on_ui"));
         additionalField.setEditable(rs.getBoolean("additional_field_editable"));
         additionalField.setOrder(rs.getInt("additional_field_order"));
