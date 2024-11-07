@@ -126,4 +126,7 @@ public class StockIndexV1 {
     @JsonProperty("waybillNumber")
     private String waybillNumber;
 
+    @JsonProperty("projectType")
+    private String projectType;
+
 }

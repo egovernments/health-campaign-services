@@ -163,6 +163,7 @@ public class StockTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(stock.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                 .waybillNumber(stock.getWayBillNumber())
+                .projectType(project.getProjectType())
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)

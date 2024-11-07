@@ -107,6 +107,7 @@ public class ServiceTaskTransformationService {
                 .userAddress(userInfoMap.get(CITY))
                 .createdTime(service.getAuditDetails().getCreatedTime())
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
+                .projectType(project.getProjectType())
                 .createdBy(service.getAuditDetails().getCreatedBy())
                 .tenantId(service.getTenantId())
                 .userId(service.getAccountId())
