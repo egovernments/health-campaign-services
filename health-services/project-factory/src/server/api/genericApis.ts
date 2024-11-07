@@ -267,7 +267,7 @@ const searchMDMS: any = async (
   }
 
   // Construct API URL for MDMS search
-  const apiUrl = config.host.mdms + config.paths.mdms_v2_search;
+  const apiUrl = config.host.mdmsV2 + config.paths.mdms_v2_search;
 
   // Construct request data for MDMS search
   const data = {
@@ -394,7 +394,7 @@ const getSchema: any = async (code: string, RequestInfo: any) => {
       codes: [code],
     },
   };
-  const mdmsSearchUrl = config.host.mdms + config.paths.mdmsSchema;
+  const mdmsSearchUrl = config.host.mdmsV2 + config.paths.mdmsSchema;
 
   try {
     const result = await httpRequest(
@@ -1226,7 +1226,7 @@ async function callMdmsData(
       ],
     },
   };
-  const url = config.host.mdms + config.paths.mdms_v1_search;
+  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
   return response;
 }
