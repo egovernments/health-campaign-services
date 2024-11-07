@@ -36,10 +36,12 @@ import org.egov.hrms.web.contract.UserResponse;
 import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
+@Component
 public class IndividualService implements UserService {
 
     private final PropertiesManager propertiesManager;

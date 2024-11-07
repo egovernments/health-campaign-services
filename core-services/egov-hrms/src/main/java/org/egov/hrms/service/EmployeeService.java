@@ -52,10 +52,7 @@ import org.egov.hrms.model.Employee;
 import org.egov.hrms.model.enums.UserType;
 import org.egov.hrms.producer.HRMSProducer;
 import org.egov.hrms.repository.EmployeeRepository;
-import org.egov.hrms.utils.ErrorConstants;
-import org.egov.hrms.utils.HRMSConstants;
-import org.egov.hrms.utils.HRMSUtils;
-import org.egov.hrms.utils.ResponseInfoFactory;
+import org.egov.hrms.utils.*;
 import org.egov.hrms.web.contract.*;
 import org.egov.tracer.kafka.LogAwareKafkaTemplate;
 import org.egov.tracer.model.CustomException;
@@ -74,7 +71,7 @@ public class EmployeeService {
 
 
 	@Autowired
-	private UserService userService;
+	private UserServiceFactory userServiceFactory;
 
 	@Autowired
 	private IdGenService idGenService;
@@ -136,6 +133,7 @@ public class EmployeeService {
 	 * @return
 	 */
 	public EmployeeResponse search(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
+		UserService userService = userServiceFactory.getUserService(criteria.getUserModule());
 		boolean  userChecked = false;
 		/*if(null == criteria.getIsActive() || criteria.getIsActive())
 			criteria.setIsActive(true);
@@ -230,6 +228,7 @@ public class EmployeeService {
 	private void createUser(Employee employee, RequestInfo requestInfo) {
 		enrichUser(employee);
 		UserRequest request = UserRequest.builder().requestInfo(requestInfo).user(employee.getUser()).build();
+		UserService userService = userServiceFactory.getUserService(employee.getUserModule());
 		try {
 			UserResponse response = userService.createUser(request);
 			User user = response.getUser().get(0);
@@ -397,6 +396,7 @@ public class EmployeeService {
 	 */
 	private void updateUser(Employee employee, RequestInfo requestInfo) {
 		UserRequest request = UserRequest.builder().requestInfo(requestInfo).user(employee.getUser()).build();
+		UserService userService = userServiceFactory.getUserService(employee.getUserModule());
 		try {
 			userService.updateUser(request);
 		}catch(Exception e) {

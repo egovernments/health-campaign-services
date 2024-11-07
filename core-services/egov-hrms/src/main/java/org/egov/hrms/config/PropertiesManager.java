@@ -126,8 +126,8 @@ public class PropertiesManager {
 	@Value("${egov.individual.update.endpoint}")
 	private String individualUpdateEndpoint;
 
-	@Value("${egov.individual.delete.endpoint}")
-	private String individualDeleteEndpoint;
+//	@Value("${egov.individual.delete.endpoint}")
+//	private String individualDeleteEndpoint;
 
 	@Value("${egov.individual.search.endpoint}")
 	private String individualSearchEndpoint;

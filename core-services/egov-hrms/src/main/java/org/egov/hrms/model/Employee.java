@@ -129,5 +129,7 @@ public class Employee {
     @NotNull
     private User user;
 
+    @NotNull
+    private String userModule;
 
 }

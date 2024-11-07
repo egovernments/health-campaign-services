@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 
@@ -57,6 +58,8 @@ public class EmployeeSearchCriteria {
 	public Integer limit;
 
 	private Boolean includeUnassigned = false;
+	@NotNull
+	private String userModule;
 	
 	
 	public boolean isCriteriaEmpty(EmployeeSearchCriteria criteria) {
