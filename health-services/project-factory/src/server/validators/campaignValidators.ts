@@ -970,7 +970,7 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
             }
         }
         const params = { tenantId: tenantId }
-        const searchResponse: any = await httpRequest(config.host.mdms + config?.paths?.mdms_v1_search, searchBody, params);
+        const searchResponse: any = await httpRequest(config.host.mdmsV2 + config?.paths?.mdms_v1_search, searchBody, params);
         if (searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes && Array.isArray(searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes)) {
             const projectTypes = searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
             if (!projectTypes.includes(projectType)) {
