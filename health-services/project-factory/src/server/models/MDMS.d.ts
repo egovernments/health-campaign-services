@@ -1,7 +1,7 @@
 /**
  * Criteria for MDMS v1 request
  */
- interface MDMSv1Criteria {
+interface MDMSv1Criteria {
   tenantId: string; // Unique identifier for the tenant
   moduleDetails: ModuleDetail[]; // Array of module details to fetch
 }
@@ -25,7 +25,7 @@ interface MasterDetail {
 /**
  * Criteria for MDMS v2 request
  */
- interface MDMSv2Criteria {
+interface MDMSv2Criteria {
   tenantId: string; // Unique identifier for the tenant
   schemaCode: string; // Code representing the schema to query
   ids?: string[]; // Optional array of specific IDs to fetch
@@ -123,26 +123,22 @@ export interface MDMSSchemaRequestCriteria {
 /**
  * Detailed criteria structure for schema definition requests
  */
- interface SchemaDefCriteria {
+interface SchemaDefCriteria {
   tenantId: string; // Tenant identifier for the schema definition
   limit: number; // Limit on the number of schema definitions to fetch
   codes?: string[]; // Optional array of schema codes to retrieve
 }
 
-
 /**
  * Criteria for requesting MDMS schema definitions
  */
 export interface MDMSv1RequestCriteria {
-    MdmsCriteria: MDMSv1Criteria; // Criteria details for schema definition request
-  }
-  
+  MdmsCriteria: MDMSv1Criteria; // Criteria details for schema definition request
+}
 
 /**
  * Criteria for requesting MDMS schema definitions
  */
 export interface MDMSv2RequestCriteria {
-    MdmsCriteria: MDMSv2Criteria; // Criteria details for schema definition request
-  }
-  
-
+  MdmsCriteria: MDMSv2Criteria; // Criteria details for schema definition request
+}
