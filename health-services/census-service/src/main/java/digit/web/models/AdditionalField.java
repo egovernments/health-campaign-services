@@ -10,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
+import java.math.BigDecimal;
+
 /**
  * AdditionalField
  */
@@ -33,7 +35,7 @@ public class AdditionalField {
     @JsonProperty("value")
     @Valid
     @NotNull
-    private String value = null;
+    private BigDecimal value = null;
 
     @JsonProperty("showOnUi")
     private Boolean showOnUi = Boolean.TRUE;
