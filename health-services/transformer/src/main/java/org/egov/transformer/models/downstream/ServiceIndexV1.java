@@ -64,4 +64,6 @@ public class ServiceIndexV1 {
     private ObjectNode additionalDetails;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
+    @JsonProperty("projectType")
+    private String projectType;
 }
