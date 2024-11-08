@@ -113,4 +113,11 @@ public class Configuration {
 	@Value("${census.additional.field.prefix.append.keys}")
 	public List<String> censusAdditionalPrefixAppendKeys;
 
+	//census host
+	@Value("${egov.census.host}")
+	private String censusHost;
+
+	@Value("${egov.census.search.endpoint}")
+	private String censusSearchEndPoint;
+
 }

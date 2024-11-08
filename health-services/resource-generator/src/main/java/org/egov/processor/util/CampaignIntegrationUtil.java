@@ -28,6 +28,7 @@ public class CampaignIntegrationUtil {
 	private ServiceRequestRepository serviceRequestRepository;
 	private Configuration config;
 	private ObjectMapper mapper;
+	private ParsingUtil parsingUtil;
 
 	public CampaignIntegrationUtil(ServiceRequestRepository serviceRequestRepository, Configuration config,
 			ObjectMapper mapper, FilestoreUtil filestoreUtil, ParsingUtil parsingUtil) {
@@ -35,6 +36,7 @@ public class CampaignIntegrationUtil {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.mapper = mapper;
+		this.parsingUtil= parsingUtil;
 	}
 
 	/**
@@ -177,29 +179,13 @@ public class CampaignIntegrationUtil {
 		boolean validToAdd = false;
 		Integer indexValue = 0;
 		Boundary boundary = new Boundary();
-		List<Map.Entry<String, Integer>> sortedColumnList = sortColumnByIndex(mapOfColumnNameAndIndex);
-		indexValue = getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
+		List<Map.Entry<String, Integer>> sortedColumnList = parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex);
+		indexValue = parsingUtil.getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
 		prepareBoundary(indexOfType, indexValue, sortedColumnList, feature, boundary, mappedValues);
 		if (isValidToAdd(boundaryList, resultMap, validToAdd, boundary))
 			boundaryList.add(boundary);
 	}
 
-	/**
-	 * Retrieves the index value of the boundary code from the sorted column list based on the mapped values.
-	 *
-	 * @param indexValue The initial index value.
-	 * @param sortedColumnList The sorted list of column names and indices.
-	 * @param mappedValues The map containing mapped values.
-	 * @return The index value of the boundary code.
-	 */
-	public Integer getIndexOfBoundaryCode(Integer indexValue, List<Map.Entry<String, Integer>> sortedColumnList,Map<String, String> mappedValues) {
-		for (Map.Entry<String, Integer> entry : sortedColumnList) {
-			if (entry.getKey().equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
-				indexValue = entry.getValue();
-			}
-		}
-		return indexValue;
-	}
 
 	/**
 	 * Prepares a campaign boundary based on the provided index values, sorted column list, feature, and mapped values.
@@ -253,22 +239,7 @@ public class CampaignIntegrationUtil {
 		return validToAdd;
 	}
 
-	/**
-	 * Sorts the column names and indices based on the provided map of column names and indices.
-	 *
-	 * @param mapOfColumnNameAndIndex The map containing column names and their corresponding indices.
-	 * @return The sorted list of column names and indices.
-	 */
-	public List<Map.Entry<String, Integer>> sortColumnByIndex(Map<String, Integer> mapOfColumnNameAndIndex) {
-		List<Map.Entry<String, Integer>> sortedColumnList = new ArrayList<>(mapOfColumnNameAndIndex.entrySet());
-		Collections.sort(sortedColumnList, new Comparator<Map.Entry<String, Integer>>() {
-			@Override
-			public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
-				return o1.getValue().compareTo(o2.getValue());
-			}
-		});
-		return sortedColumnList;
-	}
+
 
 	/**
 	 * Retrieves the value of the boundary code from the feature JSON node based on the mapped values.
