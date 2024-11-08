@@ -17,7 +17,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
-import { areBoundariesSame, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
+import { areBoundariesSame, callGenerate, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, updateTargetColumnsIfDeliveryConditionsDifferForSMC } from "./targetUtils";
 import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithBoundaryCodeAndName, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, getColumnIndexByHeader, hideColumnsOfProcessedFile, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
@@ -558,6 +558,21 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         },
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
+
+    if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
+        const newRequestBody = {
+            RequestInfo: request?.body?.RequestInfo
+        };
+        const params = {
+            type: request?.body?.ResourceDetails?.type,
+            tenantId: request?.body?.ResourceDetails?.tenantId,
+            forceUpdate: 'true',
+            hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+            campaignId : "default"
+        };
+        const newRequestBoundary = replicateRequest(request, newRequestBody, params);
+        await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
+    }
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
         persistMessage.ResourceDetails.additionalDetails = {
@@ -1504,7 +1519,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
                     } else {
                         const targetobj = filteredTargets[0];
                         targetobj.totalNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary],
-                        targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+                            targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
                         projectToUpdate.targets = [targetobj];
                     }
                     const projectUpdateBody = {
@@ -1512,7 +1527,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
                         Projects: [projectToUpdate]
                     };
 
-                    await projectUpdateForTargets(projectUpdateBody, request,boundary);
+                    await projectUpdateForTargets(projectUpdateBody, request, boundary);
                 }
             }
             delete request.body.boundaryCodesWhoseTargetsHasToBeUpdated;
@@ -2075,7 +2090,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     if (type === "boundaryManagement") {
         headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
         data.forEach((row: any[], index: string | number) => {
-            if(latLongData.length > index){
+            if (latLongData.length > index) {
                 row.push(latLongData[index][0], latLongData[index][1]);
             }
         });
