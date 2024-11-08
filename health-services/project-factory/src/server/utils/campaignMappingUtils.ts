@@ -1,6 +1,6 @@
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
-import { getDataFromSheet, getLocalizedMessagesHandlerViaRequestInfo, throwError } from "./genericUtils";
+import { getDataFromSheet, getLocalizedMessagesHandlerViaRequestInfo, replicateRequest, throwError } from "./genericUtils";
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -10,7 +10,8 @@ import { createCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
-import { delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
+import { searchDataService } from "../service/dataManageService";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -145,24 +146,87 @@ function mapBoundaryCodes(resource: any, code: string, boundaryCode: string, bou
     }
 }
 
+
+function splitBoundaryCodes(boundaryCode: string) {
+    return boundaryCode.includes(',')
+        ? boundaryCode.split(',').map((code: string) => code.trim()).filter(Boolean)
+        : [boundaryCode.trim()].filter(Boolean);
+}
+
+
+async function fetchActiveIdentifiersFromParentCampaign(
+    resource: any,
+    resourcesFromParentCampaign: any[],
+    messageObject: any,
+    sheetName: any,
+    localizationMap: any,
+    activeColumn: string,
+    uniqueCodeColumn: string
+): Promise<any[]> {
+    let activeUniqueIdentifiersFromParent: any[] = [];
+
+    if (messageObject?.parentCampaign) {
+        const matchingParentResource = resourcesFromParentCampaign.find(
+            (parentResource: any) => parentResource.type === resource.type
+        );
+
+        if (matchingParentResource) {
+            const parentCreateResouceId = matchingParentResource.createResourceId || '';
+            const searchCriteria = buildSearchCriteria(messageObject, [parentCreateResouceId], matchingParentResource?.type);
+            const responseFromDataSearch = await searchDataService(replicateRequest(messageObject, searchCriteria));
+
+            const parentProcessedFileStoreId = responseFromDataSearch?.[0]?.processedFilestoreId;
+
+            const parentResourceData: any = await getDataFromSheet(
+                messageObject,
+                parentProcessedFileStoreId,
+                messageObject?.Campaign?.tenantId,
+                undefined,
+                sheetName[matchingParentResource?.type],
+                localizationMap
+            );
+
+            activeUniqueIdentifiersFromParent = parentResourceData
+                .filter((row: any) => row[activeColumn] === "Active")
+                .map((row: any) => row[uniqueCodeColumn]);
+        }
+    }
+
+    return activeUniqueIdentifiersFromParent;
+}
+
+
 async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
     const localizationMap: any = messageObject?.localizationMap
     const allBoundaries = await getAllBoundaries(messageObject, messageObject?.Campaign?.tenantId, messageObject?.Campaign?.boundaryCode, messageObject?.Campaign?.hierarchyType);
     const delinkOperations: any = [];
     const linkOperations: any = [];
+    const resourcesFromParentCampaign = messageObject?.parentCampaign?.resources || [];
     for (const resource of resources) {
+        const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
+        var activeColumn: any;
+        if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
+            activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
+        }
         const processedFilestoreId = resource?.processedFilestoreId;
+        const activeUniqueIdentifiersFromParent = await fetchActiveIdentifiersFromParentCampaign(
+            resource,
+            resourcesFromParentCampaign,
+            messageObject,
+            sheetName,
+            localizationMap,
+            activeColumn,
+            uniqueCodeColumn
+        );
         if (processedFilestoreId) {
             const dataFromSheet: any = await getDataFromSheet(messageObject, processedFilestoreId, messageObject?.Campaign?.tenantId, undefined, sheetName[resource?.type], localizationMap);
             for (const data of dataFromSheet) {
-                const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
                 const code = data[uniqueCodeColumn];
                 if (code) {
                     // Extract boundary codes
                     const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
                     var active: any = "Active";
                     if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
-                        var activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
                         active = data[activeColumn];
                     }
                     if (boundaryCode && active === "Active") {
@@ -170,14 +234,11 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                             mapBoundaryCodes(resource, code, boundaryCode, boundaryCodes, allBoundaries);
                         }
                         else {
-                            const existingBoundaryColumnRaw = data[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)];
-                            const existingBoundaryColumn = existingBoundaryColumnRaw ?
-                                (existingBoundaryColumnRaw.includes(',') ?
-                                    existingBoundaryColumnRaw.split(',').map((code: string) => code.trim()).filter(Boolean) :
-                                    [existingBoundaryColumnRaw.trim()].filter(Boolean)) : [];
-                            const newBoundaryColumn = boundaryCode.includes(',') ?
-                                boundaryCode.split(',').map((code: string) => code.trim()).filter(Boolean) :
-                                [boundaryCode.trim()].filter(Boolean);
+                            const existingBoundaryColumn = splitBoundaryCodes(
+                                data[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)] || ""
+                            );
+
+                            const newBoundaryColumn = splitBoundaryCodes(boundaryCode);
 
                             existingBoundaryColumn.forEach((boundary: any) => {
                                 if (!newBoundaryColumn.includes(boundary)) {
@@ -193,6 +254,19 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                                     resource, messageObject, boundary, code, isDelink: false
                                 });
                             });
+                        }
+                    }
+                    else {
+                        if (messageObject?.parentCampaign) {
+                            if (boundaryCode && activeUniqueIdentifiersFromParent.includes(code) && active !== "Active") {
+                                const boundariesToBeDelinked = splitBoundaryCodes(data[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)] || "");
+                                boundariesToBeDelinked.forEach((boundary: any) => {
+                                    delinkOperations.push({
+                                        resource, messageObject, boundary, code, isDelink: true
+                                    });
+                                });
+
+                            }
                         }
                     }
                 }

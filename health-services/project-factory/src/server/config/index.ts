@@ -17,6 +17,8 @@ const getDBSchemaName = (dbSchema = "") => {
 // Configuration object containing various environment variables
 const config = {
   cacheTime: 300,
+  isProduction: process.env ? true : false,
+  token: "", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
@@ -122,7 +124,7 @@ const config = {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     filestorefetch: "filestore/v1/files/url",
     mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
-    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
+    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "mdms-v2/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
     boundaryRelationship: process.env.EGOV_BOUNDARY_RELATIONSHIP_SEARCHPATH || "boundary-service/boundary-relationships/_search",
