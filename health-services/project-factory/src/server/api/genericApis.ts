@@ -227,24 +227,34 @@ const getTargetSheetDataAfterCode = async (
       let rowData: any = { [codeColumnName]: row[boundaryCodeColumnIndex] };
 
       // Add integer values in the target column for the current row
-      let sum = 0;
+      let sumOfCurrentTargets = 0;
+      let sumOfParentTargets = 0;
+      const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
+      const halfPoint = Math.floor(remainingColumns / 2);
       let startColIndex = boundaryCodeColumnIndex + 1;
-  
+
       if (request?.body?.parentCampaign) {
+        for (let colIndex = startColIndex; colIndex < startColIndex + halfPoint; colIndex++) {
+          const value = row[colIndex];
+          if (typeof value === 'number' && Number.isInteger(value)) {
+            sumOfParentTargets += value;
+          }
+        }
+        // Add the sum to the row data
+        rowData['Parent Target at the Selected Boundary level'] = sumOfParentTargets;
+
         // Calculate middle point of remaining columns
-        const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
-        const halfPoint = Math.floor(remainingColumns / 2);
         startColIndex = boundaryCodeColumnIndex + 1 + halfPoint;
       }
       for (let colIndex = startColIndex; colIndex < row.length; colIndex++) {
         const value = row[colIndex];
         if (typeof value === 'number' && Number.isInteger(value)) {
-          sum += value;
+          sumOfCurrentTargets += value;
         }
       }
 
       // Add the sum to the row data
-      rowData['Target at the Selected Boundary level'] = sum;
+      rowData['Target at the Selected Boundary level'] = sumOfCurrentTargets;
       return rowData;
     }).filter(Boolean); // Remove null entries
 

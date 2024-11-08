@@ -1868,6 +1868,30 @@ async function projectCreate(projectCreateBody: any, request: any) {
   }
 }
 
+async function projectUpdateForTargets(projectUpdateBody: any, request: any) {
+  logger.info("Project Update For Targets started");
+
+  logger.debug("Project update request body: " + JSON.stringify(projectUpdateBody, null, 2));
+
+  try {
+    const projectUpdateResponse = await httpRequest(
+      config.host.projectHost + config.paths.projectUpdate,
+      projectUpdateBody,
+      undefined, undefined, undefined, undefined, undefined,
+      true
+    );
+    logger.debug("Project update response: " + JSON.stringify(projectUpdateResponse, null, 2));
+  } catch (error: any) {
+    logger.error("Project update failed", error);
+    throwError(
+      "PROJECT",
+      500,
+      "PROJECT_UPDATE_ERROR",
+      `Project update failed for the request: ${JSON.stringify(projectUpdateBody)}. Error: ${error.message}`
+    );
+  }
+}
+
 function generateHierarchyList(data: any[], parentChain: any = []) {
   let result: any[] = [];
 
@@ -1977,4 +2001,5 @@ export {
   handleResouceDetailsError,
   getCampaignSearchResponse,
   confirmProjectParentCreation,
+  projectUpdateForTargets
 };
