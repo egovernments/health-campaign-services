@@ -147,6 +147,8 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
+                // integrate with user service create call
+                integrateWithUserService(request, validIndividuals, ApiOperation.CREATE);
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
@@ -162,8 +164,6 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service create call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
         return decryptedIndividualList;
     }
 
@@ -261,7 +261,8 @@ public class IndividualService {
                         }
                     });
                 }
-
+                // integrate with user service update call
+                integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE);
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
@@ -275,8 +276,6 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service update call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
         return decryptedIndividualList;
     }
 
@@ -385,6 +384,8 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
+                // integrate with user service delete call
+                integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
             }
@@ -395,8 +396,6 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        // integrate with user service delete call
-        integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
         return validIndividuals;
     }
 
@@ -425,8 +424,6 @@ public class IndividualService {
                             encryptedIndividualList.get(i).setUserUuid(userRequests.get(i).getUuid());
                         }
                     }
-                    individualRepository.save(encryptedIndividualList,
-                            properties.getUpdateUserIdTopic());
                     log.info("successfully created user for {} individuals",
                             encryptedIndividualList.size());
                 } else {
