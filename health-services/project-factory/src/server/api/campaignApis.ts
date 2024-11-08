@@ -280,7 +280,7 @@ function updateErrorsForUser(
       });
       logger.info(
         "Can't confirm creation of this data of row number : " +
-          createdElement["!row#number!"]
+        createdElement["!row#number!"]
       );
     }
   });
@@ -331,7 +331,7 @@ function updateErrors(
       });
       logger.info(
         "Can't confirm creation of this data of row number : " +
-          createdElement["!row#number!"]
+        createdElement["!row#number!"]
       );
     }
   });
@@ -542,7 +542,7 @@ async function matchUserValidation(createdData: any[], request: any) {
   }, {});
   logger.debug(
     "mobileNumberRowNumberMapping : " +
-      getFormattedStringForDebug(mobileNumberRowNumberMapping)
+    getFormattedStringForDebug(mobileNumberRowNumberMapping)
   );
   const mobileNumberResponse = await getUserWithMobileNumbers(
     request,
@@ -798,7 +798,7 @@ async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
         500,
         "INTERNAL_SERVER_ERROR",
         error.message ||
-          "Some internal error occurred while searching employees"
+        "Some internal error occurred while searching employees"
       );
     }
   }
@@ -855,7 +855,7 @@ async function processValidateAfterSchema(
   try {
     if (
       request?.body?.ResourceDetails?.additionalDetails?.source ==
-        "microplan" &&
+      "microplan" &&
       request.body.ResourceDetails.type == "facility"
     ) {
       validateMicroplanFacility(request, dataFromSheet, localizationMap);
@@ -973,9 +973,8 @@ async function processValidate(
   );
   if (type == "boundaryWithTarget") {
     const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
-    const hierarchyModule = `${
-      config.localisation.boundaryPrefix
-    }-${getTransformedLocale(hierarchyType)}`?.toLowerCase();
+    const hierarchyModule = `${config.localisation.boundaryPrefix
+      }-${getTransformedLocale(hierarchyType)}`?.toLowerCase();
     const localizationMapForHierarchy = await getLocalizedMessagesHandler(
       request,
       request?.body?.ResourceDetails?.tenantId,
@@ -1496,7 +1495,7 @@ async function processAfterValidation(
   try {
     if (
       request?.body?.ResourceDetails?.additionalDetails?.source ==
-        "microplan" &&
+      "microplan" &&
       request.body.ResourceDetails.type == "user"
     ) {
       await processSearchAndValidation(request);
@@ -1757,7 +1756,7 @@ async function createProjectCampaignResourcData(request: any) {
       {
         error: String(
           error?.message +
-            (error?.description ? ` : ${error?.description}` : "") || error
+          (error?.description ? ` : ${error?.description}` : "") || error
         ),
       }
     );
@@ -1832,19 +1831,19 @@ async function projectCreate(projectCreateBody: any, request: any) {
   );
   logger.debug(
     "Project creation response" +
-      getFormattedStringForDebug(projectCreateResponse)
+    getFormattedStringForDebug(projectCreateResponse)
   );
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info(
       "Project created successfully with name " +
-        JSON.stringify(projectCreateResponse?.Project[0]?.name)
+      JSON.stringify(projectCreateResponse?.Project[0]?.name)
     );
     logger.info(
       `for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`
     );
     if (
       !request.body.newlyCreatedBoundaryProjectMap[
-        projectCreateBody?.Projects?.[0]?.address?.boundary
+      projectCreateBody?.Projects?.[0]?.address?.boundary
       ]
     ) {
       request.body.newlyCreatedBoundaryProjectMap[
@@ -1863,15 +1862,16 @@ async function projectCreate(projectCreateBody: any, request: any) {
       500,
       "PROJECT_CREATION_FAILED",
       "Project creation failed, for the request: " +
-        JSON.stringify(projectCreateBody)
+      JSON.stringify(projectCreateBody)
     );
   }
 }
 
-async function projectUpdateForTargets(projectUpdateBody: any, request: any) {
+async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
   logger.info("Project Update For Targets started");
 
   logger.debug("Project update request body: " + JSON.stringify(projectUpdateBody, null, 2));
+  logger.info(`Project update started for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
 
   try {
     const projectUpdateResponse = await httpRequest(
@@ -1881,6 +1881,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any) {
       true
     );
     logger.debug("Project update response: " + JSON.stringify(projectUpdateResponse, null, 2));
+    logger.info(`Project update response for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
   } catch (error: any) {
     logger.error("Project update failed", error);
     throwError(
@@ -1917,12 +1918,12 @@ const getHierarchy = async (
   hierarchyType: string
 ) => {
   const BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria =
-    {
-      BoundaryTypeHierarchySearchCriteria: {
-        tenantId,
-        hierarchyType,
-      },
-    };
+  {
+    BoundaryTypeHierarchySearchCriteria: {
+      tenantId,
+      hierarchyType,
+    },
+  };
   const response: BoundaryModels.BoundaryHierarchyDefinitionResponse =
     await searchBoundaryRelationshipDefinition(
       BoundaryTypeHierarchySearchCriteria
@@ -1967,7 +1968,7 @@ async function getCampaignSearchResponse(request: any) {
           request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
         ids: [
           request?.query?.campaignId ||
-            request?.body?.ResourceDetails?.campaignId,
+          request?.body?.ResourceDetails?.campaignId,
         ],
       },
     };

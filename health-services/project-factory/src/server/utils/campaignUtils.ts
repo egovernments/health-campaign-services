@@ -1511,7 +1511,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
                         Projects: [projectToUpdate]
                     };
 
-                    await projectUpdateForTargets(projectUpdateBody, request);
+                    await projectUpdateForTargets(projectUpdateBody, request,boundary);
                 }
             }
             delete request.body.boundaryCodesWhoseTargetsHasToBeUpdated;
