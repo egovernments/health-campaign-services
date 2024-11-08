@@ -3,12 +3,11 @@ package digit.service.validator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.util.*;
+import digit.util.CampaignUtil;
+import digit.util.CommonUtil;
+import digit.util.MdmsUtil;
+import digit.util.MdmsV2Util;
 import digit.web.models.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
 import digit.web.models.mdmsV2.Mdms;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +17,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -442,7 +444,7 @@ public class PlanConfigurationValidator {
             HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(request, campaignResponse.getCampaignDetails().get(0).getProjectType());
             Set<String> activeAssumptionKeys = getActiveAssumptionKeys(planConfiguration);
 
-            validateOperationInputs(planConfiguration, allowedColumns);
+            validateOperationInputs(planConfiguration, allowedColumns, activeAssumptionKeys);
             validateOperationAssumptionValues(planConfiguration, allowedColumns, activeAssumptionKeys);
         }
     }
@@ -529,13 +531,13 @@ public class PlanConfigurationValidator {
      * @param planConfiguration The plan configuration containing operations.
      * @param allowedColumns    The allowed column names for input validation.
      */
-    private void validateOperationInputs(PlanConfiguration planConfiguration, HashSet<String> allowedColumns) {
+    private void validateOperationInputs(PlanConfiguration planConfiguration, HashSet<String> allowedColumns, Set<String> activeAssumptionKeys) {
         // Set to keep track of previous outputs
         Set<String> previousOutputs = new HashSet<>();
 
         for (Operation operation : planConfiguration.getOperations()) {
             // Validate input
-            if (!allowedColumns.contains(operation.getInput()) && !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
+            if (!allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
                 log.error("Input Value " + operation.getInput() + " is not present in allowed columns or previous outputs");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
             }
