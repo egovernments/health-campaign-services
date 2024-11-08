@@ -76,8 +76,8 @@ async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility
 
 
 function modifyProcessedSheetData(request: any, sheetData: any, localizationMap?: any) {
-  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
-  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
+  // const type = request?.query?.type || request?.body?.ResourceDetails?.type;
+  // const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   if (!sheetData || sheetData.length === 0) return [];
 
   // Find the row with the maximum number of keys
@@ -87,12 +87,10 @@ function modifyProcessedSheetData(request: any, sheetData: any, localizationMap?
 
   // Extract headers from the keys of the row with the maximum number of keys
   const originalHeaders = Object.keys(maxLengthRow);
-  if (typeWithoutWith == 'user') {
-    const statusIndex = originalHeaders.indexOf('#status#');
-    // Insert 'errordetails' after '#status#' if found
-    if (statusIndex !== -1) {
-      originalHeaders.splice(statusIndex + 1, 0, '#errorDetails#');
-    }
+  const statusIndex = originalHeaders.indexOf('#status#');
+  // Insert 'errordetails' after '#status#' if found
+  if (statusIndex !== -1) {
+    originalHeaders.splice(statusIndex + 1, 0, '#errorDetails#');
   }
 
   let localizedHeaders = getLocalizedHeaders(originalHeaders, localizationMap);
