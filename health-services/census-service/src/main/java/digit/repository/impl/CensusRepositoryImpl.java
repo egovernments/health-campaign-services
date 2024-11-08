@@ -10,7 +10,9 @@ import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
@@ -70,10 +72,33 @@ public class CensusRepositoryImpl implements CensusRepository {
         if(censusSearchCriteria.getAreaCodes() != null && censusSearchCriteria.getAreaCodes().isEmpty())
             return new ArrayList<>();
 
-        List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getCensusQuery(censusSearchCriteria, preparedStmtList);
+        // Fetch census ids from database
+        List<String> censusIds = queryDatabaseForCensusIds(censusSearchCriteria);
 
+        // Return empty list back as response if no census ids are found
+        if(CollectionUtils.isEmpty(censusIds)) {
+            log.info("No census ids found for provided census search criteria.");
+            return new ArrayList<>();
+        }
+
+        // Fetch census from database based on the acquired ids
+        return searchCensusByIds(censusIds);
+    }
+
+    private List<Census> searchCensusByIds(List<String> censusIds) {
+
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getCensusQuery(censusIds, preparedStmtList);
+        log.info("Census query: " + query);
         return jdbcTemplate.query(query, censusRowMapper, preparedStmtList.toArray());
+
+    }
+
+    private List<String> queryDatabaseForCensusIds(CensusSearchCriteria censusSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.getCensusSearchQuery(censusSearchCriteria, preparedStmtList);
+        log.info("Census search query: " + query);
+        return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
     /**
