@@ -1292,7 +1292,7 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                         }
                     }
                     if (!boundaryRow[root]) {
-                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
+                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}. Please upload from downloaded template only.`);
                     }
                 }
             }
@@ -1312,7 +1312,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
     logger.debug("districts present in user filled sheet (exclude first two tabs): " + getFormattedStringForDebug(tabsFromTargetSheet));
 
     if (tabsFromTargetSheet.length - tabsIndex !== tabsOfDistrict.length) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uploaded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system `)
+        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uploaded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system. Please upload from downloaded template only.`);
     } else {
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab
