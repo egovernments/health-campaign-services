@@ -12,6 +12,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_CENSUS = "Exception occurred while fetching records from census: ";
+
     public static final String TENANTID_REPLACER = "{tenantId}";
 
     public static final String TENANTID = "tenantId";
@@ -39,6 +41,9 @@ public class ServiceConstants {
 
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
+
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_CENSUS_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records does not exists for the given details: ";
 
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";

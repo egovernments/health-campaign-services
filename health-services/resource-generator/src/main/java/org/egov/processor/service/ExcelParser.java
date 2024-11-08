@@ -212,6 +212,7 @@ public class ExcelParser implements FileParser {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
 							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
@@ -258,12 +259,12 @@ public class ExcelParser implements FileParser {
 				));
 
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 		Row firstRow = null;
 
 		for (Row row : sheet) {
-			if (isRowEmpty(row))
+			if (parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -341,11 +342,11 @@ public class ExcelParser implements FileParser {
 				.convertAssumptionsToMap(planConfig.getAssumptions());
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
 		for (Row row : sheet) {
-			if(isRowEmpty(row))
+			if(parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -368,25 +369,6 @@ public class ExcelParser implements FileParser {
 		}
 	}
 
-	/**
-	 * Checks if a given row is empty.
-	 *
-	 * A row is considered empty if it is null or if all of its cells are empty or of type BLANK.
-	 *
-	 * @param row the Row to check
-	 * @return true if the row is empty, false otherwise
-	 */
-	public static boolean isRowEmpty(Row row) {
-		if (row == null) {
-			return true;
-		}
-		for (Cell cell : row) {
-			if (cell != null && cell.getCellType() != CellType.BLANK) {
-				return false;
-			}
-		}
-		return true;
-	}
 
 	/**
 	 * Performs calculations on operations for a specific row in the sheet.
