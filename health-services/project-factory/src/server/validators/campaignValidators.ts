@@ -878,7 +878,7 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             CampaignDetails: {
                 tenantId: tenantId,
                 campaignName: campaignName,
-                status: [campaignStatuses.started, campaignStatuses.inprogress],
+                status: [campaignStatuses.drafted, campaignStatuses.started, campaignStatuses.inprogress],
             }
         }
         if (request.body?.parentCampaign) {
