@@ -24,6 +24,7 @@ import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithParentRootPr
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { searchDataService } from "../service/dataManageService";
+import { searchMDMSDataViaV2Api } from "../api/coreApis";
 
 
 
@@ -2251,7 +2252,7 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(request: any,
 async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataGeneratedBeforeDifferentTabSeparation: any, localizationMap?: any, fileUrl?: any) {
     var boundaryDataGeneratedAfterDifferentTabSeparation: any = boundaryDataGeneratedBeforeDifferentTabSeparation;
     const boundaryData = await getBoundaryDataAfterGeneration(boundaryDataGeneratedBeforeDifferentTabSeparation, request, localizationMap);
-    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.query?.tenantId);
     differentTabsBasedOnLevel = getLocalizedName(`${request?.query?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(), localizationMap);
     logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
     const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
@@ -2263,12 +2264,17 @@ async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataG
     return boundaryDataGeneratedAfterDifferentTabSeparation;
 }
 
-async function getBoundaryOnWhichWeSplit(request: any) {
-    const mdmsResponse = await getMDMSV1Data(request, config?.values?.moduleName, config?.masterNameForSplitBoundariesOn, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId);
+async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
+    const MdmsCriteria: any = {
+        tenantId: tenantId,
+        schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`
+    }
+    const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const hierarchyTypeFromCampaignResponseObject = responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType;
-    return mdmsResponse.filter((item: any) => item.hierarchy == hierarchyTypeFromCampaignResponseObject).map((item: any) => item.splitBoundariesOn);
+    return mdmsResponse?.mdms?.filter((item: any) => item?.data?.hierarchy == hierarchyTypeFromCampaignResponseObject).map((item: any) => item?.data?.splitBoundariesOn);
 }
+
 
 
 function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
