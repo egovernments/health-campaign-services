@@ -41,5 +41,7 @@ public class AttendanceLogIndexV1 {
     private Map<String, String> boundaryHierarchy;
     @JsonProperty("boundaryHierarchyCode")
     private Map<String, String> boundaryHierarchyCode;
+    @JsonProperty("projectType")
+    private String projectType;
 
 }
