@@ -612,7 +612,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
     requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [], boundaries: requestBody?.CampaignDetails?.boundaries || [] };
     requestBody.CampaignDetails.status = campaignStatuses?.failed;
-    requestBody.CampaignDetails.isActive = false;
+    // requestBody.CampaignDetails.isActive = false;
     requestBody.CampaignDetails.boundaryCode = getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null
     requestBody.CampaignDetails.projectType = requestBody?.CampaignDetails?.projectType || null;
     requestBody.CampaignDetails.hierarchyType = requestBody?.CampaignDetails?.hierarchyType || null;
