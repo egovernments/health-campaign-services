@@ -878,7 +878,7 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             CampaignDetails: {
                 tenantId: tenantId,
                 campaignName: campaignName,
-                isActive: true
+                status: ["creating", "created"],
             }
         }
         if (request.body?.parentCampaign) {
