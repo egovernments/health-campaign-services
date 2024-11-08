@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, generateActivityMessage, throwError, translateSchema, replicateRequest, appendProjectTypeToCapacity } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
 import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getBoundaryOnWhichWeSplit, getLocalizedName, reorderBoundariesOfDataAndValidate, checkIfSourceIsMicroplan, createIdRequests, createUniqueUserNameViaIdGen } from "../utils/campaignUtils";
 const _ = require('lodash');
 import { produceModifiedMessages } from "../kafka/Producer";
 import { createDataService } from "../service/dataManageService";
@@ -564,14 +564,6 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateHash(input: string): string {
-  const prime = 31; // Prime number
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash * prime + input.charCodeAt(i)) % 100000; // Limit hash to 5 digits
-  }
-  return hash.toString().padStart(6, '0');
-}
 
 function generateUserPassword() {
   // Function to generate a random lowercase letter
@@ -608,19 +600,6 @@ function generateUserPassword() {
 }
 
 
-function enrichUserNameAndPassword(employees: any[]) {
-  const epochTime = Date.now();
-  employees.forEach((employee) => {
-    const { user, "!row#number!": rowNumber } = employee;
-    const nameInitials = user.name.split(' ').map((name: any) => name.charAt(0)).join('');
-    const generatedCode = `${nameInitials}${generateHash(`${epochTime}`)}${rowNumber}`;
-    const generatedPassword = config?.user?.userPasswordAutoGenerate == "true" ? generateUserPassword() : config?.user?.userDefaultPassword
-    user.userName = generatedCode;
-    user.password = generatedPassword;
-    employee.code = generatedCode
-  });
-}
-
 async function enrichJurisdictions(employee: any, request: any) {
   employee.jurisdictions = [
     {
@@ -635,13 +614,22 @@ async function enrichJurisdictions(employee: any, request: any) {
 
 async function enrichEmployees(employees: any[], request: any) {
   convertUserRoles(employees, request)
+  const idRequests = createIdRequests(employees);
+  request.body.idRequests = idRequests;
+  let result = await createUniqueUserNameViaIdGen(request);
+  var i = 0;
   for (const employee of employees) {
-    enrichUserNameAndPassword(employees)
+    const { user } = employee;
+    const generatedPassword = config?.user?.userPasswordAutoGenerate == "true" ? generateUserPassword() : config?.user?.userDefaultPassword
+    user.userName = result?.idResponses?.[i]?.id;
+    user.password = generatedPassword;
+    employee.code = result?.idResponses?.[i]?.id;
     await enrichJurisdictions(employee, request)
     if (employee?.user) {
       employee.user.tenantId = request?.body?.ResourceDetails?.tenantId
       employee.user.dob = 0
     }
+    i++;
   }
 }
 
@@ -793,8 +781,15 @@ async function handleResouceDetailsError(request: any, error: any) {
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities) && request?.body?.Activities.length > 0) {
     logger.info("Waiting for 2 seconds");
     await new Promise(resolve => setTimeout(resolve, 2000));
-    const activityObject = request?.body?.Activities;
-    await produceModifiedMessages(activityObject, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+
+    const activities = request?.body?.Activities;
+    const chunkPromises = [];
+    for (let i = 0; i < activities.length; i += 50) {
+      const chunk = activities.slice(i, Math.min(i + 50, activities.length));
+      const activityObject: any = { Activities: chunk };
+      chunkPromises.push(produceModifiedMessages(activityObject, config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC));
+    }
+    await Promise.all(chunkPromises);
   }
 }
 
