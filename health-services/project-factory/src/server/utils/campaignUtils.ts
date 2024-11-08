@@ -543,7 +543,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     if (request.body.ResourceDetails.type == 'boundaryWithTarget' || (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" && request.body.ResourceDetails.type == 'user')) {
         await updateStatusFileForEachSheets(request, localizationMap);
     } else {
-        if (request.body.ResourceDetails.type !== "boundary") {
+        if (request.body.ResourceDetails.type !== "boundary" && request.body.ResourceDetails.type !== "boundaryManagement") {
             await updateStatusFile(request, localizationMap);
         }
     }
@@ -2042,7 +2042,9 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     if (type === "boundaryManagement") {
         headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
         data.forEach((row: any[], index: string | number) => {
-            row.push(latLongData[index][0], latLongData[index][1]);
+            if(latLongData.length > index){
+                row.push(latLongData[index][0], latLongData[index][1]);
+            }
         });
     }
     const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -2318,12 +2320,6 @@ async function createUniqueUserNameViaIdGen(request: any) {
         throwError("ID_GENERATION", 500, "ID_GENERATION_FAILED", `Error occurred while generating ID: ${error.message}`);
     }
 }
-
-
-
-
-
-
 
 export {
     generateProcessedFileAndPersist,
