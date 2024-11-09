@@ -28,8 +28,12 @@ public class AttendanceLogIndexV1 {
     private Name attendeeName;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("attendanceTime")
     private String attendanceTime;
     @JsonProperty("registerServiceCode")
