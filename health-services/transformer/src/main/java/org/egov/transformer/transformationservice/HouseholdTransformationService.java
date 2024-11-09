@@ -76,7 +76,7 @@ public class HouseholdTransformationService {
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
-        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getLastModifiedTime());
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();

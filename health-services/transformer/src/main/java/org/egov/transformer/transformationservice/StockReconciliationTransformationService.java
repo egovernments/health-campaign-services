@@ -71,6 +71,7 @@ public class StockReconciliationTransformationService {
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
         String tenantId = stockReconciliation.getTenantId();
         Facility facility = facilityService.findFacilityById(stockReconciliation.getFacilityId(), tenantId);
+        String facilityType = facility != null ? facilityService.getType(WAREHOUSE, facility) : WAREHOUSE;
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
@@ -111,6 +112,7 @@ public class StockReconciliationTransformationService {
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
+                .facilityType(facilityType)
                 .facilityTarget(facilityTarget)
                 .facilityLevel(facilityLevel)
                 .syncedTimeStamp(syncedTimeStamp)

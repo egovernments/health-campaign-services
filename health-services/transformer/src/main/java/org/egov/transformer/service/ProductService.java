@@ -75,7 +75,7 @@ public class ProductService {
             productVariantVsNameCache.put(productVariantId, sku);
             return sku;
         } catch (Exception e) {
-            log.error("PRODUCT_VARIANT_FETCH_ERROR in transformer: {}", ExceptionUtils.getStackTrace(e));
+            log.info("PRODUCT_VARIANT_FETCH_ERROR in transformer: {}", ExceptionUtils.getStackTrace(e));
             return productVariantId;
         }
     }
