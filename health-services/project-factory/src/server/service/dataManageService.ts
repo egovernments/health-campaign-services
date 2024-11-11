@@ -49,6 +49,7 @@ const downloadDataService = async (request: express.Request) => {
             campaignId :request?.query?.campaignId,
         };
         const newRequestToGenerate = replicateRequest(request, newRequestBody, params);
+        // Added auto generate since no previous generate request found
         logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}  `)
         await callGenerate(newRequestToGenerate, request?.body?.ResourceDetails?.type);
 
