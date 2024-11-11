@@ -31,6 +31,9 @@ public class PlanConfigurationSearchCriteria {
     @JsonProperty("id")
     private String id = null;
 
+    @JsonProperty("ids")
+    private List<String> ids = null;
+
     @JsonProperty("name")
     private String name = null;
 

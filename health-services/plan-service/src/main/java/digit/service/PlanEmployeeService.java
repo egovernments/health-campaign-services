@@ -11,6 +11,7 @@ import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.List;
 
 @Service
 public class PlanEmployeeService {
@@ -60,11 +61,13 @@ public class PlanEmployeeService {
      * @return A list of plan employee assignments that matches the search criteria.
      */
     public PlanEmployeeAssignmentResponse search(PlanEmployeeAssignmentSearchRequest request) {
-        validator.validateSearch(request);
+        // Delegate search request to repository
+        List<PlanEmployeeAssignment> planEmployeeAssignmentList = repository.search(request.getPlanEmployeeAssignmentSearchCriteria());
 
+        // Build and return response back to controller
         return PlanEmployeeAssignmentResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
-                .planEmployeeAssignment(repository.search(request.getPlanEmployeeAssignmentSearchCriteria()))
+                .planEmployeeAssignment(planEmployeeAssignmentList)
                 .totalCount(repository.count(request.getPlanEmployeeAssignmentSearchCriteria()))
                 .build();
     }

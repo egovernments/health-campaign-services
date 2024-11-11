@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -51,6 +52,9 @@ public class PlanFacility {
     @NotNull
     @Valid
     private List<String> serviceBoundaries;
+
+    @JsonIgnore
+    private List<String> initiallySetServiceBoundaries;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

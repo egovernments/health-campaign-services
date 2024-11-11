@@ -87,6 +87,13 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Census
+    @Value("${egov.census.host}")
+    private String censusHost;
+
+    @Value("${egov.census.search.endpoint}")
+    private String censusSearchEndPoint;
+
     //Facility
     @Value("${egov.facility.host}")
     private String facilityHost;
@@ -100,6 +107,9 @@ public class Configuration {
 
     @Value("${egov.workflow.transition.path}")
     private String wfTransitionPath;
+
+    @Value("${egov.business.service.search.endpoint}")
+    private String businessServiceSearchEndpoint;
 
     @Value("${workflow.initiate.action}")
     private List<String> wfInitiateActions;

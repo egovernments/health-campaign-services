@@ -1,6 +1,5 @@
 package digit.repository.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanFacilityRepository;
@@ -61,6 +60,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .facilityId(planFacility.getFacilityId())
                 .residingBoundary(planFacility.getResidingBoundary())
                 .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
+                .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())
                 .additionalDetails(planFacility.getAdditionalDetails())
                 .active(planFacility.getActive())
                 .auditDetails(planFacility.getAuditDetails())
@@ -80,7 +80,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
      * @return a string
      */
     private String convertArrayToString(List<String> stringList) {
-        return String.join(", ", stringList);
+        return String.join(COMMA_DELIMITER, stringList);
     }
 
 

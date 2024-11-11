@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.service.PlanEmployeeService;
+import digit.service.validator.PlanConfigurationValidator;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.contract.workflow.*;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
@@ -15,11 +17,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
+import static digit.config.ServiceConstants.NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE;
 
 @Service
 @Slf4j
@@ -35,12 +39,18 @@ public class WorkflowService {
 
     private PlanEmployeeService planEmployeeService;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService) {
+    private PlanConfigurationValidator planConfigurationValidator;
+
+    private RestTemplate restTemplate;
+
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, PlanConfigurationValidator planConfigurationValidator, RestTemplate restTemplate) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
         this.commonUtil = commonUtil;
         this.planEmployeeService = planEmployeeService;
+        this.planConfigurationValidator = planConfigurationValidator;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -145,7 +155,14 @@ public class WorkflowService {
                 .documents(plan.getWorkflow().getDocuments())
                 .build();
 
-        autoAssignAssignee(plan.getWorkflow(), planRequest);
+        String assignee = getAssigneeForAutoAssignment(plan, planRequest.getRequestInfo());
+
+        // Set Assignee
+        if(!ObjectUtils.isEmpty(assignee))
+            plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+        plan.setAssignee(assignee);
+
         enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
 
         log.info("Process Instance assignes - " + processInstance.getAssignes());
@@ -190,25 +207,25 @@ public class WorkflowService {
      *
      * The assignee is set in both the workflow and the plan request.
      *
-     * @param workflow the workflow object to set the assignee
-     * @param planRequest the plan request containing workflow and jurisdiction details
+     * @param requestInfo auth details for making internal calls
+     * @param plan the plan object containing workflow and jurisdiction details
      */
-    private void autoAssignAssignee(Workflow workflow, PlanRequest planRequest) {
-        String[] allheirarchysBoundaryCodes = planRequest.getPlan().getBoundaryAncestralPath().split(PIPE_REGEX);
+    private String getAssigneeForAutoAssignment(Plan plan, RequestInfo requestInfo) {
+        String[] allheirarchysBoundaryCodes = plan.getBoundaryAncestralPath().split(PIPE_REGEX);
         String[] heirarchysBoundaryCodes = Arrays.copyOf(allheirarchysBoundaryCodes, allheirarchysBoundaryCodes.length - 1);
 
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
                 PlanEmployeeAssignmentSearchCriteria.builder()
-                        .tenantId(planRequest.getPlan().getTenantId())
+                        .tenantId(plan.getTenantId())
                         .jurisdiction(Arrays.stream(heirarchysBoundaryCodes).toList())
-                        .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
+                        .planConfigurationId(plan.getPlanConfigurationId())
                         .role(config.getPlanEstimationApproverRoles())
                         .build();
 
         //search for plan-employee assignments for the ancestral heirarchy codes.
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
-                .requestInfo(planRequest.getRequestInfo()).build());
+                .requestInfo(requestInfo).build());
 
         // Create a map of jurisdiction to employeeId
         Map<String, String> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
@@ -228,7 +245,7 @@ public class WorkflowService {
 
         String assignee = null; //assignee will remain null in case terminate actions are being taken
 
-        String action = planRequest.getPlan().getWorkflow().getAction();
+        String action = plan.getWorkflow().getAction();
         if (config.getWfInitiateActions().contains(action)) {
             for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
                 assignee = jurisdictionToEmployeeMap.get(heirarchysBoundaryCodes[i]);
@@ -236,33 +253,30 @@ public class WorkflowService {
                     break; // Stop iterating once an assignee is found
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
-            assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, planRequest, jurisdictionToEmployeeMap);
+            assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, plan, jurisdictionToEmployeeMap);
         } else if (config.getWfSendBackActions().contains(action)) {
-            assignee = planRequest.getPlan().getAuditDetails().getLastModifiedBy();
+            assignee = plan.getAuditDetails().getLastModifiedBy();
         }
 
-        if(!ObjectUtils.isEmpty(assignee))
-            workflow.setAssignes(Collections.singletonList(assignee));
-
-        planRequest.getPlan().setAssignee(assignee);
+        return assignee;
     }
 
-/**
- * Assigns an employee from a higher-level jurisdiction in the hierarchy.
- * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
- * If a higher-level boundary has an assigned employee, returns that employee's ID.
- *
- * @param heirarchysBoundaryCodes boundary codes representing the hierarchy
- * @param planRequest the request with plan and jurisdiction details
- * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
- * @return the employee ID from the higher boundary, or null if
- */
-public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, PlanRequest planRequest, Map<String, String> jurisdictionToEmployeeMap) {
+    /**
+     * Assigns an employee from a higher-level jurisdiction in the hierarchy.
+     * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
+     * If a higher-level boundary has an assigned employee, returns that employee's ID.
+     *
+     * @param heirarchysBoundaryCodes boundary codes representing the hierarchy
+     * @param plan the object with plan and jurisdiction details
+     * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
+     * @return the employee ID from the higher boundary, or null if
+     */
+    public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Plan plan, Map<String, String> jurisdictionToEmployeeMap) {
         for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
             String boundaryCode = heirarchysBoundaryCodes[i];
 
             // Check if this boundary code is present in assigneeJurisdiction
-            if (planRequest.getPlan().getAssigneeJurisdiction().contains(boundaryCode)) {
+            if (plan.getAssigneeJurisdiction().contains(boundaryCode)) {
 
                 if (i - 1 >= 0) {
                     // Check the next higher level in the hierarchy (one index above the match)
@@ -279,6 +293,130 @@ public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Plan
             }
         }
         return null;
+    }
+
+    public void invokeWorkflowForStatusUpdate(BulkPlanRequest bulkPlanRequest) {
+        ProcessInstanceRequest processInstanceRequest = createWorkflowRequest(bulkPlanRequest);
+        ProcessInstanceResponse processInstanceResponse = callWorkflowTransition(processInstanceRequest);
+
+        enrichPlansPostTransition(processInstanceResponse, bulkPlanRequest);
+    }
+
+    private void enrichPlansPostTransition(ProcessInstanceResponse processInstanceResponse, BulkPlanRequest bulkPlanRequest) {
+        // Update status and audit information post transition
+        bulkPlanRequest.getPlans().forEach(plan -> {
+            // Update status of plan
+            plan.setStatus(processInstanceResponse.getProcessInstances().get(0).getState().getState());
+
+            // Update audit information of plan
+            plan.setAuditDetails(AuditDetailsEnrichmentUtil
+                    .prepareAuditDetails(plan.getAuditDetails(), bulkPlanRequest.getRequestInfo(), Boolean.FALSE));
+        });
+    }
+
+    private ProcessInstanceRequest createWorkflowRequest(BulkPlanRequest bulkPlanRequest) {
+        List<ProcessInstance> processInstanceList = new ArrayList<>();
+
+        // Perform auto assignment
+        String assignee = getAssigneeForAutoAssignment(bulkPlanRequest.getPlans().get(0),
+                bulkPlanRequest.getRequestInfo());
+
+        bulkPlanRequest.getPlans().forEach(plan -> {
+
+            // Set assignee
+            if(!ObjectUtils.isEmpty(assignee))
+                plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+
+            plan.setAssignee(assignee);
+
+            // Create process instance object from plan
+            ProcessInstance processInstance = ProcessInstance.builder()
+                    .businessId(plan.getId())
+                    .tenantId(plan.getTenantId())
+                    .businessService(PLAN_ESTIMATION_BUSINESS_SERVICE)
+                    .moduleName(MODULE_NAME_VALUE)
+                    .action(plan.getWorkflow().getAction())
+                    .comment(plan.getWorkflow().getComments())
+                    .documents(plan.getWorkflow().getDocuments())
+                    .build();
+
+            // Enrich user list for process instance
+            enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
+
+            // Add entry for bulk transition
+            processInstanceList.add(processInstance);
+        });
+
+        return ProcessInstanceRequest.builder()
+                .requestInfo(bulkPlanRequest.getRequestInfo())
+                .processInstances(processInstanceList)
+                .build();
+    }
+
+    /**
+     * Creates a list of all the workflow states for the provided business service.
+     * @param requestInfo
+     * @param businessService
+     * @param tenantId
+     * @return
+     */
+    public List<String> getStatusFromBusinessService(RequestInfo requestInfo, String businessService, String tenantId) {
+        BusinessService businessServices = fetchBusinessService(requestInfo, businessService, tenantId);
+
+        return businessServices.getStates().stream()
+                .map(State::getState)
+                .filter(state -> !ObjectUtils.isEmpty(state))
+                .toList();
+    }
+
+    /**
+     * This method fetches business service details for the given tenant id and business service.
+     *
+     * @param requestInfo     the request info from request.
+     * @param businessService businessService whose details are to be searched.
+     * @param tenantId        tenantId from request.
+     * @return returns the business service response for the given tenant id and business service.
+     */
+    public BusinessService fetchBusinessService(RequestInfo requestInfo, String businessService, String tenantId) {
+
+        // Get business service uri
+        Map<String, String> uriParameters = new HashMap<>();
+        String uri = getBusinessServiceUri(businessService, tenantId, uriParameters);
+
+        // Create request body
+        RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
+        BusinessServiceResponse businessServiceResponse = new BusinessServiceResponse();
+
+        try {
+            businessServiceResponse = restTemplate.postForObject(uri, requestInfoWrapper, BusinessServiceResponse.class, uriParameters);
+        } catch (Exception e) {
+            log.error(ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS, e);
+        }
+
+        if (CollectionUtils.isEmpty(businessServiceResponse.getBusinessServices())) {
+            throw new CustomException(NO_BUSINESS_SERVICE_DATA_FOUND_CODE, NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE);
+        }
+
+        return businessServiceResponse.getBusinessServices().get(0);
+    }
+
+    /**
+     * This method creates business service uri with query parameters
+     *
+     * @param businessService businessService whose details are to be searched.
+     * @param tenantId        tenant id from the request.
+     * @param uriParameters   map that stores values corresponding to the placeholder in uri
+     * @return
+     */
+    private String getBusinessServiceUri(String businessService, String tenantId, Map<String, String> uriParameters) {
+
+        StringBuilder uri = new StringBuilder();
+        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append(URI_BUSINESS_SERVICE_QUERY_TEMPLATE);
+
+        uriParameters.put(URI_TENANT_ID_PARAM, tenantId);
+        uriParameters.put(URI_BUSINESS_SERVICE_PARAM, businessService);
+
+        return uri.toString();
     }
 
 }
