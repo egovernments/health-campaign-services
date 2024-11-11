@@ -417,6 +417,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       // send to update topic
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
+      logger.info("generation completed for boundary management create flow")
     }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse?.fileStoreIds?.[0]?.url);
