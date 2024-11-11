@@ -11,7 +11,7 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
-import { callGenerate } from "server/utils/generateUtils";
+import { callGenerate } from "../utils/generateUtils";
 
 
 
