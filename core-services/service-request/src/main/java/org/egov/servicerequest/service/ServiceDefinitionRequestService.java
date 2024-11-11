@@ -68,7 +68,19 @@ public class ServiceDefinitionRequestService {
 
     public ServiceDefinition updateServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) {
 
-        // TO DO
+        ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        //Validate incoming service definition request
+        ServiceDefinition definitionFromDb = serviceDefinitionRequestValidator.validateUpdateRequest(serviceDefinitionRequest);
+
+        //Enrich incoming service definition request
+        enrichmentService.enrichServiceDefinitionUpdateRequest(serviceDefinitionRequest, definitionFromDb);
+
+        // Producer statement to emit service definition to kafka for persisting
+        producer.push(config.getServiceDefinitionUpdateTopic(), serviceDefinitionRequest);
+
+        // Restore attribute values to the type in which it was sent in service definition request
+        enrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinition);
 
         return serviceDefinitionRequest.getServiceDefinition();
     }
