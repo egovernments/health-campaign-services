@@ -15,7 +15,7 @@ import { transformAndCreateLocalisation } from "./transforms/localisationMessage
 import { campaignStatuses, headingMapping, processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../service/campaignManageService";
-import { validateBoundaryOfResouces } from "../validators/campaignValidators";
+import { validateBoundaryOfResouces, validateBoundarySheetDataInCreateFlow } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
 import { areBoundariesSame, callGenerate, callGenerateIfBoundariesOrCampaignTypeDiffer } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
@@ -25,6 +25,9 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { createDataService, searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
+import Redis from "ioredis";
+const redis = new Redis();
+
 
 
 
@@ -560,6 +563,10 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     };
 
     if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
+        // delete redis cache key with prefix boundaryRelatiionshipSearch
+        await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
+
+        logger.info("calling generate after boundary data uploaded under type boundary management")
         const newRequestBody = {
             RequestInfo: request?.body?.RequestInfo
         };
@@ -568,7 +575,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             tenantId: request?.body?.ResourceDetails?.tenantId,
             forceUpdate: 'true',
             hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
-            campaignId : "default"
+            campaignId: "default"
         };
         const newRequestBoundary = replicateRequest(request, newRequestBody, params);
         await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
@@ -593,6 +600,22 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             const activityObject: any = { Activities: chunk };
             await produceModifiedMessages(activityObject, config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
         }
+    }
+}
+
+async function deleteRedisCacheKeysWithPrefix(prefix: any) {
+    try {
+        const keys = await redis.keys(`${prefix}*`);
+        logger.info("cache keys to be deleted" + keys);// Get all keys with the specified prefix
+        if (keys.length > 0) {
+            await redis.del(keys); // Delete all matching keys
+            console.log(`Deleted keys with prefix "${prefix}":`, keys);
+        } else {
+            console.log(`No keys found with prefix "${prefix}"`);
+        }
+    } catch (error) {
+        console.error("Error deleting keys:", error);
+        throw error;
     }
 }
 
@@ -2058,17 +2081,20 @@ const getDataFromGeoJson = async (url: string) => {
 
 const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) => {
     const { hierarchyType, tenantId } = request?.body?.ResourceDetails || {};
+    const hierarchy = await getHierarchy(request, tenantId, hierarchyType) || [];
+    const headersOfBoundarySheet = hierarchy.map(e => `${hierarchyType.toUpperCase()}_${e.toUpperCase()}`);
+    const localizedHeadersOfBoundarySheet = getLocalizedHeaders(headersOfBoundarySheet, localizationMap);
     const type = request?.body?.ResourceDetails?.type;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
     var boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
+    validateBoundarySheetDataInCreateFlow(boundaryData, localizedHeadersOfBoundarySheet);
     var latLongData: any;
     if (type === "boundaryManagement") {
         const result = await updateBoundaryDataForBoundaryManagement(request, boundaryData, localizationMap);
         latLongData = result.latLongData;
         boundaryData = result.updatedData;
     }
-    const hierarchy = await getHierarchy(request, tenantId, hierarchyType) || [];
     const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
     const modifiedBoundaryData = modifyBoundaryDataHeaders(updatedBoundaryData, hierarchy, localizationMap);
     const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(modifiedBoundaryData, localizationMap);
@@ -2315,12 +2341,11 @@ async function getDifferentTabGeneratedBasedOnConfig(request: any, boundaryDataG
 }
 
 async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
-   
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const MdmsCriteria: any = {
         tenantId: tenantId,
         schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`,
-        "filters":{"hierarchy":responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType}
+        filters: { hierarchy: responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType }
     }
     const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
     return mdmsResponse?.mdms?.map((item: any) => item?.data?.splitBoundariesOn);
