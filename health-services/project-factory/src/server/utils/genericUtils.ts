@@ -1508,5 +1508,6 @@ export {
   getMdmsDataBasedOnCampaignType,
   shutdownGracefully,
   appendProjectTypeToCapacity,
-  getLocalizedMessagesHandlerViaRequestInfo
+  getLocalizedMessagesHandlerViaRequestInfo,
+  createFacilityAndBoundaryFile
 };
