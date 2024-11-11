@@ -16,7 +16,6 @@ import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -242,7 +241,7 @@ public class PlanConfigurationValidator {
             }
 
             // Ensure at least one active file for each required template identifier
-            if(isSetupCompleted(planConfiguration)){
+            if(commonUtil.isSetupCompleted(planConfiguration)){
                 requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
                     if (!activeRequiredTemplates.contains(requiredTemplate)) {
                         log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
@@ -380,18 +379,6 @@ public class PlanConfigurationValidator {
         }
     }
 
-    /**
-     * Checks if the setup process is completed based on the workflow action in the plan configuration.
-     *
-     * @param planConfiguration The plan configuration to check.
-     * @return true if the setup is completed, otherwise false.
-     */
-    public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
-            return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
-
-        return false;
-    }
 
     /**
      * Checks if files are empty or null when the setup action is marked as completed.
@@ -438,7 +425,7 @@ public class PlanConfigurationValidator {
     public void validateOperations(PlanConfigurationRequest request, CampaignResponse campaignResponse) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-        if (isSetupCompleted(planConfiguration)) {
+        if (commonUtil.isSetupCompleted(planConfiguration)) {
             performEmptyChecks(planConfiguration);
 
             HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(request, campaignResponse.getCampaignDetails().get(0).getProjectType());

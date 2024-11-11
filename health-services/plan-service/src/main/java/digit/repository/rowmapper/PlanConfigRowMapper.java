@@ -2,13 +2,6 @@ package digit.repository.rowmapper;
 
 import digit.util.QueryUtil;
 import digit.web.models.*;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import org.egov.common.contract.models.AuditDetails;
 import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
@@ -16,6 +9,13 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfiguration>> {
@@ -158,6 +158,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         operation.setShowOnEstimationDashboard(rs.getBoolean("plan_configuration_operations_show_on_estimation_dashboard"));
         operation.setSource(Source.valueOf(rs.getString("plan_configuration_operations_source")));
         operation.setCategory(rs.getString("plan_configuration_operations_category"));
+        operation.setExecutionOrder(rs.getInt("plan_configuration_execution_order"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getOperations())) {
             List<Operation> operationList = new ArrayList<>();

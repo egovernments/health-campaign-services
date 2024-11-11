@@ -1,6 +1,7 @@
 package digit.service.enrichment;
 
 import digit.config.Configuration;
+import digit.util.CommonUtil;
 import digit.web.models.File;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
@@ -9,22 +10,24 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 
 import static digit.config.ServiceConstants.DRAFT_STATUS;
-import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
-
-import org.springframework.util.ObjectUtils;
 
 @Component
 @Slf4j
 public class EnrichmentService {
     private Configuration config;
 
-    public EnrichmentService(Configuration config) {
+    private CommonUtil commonUtil;
+
+    public EnrichmentService(Configuration config, CommonUtil commonUtil) {
         this.config = config;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -120,6 +123,11 @@ public class EnrichmentService {
         }
 
         planConfiguration.setAuditDetails(prepareAuditDetails(request.getPlanConfiguration().getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
+
+        //enrich execution order for operations on setup complete
+        if (commonUtil.isSetupCompleted(planConfiguration)) {
+            enrichExecutionOrderForOperations(planConfiguration);
+        }
     }
 
     /**
@@ -178,6 +186,19 @@ public class EnrichmentService {
                     resourceMapping.setActive(Boolean.TRUE);
                 }
             });
+        }
+    }
+
+    /**
+     * Sets a sequential execution order for each operation in the given PlanConfiguration.
+     *
+     * @param planConfiguration the configuration containing operations to order
+     */
+    public void enrichExecutionOrderForOperations(PlanConfiguration planConfiguration) {
+        int executionOrderCounter = 1;
+
+        for (Operation operation : planConfiguration.getOperations()) {
+            operation.setExecutionOrder(executionOrderCounter++);
         }
     }
 
