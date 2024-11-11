@@ -26,7 +26,7 @@ const config = {
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
-  masterNameForSplitBoundariesOn: "hierarchyConfig",
+  masterNameForSplitBoundariesOn: "HierarchySchema",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
@@ -93,8 +93,8 @@ const config = {
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
-    boundaryPrefix: "rainmaker-boundary",
-    localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
+    boundaryPrefix: "hcm-boundary",
+    localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
@@ -149,7 +149,6 @@ const config = {
     localizationCreate: "localization/messages/v1/_upsert",
     projectTypeSearch: "project-factory/v1/project-type/search",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
-    mdmsV2SchemaSearch: "mdms-v2/schema/v1/_search",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
     projectStaffSearch: process.env.EGOV_HEALTH_PROJECT_STAFF_SEARCH || "health-project/staff/v1/_search",

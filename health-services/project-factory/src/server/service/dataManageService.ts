@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError, replicateRequest } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -11,6 +11,7 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
+import { callGenerate } from "../utils/generateUtils";
 
 
 
@@ -35,8 +36,23 @@ const downloadDataService = async (request: express.Request) => {
 
     // Check if response data is available
     if (!responseData || responseData.length === 0 && !request?.query?.id) {
-        logger.error("No data of type  " + type + " with status Completed or with given id presnt in db ")
+        logger.error("No data of type  " + type + " with status Completed or with given id present in db ")
         // Throw error if data is not found
+        const newRequestBody = {
+            RequestInfo: request?.body?.RequestInfo
+        };
+        const params = {
+            type: request?.query?.type,
+            tenantId: request?.query?.type,
+            forceUpdate: 'true',
+            hierarchyType: request?.query?.hierarchyType,
+            campaignId :request?.query?.campaignId,
+        };
+        const newRequestToGenerate = replicateRequest(request, newRequestBody, params);
+        // Added auto generate since no previous generate request found
+        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}  `)
+        await callGenerate(newRequestToGenerate, request?.body?.ResourceDetails?.type);
+
         throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
 
