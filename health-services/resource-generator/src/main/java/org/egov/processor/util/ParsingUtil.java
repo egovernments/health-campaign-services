@@ -360,4 +360,36 @@ public class ParsingUtil {
         return sortedColumnList;
     }
 
+    public void printRow(Sheet sheet, Row row) {
+        System.out.print("Row -> ");
+        for (Cell cell : row) {
+            int columnIndex = cell.getColumnIndex();
+            switch (cell.getCellType()) {
+                case STRING:
+                    System.out.print(cell.getStringCellValue() + "\t");
+                    break;
+                case NUMERIC:
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        System.out.print(cell.getDateCellValue() + "\t");
+                    } else {
+                        System.out.print(cell.getNumericCellValue() + "\t");
+                    }
+                    break;
+                case BOOLEAN:
+                    System.out.print(cell.getBooleanCellValue() + "\t");
+                    break;
+                case FORMULA:
+                    System.out.print(cell.getCellFormula() + "\t");
+                    break;
+                case BLANK:
+                    System.out.print("<blank>\t");
+                    break;
+                default:
+                    System.out.print("<unknown>\t");
+                    break;
+            }
+        }
+        System.out.println(); // Move to the next line after printing the row
+    }
+
 }
