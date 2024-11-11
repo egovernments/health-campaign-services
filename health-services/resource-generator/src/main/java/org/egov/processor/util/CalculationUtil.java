@@ -83,32 +83,6 @@ public class CalculationUtil {
         }
     }
 
-
-    public BigDecimal getInputValueFromJsonFeature(JsonNode feature, Map<String, BigDecimal> resultMap, String input, String columnName) {
-        if (resultMap.containsKey(input)) {
-            return resultMap.get(input);
-        } else {
-            if (feature.get(PROPERTIES).get(columnName) != null) {
-                try {
-                    String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
-                    BigDecimal value;
-                    // Handle scientific notation
-                    if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
-                        value = new BigDecimal(cellValue);
-                    } else {
-                        String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
-                        value = new BigDecimal(cleanedValue);
-                    }
-                    return value;
-                } catch (NumberFormatException | NullPointerException e) {
-                    return BigDecimal.ZERO;
-                }
-            } else {
-                throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
-            }
-        }
-    }
-
     /**
      * Retrieves the input value from the JSON node based on the input and input mapping.
      *
