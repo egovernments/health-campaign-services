@@ -561,8 +561,8 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         },
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
-
     if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
+      
         // delete redis cache key with prefix boundaryRelatiionshipSearch
         await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 
@@ -578,7 +578,12 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             campaignId: "default"
         };
         const newRequestBoundary = replicateRequest(request, newRequestBody, params);
-        await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
+        setTimeout(async() => {
+            // Code to be executed after 10 seconds
+            logger.info("Timeout of 10 sec after boundary data creation");
+            await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
+
+        }, 10000);
     }
     const persistMessage: any = { ResourceDetails: request.body.ResourceDetails }
     if (request?.body?.ResourceDetails?.action == "create") {
@@ -2116,7 +2121,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     if (type === "boundaryManagement") {
         headers = [...headers, getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap), getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)];
         data.forEach((row: any[], index: string | number) => {
-            if(latLongData.length > index){
+            if (latLongData.length > index) {
                 row.push(latLongData[index][0], latLongData[index][1]);
             }
         });
@@ -2416,9 +2421,9 @@ async function processFetchMicroPlan(request: any) {
     await updateCampaignDetails(request, resourceDetails?.id);
 }
 
-async function updateCampaignDetails(request:any, resourceDetailsId: any) {
+async function updateCampaignDetails(request: any, resourceDetailsId: any) {
     const { resources } = request.body.CampaignDetails || {};
-const { fileDetails } = request.body;
+    const { fileDetails } = request.body;
 
     if (Array.isArray(resources) && Array.isArray(fileDetails) && fileDetails[0]?.fileStoreId) {
         resources.forEach((resource: any) => {
@@ -2435,12 +2440,12 @@ const { fileDetails } = request.body;
 
 }
 
-function filterFacilityData(sheet: any){
+function filterFacilityData(sheet: any) {
     const headers = ["Facility Code", "Facility Name", "Facility Type", "Facility Status", "Capacity (Units: Bales for Bednets/ SPAQ Blister for SMC)", "Boundary Code (Mandatory)", "Facility Usage"];
     let data = [headers];
-    sheet.forEach((element: any,index: any) => {
-        if(index > 0 && element[0] !== null){
-            const arr = [element[0],element[1], element[2], element[3], element[4], null, element[5]];
+    sheet.forEach((element: any, index: any) => {
+        if (index > 0 && element[0] !== null) {
+            const arr = [element[0], element[1], element[2], element[3], element[4], null, element[5]];
             data.push(arr);
         }
     });
@@ -2458,9 +2463,9 @@ function getPlanFacilityMap(planFacility: any) {
 function fillFacilitySheetData(modifiedProcessedFacilitySheetData: any, planFacilityMap: Map<any, any>) {
     modifiedProcessedFacilitySheetData.forEach((facility: any, index: any) => {
         const facilityKey = facility[0];
-        if(planFacilityMap.has(facilityKey) && planFacilityMap.get(facilityKey) !== ''){
+        if (planFacilityMap.has(facilityKey) && planFacilityMap.get(facilityKey) !== '') {
             facility[5] = planFacilityMap.get(facilityKey);
-        }else if(index > 0){
+        } else if (index > 0) {
             facility[6] = 'Inactive';
         }
     });
@@ -2474,25 +2479,25 @@ const getSheetDataMP = async (
     getRow = false,
     createAndSearchConfig?: any,
     localizationMap?: { [key: string]: string }
-  ) => {
+) => {
     // Retrieve workbook using the getExcelWorkbookFromFileURL function
     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
     const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
-  
+
     const worksheet: any = workbook.getWorksheet(localizedSheetName);
-  
+
     // If parsing array configuration is provided, validate first row of each column
     // validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
-  
+
     // Collect sheet data by iterating through rows and cells
     const sheetData = getSheetDataFromWorksheet(worksheet);
     return sheetData;
-  };
+};
 
 
-  async function validateFacilitySheet(request: any) {
+async function validateFacilitySheet(request: any) {
     const { tenantId } = request.body.MicroplanDetails;
-    request.body.ResourceDetails =  {
+    request.body.ResourceDetails = {
         tenantId: tenantId,
         type: "facility",
         fileStoreId: request.body.fileDetails[0].fileStoreId,
