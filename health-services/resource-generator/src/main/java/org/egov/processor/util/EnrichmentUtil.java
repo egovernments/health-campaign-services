@@ -6,13 +6,21 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.egov.common.utils.UUIDEnrichmentUtil;
+import org.egov.processor.config.Configuration;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
+import org.egov.processor.web.models.census.Census;
+import org.egov.processor.web.models.census.CensusResponse;
+import org.egov.processor.web.models.census.CensusSearchCriteria;
+import org.egov.processor.web.models.census.CensusSearchRequest;
 import org.egov.processor.web.models.mdmsV2.Mdms;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,13 +38,18 @@ public class EnrichmentUtil {
 
     private ParsingUtil parsingUtil;
 
+    private CensusUtil censusUtil;
+
+    private Configuration config;
 //    private MultiStateInstanceUtil centralInstanceUtil;
 
-    public EnrichmentUtil(MdmsV2Util mdmsV2Util, LocaleUtil localeUtil, ParsingUtil parsingUtil) {
+    public EnrichmentUtil(MdmsV2Util mdmsV2Util, LocaleUtil localeUtil, ParsingUtil parsingUtil, CensusUtil censusUtil, Configuration config) {
         this.mdmsV2Util = mdmsV2Util;
         this.localeUtil = localeUtil;
 //        this.centralInstanceUtil = centralInstanceUtil;
         this.parsingUtil = parsingUtil;
+        this.censusUtil = censusUtil;
+        this.config = config;
     }
 
     /**
@@ -73,7 +86,63 @@ public class EnrichmentUtil {
 
     }
 
-    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
+        List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
+
+        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+        //Getting census records for the list of boundaryCodes
+        List<Census> censusList = getCensusRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
+
+        // Create a map from boundaryCode to Census for quick lookups
+        Map<String, Census> censusMap = censusList.stream()
+                .collect(Collectors.toMap(Census::getBoundaryCode, census -> census));
+
+
+        for(Row row: sheet) {
+            parsingUtil.printRow(sheet, row);
+            if (row.getRowNum() == 0) continue; // Skip header row
+
+            // Get the boundaryCode in the current row
+            Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
+            String boundaryCode = boundaryCodeCell.getStringCellValue();
+
+            Census census = censusMap.get(boundaryCode);
+
+            if (census != null) {
+                // For each field in the sheetToCensusMap, update the cell if the field is editable
+                for (Map.Entry<String, String> entry : mappedValues.entrySet()) {
+                    String censusKey = entry.getKey();
+                    String sheetColumn = entry.getValue();
+
+                    if(config.getCensusAdditionalFieldOverrideKeys().contains(censusKey))
+                        continue;
+                    censusKey = config.getCensusAdditionalPrefixAppendKeys().contains(censusKey) ? CONFIRMED_KEY + censusKey : censusKey;
+
+                    // Get the column index from the mapOfColumnNameAndIndex
+                    Integer columnIndex = mapOfColumnNameAndIndex.get(sheetColumn);
+                    if (columnIndex != null) {
+                        // Get the value for this field in the census, if editable
+                        BigDecimal editableValue = getEditableValue(census, censusKey);
+
+                        if(ObjectUtils.isEmpty(editableValue)) continue;
+
+                        Cell cell = row.getCell(columnIndex);
+                        if (cell == null) {
+                            cell = row.createCell(columnIndex);
+                        }
+                        cell.setCellValue(editableValue.doubleValue());
+
+                    }
+                }
+            }
+        log.info("Successfully update file with approved census data.");
+        }
+    }
+
+    public List<String> getBoundaryCodesFromTheSheet(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
@@ -85,12 +154,6 @@ public class EnrichmentUtil {
         Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
                 parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
-        List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, indexOfBoundaryCode);
-        System.out.println(boundaryCodes);
-
-    }
-
-    public List<String> getBoundaryCodesFromTheSheet(Sheet sheet, Integer indexOfBoundaryCode) {
         List<String> boundaryCodes = new ArrayList<>();
 
         for (Row row : sheet) {
@@ -113,4 +176,34 @@ public class EnrichmentUtil {
 
         return boundaryCodes;
     }
+
+    public List<Census> getCensusRecordsForEnrichment(PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodes) {
+        PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
+                .tenantId(planConfig.getTenantId())
+                .areaCodes(boundaryCodes)
+                .source(planConfig.getId()).build();
+
+        CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
+                .censusSearchCriteria(censusSearchCriteria)
+                .requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
+        CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
+
+        if(censusResponse.getCensus().isEmpty())
+            throw new CustomException(NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE, NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
+
+        return censusResponse.getCensus();
+
+    }
+
+    private BigDecimal getEditableValue(Census census, String key) {
+        return census.getAdditionalFields().stream()
+                .filter(field -> field.getEditable() && key.equals(field.getKey()))  // Filter by editability and matching key
+                .map(field -> field.getValue())
+                .findFirst()
+                .orElse(null);
+    }
+
+
 }
