@@ -24,6 +24,7 @@ import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplate
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 
 
 
@@ -1347,6 +1348,57 @@ function validateSearchProcessTracksRequest(request: any) {
     }
 }
 
+async function validateMicroplanRequest(request: any){
+    const {tenantId, campaignId, planConfigurationId} = request.body.MicroplanDetails;
+    if (!tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
+    }
+    if (!campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campignId is required");
+    }
+    if (!planConfigurationId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "planConfigurationId is required");
+    }
+    logger.info("All required fields are present");
+
+    await validateCampaignFromId(request);
+    await validatePlanFacility(request);
+}
+
+async function validatePlanFacility(request: any) {
+    const planConfigSearchResponse = await planConfigSearch(request);
+    const planFacilitySearchResponse = await planFacilitySearch(request);
+
+    if(planFacilitySearchResponse.PlanFacility.length === 0){
+        throwError("COMMAN", 400, "Plan facilities not found");
+    }
+
+    request.body.PlanFacility = planFacilitySearchResponse.PlanFacility;
+    request.body.planConfig = planConfigSearchResponse.PlanConfiguration[0];
+}
+
+async function validateCampaignFromId(request :any) {
+    const {tenantId, campaignId} = request.body.MicroplanDetails;
+
+    const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        CampaignDetails: {
+            tenantId: tenantId,
+            ids: [campaignId]
+        }
+    }
+
+    const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(req);
+
+    if(searchResponse?.CampaignDetails?.length == 0){
+        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+    }
+
+    logger.info("Campaign Found");
+    request.body.CampaignDetails = searchResponse?.CampaignDetails[0];
+}
+
 
 function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
     const firstColumnValues = new Set();
@@ -1397,7 +1449,8 @@ export {
     validateSearchProcessTracksRequest,
     validateParent,
     validateForRetry,
-    validateBoundarySheetDataInCreateFlow
+    validateBoundarySheetDataInCreateFlow,
+    validateMicroplanRequest
 }
 
 

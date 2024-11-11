@@ -353,3 +353,31 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
   }
 }
 
+
+export async function planFacilitySearch(request:any) {
+  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
+  const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        PlanFacilitySearchCriteria: {
+            tenantId: tenantId,
+            planConfigurationId: planConfigurationId
+        }
+    }
+
+    const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planFacilitySearch, searchBody);
+    return searchResponse; 
+}
+
+export function planConfigSearch(request: any) {
+  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
+  const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        PlanConfigurationSearchCriteria: {
+            tenantId: tenantId,
+            id: planConfigurationId
+        }
+    }
+
+    const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planFacilityConfigSearch, searchBody);
+  return searchResponse;
+}
