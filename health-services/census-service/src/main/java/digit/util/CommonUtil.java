@@ -2,6 +2,7 @@ package digit.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.web.models.CensusSearchCriteria;
 import digit.web.models.CensusSearchRequest;
@@ -43,7 +44,9 @@ public class CommonUtil {
         try {
 
             // Get or create the additionalDetails as an ObjectNode
-            ObjectNode objectNode = objectMapper.convertValue(additionalDetails, ObjectNode.class);
+            ObjectNode objectNode = additionalDetails instanceof NullNode
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
 
             // Update or Add the field in additional details object
             objectNode.put(fieldToUpdate, updatedValue);
