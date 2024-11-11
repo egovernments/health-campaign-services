@@ -138,7 +138,11 @@ public class EnrichmentUtil {
                     }
                 }
             }
-        log.info("Successfully update file with approved census data.");
+            //TODO: remove after testing
+            log.info("After updating values in sheet -> ");
+            parsingUtil.printRow(sheet, row);
+
+            log.info("Successfully update file with approved census data.");
         }
     }
 
