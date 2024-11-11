@@ -186,7 +186,7 @@ async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObjec
 
 function hideColumnsOfProcessedFile(sheet: any, columnsToHide: any[]) {
   columnsToHide.forEach((column) => {
-    if (column) {
+    if (column > 0) {
       sheet.getColumn(column).hidden = true;
     }
   });

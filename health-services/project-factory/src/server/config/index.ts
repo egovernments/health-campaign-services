@@ -25,7 +25,7 @@ const config = {
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
-  masterNameForSplitBoundariesOn: "hierarchyConfig",
+  masterNameForSplitBoundariesOn: "HierarchySchema",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
