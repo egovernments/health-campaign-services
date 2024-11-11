@@ -110,7 +110,7 @@ public class AttributeDefinition {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
 
