@@ -162,6 +162,7 @@ class campaignManageController {
         catch (e: any) {
             console.log(e)
             logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
