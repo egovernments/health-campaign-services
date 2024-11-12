@@ -82,7 +82,7 @@ async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
     logger.info("Validated request successfully");
-    await processFetchMicroPlan(request);
+    processFetchMicroPlan(request);
     return request.body.CampaignDetails;
 }
 
