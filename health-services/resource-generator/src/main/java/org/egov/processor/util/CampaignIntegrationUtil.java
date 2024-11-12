@@ -40,6 +40,49 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
+	 * Updates resources in the Project Factory by calling an external API with the given plan configuration
+	 * request and file store ID. Logs the operation status.
+	 *
+	 * @param planConfigurationRequest The plan configuration request details.
+	 * @param fileStoreId              The file store ID to update.
+	 * @throws CustomException if the API call fails.
+	 */
+	public void updateResourcesInProjectFactory(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+		try {
+			serviceRequestRepository.fetchResult(
+					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationFetchFromMicroplanEndPoint()),
+					buildMicroplanDetailsForUpdate(planConfigurationRequest, fileStoreId));
+			log.info("Updated resources file into project factory - " + fileStoreId);
+		} catch (Exception e) {
+			log.error(ERROR_WHILE_CALLING_MICROPLAN_API + planConfigurationRequest.getPlanConfiguration().getId(), e);
+			throw new CustomException(ERROR_WHILE_CALLING_MICROPLAN_API, e.toString());
+		}
+
+	}
+
+	/**
+	 * Builds a campaign request object for updating campaign details based on the provided plan configuration request and campaign response.
+	 *
+	 * @param planConfigurationRequest The plan configuration request containing necessary information for updating the campaign.
+	 * @param fileStoreId The filestoreId with calculated resources
+	 * @return The microplan details request object built for updating resource filestore id.
+	 */
+	private MicroplanDetailsRequest buildMicroplanDetailsForUpdate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+
+		MicroplanDetails microplanDetails = MicroplanDetails.builder()
+				.tenantId(planConfig.getTenantId())
+				.planConfigurationId(planConfig.getId())
+				.campaignId(planConfig.getCampaignId())
+				.resourceFilestoreId(fileStoreId).build();
+
+		return MicroplanDetailsRequest.builder()
+				.microplanDetails(microplanDetails)
+				.requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
+	}
+
+	/**
 	 * Updates campaign details based on the provided plan configuration request and response data.
 	 * This method integrates the campaign details obtained from the response into the provided plan configuration request.
 	 * It also updates the campaign boundaries and resources accordingly.

@@ -61,6 +61,9 @@ public class Configuration {
 	@Value("${egov.project.factory.data.create.endpoint}")
 	private String campaignIntegrationDataCreateEndPoint;
 
+	@Value("${egov.project.factory.fetch.from.microplan.endpoint}")
+	private String campaignIntegrationFetchFromMicroplanEndPoint;
+
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 

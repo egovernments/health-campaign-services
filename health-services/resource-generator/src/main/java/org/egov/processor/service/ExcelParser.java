@@ -163,9 +163,9 @@ public class ExcelParser implements FileParser {
 			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
 			if (config.isIntegrateWithAdminConsole()) {
+				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
-
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
 			}
