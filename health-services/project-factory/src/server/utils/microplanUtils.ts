@@ -327,13 +327,15 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
           planConfigurationId: planConfigurationId,
           facilityId: element?.facilityDetails?.id,
           residingBoundary: singularResidingBoundary,
+          facilityName: element?.facilityDetails?.name,
           serviceBoundaries: null,
           additionalDetails: {
             capacity: element?.facilityDetails?.storageCapacity,
             facilityName: element?.facilityDetails?.name,
             facilityType: facilityType,
             facilityStatus: "Active",
-            assignedVillages: []
+            assignedVillages: [],
+            servingPopulation: 0
           },
           active: true,
           auditDetails: {
