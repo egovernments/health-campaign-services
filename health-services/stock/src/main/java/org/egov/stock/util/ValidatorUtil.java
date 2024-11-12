@@ -267,6 +267,7 @@ public class ValidatorUtil {
 
 			// Get the sender and receiver IDs from the stock object
 			String senderId = stock.getSenderId();
+			String receiverId = stock.getReceiverId();
 
 			// Get the list of facility IDs mapped to the reference ID of the stock
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
