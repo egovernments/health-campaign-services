@@ -161,9 +161,12 @@ public class ExcelParser implements FileParser {
 		try {
 			fileToUpload = convertWorkbookToXls(workbook);
 			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-
+			if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.update(planConfigurationRequest);
+			}
 			if (config.isIntegrateWithAdminConsole()) {
-//				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
@@ -217,7 +220,6 @@ public class ExcelParser implements FileParser {
 				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
-
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
@@ -225,6 +227,8 @@ public class ExcelParser implements FileParser {
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
+				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
 		});

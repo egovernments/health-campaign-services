@@ -122,10 +122,10 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
         }
 
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getLocality())) {
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" locality = ? ");
-            preparedStmtList.add(planSearchCriteria.getLocality());
+            builder.append(" locality IN ( ").append(queryUtil.createQuery(planSearchCriteria.getLocality().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(planSearchCriteria.getLocality()));
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getCampaignId())) {

@@ -1,26 +1,24 @@
 package org.egov.processor.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.Workflow;
+import org.egov.processor.config.Configuration;
+import org.egov.processor.config.ServiceConstants;
+import org.egov.processor.kafka.Producer;
+import org.egov.processor.repository.ServiceRequestRepository;
+import org.egov.processor.web.PlanResponse;
+import org.egov.processor.web.PlanSearchRequest;
+import org.egov.processor.web.models.*;
+import org.egov.tracer.model.CustomException;
+import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.egov.common.contract.models.Workflow;
-import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.kafka.Producer;
-import org.egov.processor.web.models.Plan;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.PlanRequest;
-import org.egov.processor.web.models.Resource;
-import org.egov.tracer.model.CustomException;
-import org.springframework.stereotype.Component;
-
-import com.fasterxml.jackson.databind.JsonNode;
-
-import lombok.extern.slf4j.Slf4j;
 
 import static org.egov.processor.config.ServiceConstants.*;
 
@@ -33,11 +31,14 @@ public class PlanUtil {
 	
 	private Producer producer;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer) {
+	private ObjectMapper mapper;
+
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.producer = producer;
-	}
+        this.mapper = mapper;
+    }
 
 	/**
 	 * Creates a plan configuration request, builds a plan request from it, and pushes it to the messaging system for further processing.
@@ -127,4 +128,35 @@ public class PlanUtil {
 			log.error(ServiceConstants.ERROR_WHILE_UPDATING_PLAN_CONFIG); 
 		}
 	}
+
+
+	public PlanResponse search(PlanSearchRequest planSearchRequest) {
+
+		PlanResponse planResponse = null;
+		try {
+			Object response = serviceRequestRepository.fetchResult(getPlanSearchUri(), planSearchRequest);
+			planResponse = mapper.convertValue(response, PlanResponse.class);
+		} catch (Exception e) {
+			log.error(ServiceConstants.ERROR_WHILE_SEARCHING_PLAN);
+		}
+
+		if (CollectionUtils.isEmpty(planResponse.getPlan())) {
+			throw new CustomException(NO_PLAN_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
+		}
+
+		return planResponse;
+	}
+
+	private StringBuilder getPlanSearchUri() {
+		return new StringBuilder().append(config.getPlanConfigHost()).append(config.getPlanSearchEndPoint());
+	}
+
+	public void setFileStoreIdForPopulationTemplate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+		planConfigurationRequest.getPlanConfiguration().getFiles().stream()
+				.filter(file -> FILE_TEMPLATE_IDENTIFIER_POPULATION.equals(file.getTemplateIdentifier()))
+				.findFirst()
+				.ifPresent(file -> file.setFilestoreId(fileStoreId));
+	}
+
+
 }
