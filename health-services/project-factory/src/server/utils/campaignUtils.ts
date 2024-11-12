@@ -25,8 +25,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { createDataService, searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
-import Redis from "ioredis";
-const redis = new Redis();
+import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 
 
 
@@ -562,7 +561,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
     if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
-      
+
         // delete redis cache key with prefix boundaryRelatiionshipSearch
         await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 
@@ -608,21 +607,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     }
 }
 
-async function deleteRedisCacheKeysWithPrefix(prefix: any) {
-    try {
-        const keys = await redis.keys(`${prefix}*`);
-        logger.info("cache keys to be deleted" + keys);// Get all keys with the specified prefix
-        if (keys.length > 0) {
-            await redis.del(keys); // Delete all matching keys
-            console.log(`Deleted keys with prefix "${prefix}":`, keys);
-        } else {
-            console.log(`No keys found with prefix "${prefix}"`);
-        }
-    } catch (error) {
-        console.error("Error deleting keys:", error);
-        throw error;
-    }
-}
+
 
 function getRootBoundaryCode(boundaries: any[] = []) {
     for (const boundary of boundaries) {
@@ -1533,7 +1518,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             const boundaryCodesWhoseTargetsHasToBeUpdated = request?.body?.boundaryCodesWhoseTargetsHasToBeUpdated;
             if (boundaryCodesWhoseTargetsHasToBeUpdated) {
                 for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
-                    if (boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
+                    if (boundariesAlreadyWithProjects && boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
                         const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
                         const projectToUpdate = projectSearchResponse?.Project?.[0];
                         if (projectToUpdate) {
