@@ -59,6 +59,7 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
 
         // Extract client reference IDs from Stock entities that do not already have errors
         List<String> clientReferenceIdList = entities.stream()
+                .filter(entity -> StringUtils.hasText(entity.getClientReferenceId())) // Ensure client reference ID is not empty
                 .map(Stock::getClientReferenceId) // Map entities to their client reference IDs
                 .collect(Collectors.toList()); // Collect IDs into a list
 

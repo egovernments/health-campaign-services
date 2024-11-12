@@ -38,7 +38,6 @@ public class SReferenceIdValidator implements Validator<StockBulkRequest, Stock>
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
 
         List<Stock> validEntities = request.getStock().stream()
-                .filter(notHavingErrors())
                 .filter(entity -> ReferenceIdType.PROJECT.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
         

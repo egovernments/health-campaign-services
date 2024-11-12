@@ -18,12 +18,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.stock.Constants.*;
 
@@ -41,7 +36,8 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Stock> entities = request.getStock();
+        List<Stock> entities = request.getStock().stream().filter(notHavingErrors()).collect(Collectors.toList());
+
         log.info("validating non existent stock");
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
