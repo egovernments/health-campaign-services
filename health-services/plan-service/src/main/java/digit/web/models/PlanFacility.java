@@ -43,6 +43,9 @@ public class PlanFacility {
     @Size(max = 64)
     private String facilityId = null;
 
+    @JsonProperty("facilityName")
+    private String facilityName = null;
+
     @JsonProperty("residingBoundary")
     @NotNull
     @Size(min = 1, max = 64)
@@ -54,7 +57,7 @@ public class PlanFacility {
     private List<String> serviceBoundaries;
 
     @JsonIgnore
-    private List<String> initiallySetServiceBoundaries;
+    private List<String> initiallySetServiceBoundaries = new ArrayList<>();
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

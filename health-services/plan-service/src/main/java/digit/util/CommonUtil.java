@@ -2,6 +2,9 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.DecimalNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.web.models.*;
@@ -55,23 +58,33 @@ public class CommonUtil {
      * @return the value of the specified field as a string
      * @throws CustomException if the field does not exist
      */
-    public String extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
             JsonNode node = rootNode.get(fieldToExtract);
-            if (node != null) {
-                // Convert the node to a String
-                return objectMapper.convertValue(node, String.class);
+            if (node != null && !node.isNull()) {
+                // Check for different types of JSON nodes
+                if (node instanceof DecimalNode) {
+                    return ((DecimalNode) node).decimalValue();
+                } else if (node.isDouble() || node.isFloat()) {
+                    return node.asDouble();
+                } else if (node.isLong() || node.isInt()) {
+                    return node.asLong();
+                } else if (node.isBoolean()) {
+                    return node.asBoolean();
+                } else if (node.isTextual()) {
+                    return node.asText();
+                }
             }
-            // Return null if the node is empty
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
         }
     }
+
 
     /**
      * Extracts provided field from the additional details object
@@ -188,4 +201,65 @@ public class CommonUtil {
 
         return hierarchyMap;
     }
+
+    /**
+     * Adds or updates the provided fields in the additional details object.
+     *
+     * @param additionalDetails the additional details object to be updated.
+     * @param fieldsToBeUpdated map of field to be updated and it's updated value.
+     * @return returns the updated additional details object.
+     */
+
+    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+        try {
+            // Debug print statements for inspection
+            System.out.println("Initial additionalDetails: " + additionalDetails);
+            System.out.println("Fields to be updated: " + fieldsToBeUpdated);
+
+            // Get or create the additionalDetails as an ObjectNode
+            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+
+            // Debugging ObjectNode before update
+            System.out.println("ObjectNode before update: " + objectNode);
+
+            // Update or add the field in additional details object
+            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+
+            // Debugging ObjectNode after update
+            System.out.println("ObjectNode after update: " + objectNode);
+
+            // Convert updated ObjectNode back to a Map
+            Map<String, Object> updatedMap = objectMapper.convertValue(objectNode, Map.class);
+            System.out.println("Updated Map to return: " + updatedMap);
+
+            return updatedMap;
+
+        } catch (Exception e) {
+            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+        }
+    }
+
+//    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+//        try {
+//
+//            // Get or create the additionalDetails as an ObjectNode
+//            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+//                    ? objectMapper.createObjectNode()
+//                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+//
+//            // Update or Add the field in additional details object
+//            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+//
+//            // Convert updated ObjectNode back to a Map
+//            return objectMapper.convertValue(objectNode, Map.class);
+//
+//        } catch (Exception e) {
+//            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+//        }
+//
+//
+//
+//    }
 }

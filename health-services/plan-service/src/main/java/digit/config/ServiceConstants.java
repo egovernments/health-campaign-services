@@ -179,6 +179,9 @@ public class ServiceConstants {
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
 
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE = "ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS";
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while updating additional details  : ";
+
     public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
     public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
 
@@ -349,4 +352,7 @@ public class ServiceConstants {
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
     public static final String COMMA_DELIMITER = ",";
+
+    public static final String SERVING_POPULATION_CODE = "servingPopulation";
+
 }

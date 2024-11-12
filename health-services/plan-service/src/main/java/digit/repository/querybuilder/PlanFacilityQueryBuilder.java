@@ -10,6 +10,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
+
 @Component
 public class PlanFacilityQueryBuilder {
 
@@ -27,6 +29,7 @@ public class PlanFacilityQueryBuilder {
                     "plan_facility_linkage.tenant_id as plan_facility_tenant_id, " +
                     "plan_facility_linkage.plan_configuration_id as plan_facility_plan_configuration_id, " +
                     "plan_facility_linkage.facility_id as plan_facility_facility_id, " +
+                    "plan_facility_linkage.facility_name as plan_facility_facility_name, " +
                     "plan_facility_linkage.residing_boundary as plan_facility_residing_boundary, " +
                     "plan_facility_linkage.service_boundaries as plan_facility_service_boundaries, " +
                     "plan_facility_linkage.additional_details as plan_facility_additional_details, " +
@@ -72,6 +75,12 @@ public class PlanFacilityQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" facility_id = ? ");
             preparedStmtList.add(planFacilitySearchCriteria.getFacilityId());
+        }
+
+        if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityName())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" facility_name LIKE ? ");
+            preparedStmtList.add(PERCENTAGE_WILDCARD + planFacilitySearchCriteria.getFacilityName() + PERCENTAGE_WILDCARD);
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getResidingBoundaries())) {
