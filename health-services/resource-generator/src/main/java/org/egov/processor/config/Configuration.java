@@ -61,6 +61,9 @@ public class Configuration {
 	@Value("${egov.project.factory.data.create.endpoint}")
 	private String campaignIntegrationDataCreateEndPoint;
 
+	@Value("${egov.project.factory.fetch.from.microplan.endpoint}")
+	private String campaignIntegrationFetchFromMicroplanEndPoint;
+
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 
@@ -112,5 +115,12 @@ public class Configuration {
 
 	@Value("${census.additional.field.prefix.append.keys}")
 	public List<String> censusAdditionalPrefixAppendKeys;
+
+	//census host
+	@Value("${egov.census.host}")
+	private String censusHost;
+
+	@Value("${egov.census.search.endpoint}")
+	private String censusSearchEndPoint;
 
 }
