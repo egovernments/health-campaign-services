@@ -2443,9 +2443,14 @@ async function updateCampaignDetails(request: any, resourceDetailsId: any) {
     const nextDay = new Date(currentDate);
     nextDay.setDate(currentDate.getDate() + 1);
 
+    const newEndDate = new Date(currentDate);
+    newEndDate.setDate(currentDate.getDate() + 3);
+
     // Convert to epoch time in milliseconds
     const nextDayEpoch = nextDay.getTime();
+    const newEndDateEpoch = newEndDate.getTime();
     request.body.CampaignDetails.startDate = nextDayEpoch;
+    request.body.CampaignDetails.endDate = newEndDateEpoch;
     await updateProjectTypeCampaignService(request);
 
 }
