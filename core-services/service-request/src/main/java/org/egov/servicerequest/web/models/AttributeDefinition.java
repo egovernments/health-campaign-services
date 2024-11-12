@@ -50,6 +50,8 @@ public class AttributeDefinition {
     public enum DataTypeEnum {
         STRING("String"),
 
+        BOOLEAN("Boolean"),
+
         NUMBER("Number"),
 
         TEXT("Text"),
