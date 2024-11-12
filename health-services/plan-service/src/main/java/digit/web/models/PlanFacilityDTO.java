@@ -53,6 +53,9 @@ public class PlanFacilityDTO {
     @JsonProperty("initiallySetServiceBoundaries")
     private List<String> initiallySetServiceBoundaries;
 
+    @JsonProperty("facilityName")
+    private String facilityName = null;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 

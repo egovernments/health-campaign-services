@@ -58,6 +58,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .tenantId(planFacility.getTenantId())
                 .planConfigurationId(planFacility.getPlanConfigurationId())
                 .facilityId(planFacility.getFacilityId())
+                .facilityName(planFacility.getFacilityName())
                 .residingBoundary(planFacility.getResidingBoundary())
                 .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
                 .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())
