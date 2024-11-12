@@ -25,8 +25,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { createDataService, searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
-import Redis from "ioredis";
-const redis = new Redis();
+import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 
 
 
@@ -608,21 +607,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     }
 }
 
-async function deleteRedisCacheKeysWithPrefix(prefix: any) {
-    try {
-        const keys = await redis.keys(`${prefix}*`);
-        logger.info("cache keys to be deleted" + keys);// Get all keys with the specified prefix
-        if (keys.length > 0) {
-            await redis.del(keys); // Delete all matching keys
-            console.log(`Deleted keys with prefix "${prefix}":`, keys);
-        } else {
-            console.log(`No keys found with prefix "${prefix}"`);
-        }
-    } catch (error) {
-        console.error("Error deleting keys:", error);
-        throw error;
-    }
-}
+
 
 function getRootBoundaryCode(boundaries: any[] = []) {
     for (const boundary of boundaries) {
