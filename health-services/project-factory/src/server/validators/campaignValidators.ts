@@ -295,7 +295,7 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
             validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0 && request?.body?.ResourceDetails?.additionalDetails?.source != "microplan") {
-            if (!request?.parentCampaignObject && data[0]?.[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)]) {
+            if (!request?.body?.parentCampaignObject && data[0]?.[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)]) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `${request?.body?.ResourceDetails?.type} template downloaded from update campaign flow has been uploaded in create campaign flow`);
             }
             validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
