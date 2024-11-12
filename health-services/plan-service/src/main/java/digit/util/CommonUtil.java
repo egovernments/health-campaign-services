@@ -15,10 +15,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static digit.config.ServiceConstants.*;
@@ -84,7 +81,6 @@ public class CommonUtil {
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
         }
     }
-
 
     /**
      * Extracts provided field from the additional details object
@@ -203,6 +199,19 @@ public class CommonUtil {
     }
 
     /**
+     * Checks if the setup process is completed based on the workflow action in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     * @return true if the setup is completed, otherwise false.
+     */
+    public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
+        if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
+            return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
+
+        return false;
+    }
+
+    /**
      * Adds or updates the provided fields in the additional details object.
      *
      * @param additionalDetails the additional details object to be updated.
@@ -212,27 +221,17 @@ public class CommonUtil {
 
     public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
         try {
-            // Debug print statements for inspection
-            System.out.println("Initial additionalDetails: " + additionalDetails);
-            System.out.println("Fields to be updated: " + fieldsToBeUpdated);
 
             // Get or create the additionalDetails as an ObjectNode
             ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
                     ? objectMapper.createObjectNode()
                     : objectMapper.convertValue(additionalDetails, ObjectNode.class);
 
-            // Debugging ObjectNode before update
-            System.out.println("ObjectNode before update: " + objectNode);
-
             // Update or add the field in additional details object
             fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
 
-            // Debugging ObjectNode after update
-            System.out.println("ObjectNode after update: " + objectNode);
-
             // Convert updated ObjectNode back to a Map
             Map<String, Object> updatedMap = objectMapper.convertValue(objectNode, Map.class);
-            System.out.println("Updated Map to return: " + updatedMap);
 
             return updatedMap;
 
@@ -240,26 +239,4 @@ public class CommonUtil {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
-
-//    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
-//        try {
-//
-//            // Get or create the additionalDetails as an ObjectNode
-//            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
-//                    ? objectMapper.createObjectNode()
-//                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
-//
-//            // Update or Add the field in additional details object
-//            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
-//
-//            // Convert updated ObjectNode back to a Map
-//            return objectMapper.convertValue(objectNode, Map.class);
-//
-//        } catch (Exception e) {
-//            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
-//        }
-//
-//
-//
-//    }
 }

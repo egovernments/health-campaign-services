@@ -114,7 +114,7 @@ public class CensusUtil {
                     AdditionalField uploadedField = AdditionalField.builder()
                             .key(UPLOADED_KEY + key)
                             .value((BigDecimal) valueFromRow)
-                            .editable(Boolean.TRUE)
+                            .editable(Boolean.FALSE)
                             .showOnUi(Boolean.TRUE)
                             .order(orderCounter++)  // Increment for "UPLOADED" field
                             .build();

@@ -1,18 +1,16 @@
 package org.egov.processor.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-
 import org.egov.processor.config.Configuration;
 import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationResponse;
-import org.egov.processor.web.models.PlanConfigurationSearchRequest;
+import org.egov.processor.web.models.*;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 
 import static org.egov.processor.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE;
 
@@ -53,5 +51,9 @@ public class PlanConfigurationUtil {
             return planConfigurationResponse.getPlanConfiguration();
         else
             return planConfigurationList;
+    }
+
+    public void orderPlanConfigurationOperations(PlanConfigurationRequest planConfigurationRequest) {
+        planConfigurationRequest.getPlanConfiguration().getOperations().sort(Comparator.comparingInt(Operation::getExecutionOrder));
     }
 }

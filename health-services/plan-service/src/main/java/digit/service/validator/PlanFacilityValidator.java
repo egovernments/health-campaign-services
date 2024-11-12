@@ -16,9 +16,12 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
 import static digit.config.ServiceConstants.*;
+
 import java.util.*;
 import java.util.stream.Collectors;
+
 import digit.web.models.projectFactory.Boundary;
 
 @Component
@@ -245,7 +248,7 @@ public class PlanFacilityValidator {
                 .id(planConfigurationId)
                 .tenantId(tenantId)
                 .build());
-        log.info("planConfigurations: "+planConfigurations);
+        log.info("planConfigurations: " + planConfigurations);
 
         // Validate planConfiguration exists
         if (CollectionUtils.isEmpty(planConfigurations)) {

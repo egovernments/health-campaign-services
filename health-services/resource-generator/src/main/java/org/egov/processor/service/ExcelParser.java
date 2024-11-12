@@ -62,9 +62,11 @@ public class ExcelParser implements FileParser {
 
 	private EnrichmentUtil enrichmentUtil;
 
+	private PlanConfigurationUtil planConfigurationUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -77,6 +79,7 @@ public class ExcelParser implements FileParser {
 		this.localeUtil = localeUtil;
         this.censusUtil = censusUtil;
         this.enrichmentUtil = enrichmentUtil;
+        this.planConfigurationUtil = planConfigurationUtil;
     }
 
 	/**
@@ -198,6 +201,7 @@ public class ExcelParser implements FileParser {
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil. fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
+		planConfigurationUtil.orderPlanConfigurationOperations(request);
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
 				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
