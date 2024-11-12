@@ -1,11 +1,8 @@
 package org.egov.servicerequest.validators;
 
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
-import org.egov.servicerequest.web.models.AttributeDefinition;
-import org.egov.servicerequest.web.models.ServiceDefinition;
-import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
-import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
-import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
+import org.egov.servicerequest.repository.ServiceRequestRepository;
+import org.egov.servicerequest.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -18,20 +15,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.egov.servicerequest.error.ErrorCode.ATTRIBUTE_CODE_UNIQUENESS_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.ATTRIBUTE_CODE_UNIQUENESS_ERR_MSG;
-import static org.egov.servicerequest.error.ErrorCode.INVALID_ATTRIBUTE_DEFINITION_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.INVALID_ATTRIBUTE_DEFINITION_ERR_MSG;
-import static org.egov.servicerequest.error.ErrorCode.INVALID_REGEX_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.INVALID_REGEX_ERR_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_DEFINITION_ALREADY_EXISTS_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_DEFINITION_ALREADY_EXISTS_ERR_MSG;
+import static org.egov.servicerequest.error.ErrorCode.*;
 
 @Component
 public class ServiceDefinitionRequestValidator {
 
     @Autowired
     private ServiceDefinitionRequestRepository serviceDefinitionRequestRepository;
+
+    @Autowired
+    private ServiceRequestRepository serviceRequestRepository;
+
 
     public void validateServiceDefinitionRequest(ServiceDefinitionRequest serviceDefinitionRequest){
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
@@ -87,16 +81,57 @@ public class ServiceDefinitionRequestValidator {
     }
 
     private void validateServiceDefinitionExistence(ServiceDefinition serviceDefinition) {
-        List<ServiceDefinition> serviceDefinitionList = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(serviceDefinition.getTenantId()).code(Collections.singletonList(serviceDefinition.getCode())).build()).build());
+        List<ServiceDefinition> serviceDefinitionList = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().includeDeleted(true).serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(serviceDefinition.getTenantId()).code(Collections.singletonList(serviceDefinition.getCode())).build()).build());
         if(!CollectionUtils.isEmpty(serviceDefinitionList)){
             throw new CustomException(SERVICE_DEFINITION_ALREADY_EXISTS_ERR_CODE, SERVICE_DEFINITION_ALREADY_EXISTS_ERR_MSG);
         }
     }
 
-    public void validateUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest) {
+    private List<ServiceDefinition> validateExistence(ServiceDefinition serviceDefinition) {
+        List<ServiceDefinition> serviceDefinitionList = serviceDefinitionRequestRepository.
+          getServiceDefinitions(ServiceDefinitionSearchRequest.builder()
+            .includeDeleted(true)
+            .serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(serviceDefinition.getTenantId()).code(Collections.singletonList(serviceDefinition.getCode())).build()).build());
 
-        // TO DO
+        //Check if valid service definition exists
+        if (CollectionUtils.isEmpty(serviceDefinitionList)) {
+            throw new CustomException(SERVICE_DEFINITION_NOT_EXIST_ERR_CODE, SERVICE_DEFINITION_NOT_EXIST_ERR_MSG);
+        }
 
+        return serviceDefinitionList;
+    }
+
+    private void validateService(List<ServiceDefinition> serviceDefinition){
+        List<Service> service = serviceRequestRepository.getService(
+          ServiceSearchRequest.builder().serviceCriteria(
+            ServiceCriteria.builder().serviceDefIds(Collections.singletonList(serviceDefinition.get(0).getId())).build()
+          ).build()
+        );
+        //already a service exists corresponding to service definition
+        if(!CollectionUtils.isEmpty(service)){
+            throw new CustomException(VALID_SERVICE_EXIST_ERR_CODE, VALID_SERVICE_EXIST_ERR_MSG);
+        }
+    }
+
+    public ServiceDefinition validateUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest) {
+        ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        //Validate if a  Service Definition exists
+        List<ServiceDefinition> serviceDefinitionList = validateExistence(serviceDefinition);
+
+        //Validate if a Service exists corresponding to this Service Definition
+        validateService(serviceDefinitionList);
+
+        // Validate if all attribute definitions provided as part of service definitions have unique code
+        validateAttributeDefinitionUniqueness(serviceDefinition);
+
+        // Validate values provided in attribute definitions as per data type
+        validateAttributeValuesAsPerDataType(serviceDefinition);
+
+        // Validate regex values provided in attribute definitions
+        validateRegex(serviceDefinition);
+
+        return serviceDefinitionList.get(0);
     }
 
 }
