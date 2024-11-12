@@ -2436,6 +2436,21 @@ async function updateCampaignDetails(request: any, resourceDetailsId: any) {
     } else {
         console.error("Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays.");
     }
+    // Get the current date
+    const currentDate = new Date();
+
+    // Set to the next day
+    const nextDay = new Date(currentDate);
+    nextDay.setDate(currentDate.getDate() + 1);
+
+    const newEndDate = new Date(currentDate);
+    newEndDate.setDate(currentDate.getDate() + 3);
+
+    // Convert to epoch time in milliseconds
+    const nextDayEpoch = nextDay.getTime();
+    const newEndDateEpoch = newEndDate.getTime();
+    request.body.CampaignDetails.startDate = nextDayEpoch;
+    request.body.CampaignDetails.endDate = newEndDateEpoch;
     await updateProjectTypeCampaignService(request);
 
 }
