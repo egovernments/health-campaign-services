@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError, replicateRequest } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, replicateRequest } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -51,9 +51,9 @@ const downloadDataService = async (request: express.Request) => {
         const newRequestToGenerate = replicateRequest(request, newRequestBody, params);
         // Added auto generate since no previous generate request found
         logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}  `)
-        await callGenerate(newRequestToGenerate, request?.body?.ResourceDetails?.type);
+        callGenerate(newRequestToGenerate, request?.query?.type);
 
-        throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
+        // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
 
     // Send response with resource details
