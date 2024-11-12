@@ -578,7 +578,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             campaignId: "default"
         };
         const newRequestBoundary = replicateRequest(request, newRequestBody, params);
-        setTimeout(async() => {
+        setTimeout(async () => {
             // Code to be executed after 10 seconds
             logger.info("Timeout of 10 sec after boundary data creation");
             await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
@@ -1531,31 +1531,35 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             }
 
             const boundaryCodesWhoseTargetsHasToBeUpdated = request?.body?.boundaryCodesWhoseTargetsHasToBeUpdated;
-            for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
-                const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
-                const projectToUpdate = projectSearchResponse?.Project?.[0];
-                if (projectToUpdate) {
-                    const filteredTargets = projectToUpdate.targets.filter((e: any) => e.beneficiaryType == request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType);
-                    if (filteredTargets.length == 0) {
-                        projectToUpdate.targets = [
-                            {
-                                beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
-                                totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary],
-                                targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+            if (boundaryCodesWhoseTargetsHasToBeUpdated) {
+                for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
+                    if (boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
+                        const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
+                        const projectToUpdate = projectSearchResponse?.Project?.[0];
+                        if (projectToUpdate) {
+                            const filteredTargets = projectToUpdate.targets.filter((e: any) => e.beneficiaryType == request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType);
+                            if (filteredTargets.length == 0) {
+                                projectToUpdate.targets = [
+                                    {
+                                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary],
+                                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+                                    }
+                                ]
+                            } else {
+                                const targetobj = filteredTargets[0];
+                                targetobj.totalNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary],
+                                    targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+                                projectToUpdate.targets = [targetobj];
                             }
-                        ]
-                    } else {
-                        const targetobj = filteredTargets[0];
-                        targetobj.totalNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary],
-                            targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
-                        projectToUpdate.targets = [targetobj];
-                    }
-                    const projectUpdateBody = {
-                        RequestInfo: request?.body?.RequestInfo,
-                        Projects: [projectToUpdate]
-                    };
+                            const projectUpdateBody = {
+                                RequestInfo: request?.body?.RequestInfo,
+                                Projects: [projectToUpdate]
+                            };
 
-                    await projectUpdateForTargets(projectUpdateBody, request, boundary);
+                            await projectUpdateForTargets(projectUpdateBody, request, boundary);
+                        }
+                    }
                 }
             }
             delete request.body.boundaryCodesWhoseTargetsHasToBeUpdated;
