@@ -562,7 +562,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
     if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
-      
+
         // delete redis cache key with prefix boundaryRelatiionshipSearch
         await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 
@@ -1533,7 +1533,7 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             const boundaryCodesWhoseTargetsHasToBeUpdated = request?.body?.boundaryCodesWhoseTargetsHasToBeUpdated;
             if (boundaryCodesWhoseTargetsHasToBeUpdated) {
                 for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
-                    if (boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
+                    if (boundariesAlreadyWithProjects && boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
                         const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
                         const projectToUpdate = projectSearchResponse?.Project?.[0];
                         if (projectToUpdate) {
