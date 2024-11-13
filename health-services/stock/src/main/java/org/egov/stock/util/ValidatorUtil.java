@@ -268,6 +268,7 @@ public class ValidatorUtil {
 
 			// Get the sender and receiver IDs from the stock object
 			String senderId = stock.getSenderId();
+			String receiverId = stock.getReceiverId();
 
 			// Get the list of facility IDs mapped to the reference ID of the stock
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
@@ -303,8 +304,6 @@ public class ValidatorUtil {
 					// If facilityIds are empty, log an error for both sender and receiver
 					populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 				}
-			} else {
-				populateErrorForStock(stock, senderId, errorDetailsMap);
 			}
 		}
 	}
