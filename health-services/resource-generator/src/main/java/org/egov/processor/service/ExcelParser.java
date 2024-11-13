@@ -502,6 +502,23 @@ public class ExcelParser implements FileParser {
 				case BOOLEAN:
 					propertiesNode.put(columnName, cell.getBooleanCellValue());
 					break;
+				case FORMULA:
+					// Attempt to get the cached formula result value directly
+					switch (cell.getCachedFormulaResultType()) {
+						case NUMERIC:
+							propertiesNode.put(columnName, BigDecimal.valueOf(cell.getNumericCellValue()));
+							break;
+						case STRING:
+							propertiesNode.put(columnName, cell.getStringCellValue());
+							break;
+						case BOOLEAN:
+							propertiesNode.put(columnName, cell.getBooleanCellValue());
+							break;
+						default:
+							propertiesNode.putNull(columnName);
+							break;
+					}
+					break;
                 default:
 					propertiesNode.putNull(columnName);
 					break;
