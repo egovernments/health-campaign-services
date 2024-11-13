@@ -409,7 +409,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     else if (type == 'boundaryManagement'  || type === 'boundaryGeometryManagement'){
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
