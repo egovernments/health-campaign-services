@@ -984,7 +984,7 @@ async function processValidate(
       ...localizationMap,
       ...localizationMapForHierarchy,
     };
-    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request);
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.body?.ResourceDetails?.tenantId);
     differentTabsBasedOnLevel = getLocalizedName(
       `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(),
       localizationMap

@@ -49,7 +49,9 @@ export const CONSTANTS: any = {
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
             BOUNDARY_TARGET_ERROR: "Target either not present or invalid value",
-            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence"
+            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence",
+            BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
+            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",

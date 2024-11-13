@@ -24,6 +24,7 @@ import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplate
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 
 
 
@@ -294,6 +295,9 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
             validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0 && request?.body?.ResourceDetails?.additionalDetails?.source != "microplan") {
+            if (!request?.body?.parentCampaignObject && data[0]?.[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)]) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${request?.body?.ResourceDetails?.type} template downloaded from update campaign flow has been uploaded in create campaign flow`);
+            }
             validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
             validateUnique(newSchema, data, request, localizationMap);
             enrichRowMappingViaValidation(validationErrors, request?.body?.rowMapping, localizationMap);
@@ -1290,9 +1294,12 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                         if (columns.startsWith('__EMPTY')) {
                             throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
                         }
+                        if (!request?.body?.parentCampaignObject && columns.endsWith('(OLD)')) {
+                            throwError("COMMON", 400, "VALIDATION_ERROR", "Target template downloaded from update campaign flow has been uploaded in create campaign flow")
+                        }
                     }
                     if (!boundaryRow[root]) {
-                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
+                        throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}. Please upload from downloaded template only.`);
                     }
                 }
             }
@@ -1312,7 +1319,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
     logger.debug("districts present in user filled sheet (exclude first two tabs): " + getFormattedStringForDebug(tabsFromTargetSheet));
 
     if (tabsFromTargetSheet.length - tabsIndex !== tabsOfDistrict.length) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uploaded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system `)
+        throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tabs uploaded by user is either less or more than the ${differentTabsBasedOnLevel} in the boundary system. Please upload from downloaded template only.`);
     } else {
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab
@@ -1347,6 +1354,88 @@ function validateSearchProcessTracksRequest(request: any) {
     }
 }
 
+async function validateMicroplanRequest(request: any){
+    const {tenantId, campaignId, planConfigurationId} = request.body.MicroplanDetails;
+    if (!tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
+    }
+    if (!campaignId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "campignId is required");
+    }
+    if (!planConfigurationId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "planConfigurationId is required");
+    }
+    logger.info("All required fields are present");
+
+    await validateCampaignFromId(request);
+    await validatePlanFacility(request);
+}
+
+async function validatePlanFacility(request: any) {
+    const planConfigSearchResponse = await planConfigSearch(request);
+    const planFacilitySearchResponse = await planFacilitySearch(request);
+
+    if(planFacilitySearchResponse.PlanFacility.length === 0){
+        throwError("COMMAN", 400, "Plan facilities not found");
+    }
+
+    request.body.PlanFacility = planFacilitySearchResponse.PlanFacility;
+    request.body.planConfig = planConfigSearchResponse.PlanConfiguration[0];
+}
+
+async function validateCampaignFromId(request :any) {
+    const {tenantId, campaignId} = request.body.MicroplanDetails;
+
+    const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        CampaignDetails: {
+            tenantId: tenantId,
+            ids: [campaignId]
+        }
+    }
+
+    const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(req);
+
+    if(searchResponse?.CampaignDetails?.length == 0){
+        throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+    }
+
+    logger.info("Campaign Found");
+    request.body.CampaignDetails = searchResponse?.CampaignDetails[0];
+}
+
+
+function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
+    const firstColumnValues = new Set();
+    const firstColumn = localizedHeadersOfBoundarySheet[0];
+
+    boundarySheetData.forEach((obj: any, index: number) => {
+        let firstEmptyFound = false;
+        // Collect value from the first column
+        if (obj[firstColumn]) {
+            firstColumnValues.add(obj[firstColumn]);
+        }
+        if (firstColumnValues.size > 1) {
+            throwError("BOUNDARY", 400, "BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR",
+                `Data is invalid: The "${firstColumn}" column must contain only one unique value across all rows.`);
+        }
+
+        for (const header of localizedHeadersOfBoundarySheet) {
+            const value = obj[header];
+
+            if (!value) {
+                // Mark that an empty value has been found for the first time
+                firstEmptyFound = true;
+            } else if (firstEmptyFound) {
+                // If a non-empty value is found after an empty value in the expected order, throw an error
+                throwError("BOUNDARY", 400, "BOUNDARY_SHEET_UPLOADED_INVALID_ERROR",
+                    `Data is invalid in object at index ${index + 2}: Non-empty value for key "${header}" found after an empty value in the left.`);
+            }
+        }
+    });
+}
+
 
 export {
     fetchBoundariesInChunks,
@@ -1365,7 +1454,9 @@ export {
     validateBoundaryOfResouces,
     validateSearchProcessTracksRequest,
     validateParent,
-    validateForRetry
+    validateForRetry,
+    validateBoundarySheetDataInCreateFlow,
+    validateMicroplanRequest
 }
 
 

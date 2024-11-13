@@ -12,6 +12,7 @@ if (!HOST) {
 
 
 const getDBSchemaName = (dbSchema = "") => {
+  // return "health";
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 // Configuration object containing various environment variables
@@ -25,7 +26,7 @@ const config = {
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
-  masterNameForSplitBoundariesOn: "hierarchyConfig",
+  masterNameForSplitBoundariesOn: "HierarchySchema",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
@@ -118,6 +119,7 @@ const config = {
     hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
     localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
+    planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
   },
   // Paths for different services
   paths: {
@@ -151,7 +153,9 @@ const config = {
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
     projectStaffSearch: process.env.EGOV_HEALTH_PROJECT_STAFF_SEARCH || "health-project/staff/v1/_search",
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
-    projectStaffDelete: process.env.EGOV_HEALTH_PROJECT_STAFF_BULK_DELETE || "health-project/staff/v1/bulk/_delete"
+    projectStaffDelete: process.env.EGOV_HEALTH_PROJECT_STAFF_BULK_DELETE || "health-project/staff/v1/bulk/_delete",
+    planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
+    planFacilityConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
   },
   // Values configuration
   values: {
