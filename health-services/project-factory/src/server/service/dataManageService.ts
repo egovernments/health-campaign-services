@@ -43,7 +43,7 @@ const downloadDataService = async (request: express.Request) => {
         };
         const params = {
             type: request?.query?.type,
-            tenantId: request?.query?.type,
+            tenantId: request?.query?.tenantId,
             forceUpdate: 'true',
             hierarchyType: request?.query?.hierarchyType,
             campaignId :request?.query?.campaignId,
