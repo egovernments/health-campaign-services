@@ -740,7 +740,16 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
-  await handledropdownthings(facilitySheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in facility",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(facilitySheet, receivedDropdowns);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
@@ -821,7 +830,16 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
-  await handledropdownthings(userSheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in user",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(userSheet, receivedDropdowns);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
