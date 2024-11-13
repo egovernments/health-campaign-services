@@ -1,5 +1,7 @@
 package digit.service.enrichment;
 
+import digit.util.CommonUtil;
+import digit.web.models.AdditionalField;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.boundary.EnrichedBoundary;
@@ -11,13 +13,18 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
 public class CensusEnrichment {
 
-    public CensusEnrichment() {
+    private CommonUtil commonUtil;
+
+    public CensusEnrichment(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -47,6 +54,15 @@ public class CensusEnrichment {
 
         // Enrich effectiveFrom for the census record
         census.setEffectiveFrom(census.getAuditDetails().getCreatedTime());
+
+        denormalizeAdditionalFields(request.getCensus());
+    }
+
+    private void denormalizeAdditionalFields(Census census) {
+        Map<String, Object> fieldsToAdd = census.getAdditionalFields().stream()
+                .collect(Collectors.toMap(AdditionalField::getKey, AdditionalField::getValue));
+
+        census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), fieldsToAdd));
     }
 
     /**
@@ -94,6 +110,8 @@ public class CensusEnrichment {
                 UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id");
             }
         });
+
+        denormalizeAdditionalFields(request.getCensus());
     }
 
 }

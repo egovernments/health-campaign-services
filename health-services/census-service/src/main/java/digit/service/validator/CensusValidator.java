@@ -57,6 +57,20 @@ public class CensusValidator {
 
         // Validate partner assignment and jurisdiction against plan service
         validatePartnerForCensus(request);
+
+        // Validate keys in additional field
+        validateAdditionalFields(request);
+    }
+
+    private void validateAdditionalFields(CensusRequest request) {
+        Set<String> additionalFieldKeys = new HashSet<>();
+
+        request.getCensus().getAdditionalFields().forEach(additionalField -> {
+            if(additionalFieldKeys.contains(additionalField.getKey())) {
+                throw new CustomException(DUPLICATE_KEY_IN_ADDITIONAL_FIELD_CODE, DUPLICATE_KEY_IN_ADDITIONAL_FIELD_MESSGAE + additionalField.getKey());
+            }
+            additionalFieldKeys.add(additionalField.getKey());
+        });
     }
 
     /**
@@ -129,6 +143,9 @@ public class CensusValidator {
 
         // Validate partner assignment and jurisdiction against plan service
         validatePartnerForCensus(request);
+
+        // Validate keys in additional field
+        validateAdditionalFields(request);
     }
 
     /**

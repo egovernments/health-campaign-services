@@ -28,6 +28,9 @@ public class Configuration {
     @Value("${census.update.topic}")
     private String censusUpdateTopic;
 
+    @Value("${census.bulk.update.topic}")
+    private String censusBulkUpdateTopic;
+
     @Value("${plan.facility.update.topic}")
     private String planFcailityUpdateTopic;
 
