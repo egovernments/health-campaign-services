@@ -610,17 +610,18 @@ async function getHeadersAccordingToWhichWeReorder(mappingObject: any, parentFil
     ? workbook.worksheets[2]?.name  // Use the third sheet for 'boundaryWithTarget' type
     : workbook.worksheets[1]?.name; // Use the second sheet for other types
 
-  // Fetch the target sheet data
-  const targetSheetData = await getSheetData(parentFileUrl, headerSourceSheetName, false);
-
-  // Extract headers from the target sheet data
-  let headers: string[] = [];
-  if (Array.isArray(targetSheetData) && targetSheetData.length > 0) {
-    headers = Object.keys(targetSheetData[0]); // Get headers from the first object
-  } else if (typeof targetSheetData === "object" && targetSheetData[headerSourceSheetName]) {
-    const dataArray = targetSheetData[headerSourceSheetName];
-    headers = dataArray?.[0] ? Object.keys(dataArray[0]) : [];
+  const sheet = workbook.getWorksheet(headerSourceSheetName);
+  if (!sheet) {
+    throw new Error(`Sheet with name "${headerSourceSheetName}" not found`);
   }
+
+  // Get the first row (assuming it's the header row)
+  const headerRow = sheet.getRow(1);
+  let headers: any = [];
+
+  headerRow.eachCell((cell, colNumber) => {
+    headers.push(cell.value); // Collect header cell values
+  });
 
   return headers;
 }
