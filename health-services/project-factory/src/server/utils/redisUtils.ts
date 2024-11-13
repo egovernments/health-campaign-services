@@ -63,12 +63,12 @@ async function deleteRedisCacheKeysWithPrefix(prefix: any) {
 
         if (keysToDelete.length > 0) {
             await redis.del(...keysToDelete);
-            console.log(`Deleted keys with prefix "${prefix}":`, keysToDelete);
+            logger.info(`Deleted keys with prefix "${prefix}":`, keysToDelete);
         } else {
-            console.log(`No keys found with prefix "${prefix}"`);
+            logger.info(`No keys found with prefix "${prefix}"`);
         }
     } catch (error) {
-        console.error("Error deleting keys:", error);
+        logger.info("Error deleting keys:", error);
         throw error;
     }
 }
