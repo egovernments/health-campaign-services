@@ -1155,7 +1155,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     };
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
     }
 
     const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
