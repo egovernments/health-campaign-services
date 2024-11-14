@@ -55,4 +55,10 @@ public class PlanEmployeeAssignmentSearchCriteria {
     @Builder.Default
     private Boolean filterUniqueByPlanConfig = Boolean.FALSE;
 
+    @JsonProperty("offset")
+    private Integer offset = null;
+
+    @JsonProperty("limit")
+    private Integer limit = null;
+
 }
