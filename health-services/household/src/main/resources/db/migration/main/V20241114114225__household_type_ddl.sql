@@ -1,0 +1,1 @@
+ALTER TABLE HOUSEHOLD ADD COLUMN householdType character varying(64);

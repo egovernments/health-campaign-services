@@ -42,4 +42,10 @@ public class HouseholdConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${household.type.community}")
+    private String communityHouseholdType;
+
+    @Value("${household.type.community.creator.role}")
+    private String communityHouseholdCreatorRoleCode;
 }
