@@ -282,8 +282,9 @@ public class PlanFacilityValidator {
 
         Map<String, Object> fieldsToBeAdded = new HashMap<>();
         fieldsToBeAdded.put("facilityUsage", facility.getUsage());
-        fieldsToBeAdded.put("storageCapacity", facility.getStorageCapacity());
-        fieldsToBeAdded.put("facilityType", facility.getAddress().getType());
+        fieldsToBeAdded.put("capacity", facility.getStorageCapacity());
+        fieldsToBeAdded.put("facilityStatus", facility.getAddress().getType());
+        fieldsToBeAdded.put("facilityType", facility.getUsage());
         fieldsToBeAdded.put("isPermanent", facility.isPermanent());
         fieldsToBeAdded.put("servingPopulation", initialServingPop);
 
