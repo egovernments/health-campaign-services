@@ -30,10 +30,11 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC, plan_configuration_id";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY plan_configuration_id, last_modified_time DESC";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
 
+    private static final String LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY = "SELECT * FROM ( {INTERNAL_QUERY} ) AS latest_assignments ORDER BY last_modified_time DESC";
     /**
      * Constructs a SQL query string for searching PlanEmployeeAssignment objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -47,7 +48,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
         query = queryUtil.addOrderByClause(query, Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ?
                 UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE : PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, searchCriteria, preparedStmtList);
-        return query;
+        return Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ? LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY.replace("{INTERNAL_QUERY}", query) : query;
     }
 
     /**
