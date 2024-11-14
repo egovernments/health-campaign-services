@@ -23,7 +23,7 @@ import { generateDynamicTargetHeaders, isDynamicTargetTemplateForProjectType, up
 import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithBoundaryCodeAndName, fetchProjectsWithParentRootProjectId, getBoundariesFromCampaignSearchResponse, getBoundaryProjectMappingFromParentCampaign, getColumnIndexByHeader, hideColumnsOfProcessedFile, modifyNewSheetData, unhideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
-import { createDataService, searchDataService } from "../service/dataManageService";
+import { createDataService, downloadDataService, generateDataService, searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
 import Redis from "ioredis";
 const redis = new Redis();
@@ -2402,10 +2402,18 @@ async function createUniqueUserNameViaIdGen(request: any) {
 
 async function processFetchMicroPlan(request: any) {
     logger.info("Started processing fetch microplan");
-    const { tenantId } = request.body.MicroplanDetails;
+    const { tenantId, resourceId } = request.body.MicroplanDetails;
+    const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: facilitySheetId }, "get");
-    const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
+    const resourseFileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resourceId }, "get");
+    const resourceFileSheetData = await getResourceFileSheetData(resourseFileResponse.fileStoreIds[0].url);
+    const getBoundaryCodeToDataMap = prepareBoundaryCodeToDataMap(resourceFileSheetData)
+    const generatedBoundarySheet = await generateBoundarySheet(request);
+    const headersToPick = await getHeadersToPickFromMDMS(request, localizationMap); 
+    const targetSheetFileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: generatedBoundarySheet }, "get");
+    const targetSheetData = await getResourceFileSheetData(targetSheetFileResponse.fileStoreIds[0].url);
+    const filledTargetSheet = fillTargetSheetWithData(getBoundaryCodeToDataMap, targetSheetData, headersToPick);
     const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
     const boundaryTab = getLocalizedName(config?.boundary?.boundaryTab, localizationMap);
     const processedFacilitySheetData = await getSheetDataMP(fileResponse.fileStoreIds[0].url, localizedFacilityTab, false, undefined, localizationMap);
@@ -2417,22 +2425,277 @@ async function processFetchMicroPlan(request: any) {
     request.query.type = "facilityWithBoundary";
     request.query.tenantId = tenantId;
     await createFacilityAndBoundaryFile(filledFacilitySheetData, processedBoundaryData, request, localizationMap, fileResponse.fileStoreIds[0].url, schema);
+    await createTargetAndUpload(filledTargetSheet,localizationMap,request);
     const resourceDetails = await validateFacilitySheet(request);
-    await updateCampaignDetails(request, resourceDetails?.id);
+    const resourseDetailsForTarget = await validateTargetSheetData(request);
+    await updateCampaignDetails(request, resourceDetails?.id, resourseDetailsForTarget?.id);
+    console.log(filledTargetSheet);
+    logger.info("Completed processing fetch microplan", generatedBoundarySheet,headersToPick, getBoundaryCodeToDataMap);
 }
 
-async function updateCampaignDetails(request: any, resourceDetailsId: any) {
+async function validateTargetSheetData(request:any) {
+    const { tenantId } = request.body.MicroplanDetails;
+    request.body.ResourceDetails = {
+        tenantId: tenantId,
+        type: "boundaryWithTarget",
+        fileStoreId: request.body.targetFileId,
+        action: "validate",
+        campaignId: request.body.MicroplanDetails.campaignId,
+        hierarchyType: request.body.CampaignDetails.hierarchyType,
+        additionalDetails: {}
+    };
+    const resourceDetails = await createDataService(request);
+    return resourceDetails;
+}
+
+async function createTargetAndUpload(filledTargetSheet: any, localizationMap: any, request: any) {
+    const workbook = getNewExcelWorkbook();
+    request.query.type = "boundary";
+
+    const localizedBoundaryTab = getLocalizedName(config?.boundary?.boundaryTab, localizationMap);
+    const type = request?.query?.type;
+    const headingInSheet = headingMapping?.[type];
+    const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
+
+    await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
+
+    for(const [key,value] of Object.entries(filledTargetSheet)){
+        if(key != "Read Me" && key != localizedBoundaryTab){
+            const sheet = workbook.addWorksheet(key);
+            addDataToSheet(request, sheet, value);
+        }
+    }
+
+    const fileDetails = await createAndUploadFile(workbook, request);
+    request.body.targetFileId = fileDetails[0].fileStoreId;
+    return fileDetails;
+}
+
+async function getHeadersToPickFromMDMS(request:any, localizationMap: { [key: string]: string }) {
+    const {tenantId, projectType} = request.body.CampaignDetails;
+    const schema = await callMdmsTypeSchema(request,tenantId,true, "boundary", "MP-" + projectType);
+    const headersNeeded = schema.required;
+    Object.keys(headersNeeded).forEach((key: string) => {
+        headersNeeded[key] = getLocalizedName(headersNeeded[key], localizationMap);
+    });    
+    return headersNeeded;
+}
+
+function fillTargetSheetWithData(boundaryCodeToDataMap: any, targetSheetData: any, targetHeaders: any[]){
+    
+    Object.values(targetSheetData).forEach((data: any) => {
+        const headers = data[0]; // Extract headers from the first row
+
+    // Iterate through each row in data, skipping the header row
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const boundaryCode = row[headers.indexOf("Boundary Code")]; // Get the boundary code for the row
+
+        // Check if this boundary code exists in the map
+        if (boundaryCodeToDataMap[boundaryCode]) {
+        const mapEntry = boundaryCodeToDataMap[boundaryCode];
+
+        // Update each target header in the row with the corresponding map entry value
+        for (const header of targetHeaders) {
+            const columnIndex = headers.indexOf(header);
+            if (columnIndex !== -1 && mapEntry[header] !== undefined) {
+            row[columnIndex] = mapEntry[header];
+            }
+        }
+        }
+    }
+    });
+    return targetSheetData;
+}
+function prepareBoundaryCodeToDataMap(resourceFileSheetData: any){
+
+const boundaryCodeMap: { [key: string]: { [key: string]: any } } = {};
+
+Object.values(resourceFileSheetData).forEach((data: any) => {
+    if (Array.isArray(data)) {
+        const headers = data[0];
+        const rows = data.slice(1);
+
+        rows.forEach((row: any) => {
+            const entry: { [key: string]: any } = {};
+            headers.forEach((header: string, index: number) => {
+                entry[header] = row[index];
+            });
+
+            // Use the "Boundary Code" as the key for each entry
+            if (entry["Boundary Code"]) {
+                boundaryCodeMap[entry["Boundary Code"]] = entry;
+            }
+        });
+    }
+});
+    return boundaryCodeMap;
+}
+
+async function generateBoundarySheet(request:any) {
+    const {hierarchyType} = request.body.CampaignDetails;
+    
+    request.query.tenantId = request.body.CampaignDetails.tenantId;
+    request.query.type = "boundary";
+    request.query.hierarchyType = hierarchyType;
+    request.query.campaignId = request.body.CampaignDetails.id;
+
+    const response = await generateDataService(request);
+    logger.info("Generated boundary sheet", response[0].id);
+    delete request.query.forceUpdate;
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    const downloadResponse = await pollDownloadStatus(request);
+    if(downloadResponse === null){
+        throwError('Failed to reach desired status within retry limit.')
+    }
+    return downloadResponse != null?downloadResponse[0].fileStoreid:null;
+}
+
+async function pollDownloadStatus(request: any, maxRetries = 10, delay = 2000) {
+    let attempts = 0;
+    let status = '';
+
+    while (status !== 'completed' && attempts < maxRetries) {
+        const downloadResponse = await downloadDataService(request);
+
+        // Assuming 'status' is the field in downloadResponse to check
+        if(downloadResponse !== null){
+            status = downloadResponse[0].status;
+        }
+        
+        if (status === 'completed' || status === 'failed') {
+            console.log('Status changed to desired status:', status);
+            return downloadResponse;
+        }
+
+        // Log each attempt
+        console.log(`Attempt ${attempts + 1}: Status is '${status}', retrying...`);
+
+        // Wait before next attempt
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+    }
+
+    // If we exit loop, either status was achieved or max retries reached
+    if (status !== 'completed') {
+        console.log('Polling stopped after reaching max retries or timeout.');
+        throwError('Failed to reach desired status within retry limit.');
+    }
+
+    return null; // or a suitable return based on your needs
+}
+
+ // Function to fetch and load the workbook from a file URL
+const getResourceExcelWorkbookFromFileURL = async (fileUrl: string) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/pdf",
+    };
+    logger.info("loading file based on fileUrl");
+  
+    // Retrieve Excel file as arraybuffer
+    const responseFile = await httpRequest(
+      fileUrl,
+      null,
+      {},
+      "get",
+      "arraybuffer",
+      headers
+    );
+    logger.info("received file response");
+  
+    // Load workbook
+    const workbook = getNewExcelWorkbook();
+    await workbook.xlsx.load(responseFile);
+    logger.info("workbook created based on the file response");
+  
+    // Return an object with all sheets, with sheet names as keys
+    const sheetsData: { [key: string]: any } = {};
+    workbook.worksheets.forEach((worksheet: any) => {
+      sheetsData[worksheet.name] = worksheet;
+    });
+    logger.info("Returning all sheets in the workbook");
+    return sheetsData;
+  };
+  
+  // Type definition for parsed workbook data
+  type WorkbookData = {
+    [sheetName: string]: any[][]; // Array of arrays for each worksheet
+  };
+  
+  // Function to parse workbook data into a structured format
+  const parseWorkbookData = (sheetsData: { [key: string]: any }): WorkbookData => {
+    const workbookData: WorkbookData = {};
+  
+    // Loop through each sheet in the sheetsData object
+    Object.keys(sheetsData).forEach((sheetName) => {
+      const worksheet = sheetsData[sheetName];
+      const sheetData: any[][] = [];
+  
+      // Loop through each row in the worksheet
+      worksheet.eachRow((row: any) => {
+        const rowData: any[] = row.values ? row.values.slice(1) : []; // Skip empty first cell
+        sheetData.push(rowData);
+      });
+  
+      // Add parsed data to workbookData
+      workbookData[sheetName] = sheetData;
+    });
+  
+    return workbookData;
+  };
+   
+  
+  
+async function getResourceFileSheetData(url : any) {
+    const sheetData = await getResourceExcelWorkbookFromFileURL(url);
+    const data = parseWorkbookData(sheetData);
+    return data;
+}
+
+async function updateCampaignDetails(request: any, resourceDetailsIdForFacility: any, resourseDetailsForTarget: any) {
     const { resources } = request.body.CampaignDetails || {};
     const { fileDetails } = request.body;
 
     if (Array.isArray(resources) && Array.isArray(fileDetails) && fileDetails[0]?.fileStoreId) {
-        resources.forEach((resource: any) => {
-            if (resource.type === 'facility') {
-                resource.filestoreId = fileDetails[0].fileStoreId;
-                resource.resourceId = resourceDetailsId;
-                console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
-            }
+        let facilityFound = false;
+        let targetFound = false;
+
+    resources.forEach((resource: any) => {
+        if (resource.type === 'facility') {
+            resource.filestoreId = fileDetails[0].fileStoreId;
+            resource.resourceId = resourceDetailsIdForFacility;
+            console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
+            facilityFound = true;
+        }
+
+        if(resource.type === 'boundaryWithTarget'){
+            resource.filestoreId = request.body.targetFileId;
+            resource.resourceId = resourseDetailsForTarget;
+            console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
+            targetFound = true;
+        }
+    });
+
+    if (!facilityFound) {
+        // Append a new object if no 'facility' resource was found
+        resources.push({
+            type: 'facility',
+            filename: 'Facility Template (29).xlsx',
+            filestoreId: fileDetails[0].fileStoreId,
+            resourceId: resourceDetailsIdForFacility
         });
+        console.log('Appended new facility resource');
+    }
+    if(!targetFound){
+        resources.push({
+            type: 'boundaryWithTarget',
+            filename: 'Boundary Template (29).xlsx',
+            filestoreId: request.body.targetFileId,
+            resourceId: resourseDetailsForTarget
+        })
+    }
     } else {
         console.error("Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays.");
     }
@@ -2488,6 +2751,7 @@ function fillFacilitySheetData(modifiedProcessedFacilitySheetData: any, planFaci
 }
 
 
+  
 const getSheetDataMP = async (
     fileUrl: string,
     sheetName: string,
@@ -2565,6 +2829,7 @@ export {
     enrichInnerCampaignDetails,
     processFetchMicroPlan
 }
+
 
 
 
