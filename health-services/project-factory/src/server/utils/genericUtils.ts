@@ -409,7 +409,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     else if (type == 'boundaryManagement'  || type === 'boundaryGeometryManagement'){
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
@@ -740,7 +740,16 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
-  await handledropdownthings(facilitySheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in facility",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(facilitySheet, receivedDropdowns);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
@@ -821,7 +830,16 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
-  await handledropdownthings(userSheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in user",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(userSheet, receivedDropdowns);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -1212,7 +1230,7 @@ async function getBoundaryRelationshipData(request: any, params: any) {
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const header = {
     ...defaultheader,
-    cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
   }
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
   logger.info("Boundary relationship search response received")

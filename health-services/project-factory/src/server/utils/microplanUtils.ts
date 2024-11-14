@@ -318,7 +318,8 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
     for (const element of allFacilityDatas) {
       const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
       const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
-      const facilityType = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
+      const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
+      const facilityType = element?.facilityDetails?.usage;
       const currTime = new Date().getTime();
       const produceObject: any = {
         PlanFacility: {
@@ -333,7 +334,7 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
             capacity: element?.facilityDetails?.storageCapacity,
             facilityName: element?.facilityDetails?.name,
             facilityType: facilityType,
-            facilityStatus: "Active",
+            facilityStatus: facilityStatus,
             assignedVillages: [],
             servingPopulation: 0
           },
