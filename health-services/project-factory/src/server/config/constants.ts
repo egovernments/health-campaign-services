@@ -34,7 +34,11 @@ export const CONSTANTS: any = {
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR: "Campaign name different from parent Campaign",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
+            PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
+            INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
+            RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow "
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -45,7 +49,9 @@ export const CONSTANTS: any = {
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
             BOUNDARY_TARGET_ERROR: "Target either not present or invalid value",
-            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence"
+            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence",
+            BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
+            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",
@@ -53,6 +59,10 @@ export const CONSTANTS: any = {
             PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
             PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
+            PROJECT_STAFF_SEARCH_ERROR: "Error occured during project search , check projectId and staffId",
+            PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId",
+            PROJECT_FACILITY_DELETE_ERROR: "Error occured while deleting project facility mapping",
+            PROJECT_STAFF_DELETE_ERROR: "Error occured while deleting project staff mapping"
         },
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config",
@@ -144,6 +154,8 @@ export const processTrackStatuses = {
     toBeCompleted: "toBeCompleted",
     failed: "failed",
 }
+
+export const rolesForMicroplan = ["Plan estimation approver", "Root plan estimation approver", "Population data approver", "Root population data approver", "Facility catchment mapper", "Root facility catchment mapper", "Microplan viewer"];
 
 
 // Retrieves the error object containing the error code, message, and notFound flag.

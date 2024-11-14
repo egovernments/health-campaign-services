@@ -1,7 +1,7 @@
 import express from "express";
-import { processBasedOnAction, searchProjectCampaignResourcData } from "../utils/campaignUtils";
+import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateProjectCampaignRequest, validateSearchProcessTracksRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest, validateSearchProcessTracksRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
 import { createRelatedResouce } from "../api/genericApis";
 import { enrichCampaign } from "../api/campaignApis";
@@ -69,11 +69,30 @@ async function searchProcessTracksService(
     return resultArray
 };
 
+async function retryProjectTypeCampaignService(request: express.Request) {
+    logger.info("RETRYING THE PROJECT TYPE CAMPAIGN");
+    await validateProjectCampaignRequest(request, "retry");
+    logger.info("VALIDATED THE PROJECT TYPE RETRY REQUEST");
+    request.body.CampaignDetails.action = "draft";
+    await processBasedOnAction(request, "update");
+    return request?.body?.CampaignDetails;
+}
+
+async function fetchFromMicroplanService(request: express.Request) {
+    logger.info("FETCHING DATA FROM MICROPLAN");
+    await validateMicroplanRequest(request);
+    logger.info("Validated request successfully");
+    processFetchMicroPlan(request);
+    return request.body.CampaignDetails;
+}
+
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     createCampaignService,
-    searchProcessTracksService
+    searchProcessTracksService,
+    retryProjectTypeCampaignService,
+    fetchFromMicroplanService
 }

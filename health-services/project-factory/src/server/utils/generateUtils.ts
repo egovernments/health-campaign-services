@@ -20,18 +20,26 @@ function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
     const currentSetOfBoundaries = new Set(currentBoundaries.map((currboundary: any) => JSON.stringify(extractProperties(currboundary))));
     return _.isEqual(existingSetOfBoundaries, currentSetOfBoundaries);
 }
+function isCampaignTypeSame(request: any) {
+    const existingCampaignType = request?.body?.ExistingCampaignDetails?.projectType;
+    const currentCampaignType = request?.body?.CampaignDetails?.projectType;
+    return _.isEqual(existingCampaignType, currentCampaignType);
+}
 
-async function callGenerateIfBoundariesDiffer(request: any) {
+async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+        const boundaries = request?.body?.boundariesCombined
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries)) {
-                logger.info("Boundaries differ, generating new resources");
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || !isCampaignTypeSame(request)) {
+                logger.info("Boundaries or Campaign Type  differ, generating new resources");
+                // Apply 2-second timeout after the condition check
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
                 const newRequestBody = {
                     RequestInfo: request?.body?.RequestInfo,
                     Filters: {
-                        boundaries: request?.body?.CampaignDetails?.boundaries
+                        boundaries: boundaries
                     }
                 };
 
@@ -82,4 +90,4 @@ async function callGenerate(request: any, type: any, enableCaching = false) {
 
 
 
-export { callGenerateIfBoundariesDiffer, callGenerate, areBoundariesSame }
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, callGenerate, areBoundariesSame }
