@@ -16,7 +16,6 @@ import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -151,11 +150,11 @@ public class PlanConfigurationValidator {
                 throw new CustomException(ADDITIONAL_DETAILS_MISSING_CODE, ADDITIONAL_DETAILS_MISSING_MESSAGE);
             }
 
-            String jsonPathForAssumption = commonUtil.createJsonPathForAssumption(commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_CAMPAIGN_TYPE),
-                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_DISTRIBUTION_PROCESS),
-                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_REGISTRATION_PROCESS),
-                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE),
-                    commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER));
+            String jsonPathForAssumption = commonUtil.createJsonPathForAssumption((String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_CAMPAIGN_TYPE),
+                    (String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_DISTRIBUTION_PROCESS),
+                    (String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_REGISTRATION_PROCESS),
+                    (String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_RESOURCE_DISTRIBUTION_STRATEGY_CODE),
+                    (String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER));
             List<Object> assumptionListFromMDMS = null;
             try {
                 log.info(jsonPathForAssumption);
@@ -242,7 +241,7 @@ public class PlanConfigurationValidator {
             }
 
             // Ensure at least one active file for each required template identifier
-            if(isSetupCompleted(planConfiguration)){
+            if(commonUtil.isSetupCompleted(planConfiguration)){
                 requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
                     if (!activeRequiredTemplates.contains(requiredTemplate)) {
                         log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
@@ -380,18 +379,6 @@ public class PlanConfigurationValidator {
         }
     }
 
-    /**
-     * Checks if the setup process is completed based on the workflow action in the plan configuration.
-     *
-     * @param planConfiguration The plan configuration to check.
-     * @return true if the setup is completed, otherwise false.
-     */
-    public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
-        if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
-            return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
-
-        return false;
-    }
 
     /**
      * Checks if files are empty or null when the setup action is marked as completed.
@@ -438,13 +425,13 @@ public class PlanConfigurationValidator {
     public void validateOperations(PlanConfigurationRequest request, CampaignResponse campaignResponse) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-        if (isSetupCompleted(planConfiguration)) {
+        if (commonUtil.isSetupCompleted(planConfiguration)) {
             performEmptyChecks(planConfiguration);
 
             HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(request, campaignResponse.getCampaignDetails().get(0).getProjectType());
             Set<String> activeAssumptionKeys = getActiveAssumptionKeys(planConfiguration);
 
-            validateOperationInputs(planConfiguration, allowedColumns);
+            validateOperationInputs(planConfiguration, allowedColumns, activeAssumptionKeys);
             validateOperationAssumptionValues(planConfiguration, allowedColumns, activeAssumptionKeys);
         }
     }
@@ -531,13 +518,13 @@ public class PlanConfigurationValidator {
      * @param planConfiguration The plan configuration containing operations.
      * @param allowedColumns    The allowed column names for input validation.
      */
-    private void validateOperationInputs(PlanConfiguration planConfiguration, HashSet<String> allowedColumns) {
+    private void validateOperationInputs(PlanConfiguration planConfiguration, HashSet<String> allowedColumns, Set<String> activeAssumptionKeys) {
         // Set to keep track of previous outputs
         Set<String> previousOutputs = new HashSet<>();
 
         for (Operation operation : planConfiguration.getOperations()) {
             // Validate input
-            if (!allowedColumns.contains(operation.getInput()) && !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
+            if (!allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
                 log.error("Input Value " + operation.getInput() + " is not present in allowed columns or previous outputs");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
             }

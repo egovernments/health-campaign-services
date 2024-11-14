@@ -1,36 +1,28 @@
 package org.egov.processor.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.DecimalNode;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.poi.ss.usermodel.*;
+import org.egov.processor.config.ServiceConstants;
+import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.ResourceMapping;
+import org.egov.tracer.model.CustomException;
+import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import com.fasterxml.jackson.databind.node.DecimalNode;
-import org.apache.commons.io.FileUtils;
-import org.apache.poi.ss.usermodel.*;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.ResourceMapping;
-import org.egov.tracer.model.CustomException;
-import org.springframework.stereotype.Component;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 
@@ -311,6 +303,93 @@ public class ParsingUtil {
         }
 
         return names;
+    }
+
+
+    /**
+     * Checks if a given row is empty.
+     *
+     * A row is considered empty if it is null or if all of its cells are empty or of type BLANK.
+     *
+     * @param row the Row to check
+     * @return true if the row is empty, false otherwise
+     */
+    public static boolean isRowEmpty(Row row) {
+        if (row == null) {
+            return true;
+        }
+        for (Cell cell : row) {
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Retrieves the index value of the boundary code from the sorted column list based on the mapped values.
+     *
+     * @param indexValue The initial index value.
+     * @param sortedColumnList The sorted list of column names and indices.
+     * @param mappedValues The map containing mapped values.
+     * @return The index value of the boundary code.
+     */
+    public Integer getIndexOfBoundaryCode(Integer indexValue, List<Map.Entry<String, Integer>> sortedColumnList,Map<String, String> mappedValues) {
+        for (Map.Entry<String, Integer> entry : sortedColumnList) {
+            if (entry.getKey().equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
+                indexValue = entry.getValue();
+            }
+        }
+        return indexValue;
+    }
+
+    /**
+     * Sorts the column names and indices based on the provided map of column names and indices.
+     *
+     * @param mapOfColumnNameAndIndex The map containing column names and their corresponding indices.
+     * @return The sorted list of column names and indices.
+     */
+    public List<Map.Entry<String, Integer>> sortColumnByIndex(Map<String, Integer> mapOfColumnNameAndIndex) {
+        List<Map.Entry<String, Integer>> sortedColumnList = new ArrayList<>(mapOfColumnNameAndIndex.entrySet());
+        Collections.sort(sortedColumnList, new Comparator<Map.Entry<String, Integer>>() {
+            @Override
+            public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
+                return o1.getValue().compareTo(o2.getValue());
+            }
+        });
+        return sortedColumnList;
+    }
+
+    public void printRow(Sheet sheet, Row row) {
+        System.out.print("Row -> ");
+        for (Cell cell : row) {
+            int columnIndex = cell.getColumnIndex();
+            switch (cell.getCellType()) {
+                case STRING:
+                    System.out.print(cell.getStringCellValue() + "\t");
+                    break;
+                case NUMERIC:
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        System.out.print(cell.getDateCellValue() + "\t");
+                    } else {
+                        System.out.print(cell.getNumericCellValue() + "\t");
+                    }
+                    break;
+                case BOOLEAN:
+                    System.out.print(cell.getBooleanCellValue() + "\t");
+                    break;
+                case FORMULA:
+                    System.out.print(cell.getCellFormula() + "\t");
+                    break;
+                case BLANK:
+                    System.out.print("<blank>\t");
+                    break;
+                default:
+                    System.out.print("<unknown>\t");
+                    break;
+            }
+        }
+        System.out.println(); // Move to the next line after printing the row
     }
 
 }

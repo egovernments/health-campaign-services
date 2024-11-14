@@ -61,6 +61,9 @@ public class Operation {
     @Size(min = 2, max = 64)
     private String category = null;
 
+    @JsonProperty("executionOrder")
+    private Integer executionOrder = null;
+
     @JsonProperty("active")
     @NotNull
     private Boolean active = true;

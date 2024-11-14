@@ -1,0 +1,1 @@
+ALTER TABLE plan_facility_linkage ADD facility_name character varying(64);

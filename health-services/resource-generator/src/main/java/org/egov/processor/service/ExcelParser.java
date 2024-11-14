@@ -13,6 +13,7 @@ import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.*;
 import org.egov.processor.web.models.*;
+import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
@@ -27,10 +28,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
@@ -64,9 +62,11 @@ public class ExcelParser implements FileParser {
 
 	private EnrichmentUtil enrichmentUtil;
 
+	private PlanConfigurationUtil planConfigurationUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -79,6 +79,7 @@ public class ExcelParser implements FileParser {
 		this.localeUtil = localeUtil;
         this.censusUtil = censusUtil;
         this.enrichmentUtil = enrichmentUtil;
+        this.planConfigurationUtil = planConfigurationUtil;
     }
 
 	/**
@@ -162,9 +163,9 @@ public class ExcelParser implements FileParser {
 			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 
 			if (config.isIntegrateWithAdminConsole()) {
+//				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
-
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
 			}
@@ -193,23 +194,32 @@ public class ExcelParser implements FileParser {
 	 */
 	//TODO: processsheetforestimate and processsheetforcensus
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
-			Object campaignResponse, Workbook excelWorkbook,
-			List<Boundary> campaignBoundaryList,
-			DataFormatter dataFormatter) {
+							   Object campaignResponse, Workbook excelWorkbook,
+							   List<Boundary> campaignBoundaryList,
+							   DataFormatter dataFormatter) {
 		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
-		Object mdmsData = mdmsUtil. fetchMdmsData(request.getRequestInfo(),
+		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
+		planConfigurationUtil.orderPlanConfigurationOperations(request);
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
 				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
-
+		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
+				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.collect(Collectors.toMap(
+						ResourceMapping::getMappedTo,
+						ResourceMapping::getMappedFrom,
+						(existing, replacement) -> existing,
+						LinkedHashMap::new
+				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
 							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
@@ -248,15 +258,20 @@ public class ExcelParser implements FileParser {
 
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
-				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+				.collect(Collectors.toMap(
+						ResourceMapping::getMappedTo,
+						ResourceMapping::getMappedFrom,
+						(existing, replacement) -> existing,
+						LinkedHashMap::new
+				));
 
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 		Row firstRow = null;
 
 		for (Row row : sheet) {
-			if (isRowEmpty(row))
+			if (parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -334,11 +349,11 @@ public class ExcelParser implements FileParser {
 				.convertAssumptionsToMap(planConfig.getAssumptions());
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
 		for (Row row : sheet) {
-			if(isRowEmpty(row))
+			if(parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -357,29 +372,10 @@ public class ExcelParser implements FileParser {
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
 			// TODO: remove after testing
-			printRow(sheet, row);
+			parsingUtil.printRow(sheet, row);
 		}
 	}
 
-	/**
-	 * Checks if a given row is empty.
-	 *
-	 * A row is considered empty if it is null or if all of its cells are empty or of type BLANK.
-	 *
-	 * @param row the Row to check
-	 * @return true if the row is empty, false otherwise
-	 */
-	public static boolean isRowEmpty(Row row) {
-		if (row == null) {
-			return true;
-		}
-		for (Cell cell : row) {
-			if (cell != null && cell.getCellType() != CellType.BLANK) {
-				return false;
-			}
-		}
-		return true;
-	}
 
 	/**
 	 * Performs calculations on operations for a specific row in the sheet.
@@ -513,40 +509,6 @@ public class ExcelParser implements FileParser {
 		}
 
 		return featureNode;
-	}
-
-	public void printRow(Sheet sheet, Row row) {
-		System.out.print("Row -> ");
-		for (Cell cell : row) {
-			int columnIndex = cell.getColumnIndex();
-			// String columnName = sheet.getRow(0).getCell(columnIndex).toString();
-			// System.out.print("Column " + columnName + " - ");
-			switch (cell.getCellType()) {
-			case STRING:
-				System.out.print(cell.getStringCellValue() + "\t");
-				break;
-			case NUMERIC:
-				if (DateUtil.isCellDateFormatted(cell)) {
-					System.out.print(cell.getDateCellValue() + "\t");
-				} else {
-					System.out.print(cell.getNumericCellValue() + "\t");
-				}
-				break;
-			case BOOLEAN:
-				System.out.print(cell.getBooleanCellValue() + "\t");
-				break;
-			case FORMULA:
-				System.out.print(cell.getCellFormula() + "\t");
-				break;
-			case BLANK:
-				System.out.print("<blank>\t");
-				break;
-			default:
-				System.out.print("<unknown>\t");
-				break;
-			}
-		}
-		System.out.println(); // Move to the next line after printing the row
 	}
 
 	/**

@@ -1,5 +1,15 @@
 package digit.service.enrichment;
 
+import digit.util.CensusUtil;
+import digit.util.CommonUtil;
+import digit.web.models.PlanFacility;
+import digit.web.models.PlanFacilityRequest;
+import digit.web.models.PlanFacilitySearchCriteria;
+import digit.web.models.PlanFacilitySearchRequest;
+import digit.web.models.census.Census;
+import digit.web.models.census.CensusResponse;
+import digit.web.models.census.CensusSearchCriteria;
+import digit.web.models.census.CensusSearchRequest;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import jakarta.validation.Valid;
@@ -10,9 +20,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
@@ -23,8 +32,11 @@ public class PlanFacilityEnricher {
 
     private CommonUtil commonUtil;
 
-    public PlanFacilityEnricher(CommonUtil commonUtil) {
+    private CensusUtil censusUtil;
+
+    public PlanFacilityEnricher(CommonUtil commonUtil, CensusUtil censusUtil) {
         this.commonUtil = commonUtil;
+        this.censusUtil = censusUtil;
     }
 
     /**
@@ -45,7 +57,7 @@ public class PlanFacilityEnricher {
         planFacilityRequest.getPlanFacility().setActive(Boolean.TRUE);
 
         // Add plan config name to which the facility is mapped
-        enrichWithPlanConfigName(planFacilityRequest.getPlanFacility());
+        planFacilityRequest.getPlanFacility().setPlanConfigurationName(commonUtil.getPlanConfigName(planFacilityRequest.getPlanFacility().getTenantId(), planFacilityRequest.getPlanFacility().getPlanConfigurationId()));
     }
 
     /**
@@ -58,6 +70,57 @@ public class PlanFacilityEnricher {
 
         //enrich audit details
         planFacility.setAuditDetails(prepareAuditDetails(planFacilityRequest.getPlanFacility().getAuditDetails(), planFacilityRequest.getRequestInfo(), Boolean.FALSE));
+
+        // enrich serving population
+        enrichServingPopulation(planFacilityRequest);
+    }
+
+    private void enrichServingPopulation(PlanFacilityRequest planFacilityRequest) {
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+        Set<String> boundariesToBeSearched = new HashSet<>(planFacility.getServiceBoundaries());
+        boundariesToBeSearched.addAll(planFacility.getInitiallySetServiceBoundaries());
+
+        if(!CollectionUtils.isEmpty(boundariesToBeSearched)) {
+            CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
+                    .tenantId(planFacility.getTenantId())
+                    .source(planFacility.getPlanConfigurationId())
+                    .areaCodes(new ArrayList<>(boundariesToBeSearched))
+                    .limit(boundariesToBeSearched.size())
+                    .build();
+
+            CensusResponse censusResponse = censusUtil.fetchCensusRecords(CensusSearchRequest.builder()
+                    .requestInfo(planFacilityRequest.getRequestInfo())
+                    .censusSearchCriteria(censusSearchCriteria)
+                    .build());
+
+            // Create a population map
+            Map<String, Long> boundaryToPopMap = censusResponse.getCensus().stream()
+                    .collect(Collectors.toMap(Census::getBoundaryCode, Census::getTotalPopulation));
+
+            // Get existing servingPopulation or default to 0
+            Double servingPopulation = (Double) commonUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), SERVING_POPULATION_CODE);
+
+            updateServingPopulation(boundariesToBeSearched, planFacility, boundaryToPopMap, servingPopulation);
+        }
+    }
+
+    private void updateServingPopulation(Set<String> boundariesToBeSearched, PlanFacility planFacility, Map<String, Long> boundaryToPopMap, Double servingPopulation) {
+        Set<String> currentServiceBoundaries = new HashSet<>(planFacility.getServiceBoundaries());
+        Set<String> initialServiceBoundaries = new HashSet<>(planFacility.getInitiallySetServiceBoundaries());
+
+        for(String boundary : boundariesToBeSearched) {
+            Long totalPopulation = boundaryToPopMap.get(boundary);
+
+            if (!currentServiceBoundaries.contains(boundary)) {
+                servingPopulation -= totalPopulation;
+            } else if (!initialServiceBoundaries.contains(boundary)) {
+                servingPopulation += totalPopulation;
+            }
+        }
+        Map<String, Object> fieldToUpdate = new HashMap<>();
+        fieldToUpdate.put(SERVING_POPULATION_CODE, servingPopulation);
+
+        planFacility.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(planFacility.getAdditionalDetails(), fieldToUpdate));
     }
 
     /**
@@ -71,11 +134,6 @@ public class PlanFacilityEnricher {
         // Filter map for filtering facility meta data present in additional details
         Map<String, String> filtersMap = new LinkedHashMap<>();
 
-        // Add facility name as a filter if present in search criteria
-        if(!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityName())) {
-            filtersMap.put(FACILITY_NAME_SEARCH_PARAMETER_KEY, planFacilitySearchCriteria.getFacilityName());
-        }
-
         // Add facility status as a filter if present in search criteria
         if(!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityStatus())) {
             filtersMap.put(FACILITY_STATUS_SEARCH_PARAMETER_KEY, planFacilitySearchCriteria.getFacilityStatus());
@@ -88,21 +146,5 @@ public class PlanFacilityEnricher {
 
         if(!CollectionUtils.isEmpty(filtersMap))
             planFacilitySearchCriteria.setFiltersMap(filtersMap);
-    }
-
-    /**
-     * This method enriches the plan facility object with the planConfigName to which facility is mapped.
-     *
-     * @param planFacility the object to be enriched
-     */
-    private void enrichWithPlanConfigName(PlanFacility planFacility) {
-
-        String planConfigName = getPlanConfigNameById(planFacility.getPlanConfigurationId(), planFacility.getTenantId());
-        planFacility.setPlanConfigurationName(planConfigName);
-    }
-
-    private String getPlanConfigNameById(String planConfigId, String tenantId) {
-        List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planConfigId, tenantId);
-        return planConfigurations.get(0).getName();
     }
 }

@@ -28,6 +28,7 @@ public class CampaignIntegrationUtil {
 	private ServiceRequestRepository serviceRequestRepository;
 	private Configuration config;
 	private ObjectMapper mapper;
+	private ParsingUtil parsingUtil;
 
 	public CampaignIntegrationUtil(ServiceRequestRepository serviceRequestRepository, Configuration config,
 			ObjectMapper mapper, FilestoreUtil filestoreUtil, ParsingUtil parsingUtil) {
@@ -35,6 +36,50 @@ public class CampaignIntegrationUtil {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.mapper = mapper;
+		this.parsingUtil= parsingUtil;
+	}
+
+	/**
+	 * Updates resources in the Project Factory by calling an external API with the given plan configuration
+	 * request and file store ID. Logs the operation status.
+	 *
+	 * @param planConfigurationRequest The plan configuration request details.
+	 * @param fileStoreId              The file store ID to update.
+	 * @throws CustomException if the API call fails.
+	 */
+	public void updateResourcesInProjectFactory(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+		try {
+			serviceRequestRepository.fetchResult(
+					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationFetchFromMicroplanEndPoint()),
+					buildMicroplanDetailsForUpdate(planConfigurationRequest, fileStoreId));
+			log.info("Updated resources file into project factory - " + fileStoreId);
+		} catch (Exception e) {
+			log.error(ERROR_WHILE_CALLING_MICROPLAN_API + planConfigurationRequest.getPlanConfiguration().getId(), e);
+			throw new CustomException(ERROR_WHILE_CALLING_MICROPLAN_API, e.toString());
+		}
+
+	}
+
+	/**
+	 * Builds a campaign request object for updating campaign details based on the provided plan configuration request and campaign response.
+	 *
+	 * @param planConfigurationRequest The plan configuration request containing necessary information for updating the campaign.
+	 * @param fileStoreId The filestoreId with calculated resources
+	 * @return The microplan details request object built for updating resource filestore id.
+	 */
+	private MicroplanDetailsRequest buildMicroplanDetailsForUpdate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+
+		MicroplanDetails microplanDetails = MicroplanDetails.builder()
+				.tenantId(planConfig.getTenantId())
+				.planConfigurationId(planConfig.getId())
+				.campaignId(planConfig.getCampaignId())
+				.resourceFilestoreId(fileStoreId).build();
+
+		return MicroplanDetailsRequest.builder()
+				.microplanDetails(microplanDetails)
+				.requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
 	}
 
 	/**
@@ -177,29 +222,13 @@ public class CampaignIntegrationUtil {
 		boolean validToAdd = false;
 		Integer indexValue = 0;
 		Boundary boundary = new Boundary();
-		List<Map.Entry<String, Integer>> sortedColumnList = sortColumnByIndex(mapOfColumnNameAndIndex);
-		indexValue = getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
+		List<Map.Entry<String, Integer>> sortedColumnList = parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex);
+		indexValue = parsingUtil.getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
 		prepareBoundary(indexOfType, indexValue, sortedColumnList, feature, boundary, mappedValues);
 		if (isValidToAdd(boundaryList, resultMap, validToAdd, boundary))
 			boundaryList.add(boundary);
 	}
 
-	/**
-	 * Retrieves the index value of the boundary code from the sorted column list based on the mapped values.
-	 *
-	 * @param indexValue The initial index value.
-	 * @param sortedColumnList The sorted list of column names and indices.
-	 * @param mappedValues The map containing mapped values.
-	 * @return The index value of the boundary code.
-	 */
-	public Integer getIndexOfBoundaryCode(Integer indexValue, List<Map.Entry<String, Integer>> sortedColumnList,Map<String, String> mappedValues) {
-		for (Map.Entry<String, Integer> entry : sortedColumnList) {
-			if (entry.getKey().equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
-				indexValue = entry.getValue();
-			}
-		}
-		return indexValue;
-	}
 
 	/**
 	 * Prepares a campaign boundary based on the provided index values, sorted column list, feature, and mapped values.
@@ -253,22 +282,7 @@ public class CampaignIntegrationUtil {
 		return validToAdd;
 	}
 
-	/**
-	 * Sorts the column names and indices based on the provided map of column names and indices.
-	 *
-	 * @param mapOfColumnNameAndIndex The map containing column names and their corresponding indices.
-	 * @return The sorted list of column names and indices.
-	 */
-	public List<Map.Entry<String, Integer>> sortColumnByIndex(Map<String, Integer> mapOfColumnNameAndIndex) {
-		List<Map.Entry<String, Integer>> sortedColumnList = new ArrayList<>(mapOfColumnNameAndIndex.entrySet());
-		Collections.sort(sortedColumnList, new Comparator<Map.Entry<String, Integer>>() {
-			@Override
-			public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
-				return o1.getValue().compareTo(o2.getValue());
-			}
-		});
-		return sortedColumnList;
-	}
+
 
 	/**
 	 * Retrieves the value of the boundary code from the feature JSON node based on the mapped values.

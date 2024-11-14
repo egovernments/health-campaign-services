@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Component
 @Data
 @Import({ TracerConfiguration.class })
@@ -59,6 +61,9 @@ public class Configuration {
 	@Value("${egov.project.factory.data.create.endpoint}")
 	private String campaignIntegrationDataCreateEndPoint;
 
+	@Value("${egov.project.factory.fetch.from.microplan.endpoint}")
+	private String campaignIntegrationFetchFromMicroplanEndPoint;
+
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
 
@@ -103,5 +108,19 @@ public class Configuration {
 
 	@Value("${resource.default.limit}")
 	private Integer defaultLimit;
+
+	//census additonal field configs
+	@Value("${census.additional.field.override.keys}")
+	public List<String> censusAdditionalFieldOverrideKeys;
+
+	@Value("${census.additional.field.prefix.append.keys}")
+	public List<String> censusAdditionalPrefixAppendKeys;
+
+	//census host
+	@Value("${egov.census.host}")
+	private String censusHost;
+
+	@Value("${egov.census.search.endpoint}")
+	private String censusSearchEndPoint;
 
 }

@@ -52,7 +52,7 @@ public class PlanEmployeeAssignmentEnricher {
                 Boolean.TRUE));
 
         // Add plan config name to which the employee is mapped
-        enrichWithPlanConfigName(planEmployeeAssignment);
+        planEmployeeAssignment.setPlanConfigurationName(commonUtil.getPlanConfigName(planEmployeeAssignment.getTenantId(), planEmployeeAssignment.getPlanConfigurationId()));
     }
 
     /**
@@ -67,21 +67,5 @@ public class PlanEmployeeAssignmentEnricher {
         planEmployeeAssignment.setAuditDetails(prepareAuditDetails(planEmployeeAssignment.getAuditDetails(),
                 request.getRequestInfo(),
                 Boolean.FALSE));
-    }
-
-    /**
-     * This method enriches the plan employee assignment object with the planConfigName to which employee is mapped.
-     *
-     * @param planEmployeeAssignment the object to be enriched
-     */
-    private void enrichWithPlanConfigName(PlanEmployeeAssignment planEmployeeAssignment) {
-
-        String planConfigName = getPlanConfigNameById(planEmployeeAssignment.getPlanConfigurationId(), planEmployeeAssignment.getTenantId());
-        planEmployeeAssignment.setPlanConfigurationName(planConfigName);
-    }
-
-    private String getPlanConfigNameById(String planConfigId, String tenantId) {
-        List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planConfigId, tenantId);
-        return planConfigurations.get(0).getName();
     }
 }

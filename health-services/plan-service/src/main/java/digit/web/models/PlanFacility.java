@@ -46,6 +46,9 @@ public class PlanFacility {
     @Size(max = 64)
     private String facilityId = null;
 
+    @JsonProperty("facilityName")
+    private String facilityName = null;
+
     @JsonProperty("residingBoundary")
     @NotNull
     @Size(min = 1, max = 64)
