@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Validated
@@ -29,13 +31,28 @@ public class PlanFacilitySearchCriteria {
     @NotNull
     private String planConfigurationId = null;
 
+    @JsonProperty("facilityName")
+    private String facilityName = null;
+
+    @JsonProperty("facilityStatus")
+    private String facilityStatus = null;
+
+    @JsonProperty("facilityType")
+    private String facilityType = null;
+
     @JsonProperty("residingBoundaries")
     private List<String> residingBoundaries = null;
+
+    @JsonProperty("facilityId")
+    private String facilityId = null;
 
     @JsonProperty("offset")
     private Integer offset = null;
 
     @JsonProperty("limit")
     private Integer limit = null;
+
+    @JsonIgnore
+    private Map<String, String> filtersMap = null;
 
 }

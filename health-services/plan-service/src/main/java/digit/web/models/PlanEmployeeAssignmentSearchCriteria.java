@@ -30,19 +30,35 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("employeeId")
-    private String employeeId = null;
+    private List<String> employeeId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)
     private String planConfigurationId = null;
 
     @JsonProperty("role")
+    @Valid
     private List<String> role = null;
+
+    @JsonProperty("hierarchyLevel")
+    private String hierarchyLevel = null;
 
     @JsonProperty("jurisdiction")
     @Valid
     private List<String> jurisdiction = null;
 
     @JsonProperty("active")
-    private Boolean active = null;
+    @Builder.Default
+    private Boolean active = Boolean.TRUE;
+
+    @JsonProperty("filterUniqueByPlanConfig")
+    @Builder.Default
+    private Boolean filterUniqueByPlanConfig = Boolean.FALSE;
+
+    @JsonProperty("offset")
+    private Integer offset = null;
+
+    @JsonProperty("limit")
+    private Integer limit = null;
+
 }

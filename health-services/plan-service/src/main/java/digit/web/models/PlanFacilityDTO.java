@@ -1,7 +1,6 @@
 package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -11,7 +10,6 @@ import lombok.NoArgsConstructor;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -51,6 +49,12 @@ public class PlanFacilityDTO {
     @NotNull
     @Size(min = 1)
     private String serviceBoundaries = null; // Store as JSON string
+
+    @JsonProperty("initiallySetServiceBoundaries")
+    private List<String> initiallySetServiceBoundaries;
+
+    @JsonProperty("facilityName")
+    private String facilityName = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

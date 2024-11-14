@@ -1,6 +1,5 @@
 package digit.repository.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanFacilityRepository;
@@ -59,8 +58,10 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .tenantId(planFacility.getTenantId())
                 .planConfigurationId(planFacility.getPlanConfigurationId())
                 .facilityId(planFacility.getFacilityId())
+                .facilityName(planFacility.getFacilityName())
                 .residingBoundary(planFacility.getResidingBoundary())
                 .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
+                .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())
                 .additionalDetails(planFacility.getAdditionalDetails())
                 .active(planFacility.getActive())
                 .auditDetails(planFacility.getAuditDetails())
@@ -80,7 +81,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
      * @return a string
      */
     private String convertArrayToString(List<String> stringList) {
-        return String.join(", ", stringList);
+        return String.join(COMMA_DELIMITER, stringList);
     }
 
 
@@ -94,8 +95,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     @Override
     public List<PlanFacility> search(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         // Fetch plan facility from database
-        List<PlanFacility> planFacilities = queryDatabaseForPlanFacilities(planFacilitySearchCriteria);
-        return planFacilities;
+        return queryDatabaseForPlanFacilities(planFacilitySearchCriteria);
     }
 
     /**
@@ -115,6 +115,21 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     }
 
     /**
+     * Counts the number of plan facilities based on the provided search criteria.
+     *
+     * @param planFacilitySearchCriteria The search criteria for filtering plan facilities.
+     * @return The total count of plan facilities matching the search criteria.
+     */
+    @Override
+    public Integer count(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planFacilityQueryBuilder.getPlanFacilityCountQuery(planFacilitySearchCriteria, preparedStmtList);
+        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+
+        return count;
+    }
+
+    /**
      * Helper method to query database for plan facilities based on the provided search criteria.
      *
      * @param planFacilitySearchCriteria
@@ -123,8 +138,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     private List<PlanFacility> queryDatabaseForPlanFacilities(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planFacilityQueryBuilder.getPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
-        log.debug("Plan facility search {}", query);
-        log.debug(preparedStmtList.toString());
+        log.info("Plan facility search {}", query);
+        log.info(preparedStmtList.toString());
         return jdbcTemplate.query(query, planFacilityRowMapper, preparedStmtList.toArray());
     }
 

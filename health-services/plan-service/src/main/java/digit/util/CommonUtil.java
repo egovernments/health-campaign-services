@@ -2,18 +2,20 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.DecimalNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static digit.config.ServiceConstants.*;
@@ -53,17 +55,26 @@ public class CommonUtil {
      * @return the value of the specified field as a string
      * @throws CustomException if the field does not exist
      */
-    public String extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
 
             JsonNode node = rootNode.get(fieldToExtract);
-            if (node != null) {
-                // Convert the node to a String
-                return objectMapper.convertValue(node, String.class);
+            if (node != null && !node.isNull()) {
+                // Check for different types of JSON nodes
+                if (node instanceof DecimalNode) {
+                    return ((DecimalNode) node).decimalValue();
+                } else if (node.isDouble() || node.isFloat()) {
+                    return node.asDouble();
+                } else if (node.isLong() || node.isInt()) {
+                    return node.asLong();
+                } else if (node.isBoolean()) {
+                    return node.asBoolean();
+                } else if (node.isTextual()) {
+                    return node.asText();
+                }
             }
-            // Return null if the node is empty
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
@@ -147,6 +158,20 @@ public class CommonUtil {
     }
 
     /**
+     * Validates the user information within the provided PlanConfigurationRequest.
+     *
+     * @param requestInfo the request info containing the user information to be validated
+     * @throws CustomException if the user information is missing in the request
+     */
+    public void validateUserInfo(RequestInfo requestInfo)
+    {
+        if (ObjectUtils.isEmpty(requestInfo.getUserInfo())) {
+            log.error(USERINFO_MISSING_MESSAGE);
+            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
+        }
+    }
+
+    /**
      * This is a helper method to get the lowest and highest hierarchy for microplan from MDMS
      *
      * @param mdmsData the mdms data
@@ -173,4 +198,45 @@ public class CommonUtil {
         return hierarchyMap;
     }
 
+    /**
+     * Checks if the setup process is completed based on the workflow action in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     * @return true if the setup is completed, otherwise false.
+     */
+    public boolean isSetupCompleted(PlanConfiguration planConfiguration) {
+        if(!ObjectUtils.isEmpty(planConfiguration.getWorkflow()))
+            return Objects.equals(planConfiguration.getWorkflow().getAction(), SETUP_COMPLETED_ACTION);
+
+        return false;
+    }
+
+    /**
+     * Adds or updates the provided fields in the additional details object.
+     *
+     * @param additionalDetails the additional details object to be updated.
+     * @param fieldsToBeUpdated map of field to be updated and it's updated value.
+     * @return returns the updated additional details object.
+     */
+
+    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+        try {
+
+            // Get or create the additionalDetails as an ObjectNode
+            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+
+            // Update or add the field in additional details object
+            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+
+            // Convert updated ObjectNode back to a Map
+            Map<String, Object> updatedMap = objectMapper.convertValue(objectNode, Map.class);
+
+            return updatedMap;
+
+        } catch (Exception e) {
+            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+        }
+    }
 }
