@@ -765,35 +765,43 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 async function handledropdownthings(sheet: any, dropdowns: any) {
   let dropdownColumnIndex = -1;
   if (dropdowns) {
+    logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
       if (dropdowns[key]) {
-
+        logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);      
         const firstRow = sheet.getRow(1);
         firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
           if (cell.value === key) {
             dropdownColumnIndex = colNumber;
+            logger.info(`Found column index for dropdown "${key}": ${dropdownColumnIndex}`);
           }
         });
 
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
+          logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
+              logger.info(`Setting dropdown list for cell at row: ${rowNumber}, column: ${dropdownColumnIndex}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
                 formulae: [`"${dropdowns[key].join(',')}"`],
-                showDropDown: true, // Ensures dropdown is visible
+                showDropDown: true,
                 error: 'Please select a value from the dropdown list.',
-                errorStyle: 'stop', // Prevents any input not in the list
-                showErrorMessage: true, // Ensures error message is shown
+                errorStyle: 'stop',
+                showErrorMessage: true,
                 errorTitle: 'Invalid Entry'
               };
             }
           });
+        } else {
+          logger.info(`Dropdown column index not found for key: ${key}`);
         }
       }
     }
+  } else {
+    logger.info("No dropdowns provided.");
   }
 }
 
