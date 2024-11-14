@@ -10,8 +10,6 @@ import digit.web.models.census.Census;
 import digit.web.models.census.CensusResponse;
 import digit.web.models.census.CensusSearchCriteria;
 import digit.web.models.census.CensusSearchRequest;
-import digit.util.CommonUtil;
-import digit.web.models.*;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
