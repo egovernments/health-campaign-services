@@ -2415,13 +2415,25 @@ async function updateCampaignDetails(request: any, resourceDetailsId: any) {
     const { fileDetails } = request.body;
 
     if (Array.isArray(resources) && Array.isArray(fileDetails) && fileDetails[0]?.fileStoreId) {
-        resources.forEach((resource: any) => {
-            if (resource.type === 'facility') {
-                resource.filestoreId = fileDetails[0].fileStoreId;
-                resource.resourceId = resourceDetailsId;
-                console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
-            }
+         let facilityFound = false;
+
+    resources.forEach((resource: any) => {
+        if (resource.type === 'facility') {
+            resource.filestoreId = fileDetails[0].fileStoreId;
+            resource.resourceId = resourceDetailsId;
+            facilityFound = true;
+        }
+    });
+
+    if (!facilityFound) {
+        // Append a new object if no 'facility' resource was found
+        resources.push({
+            type: 'facility',
+            filename: 'Facility Template (29).xlsx',
+            filestoreId: fileDetails[0].fileStoreId,
+            resourceId: resourceDetailsId
         });
+    }
     } else {
         console.error("Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays.");
     }
