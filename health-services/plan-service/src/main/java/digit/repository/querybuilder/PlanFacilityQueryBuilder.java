@@ -88,7 +88,7 @@ public class PlanFacilityQueryBuilder {
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getPlanConfigurationName())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_name LIKE ? ");
+            builder.append(" plan_configuration_name ILIKE ? ");
             preparedStmtList.add(PERCENTAGE_WILDCARD + planFacilitySearchCriteria.getPlanConfigurationName() + PERCENTAGE_WILDCARD);
         }
 
@@ -100,7 +100,7 @@ public class PlanFacilityQueryBuilder {
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityName())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" facility_name LIKE ? ");
+            builder.append(" facility_name ILIKE ? ");
             preparedStmtList.add(PERCENTAGE_WILDCARD + planFacilitySearchCriteria.getFacilityName() + PERCENTAGE_WILDCARD);
         }
 

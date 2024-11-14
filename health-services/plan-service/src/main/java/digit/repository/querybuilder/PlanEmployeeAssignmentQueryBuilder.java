@@ -96,7 +96,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         if (searchCriteria.getPlanConfigurationName() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_name LIKE ?");
+            builder.append(" plan_configuration_name ILIKE ?");
             preparedStmtList.add(PERCENTAGE_WILDCARD + searchCriteria.getPlanConfigurationName() + PERCENTAGE_WILDCARD);
         }
 
