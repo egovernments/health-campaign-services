@@ -30,7 +30,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY plan_configuration_id, last_modified_time DESC";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC, plan_configuration_id";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
 
