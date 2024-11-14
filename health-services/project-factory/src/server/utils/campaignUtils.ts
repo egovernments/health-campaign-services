@@ -2103,7 +2103,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     await createBoundaryRelationship(request, boundaryMap, modifiedChildParentMap);
     const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
     logger.info("Initiated the localisation message creation for the uploaded boundary");
-    transformAndCreateLocalisation(boundaryMap, request);
+    await transformAndCreateLocalisation(boundaryMap, request);
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
     var headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
