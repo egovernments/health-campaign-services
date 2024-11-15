@@ -93,7 +93,7 @@ const getBoundaryDataService = async (
             logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
         }
         const workbook = getNewExcelWorkbook();
-        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType),true);
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
         const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         // Retrieve boundary sheet data
