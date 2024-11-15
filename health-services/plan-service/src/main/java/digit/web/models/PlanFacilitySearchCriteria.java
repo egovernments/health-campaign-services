@@ -31,6 +31,9 @@ public class PlanFacilitySearchCriteria {
     @NotNull
     private String planConfigurationId = null;
 
+    @JsonProperty("planConfigurationName")
+    private String planConfigurationName = null;
+
     @JsonProperty("facilityName")
     private String facilityName = null;
 
