@@ -494,6 +494,7 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
     }, {});
   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
   request.body.dropdowns = dropdowns;
+  return dropdowns;
 }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
@@ -747,8 +748,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
     logger.info("No dropdowns found");
-    setDropdownFromSchema(request, schema, localizationMap);
-    receivedDropdowns = request?.body?.dropdowns;
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
     logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(facilitySheet, receivedDropdowns);
@@ -847,8 +847,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
   if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
     logger.info("No dropdowns found");
-    setDropdownFromSchema(request, schema, localizationMap);
-    receivedDropdowns = request?.body?.dropdowns;
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
     logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(userSheet, receivedDropdowns);
