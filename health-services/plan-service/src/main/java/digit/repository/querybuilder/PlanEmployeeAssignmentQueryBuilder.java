@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
+
 @Component
 public class PlanEmployeeAssignmentQueryBuilder {
 
@@ -24,9 +26,9 @@ public class PlanEmployeeAssignmentQueryBuilder {
         this.config = config;
     }
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, plan_configuration_name, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (plan_configuration_id) id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (plan_configuration_id) id, tenant_id, plan_configuration_id, plan_configuration_name, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
 
@@ -34,7 +36,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
 
-    private static final String LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY = "SELECT pa.id, pa.tenant_id, pa.plan_configuration_id, pa.employee_id, pa.role, pa.hierarchy_level, pa.jurisdiction, pa.additional_details, pa.active, pa.created_by, pa.created_time, pa.last_modified_by, pa.last_modified_time FROM ( {INTERNAL_QUERY} ) AS pa JOIN plan_configuration pc ON plan_configuration_id = pc.id ORDER BY pc.last_modified_time DESC";
+    private static final String LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY = "SELECT pa.id, pa.tenant_id, pa.plan_configuration_id, pa.plan_configuration_name, pa.employee_id, pa.role, pa.hierarchy_level, pa.jurisdiction, pa.additional_details, pa.active, pa.created_by, pa.created_time, pa.last_modified_by, pa.last_modified_time FROM ( {INTERNAL_QUERY} ) AS pa JOIN plan_configuration pc ON plan_configuration_id = pc.id ORDER BY pc.last_modified_time DESC";
     /**
      * Constructs a SQL query string for searching PlanEmployeeAssignment objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -91,6 +93,12 @@ public class PlanEmployeeAssignmentQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan_configuration_id = ?");
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
+        }
+
+        if (searchCriteria.getPlanConfigurationName() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_name ILIKE ?");
+            preparedStmtList.add(PERCENTAGE_WILDCARD + searchCriteria.getPlanConfigurationName() + PERCENTAGE_WILDCARD);
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {

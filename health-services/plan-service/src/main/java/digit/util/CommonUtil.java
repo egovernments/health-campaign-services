@@ -158,6 +158,18 @@ public class CommonUtil {
     }
 
     /**
+     * This method returns the planConfigName for the provided planConfig id
+     *
+     * @param tenantId
+     * @param planConfigId
+     */
+    public String getPlanConfigName(String tenantId, String planConfigId) {
+
+        List<PlanConfiguration> planConfigsFromSearch = searchPlanConfigId(planConfigId, tenantId);
+        return planConfigsFromSearch.get(0).getName();
+    }
+
+    /**
      * Validates the user information within the provided PlanConfigurationRequest.
      *
      * @param requestInfo the request info containing the user information to be validated
