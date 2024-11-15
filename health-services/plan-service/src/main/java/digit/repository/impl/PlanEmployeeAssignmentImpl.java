@@ -57,7 +57,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
         List<Object> preparedStmtList = new ArrayList<>();
         String searchQuery = queryBuilder.getPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
         List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
-        log.info(searchQuery);
+
         return planEmployeeAssignments;
     }
 
