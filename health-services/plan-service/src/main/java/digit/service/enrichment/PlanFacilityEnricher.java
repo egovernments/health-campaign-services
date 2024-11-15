@@ -54,6 +54,8 @@ public class PlanFacilityEnricher {
         //Set Active
         planFacilityRequest.getPlanFacility().setActive(Boolean.TRUE);
 
+        // Add plan config name to which the facility is mapped
+        planFacilityRequest.getPlanFacility().setPlanConfigurationName(commonUtil.getPlanConfigName(planFacilityRequest.getPlanFacility().getTenantId(), planFacilityRequest.getPlanFacility().getPlanConfigurationId()));
     }
 
     /**

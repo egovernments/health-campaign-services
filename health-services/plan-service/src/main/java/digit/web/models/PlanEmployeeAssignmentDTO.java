@@ -36,6 +36,9 @@ public class PlanEmployeeAssignmentDTO {
     @Size(min = 2, max = 64)
     private String planConfigurationId = null;
 
+    @JsonProperty("planConfigurationName")
+    private String planConfigurationName = null;
+
     @JsonProperty("employeeId")
     @NotNull
     @Size(min = 2, max = 64)

@@ -36,6 +36,9 @@ public class PlanEmployeeAssignmentSearchCriteria {
     @Size(max = 64)
     private String planConfigurationId = null;
 
+    @JsonProperty("planConfigurationName")
+    private String planConfigurationName = null;
+
     @JsonProperty("role")
     @Valid
     private List<String> role = null;
@@ -54,5 +57,11 @@ public class PlanEmployeeAssignmentSearchCriteria {
     @JsonProperty("filterUniqueByPlanConfig")
     @Builder.Default
     private Boolean filterUniqueByPlanConfig = Boolean.FALSE;
+
+    @JsonProperty("offset")
+    private Integer offset = null;
+
+    @JsonProperty("limit")
+    private Integer limit = null;
 
 }
