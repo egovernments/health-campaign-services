@@ -315,45 +315,57 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
   if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
     const allFacilityDatas = request?.body?.facilityDataForMicroplan;
     const planConfigurationId = request?.body?.ResourceDetails?.additionalDetails?.microplanId;
+    request.body.MicroplanDetails = {
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+      planConfigurationId: planConfigurationId
+    }
+    const planConfigSearchResponse = await planConfigSearch(request);
+    const planConfigurationName = planConfigSearchResponse?.PlanConfiguration?.[0]?.name;
     for (const element of allFacilityDatas) {
-      const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
-      const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
-      const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
-      const facilityType = element?.facilityDetails?.usage;
-      const currTime = new Date().getTime();
-      const produceObject: any = {
-        PlanFacility: {
-          id: uuidv4(),
-          tenantId: element?.facilityDetails?.tenantId,
-          planConfigurationId: planConfigurationId,
-          facilityId: element?.facilityDetails?.id,
-          residingBoundary: singularResidingBoundary,
-          facilityName: element?.facilityDetails?.name,
-          serviceBoundaries: null,
-          additionalDetails: {
-            capacity: element?.facilityDetails?.storageCapacity,
-            facilityName: element?.facilityDetails?.name,
-            facilityType: facilityType,
-            facilityStatus: facilityStatus,
-            assignedVillages: [],
-            servingPopulation: 0
-          },
-          active: true,
-          auditDetails: {
-            createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
-            lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
-            createdTime: currTime,
-            lastModifiedTime: currTime
-          }
-        }
-      }
-      const fixedPostColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN`, localizationMap);
-      if (element?.[fixedPostColumn]) {
-        produceObject.PlanFacility.additionalDetails.fixedPost = element?.[fixedPostColumn]
-      }
+      const produceObject: any = getPlanFacilityObject(request, element, planConfigurationName, planConfigurationId, localizationMap);
       await produceModifiedMessages(produceObject, config?.kafka?.KAFKA_SAVE_PLAN_FACILITY_TOPIC);
     }
   }
+}
+
+function getPlanFacilityObject(request: any, element: any, planConfigurationName: any, planConfigurationId: any, localizationMap?: any) {
+  const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
+  const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
+  const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
+  const facilityType = element?.facilityDetails?.usage;
+  const currTime = new Date().getTime();
+  const planFacilityProduceObject: any = {
+    PlanFacility: {
+      id: uuidv4(),
+      tenantId: element?.facilityDetails?.tenantId,
+      planConfigurationId: planConfigurationId,
+      facilityId: element?.facilityDetails?.id,
+      residingBoundary: singularResidingBoundary,
+      facilityName: element?.facilityDetails?.name,
+      serviceBoundaries: null,
+      planConfigurationName: planConfigurationName,
+      additionalDetails: {
+        capacity: element?.facilityDetails?.storageCapacity,
+        facilityName: element?.facilityDetails?.name,
+        facilityType: facilityType,
+        facilityStatus: facilityStatus,
+        assignedVillages: [],
+        servingPopulation: 0
+      },
+      active: true,
+      auditDetails: {
+        createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        createdTime: currTime,
+        lastModifiedTime: currTime
+      }
+    }
+  }
+  const fixedPostColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN`, localizationMap);
+  if (element?.[fixedPostColumn]) {
+    planFacilityProduceObject.PlanFacility.additionalDetails.fixedPost = element?.[fixedPostColumn]
+  }
+  return planFacilityProduceObject;
 }
 
 
