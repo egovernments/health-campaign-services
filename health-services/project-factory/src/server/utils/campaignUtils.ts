@@ -13,7 +13,7 @@ import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
 import { campaignStatuses, headingMapping, processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
-import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
+import { getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces, validateBoundarySheetDataInCreateFlow } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
@@ -1679,7 +1679,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
         logger.info(`generating the boundary data for ${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel}`)
         const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs && boundary[hierarchy[hierarchy.length - 1]]);
-        const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
+        const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), differentTabsBasedOnLevel, localizationMap);
         if (modifiedFilteredData?.[0]) {
             const newSheetData = [configurableColumnHeadersFromSchemaForTargetSheet];
             for (const data of modifiedFilteredData) {
@@ -1735,20 +1735,19 @@ async function createNewSheet(request: any, workbook: any, newSheetData: any, un
 
 
 
-function modifyFilteredData(districtDataFiltered: any, targetBoundaryCode: any, localizationMap?: any): any {
-
-    // Step 2: Slice the boundary code up to the last underscore
-    const slicedBoundaryCode = targetBoundaryCode.slice(0, targetBoundaryCode.lastIndexOf('_') + 1);
-
-    // Step 3: Filter the rows that contain the sliced boundary code
-    const modifiedFilteredData = districtDataFiltered.filter((row: any, index: any) => {
-        // Extract the boundary code from the current row
-        const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
-        const boundaryCode = row[localizedBoundaryCode];
-        // Check if the boundary code starts with the sliced boundary code
-        return boundaryCode.startsWith(slicedBoundaryCode);
+function modifyFilteredData(
+    districtDataFiltered: any, 
+    targetBoundaryCode: any, 
+    differentTabsBasedOnLevel: any, 
+    localizationMap?: any
+): any {
+    // Retrieve the localized version of the target boundary code if a localization map is provided
+    const desiredBoundaryCode = getLocalizedName(targetBoundaryCode, localizationMap);
+    // Filter the district data to include only rows where the boundary code matches the desired one
+    const modifiedFilteredData = districtDataFiltered.filter((row: any) => {
+        return row[differentTabsBasedOnLevel] == desiredBoundaryCode;
     });
-    // Step 4: Return the modified filtered data
+    // Return the filtered data
     return modifiedFilteredData;
 }
 
