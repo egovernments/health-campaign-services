@@ -49,8 +49,9 @@ public class PlanEmployeeAssignmentQueryBuilder {
         String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ?
                 UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE : PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE);
+        query = Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ? LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY.replace("{INTERNAL_QUERY}", query) : query;
         query = getPaginatedQuery(query, searchCriteria, preparedStmtList);
-        return Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ? LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY.replace("{INTERNAL_QUERY}", query) : query;
+        return query;
     }
 
     /**
