@@ -24,17 +24,17 @@ public class PlanEmployeeAssignmentQueryBuilder {
         this.config = config;
     }
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT pa.id, pa.tenant_id, pa.plan_configuration_id, pa.employee_id, pa.role, pa.hierarchy_level, pa.jurisdiction, pa.additional_details, pa.active, pa.created_by, pa.created_time, pa.last_modified_by, pa.last_modified_time FROM plan_employee_assignment pa ";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (plan_configuration_id) id, tenant_id, plan_configuration_id, employee_id, role, hierarchy_level, jurisdiction, additional_details, active, created_by, created_time, last_modified_by, last_modified_time FROM plan_employee_assignment ";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY = "SELECT DISTINCT ON (pa.plan_configuration_id) pa.id, pa.tenant_id, pa.plan_configuration_id, pa.employee_id, pa.role, pa.hierarchy_level, pa.jurisdiction, pa.additional_details, pa.active, pa.created_by, pa.created_time, pa.last_modified_by, pa.last_modified_time FROM plan_employee_assignment pa";
 
-    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY last_modified_time DESC";
+    private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY pa.last_modified_time DESC";
 
-    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY plan_configuration_id, last_modified_time DESC";
+    private static final String UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY pa.plan_configuration_id, pa.last_modified_time DESC";
 
     private static final String PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(id) AS total_count FROM ( ";
 
-    private static final String LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY = "SELECT * FROM ( {INTERNAL_QUERY} ) AS latest_assignments ORDER BY last_modified_time DESC";
+    private static final String LATEST_PLAN_EMPLOYEE_ASSIGNMENT_ORDER_BY_QUERY = "SELECT pa.id, pa.tenant_id, pa.plan_configuration_id, pa.employee_id, pa.role, pa.hierarchy_level, pa.jurisdiction, pa.additional_details, pa.active, pa.created_by, pa.created_time, pa.last_modified_by, pa.last_modified_time FROM ( {INTERNAL_QUERY} ) AS pa JOIN plan_configuration pc ON pa.plan_configuration_id = pc.id ORDER BY pc.last_modified_time DESC";
     /**
      * Constructs a SQL query string for searching PlanEmployeeAssignment objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -77,46 +77,47 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         if (searchCriteria.getId() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" id = ?");
+            builder.append(" pa.id = ?");
             preparedStmtList.add(searchCriteria.getId());
         }
 
         if (searchCriteria.getTenantId() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" tenant_id = ?");
+            builder.append(" pa.tenant_id = ?");
             preparedStmtList.add(searchCriteria.getTenantId());
         }
 
         if (searchCriteria.getPlanConfigurationId() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_id = ?");
+            builder.append(" pa.plan_configuration_id = ?");
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" employee_id IN ( ").append(queryUtil.createQuery(searchCriteria.getEmployeeId().size())).append(" )");
+            builder.append(" pa.employee_id IN ( ").append(queryUtil.createQuery(searchCriteria.getEmployeeId().size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getEmployeeId()));
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getRole())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" role IN ( ").append(queryUtil.createQuery(searchCriteria.getRole().size())).append(" )");
+            builder.append(" pa.role IN ( ").append(queryUtil.createQuery(searchCriteria.getRole().size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getRole()));
         }
 
         if(searchCriteria.getHierarchyLevel() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" hierarchy_level = ?");
+            builder.append(" pa.hierarchy_level = ?");
             preparedStmtList.add(searchCriteria.getHierarchyLevel());
         }
 
         if (searchCriteria.getActive() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" active = ?");
+            builder.append(" pa.active = ?");
             preparedStmtList.add(searchCriteria.getActive());
         }
 
+        //TODO
         if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(searchCriteria.getJurisdiction().size())).append(" ]").append("::text[] ");
