@@ -123,7 +123,7 @@ public class PlanUtil {
 		
 		try {			
 			producer.push(config.getResourceUpdatePlanConfigConsumerTopic(), planConfigurationRequest);
-			log.info("Plan Config updated because of Invalid data.");
+			log.info("Plan Config updated after processing.");
 		} catch (Exception e) {
 			log.error(ServiceConstants.ERROR_WHILE_UPDATING_PLAN_CONFIG); 
 		}
@@ -156,6 +156,8 @@ public class PlanUtil {
 				.filter(file -> FILE_TEMPLATE_IDENTIFIER_POPULATION.equals(file.getTemplateIdentifier()))
 				.findFirst()
 				.ifPresent(file -> file.setFilestoreId(fileStoreId));
+
+		planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
 	}
 
 
