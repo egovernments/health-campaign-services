@@ -38,6 +38,9 @@ public class Configuration {
 	@Value("${egov.plan.config.endpoint}")
 	private String planConfigEndPoint;
 
+	@Value("${egov.plan.search.endpoint}")
+	private String planSearchEndPoint;
+
 	// Filestore
 
 	@Value("${egov.filestore.service.host}")
@@ -88,6 +91,9 @@ public class Configuration {
 
 	@Value("${plan.config.trigger.census.records.status}")
 	private String planConfigTriggerCensusRecordsStatus;
+
+	@Value("${plan.config.update.plan.estimates.into.output.file.status}")
+	private String planConfigUpdatePlanEstimatesIntoOutputFileStatus;
 
 	@Value("${plan.config.trigger.plan.facility.mappings.status}")
 	private String planConfigTriggerPlanFacilityMappingsStatus;

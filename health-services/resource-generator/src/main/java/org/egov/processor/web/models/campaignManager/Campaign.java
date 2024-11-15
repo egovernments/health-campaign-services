@@ -1,12 +1,6 @@
 package org.egov.processor.web.models.campaignManager;
 
-import java.util.List;
-
-import org.egov.common.contract.models.AuditDetails;
-import org.springframework.validation.annotation.Validated;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,6 +8,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.models.AuditDetails;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
 
 @Validated
 @Data
@@ -37,7 +35,13 @@ public class Campaign {
 	@JsonProperty("action")
 	@Size(min = 1, max = 64)
     private String action;
-	
+
+    @JsonProperty("isActive")
+    private boolean isActive;
+
+    @JsonProperty("parentId")
+    private String parentId;
+
 	@JsonProperty("campaignNumber")
     @Valid
     private String campaignNumber;

@@ -1,4 +1,4 @@
-package digit.web.models;
+package org.egov.processor.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;

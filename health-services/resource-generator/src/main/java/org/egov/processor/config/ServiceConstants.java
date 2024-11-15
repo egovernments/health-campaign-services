@@ -42,8 +42,11 @@ public class ServiceConstants {
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
-    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_CENSUS_FOUND_FOR_GIVEN_DETAILS";
-    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records does not exists for the given details: ";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records do not exists for the given details: ";
+
+    public static final String NO_PLAN_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_PLAN_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan records do not exists for the given details: ";
 
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
@@ -80,7 +83,8 @@ public class ServiceConstants {
     public static final String NAME = "name";
 
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
-    
+    public static final String ERROR_WHILE_SEARCHING_PLAN = "Exception occurred while search plans.";
+
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
     public static final String VALIDATE_BOOLEAN_REGX = "^(?i)(true|false)$";

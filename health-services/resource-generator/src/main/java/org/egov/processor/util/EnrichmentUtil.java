@@ -7,10 +7,10 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.web.models.LocaleResponse;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.ResourceMapping;
+import org.egov.processor.web.PlanResponse;
+import org.egov.processor.web.PlanSearchCriteria;
+import org.egov.processor.web.PlanSearchRequest;
+import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.census.Census;
 import org.egov.processor.web.models.census.CensusResponse;
 import org.egov.processor.web.models.census.CensusSearchCriteria;
@@ -40,15 +40,18 @@ public class EnrichmentUtil {
 
     private CensusUtil censusUtil;
 
+    private PlanUtil planUtil;
+
     private Configuration config;
 //    private MultiStateInstanceUtil centralInstanceUtil;
 
-    public EnrichmentUtil(MdmsV2Util mdmsV2Util, LocaleUtil localeUtil, ParsingUtil parsingUtil, CensusUtil censusUtil, Configuration config) {
+    public EnrichmentUtil(MdmsV2Util mdmsV2Util, LocaleUtil localeUtil, ParsingUtil parsingUtil, CensusUtil censusUtil, PlanUtil planUtil, Configuration config) {
         this.mdmsV2Util = mdmsV2Util;
         this.localeUtil = localeUtil;
 //        this.centralInstanceUtil = centralInstanceUtil;
         this.parsingUtil = parsingUtil;
         this.censusUtil = censusUtil;
+        this.planUtil = planUtil;
         this.config = config;
     }
 
@@ -208,6 +211,87 @@ public class EnrichmentUtil {
                 .findFirst()
                 .orElse(null);
     }
+
+    public void enrichsheetWithApprovedPlanEstimates(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
+        List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
+
+        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+        //Getting census records for the list of boundaryCodes
+        List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
+
+        // Create a map from boundaryCode to Census for quick lookups
+        Map<String, Plan> planMap = planList.stream()
+                .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
+
+        List<String> outputColumnList = planList.get(0).getResources().stream()
+                .map(Resource::getResourceType)
+                .toList();
+
+
+        for(Row row: sheet) {
+            parsingUtil.printRow(sheet, row);
+            if (row.getRowNum() == 0) continue; // Skip header row
+
+            // Get the boundaryCode in the current row
+            Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
+            String boundaryCode = boundaryCodeCell.getStringCellValue();
+
+            Plan planEstimate = planMap.get(boundaryCode);
+
+            if (planEstimate != null) {
+                Map<String, BigDecimal> resourceTypeToEstimatedNumberMap = planEstimate.getResources().stream()
+                        .collect(Collectors.toMap(Resource::getResourceType, Resource::getEstimatedNumber));
+
+                // Iterate over each output column to update the row cells with resource values
+                for (String resourceType : outputColumnList) {
+                    BigDecimal estimatedValue = resourceTypeToEstimatedNumberMap.get(resourceType);
+
+                    if (estimatedValue != null) {
+                        // Get the index of the column to update
+                        Integer columnIndex = mapOfColumnNameAndIndex.get(resourceType);
+                        if (columnIndex != null) {
+                            // Update the cell with the resource value
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(estimatedValue.doubleValue());
+                        }
+                    }
+                }
+            }
+            //TODO: remove after testing
+            log.info("After updating values in sheet -> ");
+            parsingUtil.printRow(sheet, row);
+
+            log.info("Successfully update file with approved census data.");
+        }
+    }
+
+
+    public List<Plan> getPlanRecordsForEnrichment(PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodes) {
+        PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
+                .tenantId(planConfig.getTenantId())
+                .locality(boundaryCodes)
+                .planConfigurationId(planConfig.getId()).build();
+
+        PlanSearchRequest planSearchRequest = PlanSearchRequest.builder()
+                .planSearchCriteria(planSearchCriteria)
+                .requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
+        PlanResponse planResponse = planUtil.search(planSearchRequest);
+
+        if(planResponse.getPlan().isEmpty())
+            throw new CustomException(NO_PLAN_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
+
+        return planResponse.getPlan();
+    }
+
+
 
 
 }
