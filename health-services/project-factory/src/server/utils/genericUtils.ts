@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getUserDataFromMicroplanSheet } from "./microplanUtils";
+import { getUserDataFromMicroplanSheet, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -494,6 +494,7 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
     }, {});
   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
   request.body.dropdowns = dropdowns;
+  return dropdowns;
 }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
@@ -543,6 +544,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
@@ -755,6 +757,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+  boundarySheetData = modifyBoundaryIfSourceMicroplan(boundarySheetData, request);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
