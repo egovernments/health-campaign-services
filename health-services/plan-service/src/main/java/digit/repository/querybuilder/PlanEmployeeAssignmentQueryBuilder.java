@@ -125,7 +125,6 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getActive());
         }
 
-        //TODO
         if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(searchCriteria.getJurisdiction().size())).append(" ]").append("::text[] ");
