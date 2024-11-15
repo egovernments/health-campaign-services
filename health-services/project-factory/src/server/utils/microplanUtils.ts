@@ -388,7 +388,7 @@ export function planConfigSearch(request: any) {
 export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: any) {
   const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
   if (request?.body?.isSourceMicroplan && request?.query?.type === 'facilityWithBoundary') {
-    boundaryData = boundaryData.filter((boundary: any) => boundary[hierarchy.length - 1]);
+    boundaryData = boundaryData.filter((boundary: any) => boundary?.[hierarchy?.length - 1]);
   }
   return boundaryData;
 }
