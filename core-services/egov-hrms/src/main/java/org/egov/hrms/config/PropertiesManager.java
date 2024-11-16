@@ -82,7 +82,13 @@ public class PropertiesManager {
 	
 	@Value("${egov.idgen.path}")
 	public String idGenEndpoint;
-	
+
+	// Email
+	@Value("${kafka.topics.notification.email}")
+	private String emailNotifTopic;
+
+	@Value("${notification.email.enabled}")
+	private Boolean isEmailNotificationEnabled;
 	
 	//Kafka Topics
 	@Value("${kafka.topics.save.service}")
