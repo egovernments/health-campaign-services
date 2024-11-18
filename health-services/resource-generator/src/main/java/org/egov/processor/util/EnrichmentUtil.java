@@ -106,7 +106,10 @@ public class EnrichmentUtil {
 
         for(Row row: sheet) {
             parsingUtil.printRow(sheet, row);
-            if (row.getRowNum() == 0) continue; // Skip header row
+            // Skip the header row and empty rows
+            if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
+                continue;
+            }
 
             // Get the boundaryCode in the current row
             Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
@@ -189,6 +192,7 @@ public class EnrichmentUtil {
         CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
                 .tenantId(planConfig.getTenantId())
                 .areaCodes(boundaryCodes)
+                .limit(boundaryCodes.size())
                 .source(planConfig.getId()).build();
 
         CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
@@ -233,8 +237,10 @@ public class EnrichmentUtil {
 
         for(Row row: sheet) {
             parsingUtil.printRow(sheet, row);
-            if (row.getRowNum() == 0) continue; // Skip header row
-
+            // Skip the header row and empty rows
+            if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
+                continue;
+            }
             // Get the boundaryCode in the current row
             Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
             String boundaryCode = boundaryCodeCell.getStringCellValue();
@@ -277,6 +283,7 @@ public class EnrichmentUtil {
         PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
                 .tenantId(planConfig.getTenantId())
                 .locality(boundaryCodes)
+                .limit(boundaryCodes.size())
                 .planConfigurationId(planConfig.getId()).build();
 
         PlanSearchRequest planSearchRequest = PlanSearchRequest.builder()
