@@ -141,7 +141,6 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         if(searchCriteria.getFilterUniqueByPlanConfig()) {
             builder.append(" )").append(UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_MAIN_SEARCH_QUERY);
-            return builder.toString();
         }
 
         StringBuilder countQuery = new StringBuilder();
