@@ -295,6 +295,9 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
             validatePhoneNumber(data, localizationMap);
         }
         if (data?.length > 0 && request?.body?.ResourceDetails?.additionalDetails?.source != "microplan") {
+            if (!request?.body?.parentCampaignObject && data[0]?.[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)]) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${request?.body?.ResourceDetails?.type} template downloaded from update campaign flow has been uploaded in create campaign flow`);
+            }
             validateData(data, validationErrors, activeColumnName, uniqueIdentifierColumnName, validate);
             validateUnique(newSchema, data, request, localizationMap);
             enrichRowMappingViaValidation(validationErrors, request?.body?.rowMapping, localizationMap);
@@ -1290,6 +1293,9 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
                             throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
+                        }
+                        if (!request?.body?.parentCampaignObject && columns.endsWith('(OLD)')) {
+                            throwError("COMMON", 400, "VALIDATION_ERROR", "Target template downloaded from update campaign flow has been uploaded in create campaign flow")
                         }
                     }
                     if (!boundaryRow[root]) {

@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getUserDataFromMicroplanSheet } from "./microplanUtils";
+import { getUserDataFromMicroplanSheet, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -409,7 +409,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     else if (type == 'boundaryManagement'  || type === 'boundaryGeometryManagement'){
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, enableCaching);
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
       logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
       // get boundary sheet data after being generated
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
@@ -494,6 +494,7 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
     }, {});
   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
   request.body.dropdowns = dropdowns;
+  return dropdowns;
 }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
@@ -543,6 +544,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
@@ -740,12 +742,22 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
-  await handledropdownthings(facilitySheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in facility",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(facilitySheet, receivedDropdowns);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+  boundarySheetData = modifyBoundaryIfSourceMicroplan(boundarySheetData, request);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
@@ -756,35 +768,43 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 async function handledropdownthings(sheet: any, dropdowns: any) {
   let dropdownColumnIndex = -1;
   if (dropdowns) {
+    logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
       if (dropdowns[key]) {
-
+        logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);      
         const firstRow = sheet.getRow(1);
         firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
           if (cell.value === key) {
             dropdownColumnIndex = colNumber;
+            logger.info(`Found column index for dropdown "${key}": ${dropdownColumnIndex}`);
           }
         });
 
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
+          logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
+              logger.info(`Setting dropdown list for cell at row: ${rowNumber}, column: ${dropdownColumnIndex}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
                 formulae: [`"${dropdowns[key].join(',')}"`],
-                showDropDown: true, // Ensures dropdown is visible
+                showDropDown: true,
                 error: 'Please select a value from the dropdown list.',
-                errorStyle: 'stop', // Prevents any input not in the list
-                showErrorMessage: true, // Ensures error message is shown
+                errorStyle: 'stop',
+                showErrorMessage: true,
                 errorTitle: 'Invalid Entry'
               };
             }
           });
+        } else {
+          logger.info(`Dropdown column index not found for key: ${key}`);
         }
       }
     }
+  } else {
+    logger.info("No dropdowns provided.");
   }
 }
 
@@ -821,7 +841,16 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   const userSheet = workbook.addWorksheet(localizedUserTab);
   addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
-  await handledropdownthings(userSheet, request.body?.dropdowns);
+
+  let receivedDropdowns=request.body?.dropdowns;
+  logger.info("started adding dropdowns in user",JSON.stringify(receivedDropdowns))
+
+  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+    logger.info("No dropdowns found");
+    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
+    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+  }
+  await handledropdownthings(userSheet, receivedDropdowns);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -1212,7 +1241,7 @@ async function getBoundaryRelationshipData(request: any, params: any) {
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const header = {
     ...defaultheader,
-    cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
   }
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
   logger.info("Boundary relationship search response received")
@@ -1230,14 +1259,14 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
-  const modifiedReducedHierarchy = reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
+  const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
   // get Campaign Details from Campaign Search Api
   var configurableColumnHeadersBasedOnCampaignType: any[] = []
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
   }
-  if(type == "boundaryManagement" || type == "boundaryGeometryManagement"){
-    configurableColumnHeadersBasedOnCampaignType = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+  if (type == "boundaryManagement" || type == "boundaryGeometryManagement") {
+    configurableColumnHeadersBasedOnCampaignType = getLocalizedHeaders(["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"], localizationMap);
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
@@ -1316,10 +1345,10 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId,overrideCache);
   return localizationResponse;
 }
 

@@ -13,7 +13,7 @@ import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
 import { campaignStatuses, headingMapping, processTrackStatuses, processTrackTypes, resourceDataStatuses } from "../config/constants";
-import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
+import { getBoundaryTabName } from "./boundaryUtils";
 import { searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateBoundaryOfResouces, validateBoundarySheetDataInCreateFlow } from "../validators/campaignValidators";
 import { getExcelWorkbookFromFileURL, getNewExcelWorkbook, lockTargetFields, updateFontNameToRoboto } from "./excelUtils";
@@ -25,8 +25,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { createDataService, downloadDataService, generateDataService, searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
-import Redis from "ioredis";
-const redis = new Redis();
+import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 
 
 
@@ -562,7 +561,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
         additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors, source: (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") ? "microplan" : null }
     };
     if (request?.body?.ResourceDetails?.status === resourceDataStatuses.completed && request?.body?.ResourceDetails?.type === 'boundaryManagement') {
-      
+
         // delete redis cache key with prefix boundaryRelatiionshipSearch
         await deleteRedisCacheKeysWithPrefix("boundaryRelationShipSearch");
 
@@ -578,7 +577,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             campaignId: "default"
         };
         const newRequestBoundary = replicateRequest(request, newRequestBody, params);
-        setTimeout(async() => {
+        setTimeout(async () => {
             // Code to be executed after 10 seconds
             logger.info("Timeout of 10 sec after boundary data creation");
             await callGenerate(newRequestBoundary, request?.body?.ResourceDetails?.type);
@@ -608,21 +607,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     }
 }
 
-async function deleteRedisCacheKeysWithPrefix(prefix: any) {
-    try {
-        const keys = await redis.keys(`${prefix}*`);
-        logger.info("cache keys to be deleted" + keys);// Get all keys with the specified prefix
-        if (keys.length > 0) {
-            await redis.del(keys); // Delete all matching keys
-            console.log(`Deleted keys with prefix "${prefix}":`, keys);
-        } else {
-            console.log(`No keys found with prefix "${prefix}"`);
-        }
-    } catch (error) {
-        console.error("Error deleting keys:", error);
-        throw error;
-    }
-}
+
 
 function getRootBoundaryCode(boundaries: any[] = []) {
     for (const boundary of boundaries) {
@@ -1531,31 +1516,35 @@ async function createProject(request: any, actionUrl: any, localizationMap?: any
             }
 
             const boundaryCodesWhoseTargetsHasToBeUpdated = request?.body?.boundaryCodesWhoseTargetsHasToBeUpdated;
-            for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
-                const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
-                const projectToUpdate = projectSearchResponse?.Project?.[0];
-                if (projectToUpdate) {
-                    const filteredTargets = projectToUpdate.targets.filter((e: any) => e.beneficiaryType == request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType);
-                    if (filteredTargets.length == 0) {
-                        projectToUpdate.targets = [
-                            {
-                                beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
-                                totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary],
-                                targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+            if (boundaryCodesWhoseTargetsHasToBeUpdated) {
+                for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
+                    if (boundariesAlreadyWithProjects && boundariesAlreadyWithProjects.size > 0 && boundariesAlreadyWithProjects.has(boundary)) {
+                        const projectSearchResponse = await fetchProjectsWithBoundaryCodeAndName(boundary, tenantId, request?.body?.CampaignDetails?.campaignName, request?.body?.RequestInfo);
+                        const projectToUpdate = projectSearchResponse?.Project?.[0];
+                        if (projectToUpdate) {
+                            const filteredTargets = projectToUpdate.targets.filter((e: any) => e.beneficiaryType == request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType);
+                            if (filteredTargets.length == 0) {
+                                projectToUpdate.targets = [
+                                    {
+                                        beneficiaryType: request?.body?.CampaignDetails?.additionalDetails?.beneficiaryType,
+                                        totalNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary],
+                                        targetNo: request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+                                    }
+                                ]
+                            } else {
+                                const targetobj = filteredTargets[0];
+                                targetobj.totalNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary],
+                                    targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
+                                projectToUpdate.targets = [targetobj];
                             }
-                        ]
-                    } else {
-                        const targetobj = filteredTargets[0];
-                        targetobj.totalNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary],
-                            targetobj.targetNo = request?.body?.CampaignDetails?.codesTargetMapping[boundary]
-                        projectToUpdate.targets = [targetobj];
-                    }
-                    const projectUpdateBody = {
-                        RequestInfo: request?.body?.RequestInfo,
-                        Projects: [projectToUpdate]
-                    };
+                            const projectUpdateBody = {
+                                RequestInfo: request?.body?.RequestInfo,
+                                Projects: [projectToUpdate]
+                            };
 
-                    await projectUpdateForTargets(projectUpdateBody, request, boundary);
+                            await projectUpdateForTargets(projectUpdateBody, request, boundary);
+                        }
+                    }
                 }
             }
             delete request.body.boundaryCodesWhoseTargetsHasToBeUpdated;
@@ -1690,7 +1679,7 @@ async function appendDistricts(request: any, workbook: any, uniqueDistrictsForMa
         const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('#') + 1);
         logger.info(`generating the boundary data for ${uniqueDataFromLevelForDifferentTabs} - ${differentTabsBasedOnLevel}`)
         const districtDataFiltered = boundaryData.filter((boundary: any) => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs && boundary[hierarchy[hierarchy.length - 1]]);
-        const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), localizationMap);
+        const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData), differentTabsBasedOnLevel, localizationMap);
         if (modifiedFilteredData?.[0]) {
             const newSheetData = [configurableColumnHeadersFromSchemaForTargetSheet];
             for (const data of modifiedFilteredData) {
@@ -1746,20 +1735,19 @@ async function createNewSheet(request: any, workbook: any, newSheetData: any, un
 
 
 
-function modifyFilteredData(districtDataFiltered: any, targetBoundaryCode: any, localizationMap?: any): any {
-
-    // Step 2: Slice the boundary code up to the last underscore
-    const slicedBoundaryCode = targetBoundaryCode.slice(0, targetBoundaryCode.lastIndexOf('_') + 1);
-
-    // Step 3: Filter the rows that contain the sliced boundary code
-    const modifiedFilteredData = districtDataFiltered.filter((row: any, index: any) => {
-        // Extract the boundary code from the current row
-        const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap);
-        const boundaryCode = row[localizedBoundaryCode];
-        // Check if the boundary code starts with the sliced boundary code
-        return boundaryCode.startsWith(slicedBoundaryCode);
+function modifyFilteredData(
+    districtDataFiltered: any, 
+    targetBoundaryCode: any, 
+    differentTabsBasedOnLevel: any, 
+    localizationMap?: any
+): any {
+    // Retrieve the localized version of the target boundary code if a localization map is provided
+    const desiredBoundaryCode = getLocalizedName(targetBoundaryCode, localizationMap);
+    // Filter the district data to include only rows where the boundary code matches the desired one
+    const modifiedFilteredData = districtDataFiltered.filter((row: any) => {
+        return row[differentTabsBasedOnLevel] == desiredBoundaryCode;
     });
-    // Step 4: Return the modified filtered data
+    // Return the filtered data
     return modifiedFilteredData;
 }
 
@@ -2114,7 +2102,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     await createBoundaryRelationship(request, boundaryMap, modifiedChildParentMap);
     const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
     logger.info("Initiated the localisation message creation for the uploaded boundary");
-    transformAndCreateLocalisation(boundaryMap, request);
+    await transformAndCreateLocalisation(boundaryMap, request);
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
     var headers = [...modifiedHierarchy, config?.boundary?.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);

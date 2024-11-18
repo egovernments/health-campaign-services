@@ -36,12 +36,12 @@ class Localisation {
   public getLocalisedData: any = async (
     module: string,
     locale: string,
-    tenantId: string
-  ) => {
+    tenantId: string,
+    overrideCache: boolean) => {
     logger.info(
       `Checks Localisation message is available in cache for module ${module}, locale ${locale}, tenantId ${tenantId}`
     );
-    if (!this?.cachedResponse?.[`${module}-${locale}`]) {
+    if (!this?.cachedResponse?.[`${module}-${locale}`] || overrideCache) {
       logger.info(`Not found in cache`);
       await this.fetchLocalisationMessage(module, locale, tenantId);
     }

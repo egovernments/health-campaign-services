@@ -791,7 +791,7 @@ async function getBoundarySheetData(
     }
 
     if (request?.query?.type === "boundaryManagement" || request?.query?.type === 'boundaryGeometryManagement') {
-      headerColumnsAfterHierarchy = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"]
+      headerColumnsAfterHierarchy = getLocalizedHeaders(["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"], localizationMap);
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
@@ -1112,7 +1112,7 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     var boundaryFound = false;
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes.replace(/’/g, '') || ''}${params?.includeChildren || ''}`,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes.replace(/’/g, '') || ''}${params?.includeChildren || ''}`,
     }
     while (!boundaryFound && retry >= 0) {
       const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
@@ -1155,7 +1155,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     };
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
     }
 
     const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
