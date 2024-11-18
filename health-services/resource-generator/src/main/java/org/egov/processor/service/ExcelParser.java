@@ -94,7 +94,7 @@ public class ExcelParser implements FileParser {
 	 */
 	@Override
 	public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-			Object campaignResponse) {
+								Object campaignResponse) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
@@ -103,7 +103,8 @@ public class ExcelParser implements FileParser {
 			throw new CustomException("FileNotFound",
 					"The file with ID " + fileStoreId + " was not found in the tenant " + planConfig.getTenantId());
 		}
-		return processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
+		processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
+		return null;
 	}
 
 	/**
@@ -117,19 +118,17 @@ public class ExcelParser implements FileParser {
 	 * @param fileStoreId              The ID of the file in the file store.
 	 * @param campaignResponse         The response object to be updated with
 	 *                                 processed data.
-	 * @return The ID of the uploaded file.
 	 */
-	private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
+	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
 			Object campaignResponse) {
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		try (Workbook workbook = new XSSFWorkbook(file)) {
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
-            return uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-                    planConfig, workbook, campaignBoundaryList, campaignResourcesList);
+            uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
+                    workbook, campaignBoundaryList, campaignResourcesList);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -152,24 +151,27 @@ public class ExcelParser implements FileParser {
 	 * @param workbook The workbook containing data to be uploaded and integrated.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param campaignResourcesList List of campaign resources to be integrated.
-	 * @return The ID of the uploaded file in the file store.
 	 */
-	private String uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
-			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
+	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
+			Object campaignResponse, Workbook workbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
 		File fileToUpload = null;
 		try {
+			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 			fileToUpload = convertWorkbookToXls(workbook);
-			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-
-			if (config.isIntegrateWithAdminConsole()) {
-//				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.update(planConfigurationRequest);
+			}
+			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
+				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
-			}
-			return uploadedFileStoreId;
+				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+							}
 		} finally {
 			try {
 			if (fileToUpload != null && !fileToUpload.delete()) {
@@ -217,7 +219,6 @@ public class ExcelParser implements FileParser {
 				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
-
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
@@ -225,6 +226,8 @@ public class ExcelParser implements FileParser {
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
+				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
 		});
@@ -501,6 +504,23 @@ public class ExcelParser implements FileParser {
 					break;
 				case BOOLEAN:
 					propertiesNode.put(columnName, cell.getBooleanCellValue());
+					break;
+				case FORMULA:
+					// Attempt to get the cached formula result value directly
+					switch (cell.getCachedFormulaResultType()) {
+						case NUMERIC:
+							propertiesNode.put(columnName, BigDecimal.valueOf(cell.getNumericCellValue()));
+							break;
+						case STRING:
+							propertiesNode.put(columnName, cell.getStringCellValue());
+							break;
+						case BOOLEAN:
+							propertiesNode.put(columnName, cell.getBooleanCellValue());
+							break;
+						default:
+							propertiesNode.putNull(columnName);
+							break;
+					}
 					break;
                 default:
 					propertiesNode.putNull(columnName);

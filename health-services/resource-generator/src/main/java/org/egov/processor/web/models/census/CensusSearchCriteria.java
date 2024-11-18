@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * CensusSearchCriteria
@@ -24,6 +25,9 @@ public class CensusSearchCriteria {
 
     @JsonProperty("id")
     private String id = null;
+
+    @JsonProperty("ids")
+    private Set<String> ids = null;
 
     @JsonProperty("tenantId")
     @Size(min = 1, max = 100)
@@ -49,6 +53,12 @@ public class CensusSearchCriteria {
 
     @JsonProperty("effectiveTo")
     private Long effectiveTo = null;
+
+    @JsonProperty("limit")
+    private Integer limit = null;
+
+    @JsonProperty("offset")
+    private Integer offset = null;
 
     public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {
         if (this.areaCodes == null) {

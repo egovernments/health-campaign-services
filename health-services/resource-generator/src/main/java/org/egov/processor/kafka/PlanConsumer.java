@@ -11,6 +11,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Map;
 
@@ -34,9 +35,10 @@ public class PlanConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
-            if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())
+            if (!ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()) && (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())
                     || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())
-                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
+                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())
+                    || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()))) {
                 resourceEstimationService.estimateResources(planConfigurationRequest);
                 log.info("Successfully estimated resources for plan.");
             }
