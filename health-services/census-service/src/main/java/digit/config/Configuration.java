@@ -21,6 +21,9 @@ public class Configuration {
     @Value("#{${allowed.census.roles}}")
     private List<String> allowedCensusRoles;
 
+    @Value("#{${workflow.restricted.roles}}")
+    private List<String> workflowRestrictedRoles;
+
     // Persister Topic
     @Value("${census.create.topic}")
     private String censusCreateTopic;
