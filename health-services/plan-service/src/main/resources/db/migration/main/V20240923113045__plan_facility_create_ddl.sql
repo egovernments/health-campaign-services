@@ -5,7 +5,7 @@ CREATE TABLE plan_facility_linkage (
   plan_configuration_id varchar(64),
   facility_id varchar(64),
   residing_boundary varchar(64),
-  service_boundaries TYPE TEXT,
+  service_boundaries TEXT,
   additional_details JSONB,
   plan_configuration_name character varying(128),
   facility_name character varying(64),
