@@ -86,6 +86,9 @@ public class ServiceConstants {
     public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_CODE = "WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE";
     public static final String WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE_MESSAGE = "Workflow information is mandatory for each entry for bulk update";
 
+    public static final String DUPLICATE_KEY_IN_ADDITIONAL_FIELD_CODE = "DUPLICATE_KEY_IN_ADDITIONAL_FIELD";
+    public static final String DUPLICATE_KEY_IN_ADDITIONAL_FIELD_MESSGAE = "Duplicate key found in additional field : ";
+
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_CODE = "DIFFERENT_WORKFLOW_FOR_BULK_UPDATE";
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_MESSAGE = "All entries should be in the same state for bulk transitioning census records.";
 

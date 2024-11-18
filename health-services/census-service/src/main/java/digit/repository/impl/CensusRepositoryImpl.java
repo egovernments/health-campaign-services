@@ -175,6 +175,7 @@ public class CensusRepositoryImpl implements CensusRepository {
 
         // Perform bulk update
         jdbcTemplate.batchUpdate(bulkCensusUpdateQuery, rows);
+        producer.push(config.getCensusBulkUpdateTopic(), request);
     }
 
     /**
