@@ -91,14 +91,17 @@ public class StockTransformationService {
                 && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stock.getAdditionalFields().getFields());
         }
+
+        String projectId = stock.getReferenceId();
+        Project project = projectService.getProject(projectId, tenantId);
+        String projectTypeId = project.getProjectTypeId();
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String projectId = stock.getReferenceId();
-            Project project = projectService.getProject(projectId, tenantId);
-            String projectTypeId = project.getProjectTypeId();
             String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
-
+        if (!additionalDetails.has(PROJECT_TYPE_ID)) {
+            additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        }
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
                 .clientReferenceId(stock.getClientReferenceId())

@@ -1,6 +1,9 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
@@ -28,14 +31,16 @@ public class AttendanceTransformationService {
     private final TransformerProperties transformerProperties;
     private final Producer producer;
     private final UserService userService;
+    private final ObjectMapper objectMapper;
 
     private final CommonUtils commonUtils;
 
     private final AttendanceRegisterService attendanceRegisterService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
+        this.objectMapper = objectMapper;
         this.userService = userService;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
@@ -83,6 +88,15 @@ public class AttendanceTransformationService {
                         attendanceLog.getTenantId())
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
+        String projectTypeId = null;
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
                 .attendeeName(attendeeName)
@@ -92,6 +106,7 @@ public class AttendanceTransformationService {
                 .registerName(attendanceRegister != null ? attendanceRegister.getName() : null)
                 .registerServiceCode(attendanceRegister != null ? attendanceRegister.getServiceCode() : null)
                 .registerNumber(attendanceRegister != null ? attendanceRegister.getRegisterNumber() : null)
+                .additionalDetails(additionalDetails)
                 .build();
         return attendanceLogIndexV1;
     }

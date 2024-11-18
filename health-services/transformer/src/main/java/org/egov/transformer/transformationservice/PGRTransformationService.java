@@ -1,6 +1,9 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.PGRIndex;
 import org.egov.transformer.models.pgr.Service;
@@ -27,8 +30,8 @@ public class PGRTransformationService {
     private final CommonUtils commonUtils;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
-
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService) {
+    private final ObjectMapper objectMapper;
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService, ObjectMapper objectMapper) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
@@ -36,6 +39,7 @@ public class PGRTransformationService {
         this.commonUtils = commonUtils;
         this.mdmsService = mdmsService;
         this.projectService = projectService;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<Service> pgrList) {
@@ -69,6 +73,14 @@ public class PGRTransformationService {
         service.setAddress(null); //explicitly setting it to null as it is not needed
         service.setApplicationStatus(mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
         service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
+        String projectTypeId = null;
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
+
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)
@@ -79,6 +91,7 @@ public class PGRTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
+                .additionalDetails(additionalDetails)
                 .build();
         return pgrIndex;
     }

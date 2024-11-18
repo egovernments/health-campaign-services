@@ -58,7 +58,6 @@ public interface Constants {
     String USERNAME = "userName";
     String NAME = "name";
     String ROLE = "role";
-
     String CITY = "city";
     String INDIVIDUAL_ID = "individualId";
     String GEO_POINT = "geoPoint";
@@ -90,5 +89,5 @@ public interface Constants {
     String INHAND = "inHand";
     String HEIGHT = "height";
     String DISABILITY_TYPE = "disabilityType";
-
+    String PROJECT_TYPE_ID = "projectTypeId";
 }

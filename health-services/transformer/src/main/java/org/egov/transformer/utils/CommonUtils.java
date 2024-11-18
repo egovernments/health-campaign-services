@@ -6,10 +6,14 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -29,6 +33,7 @@ public class CommonUtils {
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
+    private static Map<String, String> userIdVsProjectIdAndProjectTypeIdCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -179,7 +184,23 @@ public class CommonUtils {
         }
         return null;
     }
+    public String projectDetailsFromUserId(String userId, String tenantId){
+        if (userIdVsProjectIdAndProjectTypeIdCache.containsKey(userId)) {
+            return userIdVsProjectIdAndProjectTypeIdCache.get(userId);
+        }
+        String projectIdAndProjectTypeId = null;
+        ProjectStaff projectStaff = projectService.searchProjectStaff(userId, tenantId);
 
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
+            if (ObjectUtils.isNotEmpty(project)) {
+                projectIdAndProjectTypeId = projectStaff.getProjectId() + ":" + project.getProjectTypeId();
+                userIdVsProjectIdAndProjectTypeIdCache.put(userId, projectIdAndProjectTypeId);
+            }
+        }
+
+        return projectIdAndProjectTypeId;
+    }
     private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
         log.info("createdTime is {}", createdTime);
         log.info("startDate is {} and endDate is {}", startDate, endDate);

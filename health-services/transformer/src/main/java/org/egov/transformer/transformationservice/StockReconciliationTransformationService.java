@@ -87,11 +87,11 @@ public class StockReconciliationTransformationService {
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
-
+        String projectId = stockReconciliation.getReferenceId();
+        Project project = projectService.getProject(projectId, tenantId);
+        String projectTypeId = project.getProjectTypeId();
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String projectId = stockReconciliation.getReferenceId();
-            Project project = projectService.getProject(projectId, tenantId);
-            String projectTypeId = project.getProjectTypeId();
             String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }

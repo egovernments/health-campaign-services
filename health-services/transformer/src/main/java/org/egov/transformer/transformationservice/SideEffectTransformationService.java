@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.*;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
@@ -89,7 +90,12 @@ public class SideEffectTransformationService {
             }
             addSpecificAdditionalFields(task, additionalDetails);
         }
-
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getCreatedBy(), tenantId);
+        String projectTypeId = null;
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
