@@ -204,6 +204,8 @@ public class EmployeeService {
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, criteria.getTenantId());
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS, criteria.getUserServiceUuids());
+				if(!CollectionUtils.isEmpty(criteria.getNames()))
+					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME, criteria.getNames().get(0));
 				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
 				totalCount = userResponse.getTotalCount();
 				userChecked =true;
