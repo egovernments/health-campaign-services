@@ -54,6 +54,7 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
 
         // Filter valid project beneficiaries (those without errors)
+        //FIXME remove not having errors
         List<ProjectBeneficiary> validProjectBeneficiaries = beneficiaryBulkRequest.getProjectBeneficiaries()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
 

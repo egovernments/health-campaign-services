@@ -37,6 +37,7 @@ public class PbUniqueTagsValidator implements Validator<BeneficiaryBulkRequest, 
         log.info("validating unique voucher tags");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries()
+                //FIXME : Remove notHavingErrors
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
 
         if (!validProjectBeneficiaries.isEmpty()) {

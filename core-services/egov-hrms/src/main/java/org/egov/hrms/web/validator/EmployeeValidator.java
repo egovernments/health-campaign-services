@@ -79,16 +79,16 @@ public class EmployeeValidator {
 		Map<String, String> errorMap = new HashMap<>();
 		validateExistingDuplicates(request ,errorMap);
 		validatePassword(request, errorMap);
-		if(!CollectionUtils.isEmpty(errorMap.keySet()))
-			throw new CustomException(errorMap);
+//		if(!CollectionUtils.isEmpty(errorMap.keySet()))
+//			throw new CustomException(errorMap);
 		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
 		//FIXME hierarchy type has to be validated
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
 		if(!CollectionUtils.isEmpty(mdmsData.keySet())){
 			request.getEmployees().stream().forEach(employee -> validateMdmsData(employee, errorMap, mdmsData,boundaryMap));
 		}
-		if(!CollectionUtils.isEmpty(errorMap.keySet()))
-			throw new CustomException(errorMap);
+//		if(!CollectionUtils.isEmpty(errorMap.keySet()))
+//			throw new CustomException(errorMap);
 	}
 
 	private void validatePassword(EmployeeRequest request, Map<String, String> errorMap) {

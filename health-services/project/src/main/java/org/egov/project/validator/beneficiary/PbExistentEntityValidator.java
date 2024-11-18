@@ -67,6 +67,7 @@ public class PbExistentEntityValidator implements Validator<BeneficiaryBulkReque
 
         // Extract the client reference IDs from ProjectBeneficiary entities that do not have existing errors.
         List<String> clientReferenceIdList = entities.stream()
+                //FIXME: Remove notHavingErrors()
                 .filter(notHavingErrors()) // Filter out entities that already have errors.
                 .map(ProjectBeneficiary::getClientReferenceId) // Map to extract client reference IDs.
                 .collect(Collectors.toList()); // Collect the IDs into a list.

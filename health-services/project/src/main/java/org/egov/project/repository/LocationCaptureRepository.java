@@ -128,6 +128,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
             log.info("Successfully fetched user locations by ID: {}", locationCaptureList.size());
             return SearchResponse.<UserAction>builder().response(objFound).build();
         } catch (Exception e) {
+            //FIXME Remove log.error and throw exception instead
             log.error("Failed to execute query for finding user locations by ID", e);
             return SearchResponse.<UserAction>builder().response(Collections.emptyList()).totalCount(0L).build();
         }

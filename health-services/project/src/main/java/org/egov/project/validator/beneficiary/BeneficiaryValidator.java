@@ -85,6 +85,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest beneficiaryBulkRequest) {
         log.info("validating the beneficiary");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
+        //FIXME remove not having errors
         List<ProjectBeneficiary> validProjectBeneficiaries = beneficiaryBulkRequest.getProjectBeneficiaries()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validProjectBeneficiaries.isEmpty()) {

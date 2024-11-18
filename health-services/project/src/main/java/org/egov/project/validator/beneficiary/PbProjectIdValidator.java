@@ -45,6 +45,7 @@ public class PbProjectIdValidator implements Validator<BeneficiaryBulkRequest, P
         List<ProjectBeneficiary> entities = request.getProjectBeneficiaries();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod("getProjectId", objClass);
+        //FIXME remove not having errors
         Map<String, ProjectBeneficiary> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {

@@ -48,6 +48,7 @@ public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRe
         List<ProjectBeneficiary> projectBeneficiaries = request.getProjectBeneficiaries();
         Class<?> objClass = getObjClass(projectBeneficiaries);
         Method idMethod = getMethod(GET_ID, objClass);
+        //FIXME remove not having errors
         Map<String, ProjectBeneficiary> iMap = getIdToObjMap(projectBeneficiaries
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         // Lists to store IDs and client reference IDs

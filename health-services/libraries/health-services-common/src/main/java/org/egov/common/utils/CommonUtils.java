@@ -176,6 +176,7 @@ public class CommonUtils {
      * @param fieldName The name of the field to search.
      * @return true if the search is performed only by the specified field, otherwise false.
      */
+    //FIXME unncessary conversion to String and comparing
     public static boolean isSearchByIdOnly(Object obj, String fieldName) {
         // Get the class of the object
         Class<?> objClass = obj.getClass();
@@ -408,6 +409,7 @@ public class CommonUtils {
             // Attempt to retrieve the ID method
             Method getId = getMethod(idMethodName, getObjClass(objList));
             // Invoke the ID method on an object from the list to check if it returns a non-null value
+            //FIXME what if there is a null object in the list
             Object value = ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
             // If the value is not null, return the ID method
             if (value != null) {
