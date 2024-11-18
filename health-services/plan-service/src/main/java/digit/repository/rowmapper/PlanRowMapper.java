@@ -1,10 +1,8 @@
 package digit.repository.rowmapper;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.util.QueryUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
-import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -12,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -20,10 +17,10 @@ import java.util.*;
 @Component
 public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
-    private ObjectMapper objectMapper;
+    private QueryUtil queryUtil;
 
-    public PlanRowMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public PlanRowMapper(QueryUtil queryUtil) {
+        this.queryUtil = queryUtil;
     }
 
     @Override
@@ -35,12 +32,12 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         Map<String, Target> targetMap = new LinkedHashMap<>();
 
         // Traverse through result set and create plan objects
-        while(rs.next()) {
+        while (rs.next()) {
             String planId = rs.getString("plan_id");
 
             Plan planEntry = planMap.get(planId);
 
-            if(ObjectUtils.isEmpty(planEntry)) {
+            if (ObjectUtils.isEmpty(planEntry)) {
                 planEntry = new Plan();
 
                 // Prepare audit details
@@ -56,8 +53,11 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 planEntry.setTenantId(rs.getString("plan_tenant_id"));
                 planEntry.setLocality(rs.getString("plan_locality"));
                 planEntry.setCampaignId(rs.getString("plan_campaign_id"));
+                planEntry.setStatus(rs.getString("plan_status"));
+                planEntry.setAssignee(rs.getString("plan_assignee"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
-                planEntry.setAdditionalDetails(getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
+                planEntry.setBoundaryAncestralPath(rs.getString("plan_boundary_ancestral_path"));
+                planEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 
             }
@@ -76,11 +76,10 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
         String activityId = rs.getString("plan_activity_id");
 
-        if(!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
+        if (!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
             addActivityConditions(rs, activityMap.get(activityId), conditionMap);
             return;
-        }
-        else if (ObjectUtils.isEmpty(activityId)) {
+        } else if (ObjectUtils.isEmpty(activityId)) {
             // Set activities list to empty if no activity found
             plan.setActivities(new ArrayList<>());
             return;
@@ -120,7 +119,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     private void addActivityConditions(ResultSet rs, Activity activity, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
         String conditionId = rs.getString("plan_activity_condition_id");
 
-        if(ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
+        if (ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
             List<Condition> conditionList = new ArrayList<>();
             activity.setConditions(conditionList);
             return;
@@ -140,7 +139,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .expression(rs.getString("plan_activity_condition_expression"))
                 .build();
 
-        if(CollectionUtils.isEmpty(activity.getConditions())){
+        if (CollectionUtils.isEmpty(activity.getConditions())) {
             List<Condition> conditionList = new ArrayList<>();
             conditionList.add(condition);
             activity.setConditions(conditionList);
@@ -156,7 +155,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
         String resourceId = rs.getString("plan_resource_id");
 
-        if(ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
+        if (ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
             List<Resource> resourceList = new ArrayList<>();
             planEntry.setResources(resourceList);
             return;
@@ -191,7 +190,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     private void addTargets(ResultSet rs, Plan planEntry, Map<String, Target> targetMap) throws SQLException, DataAccessException {
         String targetId = rs.getString("plan_target_id");
 
-        if(ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
+        if (ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
             List<Target> targetList = new ArrayList<>();
             planEntry.setTargets(targetList);
             return;
@@ -228,20 +227,4 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         targetMap.put(target.getId(), target);
 
     }
-
-    private JsonNode getAdditionalDetail(PGobject pGobject){
-        JsonNode additionalDetail = null;
-
-        try {
-            if(ObjectUtils.isEmpty(pGobject)){
-                additionalDetail = objectMapper.readTree(pGobject.getValue());
-            }
-        }
-        catch (IOException e){
-            throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
-        }
-
-        return additionalDetail;
-    }
-
 }

@@ -1,25 +1,30 @@
 package digit.repository.rowmapper;
 
-import digit.web.models.Assumption;
-import digit.web.models.File;
-import digit.web.models.Operation;
-import digit.web.models.PlanConfiguration;
-import digit.web.models.ResourceMapping;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import digit.util.QueryUtil;
+import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
+import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Component
 public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfiguration>> {
+
+    private QueryUtil queryUtil;
+
+    public PlanConfigRowMapper(QueryUtil queryUtil) {
+        this.queryUtil = queryUtil;
+    }
 
     @Override
     public List<PlanConfiguration> extractData(ResultSet rs) throws SQLException, DataAccessException {
@@ -46,7 +51,8 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setTenantId(rs.getString("plan_configuration_tenant_id"));
                 planConfigEntry.setName(rs.getString("plan_configuration_name"));
                 planConfigEntry.setCampaignId(rs.getString("plan_configuration_campaign_id"));
-                planConfigEntry.setStatus(PlanConfiguration.StatusEnum.valueOf(rs.getString("plan_configuration_status").toUpperCase()));
+                planConfigEntry.setStatus(rs.getString("plan_configuration_status"));
+                planConfigEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_configuration_additional_details")));
                 planConfigEntry.setAuditDetails(auditDetails);
 
             }
@@ -113,6 +119,8 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         assumption.setKey(rs.getString("plan_configuration_assumptions_key"));
         assumption.setValue(rs.getBigDecimal("plan_configuration_assumptions_value"));
         assumption.setActive(rs.getBoolean("plan_configuration_assumptions_active"));
+        assumption.setSource(Source.valueOf(rs.getString("plan_configuration_assumptions_source")));
+        assumption.setCategory(rs.getString("plan_configuration_assumptions_category"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getAssumptions())) {
             List<Assumption> assumptionList = new ArrayList<>();
@@ -148,6 +156,9 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         operation.setOutput(rs.getString("plan_configuration_operations_output"));
         operation.setActive(rs.getBoolean("plan_configuration_operations_active"));
         operation.setShowOnEstimationDashboard(rs.getBoolean("plan_configuration_operations_show_on_estimation_dashboard"));
+        operation.setSource(Source.valueOf(rs.getString("plan_configuration_operations_source")));
+        operation.setCategory(rs.getString("plan_configuration_operations_category"));
+        operation.setExecutionOrder(rs.getInt("plan_configuration_execution_order"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getOperations())) {
             List<Operation> operationList = new ArrayList<>();

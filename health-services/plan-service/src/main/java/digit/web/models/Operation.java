@@ -45,12 +45,24 @@ public class Operation {
 
     @JsonProperty("output")
     @NotNull
-    @Size(min = 1, max = 64)
+    @Size(min = 1, max = 256)
     private String output = null;
 
     @JsonProperty("showOnEstimationDashboard")
     @NotNull
     private Boolean showOnEstimationDashboard = true;
+
+    @JsonProperty("source")
+    @NotNull(message = "Source cannot be null. Please specify a valid source.")
+    private Source source = null;
+
+    @JsonProperty("category")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String category = null;
+
+    @JsonProperty("executionOrder")
+    private Integer executionOrder = null;
 
     @JsonProperty("active")
     @NotNull
