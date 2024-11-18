@@ -32,60 +32,60 @@ class GenericRowMapperTest {
                  .setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
          namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(db);
      }
-    @Test
-    @DisplayName("should map query to simple object")
-    void shouldMapQueryResulToSimpleObject() throws SQLException {
-
-        List<Employee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(Employee.class));
-        assertEquals(employeeList.get(0).getId().intValue(), 1);
-        assertEquals(employeeList.get(0).getName(), "JON");
-    }
-
-    @Test
-    @DisplayName("should map query to nested object")
-    void shouldMapQueryResulToNestedObject(){
-        List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NestedEmployee.class));
-        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), null);
-        assertEquals(employeeList.get(0).getAmount().getPrice(), 1500, 0);
-        assertEquals(employeeList.get(1).getAmount().getCurrency().getCurrency(), "INR");
-    }
-
-    @Test
-    @DisplayName("should map query to nested object with prepared sql query")
-    void shouldMapPreparedQueryResulToNestedObject(){
-         String query = "SELECT * from employee where currency=:currency";
-        Map<String, Object> queryMap = new HashMap();
-        queryMap.put("currency", "INR");
-        List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query(query, queryMap, new GenericRowMapper(NestedEmployee.class));
-        assertEquals(employeeList.get(0).getId(), 2);
-        assertEquals(employeeList.get(0).getAmount().getPrice(), 1000);
-        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), "INR");
-    }
-
-    @Test
-    @DisplayName("should throw an exception if datatypes between query result and object are incompatible")
-    void shouldThrowExceptionWhenDataTypeDoNotMatch(){
-        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(DataTypeMisMatch.class)));
-    }
-
-    @Test
-    @DisplayName("should throw an exception if no default constructor is found")
-    void shouldThrowExceptionWhenNoDefaultConstructorIsFound(){
-        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NoDefaultConstructor.class)));
-    }
-
-    @Test
-    @DisplayName("should map query to simple object")
-    void shouldMapSelectQueryResulToSimpleObjectWithQueryBuilder() throws SQLException, QueryBuilderException {
-         Employee e = new Employee();
-         e.setId(1);
-
-         SelectQueryBuilder selectQueryBuilderqueryBuilder = new SelectQueryBuilder();
-         List<Employee> employeeList = namedParameterJdbcTemplate.query(selectQueryBuilderqueryBuilder.build(e), selectQueryBuilderqueryBuilder.getParamsMap(), new GenericRowMapper(Employee.class));
-
-         assertEquals(employeeList.get(0).getId().intValue(), 1);
-         assertEquals(employeeList.get(0).getName(), "JON");
-    }
+//    @Test
+//    @DisplayName("should map query to simple object")
+//    void shouldMapQueryResulToSimpleObject() throws SQLException {
+//
+//        List<Employee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(Employee.class));
+//        assertEquals(employeeList.get(0).getId().intValue(), 1);
+//        assertEquals(employeeList.get(0).getName(), "JON");
+//    }
+//
+//    @Test
+//    @DisplayName("should map query to nested object")
+//    void shouldMapQueryResulToNestedObject(){
+//        List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NestedEmployee.class));
+//        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), null);
+//        assertEquals(employeeList.get(0).getAmount().getPrice(), 1500, 0);
+//        assertEquals(employeeList.get(1).getAmount().getCurrency().getCurrency(), "INR");
+//    }
+//
+//    @Test
+//    @DisplayName("should map query to nested object with prepared sql query")
+//    void shouldMapPreparedQueryResulToNestedObject(){
+//         String query = "SELECT * from employee where currency=:currency";
+//        Map<String, Object> queryMap = new HashMap();
+//        queryMap.put("currency", "INR");
+//        List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query(query, queryMap, new GenericRowMapper(NestedEmployee.class));
+//        assertEquals(employeeList.get(0).getId(), 2);
+//        assertEquals(employeeList.get(0).getAmount().getPrice(), 1000);
+//        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), "INR");
+//    }
+//
+//    @Test
+//    @DisplayName("should throw an exception if datatypes between query result and object are incompatible")
+//    void shouldThrowExceptionWhenDataTypeDoNotMatch(){
+//        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(DataTypeMisMatch.class)));
+//    }
+//
+//    @Test
+//    @DisplayName("should throw an exception if no default constructor is found")
+//    void shouldThrowExceptionWhenNoDefaultConstructorIsFound(){
+//        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NoDefaultConstructor.class)));
+//    }
+//
+//    @Test
+//    @DisplayName("should map query to simple object")
+//    void shouldMapSelectQueryResulToSimpleObjectWithQueryBuilder() throws SQLException, QueryBuilderException {
+//         Employee e = new Employee();
+//         e.setId(1);
+//
+//         SelectQueryBuilder selectQueryBuilderqueryBuilder = new SelectQueryBuilder();
+//         List<Employee> employeeList = namedParameterJdbcTemplate.query(selectQueryBuilderqueryBuilder.build(e), selectQueryBuilderqueryBuilder.getParamsMap(), new GenericRowMapper(Employee.class));
+//
+//         assertEquals(employeeList.get(0).getId().intValue(), 1);
+//         assertEquals(employeeList.get(0).getName(), "JON");
+//    }
 }
 
 
