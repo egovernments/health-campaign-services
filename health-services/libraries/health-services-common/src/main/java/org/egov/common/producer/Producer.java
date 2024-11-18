@@ -11,14 +11,14 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class Producer {
 
-    private final CustomKafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
-    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
+//    private final CustomKafkaTemplate<String, Object> kafkaTemplate;
+//
+//    @Autowired
+//    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate) {
+//        this.kafkaTemplate = kafkaTemplate;
+//    }
 
     public void push(String topic, Object value) {
-        kafkaTemplate.send(topic, value);
+//        kafkaTemplate.send(topic, value);
     }
 }
