@@ -2492,17 +2492,75 @@ function hideUniqueIdentifierColumnByIndex(sheet: any, columnIndex: number) {
     }
 }
 
-async function getHeadersToPickFromMDMS(request:any, localizationMap: { [key: string]: string }) {
-    const {tenantId, projectType} = request.body.CampaignDetails;
-    const schema = await callMdmsTypeSchema(request,tenantId,true, "boundary", "MP-" + projectType);
-    const headersNeeded = schema.required;
-    Object.keys(headersNeeded).forEach((key: string) => {
-        headersNeeded[key] = getLocalizedName(headersNeeded[key], localizationMap);
-    });    
-    return headersNeeded;
+function transformToMap(
+    data: any[], 
+    localizationMap: { [key: string]: string }
+): { [key: string]: { [key: string]: string } } {
+    const result: { [key: string]: { [key: string]: string } } = {};
+
+    for (const item of data) {
+        if (!item || !item.data) {
+            throw new Error("Invalid item: Each item must have a 'data' property.");
+        }
+
+        const { type, inputHeader, targetHeader } = item.data;
+
+        if (!type || !inputHeader || !targetHeader) {
+            throw new Error("Invalid data: 'type', 'inputHeader', and 'targetHeader' are required.");
+        }
+
+        // Initialize the nested object if it doesn't exist
+        if (!result[type]) {
+            result[type] = {};
+        }
+
+        // Use localization map for the headers
+        const localizedInputHeader = getLocalizedName(inputHeader, localizationMap);
+        const localizedTargetHeader = getLocalizedName(targetHeader, localizationMap);
+
+        // Set the inputHeader to targetHeader mapping
+        result[type][localizedInputHeader] = localizedTargetHeader;
+    }
+
+    return result;
 }
 
-function fillTargetSheetWithData(boundaryCodeToDataMap: any, targetSheetData: any, targetHeaders: any[]){
+async function getHeadersToPickFromMDMS(request:any, localizationMap: { [key: string]: string }) {
+    const {tenantId, projectType} = request.body.CampaignDetails;
+    const schema = await callMdmsV2ForHeaders(request,tenantId, "boundary", projectType, localizationMap);
+    return schema;
+}
+
+async function callMdmsV2ForHeaders(
+    request: any,
+    tenantId: string,
+    type: any,
+    campaignType = "all",
+    localizationMap: { [key: string]: string }
+  ) {
+    const { RequestInfo = {} } = request?.body || {};
+    const requestBody = {
+      RequestInfo,
+      MdmsCriteria: {
+        tenantId: tenantId,
+        schemaCode: "HCM-ADMIN-CONSOLE.microplanIntegration"
+      }
+    };
+    const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+    const header = {
+      ...defaultheader,
+      cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${campaignType}${type}.${campaignType}${requestBody?.MdmsCriteria?.schemaCode}`
+    }
+    const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+    if (!response?.mdms?.[0]?.data) {
+      throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
+    }
+    return transformToMap(response?.mdms, localizationMap);
+  }
+
+function fillTargetSheetWithData(boundaryCodeToDataMap: any, targetSheetData: any, targetHeaders: { [key: string]: { [key: string]: string } }) {
+    const boundaryTargetHeaders = targetHeaders["boundaryTarget"];
+
     
     Object.values(targetSheetData).forEach((data: any) => {
         const headers = data[0]; // Extract headers from the first row
@@ -2517,8 +2575,8 @@ function fillTargetSheetWithData(boundaryCodeToDataMap: any, targetSheetData: an
         const mapEntry = boundaryCodeToDataMap[boundaryCode];
 
         // Update each target header in the row with the corresponding map entry value
-        for (const header of targetHeaders) {
-            const columnIndex = headers.indexOf(header);
+        for (const header of Object.keys(boundaryTargetHeaders)) {
+            const columnIndex = headers.indexOf(boundaryTargetHeaders[header]);
             if (columnIndex !== -1 && mapEntry[header] !== undefined) {
             row[columnIndex] = mapEntry[header];
             }
