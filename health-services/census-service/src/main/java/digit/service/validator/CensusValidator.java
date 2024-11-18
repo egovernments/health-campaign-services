@@ -132,7 +132,7 @@ public class CensusValidator {
             roles.addAll(configs.getWorkflowRestrictedRoles());
 
             if(!hasCensusRoles && !ObjectUtils.isEmpty(census.getWorkflow()))
-                throw new CustomException(WORKFLOW_NOT_NULL_CODE, WORKFLOW_NOT_NULL_MESSAGE);
+                throw new CustomException(UNAUTHORIZED_WORKFLOW_ACCESS_CODE, UNAUTHORIZED_WORKFLOW_ACCESS_MESSAGE);
         }
     }
 
