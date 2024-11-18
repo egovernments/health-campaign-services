@@ -1510,5 +1510,6 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
-  createFacilityAndBoundaryFile
+  createFacilityAndBoundaryFile,
+  hideUniqueIdentifierColumn
 };

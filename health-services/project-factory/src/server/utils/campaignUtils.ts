@@ -2441,8 +2441,7 @@ async function validateTargetSheetData(request:any) {
         fileStoreId: request.body.targetFileId,
         action: "validate",
         campaignId: request.body.MicroplanDetails.campaignId,
-        hierarchyType: request.body.CampaignDetails.hierarchyType,
-        additionalDetails: {}
+        hierarchyType: request.body.CampaignDetails.hierarchyType
     };
     const resourceDetails = await createDataService(request);
     return resourceDetails;
@@ -2459,16 +2458,50 @@ async function createTargetAndUpload(filledTargetSheet: any, localizationMap: an
 
     await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
 
-    for(const [key,value] of Object.entries(filledTargetSheet)){
-        if(key != "Read Me" && key != localizedBoundaryTab){
+    // Add boundary sheet to the workbook
+    const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+    addDataToSheet(request, boundarySheet, filledTargetSheet[localizedBoundaryTab], 'F3842D', 30, false, true);
+
+    // Set the state of the sheet to "hidden"
+    boundarySheet.state = "hidden";
+
+    for (const [key, value] of Object.entries(filledTargetSheet) as [string, string[][]][]) {
+        if (key !== "Read Me" && key !== localizedBoundaryTab) {
             const sheet = workbook.addWorksheet(key);
+            
+            // Assert that 'value' is a 2D array of strings to match addDataToSheet expectations
             addDataToSheet(request, sheet, value);
+    
+            // Find the index of the "Boundary Code" column dynamically
+            const boundaryIndex = findColumnIndex(value[0], "Boundary Code");
+            
+            // Hide the column using the dynamically found index
+            hideUniqueIdentifierColumnByIndex(sheet, boundaryIndex);
         }
     }
+
+    
 
     const fileDetails = await createAndUploadFile(workbook, request);
     request.body.targetFileId = fileDetails[0].fileStoreId;
     return fileDetails;
+}
+
+function findColumnIndex(headers: string[], columnName: string): number {
+    // Find the index of the column
+    const index = headers.findIndex((header) => header === columnName);
+    if (index === -1) {
+        throw new Error(`Column "${columnName}" not found.`);
+    }
+    return index + 1; // ExcelJS columns are 1-based
+}
+function hideUniqueIdentifierColumnByIndex(sheet: any, columnIndex: number) {
+    if (columnIndex > 0 && columnIndex <= sheet.columnCount) {
+        const column = sheet.getColumn(columnIndex);
+        column.hidden = true;
+    } else {
+        throw new Error(`Column index ${columnIndex} is out of bounds.`);
+    }
 }
 
 async function getHeadersToPickFromMDMS(request:any, localizationMap: { [key: string]: string }) {
@@ -2543,7 +2576,6 @@ async function generateBoundarySheet(request:any) {
     const response = await generateDataService(request);
     logger.info("Generated boundary sheet", response[0].id);
     delete request.query.forceUpdate;
-    await new Promise(resolve => setTimeout(resolve, 10000));
 
     const downloadResponse = await pollDownloadStatus(request);
     if(downloadResponse === null){
@@ -2653,7 +2685,27 @@ async function getResourceFileSheetData(url : any) {
     const data = parseWorkbookData(sheetData);
     return data;
 }
+async function updateCampaign(request: any) {
+    // Get the current date
+    const currentDate = new Date();
 
+    // Set to the next day
+    const nextDay = new Date(currentDate);
+    nextDay.setDate(currentDate.getDate() + 1);
+
+    const newEndDate = new Date(currentDate);
+    newEndDate.setDate(currentDate.getDate() + 3);
+
+    // Convert to epoch time in milliseconds
+    const nextDayEpoch = nextDay.getTime();
+    const newEndDateEpoch = newEndDate.getTime();
+    request.body.CampaignDetails.startDate = nextDayEpoch;
+    request.body.CampaignDetails.endDate = newEndDateEpoch;
+    request.body.CampaignDetails.additionalDetails.source = null;
+    await updateProjectTypeCampaignService(request);
+    await new Promise(resolve => setTimeout(resolve, 20000));
+
+}
 async function updateCampaignDetails(request: any, resourceDetailsIdForFacility: any, resourseDetailsForTarget: any) {
     const { resources } = request.body.CampaignDetails || {};
     const { fileDetails } = request.body;
@@ -2827,7 +2879,8 @@ export {
     boundaryGeometryManagement,
     getResourceDetails,
     enrichInnerCampaignDetails,
-    processFetchMicroPlan
+    processFetchMicroPlan,
+    updateCampaign
 }
 
 

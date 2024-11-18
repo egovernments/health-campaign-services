@@ -1,5 +1,5 @@
 import express from "express";
-import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData } from "../utils/campaignUtils";
+import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateSearchProcessTracksRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
@@ -81,6 +81,8 @@ async function retryProjectTypeCampaignService(request: express.Request) {
 async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
+    logger.info("Update Campaign Object")
+    await updateCampaign(request);
     logger.info("Validated request successfully");
     await processFetchMicroPlan(request);
     return request.body.CampaignDetails;
