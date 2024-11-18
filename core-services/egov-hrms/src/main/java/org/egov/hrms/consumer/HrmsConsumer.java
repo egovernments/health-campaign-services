@@ -32,12 +32,12 @@ public class HrmsConsumer {
     @Autowired
     private PropertiesManager propertiesManager;
 
-    @KafkaListener(topics = {"${kafka.topics.hrms.updateData}", "${kafka.topics.save.service}"})
+    @KafkaListener(topics = {"${kafka.topics.hrms.updateData}", "${kafka.topics.hrms.email.notification}"})
     public void listenUpdateEmployeeData(final HashMap<String, Object> record,@Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             EmployeeRequest employeeRequest = mapper.convertValue(record, EmployeeRequest.class);
 
-            if(topic.equals(propertiesManager.getSaveEmployeeTopic())) {
+            if(topic.equals(propertiesManager.getHrmsEmailNotifTopic())) {
                 notificationService.processEmailNotification(employeeRequest);
             } else {
                 hrmsProducer.push(propertiesManager.getUpdateEmployeeTopic(), employeeRequest);

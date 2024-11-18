@@ -121,8 +121,10 @@ public class EmployeeService {
 			enrichCreateRequest(employee, requestInfo);
 			createUser(employee, requestInfo);
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
-			employee.getUser().setPassword(null);
 		});
+		hrmsProducer.push(propertiesManager.getHrmsEmailNotifTopic(), employeeRequest);
+		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
+
 		hrmsProducer.push(propertiesManager.getSaveEmployeeTopic(), employeeRequest);
 		notificationService.sendNotification(employeeRequest, pwdMap);
 		return generateResponse(employeeRequest);
