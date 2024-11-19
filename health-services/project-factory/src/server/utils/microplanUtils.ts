@@ -369,38 +369,62 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
 }
 
 
-export async function planFacilitySearch(request:any) {
-  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
+export async function planFacilitySearch(request: any) {
+  const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
   const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        PlanFacilitySearchCriteria: {
-            tenantId: tenantId,
-            planConfigurationId: planConfigurationId
-        }
+    RequestInfo: request.body.RequestInfo,
+    PlanFacilitySearchCriteria: {
+      tenantId: tenantId,
+      planConfigurationId: planConfigurationId
     }
+  }
 
-    const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planFacilitySearch, searchBody);
-    return searchResponse; 
+  const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planFacilitySearch, searchBody);
+  return searchResponse;
 }
 
 export function planConfigSearch(request: any) {
-  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
+  const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
   const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        PlanConfigurationSearchCriteria: {
-            tenantId: tenantId,
-            id: planConfigurationId
-        }
+    RequestInfo: request.body.RequestInfo,
+    PlanConfigurationSearchCriteria: {
+      tenantId: tenantId,
+      id: planConfigurationId
     }
+  }
 
-    const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planFacilityConfigSearch, searchBody);
+  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planFacilityConfigSearch, searchBody);
   return searchResponse;
 }
 
 export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: any) {
-  const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
-  if (request?.body?.isSourceMicroplan && request?.query?.type === 'facilityWithBoundary') {
-    boundaryData = boundaryData.filter((boundary: any) => boundary?.[hierarchy?.length - 1]);
+  // Check if the request is for a source microplan and the type is 'facilityWithBoundary'
+  if (request?.body?.isSourceMicroplan && request?.query?.type == 'facilityWithBoundary') {
+    // Extract the boundary hierarchy from the request body
+    const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
+    var villageIndex: any;
+    // Determine the `villageIndex` based on the hierarchy length if present
+    if (hierarchy) {
+      // Set `villageIndex` to the last element in the hierarchy (boundary hierarchy depth)
+      villageIndex = hierarchy?.length - 1;
+    } else {
+      // If no hierarchy is provided, calculate the `villageIndex` dynamically
+      let maxBoundaryDataLength = 0;
+
+      // Iterate through `boundaryData` to find the maximum length of any boundary array
+      for (let boundary of boundaryData) {
+        if (boundary?.length > maxBoundaryDataLength) {
+          maxBoundaryDataLength = boundary?.length;
+        }
+      }
+
+      // If boundary data has sufficient depth, set `villageIndex` to the second-to-last level
+      if (maxBoundaryDataLength >= 2) {
+        villageIndex = maxBoundaryDataLength - 2;
+      }
+    }
+    // Filter out boundaries that don't have the `villageIndex`
+    boundaryData = boundaryData.filter((boundary: any) => boundary?.[villageIndex]);
   }
   return boundaryData;
 }
