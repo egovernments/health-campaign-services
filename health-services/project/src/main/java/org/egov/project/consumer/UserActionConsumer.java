@@ -38,7 +38,7 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of created UserAction objects.
      */
-    @KafkaListener(topics = "${project.user.action.consumer.bulk.create.topic}")
+//    @KafkaListener(topics = "${project.user.action.consumer.bulk.create.topic}")
     public void bulkCreateUserAction(Map<String, Object> consumerRecord,
                                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -61,7 +61,7 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of updated UserAction objects.
      */
-    @KafkaListener(topics = "${project.user.action.consumer.bulk.update.topic}")
+//    @KafkaListener(topics = "${project.user.action.consumer.bulk.update.topic}")
     public void bulkUpdateUserAction(Map<String, Object> consumerRecord,
                                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -84,7 +84,7 @@ public class UserActionConsumer {
      * @param topic          The topic from which the message was received.
      * @return List of created UserAction objects.
      */
-    @KafkaListener(topics = "${project.location.capture.consumer.bulk.create.topic}")
+//    @KafkaListener(topics = "${project.location.capture.consumer.bulk.create.topic}")
     public void bulkCreateLocationCapture(Map<String, Object> consumerRecord,
                                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
