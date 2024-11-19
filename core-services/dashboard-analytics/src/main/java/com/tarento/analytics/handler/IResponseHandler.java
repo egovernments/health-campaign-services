@@ -35,6 +35,7 @@ public interface IResponseHandler {
 	public static  final String IS_CAPPED_TILL_TODAY ="isCappedTillToday";
 	public static final String DRILL_CHART = "drillChart";
 	public static final String SHOW_LABEL = "showLabel";
+	public static final String STACK_BARS = "stackBars";
 	public static final String VALUE_TYPE = "valueType";
 	public static final String FILTER_KEYS = "filterKeys";
 	public final static String HIDE_INSIGHTS = "hideInsights";
@@ -138,6 +139,9 @@ public interface IResponseHandler {
 		ChartType chartType = ChartType.fromValue(chartNode.get(CHART_TYPE).asText());
 		aggregateDto.setChartType(chartType);
 		aggregateDto.setData(dataList);
+		if (chartNode.has(STACK_BARS)) {
+			aggregateDto.setShowLabel(chartNode.get(STACK_BARS).asBoolean());
+		}
 		if (chartNode.has(SHOW_LABEL)) {
 			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());
 		}
