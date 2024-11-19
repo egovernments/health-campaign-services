@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static digit.config.ServiceConstants.FACILITY_ID_FIELD;
+import static digit.config.ServiceConstants.FACILITY_NAME_FIELD;
 
 @Component
 @Slf4j
@@ -51,6 +52,7 @@ public class FacilityCatchmentConsumer {
             List<Census> censusFromSearch = censusResponse.getCensus();
 
             String facilityId = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityId();
+            String facilityName = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityName();
 
             Set<String> boundariesWithFacility = new HashSet<>(List.of(planFacilityDTO.getServiceBoundaries().split(",")));
             Set<String> boundariesWithNoFacility = new HashSet<>(planFacilityDTO.getInitiallySetServiceBoundaries());
@@ -62,6 +64,7 @@ public class FacilityCatchmentConsumer {
 
                     // Unassigning facilities to the boundaries which were initially assigned that facility
                     census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD));
+                    census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_NAME_FIELD));
                     census.setFacilityAssigned(Boolean.FALSE);
                     census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
 
@@ -69,6 +72,7 @@ public class FacilityCatchmentConsumer {
 
                     // Assigning facilities to the newly added boundaries in the update request.
                     census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, facilityId));
+                    census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), FACILITY_NAME_FIELD, facilityName));
                     census.setFacilityAssigned(Boolean.TRUE);
                     census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
                 }

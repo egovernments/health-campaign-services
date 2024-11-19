@@ -45,6 +45,7 @@ public class ServiceConstants {
     public static final String USER = "user";
     public static final String PIPE_REGEX = "\\|";
     public static final String FACILITY_ID_FIELD = "facilityId";
+    public static final String FACILITY_NAME_FIELD = "facilityName";
 
     public static final String PARSING_ERROR_CODE = "PARSING ERROR";
     public static final String PARSING_ERROR_MESSAGE = "Failed to parse JSON data from PGobject";
