@@ -1,6 +1,7 @@
 package digit.service.validator;
 
 import digit.config.Configuration;
+import digit.models.coremodels.user.Role;
 import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
 import digit.util.BoundaryUtil;
@@ -109,11 +110,14 @@ public class CensusValidator {
             User userInfo = request.getRequestInfo().getUserInfo();
             List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
 
+            Set<String> roles = new HashSet<>(configs.getAllowedCensusRoles());
+            validateWorkflowAccess(userInfo, census, roles);
+
             PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
                     .employeeId(Collections.singletonList(userInfo.getUuid()))
                     .planConfigurationId(request.getCensus().getSource())
                     .tenantId(request.getCensus().getTenantId())
-                    .role(configs.getAllowedCensusRoles())
+                    .role(roles.stream().toList())
                     .jurisdiction(jurisdiction)
                     .build();
 
@@ -128,6 +132,21 @@ public class CensusValidator {
 
             //enrich jurisdiction of current assignee
             request.getCensus().setAssigneeJurisdiction(employeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+        }
+    }
+
+    private void validateWorkflowAccess(User userInfo, Census census, Set<String> roles) {
+        Boolean hasCensusRoles = userInfo.getRoles().stream()
+                .anyMatch(role -> configs.getAllowedCensusRoles().contains(role.getCode()));
+
+        Boolean hasWfRestrictedRoles = userInfo.getRoles().stream()
+                .anyMatch(role -> configs.getWorkflowRestrictedRoles().contains(role.getCode()));
+
+        if(hasWfRestrictedRoles) {
+            roles.addAll(configs.getWorkflowRestrictedRoles());
+
+            if(!hasCensusRoles && !ObjectUtils.isEmpty(census.getWorkflow()))
+                throw new CustomException(UNAUTHORIZED_WORKFLOW_ACCESS_CODE, UNAUTHORIZED_WORKFLOW_ACCESS_MESSAGE);
         }
     }
 

@@ -92,6 +92,9 @@ public class ServiceConstants {
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_CODE = "DIFFERENT_WORKFLOW_FOR_BULK_UPDATE";
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_MESSAGE = "All entries should be in the same state for bulk transitioning census records.";
 
+    public static final String UNAUTHORIZED_WORKFLOW_ACCESS_CODE = "UNAUTHORIZED_WORKFLOW_ACCESS";
+    public static final String UNAUTHORIZED_WORKFLOW_ACCESS_MESSAGE = "User with provided roles cannot have an active workflow. Please remove the workflow or update user roles.";
+
     public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
     public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
 
