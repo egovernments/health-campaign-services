@@ -1,17 +1,16 @@
 package digit.web.models;
 
-import java.util.List;
-import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * PlanSearchCriteria
@@ -31,7 +30,7 @@ public class PlanSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("locality")
-    private String locality = null;
+    private List<String> locality = null;
 
     @JsonProperty("campaignId")
     private String campaignId = null;

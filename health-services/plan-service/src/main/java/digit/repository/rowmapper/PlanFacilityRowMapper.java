@@ -46,7 +46,9 @@ public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacili
                 planFacilityEntry.setId(planFacilityId);
                 planFacilityEntry.setTenantId(rs.getString("plan_facility_tenant_id"));
                 planFacilityEntry.setPlanConfigurationId(rs.getString("plan_facility_plan_configuration_id"));
+                planFacilityEntry.setPlanConfigurationName(rs.getString("plan_facility_plan_configuration_name"));
                 planFacilityEntry.setFacilityId(rs.getString("plan_facility_facility_id"));
+                planFacilityEntry.setFacilityName(rs.getString("plan_facility_facility_name"));
                 planFacilityEntry.setResidingBoundary(rs.getString("plan_facility_residing_boundary"));
                 String serviceBoundaries = rs.getString("plan_facility_service_boundaries");
                 planFacilityEntry.setServiceBoundaries(ObjectUtils.isEmpty(serviceBoundaries) ? new ArrayList<>() : Arrays.asList(serviceBoundaries.split(",")));

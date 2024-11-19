@@ -87,6 +87,13 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
+    //Census
+    @Value("${egov.census.host}")
+    private String censusHost;
+
+    @Value("${egov.census.search.endpoint}")
+    private String censusSearchEndPoint;
+
     //Facility
     @Value("${egov.facility.host}")
     private String facilityHost;

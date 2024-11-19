@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.service.PlanEmployeeService;
+import digit.service.validator.PlanConfigurationValidator;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
@@ -38,14 +39,17 @@ public class WorkflowService {
 
     private PlanEmployeeService planEmployeeService;
 
+    private PlanConfigurationValidator planConfigurationValidator;
+
     private RestTemplate restTemplate;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, RestTemplate restTemplate) {
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, CommonUtil commonUtil, PlanEmployeeService planEmployeeService, PlanConfigurationValidator planConfigurationValidator, RestTemplate restTemplate) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
         this.commonUtil = commonUtil;
         this.planEmployeeService = planEmployeeService;
+        this.planConfigurationValidator = planConfigurationValidator;
         this.restTemplate = restTemplate;
     }
 
@@ -274,9 +278,9 @@ public class WorkflowService {
             // Check if this boundary code is present in assigneeJurisdiction
             if (plan.getAssigneeJurisdiction().contains(boundaryCode)) {
 
-                if (i - 1 >= 0) {
+                for (int j = i - 1; j >= 0; j--) {
                     // Check the next higher level in the hierarchy (one index above the match)
-                    String higherBoundaryCode = heirarchysBoundaryCodes[i - 1];
+                    String higherBoundaryCode = heirarchysBoundaryCodes[j];
 
                     // Fetch the employeeId from the map for the higher boundary code
                     String employeeId = jurisdictionToEmployeeMap.get(higherBoundaryCode);
