@@ -128,6 +128,7 @@ public class PlanRepositoryImpl implements PlanRepository {
 
         // Perform batch update
         jdbcTemplate.batchUpdate(bulkPlanUpdateQuery, rows);
+        producer.push(config.getPlanBulkUpdateTopic(), body);
     }
 
     /**
