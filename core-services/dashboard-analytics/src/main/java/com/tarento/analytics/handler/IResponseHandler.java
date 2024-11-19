@@ -140,7 +140,7 @@ public interface IResponseHandler {
 		aggregateDto.setChartType(chartType);
 		aggregateDto.setData(dataList);
 		if (chartNode.has(STACK_BARS)) {
-			aggregateDto.setShowLabel(chartNode.get(STACK_BARS).asBoolean());
+			aggregateDto.setStackBars(chartNode.get(STACK_BARS).asBoolean());
 		}
 		if (chartNode.has(SHOW_LABEL)) {
 			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());

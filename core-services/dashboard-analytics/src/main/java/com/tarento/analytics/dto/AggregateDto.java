@@ -23,6 +23,8 @@ public class AggregateDto {
 
 	private Boolean showLabel;
 
+	private Boolean stackBars;
+
 	private String drillDownChartId;
 
 	private Boolean hideInsights;
@@ -151,4 +153,12 @@ public class AggregateDto {
 	public void setTargetLineChart(String targetLineChart) {
 		this.targetLineChart = targetLineChart;
 	}
+
+    public Boolean getStackBars() {
+        return stackBars;
+    }
+
+    public void setStackBars(Boolean stackBars) {
+        this.stackBars = stackBars;
+    }
 }
