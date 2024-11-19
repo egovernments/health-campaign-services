@@ -1,6 +1,6 @@
 import { getLocalizedMessagesHandler, processGenerate, replicateRequest, throwError } from "./genericUtils";
 import _ from 'lodash';
-import { logger } from "./logger";
+import { getFormattedStringForDebug, logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
 import { getLocalisationModuleName } from "./localisationUtils";
 
@@ -50,7 +50,8 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                     hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
                     campaignId: request?.body?.CampaignDetails?.id
                 };
-
+                logger.info(`generating new resources for the campaignId: ${request?.body?.CampaignDetails?.id}`);
+                logger.debug(`boundaries of the generate request : ${getFormattedStringForDebug(boundaries)}`)
                 const newParamsBoundary = { ...query, ...params, type: "boundary" };
                 const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
                 await callGenerate(newRequestBoundary, "boundary");
