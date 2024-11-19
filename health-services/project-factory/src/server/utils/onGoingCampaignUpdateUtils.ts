@@ -176,6 +176,7 @@ function getColumnIndexByHeader(sheet: any, headerName: string): number {
 
 async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObject: any) {
   if (campaignObject?.parentId) {
+    logger.info("enriching the parent campaign details for update flow");
     const parentCampaignObject = await getParentCampaignObject(request, campaignObject.parentId);
 
     if (parentCampaignObject?.status === "created" && !parentCampaignObject.isActive) {
