@@ -19,6 +19,7 @@ import org.springframework.util.ObjectUtils;
 
 import static digit.config.ServiceConstants.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -277,12 +278,13 @@ public class PlanFacilityValidator {
     private void enrichFacilityDetails(Facility facility, PlanFacilityRequest planFacilityRequest) {
         String facilityName = facility.getName();
         planFacilityRequest.getPlanFacility().setFacilityName(facilityName);
-        Double initialServingPop = 0.0;
+        BigDecimal initialServingPop = BigDecimal.ZERO;
 
         Map<String, Object> fieldsToBeAdded = new HashMap<>();
         fieldsToBeAdded.put("facilityUsage", facility.getUsage());
-        fieldsToBeAdded.put("storageCapacity", facility.getStorageCapacity());
-        fieldsToBeAdded.put("facilityType", facility.getAddress().getType());
+        fieldsToBeAdded.put("capacity", facility.getStorageCapacity());
+        fieldsToBeAdded.put("facilityStatus", facility.getAddress().getType());
+        fieldsToBeAdded.put("facilityType", facility.getUsage());
         fieldsToBeAdded.put("isPermanent", facility.isPermanent());
         fieldsToBeAdded.put("servingPopulation", initialServingPop);
 
