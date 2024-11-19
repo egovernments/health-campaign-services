@@ -115,7 +115,7 @@ class Localisation {
       // Construct URL for localization create endpoint
       const url = this.localizationHost + config.paths.localizationCreate;
       // Log the start of the localisation messages creation process
-      logger.info("Creating the localisation messages");
+      logger.info(`Creating the localisation messages of count ${messages?.length}`);
       // Send HTTP POST request to create localisation messages
 
       await httpRequest(url, requestBody);
