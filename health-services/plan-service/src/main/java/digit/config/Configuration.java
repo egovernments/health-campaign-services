@@ -75,6 +75,9 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.bulk.update.topic}")
+    private String planBulkUpdateTopic;
+
     @Value("${plan.facility.create.topic}")
     private String planFacilityCreateTopic;
 
