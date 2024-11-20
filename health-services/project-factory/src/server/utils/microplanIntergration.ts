@@ -1,6 +1,6 @@
 
 
-import { callMdmsTypeSchema } from "../api/genericApis";
+import { callMdmsTypeSchema, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
 
@@ -10,39 +10,8 @@ import { searchPlan, searchPlanCensus, searchPlanFacility } from "../api/micropl
 import { getTheGeneratedResource } from "./pollUtils";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
-
-
-
-// function getPlanFacilityMap(planFacility: any) {
-//     const planFacilityMap = new Map();
-//     planFacility.forEach((facility: any) => {
-//         planFacilityMap.set(facility.facilityId, facility.serviceBoundaries.join(','));
-//     });
-//     return planFacilityMap;
-// }
-
- 
-// const getSheetDataMP = async (
-//     fileUrl: string,
-//     sheetName: string,
-//     getRow = false,
-//     createAndSearchConfig?: any,
-//     localizationMap?: { [key: string]: string }
-// ) => {
-//     // Retrieve workbook using the getExcelWorkbookFromFileURL function
-//     const localizedSheetName = getLocalizedName(sheetName, localizationMap);
-//     const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
-
-//     const worksheet: any = workbook.getWorksheet(localizedSheetName);
-
-//     // If parsing array configuration is provided, validate first row of each column
-//     // validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
-
-//     // Collect sheet data by iterating through rows and cells
-//     const sheetData = getSheetDataFromWorksheet(worksheet);
-//     return sheetData;
-// };
-
+import { getLocalizedName } from "./campaignUtils";
+import config from "../config";
 
 
 
@@ -67,12 +36,14 @@ export  const fetchFacilityData=async(request:any,localizationMap:any)=>{
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(generatedFacilityTemplateFileStoreId)}`)
     const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
-    const workbook=await getExcelWorkbookFromFileURL(fileUrl);
-    console.log(workbook,'workbook');
+    const workbook=await getExcelWorkbookFromFileURL(fileUrl,  getLocalizedName(config?.facility?.facilityTab, localizationMap));
+    console.log(workbook,'workbook facilityWithBoundary');
 
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
     logger.info(`found facilitySheetId is ${facilitySheetId}`);
-    
+    var facilitySheetIdboundaryData = await getSheetData(fileUrl, getLocalizedName(config?.facility?.facilityTab, localizationMap), false, undefined, localizationMap);
+console.log(facilitySheetIdboundaryData);
+
     const schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
     request.query.type = "facilityWithBoundary";
     request.query.tenantId = tenantId;
@@ -100,7 +71,11 @@ export  const fetchTargetData=async(request:any,localizationMap:any)=>{
     const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
     const workbook=await  getExcelWorkbookFromFileURL(fileUrl);
-    console.log(workbook,'workbook');
+
+
+    const dataFromSheet = await getTargetSheetData(fileUrl, true, true, localizationMap)
+
+    console.log(dataFromSheet,'workbook fetchTargetData',workbook);
 
 
 
@@ -141,15 +116,16 @@ export  const fetchUserData=async(request:any,localizationMap:any)=>{
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(generatedFacilityTemplateFileStoreId)}`)
     const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
-    const workbook=await  getExcelWorkbookFromFileURL(fileUrl);
-    console.log(workbook,'workbook');
+    const workbook=await  getExcelWorkbookFromFileURL(fileUrl,getLocalizedName(config?.user.userTab, localizationMap));
+    console.log(workbook,'workbook fetchUserData');
 
 
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
     logger.info(`found facilitySheetId is ${facilitySheetId}`);
 
 
-
+    var facilitySheetIdboundaryData = await getSheetData(fileUrl, getLocalizedName(config?.user.userTab, localizationMap), false, undefined, localizationMap);
+    console.log(facilitySheetIdboundaryData);
 
     
     const schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
