@@ -67,7 +67,7 @@ export  const fetchFacilityData=async(request:any,localizationMap:any)=>{
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(generatedFacilityTemplateFileStoreId)}`)
     const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
-    const workbook=getExcelWorkbookFromFileURL(fileUrl);
+    const workbook=await getExcelWorkbookFromFileURL(fileUrl);
     console.log(workbook,'workbook');
 
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
@@ -99,7 +99,7 @@ export  const fetchTargetData=async(request:any,localizationMap:any)=>{
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(generatedFacilityTemplateFileStoreId)}`)
     const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
-    const workbook=getExcelWorkbookFromFileURL(fileUrl);
+    const workbook=await  getExcelWorkbookFromFileURL(fileUrl);
     console.log(workbook,'workbook');
 
 
@@ -135,11 +135,14 @@ export  const fetchUserData=async(request:any,localizationMap:any)=>{
     logger.debug(`created facilityBoundaryMap :${getFormattedStringForDebug(facilityBoundaryMap)}`)
     
 
-
-
+ 
 
     const generatedFacilityTemplateFileStoreId=await getTheGeneratedResource(campaignId,tenantId,"userWithBoundary",request.body.CampaignDetails?.hierarchyType)
     logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(generatedFacilityTemplateFileStoreId)}`)
+    const fileUrl=await fetchFileFromFilestore(generatedFacilityTemplateFileStoreId,tenantId);
+    logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`);
+    const workbook=await  getExcelWorkbookFromFileURL(fileUrl);
+    console.log(workbook,'workbook');
 
 
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
