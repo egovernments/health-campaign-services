@@ -3,7 +3,7 @@
 import { getErrorCodes } from "./constants";
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
-  "https://unified-dev.digit.org/";
+  "https://unified-qa.digit.org/";
 // Checking if HOST is set, if not, exiting the process
 if (!HOST) {
   console.log("You need to set the HOST variable");
@@ -11,15 +11,14 @@ if (!HOST) {
 }
 
 
-const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
+const getDBSchemaName = (dbSchema = "health") => {
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 // Configuration object containing various environment variables
 const config = {
   cacheTime: 300,
   isProduction: process.env ? true : false,
-  token: "", // add default token if core services are not port forwarded
+  token: "7b6f930e-b9fb-4469-b4db-98ca37b48420", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
@@ -50,6 +49,9 @@ const config = {
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
   },
   cacheValues: {
+    /* The line `// cacheEnabled: process.env.CACHE_ENABLED,` is a commented-out line in the
+    configuration object. It seems like it was meant to be a configuration option related to
+    enabling or disabling caching, but it is currently commented out and not being used in the code. */
     cacheEnabled: process.env.CACHE_ENABLED,
     resetCache: process.env.RESET_CACHE,
     redisPort: process.env.REDIS_PORT || "6379",
@@ -89,7 +91,8 @@ const config = {
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
-    debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000
+    defaultTenantId:"mz",
+    debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 3000
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
@@ -104,22 +107,23 @@ const config = {
   host: {
     serverHost: HOST,
     // Kafka broker host
-    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
+    KAFKA_BROKER_HOST: "localhost:9092"|| process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
-    mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
-    mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
-    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-dev.digit.org/",
+    mdms: process.env.EGOV_MDMS_HOST || "https://unified-qa.digit.org/",
+    mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-qa.digit.org/",
+    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-qa.digit.org/",
     projectFactoryBff: "http://localhost:8080/",
-    idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
-    facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-dev.digit.org/",
-    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-dev.digit.org/",
-    projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-dev.digit.org/",
-    userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
-    productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
-    hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
-    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
-    healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
-    planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
+    idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-qa.digit.org/",
+    facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-qa.digit.org/",
+    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-qa.digit.org/",
+    projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-qa.digit.org/",
+    userHost: process.env.EGOV_USER_HOST || "https://unified-qa.digit.org/",
+    productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-qa.digit.org/",
+    hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-qa.digit.org/",
+    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-qa.digit.org/",
+    healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-qa.digit.org/",
+    planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "http://localhost:8082/",
+    censusServiceHost: process.env.EGOV_CENSUS_HOST || "http://localhost:8083/",
   },
   // Paths for different services
   paths: {
@@ -155,7 +159,9 @@ const config = {
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
     projectStaffDelete: process.env.EGOV_HEALTH_PROJECT_STAFF_BULK_DELETE || "health-project/staff/v1/bulk/_delete",
     planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
-    planFacilityConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
+    planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
+    planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
+    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"
   },
   // Values configuration
   values: {
