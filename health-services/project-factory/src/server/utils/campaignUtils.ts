@@ -24,8 +24,9 @@ import { callGenerateWhenChildCampaigngetsCreated, fetchProjectsWithBoundaryCode
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require('lodash');
 import { createDataService, downloadDataService, generateDataService, searchDataService } from "../service/dataManageService";
-import { searchMDMSDataViaV2Api } from "../api/coreApis";
+import { fetchFileFromFilestore, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
+import { fetchFacilityData, fetchTargetData, fetchUserData } from "./microplanIntergration";
 
 
 
@@ -2388,10 +2389,55 @@ async function createUniqueUserNameViaIdGen(request: any) {
     }
 }
 
+export const fetchFacilityData1=async(request:any,localizationMap:any)=>{
+    const { tenantId } = request.body.MicroplanDetails;
+
+    const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
+    logger.info(`found facilitySheetId is ${facilitySheetId}`);
+    const fileResponse:any=await fetchFileFromFilestore(facilitySheetId,tenantId);
+        logger.info(`received fileResponse`);
+        console.log(fileResponse)
+
+    const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
+    const boundaryTab = getLocalizedName(config?.boundary?.boundaryTab, localizationMap);
+    const planFacilityMap = getPlanFacilityMap(request?.body?.PlanFacility);
+    logger.info(`planFacilityMap: found`);
+    logger.debug(`planFacilityMap: found as ${getFormattedStringForDebug(planFacilityMap)}`);
+    const processedFacilitySheetData = await getSheetDataMP(fileResponse.fileStoreIds[0].url, localizedFacilityTab, false, undefined, localizationMap);
+    const filterFacilitySheet = filterFacilityData(processedFacilitySheetData);
+    const filledFacilitySheetData = fillFacilitySheetData(filterFacilitySheet, planFacilityMap);
+
+    console.log(filledFacilitySheetData,'filledFacilitySheetData');
+    console.log(filterFacilitySheet,'filterFacilitySheet');
+
+    const schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
+    request.query.type = "facilityWithBoundary";
+    request.query.tenantId = tenantId;
+    const processedBoundaryData = await getSheetDataMP(fileResponse.fileStoreIds[0].url, boundaryTab, false, undefined, localizationMap);
+    await createFacilityAndBoundaryFile(filledFacilitySheetData, processedBoundaryData, request, localizationMap, fileResponse.fileStoreIds[0].url, schema);
+
+    const resourceDetails = await validateFacilitySheet(request);
+    logger.info(`updated the resources of facility resource id ${resourceDetails?.id}`);
+    await updateCampaignDetails(request, resourceDetails?.id);
+    logger.info(`updated the resources of facility`);
+}
+
+
+
+
 async function processFetchMicroPlan(request: any) {
     logger.info("Started processing fetch microplan");
     const { tenantId, resourceId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
+
+
+    await fetchFacilityData(request,localizationMap);
+
+    await fetchTargetData(request,localizationMap);
+    await fetchUserData(request,localizationMap);
+    
+  
+
     const facilitySheetId = request.body.planConfig.files.find((file: { templateIdentifier: string; }) => file.templateIdentifier === "Facilities")?.filestoreId;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: facilitySheetId }, "get");
     const resourseFileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resourceId }, "get");
@@ -2416,8 +2462,8 @@ async function processFetchMicroPlan(request: any) {
     await createTargetAndUpload(filledTargetSheet,localizationMap,request);
     const resourceDetails = await validateFacilitySheet(request);
     const resourseDetailsForTarget = await validateTargetSheetData(request);
-    await updateCampaignDetails(request, resourceDetails?.id, resourseDetailsForTarget?.id);
-    console.log(filledTargetSheet);
+    await updateCampaignDetails(request, resourceDetails?.id);
+    console.log(filledTargetSheet,resourseDetailsForTarget);
     logger.info("Completed processing fetch microplan", generatedBoundarySheet,headersToPick, getBoundaryCodeToDataMap);
 }
 
@@ -2734,7 +2780,7 @@ async function getResourceFileSheetData(url : any) {
 async function updateCampaign(request: any) {
     // Get the current date
     const currentDate = new Date();
-
+    logger.info("Updating the received campaign object, date, source & its key")
     // Set to the next day
     const nextDay = new Date(currentDate);
     nextDay.setDate(currentDate.getDate() + 1);
@@ -2747,18 +2793,27 @@ async function updateCampaign(request: any) {
     const newEndDateEpoch = newEndDate.getTime();
     request.body.CampaignDetails.startDate = nextDayEpoch;
     request.body.CampaignDetails.endDate = newEndDateEpoch;
-    request.body.CampaignDetails.additionalDetails.source = null;
+    if(!request.body.CampaignDetails.additionalDetails){
+        request.body.CampaignDetails.additionalDetails={};
+    }
+    request.body.CampaignDetails.additionalDetails.source = "COMPLETED_MICROPLAN";
+    request.body.CampaignDetails.additionalDetails["disease"]= "MALARIA",
+    request.body.CampaignDetails.additionalDetails["beneficiaryType"]= "INDIVIDUAL";
+    request.body.CampaignDetails.additionalDetails["key"]= 2;
+    logger.debug(`updated object ${getFormattedStringForDebug(request.body.CampaignDetails)}`)
     await updateProjectTypeCampaignService(request);
+    logger.info("Updated the received campaign object")
     await new Promise(resolve => setTimeout(resolve, 20000));
 
 }
-async function updateCampaignDetails(request: any, resourceDetailsIdForFacility: any, resourseDetailsForTarget: any) {
+async function updateCampaignDetails(request: any, resourceDetailsIdForFacility: any) {
     const { resources } = request.body.CampaignDetails || {};
     const { fileDetails } = request.body;
 
     if (Array.isArray(resources) && Array.isArray(fileDetails) && fileDetails[0]?.fileStoreId) {
         let facilityFound = false;
-        let targetFound = false;
+        /* The above TypeScript code initializes a variable `targetFound` with a value of `false`. */
+        // let targetFound = false;
 
     resources.forEach((resource: any) => {
         if (resource.type === 'facility') {
@@ -2768,12 +2823,12 @@ async function updateCampaignDetails(request: any, resourceDetailsIdForFacility:
             facilityFound = true;
         }
 
-        if(resource.type === 'boundaryWithTarget'){
-            resource.filestoreId = request.body.targetFileId;
-            resource.resourceId = resourseDetailsForTarget;
-            console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
-            targetFound = true;
-        }
+        // if(resource.type === 'boundaryWithTarget'){
+        //     resource.filestoreId = request.body.targetFileId;
+        //     resource.resourceId = resourseDetailsForTarget;
+        //     console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
+        //     targetFound = true;
+        // }
     });
 
     if (!facilityFound) {
@@ -2786,14 +2841,14 @@ async function updateCampaignDetails(request: any, resourceDetailsIdForFacility:
         });
         console.log('Appended new facility resource');
     }
-    if(!targetFound){
-        resources.push({
-            type: 'boundaryWithTarget',
-            filename: 'Boundary Template (29).xlsx',
-            filestoreId: request.body.targetFileId,
-            resourceId: resourseDetailsForTarget
-        })
-    }
+    // if(!targetFound){
+    //     resources.push({
+    //         type: 'boundaryWithTarget',
+    //         filename: 'Boundary Template (29).xlsx',
+    //         filestoreId: request.body.targetFileId,
+    //         resourceId: resourseDetailsForTarget
+    //     })
+    // }
     } else {
         console.error("Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays.");
     }

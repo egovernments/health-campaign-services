@@ -393,7 +393,7 @@ export function planConfigSearch(request: any) {
     }
   }
 
-  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planFacilityConfigSearch, searchBody);
+  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
   return searchResponse;
 }
 
