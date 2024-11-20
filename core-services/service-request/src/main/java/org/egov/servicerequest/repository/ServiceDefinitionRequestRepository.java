@@ -3,7 +3,11 @@ package org.egov.servicerequest.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.servicerequest.repository.querybuilder.ServiceDefinitionQueryBuilder;
 import org.egov.servicerequest.repository.rowmapper.ServiceDefinitionRowMapper;
-import org.egov.servicerequest.web.models.*;
+import org.egov.servicerequest.web.models.Service;
+import org.egov.servicerequest.web.models.ServiceCriteria;
+import org.egov.servicerequest.web.models.ServiceDefinition;
+import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
+import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
@@ -13,8 +17,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
@@ -54,31 +56,12 @@ public class ServiceDefinitionRequestRepository {
             preparedStmtList.clear();
         }
 
+
+
         String query = serviceDefinitionQueryBuilder.getServiceDefinitionSearchQuery(criteria, preparedStmtList);
         log.info("query for search: " + query + " params: " + preparedStmtList);
-        List<ServiceDefinition> result = jdbcTemplate.query(query, preparedStmtList.toArray(), serviceDefinitionRowMapper);
+        return jdbcTemplate.query(query, preparedStmtList.toArray(), serviceDefinitionRowMapper);
 
-        List<ServiceDefinition> activeServiceDefinitions = result;
-
-        if(!serviceDefinitionSearchRequest.getServiceDefinitionCriteria().isIncludeDeleted()) {
-            activeServiceDefinitions = result.stream()
-                    .filter(ServiceDefinition::getIsActive) // Filter ServiceDefinitions where isActive is true
-                    .map(service -> {
-                        // Filter active attributes within each ServiceDefinition
-                        List<AttributeDefinition> activeAttributes = service.getAttributes().stream()
-                                .filter(attribute -> Boolean.TRUE.equals(attribute.getIsActive())) // Filter attributes by isActive
-                                .collect(Collectors.toList());
-
-                        // Create a copy of the ServiceDefinition with filtered attributes
-                        service.setAttributes(activeAttributes);
-
-                        return service;
-                    })
-                    .filter(service -> !service.getAttributes().isEmpty()) // Retain ServiceDefinitions with active attributes only
-                    .collect(Collectors.toList());
-        }
-
-        return activeServiceDefinitions;
     }
 
     public List<Service> getService(ServiceCriteria criteria) {

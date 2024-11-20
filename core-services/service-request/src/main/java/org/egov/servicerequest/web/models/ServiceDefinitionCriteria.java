@@ -37,9 +37,6 @@ public class ServiceDefinitionCriteria {
     @JsonProperty("clientId")
     private String clientId = null;
 
-    @JsonProperty("includeDeleted")
-    private boolean includeDeleted = false;
-
 
     public ServiceDefinitionCriteria addIdsItem(String idsItem) {
         if (this.ids == null) {
