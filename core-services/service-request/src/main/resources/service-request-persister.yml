@@ -3,7 +3,7 @@ serviceMaps:
   mappings:
     - version: 1.0
       description: Persists service definition details in service definition table
-      fromTopic: save-service-definition-health
+      fromTopic: save-service-definition
       isTransaction: true
       queryMaps:
 
@@ -26,7 +26,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.additionalFields
+            - jsonPath: $.ServiceDefinition.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -66,7 +66,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -96,7 +96,7 @@ serviceMaps:
 
             - jsonPath: $.Service.auditDetails.lastModifiedTime
 
-            - jsonPath: $.Service.additionalFields
+            - jsonPath: $.Service.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -126,7 +126,7 @@ serviceMaps:
 
             - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.Service.attributes.*.additionalFields
+            - jsonPath: $.Service.attributes.*.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -146,7 +146,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.isActive
 
-            - jsonPath: $.ServiceDefinition.additionalFields
+            - jsonPath: $.ServiceDefinition.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -185,7 +185,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
               type: JSON
               dbType: JSONB
 
@@ -207,6 +207,6 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
               type: JSON
               dbType: JSONB

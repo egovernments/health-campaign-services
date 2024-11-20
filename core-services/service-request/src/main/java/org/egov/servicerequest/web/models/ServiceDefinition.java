@@ -35,7 +35,7 @@ public class ServiceDefinition {
 
     @JsonProperty("code")
     @NotNull
-    @Size(min = 2, max = 256)
+    @Size(min = 2, max = 64)
     private String code = null;
 
     @JsonProperty("isActive")
