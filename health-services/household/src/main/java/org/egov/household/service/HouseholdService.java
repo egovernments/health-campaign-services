@@ -14,13 +14,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
-import org.egov.household.validators.household.HExistentEntityValidator;
-import org.egov.household.validators.household.HBoundaryValidator;
-import org.egov.household.validators.household.HIsDeletedValidator;
-import org.egov.household.validators.household.HNonExistentEntityValidator;
-import org.egov.household.validators.household.HNullIdValidator;
-import org.egov.household.validators.household.HRowVersionValidator;
-import org.egov.household.validators.household.HUniqueEntityValidator;
+import org.egov.household.validators.household.*;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -62,7 +55,8 @@ public class HouseholdService {
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
             validator.getClass().equals(HBoundaryValidator.class)
-                || validator.getClass().equals(HExistentEntityValidator.class);
+                    || validator.getClass().equals(HExistentEntityValidator.class)
+                    || validator.getClass().equals(HCommunityValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
@@ -70,7 +64,8 @@ public class HouseholdService {
                     || validator.getClass().equals(HIsDeletedValidator.class)
                     || validator.getClass().equals(HUniqueEntityValidator.class)
                     || validator.getClass().equals(HNonExistentEntityValidator.class)
-                    || validator.getClass().equals(HRowVersionValidator.class);
+                    || validator.getClass().equals(HRowVersionValidator.class)
+                    || validator.getClass().equals(HCommunityValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
