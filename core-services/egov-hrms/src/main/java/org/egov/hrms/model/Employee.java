@@ -41,6 +41,7 @@
 package org.egov.hrms.model;
 
 import lombok.*;
+import org.egov.hrms.model.enums.UserServiceType;
 import org.egov.hrms.web.contract.User;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.hibernate.validator.constraints.SafeHtml;
@@ -130,6 +131,6 @@ public class Employee {
     private User user;
 
     @NotNull
-    private String userModule;
+    private UserServiceType userModule;
 
 }

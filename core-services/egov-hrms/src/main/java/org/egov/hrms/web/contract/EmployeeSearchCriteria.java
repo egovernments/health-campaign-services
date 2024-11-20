@@ -3,6 +3,7 @@ package org.egov.hrms.web.contract;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.egov.hrms.model.enums.UserServiceType;
 import org.springframework.util.CollectionUtils;
 
 import lombok.AllArgsConstructor;
@@ -59,7 +60,7 @@ public class EmployeeSearchCriteria {
 
 	private Boolean includeUnassigned = false;
 	@NotNull
-	private String userModule;
+	private UserServiceType userModule;
 	
 	
 	public boolean isCriteriaEmpty(EmployeeSearchCriteria criteria) {

@@ -1,5 +1,6 @@
 package org.egov.hrms.utils;
 
+import org.egov.hrms.model.enums.UserServiceType;
 import org.egov.hrms.service.DefaultUserService;
 import org.egov.hrms.service.IndividualService;
 import org.egov.hrms.service.UserService;
@@ -16,10 +17,10 @@ public class UserServiceFactory {
     @Autowired
     private DefaultUserService defaultUserService;
 
-    public UserService getUserService(String qualifier) {
-        if ("individualService".equalsIgnoreCase(qualifier)) {
+    public UserService getUserService(UserServiceType qualifier) {
+        if ("individualService".equalsIgnoreCase(qualifier.toString())) {
             return individualService;
-        } else if ("defaultUserService".equalsIgnoreCase(qualifier)) {
+        } else if ("defaultUserService".equalsIgnoreCase(qualifier.toString())) {
             return defaultUserService;
         } else {
             return null;
