@@ -7,9 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -45,6 +47,7 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequ
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -68,6 +71,9 @@ public class DownsyncService {
     private HouseholdRepository householdRepository;
 
     private static final Integer SEARCH_MAX_COUNT = 1000;
+
+    @Autowired
+    RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
@@ -96,6 +102,13 @@ public class DownsyncService {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+
+        String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit();
+
+        Object obj = getFromCache(key);
+        if (null != obj) {
+            return (Downsync) obj;
+        }
 
         List<Household> households = null;
         List<String> householdClientRefIds = null;
@@ -150,6 +163,8 @@ public class DownsyncService {
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(taskClientRefIds)) {
             searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
         }
+
+        cacheByKey(downsync, key);
 
         return downsync;
     }
@@ -537,4 +552,26 @@ public class DownsyncService {
         }
         return subLists;
     }
+
+    private void cacheByKey(Downsync downsync, String key) {
+        try {
+            redisTemplate.opsForValue().set(key, downsync);
+            redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
+        }
+    }
+
+    private Object getFromCache(String key) {
+
+        Object res = null;
+
+        try {
+            res = redisTemplate.opsForValue().get(key);
+        } catch (Exception exception) {
+            log.warn("Error while retrieving from cache: {}", ExceptionUtils.getStackTrace(exception));
+        }
+        return res;
+    }
+
 }
