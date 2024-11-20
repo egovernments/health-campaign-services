@@ -50,7 +50,6 @@ public class PlanDTO {
     private String status = null;
 
     @JsonProperty("assignee")
-    @Size(max = 64)
     private String assignee = null;
 
     @JsonProperty("additionalDetails")
