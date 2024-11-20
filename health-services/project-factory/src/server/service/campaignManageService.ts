@@ -9,8 +9,9 @@ import { getProcessDetails, modifyProcessDetails } from "../utils/processTrackUt
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
+    logger.info("VALIDATING:: for project type");
     await validateProjectCampaignRequest(request, "create");
-    logger.info("VALIDATED THE PROJECT TYPE CREATE REQUEST");
+    logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
     // Process the action based on the request type
     await processBasedOnAction(request, "create");
