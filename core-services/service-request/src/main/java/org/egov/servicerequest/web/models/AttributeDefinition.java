@@ -50,6 +50,8 @@ public class AttributeDefinition {
     public enum DataTypeEnum {
         STRING("String"),
 
+        BOOLEAN("Boolean"),
+
         NUMBER("Number"),
 
         TEXT("Text"),
@@ -110,7 +112,7 @@ public class AttributeDefinition {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
 

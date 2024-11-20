@@ -50,7 +50,7 @@ public class ServiceDefinition {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
     @JsonProperty("clientId")
