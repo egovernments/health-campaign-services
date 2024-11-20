@@ -143,10 +143,12 @@ public class IndividualService {
                 // integrate with user service create call
                 validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
                 //encrypt PII data
-                encryptedIndividualList = individualEncryptionService
-                        .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(encryptedIndividualList,
-                        properties.getSaveIndividualTopic());
+                if (!validIndividuals.isEmpty()) {
+                    encryptedIndividualList = individualEncryptionService
+                            .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                    individualRepository.save(encryptedIndividualList,
+                            properties.getSaveIndividualTopic());
+                }
             }
         } catch (CustomException exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
@@ -401,7 +403,7 @@ public class IndividualService {
     private List<Individual> integrateWithUserService(IndividualBulkRequest request,
                                           List<Individual> individualList, ApiOperation apiOperation,
                                           Map<Individual, ErrorDetails> errorDetails) {
-        List<Individual> validIndividuals = individualList;
+        List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
                 try {
@@ -427,11 +429,11 @@ public class IndividualService {
                     }
                 } catch (Exception exception) {
                     log.error("error occurred while creating user", ExceptionUtils.getStackTrace(exception));
-                    Error error = Error.builder().errorMessage("User service exception").errorCode("USER_SERVICE_ERROR")
+                    Error error = Error.builder().errorMessage("User service exception")
+                            .errorCode("USER_SERVICE_ERROR")
                             .type(Error.ErrorType.NON_RECOVERABLE)
                             .exception(new CustomException("USER_SERVICE_ERROR", "User service exception")).build();
                     Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
-                    errorDetailsMap.put(individual, Collections.singletonList(error));
                     populateErrorDetails(individual, error, errorDetailsMap);
                     populateErrorDetails(request, errorDetails, errorDetailsMap, SET_INDIVIDUALS);
                     validIndividuals.remove(individual);
