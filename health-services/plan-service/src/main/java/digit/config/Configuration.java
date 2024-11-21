@@ -25,6 +25,10 @@ public class Configuration {
     @Value("${plan.estimation.approver.roles}")
     public List<String> planEstimationApproverRoles;
 
+    //Final plan config status
+    @Value("${final.status.for.plan.config}")
+    private String finalStatusForPlanConfig;
+
     //MDMS
     @Value("${egov.mdms.host}")
     private String mdmsHost;

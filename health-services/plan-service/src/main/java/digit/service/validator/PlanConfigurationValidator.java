@@ -2,6 +2,7 @@ package digit.service.validator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.jayway.jsonpath.JsonPath;
+import digit.config.Configuration;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.CampaignUtil;
 import digit.util.CommonUtil;
@@ -38,13 +39,16 @@ public class PlanConfigurationValidator {
 
     private CampaignUtil campaignUtil;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil) {
+    private Configuration config;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, MdmsV2Util mdmsV2Util, PlanConfigurationRepository planConfigRepository, CommonUtil commonUtil, MultiStateInstanceUtil centralInstanceUtil, CampaignUtil campaignUtil, Configuration config) {
         this.mdmsUtil = mdmsUtil;
         this.mdmsV2Util = mdmsV2Util;
         this.planConfigRepository = planConfigRepository;
         this.commonUtil = commonUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.campaignUtil = campaignUtil;
+        this.config = config;
     }
 
     /**
@@ -387,7 +391,7 @@ public class PlanConfigurationValidator {
      */
     private void checkForEmptyFiles(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            log.error("Files cannot be empty at action = " + SETUP_COMPLETED_ACTION);
+            log.error("Files cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(FILES_NOT_FOUND_CODE, FILES_NOT_FOUND_MESSAGE);
         }
     }
@@ -399,7 +403,7 @@ public class PlanConfigurationValidator {
      */
     private void checkForEmptyAssumption(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            log.error("Assumptions cannot be empty at action = " + SETUP_COMPLETED_ACTION);
+            log.error("Assumptions cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(ASSUMPTIONS_NOT_FOUND_CODE, ASSUMPTIONS_NOT_FOUND_MESSAGE);
         }
     }
@@ -411,7 +415,7 @@ public class PlanConfigurationValidator {
      */
     private void checkForEmptyOperation(PlanConfiguration planConfiguration) {
         if (CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            log.error("Operations cannot be empty at action = " + SETUP_COMPLETED_ACTION);
+            log.error("Operations cannot be empty at status = " + config.getFinalStatusForPlanConfig());
             throw new CustomException(OPERATIONS_NOT_FOUND_CODE, OPERATIONS_NOT_FOUND_MESSAGE);
         }
     }
@@ -562,5 +566,6 @@ public class PlanConfigurationValidator {
             }
         }
     }
+
 
 }
