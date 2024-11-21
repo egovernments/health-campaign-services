@@ -93,6 +93,9 @@ public class ServiceTaskTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
+        if(serviceAdditionalDetails != null && serviceAdditionalDetails.isObject()) {
+            additionalDetails = (ObjectNode) serviceAdditionalDetails;
+        }
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
