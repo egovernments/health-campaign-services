@@ -31,7 +31,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
         const boundaries = request?.body?.boundariesCombined
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || !isCampaignTypeSame(request)) {
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
                 logger.info("Boundaries or Campaign Type  differ, generating new resources");
                 // Apply 2-second timeout after the condition check
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -69,6 +69,16 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         logger.error(error);
         throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
+}
+
+function isSourceDifferent(request: any){
+    const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const CampaignDetails = request?.body?.CampaignDetails;
+
+    if(CampaignDetails.additionalDetails.source !== ExistingCampaignDetails.additionalDetails.source){
+        return true;
+    }
+    return false;
 }
 
 async function callGenerate(request: any, type: any, enableCaching = false) {

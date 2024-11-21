@@ -786,7 +786,6 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
-              logger.info(`Setting dropdown list for cell at row: ${rowNumber}, column: ${dropdownColumnIndex}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
@@ -1545,5 +1544,6 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
-  createFacilityAndBoundaryFile
+  createFacilityAndBoundaryFile,
+  hideUniqueIdentifierColumn
 };
