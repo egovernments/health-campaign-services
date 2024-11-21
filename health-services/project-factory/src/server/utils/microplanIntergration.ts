@@ -25,10 +25,45 @@ const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
     return acc;
   }, {});
 };
+const getRolesAndCount = (resources = []) => {
+  const USER_ROLE_MAP: any = {};
+  resources?.map((resource: any) => {
+    if (
+      resource?.resourceType?.includes(`PER_BOUNDARY_FOR_THE_CAMPAIGN`) ||
+      (resource?.resourceType?.includes(`PER_BOUNDARY`) &&
+        resource?.resourceType?.includes(`TEAM`))
+    ) {
+      logger.info(
+        `filtered PER_BOUNDARY_FOR_THE_CAMPAIGN:" +${resource?.resourceType} :: ${resource?.estimatedNumber}`
+      );
+
+      if (resource?.resourceType?.includes(`REGISTRATION`)) {
+        USER_ROLE_MAP["Registrar"] = resource?.estimatedNumber;
+      } else if (resource?.resourceType?.includes(`DISTRIBUTION`)) {
+        USER_ROLE_MAP["Distributor"] = resource?.estimatedNumber;
+      } else if (resource?.resourceType?.includes(`SUPERVISORS`)) {
+        USER_ROLE_MAP["Supervisor"] = resource?.estimatedNumber;
+      }
+
+      // Distributor
+      // Supervisor
+      // Monitor Local
+    }
+  });
+
+  return { USER_ROLE_MAP };
+};
 
 const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
   return planFacilityArray?.reduce((acc: any, curr: any) => {
-    acc[curr?.facilityId] = curr;
+    acc[curr?.locality] = {
+      ...curr,
+      ...getRolesAndCount(
+        curr?.resources?.filter(
+          (resource: any) => resource?.estimatedNumber > 0
+        )
+      ),
+    };
     return acc;
   }, {});
 };
@@ -308,7 +343,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   console.log(planResponse, "planResponse");
   const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
   logger.debug(
-    `created facilityBoundaryMap :${getFormattedStringForDebug(
+    `created userBoundaryMap :${getFormattedStringForDebug(
       boundaryWithRoleMap
     )}`
   );

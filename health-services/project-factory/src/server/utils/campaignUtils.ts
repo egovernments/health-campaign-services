@@ -2394,6 +2394,8 @@ async function createUniqueUserNameViaIdGen(request: any) {
 
 
 async function processFetchMicroPlan(request: any) {
+    logger.info("waiting for 1 seconds for templates to get generated");
+    await new Promise(resolve => setTimeout(resolve, 1000));
     logger.info("Started processing fetch microplan");
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
@@ -2516,7 +2518,6 @@ async function updateCampaign(request: any) {
     logger.debug(`updated object ${getFormattedStringForDebug(request.body.CampaignDetails)}`)
     await updateProjectTypeCampaignService(request);
     logger.info("Updated the received campaign object")
-    await new Promise(resolve => setTimeout(resolve, 20000));
 
 }
 // async function updateCampaignDetails(request: any, resourceDetailsIdForFacility: any) {
