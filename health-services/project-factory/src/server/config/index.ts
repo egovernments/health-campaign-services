@@ -120,7 +120,7 @@ const config = {
     localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
-  },
+    censusServiceHost: process.env.EGOV_CENSUS_HOST ||"https://unified-dev.digit.org/",  },
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
@@ -155,8 +155,9 @@ const config = {
     projectFacilityDelete: process.env.EGOV_HEALTH_PROJECT_FACILITY_BULK_DELETE || "health-project/facility/v1/bulk/_delete",
     projectStaffDelete: process.env.EGOV_HEALTH_PROJECT_STAFF_BULK_DELETE || "health-project/staff/v1/bulk/_delete",
     planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
-    planFacilityConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
-  },
+    planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
+    planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
+    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"  },
   // Values configuration
   values: {
     //module name
