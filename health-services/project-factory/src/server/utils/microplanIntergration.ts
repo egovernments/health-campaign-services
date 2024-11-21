@@ -2,7 +2,6 @@ import {
   callMdmsTypeSchema,
   createAndUploadFile,
   getSheetData,
-  getTargetSheetData,
 } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
