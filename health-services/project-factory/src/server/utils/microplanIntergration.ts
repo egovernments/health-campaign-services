@@ -1,7 +1,7 @@
 import {
 
   createAndUploadFile,
-  
+
 } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
@@ -24,23 +24,23 @@ import { throwError } from "./genericUtils";
  * @param data Array of data rows to add.
  */
 export async function addDataToWorksheet(worksheet: any, data: string[][]) {
-    data.forEach((row) => {
-      worksheet.addRow(row);
-    });
-  
-    // Optionally, you can apply styles or adjust column widths
-    worksheet.columns.forEach((column:any) => {
-      column.width = 20; // Adjust column width to fit content
-    });
+  data.forEach((row) => {
+    worksheet.addRow(row);
+  });
 
-  }
+  // Optionally, you can apply styles or adjust column widths
+  worksheet.columns.forEach((column: any) => {
+    column.width = 20; // Adjust column width to fit content
+  });
+
+}
 
 /**
  * Updates existing rows in a worksheet with the given data, starting from row 2.
  * @param worksheet The worksheet to update.
  * @param data Array of data rows to insert.
  */
- function updateWorksheetRows(worksheet: any, data: string[][]) {
+function updateWorksheetRows(worksheet: any, data: string[][]) {
   data.forEach((rowData, index) => {
     const rowNumber = 2 + index; // Start updating from row 2
     const row = worksheet.getRow(rowNumber);
@@ -95,7 +95,7 @@ const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
 
   return planFacilityArray?.reduce((acc: any, curr: any) => {
     acc[curr?.locality] = {
-    //   ...curr,
+      //   ...curr,
       ...getRolesAndCount(
         curr?.resources?.filter(
           (resource: any) => resource?.estimatedNumber > 0
@@ -107,53 +107,53 @@ const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
 };
 
 function consolidateUserRoles(
-    userBoundaryMap: any,
-    boundaryiwthchildrednMap: any,
-  ) {
-    const result: any = {};
-  
-    // Iterate through all parent boundaries
-    for (const parentBoundary in boundaryiwthchildrednMap) {
-      const children = boundaryiwthchildrednMap[parentBoundary];
-      const consolidatedRoles: any = {};
-  
-      // Process each child boundary
-      children.forEach((child: any) => {
-        const childCode = child.code;
-        const userRoles = userBoundaryMap[childCode]?.USER_ROLE_MAP || {};
-  
-        // Aggregate roles for the parent boundary
-        for (const role in userRoles) {
-          if (!consolidatedRoles[role]) {
-            consolidatedRoles[role] = 0;
-          }
-          consolidatedRoles[role] += userRoles[role];
+  userBoundaryMap: any,
+  boundaryiwthchildrednMap: any,
+) {
+  const result: any = {};
+
+  // Iterate through all parent boundaries
+  for (const parentBoundary in boundaryiwthchildrednMap) {
+    const children = boundaryiwthchildrednMap[parentBoundary];
+    const consolidatedRoles: any = {};
+
+    // Process each child boundary
+    children.forEach((child: any) => {
+      const childCode = child.code;
+      const userRoles = userBoundaryMap[childCode]?.USER_ROLE_MAP || {};
+
+      // Aggregate roles for the parent boundary
+      for (const role in userRoles) {
+        if (!consolidatedRoles[role]) {
+          consolidatedRoles[role] = 0;
         }
-      });
-  
-      // Attach consolidated roles to the parent boundary
-      result[parentBoundary] = {
-        parentBoundary,
-        children,
-        consolidatedRoles,
-      };
-    }
-  
-    return result;
+        consolidatedRoles[role] += userRoles[role];
+      }
+    });
+
+    // Attach consolidated roles to the parent boundary
+    result[parentBoundary] = {
+      parentBoundary,
+      children,
+      consolidatedRoles,
+    };
   }
-  
+
+  return result;
+}
+
 //   // Example Usage
 //   const consolidatedData = consolidateUserRoles(userBoundaryMap, boundaryiwthchildrednMap);
 //   console.log(JSON.stringify(consolidatedData, null, 2));
-  
-  
+
+
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
-    return censusArray?.reduce((acc: any, curr: any) => {
-      acc[curr?.boundaryCode] = curr;
-      return acc;
-    }, {});
-  };
-  
+  return censusArray?.reduce((acc: any, curr: any) => {
+    acc[curr?.boundaryCode] = curr;
+    return acc;
+  }, {});
+};
+
 export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -202,7 +202,7 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     updatedWorksheet && (await createAndUploadFile(workbook, request));
   logger.info("facility File updated successfully:" + JSON.stringify(responseData));
   if (responseData?.[0]?.fileStoreId) {
-      logger.info("facility File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
+    logger.info("facility File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
 
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
@@ -211,7 +211,7 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const polledResponseOfDataCreate = await validateSheet(request, tenantId, "facility",
     responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
   if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
-    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id,"facility");
+    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id, "facility");
     logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
   }
   logger.info(`updated the resources of facility`);
@@ -227,13 +227,13 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   );
   console.log(planCensusResponse, "planCensusResponse");
   const targetBoundaryMap =
-  getPlanCensusMapByBoundaryCode(planCensusResponse);
+    getPlanCensusMapByBoundaryCode(planCensusResponse);
   logger.debug(
     `created targetBoundaryMap :${getFormattedStringForDebug(
-        targetBoundaryMap
+      targetBoundaryMap
     )}`
   );
-  
+
 
   const generatedTargetTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
@@ -243,7 +243,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   );
   logger.debug(
     `downloadresponse target ${getFormattedStringForDebug(
-        generatedTargetTemplateFileStoreId
+      generatedTargetTemplateFileStoreId
     )}`
   );
   const fileUrl = await fetchFileFromFilestore(
@@ -255,16 +255,16 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   );
 
 
-  
+
 
   const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
-      
-    if(worksheet.name!="Read Me" && worksheet.name!="Boundary Data"){ // harcoded to be changed
-    // Iterate over rows (skip the header row)
-     await findAndChangeTargetData(
+
+    if (worksheet.name != "Read Me" && worksheet.name != "Boundary Data") { // harcoded to be changed
+      // Iterate over rows (skip the header row)
+      await findAndChangeTargetData(
         worksheet,
         targetBoundaryMap
       );
@@ -284,10 +284,10 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   const polledResponseOfDataCreate = await validateSheet(request, tenantId, "boundaryWithTarget",
     responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
 
-    if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
-      await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id,"boundaryWithTarget");
-      logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
-    }
+  if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
+    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id, "boundaryWithTarget");
+    logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
+  }
   logger.info(`updated the resources of target`);
 };
 
@@ -296,17 +296,17 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
     `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length
     }`
   );
-console.log(mappingData,'mappingData user')
+  console.log(mappingData, 'mappingData user')
   // column no is // harcoded to be changed
   const mappedData: any = {};
-  
-  const dataRows:any=[];
-  Object.keys(mappingData).map(key=>{
-    const roles=Object.keys(mappingData[key].consolidatedRoles);
-    roles.map(role=>{
-        for(let i=0;i<mappingData[key].consolidatedRoles?.[role];i++){
-            dataRows.push(["","",role,"Permanent",key,"Active"])
-        }
+
+  const dataRows: any = [];
+  Object.keys(mappingData).map(key => {
+    const roles = Object.keys(mappingData[key].consolidatedRoles);
+    roles.map(role => {
+      for (let i = 0; i < mappingData[key].consolidatedRoles?.[role]; i++) {
+        dataRows.push(["", "", role, "Permanent", key, "Active"])
+      }
     })
   })
   logger.debug(`${getFormattedStringForDebug(dataRows)},"dataRows to be pushed`);
@@ -419,11 +419,11 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planResponse, "planResponse");
-  const boundariesOfCampaign= await getBoundaryInformation(request.body.CampaignDetails,request.body.CampaignDetails?.hierarchyType,tenantId);
-  const filteredBoundariesAtWhichUserGetsCreated=getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
+  const boundariesOfCampaign = await getBoundaryInformation(request.body.CampaignDetails, request.body.CampaignDetails?.hierarchyType, tenantId);
+  const filteredBoundariesAtWhichUserGetsCreated = getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
   logger.debug(`boundariesOfCampaign : ${getFormattedStringForDebug(boundariesOfCampaign)}`)
 
-  const filteredBoundaryCodeMapWithChildrens=enrichBoundariesWithTheSelectedChildrens(boundariesOfCampaign,filteredBoundariesAtWhichUserGetsCreated);
+  const filteredBoundaryCodeMapWithChildrens = enrichBoundariesWithTheSelectedChildrens(boundariesOfCampaign, filteredBoundariesAtWhichUserGetsCreated);
   logger.debug(`filteredBoundaryCodeMapWithChildrens : ${getFormattedStringForDebug(filteredBoundaryCodeMapWithChildrens)}`)
 
   const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
@@ -433,11 +433,11 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     )}`
   );
 
- const consolidatedUserRolesPerBoundary =consolidateUserRoles(boundaryWithRoleMap,filteredBoundaryCodeMapWithChildrens);
+  const consolidatedUserRolesPerBoundary = consolidateUserRoles(boundaryWithRoleMap, filteredBoundaryCodeMapWithChildrens);
 
- logger.debug(
+  logger.debug(
     `created final consolidatedUserRolesPerBoundary :${getFormattedStringForDebug(
-        consolidatedUserRolesPerBoundary
+      consolidatedUserRolesPerBoundary
     )}`
   );
   const generatedUserTemplateFileStoreId = await getTheGeneratedResource(
@@ -481,6 +481,9 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
+
+  await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, "c8f3f544-df19-433c-af73-fe3269a170cd", "user");
+
   logger.info(`updated the resources of user`);
 };
 
@@ -557,35 +560,35 @@ export async function validateSheet(request: any, tenantId: any, type: any, file
 // sample oundary 
 //{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
 
-const getFilteredBoundariesAtWhichUserGetsCreated =(boundaries=[])=>{
-    //add config at which level grouping will happen. hardcoded to loclaity
-    const filteredBoundariesAtWhichUserGetsCreated=boundaries?.filter((boundary:any)=>boundary?.type=="LOCALITY");
-    logger.info(`filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`);
-    logger.debug(`filteredBoundariesAtWhichUserGetsCreated are ${getFormattedStringForDebug(filteredBoundariesAtWhichUserGetsCreated)}`);
- return filteredBoundariesAtWhichUserGetsCreated;
+const getFilteredBoundariesAtWhichUserGetsCreated = (boundaries = []) => {
+  //add config at which level grouping will happen. hardcoded to loclaity
+  const filteredBoundariesAtWhichUserGetsCreated = boundaries?.filter((boundary: any) => boundary?.type == "LOCALITY");
+  logger.info(`filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`);
+  logger.debug(`filteredBoundariesAtWhichUserGetsCreated are ${getFormattedStringForDebug(filteredBoundariesAtWhichUserGetsCreated)}`);
+  return filteredBoundariesAtWhichUserGetsCreated;
 }
 
-const getBoundaryInformation =async (CampaignDetails:any,boundaryHierarchy:string,tenantId:string)=>{
-   
-    const boundaries=CampaignDetails?.boundaries;
-    if(boundaries?.some((boundary:any)=>boundary?.includeAllChildren)){
-        const boundaryResponse=await searchBoundaryRelationshipData(tenantId,boundaryHierarchy,true);
-        logger.info("got the boundary hierarchy response");
-        if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
-        logger.info("got the boundary hierarchy response");
+const getBoundaryInformation = async (CampaignDetails: any, boundaryHierarchy: string, tenantId: string) => {
+
+  const boundaries = CampaignDetails?.boundaries;
+  if (boundaries?.some((boundary: any) => boundary?.includeAllChildren)) {
+    const boundaryResponse = await searchBoundaryRelationshipData(tenantId, boundaryHierarchy, true);
+    logger.info("got the boundary hierarchy response");
+    if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
+      logger.info("got the boundary hierarchy response");
     }
 
-return boundaries;
+    return boundaries;
 
 
+  }
 }
-}
 
 
-const enrichBoundariesWithTheSelectedChildrens=(allSelectedBoundaries=[],filteredBoundaries=[])=>{
-const enrichedMap:any={};
-filteredBoundaries?.map((boundary:any)=>{
-    enrichedMap[boundary?.code]=allSelectedBoundaries?.filter((bound:any)=>bound.parent==boundary?.code)
-})
-return enrichedMap;
+const enrichBoundariesWithTheSelectedChildrens = (allSelectedBoundaries = [], filteredBoundaries = []) => {
+  const enrichedMap: any = {};
+  filteredBoundaries?.map((boundary: any) => {
+    enrichedMap[boundary?.code] = allSelectedBoundaries?.filter((bound: any) => bound.parent == boundary?.code)
+  })
+  return enrichedMap;
 }
