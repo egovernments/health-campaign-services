@@ -1,7 +1,8 @@
 import { defaultRequestInfo } from "../api/coreApis"; // Import default request metadata
 import config from "../config"; // Import configuration settings
 import { getFormattedStringForDebug, logger } from "./logger"; // Import logger for logging information and errors
-import { downloadDataService } from "../service/dataManageService";
+import { createDataService, downloadDataService, searchDataService } from "../service/dataManageService";
+import { throwError } from "./genericUtils";
 
 /**
  * Downloads a campaign template based on campaign ID, tenant ID, type, and hierarchy.
@@ -31,14 +32,14 @@ export const downloadTemplate = async (
   logger.info(
     `Received a request to download the template for campaign ID: ${campaignId} & type: ${type} ,${config.host.projectFactoryBff}`
   );
-  const request:any={
-    body:{...searchBody},
-    query:{...params}
+  const request: any = {
+    body: { ...searchBody },
+    query: { ...params }
   }
 
-  const downloadResponse:any = await   downloadDataService(request);
+  const downloadResponse: any = await downloadDataService(request);
 
-logger.debug(`Received response : ${getFormattedStringForDebug(downloadResponse)}`);
+  logger.debug(`Received response : ${getFormattedStringForDebug(downloadResponse)}`);
   return downloadResponse; // Return the API response containing template details
 };
 
@@ -54,21 +55,21 @@ const pollForTemplateGeneration = async (
   functionToBePolledFor: Function,
   conditionForTermination: Function,
   pollInterval: number = 1000,
-  maxRetries: number = 5
+  maxRetries: number = 10
 ) => {
   let retries = 0; // Initialize the retry counter
   logger.info("received a request for Polling ");
- if(!functionToBePolledFor||!conditionForTermination){
+  if (!functionToBePolledFor || !conditionForTermination) {
     return null;
- }
- logger.info("request was valid so Polling ");
+  }
+  logger.info("request was valid so Polling ");
 
   return new Promise((resolve, reject) => {
     const poll = async () => {
       try {
         if (retries >= maxRetries) {
           // Reject if maximum retries are reached
-          reject(new Error("Max template generation retries reached"));
+          reject(new Error("Max  retries reached"));
           return;
         }
 
@@ -107,19 +108,70 @@ const pollForTemplateGeneration = async (
 };
 
 
-const conditionForTermination =(downloadResponse:any)=>{
-    logger.info(`current status ${downloadResponse?.[0]?.status}`)
-    return downloadResponse?.[0]?.status === "completed"&& downloadResponse?.[0]?.fileStoreid;
+
+const conditionForTermination = (downloadResponse: any) => {
+  logger.info(`current status ${downloadResponse?.[0]?.status}`)
+  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.fileStoreid;
+}
+
+const conditionForTermination2 = (downloadResponse: any) => {
+  logger.info(`current status ${downloadResponse?.[0]?.status}`)
+  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFilestoreId;
+}
+
+export const createAndPollForCompletion = async (request: any) => {
+  try {
+    // Step 1: Create data
+    logger.info("Creating data...");
+    const resourceDetails = await createDataService(request);
+    const resourceId = resourceDetails?.id;
+
+    if (!resourceId) {
+      throwError("DATA", 500, "DATA_CREATE_ERROR", `Failed to retrieve resource ID from creation response for type ${request?.body?.ResourceDetails?.type}`);
+    }
+
+    logger.info(`Created resource with ID: ${resourceId} of type ${request?.body?.ResourceDetails?.type}`);
+
+    // Step 2: Poll for completion
+    const polledResponse = await pollForTemplateGeneration(
+      () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type),
+      conditionForTermination2
+    );
+
+    logger.info("Polling completed successfully", polledResponse);
+    return polledResponse;
+  } catch (error: any) {
+    logger.error("Error during creation or polling", error);
+    throw error;
+  }
+};
+
+
+
+async function searchData(resourceId: any, tenantId: any, type: any) {
+  const SearchCriteria = {
+    id: [resourceId],
+    tenantId: tenantId,
+    type: type
+  };
+  const searchBody = { ...defaultRequestInfo, SearchCriteria }
+  const request: any = {
+    body: { ...searchBody }
+  }
+
+  const searchResponse: any = await searchDataService(request);
+  return searchResponse;
 }
 
 
-export const getTheGeneratedResource=async(campaignId: string,
-    tenantId: string,
-    type: string,
-    hierarchy: string)=>{
-   const polledResponse:any=await pollForTemplateGeneration(()=>downloadTemplate(campaignId,tenantId,type,hierarchy),conditionForTermination);
-   logger.debug(polledResponse);
-   logger.debug(`polledResponse  : ${getFormattedStringForDebug(polledResponse)}`);
 
-   return polledResponse?.[0]?.fileStoreid;
+export const getTheGeneratedResource = async (campaignId: string,
+  tenantId: string,
+  type: string,
+  hierarchy: string) => {
+  const polledResponse: any = await pollForTemplateGeneration(() => downloadTemplate(campaignId, tenantId, type, hierarchy), conditionForTermination);
+  logger.debug(polledResponse);
+  logger.debug(`polledResponse  : ${getFormattedStringForDebug(polledResponse)}`);
+
+  return polledResponse?.[0]?.fileStoreid;
 }

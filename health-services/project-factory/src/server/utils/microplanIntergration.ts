@@ -5,14 +5,13 @@ import {
 } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
-import { createDataService } from "../service/dataManageService";
 import { updateProjectTypeCampaignService } from "../service/campaignManageService";
 import {
   searchPlan,
   searchPlanCensus,
   searchPlanFacility,
 } from "../api/microplanApis";
-import { getTheGeneratedResource } from "./pollUtils";
+import { createAndPollForCompletion, getTheGeneratedResource } from "./pollUtils";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { fetchFileFromFilestore, searchBoundaryRelationshipData } from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
@@ -209,9 +208,12 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
 
-  // const resourceDetails = await validateFacilitySheet(request);
-  // logger.info(`updated the resources of facility resource id ${resourceDetails?.id}`);
-  // await updateCampaignDetails(request, resourceDetails?.id);
+  const polledResponseOfDataCreate = await validateSheet(request, tenantId, "facility",
+    responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
+  if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
+    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id,"facility");
+    logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
+  }
   logger.info(`updated the resources of facility`);
 };
 
@@ -272,23 +274,26 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
 
   const responseData = (await createAndUploadFile(workbook, request));
 
-logger.info("Target File updated successfully:" + JSON.stringify(responseData));
-if (responseData?.[0]?.fileStoreId) {
+  logger.info("Target File updated successfully:" + JSON.stringify(responseData));
+  if (responseData?.[0]?.fileStoreId) {
     logger.info("Target File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
 
-} else {
-  throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
-}
-  // const resourceDetails = await validateFacilitySheet(request);
-  // logger.info(`updated the resources of facility resource id ${resourceDetails?.id}`);
-  // await updateCampaignDetails(request, resourceDetails?.id);
+  } else {
+    throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
+  }
+  const polledResponseOfDataCreate = await validateSheet(request, tenantId, "boundaryWithTarget",
+    responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
+
+    if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
+      await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id,"boundaryWithTarget");
+      logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
+    }
   logger.info(`updated the resources of target`);
 };
 
 function findAndChangeUserData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for facility mapping, enitity count : ${
-      Object.keys(mappingData)?.length
+    `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length
     }`
   );
 console.log(mappingData,'mappingData user')
@@ -311,13 +316,11 @@ console.log(mappingData,'mappingData user')
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
   logger.info(
-    `mapping completed for facility enitity count : ${
-      Object.keys(mappedData)?.length
+    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length
     }`
   );
   logger.info(
-    `mapping not found for facility entity count : ${
-      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for facility entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
@@ -353,49 +356,47 @@ function findAndChangeFacilityData(worksheet: any, mappingData: any) {
     `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length}`
   );
   logger.info(
-    `mapping not found for facility entity count : ${
-      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for facility entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
 }
 function findAndChangeTargetData(worksheet: any, mappingData: any) {
-    logger.info(
-      `Received for Target mapping, enitity count : ${Object.keys(mappingData)?.length}`
-    );
-    const mappedData: any = {};
-    // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
-    worksheet.eachRow((row: any, rowIndex: number) => {
-      if (rowIndex === 1) return; // Skip the header row      
-      const column1Value = row.getCell(5).value; // Get the value from column 1
-      if (mappingData?.[column1Value]) {
-        // Update columns 5 and 6 if column 1 value matches
-        row.getCell(6).value =
-          mappingData?.[column1Value]?.["additionalDetails"]?.["CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"]; // Set "BoundaryCode" in column 5
-        // row.getCell(7).value = "Active"; // Set "Status" in column 6
-        mappedData[column1Value] = rowIndex;
-      } else {
-        logger.info(
-            `not doing anything if taregt cel not found`
-          );
-        // Default values for other rows
-        // row.getCell(6).value = "";
-        // row.getCell(7).value = "Inactive";
-      }
-    });
-    logger.info(
-      `Updated the boundary & active/inactive status information in Target received from the microplan`
-    );
-    logger.info(
-      `mapping completed for Target enitity count : ${Object.keys(mappedData)?.length}`
-    );
-    logger.info(
-      `mapping not found for Target entity count : ${
-        Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
-      }`
-    );
-    return worksheet;
-  }
+  logger.info(
+    `Received for Target mapping, enitity count : ${Object.keys(mappingData)?.length}`
+  );
+  const mappedData: any = {};
+  // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
+  worksheet.eachRow((row: any, rowIndex: number) => {
+    if (rowIndex === 1) return; // Skip the header row      
+    const column1Value = row.getCell(5).value; // Get the value from column 1
+    if (mappingData?.[column1Value]) {
+      // Update columns 5 and 6 if column 1 value matches
+      row.getCell(6).value =
+        mappingData?.[column1Value]?.["additionalDetails"]?.["CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"]; // Set "BoundaryCode" in column 5
+      // row.getCell(7).value = "Active"; // Set "Status" in column 6
+      mappedData[column1Value] = rowIndex;
+    } else {
+      logger.info(
+        `not doing anything if taregt cel not found`
+      );
+      // Default values for other rows
+      // row.getCell(6).value = "";
+      // row.getCell(7).value = "Inactive";
+    }
+  });
+  logger.info(
+    `Updated the boundary & active/inactive status information in Target received from the microplan`
+  );
+  logger.info(
+    `mapping completed for Target enitity count : ${Object.keys(mappedData)?.length}`
+  );
+  logger.info(
+    `mapping not found for Target entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    }`
+  );
+  return worksheet;
+}
 
 const getBoundariesFromCampaign = (CampaignDetails: any = {}) => {
   logger.info("fetching all boundaries in that CampaignDetails");
@@ -475,7 +476,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   if (responseData?.[0]?.fileStoreId) {
     logger.info(
       "user File updated successfully:" +
-        JSON.stringify(responseData?.[0]?.fileStoreId)
+      JSON.stringify(responseData?.[0]?.fileStoreId)
     );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
@@ -485,92 +486,73 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
 
 export async function updateCampaignDetails(
   request: any,
-  resourceDetailsIdForFacility: any
+  resources: any,
+  fileStoreId: any,
+  resourceDetailsId: any,
+  type: string
 ) {
-  const { resources } = request.body.CampaignDetails || {};
-  const { fileDetails } = request.body;
+  // Validate input structure
+  if (Array.isArray(resources) && fileStoreId) {
+    let resourceFound = false; // Flag to track if resource is updated
 
-  if (
-    Array.isArray(resources) &&
-    Array.isArray(fileDetails) &&
-    fileDetails[0]?.fileStoreId
-  ) {
-    let facilityFound = false;
-    /* The above TypeScript code initializes a variable `targetFound` with a value of `false`. */
-    // let targetFound = false;
-
+    // Loop through resources to update or append as needed
     resources.forEach((resource: any) => {
-      if (resource.type === "facility") {
-        resource.filestoreId = fileDetails[0].fileStoreId;
-        resource.resourceId = resourceDetailsIdForFacility;
-        console.log(
-          `Updated facility resource with filestoreId: ${resource.filestoreId}`
-        );
-        facilityFound = true;
+      if (resource.type === type) {
+        resource.filestoreId = fileStoreId;
+        resource.resourceId = resourceDetailsId;
+        console.log(`Updated resource of type ${type} with filestoreId: ${resource.filestoreId}`);
+        resourceFound = true;
       }
-
-      // if(resource.type === 'boundaryWithTarget'){
-      //     resource.filestoreId = request.body.targetFileId;
-      //     resource.resourceId = resourseDetailsForTarget;
-      //     console.log(`Updated facility resource with filestoreId: ${resource.filestoreId}`);
-      //     targetFound = true;
-      // }
     });
 
-    if (!facilityFound) {
-      // Append a new object if no 'facility' resource was found
+    // If no resource of the given type was found, append a new one
+    if (!resourceFound) {
       resources.push({
-        type: "facility",
-        filename: "Facility Template (29).xlsx",
-        filestoreId: fileDetails[0].fileStoreId,
-        resourceId: resourceDetailsIdForFacility,
+        type: type,
+        filename: `${type} Template (29).xlsx`, // Dynamically naming based on type
+        filestoreId: fileStoreId,
+        resourceId: resourceDetailsId,
       });
-      console.log("Appended new facility resource");
+      console.log(`Appended new resource of type ${type}`);
     }
-    // if(!targetFound){
-    //     resources.push({
-    //         type: 'boundaryWithTarget',
-    //         filename: 'Boundary Template (29).xlsx',
-    //         filestoreId: request.body.targetFileId,
-    //         resourceId: resourseDetailsForTarget
-    //     })
-    // }
   } else {
     console.error(
       "Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays."
     );
   }
-  // Get the current date
-  const currentDate = new Date();
 
-  // Set to the next day
-  const nextDay = new Date(currentDate);
-  nextDay.setDate(currentDate.getDate() + 1);
-
-  const newEndDate = new Date(currentDate);
-  newEndDate.setDate(currentDate.getDate() + 3);
-
-  // Convert to epoch time in milliseconds
-  const nextDayEpoch = nextDay.getTime();
-  const newEndDateEpoch = newEndDate.getTime();
-  request.body.CampaignDetails.startDate = nextDayEpoch;
-  request.body.CampaignDetails.endDate = newEndDateEpoch;
+  // Call external service after updating the campaign details
   await updateProjectTypeCampaignService(request);
 }
 
-export async function validateFacilitySheet(request: any) {
-  const { tenantId } = request.body.MicroplanDetails;
-  request.body.ResourceDetails = {
-    tenantId: tenantId,
-    type: "facility",
-    fileStoreId: request.body.fileDetails[0].fileStoreId,
-    action: "validate",
-    campaignId: request.body.MicroplanDetails.campaignId,
-    hierarchyType: request.body.CampaignDetails.hierarchyType,
-    additionalDetails: {},
+export async function validateSheet(request: any, tenantId: any, type: any, fileStoreId: any, campaignId: any, hierarchyType: any) {
+  let dataCreateBody = {
+    ResourceDetails: {
+      tenantId: tenantId,
+      type: type,
+      fileStoreId: fileStoreId,
+      action: "validate",
+      campaignId: campaignId,
+      hierarchyType: hierarchyType,
+      additionalDetails: {},
+    }
   };
-  const resourceDetails = await createDataService(request);
-  return resourceDetails;
+
+
+  // Now merging defaultRequestInfo *with* dataCreateBody, so both are preserved
+  const newRequest: any = {
+    body: { ...request.body, ...dataCreateBody } // Spread both objects to keep both their properties
+  };
+
+
+  try {
+    const resourceDetails = await createAndPollForCompletion(newRequest);
+    logger.info("Final result:", resourceDetails);
+    return resourceDetails || null;
+  } catch (error) {
+    logger.error(`Error during resource creation and polling:for type ${type}`, error);
+    return null;
+  }
 }
 // sample oundary 
 //{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}

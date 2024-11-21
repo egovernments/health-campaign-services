@@ -67,6 +67,9 @@ export const CONSTANTS: any = {
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config",
             MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
+        },
+        DATA:{
+            DATA_CREATE_ERROR : "Error while creating resource data"
         }
     }
 }
