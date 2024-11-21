@@ -512,7 +512,7 @@ export async function updateCampaignDetails(
     if (!resourceFound) {
       resources.push({
         type: type,
-        filename: `${type} Template (29).xlsx`, // Dynamically naming based on type
+        filename: `filled-${type}-data-from-microplan.xlsx`, // Dynamically naming based on type
         filestoreId: fileStoreId,
         resourceId: resourceDetailsId,
       });
