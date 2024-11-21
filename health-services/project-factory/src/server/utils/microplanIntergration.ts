@@ -14,10 +14,46 @@ import {
 } from "../api/microplanApis";
 import { getTheGeneratedResource } from "./pollUtils";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
-import { fetchFileFromFilestore } from "../api/coreApis";
+import { fetchFileFromFilestore, searchBoundaryRelationshipData } from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
+
+/**
+ * Adds data rows to the provided worksheet.
+ * @param worksheet The worksheet to which the data should be added.
+ * @param data Array of data rows to add.
+ */
+export async function addDataToWorksheet(worksheet: any, data: string[][]) {
+    data.forEach((row) => {
+      worksheet.addRow(row);
+    });
+  
+    // Optionally, you can apply styles or adjust column widths
+    worksheet.columns.forEach((column:any) => {
+      column.width = 20; // Adjust column width to fit content
+    });
+
+  }
+
+/**
+ * Updates existing rows in a worksheet with the given data, starting from row 2.
+ * @param worksheet The worksheet to update.
+ * @param data Array of data rows to insert.
+ */
+ function updateWorksheetRows(worksheet: any, data: string[][]) {
+  data.forEach((rowData, index) => {
+    const rowNumber = 2 + index; // Start updating from row 2
+    const row = worksheet.getRow(rowNumber);
+
+    // Set values for each column in the row
+    rowData.forEach((cellValue, colIndex) => {
+      row.getCell(colIndex + 1).value = cellValue; // Column index starts at 1
+    });
+
+    row.commit(); // Commit changes to the row
+  });
+}
 
 const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
   return planFacilityArray?.reduce((acc: any, curr: any) => {
@@ -50,14 +86,17 @@ const getRolesAndCount = (resources = []) => {
       // Monitor Local
     }
   });
+  logger.info("complted user role & boundary map");
+  logger.info(`map USER_ROLE_MAP ${getFormattedStringForDebug(USER_ROLE_MAP)}`);
 
   return { USER_ROLE_MAP };
 };
 
 const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
+
   return planFacilityArray?.reduce((acc: any, curr: any) => {
     acc[curr?.locality] = {
-      ...curr,
+    //   ...curr,
       ...getRolesAndCount(
         curr?.resources?.filter(
           (resource: any) => resource?.estimatedNumber > 0
@@ -67,6 +106,47 @@ const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
     return acc;
   }, {});
 };
+
+function consolidateUserRoles(
+    userBoundaryMap: any,
+    boundaryiwthchildrednMap: any,
+  ) {
+    const result: any = {};
+  
+    // Iterate through all parent boundaries
+    for (const parentBoundary in boundaryiwthchildrednMap) {
+      const children = boundaryiwthchildrednMap[parentBoundary];
+      const consolidatedRoles: any = {};
+  
+      // Process each child boundary
+      children.forEach((child: any) => {
+        const childCode = child.code;
+        const userRoles = userBoundaryMap[childCode]?.USER_ROLE_MAP || {};
+  
+        // Aggregate roles for the parent boundary
+        for (const role in userRoles) {
+          if (!consolidatedRoles[role]) {
+            consolidatedRoles[role] = 0;
+          }
+          consolidatedRoles[role] += userRoles[role];
+        }
+      });
+  
+      // Attach consolidated roles to the parent boundary
+      result[parentBoundary] = {
+        parentBoundary,
+        children,
+        consolidatedRoles,
+      };
+    }
+  
+    return result;
+  }
+  
+//   // Example Usage
+//   const consolidatedData = consolidateUserRoles(userBoundaryMap, boundaryiwthchildrednMap);
+//   console.log(JSON.stringify(consolidatedData, null, 2));
+  
   
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
     return censusArray?.reduce((acc: any, curr: any) => {
@@ -211,25 +291,22 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
       Object.keys(mappingData)?.length
     }`
   );
-
+console.log(mappingData,'mappingData user')
   // column no is // harcoded to be changed
   const mappedData: any = {};
-  // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
-  worksheet.eachRow((row: any, rowIndex: number) => {
-    if (rowIndex === 1) return; // Skip the header row
-    const column1Value = row.getCell(1).value; // Get the value from column 1
-    if (mappingData?.[column1Value]) {
-      // Update columns 5 and 6 if column 1 value matches
-      row.getCell(6).value =
-        mappingData?.[column1Value]?.["serviceBoundaries"]?.join(","); // Set "BoundaryCode" in column 5
-      row.getCell(7).value = "Active"; // Set "Status" in column 6
-      mappedData[column1Value] = rowIndex;
-    } else {
-      // Default values for other rows
-      row.getCell(6).value = "";
-      row.getCell(7).value = "Inactive";
-    }
-  });
+  
+  const dataRows:any=[];
+  Object.keys(mappingData).map(key=>{
+    const roles=Object.keys(mappingData[key].consolidatedRoles);
+    roles.map(role=>{
+        for(let i=0;i<mappingData[key].consolidatedRoles?.[role];i++){
+            dataRows.push(["","",role,"Permanent",key,"Active"])
+        }
+    })
+  })
+  logger.debug(`${getFormattedStringForDebug(dataRows)},"dataRows to be pushed`);
+  updateWorksheetRows(worksheet, dataRows);
+
   logger.info(
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
@@ -341,6 +418,13 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planResponse, "planResponse");
+  const boundariesOfCampaign= await getBoundaryInformation(request.body.CampaignDetails,request.body.CampaignDetails?.hierarchyType,tenantId);
+  const filteredBoundariesAtWhichUserGetsCreated=getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
+  logger.debug(`boundariesOfCampaign : ${getFormattedStringForDebug(boundariesOfCampaign)}`)
+
+  const filteredBoundaryCodeMapWithChildrens=enrichBoundariesWithTheSelectedChildrens(boundariesOfCampaign,filteredBoundariesAtWhichUserGetsCreated);
+  logger.debug(`filteredBoundaryCodeMapWithChildrens : ${getFormattedStringForDebug(filteredBoundaryCodeMapWithChildrens)}`)
+
   const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
   logger.debug(
     `created userBoundaryMap :${getFormattedStringForDebug(
@@ -348,6 +432,13 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     )}`
   );
 
+ const consolidatedUserRolesPerBoundary =consolidateUserRoles(boundaryWithRoleMap,filteredBoundaryCodeMapWithChildrens);
+
+ logger.debug(
+    `created final consolidatedUserRolesPerBoundary :${getFormattedStringForDebug(
+        consolidatedUserRolesPerBoundary
+    )}`
+  );
   const generatedUserTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
     tenantId,
@@ -376,7 +467,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     workbook.getWorksheet(
       getLocalizedName(config?.user.userTab, localizationMap)
     ),
-    boundaryWithRoleMap
+    consolidatedUserRolesPerBoundary
   );
   const responseData =
     updatedWorksheet && (await createAndUploadFile(workbook, request));
@@ -480,4 +571,39 @@ export async function validateFacilitySheet(request: any) {
   };
   const resourceDetails = await createDataService(request);
   return resourceDetails;
+}
+// sample oundary 
+//{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
+
+const getFilteredBoundariesAtWhichUserGetsCreated =(boundaries=[])=>{
+    //add config at which level grouping will happen. hardcoded to loclaity
+    const filteredBoundariesAtWhichUserGetsCreated=boundaries?.filter((boundary:any)=>boundary?.type=="LOCALITY");
+    logger.info(`filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`);
+    logger.debug(`filteredBoundariesAtWhichUserGetsCreated are ${getFormattedStringForDebug(filteredBoundariesAtWhichUserGetsCreated)}`);
+ return filteredBoundariesAtWhichUserGetsCreated;
+}
+
+const getBoundaryInformation =async (CampaignDetails:any,boundaryHierarchy:string,tenantId:string)=>{
+   
+    const boundaries=CampaignDetails?.boundaries;
+    if(boundaries?.some((boundary:any)=>boundary?.includeAllChildren)){
+        const boundaryResponse=await searchBoundaryRelationshipData(tenantId,boundaryHierarchy,true);
+        logger.info("got the boundary hierarchy response");
+        if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
+        logger.info("got the boundary hierarchy response");
+    }
+
+return boundaries;
+
+
+}
+}
+
+
+const enrichBoundariesWithTheSelectedChildrens=(allSelectedBoundaries=[],filteredBoundaries=[])=>{
+const enrichedMap:any={};
+filteredBoundaries?.map((boundary:any)=>{
+    enrichedMap[boundary?.code]=allSelectedBoundaries?.filter((bound:any)=>bound.parent==boundary?.code)
+})
+return enrichedMap;
 }
