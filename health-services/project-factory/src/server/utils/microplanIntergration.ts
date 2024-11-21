@@ -1,7 +1,7 @@
 import {
-  callMdmsTypeSchema,
+
   createAndUploadFile,
-  getSheetData,
+  
 } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
@@ -26,6 +26,13 @@ const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
   }, {});
 };
 
+const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
+  return planFacilityArray?.reduce((acc: any, curr: any) => {
+    acc[curr?.facilityId] = curr;
+    return acc;
+  }, {});
+};
+  
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
     return censusArray?.reduce((acc: any, curr: any) => {
       acc[curr?.boundaryCode] = curr;
@@ -163,6 +170,47 @@ if (responseData?.[0]?.fileStoreId) {
   logger.info(`updated the resources of target`);
 };
 
+function findAndChangeUserData(worksheet: any, mappingData: any) {
+  logger.info(
+    `Received for facility mapping, enitity count : ${
+      Object.keys(mappingData)?.length
+    }`
+  );
+
+  // column no is // harcoded to be changed
+  const mappedData: any = {};
+  // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
+  worksheet.eachRow((row: any, rowIndex: number) => {
+    if (rowIndex === 1) return; // Skip the header row
+    const column1Value = row.getCell(1).value; // Get the value from column 1
+    if (mappingData?.[column1Value]) {
+      // Update columns 5 and 6 if column 1 value matches
+      row.getCell(6).value =
+        mappingData?.[column1Value]?.["serviceBoundaries"]?.join(","); // Set "BoundaryCode" in column 5
+      row.getCell(7).value = "Active"; // Set "Status" in column 6
+      mappedData[column1Value] = rowIndex;
+    } else {
+      // Default values for other rows
+      row.getCell(6).value = "";
+      row.getCell(7).value = "Inactive";
+    }
+  });
+  logger.info(
+    `Updated the boundary & active/inactive status information in facility received from the microplan`
+  );
+  logger.info(
+    `mapping completed for facility enitity count : ${
+      Object.keys(mappedData)?.length
+    }`
+  );
+  logger.info(
+    `mapping not found for facility entity count : ${
+      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    }`
+  );
+  return worksheet;
+}
+
 function findAndChangeFacilityData(worksheet: any, mappingData: any) {
   logger.info(
     `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length}`
@@ -258,14 +306,14 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planResponse, "planResponse");
-  const facilityBoundaryMap = getPlanFacilityMapByFacilityId(planResponse);
+  const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
   logger.debug(
     `created facilityBoundaryMap :${getFormattedStringForDebug(
-      facilityBoundaryMap
+      boundaryWithRoleMap
     )}`
   );
 
-  const generatedFacilityTemplateFileStoreId = await getTheGeneratedResource(
+  const generatedUserTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
     tenantId,
     "userWithBoundary",
@@ -273,54 +321,40 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   );
   logger.debug(
     `downloadresponse userWithBoundary ${getFormattedStringForDebug(
-      generatedFacilityTemplateFileStoreId
+      generatedUserTemplateFileStoreId
     )}`
   );
   const fileUrl = await fetchFileFromFilestore(
-    generatedFacilityTemplateFileStoreId,
+    generatedUserTemplateFileStoreId,
     tenantId
   );
   logger.debug(
     `downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`
   );
+
   const workbook = await getExcelWorkbookFromFileURL(
     fileUrl,
     getLocalizedName(config?.user.userTab, localizationMap)
   );
-  console.log(workbook, "workbook fetchUserData");
 
-  const facilitySheetId = request.body.planConfig.files.find(
-    (file: { templateIdentifier: string }) =>
-      file.templateIdentifier === "Facilities"
-  )?.filestoreId;
-  logger.info(`found facilitySheetId is ${facilitySheetId}`);
-
-  var facilitySheetIdboundaryData = await getSheetData(
-    fileUrl,
-    getLocalizedName(config?.user.userTab, localizationMap),
-    false,
-    undefined,
-    localizationMap
+  const updatedWorksheet = await findAndChangeUserData(
+    workbook.getWorksheet(
+      getLocalizedName(config?.user.userTab, localizationMap)
+    ),
+    boundaryWithRoleMap
   );
-  console.log(facilitySheetIdboundaryData);
-
-  const schema = await callMdmsTypeSchema(
-    request,
-    tenantId,
-    true,
-    "facility",
-    "all"
-  );
-  request.query.type = "facilityWithBoundary";
-  request.query.tenantId = tenantId;
-  console.log(schema, "schema");
-  // const downloadresponse=await getTheGeneratedResource(campaignId,tenantId,"userWithBoundary",request.body.CampaignDetails?.hierarchyType)
-  // logger.debug(`downloadresponse userWithBoundary ${getFormattedStringForDebug(downloadresponse)}`)
-
-  // const resourceDetails = await validateFacilitySheet(request);
-  // logger.info(`updated the resources of facility resource id ${resourceDetails?.id}`);
-  // await updateCampaignDetails(request, resourceDetails?.id);
-  logger.info(`updated the resources of facility`);
+  const responseData =
+    updatedWorksheet && (await createAndUploadFile(workbook, request));
+  logger.info("user File updated successfully:" + JSON.stringify(responseData));
+  if (responseData?.[0]?.fileStoreId) {
+    logger.info(
+      "user File updated successfully:" +
+        JSON.stringify(responseData?.[0]?.fileStoreId)
+    );
+  } else {
+    throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
+  }
+  logger.info(`updated the resources of user`);
 };
 
 export async function updateCampaignDetails(
