@@ -12,6 +12,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -249,18 +250,15 @@ public class CommonUtils {
         return projectIdAndProjectTypeIdAndProjectType;
     }
 
-    public void addProjectDetailsToAdditionalDetails(ObjectNode additionalDetails, String userId, String tenantId) {
+    public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
         String projectDetails = projectDetailsFromUserId(userId, tenantId);
-
-        if (!StringUtils.isEmpty(projectDetails)) {
-            String[] projectDetailsParts = projectDetails.split(":");  // ":" is being used to separate project id, project type id and project type
-            if (projectDetailsParts.length >= 2) {
-                if (!additionalDetails.has(PROJECT_ID)) {
-                    additionalDetails.put(PROJECT_ID, projectDetailsParts[0]);
-                }
-                if (!additionalDetails.has(PROJECT_TYPE_ID)) {
-                    additionalDetails.put(PROJECT_TYPE_ID, projectDetailsParts[1]);
-                }
+        if(!StringUtils.isEmpty(projectDetails)) {
+            // ":" is being used to separate project id, project type id and project type
+            String[] projectDetailsParts = projectDetails.split(":");
+            if(projectDetailsParts.length > 2) {
+                projectInfo.setProjectId(projectDetailsParts[0]);
+                projectInfo.setProjectTypeId(projectDetailsParts[1]);
+                projectInfo.setProjectType(projectDetailsParts[2]);
             }
         }
     }

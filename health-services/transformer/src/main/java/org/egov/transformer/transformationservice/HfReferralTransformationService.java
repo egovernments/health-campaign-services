@@ -63,6 +63,7 @@ public class HfReferralTransformationService {
         String projectId = hfReferral.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        String projectType = project.getProjectType();
 
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
 
@@ -83,6 +84,7 @@ public class HfReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(hfReferral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
+        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
 
         return hfReferralIndexV1;
     }

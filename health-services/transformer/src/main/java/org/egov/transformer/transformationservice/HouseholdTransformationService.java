@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
@@ -91,11 +92,7 @@ public class HouseholdTransformationService {
             additionalDetails.put(ISVULNERABLE, true);
         }
 
-        if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
-            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
-        }
-
-        return HouseholdIndexV1.builder()
+        HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
@@ -109,6 +106,10 @@ public class HouseholdTransformationService {
                 .syncedTimeStamp(syncedTimeStamp)
                 .additionalDetails(additionalDetails)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(householdIndexV1,
+                household.getClientAuditDetails().getLastModifiedBy(),
+                household.getTenantId());
+        return householdIndexV1;
     }
 
 }

@@ -75,6 +75,7 @@ public class HfServiceTransformationService {
         }
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        String projectType = project.getProjectType();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(service.getAdditionalDetails());
         if (localityCode != null) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
@@ -104,7 +105,6 @@ public class HfServiceTransformationService {
                     .supervisorLevel(supervisorLevel)
                     .checklistName(checklistName)
                     .tenantId(tenantId)
-                    .projectId(projectId)
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
                     .userAddress(userInfoMap.get(CITY))
@@ -117,7 +117,7 @@ public class HfServiceTransformationService {
                     .boundaryHierarchyCode(boundaryHierarchyCode)
                     .additionalDetails(additionalDetails)
                     .build();
-
+            hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
         }

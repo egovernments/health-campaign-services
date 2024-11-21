@@ -15,7 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralServiceTaskIndexV1 {
+public class ReferralServiceTaskIndexV1 extends ProjectInfo {
     @JsonProperty("id")
     private String id;
     @JsonProperty("supervisorLevel")
@@ -34,8 +34,6 @@ public class ReferralServiceTaskIndexV1 {
     private String role;
     @JsonProperty("userAddress")
     private String userAddress;
-    @JsonProperty("projectId")
-    private String projectId;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("syncedTime")

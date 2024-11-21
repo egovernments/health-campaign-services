@@ -16,7 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HfReferralIndexV1 {
+public class HfReferralIndexV1 extends ProjectInfo {
     @JsonProperty("hfReferral")
     private HFReferral hfReferral;
     @JsonProperty("userName")

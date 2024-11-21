@@ -75,6 +75,7 @@ public class ServiceTaskTransformationService {
         Map<String, String> boundaryHierarchy;
         Map<String, String> boundaryHierarchyCode;
         Project project = projectService.getProject(projectId, tenantId);
+        String projectType = project.getProjectType();
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(serviceAdditionalDetails);
@@ -97,7 +98,6 @@ public class ServiceTaskTransformationService {
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
                 .clientReferenceId(service.getClientId())
-                .projectId(projectId)
                 .serviceDefinitionId(service.getServiceDefId())
                 .supervisorLevel(supervisorLevel)
                 .checklistName(parts[1])
@@ -107,7 +107,6 @@ public class ServiceTaskTransformationService {
                 .userAddress(userInfoMap.get(CITY))
                 .createdTime(service.getAuditDetails().getCreatedTime())
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
-                .projectType(project.getProjectType())
                 .createdBy(service.getAuditDetails().getCreatedBy())
                 .tenantId(service.getTenantId())
                 .userId(service.getAccountId())
@@ -119,6 +118,7 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
+        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
         return serviceIndexV1;
     }
 }

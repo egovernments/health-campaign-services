@@ -3,10 +3,12 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
@@ -100,11 +102,7 @@ public class HouseholdMemberTransformationService {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
-        if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
-            commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails,
-                    householdMember.getClientAuditDetails().getLastModifiedBy() ,
-                    householdMember.getTenantId());
-        }
+
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
@@ -123,6 +121,9 @@ public class HouseholdMemberTransformationService {
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(householdMemberIndexV1,
+                householdMember.getClientAuditDetails().getLastModifiedBy(),
+                householdMember.getTenantId());
         return householdMemberIndexV1;
     }
 

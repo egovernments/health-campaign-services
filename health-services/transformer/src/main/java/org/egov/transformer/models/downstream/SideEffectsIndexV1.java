@@ -16,7 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SideEffectsIndexV1 {
+public class SideEffectsIndexV1 extends ProjectInfo {
 
     @JsonProperty("sideEffect")
     private SideEffect sideEffect;

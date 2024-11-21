@@ -76,13 +76,16 @@ public class ReferralTransformationService {
         Map<String, String> boundaryHierarchy = new HashMap<>();
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
+        String projectId = null;
+        String projectType = null;
         String projectTypeId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
-            String projectId = projectBeneficiary.getProjectId();
+            projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
+            projectType = project.getProjectType();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -126,7 +129,7 @@ public class ReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-
+        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
         return referralIndexV1;
     }
 }

@@ -73,9 +73,6 @@ public class ProjectStaffTransformationService {
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                 .id(projectStaff.getId())
-                .projectId(projectId)
-                .projectType(project.getProjectType())
-                .projectTypeId(projectTypeId)
                 .userId(projectStaff.getUserId())
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
@@ -90,6 +87,7 @@ public class ProjectStaffTransformationService {
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
                 .build();
+        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId);
         return projectStaffIndexV1;
     }
 }

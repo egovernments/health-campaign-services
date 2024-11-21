@@ -9,6 +9,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.ReferenceIdType;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -85,7 +86,7 @@ public class StockTransformationService {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
-            } else if (stock.getReferenceIdType().equals(PROJECT)) {
+            } else if (ReferenceIdType.PROJECT.equals(stock.getReferenceIdType())) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
@@ -163,11 +164,11 @@ public class StockTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(stock.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                 .waybillNumber(stock.getWayBillNumber())
-                .projectType(project.getProjectType())
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
+        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId);
         return stockIndexV1;
     }
 

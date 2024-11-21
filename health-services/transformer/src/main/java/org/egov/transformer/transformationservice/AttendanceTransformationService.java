@@ -95,7 +95,6 @@ public class AttendanceTransformationService {
                         attendanceLog.getTenantId())
                 .get(attendanceLog.getIndividualId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
-        String projectType = null;
 
         BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -106,14 +105,6 @@ public class AttendanceTransformationService {
         if(individual.getUserDetails() != null) {
             individualUsername = individual.getUserDetails().getUsername();
             attendanceLog.setUserName(individualUsername);
-        }
-
-        String projectDetails = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
-        if (!StringUtils.isEmpty(projectDetails)){
-            String[] projectDetailsParts = projectDetails.split(":");
-            if (projectDetailsParts.length == 3) {
-                projectType = !StringUtils.isEmpty(projectDetailsParts[2]) ? projectDetailsParts[2] : null ;
-            }
         }
 
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
@@ -127,8 +118,10 @@ public class AttendanceTransformationService {
                 .registerNumber(attendanceRegister != null ? attendanceRegister.getRegisterNumber() : null)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
-                .projectType(projectType)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(attendanceLogIndexV1,
+                attendanceLog.getAuditDetails().getLastModifiedBy(),
+                attendanceLog.getTenantId());
         return attendanceLogIndexV1;
     }
 

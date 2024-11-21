@@ -119,6 +119,9 @@ public class SideEffectTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
+                sideEffect.getClientAuditDetails().getLastModifiedBy(),
+                sideEffect.getTenantId());
         return sideEffectsIndexV1;
     }
 

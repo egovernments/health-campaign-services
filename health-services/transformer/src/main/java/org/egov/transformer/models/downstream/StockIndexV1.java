@@ -19,7 +19,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockIndexV1 {
+public class StockIndexV1 extends ProjectInfo {
 
     @JsonProperty("id")
     private String id;
@@ -125,8 +125,5 @@ public class StockIndexV1 {
 
     @JsonProperty("waybillNumber")
     private String waybillNumber;
-
-    @JsonProperty("projectType")
-    private String projectType;
 
 }
