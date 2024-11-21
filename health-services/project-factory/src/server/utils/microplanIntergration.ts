@@ -80,9 +80,9 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   );
   const responseData =
     updatedWorksheet && (await createAndUploadFile(workbook, request));
-  logger.info("File updated successfully:" + JSON.stringify(responseData));
+  logger.info("facility File updated successfully:" + JSON.stringify(responseData));
   if (responseData?.[0]?.fileStoreId) {
-      logger.info("File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
+      logger.info("facility File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
 
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
@@ -103,32 +103,32 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planCensusResponse, "planCensusResponse");
-  const facilityBoundaryMap =
+  const targetBoundaryMap =
   getPlanCensusMapByBoundaryCode(planCensusResponse);
   logger.debug(
-    `created facilityBoundaryMap :${getFormattedStringForDebug(
-      facilityBoundaryMap
+    `created targetBoundaryMap :${getFormattedStringForDebug(
+        targetBoundaryMap
     )}`
   );
   
 
-  const generatedFacilityTemplateFileStoreId = await getTheGeneratedResource(
+  const generatedTargetTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
     tenantId,
     "boundary",
     request.body.CampaignDetails?.hierarchyType
   );
   logger.debug(
-    `downloadresponse userWithBoundary ${getFormattedStringForDebug(
-      generatedFacilityTemplateFileStoreId
+    `downloadresponse target ${getFormattedStringForDebug(
+        generatedTargetTemplateFileStoreId
     )}`
   );
   const fileUrl = await fetchFileFromFilestore(
-    generatedFacilityTemplateFileStoreId,
+    generatedTargetTemplateFileStoreId,
     tenantId
   );
   logger.debug(
-    `downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`
+    `downloadresponse target ${getFormattedStringForDebug(fileUrl)}`
   );
 
 
@@ -136,47 +136,30 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
 
   const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
+  await workbook.worksheets.forEach(async (worksheet) => {
+    console.log(`Processing worksheet: ${worksheet.name}`);
 
-  const updatedWorksheet = await findAndChangeTargetData(
-    workbook.getWorksheet(
-      getLocalizedName(config?.facility?.facilityTab, localizationMap)
-    ),
-    facilityBoundaryMap
-  );
-  const responseData =
-    updatedWorksheet && (await createAndUploadFile(workbook, request));
-console.log(responseData,'responseData');
+    // Iterate over rows (skip the header row)
+     await findAndChangeTargetData(
+        worksheet,
+        targetBoundaryMap
+      );
+  });
 
-  const dataFromSheet = await getTargetSheetData(
-    fileUrl,
-    true,
-    true,
-    localizationMap
-  );
 
-  console.log(dataFromSheet, "workbook fetchTargetData", workbook);
+  const responseData = (await createAndUploadFile(workbook, request));
 
-  const facilitySheetId = request.body.planConfig.files.find(
-    (file: { templateIdentifier: string }) =>
-      file.templateIdentifier === "Facilities"
-  )?.filestoreId;
-  logger.info(`found facilitySheetId is ${facilitySheetId}`);
+logger.info("Target File updated successfully:" + JSON.stringify(responseData));
+if (responseData?.[0]?.fileStoreId) {
+    logger.info("Target File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
 
-  const schema = await callMdmsTypeSchema(
-    request,
-    tenantId,
-    true,
-    "facility",
-    "all"
-  );
-  request.query.type = "facilityWithBoundary";
-  request.query.tenantId = tenantId;
-  console.log(schema, "schema");
-
+} else {
+  throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
+}
   // const resourceDetails = await validateFacilitySheet(request);
   // logger.info(`updated the resources of facility resource id ${resourceDetails?.id}`);
   // await updateCampaignDetails(request, resourceDetails?.id);
-  logger.info(`updated the resources of facility`);
+  logger.info(`updated the resources of target`);
 };
 
 function findAndChangeFacilityData(worksheet: any, mappingData: any) {
