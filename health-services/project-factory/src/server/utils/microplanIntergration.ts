@@ -138,7 +138,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
       
-    if(worksheet.name!="Read Me" && worksheet.name!="Boundary Data"){
+    if(worksheet.name!="Read Me" && worksheet.name!="Boundary Data"){ // harcoded to be changed
     // Iterate over rows (skip the header row)
      await findAndChangeTargetData(
         worksheet,
@@ -167,6 +167,8 @@ function findAndChangeFacilityData(worksheet: any, mappingData: any) {
   logger.info(
     `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length}`
   );
+
+  // column no is // harcoded to be changed
   const mappedData: any = {};
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {

@@ -18,7 +18,7 @@ const getDBSchemaName = (dbSchema = "health") => {
 const config = {
   cacheTime: 300,
   isProduction: process.env ? true : false,
-  token: "83fa6571-f159-437e-95bf-47f81c0efb76", // add default token if core services are not port forwarded
+  token: "c2c11ef6-86a5-495f-b065-fde5aa6f5c31", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
