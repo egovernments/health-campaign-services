@@ -27,6 +27,13 @@ const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
   }, {});
 };
 
+const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
+    return censusArray?.reduce((acc: any, curr: any) => {
+      acc[curr?.boundaryCode] = curr;
+      return acc;
+    }, {});
+  };
+  
 export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -65,7 +72,7 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     getLocalizedName(config?.facility?.facilityTab, localizationMap)
   );
 
-  const updatedWorksheet = await findAndChangeColumns(
+  const updatedWorksheet = await findAndChangeFacilityData(
     workbook.getWorksheet(
       getLocalizedName(config?.facility?.facilityTab, localizationMap)
     ),
@@ -75,8 +82,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     updatedWorksheet && (await createAndUploadFile(workbook, request));
   logger.info("File updated successfully:" + JSON.stringify(responseData));
   if (responseData?.[0]?.fileStoreId) {
-    request.body.ResourceDetails.processedFileStoreId =
-      responseData?.[0]?.fileStoreId;
+      logger.info("File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
+
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
@@ -97,12 +104,13 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   );
   console.log(planCensusResponse, "planCensusResponse");
   const facilityBoundaryMap =
-    getPlanFacilityMapByFacilityId(planCensusResponse);
+  getPlanCensusMapByBoundaryCode(planCensusResponse);
   logger.debug(
     `created facilityBoundaryMap :${getFormattedStringForDebug(
       facilityBoundaryMap
     )}`
   );
+  
 
   const generatedFacilityTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
@@ -122,7 +130,22 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   logger.debug(
     `downloadresponse userWithBoundary ${getFormattedStringForDebug(fileUrl)}`
   );
+
+
+  
+
   const workbook = await getExcelWorkbookFromFileURL(fileUrl);
+
+
+  const updatedWorksheet = await findAndChangeTargetData(
+    workbook.getWorksheet(
+      getLocalizedName(config?.facility?.facilityTab, localizationMap)
+    ),
+    facilityBoundaryMap
+  );
+  const responseData =
+    updatedWorksheet && (await createAndUploadFile(workbook, request));
+console.log(responseData,'responseData');
 
   const dataFromSheet = await getTargetSheetData(
     fileUrl,
@@ -156,9 +179,9 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   logger.info(`updated the resources of facility`);
 };
 
-function findAndChangeColumns(worksheet: any, mappingData: any) {
+function findAndChangeFacilityData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for mapping, enitity count : ${Object.keys(mappingData)?.length}`
+    `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length}`
   );
   const mappedData: any = {};
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
@@ -178,18 +201,52 @@ function findAndChangeColumns(worksheet: any, mappingData: any) {
     }
   });
   logger.info(
-    `Updated the boundary & active/inactive status information received from the microplan`
+    `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
   logger.info(
-    `mapping completed for enitity count : ${Object.keys(mappedData)?.length}`
+    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length}`
   );
   logger.info(
-    `mapping not found for entity count : ${
+    `mapping not found for facility entity count : ${
       Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
 }
+function findAndChangeTargetData(worksheet: any, mappingData: any) {
+    logger.info(
+      `Received for Target mapping, enitity count : ${Object.keys(mappingData)?.length}`
+    );
+    const mappedData: any = {};
+    // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
+    worksheet.eachRow((row: any, rowIndex: number) => {
+      if (rowIndex === 1) return; // Skip the header row
+      const column1Value = row.getCell(1).value; // Get the value from column 1
+      if (mappingData?.[column1Value]) {
+        // Update columns 5 and 6 if column 1 value matches
+        row.getCell(6).value =
+          mappingData?.[column1Value]?.["serviceBoundaries"]?.join(","); // Set "BoundaryCode" in column 5
+        row.getCell(7).value = "Active"; // Set "Status" in column 6
+        mappedData[column1Value] = rowIndex;
+      } else {
+        // Default values for other rows
+        row.getCell(6).value = "";
+        row.getCell(7).value = "Inactive";
+      }
+    });
+    logger.info(
+      `Updated the boundary & active/inactive status information in Target received from the microplan`
+    );
+    logger.info(
+      `mapping completed for Target enitity count : ${Object.keys(mappedData)?.length}`
+    );
+    logger.info(
+      `mapping not found for Target entity count : ${
+        Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+      }`
+    );
+    return worksheet;
+  }
 
 const getBoundariesFromCampaign = (CampaignDetails: any = {}) => {
   logger.info("fetching all boundaries in that CampaignDetails");
