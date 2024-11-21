@@ -137,12 +137,14 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
 
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
-
+      
+    if(worksheet.name!="Read Me" && worksheet.name!="Boundary Data"){
     // Iterate over rows (skip the header row)
      await findAndChangeTargetData(
         worksheet,
         targetBoundaryMap
       );
+    }
   });
 
 
@@ -202,18 +204,21 @@ function findAndChangeTargetData(worksheet: any, mappingData: any) {
     const mappedData: any = {};
     // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
     worksheet.eachRow((row: any, rowIndex: number) => {
-      if (rowIndex === 1) return; // Skip the header row
-      const column1Value = row.getCell(1).value; // Get the value from column 1
+      if (rowIndex === 1) return; // Skip the header row      
+      const column1Value = row.getCell(5).value; // Get the value from column 1
       if (mappingData?.[column1Value]) {
         // Update columns 5 and 6 if column 1 value matches
         row.getCell(6).value =
-          mappingData?.[column1Value]?.["serviceBoundaries"]?.join(","); // Set "BoundaryCode" in column 5
-        row.getCell(7).value = "Active"; // Set "Status" in column 6
+          mappingData?.[column1Value]?.["additionalDetails"]?.["CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"]; // Set "BoundaryCode" in column 5
+        // row.getCell(7).value = "Active"; // Set "Status" in column 6
         mappedData[column1Value] = rowIndex;
       } else {
+        logger.info(
+            `not doing anything if taregt cel not found`
+          );
         // Default values for other rows
-        row.getCell(6).value = "";
-        row.getCell(7).value = "Inactive";
+        // row.getCell(6).value = "";
+        // row.getCell(7).value = "Inactive";
       }
     });
     logger.info(
