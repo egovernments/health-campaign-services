@@ -3,6 +3,7 @@ package org.egov.hrms.web.contract;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.egov.hrms.model.enums.UserServiceType;
 import org.springframework.util.CollectionUtils;
 
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 
@@ -57,6 +59,8 @@ public class EmployeeSearchCriteria {
 	public Integer limit;
 
 	private Boolean includeUnassigned = false;
+	@NotNull
+	private UserServiceType userModule;
 	
 	
 	public boolean isCriteriaEmpty(EmployeeSearchCriteria criteria) {

@@ -56,6 +56,7 @@ import org.egov.hrms.web.contract.UserResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.text.ParseException;
@@ -67,6 +68,7 @@ import static org.egov.hrms.utils.HRMSConstants.*;
 @Slf4j
 @Setter
 @Getter
+@Component
 public class DefaultUserService implements UserService {
 
 	@Autowired

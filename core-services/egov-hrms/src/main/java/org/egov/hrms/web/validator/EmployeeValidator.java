@@ -29,7 +29,7 @@ import org.egov.hrms.model.ServiceHistory;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.service.EmployeeService;
 import org.egov.hrms.service.MDMSService;
-import org.egov.hrms.service.UserService;
+import org.egov.hrms.utils.UserServiceFactory;
 import org.egov.hrms.utils.ErrorConstants;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.utils.HRMSUtils;
@@ -57,7 +57,7 @@ public class EmployeeValidator {
 	private EmployeeService employeeService;
 
 	@Autowired
-	private UserService userService;
+	private UserServiceFactory userServiceFactory;
 	
 	@Autowired
 	private PropertiesManager propertiesManager;
@@ -263,13 +263,13 @@ public class EmployeeValidator {
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,employee.getUser().getMobileNumber());
-			UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			UserResponse userResponse = userServiceFactory.getUserService(employee.getUserModule()).getUser(requestInfo, userSearchCriteria);
 			if (autoGenerateMobileNumber && !CollectionUtils.isEmpty(userResponse.getUser())) {
 				int retryCount = 0;
 				String generatedMobileNumber = hrmsUtils.generateMobileNumber();
 				while ((retryCount < maxRetryCount) && !CollectionUtils.isEmpty(userResponse.getUser())) {
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,generatedMobileNumber);
-					userResponse = userService.getUser(requestInfo, userSearchCriteria);
+					userResponse = userServiceFactory.getUserService(employee.getUserModule()).getUser(requestInfo, userSearchCriteria);
 					retryCount++;
 				}
 				employee.getUser().setMobileNumber(generatedMobileNumber);
@@ -295,7 +295,7 @@ public class EmployeeValidator {
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME,employee.getCode());
-				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+				UserResponse userResponse = userServiceFactory.getUserService(employee.getUserModule()).getUser(requestInfo, userSearchCriteria);
 				if(!CollectionUtils.isEmpty(userResponse.getUser())){
                     errorMap.put(ErrorConstants.HRMS_USER_EXIST_USERNAME_CODE,
                     		ErrorConstants.HRMS_USER_EXIST_USERNAME_MSG);
@@ -359,7 +359,7 @@ public class EmployeeValidator {
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_MOBILENO,employee.getUser().getMobileNumber());
-			UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			UserResponse userResponse = userServiceFactory.getUserService(employee.getUserModule()).getUser(requestInfo, userSearchCriteria);
 			if(!CollectionUtils.isEmpty(userResponse.getUser())){
 				if(!employee.getUser().getUuid().equals(userResponse.getUser().get(0).getUuid())){
 					errorMap.put(ErrorConstants.HRMS_UPDATE_EXISTING_MOBNO_CODE,ErrorConstants.HRMS_UPDATE_EXISTING_MOBNO_MSG);
