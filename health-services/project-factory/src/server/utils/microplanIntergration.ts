@@ -1,8 +1,4 @@
-import {
-
-  createAndUploadFile,
-
-} from "../api/genericApis";
+import { createAndUploadFile } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
 import { updateProjectTypeCampaignService } from "../service/campaignManageService";
@@ -11,9 +7,15 @@ import {
   searchPlanCensus,
   searchPlanFacility,
 } from "../api/microplanApis";
-import { createAndPollForCompletion, getTheGeneratedResource } from "./pollUtils";
+import {
+  createAndPollForCompletion,
+  getTheGeneratedResource,
+} from "./pollUtils";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
-import { fetchFileFromFilestore, searchBoundaryRelationshipData } from "../api/coreApis";
+import {
+  fetchFileFromFilestore,
+  searchBoundaryRelationshipData,
+} from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
@@ -32,7 +34,6 @@ export async function addDataToWorksheet(worksheet: any, data: string[][]) {
   worksheet.columns.forEach((column: any) => {
     column.width = 20; // Adjust column width to fit content
   });
-
 }
 
 /**
@@ -92,7 +93,6 @@ const getRolesAndCount = (resources = []) => {
 };
 
 const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
-
   return planFacilityArray?.reduce((acc: any, curr: any) => {
     acc[curr?.locality] = {
       //   ...curr,
@@ -108,7 +108,7 @@ const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
 
 function consolidateUserRoles(
   userBoundaryMap: any,
-  boundaryiwthchildrednMap: any,
+  boundaryiwthchildrednMap: any
 ) {
   const result: any = {};
 
@@ -145,7 +145,6 @@ function consolidateUserRoles(
 //   // Example Usage
 //   const consolidatedData = consolidateUserRoles(userBoundaryMap, boundaryiwthchildrednMap);
 //   console.log(JSON.stringify(consolidatedData, null, 2));
-
 
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
   return censusArray?.reduce((acc: any, curr: any) => {
@@ -200,19 +199,40 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   );
   const responseData =
     updatedWorksheet && (await createAndUploadFile(workbook, request));
-  logger.info("facility File updated successfully:" + JSON.stringify(responseData));
+  logger.info(
+    "facility File updated successfully:" + JSON.stringify(responseData)
+  );
   if (responseData?.[0]?.fileStoreId) {
-    logger.info("facility File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
-
+    logger.info(
+      "facility File updated successfully:" +
+        JSON.stringify(responseData?.[0]?.fileStoreId)
+    );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
 
-  const polledResponseOfDataCreate = await validateSheet(request, tenantId, "facility",
-    responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
-  if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
-    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id, "facility");
-    logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
+  const polledResponseOfDataCreate = await validateSheet(
+    request,
+    tenantId,
+    "facility",
+    responseData?.[0]?.fileStoreId,
+    campaignId,
+    request.body.CampaignDetails.hierarchyType
+  );
+  if (
+    Array.isArray(polledResponseOfDataCreate) &&
+    polledResponseOfDataCreate.length > 0
+  ) {
+    await updateCampaignDetails(
+      request,
+      request?.body?.CampaignDetails?.resources,
+      responseData?.[0]?.fileStoreId,
+      polledResponseOfDataCreate[0]?.id,
+      "facility"
+    );
+    logger.info(
+      `updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`
+    );
   }
   logger.info(`updated the resources of facility`);
 };
@@ -226,14 +246,12 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planCensusResponse, "planCensusResponse");
-  const targetBoundaryMap =
-    getPlanCensusMapByBoundaryCode(planCensusResponse);
+  const targetBoundaryMap = getPlanCensusMapByBoundaryCode(planCensusResponse);
   logger.debug(
     `created targetBoundaryMap :${getFormattedStringForDebug(
       targetBoundaryMap
     )}`
   );
-
 
   const generatedTargetTemplateFileStoreId = await getTheGeneratedResource(
     campaignId,
@@ -254,73 +272,93 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     `downloadresponse target ${getFormattedStringForDebug(fileUrl)}`
   );
 
-
-
-
   const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
 
-    if (worksheet.name != "Read Me" && worksheet.name != "Boundary Data") { // harcoded to be changed
+    if (worksheet.name != "Read Me" && worksheet.name != "Boundary Data") {
+      // harcoded to be changed
       // Iterate over rows (skip the header row)
-      await findAndChangeTargetData(
-        worksheet,
-        targetBoundaryMap
-      );
+      await findAndChangeTargetData(worksheet, targetBoundaryMap);
     }
   });
 
+  const responseData = await createAndUploadFile(workbook, request);
 
-  const responseData = (await createAndUploadFile(workbook, request));
-
-  logger.info("Target File updated successfully:" + JSON.stringify(responseData));
+  logger.info(
+    "Target File updated successfully:" + JSON.stringify(responseData)
+  );
   if (responseData?.[0]?.fileStoreId) {
-    logger.info("Target File updated successfully:" + JSON.stringify(responseData?.[0]?.fileStoreId));
-
+    logger.info(
+      "Target File updated successfully:" +
+        JSON.stringify(responseData?.[0]?.fileStoreId)
+    );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
-  const polledResponseOfDataCreate = await validateSheet(request, tenantId, "boundaryWithTarget",
-    responseData?.[0]?.fileStoreId, campaignId, request.body.CampaignDetails.hierarchyType);
+  const polledResponseOfDataCreate = await validateSheet(
+    request,
+    tenantId,
+    "boundaryWithTarget",
+    responseData?.[0]?.fileStoreId,
+    campaignId,
+    request.body.CampaignDetails.hierarchyType
+  );
 
-  if (Array.isArray(polledResponseOfDataCreate) && polledResponseOfDataCreate.length > 0) {
-    await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, polledResponseOfDataCreate[0]?.id, "boundaryWithTarget");
-    logger.info(`updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`);
+  if (
+    Array.isArray(polledResponseOfDataCreate) &&
+    polledResponseOfDataCreate.length > 0
+  ) {
+    await updateCampaignDetails(
+      request,
+      request?.body?.CampaignDetails?.resources,
+      responseData?.[0]?.fileStoreId,
+      polledResponseOfDataCreate[0]?.id,
+      "boundaryWithTarget"
+    );
+    logger.info(
+      `updated the resources of facility resource id ${polledResponseOfDataCreate?.[0]?.id}`
+    );
   }
   logger.info(`updated the resources of target`);
 };
 
 function findAndChangeUserData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length
+    `Received for facility mapping, enitity count : ${
+      Object.keys(mappingData)?.length
     }`
   );
-  console.log(mappingData, 'mappingData user')
+  console.log(mappingData, "mappingData user");
   // column no is // harcoded to be changed
   const mappedData: any = {};
 
   const dataRows: any = [];
-  Object.keys(mappingData).map(key => {
+  Object.keys(mappingData).map((key) => {
     const roles = Object.keys(mappingData[key].consolidatedRoles);
-    roles.map(role => {
+    roles.map((role) => {
       for (let i = 0; i < mappingData[key].consolidatedRoles?.[role]; i++) {
-        dataRows.push(["", "", role, "Permanent", key, "Active"])
+        dataRows.push(["", "", role, "Permanent", key, "Active"]);
       }
-    })
-  })
-  logger.debug(`${getFormattedStringForDebug(dataRows)},"dataRows to be pushed`);
+    });
+  });
+  logger.debug(
+    `${getFormattedStringForDebug(dataRows)},"dataRows to be pushed`
+  );
   updateWorksheetRows(worksheet, dataRows);
 
   logger.info(
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
   logger.info(
-    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length
+    `mapping completed for facility enitity count : ${
+      Object.keys(mappedData)?.length
     }`
   );
   logger.info(
-    `mapping not found for facility entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for facility entity count : ${
+      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
@@ -328,7 +366,9 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
 
 function findAndChangeFacilityData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length}`
+    `Received for facility mapping, enitity count : ${
+      Object.keys(mappingData)?.length
+    }`
   );
 
   // column no is // harcoded to be changed
@@ -353,33 +393,38 @@ function findAndChangeFacilityData(worksheet: any, mappingData: any) {
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
   logger.info(
-    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length}`
+    `mapping completed for facility enitity count : ${
+      Object.keys(mappedData)?.length
+    }`
   );
   logger.info(
-    `mapping not found for facility entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for facility entity count : ${
+      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
 }
 function findAndChangeTargetData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for Target mapping, enitity count : ${Object.keys(mappingData)?.length}`
+    `Received for Target mapping, enitity count : ${
+      Object.keys(mappingData)?.length
+    }`
   );
   const mappedData: any = {};
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {
-    if (rowIndex === 1) return; // Skip the header row      
+    if (rowIndex === 1) return; // Skip the header row
     const column1Value = row.getCell(5).value; // Get the value from column 1
     if (mappingData?.[column1Value]) {
       // Update columns 5 and 6 if column 1 value matches
       row.getCell(6).value =
-        mappingData?.[column1Value]?.["additionalDetails"]?.["CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"]; // Set "BoundaryCode" in column 5
+        mappingData?.[column1Value]?.["additionalDetails"]?.[
+          "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"
+        ]; // Set "BoundaryCode" in column 5
       // row.getCell(7).value = "Active"; // Set "Status" in column 6
       mappedData[column1Value] = rowIndex;
     } else {
-      logger.info(
-        `not doing anything if taregt cel not found`
-      );
+      logger.info(`not doing anything if taregt cel not found`);
       // Default values for other rows
       // row.getCell(6).value = "";
       // row.getCell(7).value = "Inactive";
@@ -389,10 +434,13 @@ function findAndChangeTargetData(worksheet: any, mappingData: any) {
     `Updated the boundary & active/inactive status information in Target received from the microplan`
   );
   logger.info(
-    `mapping completed for Target enitity count : ${Object.keys(mappedData)?.length}`
+    `mapping completed for Target enitity count : ${
+      Object.keys(mappedData)?.length
+    }`
   );
   logger.info(
-    `mapping not found for Target entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for Target entity count : ${
+      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
@@ -419,12 +467,27 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
   console.log(planResponse, "planResponse");
-  const boundariesOfCampaign = await getBoundaryInformation(request.body.CampaignDetails, request.body.CampaignDetails?.hierarchyType, tenantId);
-  const filteredBoundariesAtWhichUserGetsCreated = getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
-  logger.debug(`boundariesOfCampaign : ${getFormattedStringForDebug(boundariesOfCampaign)}`)
+  const boundariesOfCampaign = await getBoundaryInformation(
+    request.body.CampaignDetails,
+    request.body.CampaignDetails?.hierarchyType,
+    tenantId
+  );
+  const filteredBoundariesAtWhichUserGetsCreated =
+    getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
+  logger.debug(
+    `boundariesOfCampaign : ${getFormattedStringForDebug(boundariesOfCampaign)}`
+  );
 
-  const filteredBoundaryCodeMapWithChildrens = enrichBoundariesWithTheSelectedChildrens(boundariesOfCampaign, filteredBoundariesAtWhichUserGetsCreated);
-  logger.debug(`filteredBoundaryCodeMapWithChildrens : ${getFormattedStringForDebug(filteredBoundaryCodeMapWithChildrens)}`)
+  const filteredBoundaryCodeMapWithChildrens =
+    enrichBoundariesWithTheSelectedChildrens(
+      boundariesOfCampaign,
+      filteredBoundariesAtWhichUserGetsCreated
+    );
+  logger.debug(
+    `filteredBoundaryCodeMapWithChildrens : ${getFormattedStringForDebug(
+      filteredBoundaryCodeMapWithChildrens
+    )}`
+  );
 
   const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
   logger.debug(
@@ -433,7 +496,10 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     )}`
   );
 
-  const consolidatedUserRolesPerBoundary = consolidateUserRoles(boundaryWithRoleMap, filteredBoundaryCodeMapWithChildrens);
+  const consolidatedUserRolesPerBoundary = consolidateUserRoles(
+    boundaryWithRoleMap,
+    filteredBoundaryCodeMapWithChildrens
+  );
 
   logger.debug(
     `created final consolidatedUserRolesPerBoundary :${getFormattedStringForDebug(
@@ -476,13 +542,19 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   if (responseData?.[0]?.fileStoreId) {
     logger.info(
       "user File updated successfully:" +
-      JSON.stringify(responseData?.[0]?.fileStoreId)
+        JSON.stringify(responseData?.[0]?.fileStoreId)
     );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
 
-  await updateCampaignDetails(request, request?.body?.CampaignDetails?.resources, responseData?.[0]?.fileStoreId, "c8f3f544-df19-433c-af73-fe3269a170cd", "user");
+  await updateCampaignDetails(
+    request,
+    request?.body?.CampaignDetails?.resources,
+    responseData?.[0]?.fileStoreId,
+    "c8f3f544-df19-433c-af73-fe3269a170cd",
+    "user"
+  );
 
   logger.info(`updated the resources of user`);
 };
@@ -503,7 +575,9 @@ export async function updateCampaignDetails(
       if (resource.type === type) {
         resource.filestoreId = fileStoreId;
         resource.resourceId = resourceDetailsId;
-        console.log(`Updated resource of type ${type} with filestoreId: ${resource.filestoreId}`);
+        console.log(
+          `Updated resource of type ${type} with filestoreId: ${resource.filestoreId}`
+        );
         resourceFound = true;
       }
     });
@@ -528,7 +602,14 @@ export async function updateCampaignDetails(
   await updateProjectTypeCampaignService(request);
 }
 
-export async function validateSheet(request: any, tenantId: any, type: any, fileStoreId: any, campaignId: any, hierarchyType: any) {
+export async function validateSheet(
+  request: any,
+  tenantId: any,
+  type: any,
+  fileStoreId: any,
+  campaignId: any,
+  hierarchyType: any
+) {
   let dataCreateBody = {
     ResourceDetails: {
       tenantId: tenantId,
@@ -538,57 +619,75 @@ export async function validateSheet(request: any, tenantId: any, type: any, file
       campaignId: campaignId,
       hierarchyType: hierarchyType,
       additionalDetails: {},
-    }
+    },
   };
-
 
   // Now merging defaultRequestInfo *with* dataCreateBody, so both are preserved
   const newRequest: any = {
-    body: { ...request.body, ...dataCreateBody } // Spread both objects to keep both their properties
+    body: { ...request.body, ...dataCreateBody }, // Spread both objects to keep both their properties
   };
-
 
   try {
     const resourceDetails = await createAndPollForCompletion(newRequest);
     logger.info("Final result:", resourceDetails);
     return resourceDetails || null;
   } catch (error) {
-    logger.error(`Error during resource creation and polling:for type ${type}`, error);
+    logger.error(
+      `Error during resource creation and polling:for type ${type}`,
+      error
+    );
     return null;
   }
 }
-// sample oundary 
+// sample oundary
 //{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
 
 const getFilteredBoundariesAtWhichUserGetsCreated = (boundaries = []) => {
   //add config at which level grouping will happen. hardcoded to loclaity
-  const filteredBoundariesAtWhichUserGetsCreated = boundaries?.filter((boundary: any) => boundary?.type == "LOCALITY");
-  logger.info(`filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`);
-  logger.debug(`filteredBoundariesAtWhichUserGetsCreated are ${getFormattedStringForDebug(filteredBoundariesAtWhichUserGetsCreated)}`);
+  const filteredBoundariesAtWhichUserGetsCreated = boundaries?.filter(
+    (boundary: any) => boundary?.type == "LOCALITY"
+  );
+  logger.info(
+    `filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`
+  );
+  logger.debug(
+    `filteredBoundariesAtWhichUserGetsCreated are ${getFormattedStringForDebug(
+      filteredBoundariesAtWhichUserGetsCreated
+    )}`
+  );
   return filteredBoundariesAtWhichUserGetsCreated;
-}
+};
 
-const getBoundaryInformation = async (CampaignDetails: any, boundaryHierarchy: string, tenantId: string) => {
-
+const getBoundaryInformation = async (
+  CampaignDetails: any,
+  boundaryHierarchy: string,
+  tenantId: string
+) => {
   const boundaries = CampaignDetails?.boundaries;
   if (boundaries?.some((boundary: any) => boundary?.includeAllChildren)) {
-    const boundaryResponse = await searchBoundaryRelationshipData(tenantId, boundaryHierarchy, true);
+    const boundaryResponse = await searchBoundaryRelationshipData(
+      tenantId,
+      boundaryHierarchy,
+      true
+    );
     logger.info("got the boundary hierarchy response");
     if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
       logger.info("got the boundary hierarchy response");
     }
 
     return boundaries;
-
-
   }
-}
+};
 
-
-const enrichBoundariesWithTheSelectedChildrens = (allSelectedBoundaries = [], filteredBoundaries = []) => {
+const enrichBoundariesWithTheSelectedChildrens = (
+  allSelectedBoundaries = [],
+  filteredBoundaries = []
+) => {
   const enrichedMap: any = {};
   filteredBoundaries?.map((boundary: any) => {
-    enrichedMap[boundary?.code] = allSelectedBoundaries?.filter((bound: any) => bound.parent == boundary?.code)
-  })
+    enrichedMap[boundary?.code] = allSelectedBoundaries?.filter(
+      (bound: any) => bound.parent == boundary?.code
+    );
+  });
   return enrichedMap;
-}
+};
