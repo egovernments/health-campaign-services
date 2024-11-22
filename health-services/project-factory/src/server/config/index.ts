@@ -88,7 +88,6 @@ const config = {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
-    defaultTenantId:"mz",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
     defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz"
