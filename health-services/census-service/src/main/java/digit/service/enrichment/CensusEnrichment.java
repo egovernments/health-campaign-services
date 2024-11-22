@@ -4,6 +4,8 @@ import digit.util.CommonUtil;
 import digit.web.models.AdditionalField;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
+import digit.web.models.boundary.BoundaryTypeHierarchy;
+import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
 import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.boundary.HierarchyRelation;
 import org.egov.common.utils.UUIDEnrichmentUtil;
@@ -12,8 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
@@ -114,4 +115,58 @@ public class CensusEnrichment {
         denormalizeAdditionalFields(request.getCensus());
     }
 
+    public void enrichJurisdictionMapping(Census census, BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDefinition) {
+
+        Map<String,String> boundaryHierarchyMapping = new HashMap<>();
+        String highestBoundaryHierarchy = getBoundaryHierarchyMapping(boundaryTypeHierarchyDefinition, boundaryHierarchyMapping);
+
+        Map<String, String> jurisdictionMapping = new HashMap<>();
+        List<String> boundaryCode = Arrays.asList(census.getBoundaryAncestralPath().get(0).split("\\|"));
+        String boundaryHierarchy = highestBoundaryHierarchy;
+
+        for(int i = 0; i<boundaryCode.size(); i++) {
+            if(i == 0) {
+                jurisdictionMapping.put(boundaryHierarchy, boundaryCode.get(i));
+            } else {
+                boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
+                jurisdictionMapping.put(boundaryHierarchy, boundaryCode.get(i));
+            }
+        }
+
+        census.setJurisdictionMapping(jurisdictionMapping);
+    }
+
+    private String getBoundaryHierarchyMapping(BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDefinition, Map<String, String> boundaryHierarchyMapping) {
+        String highestBoundaryHierarchy = null;
+
+        for(BoundaryTypeHierarchy boundaryTypeHierarchy : boundaryTypeHierarchyDefinition.getBoundaryHierarchy()) {
+            if(ObjectUtils.isEmpty(boundaryTypeHierarchy.getParentBoundaryType()))
+                highestBoundaryHierarchy = boundaryTypeHierarchy.getBoundaryType();
+            else boundaryHierarchyMapping.put(boundaryTypeHierarchy.getParentBoundaryType(), boundaryTypeHierarchy.getBoundaryType());
+        }
+
+        return highestBoundaryHierarchy;
+    }
+
+    public void enrichJurisdictionMapping(List<Census> censusList, BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDefinition) {
+        Map<String,String> boundaryHierarchyMapping = new HashMap<>();
+        String highestBoundaryHierarchy = getBoundaryHierarchyMapping(boundaryTypeHierarchyDefinition, boundaryHierarchyMapping);
+
+        for(Census census : censusList) {
+            Map<String, String> jurisdictionMapping = new HashMap<>();
+            List<String> boundaryCode = Arrays.asList(census.getBoundaryAncestralPath().get(0).split("\\|"));
+            String boundaryHierarchy = highestBoundaryHierarchy;
+
+            for(int i = 0; i<boundaryCode.size(); i++) {
+                if(i == 0) {
+                    jurisdictionMapping.put(boundaryHierarchy, boundaryCode.get(i));
+                } else {
+                    boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
+                    jurisdictionMapping.put(boundaryHierarchy, boundaryCode.get(i));
+                }
+            }
+
+            census.setJurisdictionMapping(jurisdictionMapping);
+        }
+    }
 }
