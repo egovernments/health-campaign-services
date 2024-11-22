@@ -1849,14 +1849,18 @@ function reorderBoundariesWithParentFirst(
   reorderedBoundaries: any[],
   boundaryProjectMapping: any
 ) {
-  // Function to get the index of a boundary in the original boundaries array
   function getIndex(code: any, boundaries: any[]) {
     return reorderedBoundaries.findIndex(
       (boundary: any) => boundary.code === code
     );
   }
+  const totalIterations = 2 * reorderedBoundaries?.length;
+  logger.info(`Boundaries received for project creation count :: ${reorderedBoundaries?.length} & totalIterations : ${totalIterations}`)
+
+  const startTime = Date.now();
+
   // Reorder boundaries so that parents come first
-  for (let i = 0; i < 2 * reorderedBoundaries?.length; i++) {
+  for (let i = 0; i < totalIterations; i++) {
     for (const boundary of reorderedBoundaries) {
       const parentCode = boundaryProjectMapping[boundary.code]?.parent;
       if (parentCode) {
@@ -1877,8 +1881,22 @@ function reorderBoundariesWithParentFirst(
         }
       }
     }
+
+    // Estimate and print remaining time every 10 iterations
+    if (i % 10 === 0) {
+      const elapsed = Date.now() - startTime;
+      const avgTimePerIteration = elapsed / (i + 1);
+      const remainingTime = (totalIterations - i - 1) * avgTimePerIteration;
+
+      logger.info(
+        `Progress: ${(100 * (i + 1)) / totalIterations}% - Estimated time remaining: ${(
+          remainingTime / 1000
+        ).toFixed(2)} seconds`
+      );
+    }
   }
 }
+
 
 async function reorderBoundariesOfDataAndValidate(
   request: any,
@@ -1991,10 +2009,13 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
     "Boundaries after addition " +
       getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
+  const start = Date.now();
   reorderBoundariesWithParentFirst(
     request?.body?.boundariesCombined,
     request?.body?.boundaryProjectMapping
   );
+  const end = Date.now();
+  logger.info(`Execution time: ${(end - start) / 1000} seconds`);
   logger.info("Reordered the Boundaries for mapping");
   logger.debug(
     "Reordered Boundaries " +
