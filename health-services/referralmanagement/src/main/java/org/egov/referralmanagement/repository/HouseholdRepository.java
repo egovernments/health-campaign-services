@@ -43,13 +43,11 @@ public class HouseholdRepository {
 		if (householdId == null) {
 			query = "select * from household_address_cfl_mv where localitycode=:localitycode and rank between :start and :end ";
 		} else {
-			query = "select * from household_address_cfl_mv where localitycode=:localitycode and rank between :start and :end and householdId=:householdId";
+			query = "select * from household_address_cfl_mv where localitycode=:localitycode and householdId=:householdId";
 		}
 
 
 		Map<String, Object> paramsMap = new HashMap<>();
-		paramsMap.put("start", offset);
-		paramsMap.put("end", offset+limit);
 		paramsMap.put("localitycode", localityCode);
 		paramsMap.put("householdId", householdId);
 
