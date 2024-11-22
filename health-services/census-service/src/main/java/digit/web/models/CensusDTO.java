@@ -95,7 +95,7 @@ public class CensusDTO {
     @JsonIgnore
     private List<String> assigneeJurisdiction;
 
-    @JsonIgnore
+    @JsonProperty("jurisdictionMapping")
     private Map<String, String> jurisdictionMapping;
 
     @JsonProperty("additionalDetails")
