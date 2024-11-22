@@ -40,16 +40,18 @@ public class HouseholdRepository {
 
 	public Tuple<Long, List<Household>> findByViewCFL (String localityCode, Integer limit, Integer offset, String tenantId, Long lastModifiedTime, String householdId) {
 		String query = null;
+		Map<String, Object> paramsMap = new HashMap<>();
 		if (householdId == null) {
 			query = "select * from household_address_cfl_mv where localitycode=:localitycode and rank between :start and :end ";
+			paramsMap.put("start", offset);
+			paramsMap.put("end", offset+limit);
 		} else {
-			query = "select * from household_address_cfl_mv where localitycode=:localitycode and householdId=:householdId";
+			query = "select * from household_address_cfl_mv where localitycode=:localitycode and householdType=:householdType and householdId=:householdId";
+			paramsMap.put("householdId", householdId);
 		}
 
-
-		Map<String, Object> paramsMap = new HashMap<>();
 		paramsMap.put("localitycode", localityCode);
-		paramsMap.put("householdId", householdId);
+		paramsMap.put("householdType", "HOUSEHOLD");
 
 		Map<String, Object> paramsMapCount = new HashMap<>();
 		paramsMapCount.put("localitycode", localityCode);
