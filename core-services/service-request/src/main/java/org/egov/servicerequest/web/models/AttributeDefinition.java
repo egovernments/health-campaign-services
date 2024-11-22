@@ -41,7 +41,7 @@ public class AttributeDefinition {
 
     @JsonProperty("code")
     @NotNull
-    @Size(min = 2, max = 64)
+    @Size(min = 2, max = 256)
     private String code = null;
 
     /**
