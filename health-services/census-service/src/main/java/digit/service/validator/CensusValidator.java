@@ -52,7 +52,6 @@ public class CensusValidator {
     public void validateCreate(CensusRequest request) {
         Census census = request.getCensus();
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), census.getBoundaryCode(), census.getTenantId(), census.getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
-        BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(request.getRequestInfo(), census.getTenantId(), census.getHierarchyType());
 
         // Validate boundary code against boundary service
         validateBoundaryCode(boundarySearchResponse, census);
@@ -62,9 +61,6 @@ public class CensusValidator {
 
         // Validate keys in additional field
         validateAdditionalFields(request);
-
-        // Enrich jurisdiction mapping in census
-        enrichment.enrichJurisdictionMapping(request.getCensus(), boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
     }
 
     private void validateAdditionalFields(CensusRequest request) {
@@ -91,7 +87,7 @@ public class CensusValidator {
             throw new CustomException(NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE);
         }
 
-        // Enrich the boundary ancestral path for the provided boundary code
+        // Enrich the boundary ancestral path and jurisdiction mapping for the provided boundary code
         enrichment.enrichBoundaryAncestralPath(census, tenantBoundary);
     }
 
