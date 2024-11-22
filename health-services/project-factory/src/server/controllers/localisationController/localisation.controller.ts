@@ -15,7 +15,7 @@ class Localisation {
   // Hold the single instance of the class
   private static instance: Localisation;
   constructor() {
-    this.localizationHost = config.host.localizationHost
+    this.localizationHost = config.host.localizationHost;
   }
   // Public method to provide access to the single instance
   public static getInstance(): Localisation {
@@ -37,7 +37,8 @@ class Localisation {
     module: string,
     locale: string,
     tenantId: string,
-    overrideCache: boolean) => {
+    overrideCache: boolean
+  ) => {
     logger.info(
       `Checks Localisation message is available in cache for module ${module}, locale ${locale}, tenantId ${tenantId}`
     );
@@ -82,6 +83,20 @@ class Localisation {
     cachedResponse = { ...this.cachedResponse };
   };
 
+  private checkCacheAndDeleteIfExists = (module: string, locale: "string") => {
+    logger.info(
+      `Received to checkCacheAndDeleteIfExists for module ${module}, locale ${locale}`
+    );
+    if (this.cachedResponse?.[`${module}-${locale}`]) {
+      logger.info(`cache found to for module ${module}, locale ${locale}`);
+      if (delete this.cachedResponse?.[`${module}-${locale}`]) {
+        logger.info(
+          `cache deleted for module ${module}, locale ${locale}, since new data has been created`
+        );
+      }
+    }
+  };
+
   /**
    * Create localisation entries by sending a POST request to the localization host.
    * @param messages - Array of localisation messages to be created.
@@ -98,13 +113,19 @@ class Localisation {
       // Construct request body with RequestInfo and localisation messages
       const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint
-      const url =
-        this.localizationHost + config.paths.localizationCreate;
+      const url = this.localizationHost + config.paths.localizationCreate;
       // Log the start of the localisation messages creation process
-      logger.info("Creating the localisation messages");
+      logger.info(`Creating the localisation messages of count ${messages?.length}`);
       // Send HTTP POST request to create localisation messages
 
       await httpRequest(url, requestBody);
+
+      messages &&
+        messages?.length > 0 &&
+        this.checkCacheAndDeleteIfExists(
+          messages?.[0]?.module,
+          messages?.[0]?.locale
+        );
       // Log the completion of the localisation messages creation process
       logger.info("Localisation messages created successfully");
     } catch (e: any) {

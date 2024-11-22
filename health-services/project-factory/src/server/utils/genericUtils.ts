@@ -377,12 +377,13 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     if(type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement'){
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+      logger.info(`checks for parent campaign for type: ${type}`)
       await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
     }
     if (request?.body?.parentCampaignObject) {
       const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
       const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
-
+      logger.info(` found createdResourceId as ${createdResourceId} `);
       const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
@@ -500,7 +501,7 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
   const hiddenColumns = Object.entries(schema.properties).filter(([key, value]: any) => value.hideColumn == true).map(([key, value]: any) => getLocalizedName(key, localizationMap));
-  logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`)
+  logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`);
   request.body.hiddenColumns = hiddenColumns;
 }
 
@@ -785,7 +786,6 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
-              logger.info(`Setting dropdown list for cell at row: ${rowNumber}, column: ${dropdownColumnIndex}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
@@ -809,6 +809,8 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
 }
 
 async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
+  // logger.info(sheet)
+  logger.info("hiddenColumns",hiddenColumns);
   if (hiddenColumns) {
     for (const columnName of hiddenColumns) {
       const firstRow = sheet.getRow(1);
@@ -885,6 +887,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   }
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
+    logger.info("proceed with the filtered boundary data")
     await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
   }
   else {
@@ -916,6 +919,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
     userSheetData = await createExcelSheet(userData, localizedHeaders);
   }
   if (filteredBoundary && filteredBoundary.length > 0) {
+    logger.info("proceed with the filtered boundary data")
     await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, schema, localizationMap, fileUrl);
   }
   else {
@@ -1051,6 +1055,7 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
 
 async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, enableCaching = false, filteredBoundary?: any) {
   request.body.generatedResource = newEntryResponse;
+  logger.info("Generate flow :: processing new request");
   await fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, enableCaching, filteredBoundary);
   return request.body.generatedResource;
 }
@@ -1237,14 +1242,14 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated")
+  logger.info("Boundary relationship search initiated");
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const header = {
     ...defaultheader,
     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
   }
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received")
+  logger.info("Boundary relationship search response received");
   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
 
@@ -1539,5 +1544,6 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
-  createFacilityAndBoundaryFile
+  createFacilityAndBoundaryFile,
+  hideUniqueIdentifierColumn
 };
