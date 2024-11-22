@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getUserDataFromMicroplanSheet, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -599,10 +599,15 @@ function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
 }
 
 async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap = {}) {
-  const readMeConfig = await getReadMeConfig(request);
+  const isSourceMicroplan = await isMicroplanRequest(request);
+  let readMeConfig: any;
+  if(isSourceMicroplan) {
+    readMeConfig = await getReadMeConfigForMicroplan(request);
+  }
+  else{
+    readMeConfig = await getReadMeConfig(request);
+  }
   const headerSet = new Set();
-
-
   const datas = readMeConfig.texts
     .filter((text: any) => text?.inSheet) // Filter out texts with inSheet set to false
     .flatMap((text: any) => {
@@ -995,7 +1000,7 @@ async function generateUserSheetForMicroPlan(
   localizationMap?: any,
   fileUrl?: any
 ) {
-  const tenantId = request?.query?.tenantId;
+  const { tenantId, type } = request?.query;
   const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
@@ -1005,13 +1010,11 @@ async function generateUserSheetForMicroPlan(
 
   const workbook = getNewExcelWorkbook();
   const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
-  const localisedReadme = getLocalizedName(config.values.readMeTab, localizationMap);
-  const worksheet = workbook.addWorksheet(localisedReadme);
-  // Lock the worksheet
-  worksheet.protect('passwordhere', {
-    selectLockedCells: true,
-    selectUnlockedCells: true
-  });
+
+  // Create and add ReadMe sheet
+  const headingInSheet = headingMapping?.[type];
+  const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
+  await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
 
 
   await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
@@ -1035,7 +1038,7 @@ async function generateUserSheetForMicroPlan(
 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const userData: any[] = [];
-  const isSourceMicroplan = request?.query?.source == "microplan";
+  const isSourceMicroplan : any = await isMicroplanRequest(request);
   if (isSourceMicroplan) {
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }

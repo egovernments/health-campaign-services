@@ -3,10 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
-import { getSheetData } from "./../api/genericApis";
-import { getLocalizedName } from "./campaignUtils";
+import { callMdmsData, getSheetData } from "./../api/genericApis";
+import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
 export const filterData = (data: any) => {
@@ -427,5 +428,34 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
     boundaryData = boundaryData.filter((boundary: any) => boundary?.[villageIndex]);
   }
   return boundaryData;
+}
+
+export async function isMicroplanRequest(request: any) {
+  const source = request?.query?.source;
+  const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
+  if (campaignId == "microplan" || source == "microplan") {
+    return true;
+  }
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+  return checkIfSourceIsMicroplan(campaignObject);
+}
+
+export async function getReadMeConfigForMicroplan(request: any) {
+  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
+    const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
+    for (const readMeConfig of readMeConfigsArray) {
+      if (readMeConfig?.type == `${request?.query?.type}_MICROPLAN`) {
+        return readMeConfig
+      }
+    }
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    return {}
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during readme config mdms search.`);
+    return {};
+  }
 }
 
