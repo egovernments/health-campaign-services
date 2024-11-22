@@ -43,7 +43,13 @@ public class BeneficiaryDownsyncController {
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
-    	Downsync downsync = downsyncService.prepareDownsyncData(request);
+		Downsync downsync = null;
+		if (request.getDownsyncCriteria().getIsCommunity()) {
+			downsync = downsyncService.downsyncForCFL(request);
+		} else {
+			downsync = downsyncService.prepareDownsyncData(request);
+		}
+
         DownsyncResponse response = DownsyncResponse.builder()
                 .downsync(downsync)
                 .responseInfo(ResponseInfoFactory

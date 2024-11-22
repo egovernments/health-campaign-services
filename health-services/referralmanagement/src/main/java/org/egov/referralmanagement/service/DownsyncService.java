@@ -113,7 +113,7 @@ public class DownsyncService {
 		Long requestStartTime = System.currentTimeMillis();
 		Long startTime = System.currentTimeMillis();
 
-		if (downsyncCriteria.getIsCommunity() && downsyncCriteria.getHouseholdId() == null) {
+		if (downsyncCriteria.getHouseholdId() == null) {
 			List<Household> households = null;
 			log.info("The household search start time : " + startTime);
 			households = searchHouseholds(downsyncRequest, downsync);
