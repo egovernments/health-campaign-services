@@ -691,10 +691,12 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
 
 async function getReadMeConfig(request: any) {
   const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const isSourceMicroplan = request?.body?.isSourceMicroplan;
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
+    const type = isSourceMicroplan ? `${request?.query?.type}_MICROPLAN` : request?.query?.type
     for (const readMeConfig of readMeConfigsArray) {
-      if (readMeConfig?.type == request?.query?.type) {
+      if (readMeConfig?.type == type) {
         return readMeConfig
       }
     }
@@ -995,7 +997,8 @@ async function generateUserSheetForMicroPlan(
   localizationMap?: any,
   fileUrl?: any
 ) {
-  const tenantId = request?.query?.tenantId;
+  const {tenantId , type } = request?.query;
+  request.body.isSourceMicroplan = true;
   const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
@@ -1005,14 +1008,11 @@ async function generateUserSheetForMicroPlan(
 
   const workbook = getNewExcelWorkbook();
   const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
-  const localisedReadme = getLocalizedName(config.values.readMeTab, localizationMap);
-  const worksheet = workbook.addWorksheet(localisedReadme);
-  // Lock the worksheet
-  worksheet.protect('passwordhere', {
-    selectLockedCells: true,
-    selectUnlockedCells: true
-  });
-
+  
+  // Create ReadMe sheet
+  const headingInSheet = headingMapping?.[type];
+  const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
+  await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
 
   await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
 
