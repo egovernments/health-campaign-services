@@ -6,10 +6,7 @@ import digit.web.models.PlanFacility;
 import digit.web.models.PlanFacilityRequest;
 import digit.web.models.PlanFacilitySearchCriteria;
 import digit.web.models.PlanFacilitySearchRequest;
-import digit.web.models.census.Census;
-import digit.web.models.census.CensusResponse;
-import digit.web.models.census.CensusSearchCriteria;
-import digit.web.models.census.CensusSearchRequest;
+import digit.web.models.census.*;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
@@ -74,8 +71,15 @@ public class PlanFacilityEnricher {
         enrichServingPopulation(planFacilityRequest);
     }
 
+    /**
+     * Enriches serving population based on the serving boundaries provided.
+     *
+     * @param planFacilityRequest plan facility request whose serving population is to be enriched.
+     */
     private void enrichServingPopulation(PlanFacilityRequest planFacilityRequest) {
         PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+
+        // Prepare list of boundaries whose census records are to be fetched
         Set<String> boundariesToBeSearched = new HashSet<>(planFacility.getServiceBoundaries());
         boundariesToBeSearched.addAll(planFacility.getInitiallySetServiceBoundaries());
 
@@ -92,15 +96,45 @@ public class PlanFacilityEnricher {
                     .censusSearchCriteria(censusSearchCriteria)
                     .build());
 
-            // Create a population map
-            Map<String, Long> boundaryToPopMap = censusResponse.getCensus().stream()
-                    .collect(Collectors.toMap(Census::getBoundaryCode, Census::getTotalPopulation));
+            // Creates a population map based on the confirmed target population of the boundary
+            Map<String, Long> boundaryToPopMap = getPopulationMap(censusResponse.getCensus());
 
             // Get existing servingPopulation or default to 0
             BigDecimal servingPopulation = (BigDecimal) commonUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), SERVING_POPULATION_CODE);
 
             updateServingPopulation(boundariesToBeSearched, planFacility, boundaryToPopMap, servingPopulation);
         }
+    }
+
+    /**
+     * Creates a mapping of boundary with it's confirmed target population.
+     *
+     * @param censusList Census records for the given list of serving boundaries.
+     * @return returns a map of boundary with its confirmed target population.
+     */
+    private Map<String, Long> getPopulationMap(List<Census> censusList) {
+        Map<String, Long> boundaryToPopMap = new HashMap<>();
+
+        for (Census census : censusList) {
+            Map<String, BigDecimal> additionalFieldsMap = census.getAdditionalFields().stream()
+                    .collect(Collectors.toMap(AdditionalField::getKey, AdditionalField::getValue));
+
+            Long confirmedTargetPopulation = 0L;
+
+            // Get confirmed target population based on campaign type.
+            if (additionalFieldsMap.containsKey(CONFIRMED_TARGET_POPULATION_AGE_3TO11)) {
+                confirmedTargetPopulation = additionalFieldsMap.get(CONFIRMED_TARGET_POPULATION_AGE_3TO11)
+                        .add(additionalFieldsMap.get(CONFIRMED_TARGET_POPULATION_AGE_12TO59))
+                        .longValue();
+            } else if(additionalFieldsMap.containsKey(CONFIRMED_TARGET_POPULATION)){
+                confirmedTargetPopulation = additionalFieldsMap.get(CONFIRMED_TARGET_POPULATION).longValue();
+            }
+
+            // Map the boundary code with it's confirmed target population.
+            boundaryToPopMap.put(census.getBoundaryCode(), confirmedTargetPopulation);
+        }
+
+        return boundaryToPopMap;
     }
 
     private void updateServingPopulation(Set<String> boundariesToBeSearched, PlanFacility planFacility, Map<String, Long> boundaryToPopMap, BigDecimal servingPopulation) {
