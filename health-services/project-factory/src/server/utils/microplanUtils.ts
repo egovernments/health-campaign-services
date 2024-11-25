@@ -1,4 +1,4 @@
-import { resourceDataStatuses, rolesForMicroplan } from "../config/constants";
+import { resourceDataStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
@@ -7,6 +7,7 @@ import { callMdmsData, getSheetData } from "./../api/genericApis";
 import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { searchMDMSDataViaV2Api } from "../api/coreApis";
 import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
@@ -32,6 +33,7 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
+  const rolesForMicroplan = await getRolesForMicroplan(tenantId);
   var userMapping: any = {};
   for (const sheetName of rolesForMicroplan) {
     const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap));
@@ -430,6 +432,22 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
   return boundaryData;
 }
 
+export async function getRolesForMicroplan(tenantId: string) {
+  const MdmsCriteria: any = {
+    tenantId: tenantId,
+    schemaCode: "hcm-microplanning.rolesForMicroplan",
+  };
+  const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
+  if (mdmsResponse?.mdms?.length > 0) {
+    return mdmsResponse?.mdms
+      ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
+      ?.map((role: any) => role?.data?.role); // Map to extract the role
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during rolesForMicroplan mdms search.`);
+    return [];
+  }
+}
 export async function isMicroplanRequest(request: any): Promise<boolean> {
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
   if (campaignId == "microplan") {

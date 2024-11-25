@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getReadMeConfigForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -1038,6 +1038,8 @@ async function generateUserSheetForMicroPlan(
 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const userData: any[] = [];
+  const tenantId = request?.query?.tenantId;
+  const rolesForMicroplan = await getRolesForMicroplan(tenantId);
   const isSourceMicroplan = await isMicroplanRequest(request);
   if (isSourceMicroplan) {
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
@@ -1046,6 +1048,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
     await generateUserSheet(request, localizationMap, filteredBoundary, userData, fileUrl);
   }
 }
+
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: string) {
   const { type, tenantId } = request.query
   if (type == "facilityWithBoundary") {
