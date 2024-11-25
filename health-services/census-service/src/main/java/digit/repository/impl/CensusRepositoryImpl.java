@@ -165,7 +165,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
                     census.getStatus(),
-                    String.join(",", census.getAssignee()),
+                    !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(",", census.getAssignee()) : census.getAssignee(),
                     census.getAuditDetails().getLastModifiedBy(),
                     census.getAuditDetails().getLastModifiedTime(),
                     commonUtil.convertToPgObject(census.getAdditionalDetails()),
