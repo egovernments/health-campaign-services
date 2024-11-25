@@ -93,6 +93,12 @@ public class ProjectAddressQueryBuilder {
                 preparedStmtList.add(project.getReferenceID());
             }
 
+            if (StringUtils.isNotBlank(project.getParent())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.parent =? ");
+                preparedStmtList.add(project.getParent());
+            }
+
             if (StringUtils.isNotBlank(project.getProjectType())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.projectType=? ");
