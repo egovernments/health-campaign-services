@@ -431,9 +431,8 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
 }
 
 export async function isMicroplanRequest(request: any): Promise<boolean> {
-  const source = request?.query?.source;
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
-  if (campaignId == "microplan" || source == "microplan") {
+  if (campaignId == "microplan") {
     return true;
   }
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
