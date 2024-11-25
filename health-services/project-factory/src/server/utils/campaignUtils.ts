@@ -1846,57 +1846,96 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
 }
 
 function reorderBoundariesWithParentFirst(
-  reorderedBoundaries: any[],
+  boundaries: any[],
   boundaryProjectMapping: any
 ) {
-  function getIndex(code: any, boundaries: any[]) {
-    return reorderedBoundaries.findIndex(
-      (boundary: any) => boundary.code === code
-    );
-  }
-  const totalIterations = 2 * reorderedBoundaries?.length;
-  logger.info(`Boundaries received for project creation count :: ${reorderedBoundaries?.length} & totalIterations : ${totalIterations}`)
-
   const startTime = Date.now();
 
-  // Reorder boundaries so that parents come first
-  for (let i = 0; i < totalIterations; i++) {
-    for (const boundary of reorderedBoundaries) {
-      const parentCode = boundaryProjectMapping[boundary.code]?.parent;
-      if (parentCode) {
-        const parentIndex = getIndex(parentCode, reorderedBoundaries);
-        const boundaryIndex = getIndex(boundary.code, reorderedBoundaries);
+  const boundaryGraph = new Map();
+  const inDegree = new Map();
 
-        if (
-          parentIndex !== -1 &&
-          boundaryIndex !== -1 &&
-          parentIndex > boundaryIndex
-        ) {
-          reorderedBoundaries.splice(
-            parentIndex + 1,
-            0,
-            reorderedBoundaries.splice(boundaryIndex, 1)[0]
-          );
-          break;
-        }
-      }
+  logger.info(`Started processing ${boundaries.length} boundaries...`);
+
+  // Step 1: Build the graph and calculate in-degrees
+  boundaries.forEach((boundary) => {
+    const code = boundary.code;
+    boundaryGraph.set(code, []);
+    inDegree.set(code, 0); // Initialize in-degree for each boundary
+  });
+
+  boundaries.forEach((boundary) => {
+    const code = boundary.code;
+    const parentCode = boundaryProjectMapping[code]?.parent;
+
+    if (parentCode) {
+      boundaryGraph.get(parentCode).push(code); // Parent points to child
+      inDegree.set(code, inDegree.get(code) + 1); // Increment in-degree of child
     }
+  });
 
-    // Estimate and print remaining time every 10 iterations
-    if (i % 10 === 0) {
-      const elapsed = Date.now() - startTime;
-      const avgTimePerIteration = elapsed / (i + 1);
-      const remainingTime = (totalIterations - i - 1) * avgTimePerIteration;
+  const graphConstructionTime = Date.now();
+  logger.info(
+    `Graph construction completed. Time taken: ${(
+      (graphConstructionTime - startTime) / 1000
+    ).toFixed(2)} seconds.`
+  );
 
+  // Step 2: Perform topological sort using Kahn's Algorithm
+  const queue:any = [];
+  const sortedBoundaries = [];
+
+  // Enqueue nodes with 0 in-degree
+  boundaries.forEach((boundary) => {
+    if (inDegree.get(boundary.code) === 0) {
+      queue.push(boundary);
+    }
+  });
+
+  let nodesProcessed = 0;
+  while (queue.length > 0) {
+    const currentBoundary = queue.shift();
+    sortedBoundaries.push(currentBoundary);
+    nodesProcessed++;
+
+    // Log progress periodically
+    if (nodesProcessed % 500 === 0) {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const avgTimePerBoundary = elapsed / nodesProcessed;
+      const estimatedRemaining = avgTimePerBoundary * (boundaries.length - nodesProcessed);
       logger.info(
-        `Progress: ${(100 * (i + 1)) / totalIterations}% - Estimated time remaining: ${(
-          remainingTime / 1000
-        ).toFixed(2)} seconds`
+        `Processed ${nodesProcessed} boundaries. Elapsed: ${elapsed.toFixed(
+          2
+        )} seconds. Estimated time remaining: ${estimatedRemaining.toFixed(2)} seconds.`
       );
     }
-  }
-}
 
+    const children = boundaryGraph.get(currentBoundary.code) || [];
+    children.forEach((childCode:any) => {
+      inDegree.set(childCode, inDegree.get(childCode) - 1);
+      if (inDegree.get(childCode) === 0) {
+        queue.push(
+          boundaries.find((boundary) => boundary.code === childCode)
+        );
+      }
+    });
+  }
+
+  // Check for cycles (remaining nodes with non-zero in-degree)
+  if (sortedBoundaries.length !== boundaries.length) {
+    throw new Error(
+      "Cycle detected in the boundary-parent relationships. Reordering failed."
+    );
+  }
+
+  const endTime = Date.now();
+  logger.info(
+    `Reordering completed. Processed ${boundaries.length} boundaries in ${(
+      (endTime - startTime) / 1000
+    ).toFixed(2)} seconds.`
+  );
+ 
+  return sortedBoundaries;
+}
 
 async function reorderBoundariesOfDataAndValidate(
   request: any,
@@ -2010,10 +2049,11 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
       getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
   const start = Date.now();
-  reorderBoundariesWithParentFirst(
+  const sortedBoundaries = reorderBoundariesWithParentFirst(
     request?.body?.boundariesCombined,
     request?.body?.boundaryProjectMapping
   );
+  request.body.boundariesCombined = sortedBoundaries;
   const end = Date.now();
   logger.info(`Execution time: ${(end - start) / 1000} seconds`);
   logger.info("Reordered the Boundaries for mapping");
@@ -2021,6 +2061,7 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
     "Reordered Boundaries " +
       getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
+  return request.body.boundariesCombined;
 }
 
 function convertToProjectsArray(Projects: any, currentArray: any = []) {
@@ -2194,7 +2235,7 @@ async function createProject(
         RequestInfo: request?.body?.RequestInfo,
         Projects,
       };
-      await reorderBoundaries(request, localizationMap);
+      boundaries = await reorderBoundaries(request, localizationMap);
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
         // make search to project with root project id
@@ -3677,9 +3718,9 @@ async function updateCampaign(request: any) {
   (request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
     (request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
       "INDIVIDUAL");
-  request.body.CampaignDetails.additionalDetails["key"] = 2;
+  request.body.CampaignDetails.additionalDetails["key"] = 1;
   logger.debug(
-    `updated object ${getFormattedStringForDebug(request.body.CampaignDetails)}`
+    `updated object with new source , disease & beneficiarytype ${getFormattedStringForDebug(request.body.CampaignDetails)}`
   );
   await updateProjectTypeCampaignService(request);
   logger.info("Updated the received campaign object");

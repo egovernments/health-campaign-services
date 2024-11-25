@@ -20,8 +20,8 @@ class App {
   }
 
   private initializeMiddlewares() {
-    this.app.use(bodyParser.json({ limit: '1mb' }));
-    this.app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }));
+    this.app.use(bodyParser.json({ limit: '2mb' }));
+    this.app.use(bodyParser.urlencoded({ limit: '2mb', extended: true }));
     this.app.use(bodyParser.json());
     this.app.use(tracingMiddleware);
     this.app.use(requestMiddleware);

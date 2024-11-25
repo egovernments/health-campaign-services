@@ -54,8 +54,8 @@ export const downloadTemplate = async (
 const pollForTemplateGeneration = async (
   functionToBePolledFor: Function,
   conditionForTermination: Function,
-  pollInterval: number = 1000,
-  maxRetries: number = 10
+  pollInterval: number = 2500,
+  maxRetries: number = 20
 ) => {
   let retries = 0; // Initialize the retry counter
   logger.info("received a request for Polling ");
@@ -165,13 +165,28 @@ async function searchData(resourceId: any, tenantId: any, type: any) {
 
 
 
-export const getTheGeneratedResource = async (campaignId: string,
+export const getTheGeneratedResource = async (
+  campaignId: string,
   tenantId: string,
   type: string,
-  hierarchy: string) => {
-  const polledResponse: any = await pollForTemplateGeneration(() => downloadTemplate(campaignId, tenantId, type, hierarchy), conditionForTermination);
-  logger.debug(polledResponse);
-  logger.debug(`polledResponse  : ${getFormattedStringForDebug(polledResponse)}`);
+  hierarchy: string
+) => {
+  try {
+    // Await the response from polling for template generation
+    const polledResponse: any = await pollForTemplateGeneration(
+      () => downloadTemplate(campaignId, tenantId, type, hierarchy),
+      conditionForTermination
+    );
 
-  return polledResponse?.[0]?.fileStoreid;
+    // Log the polled response for debugging
+    logger.debug(polledResponse);
+    logger.debug(`polledResponse  : ${getFormattedStringForDebug(polledResponse)}`);
+
+    // Return the fileStoreid from the response, ensuring the correct format
+    return polledResponse?.[0]?.fileStoreid;
+
+  } catch (error: any) {
+    // Log any error that occurs during polling or processing
+    logger.error(`Error while fetching the generated resource: ${error?.message}`);
+  }
 }
