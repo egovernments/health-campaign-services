@@ -3681,21 +3681,29 @@ async function createUniqueUserNameViaIdGen(request: any) {
 }
 
 async function processFetchMicroPlan(request: any) {
-  logger.info("waiting for 1 seconds for templates to get generated");
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  logger.info("Started processing fetch microplan");
-  const { tenantId } = request.body.MicroplanDetails;
-  const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-
-  await fetchFacilityData(request, localizationMap);
-
-  await fetchTargetData(request, localizationMap);
-  await fetchUserData(request, localizationMap);
-
-  logger.info("Completed processing fetch microplan");
+  try{
+    logger.info("waiting for 1 seconds for templates to get generated");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    logger.info("Started processing fetch microplan");
+    const { tenantId } = request.body.MicroplanDetails;
+    const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
+  
+    await fetchFacilityData(request, localizationMap);
+    await fetchTargetData(request, localizationMap);
+    await fetchUserData(request, localizationMap);
+  
+    logger.info("Updating back the campaign object after fetch microplan");
+    await updateCampaign(request ,"MICROPLAN_COMPLETED")
+    logger.info("Completed processing fetch microplan");
+  } catch (error: any) {
+    // Log the error
+    logger.error(`Error during ID generation: ${error.message}`);
+    await updateCampaign(request ,"MICROPLAN_FETCH_FAILED");
+  }
+ 
 }
 
-async function updateCampaign(request: any) {
+async function updateCampaign(request: any ,source="MICROPLAN_FETCHING") {
   // Get the current date
   const currentDate = new Date();
   logger.info("Updating the received campaign object, date, source & its key");
@@ -3714,9 +3722,9 @@ async function updateCampaign(request: any) {
   if (!request.body.CampaignDetails.additionalDetails) {
     request.body.CampaignDetails.additionalDetails = {};
   }
-  request.body.CampaignDetails.additionalDetails.source = "COMPLETED_MICROPLAN";
-  (request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
-    (request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
+  request.body.CampaignDetails.additionalDetails.source = "MICROPLAN_FETCHING";
+  (!request.body?.CampaignDetails?.additionalDetails?.["disease"])&&(request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
+  (!request.body?.CampaignDetails?.additionalDetails?.["beneficiaryType"])&&(request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
       "INDIVIDUAL");
   request.body.CampaignDetails.additionalDetails["key"] = 1;
   logger.debug(
