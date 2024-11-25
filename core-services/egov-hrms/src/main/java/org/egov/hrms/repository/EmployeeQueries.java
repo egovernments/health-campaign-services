@@ -54,6 +54,4 @@ public class EmployeeQueries {
 	public static final String HRMS_COUNT_EMP_QUERY = "SELECT active, count(*) FROM eg_hrms_employee WHERE tenantid ";
 
 	public static final String HRMS_GET_UNASSIGNED_EMPLOYEES = "SELECT employee.uuid from eg_hrms_employee employee LEFT JOIN eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid where assignment.employeeid is null";
-
-	public static final String HRMS_ORDER_BY_CLAUSE = " ORDER BY employee.lastmodifieddate DESC ";
 }
