@@ -120,7 +120,7 @@ public class PlanRepositoryImpl implements PlanRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = body.getPlans().stream().map(plan -> new Object[] {
                 plan.getStatus(),
-                String.join(",", plan.getAssignee()),
+                !CollectionUtils.isEmpty(plan.getAssignee()) ? String.join(",", plan.getAssignee()) : plan.getAssignee(),
                 plan.getAuditDetails().getLastModifiedBy(),
                 plan.getAuditDetails().getLastModifiedTime(),
                 plan.getId()
