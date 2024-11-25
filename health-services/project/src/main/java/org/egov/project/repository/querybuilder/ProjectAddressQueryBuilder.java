@@ -87,6 +87,13 @@ public class ProjectAddressQueryBuilder {
                 preparedStmtList.add('%' + project.getName() + '%');
             }
 
+            if (StringUtils.isNotBlank(project.getReferenceID())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.referenceId =? ");
+                preparedStmtList.add(project.getReferenceID());
+            }
+
+
             if (StringUtils.isNotBlank(project.getProjectType())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.projectType=? ");
@@ -362,10 +369,10 @@ public class ProjectAddressQueryBuilder {
             queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
             preparedStmtListDescendants.add('%' + projectId + '%');
         }
-        
+
         return queryBuilder.toString();
     }
-    
+
     /* Returns query to get total projects count based on project search params */
     public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStatement) {
         String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement, true);
