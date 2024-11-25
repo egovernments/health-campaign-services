@@ -34,6 +34,9 @@ public class Household extends EgovOfflineModel {
     @Valid
     private Address address = null;
 
+    @JsonProperty("householdType")
+    private HouseHoldType householdType = null;
+
     //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
