@@ -54,8 +54,8 @@ export const downloadTemplate = async (
 const pollForTemplateGeneration = async (
   functionToBePolledFor: Function,
   conditionForTermination: Function,
-  pollInterval: number = 1000,
-  maxRetries: number = 10
+  pollInterval: number = 2500,
+  maxRetries: number = 20
 ) => {
   let retries = 0; // Initialize the retry counter
   logger.info("received a request for Polling ");
