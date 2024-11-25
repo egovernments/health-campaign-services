@@ -110,7 +110,10 @@ public class WorkflowService {
         // Perform auto assignment
         List<String> assignee = getAssigneeForAutoAssignment(request.getCensus().get(0), request.getRequestInfo());
 
-        request.getCensus().forEach(census -> {
+        for (Census census : request.getCensus()) {
+            if (config.getWfSendBackActions().contains(census.getWorkflow().getAction())) {
+                assignee = Collections.singletonList(census.getAuditDetails().getLastModifiedBy());
+            }
 
             // Set assignee
             if (!ObjectUtils.isEmpty(assignee))
@@ -134,7 +137,7 @@ public class WorkflowService {
 
             // Add entry for bulk transition
             processInstanceList.add(processInstance);
-        });
+        }
 
         return ProcessInstanceRequest.builder()
                 .requestInfo(request.getRequestInfo())
@@ -183,6 +186,10 @@ public class WorkflowService {
 
         // Perform auto assignment
         List<String> assignee = getAssigneeForAutoAssignment(census, censusRequest.getRequestInfo());
+
+        if (config.getWfSendBackActions().contains(census.getWorkflow().getAction())) {
+            assignee = Collections.singletonList(census.getAuditDetails().getLastModifiedBy());
+        }
 
         // Set Assignee
         if (!ObjectUtils.isEmpty(assignee))
@@ -248,7 +255,7 @@ public class WorkflowService {
                         .role(config.getAllowedCensusRoles())
                         .build();
 
-        //search for plan-employee assignments for the ancestral heirarchy codes.
+        //search for plan-employee assignments for the ancestral hierarchy codes.
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
                 .requestInfo(requestInfo).build());
@@ -282,8 +289,6 @@ public class WorkflowService {
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
             assignee = assignToHigherBoundaryLevel(hierarchiesBoundaryCodes, census, jurisdictionToEmployeeMap);
-        } else if (config.getWfSendBackActions().contains(action)) {
-            assignee = Collections.singletonList(census.getAuditDetails().getLastModifiedBy());
         }
 
         return assignee;
