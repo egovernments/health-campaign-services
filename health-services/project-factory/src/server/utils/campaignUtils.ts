@@ -1933,7 +1933,7 @@ function reorderBoundariesWithParentFirst(
       (endTime - startTime) / 1000
     ).toFixed(2)} seconds.`
   );
-
+ 
   return sortedBoundaries;
 }
 
@@ -3719,9 +3719,9 @@ async function updateCampaign(request: any) {
   (request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
     (request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
       "INDIVIDUAL");
-  request.body.CampaignDetails.additionalDetails["key"] = 2;
+  request.body.CampaignDetails.additionalDetails["key"] = 1;
   logger.debug(
-    `updated object ${getFormattedStringForDebug(request.body.CampaignDetails)}`
+    `updated object with new source , disease & beneficiarytype ${getFormattedStringForDebug(request.body.CampaignDetails)}`
   );
   await updateProjectTypeCampaignService(request);
   logger.info("Updated the received campaign object");
