@@ -1937,9 +1937,6 @@ function reorderBoundariesWithParentFirst(
   return sortedBoundaries;
 }
 
-
-
-
 async function reorderBoundariesOfDataAndValidate(
   request: any,
   localizationMap?: any
@@ -2052,10 +2049,11 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
       getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
   const start = Date.now();
-  reorderBoundariesWithParentFirst(
+  const sortedBoundaries = reorderBoundariesWithParentFirst(
     request?.body?.boundariesCombined,
     request?.body?.boundaryProjectMapping
   );
+  request.body.boundariesCombined = sortedBoundaries;
   const end = Date.now();
   logger.info(`Execution time: ${(end - start) / 1000} seconds`);
   logger.info("Reordered the Boundaries for mapping");
@@ -2063,6 +2061,7 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
     "Reordered Boundaries " +
       getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
+  return request.body.boundariesCombined;
 }
 
 function convertToProjectsArray(Projects: any, currentArray: any = []) {
@@ -2236,7 +2235,7 @@ async function createProject(
         RequestInfo: request?.body?.RequestInfo,
         Projects,
       };
-      await reorderBoundaries(request, localizationMap);
+      boundaries = await reorderBoundaries(request, localizationMap);
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
         // make search to project with root project id
