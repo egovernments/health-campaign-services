@@ -1,4 +1,4 @@
-import { callMdmsData, callMdmsTypeSchema, createAndUploadFile } from "../api/genericApis";
+import { callMdmsTypeSchema, createAndUploadFile } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
 import { updateProjectTypeCampaignService } from "../service/campaignManageService";
@@ -15,11 +15,12 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import {
   fetchFileFromFilestore,
   searchBoundaryRelationshipData,
+  searchMDMSDataViaV1Api,
 } from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
-import { CONSTANTS } from "../config/constants";
+import { MDMSModels } from "../models";
 
 /**
  * Adds data rows to the provided worksheet.
@@ -293,7 +294,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
 
-    if (!CONSTANTS.MICROPLAN_INTEGRATION.SHEETS_TO_BE_IGNORED.includes(worksheet.name)) {
+    if (worksheet.name !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && worksheet.name !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
       // harcoded to be changed
       // Iterate over rows (skip the header row)
       await findAndChangeTargetData(worksheet, targetBoundaryMap);
@@ -431,6 +432,13 @@ headersMap: Record<string, string>
       newRow.getCell(facilityUsageIndex).value = "Active";
     }
   }
+  logger.info(
+    `Updated the boundary & active/inactive status information in facility received from the microplan`);
+  logger.info(
+      `mapping completed for facility enitity count : ${
+        Object.keys(mappedData)?.length
+      }`
+    );
 
   return worksheet;
 }
@@ -724,7 +732,22 @@ const enrichBoundariesWithTheSelectedChildrens = (
   return enrichedMap;
 };
 async function fetchUserRoleMappingFromMDMS(request: any, tenantId: any) {
-  const data = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "microplanIntegration", tenantId);
+  const MdmsCriteria: MDMSModels.MDMSv1RequestCriteria = {
+    MdmsCriteria: {
+    tenantId: tenantId,
+    moduleDetails: [
+      {
+        moduleName: "HCM-ADMIN-CONSOLE",
+        masterDetails: [
+          {
+            name: "microplanIntegration"
+          },
+        ],
+      },
+    ],
+  }
+  };
+  const data = await searchMDMSDataViaV1Api(MdmsCriteria);
   const result: Record<string, any[]> = {};
   if (
     data?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.microplanIntegration &&
