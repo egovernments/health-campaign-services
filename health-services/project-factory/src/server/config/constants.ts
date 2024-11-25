@@ -71,6 +71,9 @@ export const CONSTANTS: any = {
         DATA:{
             DATA_CREATE_ERROR : "Error while creating resource data"
         }
+    },
+    MICROPLAN_INTEGRATION: {
+        SHEETS_TO_BE_IGNORED: ["Read Me", "Boundary Data"]
     }
 }
 
