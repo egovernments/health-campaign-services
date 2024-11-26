@@ -1,4 +1,4 @@
-import { createAndUploadFile } from "../api/genericApis";
+import { callMdmsTypeSchema, createAndUploadFile } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
 import { updateProjectTypeCampaignService } from "../service/campaignManageService";
@@ -15,10 +15,12 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import {
   fetchFileFromFilestore,
   searchBoundaryRelationshipData,
+  searchMDMSDataViaV1Api,
 } from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
+import { MDMSModels } from "../models";
 
 /**
  * Adds data rows to the provided worksheet.
@@ -61,45 +63,49 @@ const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
     return acc;
   }, {});
 };
-const getRolesAndCount = (resources = []) => {
+const getRolesAndCount = (resources = [], userRoleMapping: any) => {
   const USER_ROLE_MAP: any = {};
-  resources?.map((resource: any) => {
-    if (
-      resource?.resourceType?.includes(`PER_BOUNDARY_FOR_THE_CAMPAIGN`) ||
-      (resource?.resourceType?.includes(`PER_BOUNDARY`) &&
-        resource?.resourceType?.includes(`TEAM`))
-    ) {
-      logger.info(
-        `filtered PER_BOUNDARY_FOR_THE_CAMPAIGN:" +${resource?.resourceType} :: ${resource?.estimatedNumber}`
+
+  // Iterate through the userRoleMapping to determine rules for roles
+  userRoleMapping?.user.forEach((mapping: any) => {
+    const { to, from, filter } = mapping;
+
+    resources?.forEach((resource: any) => {
+      // Apply filter logic ensuring all criteria in `from` must match
+      const match = from.every((criteria: string) =>
+        filter === "includes"
+          ? resource?.resourceType?.includes(criteria)
+          : resource?.resourceType === criteria
       );
 
-      if (resource?.resourceType?.includes(`REGISTRATION`)) {
-        USER_ROLE_MAP["Registrar"] = resource?.estimatedNumber;
-      } else if (resource?.resourceType?.includes(`DISTRIBUTION`)) {
-        USER_ROLE_MAP["Distributor"] = resource?.estimatedNumber;
-      } else if (resource?.resourceType?.includes(`SUPERVISORS`)) {
-        USER_ROLE_MAP["Supervisor"] = resource?.estimatedNumber;
-      }
+      if (match) {
+        // Log the resource information
+        logger.info(
+          `filtered ${filter.toUpperCase()}: ${resource?.resourceType} :: ${resource?.estimatedNumber}`
+        );
 
-      // Distributor
-      // Supervisor
-      // Monitor Local
-    }
+        // Map roles based on the "to" field
+        USER_ROLE_MAP[to] = resource?.estimatedNumber;
+      }
+    });
   });
-  logger.info("complted user role & boundary map");
-  logger.info(`map USER_ROLE_MAP ${getFormattedStringForDebug(USER_ROLE_MAP)}`);
+
+  logger.info("Completed user role & boundary map");
+  logger.info(`Map USER_ROLE_MAP ${getFormattedStringForDebug(USER_ROLE_MAP)}`);
 
   return { USER_ROLE_MAP };
 };
 
-const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = []) => {
+
+const getUserRoleMapWithBoundaryCode = (planFacilityArray: any = [], userRoleMapping: any) => {
   return planFacilityArray?.reduce((acc: any, curr: any) => {
     acc[curr?.locality] = {
       //   ...curr,
       ...getRolesAndCount(
         curr?.resources?.filter(
           (resource: any) => resource?.estimatedNumber > 0
-        )
+        ),
+        userRoleMapping
       ),
     };
     return acc;
@@ -156,6 +162,9 @@ const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
 export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
+
+  const facilityAdminSchema = await callMdmsTypeSchema(request, tenantId, true, "facility");
+  const localizedHeadersMap = getLocalizedHeadersMapForFacility(facilityAdminSchema.descriptionToFieldMap, localizationMap);
   const planFacilityResponse = await searchPlanFacility(
     planConfigurationId,
     tenantId
@@ -195,7 +204,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     workbook.getWorksheet(
       getLocalizedName(config?.facility?.facilityTab, localizationMap)
     ),
-    facilityBoundaryMap
+    facilityBoundaryMap,
+    localizedHeadersMap
   );
   const responseData =
     updatedWorksheet && (await createAndUploadFile(workbook, request));
@@ -237,6 +247,13 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   logger.info(`updated the resources of facility`);
 };
 
+function getLocalizedHeadersMapForFacility(descriptionToFieldMap: Record<string, string>, localizationMap: any){
+  for(const [key,value] of Object.entries(descriptionToFieldMap)){
+    descriptionToFieldMap[key] = getLocalizedName(value, localizationMap);
+  }
+  return descriptionToFieldMap;
+}
+
 export const fetchTargetData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
@@ -277,7 +294,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   await workbook.worksheets.forEach(async (worksheet) => {
     console.log(`Processing worksheet: ${worksheet.name}`);
 
-    if (worksheet.name != "Read Me" && worksheet.name != "Boundary Data") {
+    if (worksheet.name !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && worksheet.name !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
       // harcoded to be changed
       // Iterate over rows (skip the header row)
       await findAndChangeTargetData(worksheet, targetBoundaryMap);
@@ -364,46 +381,69 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
   return worksheet;
 }
 
-function findAndChangeFacilityData(worksheet: any, mappingData: any) {
-  logger.info(
-    `Received for facility mapping, enitity count : ${
-      Object.keys(mappingData)?.length
-    }`
-  );
+function findAndChangeFacilityData(
+  worksheet: any,
+  mappingData: Record<string, {
+    additionalDetails: any; serviceBoundaries: string[] 
+}>,
+headersMap: Record<string, string>
+) {
+  let facilityCodeIndex: number = 1;
+  let boundaryCodeIndex: number = 6;
+  let facilityUsageIndex: number = 7;
+  let headerValues: any = [];
 
-  // column no is // harcoded to be changed
-  const mappedData: any = {};
-  // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
+  const mappedData: Record<string, boolean> = {};
+  const missingFacilities: string[] = [];
+
+  // Iterate through each row in the worksheet
   worksheet.eachRow((row: any, rowIndex: number) => {
-    if (rowIndex === 1) return; // Skip the header row
-    const column1Value = row.getCell(1).value; // Get the value from column 1
-    if (mappingData?.[column1Value]) {
-      // Update columns 5 and 6 if column 1 value matches
-      row.getCell(6).value =
-        mappingData?.[column1Value]?.["serviceBoundaries"]?.join(","); // Set "BoundaryCode" in column 5
-      row.getCell(7).value = "Active"; // Set "Status" in column 6
-      mappedData[column1Value] = rowIndex;
+    if (rowIndex === 1) {
+      headerValues = row.values;
+      facilityCodeIndex = headerValues.indexOf("Facility Code");
+      boundaryCodeIndex = headerValues.indexOf(headersMap["Boundary Code"]);
+      facilityUsageIndex = headerValues.indexOf(headersMap["Facility usage"]);
+      return;
+    }
+
+    const facilityCode = row.getCell(facilityCodeIndex).value;
+    if (facilityCode && mappingData[facilityCode]) {
+      const facilityDetails = mappingData[facilityCode];
+      row.getCell(boundaryCodeIndex).value = facilityDetails.serviceBoundaries.join(",") || "";
+      row.getCell(facilityUsageIndex).value = "Active";
+      mappedData[facilityCode] = true;
     } else {
-      // Default values for other rows
-      row.getCell(6).value = "";
-      row.getCell(7).value = "Inactive";
+      row.getCell(boundaryCodeIndex).value = "";
+      row.getCell(facilityUsageIndex).value = "Inactive";
     }
   });
+
+  // Handle missing facilities
+  for (const [facilityCode, facilityDetails] of Object.entries(mappingData)) {
+    if (!mappedData[facilityCode]) {
+      missingFacilities.push(facilityCode);
+      const newRow = worksheet.addRow([]);
+      newRow.getCell(facilityCodeIndex).value = facilityCode;
+      newRow.getCell(headerValues.indexOf(headersMap["Facility Name"])).value = facilityDetails?.additionalDetails?.facilityName;
+      newRow.getCell(headerValues.indexOf(headersMap["Facility type"])).value = facilityDetails?.additionalDetails?.facilityType;
+      newRow.getCell(headerValues.indexOf(headersMap["Facility status"])).value = facilityDetails?.additionalDetails?.facilityStatus;
+      newRow.getCell(headerValues.indexOf(headersMap["Capacity"])).value = facilityDetails?.additionalDetails?.capacity;
+      newRow.getCell(boundaryCodeIndex).value = facilityDetails.serviceBoundaries.join(",") || "";
+      newRow.getCell(facilityUsageIndex).value = "Active";
+    }
+  }
   logger.info(
-    `Updated the boundary & active/inactive status information in facility received from the microplan`
-  );
+    `Updated the boundary & active/inactive status information in facility received from the microplan`);
   logger.info(
-    `mapping completed for facility enitity count : ${
-      Object.keys(mappedData)?.length
-    }`
-  );
-  logger.info(
-    `mapping not found for facility entity count : ${
-      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
-    }`
-  );
+      `mapping completed for facility enitity count : ${
+        Object.keys(mappedData)?.length
+      }`
+    );
+
   return worksheet;
 }
+
+
 function findAndChangeTargetData(worksheet: any, mappingData: any) {
   logger.info(
     `Received for Target mapping, enitity count : ${
@@ -461,12 +501,12 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
 
+  const userRoleMapping = await fetchUserRoleMappingFromMDMS(request, tenantId);
   const planResponse = await searchPlan(
     planConfigurationId,
     tenantId,
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
-  console.log(planResponse, "planResponse");
   const boundariesOfCampaign = await getBoundaryInformation(
     request.body.CampaignDetails,
     request.body.CampaignDetails?.hierarchyType,
@@ -489,7 +529,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     )}`
   );
 
-  const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse);
+  const boundaryWithRoleMap = getUserRoleMapWithBoundaryCode(planResponse, userRoleMapping);
   logger.debug(
     `created userBoundaryMap :${getFormattedStringForDebug(
       boundaryWithRoleMap
@@ -691,3 +731,45 @@ const enrichBoundariesWithTheSelectedChildrens = (
   });
   return enrichedMap;
 };
+async function fetchUserRoleMappingFromMDMS(request: any, tenantId: any) {
+  const MdmsCriteria: MDMSModels.MDMSv1RequestCriteria = {
+    MdmsCriteria: {
+    tenantId: tenantId,
+    moduleDetails: [
+      {
+        moduleName: "HCM-ADMIN-CONSOLE",
+        masterDetails: [
+          {
+            name: "microplanIntegration"
+          },
+        ],
+      },
+    ],
+  }
+  };
+  const data = await searchMDMSDataViaV1Api(MdmsCriteria);
+  const result: Record<string, any[]> = {};
+  if (
+    data?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.microplanIntegration &&
+    Array.isArray(data.MdmsRes["HCM-ADMIN-CONSOLE"].microplanIntegration)
+  ) {
+    const integrations = data.MdmsRes["HCM-ADMIN-CONSOLE"].microplanIntegration;
+
+    integrations.forEach((integration: any) => {
+      const type = integration.type;
+
+      if (!result[type]) {
+        result[type] = [];
+      }
+
+      result[type].push({
+        to: integration.to,
+        from: integration.from,
+        type: integration.type,
+        filter: integration.filter,
+      });
+    });
+  }
+
+  return result;
+}

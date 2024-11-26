@@ -1322,6 +1322,20 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
       }
     }
   }
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+  
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+  
+  
   enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
   return data;
 }
