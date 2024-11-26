@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 import lombok.Data;
 import lombok.Builder;
 
+import java.util.List;
+
 /**
  * PlanConfigurationSearchCriteria
  */
@@ -29,6 +31,9 @@ public class PlanConfigurationSearchCriteria {
     @JsonProperty("id")
     private String id = null;
 
+    @JsonProperty("ids")
+    private List<String> ids = null;
+
     @JsonProperty("name")
     private String name = null;
 
@@ -36,7 +41,7 @@ public class PlanConfigurationSearchCriteria {
     private String campaignId = null;
 
     @JsonProperty("status")
-    private String status = null;
+    private List<String> status = null;
 
     @JsonProperty("userUuid")
     private String userUuid = null;
@@ -49,5 +54,4 @@ public class PlanConfigurationSearchCriteria {
     @Min(1)
     @Max(50)
     private Integer limit;
-
 }

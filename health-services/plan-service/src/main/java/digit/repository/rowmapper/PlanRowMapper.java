@@ -48,12 +48,18 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                         .lastModifiedTime(rs.getLong("plan_last_modified_time"))
                         .build();
 
+                String commaSeparatedAssignee = rs.getString("plan_assignee");
+                List<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? Arrays.asList(commaSeparatedAssignee.split(",")) : null;
+
                 // Prepare plan object
                 planEntry.setId(planId);
                 planEntry.setTenantId(rs.getString("plan_tenant_id"));
                 planEntry.setLocality(rs.getString("plan_locality"));
                 planEntry.setCampaignId(rs.getString("plan_campaign_id"));
+                planEntry.setStatus(rs.getString("plan_status"));
+                planEntry.setAssignee(assignee);
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
+                planEntry.setBoundaryAncestralPath(rs.getString("plan_boundary_ancestral_path"));
                 planEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 

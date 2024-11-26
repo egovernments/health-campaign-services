@@ -56,8 +56,9 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     public List<PlanEmployeeAssignment> search(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String searchQuery = queryBuilder.getPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
-        List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
+        log.info("Plan Employee Assignment search query : " + searchQuery);
 
+        List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
         return planEmployeeAssignments;
     }
 
@@ -103,6 +104,8 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
                 .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
                 .employeeId(planEmployeeAssignment.getEmployeeId())
                 .role(planEmployeeAssignment.getRole())
+                .planConfigurationName(planEmployeeAssignment.getPlanConfigurationName())
+                .hierarchyLevel(planEmployeeAssignment.getHierarchyLevel())
                 .jurisdiction(String.join(",", planEmployeeAssignment.getJurisdiction()))
                 .additionalDetails(planEmployeeAssignment.getAdditionalDetails())
                 .active(planEmployeeAssignment.getActive())

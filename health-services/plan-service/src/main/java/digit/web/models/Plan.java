@@ -1,12 +1,15 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -43,6 +46,13 @@ public class Plan {
     @Size(max = 64)
     private String planConfigurationId = null;
 
+    @JsonProperty("status")
+    @Size(max = 64)
+    private String status = null;
+
+    @JsonProperty("assignee")
+    private List<String> assignee = null;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
@@ -60,5 +70,21 @@ public class Plan {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
+
+    @JsonIgnore
+    private String boundaryAncestralPath = null;
+
+    @JsonIgnore
+    private boolean isRequestFromResourceEstimationConsumer;
+
+    @JsonIgnore
+    private List<String> assigneeJurisdiction;
+
+    @JsonProperty("workflow")
+    @Valid
+    private Workflow workflow;
 
 }
