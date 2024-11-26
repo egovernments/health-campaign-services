@@ -56,6 +56,9 @@ public class Configuration {
     @Value("${egov.boundary.relationship.search.endpoint}")
     private String boundaryRelationshipSearchEndpoint;
 
+    @Value("${egov.boundary.hierarchy.search.endpoint}")
+    private String boundaryHierarchySearchEndpoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;

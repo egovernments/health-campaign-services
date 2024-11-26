@@ -188,6 +188,7 @@ public class PlanRepositoryImpl implements PlanRepository {
                 .status(plan.getStatus())
                 .assignee(assignee)
                 .additionalDetails(plan.getAdditionalDetails())
+                .jurisdictionMapping(plan.getJurisdictionMapping())
                 .activities(plan.getActivities())
                 .resources(plan.getResources())
                 .targets(plan.getTargets())

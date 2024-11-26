@@ -20,6 +20,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
 
+    public static final String ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS = "Exception occurred while fetching boundary hierarchy details from boundary service: ";
+
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
 
     public static final String RES_MSG_ID = "uief87324";
