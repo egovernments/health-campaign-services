@@ -112,8 +112,8 @@ public class NotificationUtil {
             String customizedMsg = emailTemplate.replace("{User's name}", employee.getUser().getName());
             customizedMsg = customizedMsg.replace("{Username}", employee.getCode());
             customizedMsg = customizedMsg.replace("{Password}", employee.getUser().getPassword());
-            customizedMsg = customizedMsg.replace("{website URL}", propertiesManager.getNotificationWebsiteLink());
-            customizedMsg = customizedMsg.replace("{Implementation partner}", propertiesManager.getNotificationImplementationPartner());
+            customizedMsg = customizedMsg.replace("{website URL}", propertiesManager.getEmailNotificationWebsiteLink());
+            customizedMsg = customizedMsg.replace("{Implementation partner}", propertiesManager.getEmailNotificationImplementationPartner());
 
             String subject = customizedMsg.substring(customizedMsg.indexOf("<h2>")+4, customizedMsg.indexOf("</h2>"));
             String body = customizedMsg.substring(customizedMsg.indexOf("</h2>")+5);

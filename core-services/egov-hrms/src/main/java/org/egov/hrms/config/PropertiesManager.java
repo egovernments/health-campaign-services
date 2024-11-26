@@ -149,9 +149,9 @@ public class PropertiesManager {
 	@Value("${egov.boundary.search.url}")
 	private String boundarySearchUrl;
 
-	@Value("${egov.hrms.notification.implementation.partner}")
-	public String notificationImplementationPartner;
+	@Value("${hrms.email.notification.implementation.partner}")
+	public String emailNotificationImplementationPartner;
 
-	@Value("${egov.hrms.notification.website.link}")
-	public String notificationWebsiteLink;
+	@Value("${hrms.email.notification.website.link}")
+	public String emailNotificationWebsiteLink;
 }
