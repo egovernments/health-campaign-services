@@ -15,6 +15,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,13 +63,12 @@ public class CommonUtil {
 
             JsonNode node = rootNode.get(fieldToExtract);
             if (node != null && !node.isNull()) {
+
                 // Check for different types of JSON nodes
-                if (node instanceof DecimalNode) {
-                    return ((DecimalNode) node).decimalValue();
-                } else if (node.isDouble() || node.isFloat()) {
-                    return node.asDouble();
+                if (node.isDouble() || node.isFloat()) {
+                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
                 } else if (node.isLong() || node.isInt()) {
-                    return node.asLong();
+                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
                 } else if (node.isBoolean()) {
                     return node.asBoolean();
                 } else if (node.isTextual()) {
@@ -243,9 +243,7 @@ public class CommonUtil {
             fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
 
             // Convert updated ObjectNode back to a Map
-            Map<String, Object> updatedMap = objectMapper.convertValue(objectNode, Map.class);
-
-            return updatedMap;
+            return objectMapper.convertValue(objectNode, Map.class);
 
         } catch (Exception e) {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);

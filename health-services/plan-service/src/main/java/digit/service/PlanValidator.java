@@ -10,6 +10,7 @@ import digit.util.CommonUtil;
 import digit.util.MdmsUtil;
 import digit.web.models.*;
 import digit.web.models.boundary.BoundarySearchResponse;
+import digit.web.models.boundary.BoundaryTypeHierarchyResponse;
 import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.projectFactory.CampaignResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -294,6 +295,8 @@ public class PlanValidator {
 
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlan().getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
+        BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(request.getRequestInfo(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType());
 
         //TODO: remove after setting the flag in consumer
         request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
@@ -337,6 +340,9 @@ public class PlanValidator {
 
         // Validate plan-employee assignment and jurisdiction
         validatePlanEmployeeAssignmentAndJurisdiction(request);
+
+        // Enrich jurisdiction mapping in plan
+        planEnricher.enrichJurisdictionMapping(request.getPlan(), boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
     }
 
     /**
@@ -526,7 +532,7 @@ public class PlanValidator {
     }
 
     /**
-     * Validates the boundary code provided in census request against boundary service.
+     * Validates the boundary code provided in plan request against boundary service.
      *
      * @param boundarySearchResponse response from the boundary service.
      * @param plan                 Plan record whose loclality is to be validated.
@@ -540,7 +546,7 @@ public class PlanValidator {
 
         //TODO: change to if(!plan.isRequestFromResourceEstimationConsumer()) after triggering from consumer
 
-        // Enrich the boundary ancestral path for the provided boundary code
+        // Enrich the boundary ancestral path and jurisdiction mapping for the provided boundary code
         if(plan.isRequestFromResourceEstimationConsumer())
             planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
     }
@@ -550,6 +556,9 @@ public class PlanValidator {
      * @param bulkPlanRequest
      */
     public void validateBulkPlanUpdate(BulkPlanRequest bulkPlanRequest) {
+        CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(bulkPlanRequest.getRequestInfo(), bulkPlanRequest.getPlans().get(0).getCampaignId(), bulkPlanRequest.getPlans().get(0).getTenantId());
+        BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(bulkPlanRequest.getRequestInfo(), bulkPlanRequest.getPlans().get(0).getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType());
+
         // Validate attributes across each plan in the bulk request
         validatePlanAttributes(bulkPlanRequest);
 
@@ -558,6 +567,9 @@ public class PlanValidator {
 
         // Validate plan employee assignment and jurisdiction
         validatePlanEmployeeAssignmentAndJurisdiction(bulkPlanRequest);
+
+        // Enrich jurisdiction mapping in plan
+        planEnricher.enrichJurisdictionMapping(bulkPlanRequest.getPlans(), boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
     }
 
     /**

@@ -20,6 +20,8 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
 
+    public static final String ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS = "Exception occurred while fetching boundary hierarchy details from boundary service: ";
+
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
 
     public static final String RES_MSG_ID = "uief87324";
@@ -354,5 +356,11 @@ public class ServiceConstants {
     public static final String COMMA_DELIMITER = ",";
 
     public static final String SERVING_POPULATION_CODE = "servingPopulation";
+
+    public static final String CONFIRMED_TARGET_POPULATION_AGE_3TO11 = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION_AGE_3TO11";
+
+    public static final String CONFIRMED_TARGET_POPULATION_AGE_12TO59 = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION_AGE_12TO59";
+
+    public static final String CONFIRMED_TARGET_POPULATION = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION";
 
 }

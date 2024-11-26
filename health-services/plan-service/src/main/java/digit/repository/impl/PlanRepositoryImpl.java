@@ -120,7 +120,7 @@ public class PlanRepositoryImpl implements PlanRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = body.getPlans().stream().map(plan -> new Object[] {
                 plan.getStatus(),
-                plan.getAssignee(),
+                !CollectionUtils.isEmpty(plan.getAssignee()) ? String.join(",", plan.getAssignee()) : plan.getAssignee(),
                 plan.getAuditDetails().getLastModifiedBy(),
                 plan.getAuditDetails().getLastModifiedTime(),
                 plan.getId()
@@ -176,6 +176,8 @@ public class PlanRepositoryImpl implements PlanRepository {
     private PlanRequestDTO convertToPlanReqDTO(PlanRequest planRequest) {
         Plan plan = planRequest.getPlan();
 
+        String assignee = !CollectionUtils.isEmpty(plan.getAssignee()) ? String.join(",", plan.getAssignee()) : null;
+
         // Creating a new data transfer object (DTO) for Plan
         PlanDTO planDTO = PlanDTO.builder()
                 .id(plan.getId())
@@ -184,8 +186,9 @@ public class PlanRepositoryImpl implements PlanRepository {
                 .campaignId(plan.getCampaignId())
                 .planConfigurationId(plan.getPlanConfigurationId())
                 .status(plan.getStatus())
-                .assignee(plan.getAssignee())
+                .assignee(assignee)
                 .additionalDetails(plan.getAdditionalDetails())
+                .jurisdictionMapping(plan.getJurisdictionMapping())
                 .activities(plan.getActivities())
                 .resources(plan.getResources())
                 .targets(plan.getTargets())

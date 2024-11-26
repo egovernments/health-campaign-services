@@ -155,11 +155,16 @@ public class WorkflowService {
                 .documents(plan.getWorkflow().getDocuments())
                 .build();
 
-        String assignee = getAssigneeForAutoAssignment(plan, planRequest.getRequestInfo());
+        List<String> assignee = getAssigneeForAutoAssignment(plan, planRequest.getRequestInfo());
+
+        // Set assignees for send back actions
+        if (config.getWfSendBackActions().contains(plan.getWorkflow().getAction())) {
+            assignee = Collections.singletonList(plan.getAuditDetails().getLastModifiedBy());
+        }
 
         // Set Assignee
         if(!ObjectUtils.isEmpty(assignee))
-            plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+            plan.getWorkflow().setAssignes(assignee);
 
         plan.setAssignee(assignee);
 
@@ -198,7 +203,7 @@ public class WorkflowService {
     }
 
     /**
-     * Automatically assigns an assignee based on the workflow action and jurisdiction hierarchy.
+     * Automatically assigns a list of assignee based on the workflow action and jurisdiction hierarchy.
      * Retrieves jurisdiction boundaries from the plan request and searches for matching employee assignments.
      *
      * For INITIATE actions, assigns the employee from the lowest boundary.
@@ -210,7 +215,7 @@ public class WorkflowService {
      * @param requestInfo auth details for making internal calls
      * @param plan the plan object containing workflow and jurisdiction details
      */
-    private String getAssigneeForAutoAssignment(Plan plan, RequestInfo requestInfo) {
+    private List<String> getAssigneeForAutoAssignment(Plan plan, RequestInfo requestInfo) {
         String[] allheirarchysBoundaryCodes = plan.getBoundaryAncestralPath().split(PIPE_REGEX);
         String[] heirarchysBoundaryCodes = Arrays.copyOf(allheirarchysBoundaryCodes, allheirarchysBoundaryCodes.length - 1);
 
@@ -227,8 +232,8 @@ public class WorkflowService {
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
                 .requestInfo(requestInfo).build());
 
-        // Create a map of jurisdiction to employeeId
-        Map<String, String> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
+        // Create a map of jurisdiction to list of employeeIds
+        Map<String, List<String>> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
                 .filter(assignment -> assignment.getJurisdiction() != null && !assignment.getJurisdiction().isEmpty())
                 .flatMap(assignment -> {
                     String employeeId = assignment.getEmployeeId();
@@ -236,14 +241,16 @@ public class WorkflowService {
                             .filter(jurisdiction -> Arrays.asList(heirarchysBoundaryCodes).contains(jurisdiction))
                             .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
                 })
-                .collect(Collectors.toMap(
+                .collect(Collectors.groupingBy(
                         Map.Entry::getKey, // jurisdiction as the key
-                        Map.Entry::getValue, // employeeId as the value
-                        (existing, replacement) -> existing, // Keep the first employeeId for duplicates
-                        LinkedHashMap::new // Ensure insertion order is preserved
+                        LinkedHashMap::new, // Preserve insertion order
+                        Collectors.mapping(
+                                Map.Entry::getValue, // employee IDs as values
+                                Collectors.toList() // Collect employee IDs into a List
+                        )
                 ));
 
-        String assignee = null; //assignee will remain null in case terminate actions are being taken
+        List<String> assignee = null; //assignee will remain null in case terminate actions are being taken
 
         String action = plan.getWorkflow().getAction();
         if (config.getWfInitiateActions().contains(action)) {
@@ -254,15 +261,13 @@ public class WorkflowService {
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
             assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, plan, jurisdictionToEmployeeMap);
-        } else if (config.getWfSendBackActions().contains(action)) {
-            assignee = plan.getAuditDetails().getLastModifiedBy();
         }
 
         return assignee;
     }
 
     /**
-     * Assigns an employee from a higher-level jurisdiction in the hierarchy.
+     * Assigns a list of employees from a higher-level jurisdiction in the hierarchy.
      * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
      * If a higher-level boundary has an assigned employee, returns that employee's ID.
      *
@@ -271,7 +276,7 @@ public class WorkflowService {
      * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
      * @return the employee ID from the higher boundary, or null if
      */
-    public String assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Plan plan, Map<String, String> jurisdictionToEmployeeMap) {
+    public List<String> assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Plan plan, Map<String, List<String>> jurisdictionToEmployeeMap) {
         for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
             String boundaryCode = heirarchysBoundaryCodes[i];
 
@@ -283,7 +288,7 @@ public class WorkflowService {
                     String higherBoundaryCode = heirarchysBoundaryCodes[j];
 
                     // Fetch the employeeId from the map for the higher boundary code
-                    String employeeId = jurisdictionToEmployeeMap.get(higherBoundaryCode);
+                    List<String> employeeId = jurisdictionToEmployeeMap.get(higherBoundaryCode);
 
                     // If an employee is found, set them as the assignee and break the loop
                     if (employeeId != null) {
@@ -318,14 +323,19 @@ public class WorkflowService {
         List<ProcessInstance> processInstanceList = new ArrayList<>();
 
         // Perform auto assignment
-        String assignee = getAssigneeForAutoAssignment(bulkPlanRequest.getPlans().get(0),
+        List<String> assignee = getAssigneeForAutoAssignment(bulkPlanRequest.getPlans().get(0),
                 bulkPlanRequest.getRequestInfo());
 
-        bulkPlanRequest.getPlans().forEach(plan -> {
+        for(Plan plan: bulkPlanRequest.getPlans()) {
+
+            // Setting assignee for send back actions
+            if (config.getWfSendBackActions().contains(plan.getWorkflow().getAction())) {
+                assignee = Collections.singletonList(plan.getAuditDetails().getLastModifiedBy());
+            }
 
             // Set assignee
             if(!ObjectUtils.isEmpty(assignee))
-                plan.getWorkflow().setAssignes(Collections.singletonList(assignee));
+                plan.getWorkflow().setAssignes(assignee);
 
             plan.setAssignee(assignee);
 
@@ -345,7 +355,7 @@ public class WorkflowService {
 
             // Add entry for bulk transition
             processInstanceList.add(processInstance);
-        });
+        }
 
         return ProcessInstanceRequest.builder()
                 .requestInfo(bulkPlanRequest.getRequestInfo())
