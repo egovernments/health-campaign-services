@@ -105,6 +105,8 @@ public class PlanEnricher {
             }
         });
 
+        // Enriching last modified time for update
+        body.getPlan().getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
     }
 
     /**

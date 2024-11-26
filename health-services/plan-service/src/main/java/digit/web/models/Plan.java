@@ -50,8 +50,7 @@ public class Plan {
     private String status = null;
 
     @JsonProperty("assignee")
-    @Size(max = 64)
-    private String assignee = null;
+    private List<String> assignee = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
