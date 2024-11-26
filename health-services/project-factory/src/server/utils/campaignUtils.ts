@@ -3722,7 +3722,7 @@ async function updateCampaign(request: any ,source="MICROPLAN_FETCHING") {
   if (!request.body.CampaignDetails.additionalDetails) {
     request.body.CampaignDetails.additionalDetails = {};
   }
-  request.body.CampaignDetails.additionalDetails.source = "MICROPLAN_FETCHING";
+  request.body.CampaignDetails.additionalDetails.activity = "MICROPLAN_FETCHING";
   (!request.body?.CampaignDetails?.additionalDetails?.["disease"])&&(request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
   (!request.body?.CampaignDetails?.additionalDetails?.["beneficiaryType"])&&(request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
       "INDIVIDUAL");
