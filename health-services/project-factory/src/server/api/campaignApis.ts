@@ -1361,6 +1361,8 @@ async function performAndSaveResourceActivity(
           newRequestBody
         );
       }
+      // wait for 10 seconds after each chunk
+      await new Promise((resolve) => setTimeout(resolve, 10000));
     }
     await enrichAlreadyExsistingUser(request);
     logger.info(`Waiting for 10 seconds`);
