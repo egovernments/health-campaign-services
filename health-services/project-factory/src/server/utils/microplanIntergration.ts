@@ -262,7 +262,6 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     tenantId,
     getBoundariesFromCampaign(request.body.CampaignDetails)?.length
   );
-  console.log(planCensusResponse, "planCensusResponse");
   const targetBoundaryMap = getPlanCensusMapByBoundaryCode(planCensusResponse);
   logger.debug(
     `created targetBoundaryMap :${getFormattedStringForDebug(
@@ -292,7 +291,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   const workbook = await getExcelWorkbookFromFileURL(fileUrl);
 
   await workbook.worksheets.forEach(async (worksheet) => {
-    console.log(`Processing worksheet: ${worksheet.name}`);
+    logger.info(`Processing worksheet: ${worksheet.name}`);
 
     if (worksheet.name !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && worksheet.name !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
       // harcoded to be changed
@@ -347,7 +346,7 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
       Object.keys(mappingData)?.length
     }`
   );
-  console.log(mappingData, "mappingData user");
+  logger.debug(`${getFormattedStringForDebug(mappingData)}, "mappingData user`);
   // column no is // harcoded to be changed
   const mappedData: any = {};
 
@@ -611,11 +610,11 @@ export async function updateCampaignDetails(
     let resourceFound = false; // Flag to track if resource is updated
 
     // Loop through resources to update or append as needed
-    resources.forEach((resource: any) => {
+    resources?.forEach((resource: any) => {
       if (resource.type === type) {
         resource.filestoreId = fileStoreId;
         resource.resourceId = resourceDetailsId;
-        console.log(
+        logger.info(
           `Updated resource of type ${type} with filestoreId: ${resource.filestoreId}`
         );
         resourceFound = true;
@@ -630,7 +629,7 @@ export async function updateCampaignDetails(
         filestoreId: fileStoreId,
         resourceId: resourceDetailsId,
       });
-      console.log(`Appended new resource of type ${type}`);
+      logger.info(`Appended new resource of type ${type}`);
     }
   } else {
     console.error(
