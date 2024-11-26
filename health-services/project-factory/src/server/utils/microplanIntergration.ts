@@ -21,7 +21,6 @@ import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
-
 /**
  * Adds data rows to the provided worksheet.
  * @param worksheet The worksheet to which the data should be added.
@@ -67,7 +66,7 @@ const getRolesAndCount = (resources = [], userRoleMapping: any) => {
   const USER_ROLE_MAP: any = {};
 
   // Iterate through the userRoleMapping to determine rules for roles
-  userRoleMapping?.user.forEach((mapping: any) => {
+  userRoleMapping?.user?.forEach((mapping: any) => {
     const { to, from, filter } = mapping;
 
     resources?.forEach((resource: any) => {
@@ -257,6 +256,9 @@ function getLocalizedHeadersMapForFacility(descriptionToFieldMap: Record<string,
 export const fetchTargetData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
+  const {projectType} = request.body.CampaignDetails;
+  const campaignType = "Target-" + projectType;
+  const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
   const planCensusResponse = await searchPlanCensus(
     planConfigurationId,
     tenantId,
@@ -296,7 +298,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     if (worksheet.name !== getLocalizedName(config?.boundary?.boundaryTab, localizationMap) && worksheet.name !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
       // harcoded to be changed
       // Iterate over rows (skip the header row)
-      await findAndChangeTargetData(worksheet, targetBoundaryMap);
+      await findAndChangeTargetData(worksheet, targetBoundaryMap, userRoleMapping[campaignType], localizationMap);
     }
   });
 
@@ -442,25 +444,32 @@ headersMap: Record<string, string>
   return worksheet;
 }
 
+function getHeaderIndex(headers: any, headerName: string, localizationMap: any) {
+  return headers.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+}
 
-function findAndChangeTargetData(worksheet: any, mappingData: any) {
+
+function findAndChangeTargetData(worksheet: any, mappingData: any, headers: any, localizationMap: any) {
   logger.info(
     `Received for Target mapping, enitity count : ${
       Object.keys(mappingData)?.length
     }`
   );
+
+  if(headers == null || headers.length == 0) {
+    throwError("Error", 500, "Mapping not found in MDMS for Campaign");
+  }
+  let headersInSheet = worksheet.getRow(1).values;
   const mappedData: any = {};
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {
     if (rowIndex === 1) return; // Skip the header row
-    const column1Value = row.getCell(5).value; // Get the value from column 1
-    if (mappingData?.[column1Value]) {
+    const column1Value = row.getCell(getHeaderIndex(headersInSheet, config?.boundary?.boundaryCode, localizationMap)).value; // Get the value from column 1
+    if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
       // Update columns 5 and 6 if column 1 value matches
-      row.getCell(6).value =
-        mappingData?.[column1Value]?.["additionalDetails"]?.[
-          "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION"
-        ]; // Set "BoundaryCode" in column 5
-      // row.getCell(7).value = "Active"; // Set "Status" in column 6
+      headers[0]?.from.forEach((fromValue: any) => {
+        row.getCell(getHeaderIndex(headersInSheet, fromValue, localizationMap)).value = mappingData?.[column1Value]?.additionalDetails?.[getLocalizedName(headers[0]?.to, localizationMap)];
+      })
       mappedData[column1Value] = rowIndex;
     } else {
       logger.info(`not doing anything if taregt cel not found`);
@@ -499,8 +508,9 @@ const getBoundariesFromCampaign = (CampaignDetails: any = {}) => {
 export const fetchUserData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
+  
+  const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
 
-  const userRoleMapping = await fetchUserRoleMappingFromMDMS(request, tenantId);
   const planResponse = await searchPlan(
     planConfigurationId,
     tenantId,
@@ -730,7 +740,7 @@ const enrichBoundariesWithTheSelectedChildrens = (
   });
   return enrichedMap;
 };
-async function fetchUserRoleMappingFromMDMS(request: any, tenantId: any) {
+export async function fetchUserRoleMappingFromMDMS(tenantId: any) {
   const MdmsCriteria: MDMSModels.MDMSv1RequestCriteria = {
     MdmsCriteria: {
     tenantId: tenantId,
