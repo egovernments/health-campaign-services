@@ -3,6 +3,9 @@ package digit.util;
 import digit.config.Configuration;
 import digit.web.models.RequestInfoWrapper;
 import digit.web.models.boundary.BoundarySearchResponse;
+import digit.web.models.boundary.BoundaryTypeHierarchyResponse;
+import digit.web.models.boundary.BoundaryTypeHierarchySearchCriteria;
+import digit.web.models.boundary.BoundaryTypeHierarchySearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Component;
@@ -12,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_BOUNDARY_DETAILS;
+import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS;
 
 @Slf4j
 @Component
@@ -78,5 +82,30 @@ public class BoundaryUtil {
         uriParameters.put("hierarchyType", hierarchyType);
 
         return uri;
+    }
+
+    public BoundaryTypeHierarchyResponse fetchBoundaryHierarchy(RequestInfo requestInfo, String tenantId, String hierarchyType) {
+
+        // Create Boundary hierarchy search uri
+        String uri = getBoundaryHierarchySearchUri();
+
+        // Create request body
+        BoundaryTypeHierarchySearchCriteria searchCriteria = BoundaryTypeHierarchySearchCriteria.builder().tenantId(tenantId).hierarchyType(hierarchyType).build();
+        BoundaryTypeHierarchySearchRequest searchRequest = BoundaryTypeHierarchySearchRequest.builder().requestInfo(requestInfo).boundaryTypeHierarchySearchCriteria(searchCriteria).build();
+        BoundaryTypeHierarchyResponse searchResponse = new BoundaryTypeHierarchyResponse();
+
+        try {
+            searchResponse = restTemplate.postForObject(uri, searchRequest, BoundaryTypeHierarchyResponse.class);
+        } catch (Exception e) {
+            log.error(ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS, e);
+        }
+
+        return searchResponse;
+    }
+
+    private String getBoundaryHierarchySearchUri() {
+        StringBuilder uri = new StringBuilder();
+        uri.append(configs.getBoundaryServiceHost()).append(configs.getBoundaryHierarchySearchEndpoint());
+        return uri.toString();
     }
 }

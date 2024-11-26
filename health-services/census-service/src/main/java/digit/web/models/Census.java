@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -96,6 +97,9 @@ public class Census {
 
     @JsonIgnore
     private List<String> assigneeJurisdiction;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;

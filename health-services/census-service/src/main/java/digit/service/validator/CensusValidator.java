@@ -1,13 +1,13 @@
 package digit.service.validator;
 
 import digit.config.Configuration;
-import digit.models.coremodels.user.Role;
 import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
 import digit.util.BoundaryUtil;
 import digit.util.PlanEmployeeAssignmnetUtil;
 import digit.web.models.*;
 import digit.web.models.boundary.BoundarySearchResponse;
+import digit.web.models.boundary.BoundaryTypeHierarchyResponse;
 import digit.web.models.boundary.HierarchyRelation;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
@@ -87,7 +87,7 @@ public class CensusValidator {
             throw new CustomException(NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE);
         }
 
-        // Enrich the boundary ancestral path for the provided boundary code
+        // Enrich the boundary ancestral path and jurisdiction mapping for the provided boundary code
         enrichment.enrichBoundaryAncestralPath(census, tenantBoundary);
     }
 
@@ -156,6 +156,7 @@ public class CensusValidator {
      * @param request the update request for Census.
      */
     public void validateUpdate(CensusRequest request) {
+        BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(request.getRequestInfo(), request.getCensus().getTenantId(), request.getCensus().getHierarchyType());
 
         // Validate if Census record to be updated exists
         validateCensusExistence(request);
@@ -165,6 +166,9 @@ public class CensusValidator {
 
         // Validate keys in additional field
         validateAdditionalFields(request);
+
+        // Enrich jurisdiction mapping in census
+        enrichment.enrichJurisdictionMapping(request.getCensus(), boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
     }
 
     /**
@@ -195,6 +199,7 @@ public class CensusValidator {
      * @param request the census bulk update request.
      */
     public void validateBulkUpdate(BulkCensusRequest request) {
+        BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(request.getRequestInfo(), request.getCensus().get(0).getTenantId(), request.getCensus().get(0).getHierarchyType());
 
         // Validate attributes across each census in the bulk update request
         validateCensusAttributes(request);
@@ -204,6 +209,9 @@ public class CensusValidator {
 
         // Validate partner assignment and jurisdiction against plan service
         validatePartnerForCensus(request);
+
+        // Enrich jurisdiction mapping in census
+        enrichment.enrichJurisdictionMapping(request.getCensus(), boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
     }
 
     /**
