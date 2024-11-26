@@ -45,11 +45,9 @@ public class CensusDTO {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    @NotNull
     private String assignee = null;
 
     @JsonProperty("status")
-    @NotNull
     private String status = null;
 
     @JsonProperty("type")
