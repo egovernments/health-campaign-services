@@ -3,10 +3,13 @@ package digit.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.repository.CensusRepository;
 import digit.service.CensusService;
+import digit.service.enrichment.CensusEnrichment;
+import digit.util.BoundaryUtil;
 import digit.util.CommonUtil;
 import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
 import digit.web.models.CensusResponse;
+import digit.web.models.boundary.BoundaryTypeHierarchyResponse;
 import digit.web.models.plan.PlanFacilityDTO;
 import digit.web.models.plan.PlanFacilityRequestDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -35,11 +38,17 @@ public class FacilityCatchmentConsumer {
 
     private CommonUtil commonUtil;
 
-    public FacilityCatchmentConsumer(ObjectMapper objectMapper, CensusService service, CommonUtil commonUtil, CensusRepository repository) {
+    private BoundaryUtil boundaryUtil;
+
+    private CensusEnrichment enrichment;
+
+    public FacilityCatchmentConsumer(ObjectMapper objectMapper, CensusService service, CommonUtil commonUtil, CensusRepository repository, BoundaryUtil boundaryUtil, CensusEnrichment enrichment) {
         this.objectMapper = objectMapper;
         this.service = service;
         this.commonUtil = commonUtil;
         this.repository = repository;
+        this.boundaryUtil = boundaryUtil;
+        this.enrichment = enrichment;
     }
 
     @KafkaListener(topics = {"${plan.facility.update.topic}"})
@@ -51,6 +60,7 @@ public class FacilityCatchmentConsumer {
             CensusResponse censusResponse = service.search(commonUtil.getCensusSearchRequest(planFacilityDTO.getTenantId(), planFacilityDTO.getPlanConfigurationId(), planFacilityDTO.getServiceBoundaries(), planFacilityDTO.getInitiallySetServiceBoundaries(), planFacilityRequestDTO.getRequestInfo()));
             List<Census> censusFromSearch = censusResponse.getCensus();
 
+            BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(planFacilityRequestDTO.getRequestInfo(), censusFromSearch.get(0).getTenantId(), censusFromSearch.get(0).getHierarchyType());
             String facilityId = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityId();
             String facilityName = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityName();
 
@@ -78,6 +88,8 @@ public class FacilityCatchmentConsumer {
                 }
             });
 
+            // Enrich jurisdiction mapping in census
+            enrichment.enrichJurisdictionMapping(censusFromSearch, boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
             repository.bulkUpdate(BulkCensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(censusFromSearch).build());
 
         } catch (Exception exception) {
