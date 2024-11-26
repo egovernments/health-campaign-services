@@ -3687,10 +3687,13 @@ async function processFetchMicroPlan(request: any) {
     logger.info("Started processing fetch microplan");
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-  
-    await fetchFacilityData(request, localizationMap);
-    await fetchTargetData(request, localizationMap);
-    await fetchUserData(request, localizationMap);
+    const resources:any=request?.body?.CampaignDetails?.resources;
+    const filteredResources:any=resources?.filter((obj:any)=>obj?.filestoreId&&obj?.resourceId);
+    logger.info(`filtered resouces which already has these reources :: ${filteredResources?.length}`);
+    logger.debug(`filtered resouces :: ${getFormattedStringForDebug(filteredResources)}`);
+    filteredResources?.every((obj:any)=>obj?.type!="facility")&& await fetchFacilityData(request, localizationMap);
+    filteredResources?.every((obj:any)=>obj?.type!="boundaryWithTarget")&& await fetchTargetData(request, localizationMap);
+    filteredResources?.every((obj:any)=>obj?.type!="user")&&  await fetchUserData(request, localizationMap);
   
     logger.info("Updating back the campaign object after fetch microplan");
     await updateCampaign(request ,"MICROPLAN_COMPLETED")
