@@ -119,6 +119,9 @@ public class CensusEnrichment {
             }
         });
 
+        // Set last modified time on update call
+        census.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
         denormalizeAdditionalFields(request.getCensus());
     }
 

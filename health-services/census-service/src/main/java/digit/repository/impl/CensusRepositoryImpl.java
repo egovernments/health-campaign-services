@@ -165,7 +165,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
                     census.getStatus(),
-                    census.getAssignee(),
+                    !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(",", census.getAssignee()) : census.getAssignee(),
                     census.getAuditDetails().getLastModifiedBy(),
                     census.getAuditDetails().getLastModifiedTime(),
                     commonUtil.convertToPgObject(census.getAdditionalDetails()),
@@ -187,13 +187,15 @@ public class CensusRepositoryImpl implements CensusRepository {
     private CensusRequestDTO convertToReqDTO(CensusRequest censusRequest) {
         Census census = censusRequest.getCensus();
 
+        String assignee = !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(",", census.getAssignee()) : null;
+
         // Creating a new data transfer object (DTO) for Census
         CensusDTO censusDTO = CensusDTO.builder()
                 .id(census.getId())
                 .tenantId(census.getTenantId())
                 .hierarchyType(census.getHierarchyType())
                 .boundaryCode(census.getBoundaryCode())
-                .assignee(census.getAssignee())
+                .assignee(assignee)
                 .status(census.getStatus())
                 .type(census.getType().toString())
                 .totalPopulation(census.getTotalPopulation())
