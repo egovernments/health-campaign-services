@@ -157,6 +157,11 @@ public class WorkflowService {
 
         List<String> assignee = getAssigneeForAutoAssignment(plan, planRequest.getRequestInfo());
 
+        // Set assignees for send back actions
+        if (config.getWfSendBackActions().contains(plan.getWorkflow().getAction())) {
+            assignee = Collections.singletonList(plan.getAuditDetails().getLastModifiedBy());
+        }
+
         // Set Assignee
         if(!ObjectUtils.isEmpty(assignee))
             plan.getWorkflow().setAssignes(assignee);
@@ -256,8 +261,6 @@ public class WorkflowService {
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
             assignee = assignToHigherBoundaryLevel(heirarchysBoundaryCodes, plan, jurisdictionToEmployeeMap);
-        } else if (config.getWfSendBackActions().contains(action)) {
-            assignee = Collections.singletonList(plan.getAuditDetails().getLastModifiedBy());
         }
 
         return assignee;
@@ -323,7 +326,12 @@ public class WorkflowService {
         List<String> assignee = getAssigneeForAutoAssignment(bulkPlanRequest.getPlans().get(0),
                 bulkPlanRequest.getRequestInfo());
 
-        bulkPlanRequest.getPlans().forEach(plan -> {
+        for(Plan plan: bulkPlanRequest.getPlans()) {
+
+            // Setting assignee for send back actions
+            if (config.getWfSendBackActions().contains(plan.getWorkflow().getAction())) {
+                assignee = Collections.singletonList(plan.getAuditDetails().getLastModifiedBy());
+            }
 
             // Set assignee
             if(!ObjectUtils.isEmpty(assignee))
@@ -347,7 +355,7 @@ public class WorkflowService {
 
             // Add entry for bulk transition
             processInstanceList.add(processInstance);
-        });
+        }
 
         return ProcessInstanceRequest.builder()
                 .requestInfo(bulkPlanRequest.getRequestInfo())
