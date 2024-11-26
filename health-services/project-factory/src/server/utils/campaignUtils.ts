@@ -85,7 +85,7 @@ import {
 import {
   callGenerateWhenChildCampaigngetsCreated,
   fetchProjectsWithBoundaryCodeAndNameAndReferenceId,
-  fetchProjectsWithParentRootProjectId,
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getBoundaryProjectMappingFromParentCampaign,
   getColumnIndexByHeader,
@@ -1205,8 +1205,6 @@ async function persistForCampaignProjectMapping(
       Campaign: {},
     };
     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
-    requestBody.Campaign.newlyCreatedBoundaryProjectMap =
-      request?.body?.newlyCreatedBoundaryProjectMap;
     requestBody.Campaign.hierarchyType =
       request?.body?.CampaignDetails?.hierarchyType;
     requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
@@ -2238,9 +2236,10 @@ async function createProject(
       boundaries = await reorderBoundaries(request, localizationMap);
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
-        // make search to project with root project id
+        // make search to project with parent campaign root project id
+        const { projectId, tenantId } = request?.body?.parentCampaign;
         const projectSearchResponse =
-          await fetchProjectsWithParentRootProjectId(request);
+          await fetchProjectsWithProjectId(request,projectId,tenantId);
         boundariesAlreadyWithProjects =
           getBoundaryProjectMappingFromParentCampaign(
             request,
