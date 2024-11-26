@@ -1362,10 +1362,11 @@ async function performAndSaveResourceActivity(
         );
       }
       // wait for 5 seconds after each chunk
+      logger.info(`Waiting for 5 seconds after each chunk`);
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
     await enrichAlreadyExsistingUser(request);
-    logger.info(`Waiting for 10 seconds`);
+    logger.info(`Final waiting for 10 seconds`);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     await confirmCreation(
       createAndSearchConfig,
