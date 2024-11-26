@@ -135,7 +135,9 @@ export const createAndPollForCompletion = async (request: any) => {
     // Step 2: Poll for completion
     const polledResponse = await pollForTemplateGeneration(
       () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type),
-      conditionForTermination2
+      conditionForTermination2,
+      3000,
+      30
     );
 
     logger.info("Polling completed successfully", polledResponse);
