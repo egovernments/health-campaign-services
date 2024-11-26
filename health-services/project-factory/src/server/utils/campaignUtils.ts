@@ -84,7 +84,7 @@ import {
 } from "./targetUtils";
 import {
   callGenerateWhenChildCampaigngetsCreated,
-  fetchProjectsWithBoundaryCodeAndName,
+  fetchProjectsWithBoundaryCodeAndNameAndReferenceId,
   fetchProjectsWithParentRootProjectId,
   getBoundariesFromCampaignSearchResponse,
   getBoundaryProjectMappingFromParentCampaign,
@@ -2258,10 +2258,11 @@ async function createProject(
             boundariesAlreadyWithProjects.has(boundary)
           ) {
             const projectSearchResponse =
-              await fetchProjectsWithBoundaryCodeAndName(
+              await fetchProjectsWithBoundaryCodeAndNameAndReferenceId(
                 boundary,
                 tenantId,
                 request?.body?.CampaignDetails?.campaignName,
+                request?.body?.CampaignDetails?.campaignNumber,
                 request?.body?.RequestInfo
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
@@ -2342,7 +2343,7 @@ async function createProject(
           }
 
           // Set the reference ID and project targets
-          Projects[0].referenceID = request?.body?.CampaignDetails?.id;
+          Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
           (Projects[0].department =
             request?.body?.CampaignDetails?.campaignName),
             (Projects[0].targets = [
@@ -3631,6 +3632,10 @@ async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
+  if (!Array.isArray(mdmsResponse?.mdms) || mdmsResponse.mdms.length === 0) {
+    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType} hierarchy not configured in mdms data 
+                ${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`)
+}
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
 }
 
