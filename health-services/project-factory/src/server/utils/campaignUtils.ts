@@ -101,7 +101,6 @@ import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 import {
   fetchFacilityData,
   fetchTargetData,
-  fetchUserRoleMappingFromMDMS,
   fetchUserData,
 } from "./microplanIntergration";
 
@@ -3688,8 +3687,6 @@ async function processFetchMicroPlan(request: any) {
     logger.info("Started processing fetch microplan");
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
-    request.body.userRoleMapping = userRoleMapping;
     
     const resources:any=request?.body?.CampaignDetails?.resources;
     const filteredResources:any=resources?.filter((obj:any)=>obj?.filestoreId&&obj?.resourceId);
