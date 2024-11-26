@@ -5,6 +5,7 @@ import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
 import digit.util.*;
 import digit.web.models.*;
+import digit.web.models.facility.Facility;
 import digit.web.models.facility.FacilityResponse;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
@@ -15,9 +16,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+
 import static digit.config.ServiceConstants.*;
+
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+
 import digit.web.models.projectFactory.Boundary;
 
 @Component
@@ -29,14 +34,16 @@ public class PlanFacilityValidator {
     private MultiStateInstanceUtil centralInstanceUtil;
     private MdmsUtil mdmsUtil;
     private FacilityUtil facilityUtil;
+    private CommonUtil commonUtil;
 
-    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil) {
+    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil, CommonUtil commonUtil) {
         this.planFacilityRepository = planFacilityRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.campaignUtil = campaignUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.mdmsUtil = mdmsUtil;
         this.facilityUtil = facilityUtil;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -50,6 +57,9 @@ public class PlanFacilityValidator {
         // Retrieve the root-level tenant ID (state-level) based on the facility's tenant ID
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
 
+        // Validate duplicate records for plan facility
+        validateDuplicateRecords(planFacilityRequest);
+
         // Validate PlanConfiguration Existence and fetch the plan configuration details using the PlanConfigurationId
         List<PlanConfiguration> planConfigurations = fetchPlanConfigurationById(planFacilityRequest.getPlanFacility().getPlanConfigurationId(), rootTenantId);
 
@@ -58,6 +68,23 @@ public class PlanFacilityValidator {
 
         // Validate service boundaries and residing boundaries with campaign id
         validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, planFacilityRequest);
+    }
+
+    /**
+     * Validates if plan facility linkage for the provided planConfiguration id and facility id already exists
+     *
+     * @param planFacilityRequest The plan facility linkage create request
+     */
+    private void validateDuplicateRecords(@Valid PlanFacilityRequest planFacilityRequest) {
+        PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+
+        PlanFacilitySearchCriteria searchCriteria = PlanFacilitySearchCriteria.builder().planConfigurationId(planFacility.getPlanConfigurationId()).facilityId(planFacility.getFacilityId()).build();
+
+        List<PlanFacility> planFacilityList = planFacilityRepository.search(searchCriteria);
+
+        if (!CollectionUtils.isEmpty(planFacilityList)) {
+            throw new CustomException(PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_CODE, PLAN_FACILITY_LINKAGE_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     /**
@@ -192,12 +219,22 @@ public class PlanFacilityValidator {
      * @param planFacilityRequest
      */
     private void validatePlanFacilityExistence(PlanFacilityRequest planFacilityRequest) {
-        // If plan facility id provided is invalid, throw an exception
-        if (CollectionUtils.isEmpty(planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
+        List<PlanFacility> planFacilityListFromSearch = planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
                 .ids(Collections.singleton(planFacilityRequest.getPlanFacility().getId()))
-                .build()))) {
+                .build());
+
+        // If plan facility id provided is invalid, throw an exception
+        if (CollectionUtils.isEmpty(planFacilityListFromSearch)) {
             throw new CustomException(INVALID_PLAN_FACILITY_ID_CODE, INVALID_PLAN_FACILITY_ID_MESSAGE);
         }
+
+        enrichInitialServiceBoundaries(planFacilityListFromSearch, planFacilityRequest);
+    }
+
+    private void enrichInitialServiceBoundaries(List<PlanFacility> planFacilityListFromSearch, PlanFacilityRequest planFacilityRequest) {
+
+        List<String> initiallySetServiceBoundaries = planFacilityListFromSearch.get(0).getServiceBoundaries();
+        planFacilityRequest.getPlanFacility().setInitiallySetServiceBoundaries(initiallySetServiceBoundaries);
     }
 
     /**
@@ -212,7 +249,7 @@ public class PlanFacilityValidator {
                 .id(planConfigurationId)
                 .tenantId(tenantId)
                 .build());
-        log.info("planConfigurations: "+planConfigurations);
+        log.info("planConfigurations: " + planConfigurations);
 
         // Validate planConfiguration exists
         if (CollectionUtils.isEmpty(planConfigurations)) {
@@ -234,6 +271,25 @@ public class PlanFacilityValidator {
         if (ObjectUtils.isEmpty(facilityResponse) || CollectionUtils.isEmpty(facilityResponse.getFacilities())) {
             throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + planFacilityRequest.getPlanFacility().getFacilityId() + " not found in the system.");
         }
+
+        enrichFacilityDetails(facilityResponse.getFacilities().get(0), planFacilityRequest);
+    }
+
+    private void enrichFacilityDetails(Facility facility, PlanFacilityRequest planFacilityRequest) {
+        String facilityName = facility.getName();
+        planFacilityRequest.getPlanFacility().setFacilityName(facilityName);
+        BigDecimal initialServingPop = BigDecimal.ZERO;
+
+        Map<String, Object> fieldsToBeAdded = new HashMap<>();
+        fieldsToBeAdded.put("facilityUsage", facility.getUsage());
+        fieldsToBeAdded.put("capacity", facility.getStorageCapacity());
+        fieldsToBeAdded.put("facilityStatus", facility.getAddress().getType());
+        fieldsToBeAdded.put("facilityType", facility.getUsage());
+        fieldsToBeAdded.put("isPermanent", facility.isPermanent());
+        fieldsToBeAdded.put("servingPopulation", initialServingPop);
+
+        planFacilityRequest.getPlanFacility().setAdditionalDetails(
+                commonUtil.updateFieldInAdditionalDetails(planFacilityRequest.getPlanFacility().getAdditionalDetails(), fieldsToBeAdded));
     }
 
 }

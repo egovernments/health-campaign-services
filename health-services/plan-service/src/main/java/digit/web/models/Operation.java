@@ -45,7 +45,7 @@ public class Operation {
 
     @JsonProperty("output")
     @NotNull
-    @Size(min = 1, max = 64)
+    @Size(min = 1, max = 256)
     private String output = null;
 
     @JsonProperty("showOnEstimationDashboard")
@@ -60,6 +60,9 @@ public class Operation {
     @NotNull
     @Size(min = 2, max = 64)
     private String category = null;
+
+    @JsonProperty("executionOrder")
+    private Integer executionOrder = null;
 
     @JsonProperty("active")
     @NotNull

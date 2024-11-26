@@ -3,6 +3,7 @@ package digit.service;
 import digit.repository.PlanConfigurationRepository;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
+import digit.service.validator.WorkflowValidator;
 import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfigurationRequest;
@@ -27,14 +28,17 @@ public class PlanConfigurationService {
 
     private ResponseInfoFactory responseInfoFactory;
 
+    private WorkflowValidator workflowValidator;
+
     private WorkflowService workflowService;
 
-    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService) {
+    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService, WorkflowValidator workflowValidator) {
         this.enrichmentService = enrichmentService;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
         this.workflowService = workflowService;
+        this.workflowValidator = workflowValidator;
     }
 
     /**
@@ -80,6 +84,7 @@ public class PlanConfigurationService {
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
         validator.validateUpdateRequest(request);
         enrichmentService.enrichUpdate(request);
+        workflowValidator.validateWorkflow(request);
         workflowService.invokeWorkflowForStatusUpdate(request);
         repository.update(request);
 

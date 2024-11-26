@@ -31,10 +31,10 @@ public class MdmsV2Util {
         this.configs = configs;
     }
 
-    public List<Mdms> fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode)
+    public List<Mdms> fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
     {
         StringBuilder uri = getMdmsV2Uri();
-        MdmsCriteriaReqV2 mdmsCriteriaReqV2 = getMdmsV2Request(requestInfo, tenantId, schemaCode);
+        MdmsCriteriaReqV2 mdmsCriteriaReqV2 = getMdmsV2Request(requestInfo, tenantId, schemaCode, uniqueIdentifier);
         MdmsResponseV2 mdmsResponseV2 = null;
         try {
             mdmsResponseV2 = restTemplate.postForObject(uri.toString(), mdmsCriteriaReqV2, MdmsResponseV2.class);
@@ -57,13 +57,16 @@ public class MdmsV2Util {
         return uri.append(configs.getMdmsHost()).append(configs.getMdmsV2EndPoint());
     }
 
-    private MdmsCriteriaReqV2 getMdmsV2Request(RequestInfo requestInfo, String tenantId, String schemaCode)
+    private MdmsCriteriaReqV2 getMdmsV2Request(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
     {
         MdmsCriteriaV2 mdmsCriteriaV2 = MdmsCriteriaV2.builder()
                 .tenantId(tenantId)
                 .schemaCode(schemaCode)
                 .limit(configs.getDefaultLimit())
                 .offset(configs.getDefaultOffset()).build();
+
+        if(!ObjectUtils.isEmpty(uniqueIdentifier))
+            mdmsCriteriaV2.setUniqueIdentifiers(Collections.singletonList(uniqueIdentifier));
 
         return MdmsCriteriaReqV2.builder()
                 .requestInfo(requestInfo)
