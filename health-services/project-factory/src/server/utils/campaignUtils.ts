@@ -3687,7 +3687,6 @@ async function processFetchMicroPlan(request: any) {
     logger.info("Started processing fetch microplan");
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    
     const resources:any=request?.body?.CampaignDetails?.resources;
     const filteredResources:any=resources?.filter((obj:any)=>obj?.filestoreId&&obj?.resourceId);
     logger.info(`filtered resouces which already has these reources :: ${filteredResources?.length}`);

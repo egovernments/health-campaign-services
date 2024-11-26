@@ -21,7 +21,6 @@ import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
-
 /**
  * Adds data rows to the provided worksheet.
  * @param worksheet The worksheet to which the data should be added.
@@ -445,6 +444,10 @@ headersMap: Record<string, string>
   return worksheet;
 }
 
+function getHeaderIndex(headers: any, headerName: string, localizationMap: any) {
+  return headers.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+}
+
 
 function findAndChangeTargetData(worksheet: any, mappingData: any, headers: any, localizationMap: any) {
   logger.info(
@@ -461,11 +464,11 @@ function findAndChangeTargetData(worksheet: any, mappingData: any, headers: any,
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {
     if (rowIndex === 1) return; // Skip the header row
-    const column1Value = row.getCell(headersInSheet.indexOf(getLocalizedName(config?.boundary?.boundaryCode, localizationMap))).value; // Get the value from column 1
+    const column1Value = row.getCell(getHeaderIndex(headersInSheet, config?.boundary?.boundaryCode, localizationMap)).value; // Get the value from column 1
     if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
       // Update columns 5 and 6 if column 1 value matches
       headers[0]?.from.forEach((fromValue: any) => {
-        row.getCell(headersInSheet.indexOf(getLocalizedName(fromValue, localizationMap))).value = mappingData?.[column1Value]?.additionalDetails?.[getLocalizedName(headers[0]?.to, localizationMap)];
+        row.getCell(getHeaderIndex(headersInSheet, fromValue, localizationMap)).value = mappingData?.[column1Value]?.additionalDetails?.[getLocalizedName(headers[0]?.to, localizationMap)];
       })
       mappedData[column1Value] = rowIndex;
     } else {
