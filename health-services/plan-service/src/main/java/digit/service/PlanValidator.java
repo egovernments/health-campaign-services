@@ -518,7 +518,7 @@ public class PlanValidator {
      * @param jurisdictions the list of jurisdictions to check against the boundary set
      * @throws CustomException if none of the jurisdictions are present in the boundary codes
      */
-    public void validateJurisdiction(Plan plan, List<String> jurisdictions) {
+    public void validateJurisdiction(Plan plan, Set<String> jurisdictions) {
         Set<String> boundarySet = new HashSet<>(Arrays.asList(plan.getBoundaryAncestralPath()
                 .split(PIPE_REGEX)));
 
@@ -527,7 +527,7 @@ public class PlanValidator {
             throw new CustomException(JURISDICTION_NOT_FOUND_CODE, JURISDICTION_NOT_FOUND_MESSAGE);
 
         // Enrich jurisdiction of current assignee
-        plan.setAssigneeJurisdiction(jurisdictions);
+        plan.setAssigneeJurisdiction((List<String>) jurisdictions);
 
     }
 
