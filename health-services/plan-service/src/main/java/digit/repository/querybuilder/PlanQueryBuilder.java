@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -122,10 +123,10 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
         }
 
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getLocality())) {
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" locality = ? ");
-            preparedStmtList.add(planSearchCriteria.getLocality());
+            builder.append(" locality IN ( ").append(queryUtil.createQuery(planSearchCriteria.getLocality().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(planSearchCriteria.getLocality()));
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getCampaignId())) {
@@ -152,6 +153,12 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getAssignee());
         }
 
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ").append(queryUtil.createQuery(Collections.singleton(planSearchCriteria.getAssignee()).size())).append(" ]").append("::text[] ");
+            builder.append(" && string_to_array(assignee, ',') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(Collections.singleton(planSearchCriteria.getAssignee())));
+        }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);

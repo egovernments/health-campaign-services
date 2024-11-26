@@ -14,6 +14,7 @@ import org.egov.common.contract.models.Workflow;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Plan
@@ -50,11 +51,13 @@ public class PlanDTO {
     private String status = null;
 
     @JsonProperty("assignee")
-    @Size(max = 64)
     private String assignee = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
 
     @JsonProperty("activities")
     @Valid

@@ -3,6 +3,7 @@ package digit.web.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -50,8 +51,7 @@ public class Plan {
     private String status = null;
 
     @JsonProperty("assignee")
-    @Size(max = 64)
-    private String assignee = null;
+    private List<String> assignee = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
@@ -70,6 +70,9 @@ public class Plan {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
 
     @JsonIgnore
     private String boundaryAncestralPath = null;

@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Component
 @Data
 @Import({ TracerConfiguration.class })
@@ -36,6 +38,9 @@ public class Configuration {
 	@Value("${egov.plan.config.endpoint}")
 	private String planConfigEndPoint;
 
+	@Value("${egov.plan.search.endpoint}")
+	private String planSearchEndPoint;
+
 	// Filestore
 
 	@Value("${egov.filestore.service.host}")
@@ -55,6 +60,12 @@ public class Configuration {
 
 	@Value("${egov.project.factory.update.endpoint}")
 	private String campaignIntegrationUpdateEndPoint;
+
+	@Value("${egov.project.factory.data.create.endpoint}")
+	private String campaignIntegrationDataCreateEndPoint;
+
+	@Value("${egov.project.factory.fetch.from.microplan.endpoint}")
+	private String campaignIntegrationFetchFromMicroplanEndPoint;
 
 	@Value("${egov.project.factory.host}")
 	private String projectFactoryHostEndPoint;
@@ -81,6 +92,12 @@ public class Configuration {
 	@Value("${plan.config.trigger.census.records.status}")
 	private String planConfigTriggerCensusRecordsStatus;
 
+	@Value("${plan.config.update.plan.estimates.into.output.file.status}")
+	private String planConfigUpdatePlanEstimatesIntoOutputFileStatus;
+
+	@Value("${plan.config.trigger.plan.facility.mappings.status}")
+	private String planConfigTriggerPlanFacilityMappingsStatus;
+
 	//Kafka topics for creating or updating records in dependent microservices
 	@Value("${resource.microplan.create.topic}")
 	private String resourceMicroplanCreateTopic;
@@ -97,5 +114,19 @@ public class Configuration {
 
 	@Value("${resource.default.limit}")
 	private Integer defaultLimit;
+
+	//census additonal field configs
+	@Value("${census.additional.field.override.keys}")
+	public List<String> censusAdditionalFieldOverrideKeys;
+
+	@Value("${census.additional.field.prefix.append.keys}")
+	public List<String> censusAdditionalPrefixAppendKeys;
+
+	//census host
+	@Value("${egov.census.host}")
+	private String censusHost;
+
+	@Value("${egov.census.search.endpoint}")
+	private String censusSearchEndPoint;
 
 }

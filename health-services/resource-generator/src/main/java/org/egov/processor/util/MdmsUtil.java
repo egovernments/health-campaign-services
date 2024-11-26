@@ -132,7 +132,7 @@ public class MdmsUtil {
 			String type = (String) schema.get(ServiceConstants.MDMS_SCHEMA_TYPE);
 			String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
 			// String fileT = InputFileTypeEnum.valueOf(type);
-			if (schema.get(ServiceConstants.MDMS_SCHEMA_SECTION).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER)
+			if (schema.get(ServiceConstants.MDMS_SCHEMA_SECTION).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_POPULATION)
 					&& campaign.equals(campaignType) && type.equals(fileType.toString())) {
 				Map<String, Object> schemaProperties = (Map<String, Object>) schema.get("schema");
 				properties = (Map<String, Object>) schemaProperties.get("Properties");

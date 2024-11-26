@@ -1,9 +1,7 @@
 package org.egov.processor.service;
 
 
-import java.util.HashMap;
-import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
@@ -11,10 +9,12 @@ import org.egov.processor.util.CampaignIntegrationUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
+import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
 import org.springframework.stereotype.Service;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -48,7 +48,8 @@ public class ResourceEstimationService {
 
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
         Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
-        processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
+		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
+		processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
 
     /**
@@ -108,5 +109,21 @@ public class ResourceEstimationService {
 
         return parserMap;
     }
+
+	/**
+	 * Processes the facility file by parsing the campaign response and initiating
+	 * a data creation call to the Project Factory service.
+	 *
+	 * @param planConfigurationRequest the request containing plan configuration details
+	 * @param campaignResponseObject the campaign response object to be parsed
+	 */
+	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, Object campaignResponseObject) {
+		if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
+			CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
+			campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
+			log.info("Facility Data creation successful.");
+		}
+	}
+
 }
 

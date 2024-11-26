@@ -96,6 +96,10 @@ public class Census {
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private List<AdditionalField> additionalFields = null;
+
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
 

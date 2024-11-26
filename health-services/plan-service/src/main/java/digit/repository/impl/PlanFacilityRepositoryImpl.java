@@ -57,7 +57,9 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .id(planFacility.getId())
                 .tenantId(planFacility.getTenantId())
                 .planConfigurationId(planFacility.getPlanConfigurationId())
+                .planConfigurationName(planFacility.getPlanConfigurationName())
                 .facilityId(planFacility.getFacilityId())
+                .facilityName(planFacility.getFacilityName())
                 .residingBoundary(planFacility.getResidingBoundary())
                 .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
                 .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())
@@ -111,6 +113,21 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
         } catch (Exception e) {
             throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());
         }
+    }
+
+    /**
+     * Counts the number of plan facilities based on the provided search criteria.
+     *
+     * @param planFacilitySearchCriteria The search criteria for filtering plan facilities.
+     * @return The total count of plan facilities matching the search criteria.
+     */
+    @Override
+    public Integer count(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planFacilityQueryBuilder.getPlanFacilityCountQuery(planFacilitySearchCriteria, preparedStmtList);
+        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+
+        return count;
     }
 
     /**

@@ -56,6 +56,9 @@ public class Configuration {
     @Value("${egov.boundary.relationship.search.endpoint}")
     private String boundaryRelationshipSearchEndpoint;
 
+    @Value("${egov.boundary.hierarchy.search.endpoint}")
+    private String boundaryHierarchySearchEndpoint;
+
     //Persister Topic
     @Value("${plan.configuration.create.topic}")
     private String planConfigCreateTopic;
@@ -75,6 +78,9 @@ public class Configuration {
     @Value("${plan.update.topic}")
     private String planUpdateTopic;
 
+    @Value("${plan.bulk.update.topic}")
+    private String planBulkUpdateTopic;
+
     @Value("${plan.facility.create.topic}")
     private String planFacilityCreateTopic;
 
@@ -86,6 +92,13 @@ public class Configuration {
 
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
+
+    //Census
+    @Value("${egov.census.host}")
+    private String censusHost;
+
+    @Value("${egov.census.search.endpoint}")
+    private String censusSearchEndPoint;
 
     //Facility
     @Value("${egov.facility.host}")

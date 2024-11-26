@@ -1,28 +1,19 @@
 package org.egov.processor.service;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.*;
+import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.Locale;
-import org.egov.processor.web.models.LocaleResponse;
-import org.egov.processor.web.models.Operation;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.ResourceMapping;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
@@ -32,13 +23,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import lombok.extern.slf4j.Slf4j;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
 import static org.egov.processor.config.ServiceConstants.READ_ME_SHEET_NAME;
@@ -71,9 +62,11 @@ public class ExcelParser implements FileParser {
 
 	private EnrichmentUtil enrichmentUtil;
 
+	private PlanConfigurationUtil planConfigurationUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -86,6 +79,7 @@ public class ExcelParser implements FileParser {
 		this.localeUtil = localeUtil;
         this.censusUtil = censusUtil;
         this.enrichmentUtil = enrichmentUtil;
+        this.planConfigurationUtil = planConfigurationUtil;
     }
 
 	/**
@@ -100,7 +94,7 @@ public class ExcelParser implements FileParser {
 	 */
 	@Override
 	public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-			Object campaignResponse) {
+								Object campaignResponse) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
 		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
@@ -109,7 +103,8 @@ public class ExcelParser implements FileParser {
 			throw new CustomException("FileNotFound",
 					"The file with ID " + fileStoreId + " was not found in the tenant " + planConfig.getTenantId());
 		}
-		return processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
+		processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
+		return null;
 	}
 
 	/**
@@ -123,19 +118,17 @@ public class ExcelParser implements FileParser {
 	 * @param fileStoreId              The ID of the file in the file store.
 	 * @param campaignResponse         The response object to be updated with
 	 *                                 processed data.
-	 * @return The ID of the uploaded file.
 	 */
-	private String processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
+	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
 			Object campaignResponse) {
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		try (Workbook workbook = new XSSFWorkbook(file)) {
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
-            return uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-                    planConfig, workbook, campaignBoundaryList, campaignResourcesList);
+            uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
+                    workbook, campaignBoundaryList, campaignResourcesList);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -158,24 +151,27 @@ public class ExcelParser implements FileParser {
 	 * @param workbook The workbook containing data to be uploaded and integrated.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param campaignResourcesList List of campaign resources to be integrated.
-	 * @return The ID of the uploaded file in the file store.
 	 */
-	private String uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
-			Object campaignResponse, PlanConfiguration planConfig, Workbook workbook,
+	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
+			Object campaignResponse, Workbook workbook,
 			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
 		File fileToUpload = null;
 		try {
+			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 			fileToUpload = convertWorkbookToXls(workbook);
-			String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-
-			if (config.isIntegrateWithAdminConsole()) {
+			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.update(planConfigurationRequest);
+			}
+			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
+				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
 						fileToUpload.getName());
-
 				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
 						campaignBoundaryList, campaignResourcesList);
-			}
-			return uploadedFileStoreId;
+				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+							}
 		} finally {
 			try {
 			if (fileToUpload != null && !fileToUpload.delete()) {
@@ -200,28 +196,38 @@ public class ExcelParser implements FileParser {
 	 */
 	//TODO: processsheetforestimate and processsheetforcensus
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
-			Object campaignResponse, Workbook excelWorkbook,
-			List<Boundary> campaignBoundaryList,
-			DataFormatter dataFormatter) {
-		CampaignResponse campaign = parseCampaignResponse(campaignResponse);
+							   Object campaignResponse, Workbook excelWorkbook,
+							   List<Boundary> campaignBoundaryList,
+							   DataFormatter dataFormatter) {
+		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
-		Object mdmsData = mdmsUtil. fetchMdmsData(request.getRequestInfo(),
+		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
+		planConfigurationUtil.orderPlanConfigurationOperations(request);
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
 				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
-
+		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
+				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.collect(Collectors.toMap(
+						ResourceMapping::getMappedTo,
+						ResourceMapping::getMappedFrom,
+						(existing, replacement) -> existing,
+						LinkedHashMap::new
+				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
-
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
 							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
+				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
 		});
@@ -255,15 +261,20 @@ public class ExcelParser implements FileParser {
 
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
-				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+				.collect(Collectors.toMap(
+						ResourceMapping::getMappedTo,
+						ResourceMapping::getMappedFrom,
+						(existing, replacement) -> existing,
+						LinkedHashMap::new
+				));
 
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 		Row firstRow = null;
 
 		for (Row row : sheet) {
-			if (isRowEmpty(row))
+			if (parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -315,18 +326,6 @@ public class ExcelParser implements FileParser {
                 file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
 	}
 
-	
-	/**
-	 * Parses an object representing campaign response into a CampaignResponse object.
-	 * 
-	 * @param campaignResponse The object representing campaign response to be parsed.
-	 * @return CampaignResponse object parsed from the campaignResponse.
-	 */
-	private CampaignResponse parseCampaignResponse(Object campaignResponse) {
-		CampaignResponse campaign = null;
-		campaign = objectMapper.convertValue(campaignResponse, CampaignResponse.class);
-		return campaign;
-	}
 
 	/**
 	 * Performs row-level calculations and processing on each row in the sheet.
@@ -353,11 +352,11 @@ public class ExcelParser implements FileParser {
 				.convertAssumptionsToMap(planConfig.getAssumptions());
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
 
-		Integer indexOfBoundaryCode = campaignIntegrationUtil.getIndexOfBoundaryCode(0,
-				campaignIntegrationUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
 		for (Row row : sheet) {
-			if(isRowEmpty(row))
+			if(parsingUtil.isRowEmpty(row))
 				continue;
 
 			if (row.getRowNum() == 0) {
@@ -376,29 +375,10 @@ public class ExcelParser implements FileParser {
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
 			// TODO: remove after testing
-			printRow(sheet, row);
+			parsingUtil.printRow(sheet, row);
 		}
 	}
 
-	/**
-	 * Checks if a given row is empty.
-	 *
-	 * A row is considered empty if it is null or if all of its cells are empty or of type BLANK.
-	 *
-	 * @param row the Row to check
-	 * @return true if the row is empty, false otherwise
-	 */
-	public static boolean isRowEmpty(Row row) {
-		if (row == null) {
-			return true;
-		}
-		for (Cell cell : row) {
-			if (cell != null && cell.getCellType() != CellType.BLANK) {
-				return false;
-			}
-		}
-		return true;
-	}
 
 	/**
 	 * Performs calculations on operations for a specific row in the sheet.
@@ -525,6 +505,23 @@ public class ExcelParser implements FileParser {
 				case BOOLEAN:
 					propertiesNode.put(columnName, cell.getBooleanCellValue());
 					break;
+				case FORMULA:
+					// Attempt to get the cached formula result value directly
+					switch (cell.getCachedFormulaResultType()) {
+						case NUMERIC:
+							propertiesNode.put(columnName, BigDecimal.valueOf(cell.getNumericCellValue()));
+							break;
+						case STRING:
+							propertiesNode.put(columnName, cell.getStringCellValue());
+							break;
+						case BOOLEAN:
+							propertiesNode.put(columnName, cell.getBooleanCellValue());
+							break;
+						default:
+							propertiesNode.putNull(columnName);
+							break;
+					}
+					break;
                 default:
 					propertiesNode.putNull(columnName);
 					break;
@@ -532,40 +529,6 @@ public class ExcelParser implements FileParser {
 		}
 
 		return featureNode;
-	}
-
-	public void printRow(Sheet sheet, Row row) {
-		System.out.print("Row -> ");
-		for (Cell cell : row) {
-			int columnIndex = cell.getColumnIndex();
-			// String columnName = sheet.getRow(0).getCell(columnIndex).toString();
-			// System.out.print("Column " + columnName + " - ");
-			switch (cell.getCellType()) {
-			case STRING:
-				System.out.print(cell.getStringCellValue() + "\t");
-				break;
-			case NUMERIC:
-				if (DateUtil.isCellDateFormatted(cell)) {
-					System.out.print(cell.getDateCellValue() + "\t");
-				} else {
-					System.out.print(cell.getNumericCellValue() + "\t");
-				}
-				break;
-			case BOOLEAN:
-				System.out.print(cell.getBooleanCellValue() + "\t");
-				break;
-			case FORMULA:
-				System.out.print(cell.getCellFormula() + "\t");
-				break;
-			case BLANK:
-				System.out.print("<blank>\t");
-				break;
-			default:
-				System.out.print("<unknown>\t");
-				break;
-			}
-		}
-		System.out.println(); // Move to the next line after printing the row
 	}
 
 	/**

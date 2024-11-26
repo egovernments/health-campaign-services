@@ -16,7 +16,11 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_PROJECT_FACTORY = "Exception occurred while fetching campaign details from project factory: ";
 
+    public static final String ERROR_WHILE_FETCHING_FROM_CENSUS = "Exception occurred while fetching records from census: ";
+
     public static final String ERROR_WHILE_FETCHING_BOUNDARY_DETAILS = "Exception occurred while fetching boundary relationship from boundary service: ";
+
+    public static final String ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS = "Exception occurred while fetching boundary hierarchy details from boundary service: ";
 
     public static final String ERROR_WHILE_FETCHING_DATA_FROM_HRMS = "Exception occurred while fetching employee from hrms: ";
 
@@ -70,6 +74,10 @@ public class ServiceConstants {
 
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_CODE = "NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID";
     public static final String NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID_MESSAGE = "Invalid or incorrect campaign id. No campaign details found for provided campaign id.";
+
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_CENSUS_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records does not exists for the given details: ";
+
 
     public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE = "INVALID_ROOT_EMPLOYEE_JURISDICTION";
     public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE = "The root employee's jurisdiction should be at highest hierarchy";
@@ -178,6 +186,9 @@ public class ServiceConstants {
 
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
+
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE = "ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS";
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while updating additional details  : ";
 
     public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
     public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
@@ -302,6 +313,14 @@ public class ServiceConstants {
 
     public static final String URI_BUSINESS_SERVICE_QUERY_TEMPLATE = "?tenantId={tenantId}&businessServices={businessService}";
 
+    public static final String APPROVE_CENSUS_DATA_ACTION = "APPROVE_CENSUS_DATA";
+
+    public static final String FINALIZE_CATCHMENT_MAPPING_ACTION = "FINALIZE_CATCHMENT_MAPPING";
+
+    public static final String APPROVE_ESTIMATIONS_ACTION = "APPROVE_ESTIMATIONS";
+
+    public static final String VALIDATED_STATUS = "VALIDATED";
+
     //Query constants
     public static final String PERCENTAGE_WILDCARD = "%";
 
@@ -320,6 +339,15 @@ public class ServiceConstants {
     public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
     public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
 
+    public static final String CANNOT_APPROVE_CENSUS_DATA_CODE = "CANNOT_APPROVE_CENSUS_DATA";
+    public static final String CANNOT_APPROVE_CENSUS_DATA_MESSAGE = "Census data can't be approved until all the census records are validated";
+
+    public static final String CANNOT_APPROVE_ESTIMATIONS_CODE = "CANNOT_APPROVE_ESTIMATIONS";
+    public static final String CANNOT_APPROVE_ESTIMATIONS_MESSAGE = "Estimations can't be approved until all the estimations are validated";
+
+    public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_CODE = "CANNOT_FINALIZE_CATCHMENT_MAPPING";
+    public static final String CANNOT_FINALIZE_CATCHMENT_MAPPING_MESSAGE = "Catchment mapping can't be finalized until all boundaries have facility assigned";
+
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_CODE = "HIERARCHY_NOT_FOUND_IN_MDMS";
     public static final String HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE = "Hierarchy key not found in mdms";
 
@@ -332,4 +360,13 @@ public class ServiceConstants {
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
     public static final String COMMA_DELIMITER = ",";
+
+    public static final String SERVING_POPULATION_CODE = "servingPopulation";
+
+    public static final String CONFIRMED_TARGET_POPULATION_AGE_3TO11 = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION_AGE_3TO11";
+
+    public static final String CONFIRMED_TARGET_POPULATION_AGE_12TO59 = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION_AGE_12TO59";
+
+    public static final String CONFIRMED_TARGET_POPULATION = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION";
+
 }
