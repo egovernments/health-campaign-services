@@ -1,7 +1,7 @@
 import { callMdmsTypeSchema, createAndUploadFile } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
-import { updateProjectTypeCampaignService } from "../service/campaignManageService";
+import { searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../service/campaignManageService";
 import {
   searchPlan,
   searchPlanCensus,
@@ -19,7 +19,7 @@ import {
 } from "../api/coreApis";
 import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
-import { throwError } from "./genericUtils";
+import { replicateRequest, throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
 /**
  * Adds data rows to the provided worksheet.
@@ -214,7 +214,7 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   if (responseData?.[0]?.fileStoreId) {
     logger.info(
       "facility File updated successfully:" +
-        JSON.stringify(responseData?.[0]?.fileStoreId)
+      JSON.stringify(responseData?.[0]?.fileStoreId)
     );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
@@ -232,11 +232,9 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     Array.isArray(polledResponseOfDataCreate) &&
     polledResponseOfDataCreate.length > 0
   ) {
-    await updateCampaignDetails(
+    await updateCampaignDetailsAfterSearch(
       request,
-      request?.body?.CampaignDetails?.resources,
-      responseData?.[0]?.fileStoreId,
-      polledResponseOfDataCreate[0]?.id,
+      polledResponseOfDataCreate?.[0],
       "facility"
     );
     logger.info(
@@ -246,8 +244,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   logger.info(`updated the resources of facility`);
 };
 
-function getLocalizedHeadersMapForFacility(descriptionToFieldMap: Record<string, string>, localizationMap: any){
-  for(const [key,value] of Object.entries(descriptionToFieldMap)){
+function getLocalizedHeadersMapForFacility(descriptionToFieldMap: Record<string, string>, localizationMap: any) {
+  for (const [key, value] of Object.entries(descriptionToFieldMap)) {
     descriptionToFieldMap[key] = getLocalizedName(value, localizationMap);
   }
   return descriptionToFieldMap;
@@ -256,7 +254,7 @@ function getLocalizedHeadersMapForFacility(descriptionToFieldMap: Record<string,
 export const fetchTargetData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
-  const {projectType} = request.body.CampaignDetails;
+  const { projectType } = request.body.CampaignDetails;
   const campaignType = "Target-" + projectType;
   const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
   const planCensusResponse = await searchPlanCensus(
@@ -310,7 +308,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   if (responseData?.[0]?.fileStoreId) {
     logger.info(
       "Target File updated successfully:" +
-        JSON.stringify(responseData?.[0]?.fileStoreId)
+      JSON.stringify(responseData?.[0]?.fileStoreId)
     );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
@@ -328,11 +326,9 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     Array.isArray(polledResponseOfDataCreate) &&
     polledResponseOfDataCreate.length > 0
   ) {
-    await updateCampaignDetails(
+    await updateCampaignDetailsAfterSearch(
       request,
-      request?.body?.CampaignDetails?.resources,
-      responseData?.[0]?.fileStoreId,
-      polledResponseOfDataCreate[0]?.id,
+      polledResponseOfDataCreate?.[0],
       "boundaryWithTarget"
     );
     logger.info(
@@ -344,8 +340,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
 
 function findAndChangeUserData(worksheet: any, mappingData: any) {
   logger.info(
-    `Received for facility mapping, enitity count : ${
-      Object.keys(mappingData)?.length
+    `Received for facility mapping, enitity count : ${Object.keys(mappingData)?.length
     }`
   );
   logger.debug(`${getFormattedStringForDebug(mappingData)}, "mappingData user`);
@@ -370,13 +365,11 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
   logger.info(
-    `mapping completed for facility enitity count : ${
-      Object.keys(mappedData)?.length
+    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length
     }`
   );
   logger.info(
-    `mapping not found for facility entity count : ${
-      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for facility entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
@@ -385,9 +378,9 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
 function findAndChangeFacilityData(
   worksheet: any,
   mappingData: Record<string, {
-    additionalDetails: any; serviceBoundaries: string[] 
-}>,
-headersMap: Record<string, string>
+    additionalDetails: any; serviceBoundaries: string[]
+  }>,
+  headersMap: Record<string, string>
 ) {
   let facilityCodeIndex: number = 1;
   let boundaryCodeIndex: number = 6;
@@ -436,10 +429,9 @@ headersMap: Record<string, string>
   logger.info(
     `Updated the boundary & active/inactive status information in facility received from the microplan`);
   logger.info(
-      `mapping completed for facility enitity count : ${
-        Object.keys(mappedData)?.length
-      }`
-    );
+    `mapping completed for facility enitity count : ${Object.keys(mappedData)?.length
+    }`
+  );
 
   return worksheet;
 }
@@ -451,12 +443,11 @@ function getHeaderIndex(headers: any, headerName: string, localizationMap: any) 
 
 function findAndChangeTargetData(worksheet: any, mappingData: any, headers: any, localizationMap: any) {
   logger.info(
-    `Received for Target mapping, enitity count : ${
-      Object.keys(mappingData)?.length
+    `Received for Target mapping, enitity count : ${Object.keys(mappingData)?.length
     }`
   );
 
-  if(headers == null || headers.length == 0) {
+  if (headers == null || headers.length == 0) {
     throwError("Error", 500, "Mapping not found in MDMS for Campaign");
   }
   let headersInSheet = worksheet.getRow(1).values;
@@ -482,13 +473,11 @@ function findAndChangeTargetData(worksheet: any, mappingData: any, headers: any,
     `Updated the boundary & active/inactive status information in Target received from the microplan`
   );
   logger.info(
-    `mapping completed for Target enitity count : ${
-      Object.keys(mappedData)?.length
+    `mapping completed for Target enitity count : ${Object.keys(mappedData)?.length
     }`
   );
   logger.info(
-    `mapping not found for Target entity count : ${
-      Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
+    `mapping not found for Target entity count : ${Object.keys(mappingData)?.length - Object.keys(mappedData)?.length
     }`
   );
   return worksheet;
@@ -508,7 +497,7 @@ const getBoundariesFromCampaign = (CampaignDetails: any = {}) => {
 export const fetchUserData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
-  
+
   const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
 
   const planResponse = await searchPlan(
@@ -591,64 +580,80 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   if (responseData?.[0]?.fileStoreId) {
     logger.info(
       "user File updated successfully:" +
-        JSON.stringify(responseData?.[0]?.fileStoreId)
+      JSON.stringify(responseData?.[0]?.fileStoreId)
     );
   } else {
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
 
-  await updateCampaignDetails(
+  await updateCampaignDetailsAfterSearch(
     request,
-    request?.body?.CampaignDetails?.resources,
-    responseData?.[0]?.fileStoreId,
-    "c8f3f544-df19-433c-af73-fe3269a170cd",
+    {
+      fileStoreId: responseData?.[0]?.fileStoreId,
+      id:"not-validated",
+    },
     "user"
   );
 
   logger.info(`updated the resources of user`);
 };
 
-export async function updateCampaignDetails(
+export async function updateCampaignDetailsAfterSearch(
   request: any,
-  resources: any,
-  fileStoreId: any,
-  resourceDetailsId: any,
+  resourceObject: any,
   type: string
 ) {
-  // Validate input structure
-  if (Array.isArray(resources) && fileStoreId) {
-    let resourceFound = false; // Flag to track if resource is updated
-
-    // Loop through resources to update or append as needed
-    resources?.forEach((resource: any) => {
-      if (resource.type === type) {
-        resource.filestoreId = fileStoreId;
-        resource.resourceId = resourceDetailsId;
-        logger.info(
-          `Updated resource of type ${type} with filestoreId: ${resource.filestoreId}`
-        );
-        resourceFound = true;
-      }
-    });
-
-    // If no resource of the given type was found, append a new one
-    if (!resourceFound) {
-      resources.push({
-        type: type,
-        filename: `filled-${type}-data-from-microplan.xlsx`, // Dynamically naming based on type
-        filestoreId: fileStoreId,
-        resourceId: resourceDetailsId,
-      });
-      logger.info(`Appended new resource of type ${type}`);
-    }
-  } else {
-    console.error(
-      "Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays."
-    );
+  const { tenantId, campaignId } = request.body.MicroplanDetails;
+  const campaignDetails = {
+    tenantId: tenantId,
+    ids: [campaignId]
   }
+  const searchedCampaignResponse = await searchProjectTypeCampaignService(campaignDetails)
+  const searchedCamapignObject = searchedCampaignResponse?.CampaignDetails?.[0]||null;
+  if (searchedCamapignObject!=null) {
+    const newRequestBody = {
+      RequestInfo: request.body.RequestInfo, // Retain the original RequestInfo
+      CampaignDetails: searchedCamapignObject// campaigndetails from search response
+    };
+    const req: any = replicateRequest(request, newRequestBody)
+    // Validate input structure
+    if (resourceObject ) {
+      let resourceFound = false; // Flag to track if resource is updated
 
-  // Call external service after updating the campaign details
-  await updateProjectTypeCampaignService(request);
+      // Loop through resources to update or append as needed
+      searchedCamapignObject?.resources?.forEach((resource: any) => {
+        if (resource.type === type) {
+          resource.filestoreId = resourceObject?.fileStoreId;
+          resource.resourceId = resourceObject?.id;
+          logger.info(
+            `Updated resource of type ${type} with filestoreId: ${resourceObject.filestoreId}`
+          );
+          resourceFound = true;
+        }
+      });
+
+      // If no resource of the given type was found, append a new one
+      if (!resourceFound) {
+        searchedCamapignObject?.resources.push({
+          type: type,
+          filename: `filled-${type}-data-from-microplan.xlsx`, // Dynamically naming based on type
+          filestoreId: resourceObject?.fileStoreId,
+          resourceId: resourceObject?.id,
+        });
+        logger.info(`Appended new resource of type ${type}`);
+      }
+      req.body.CampaignDetails = searchedCamapignObject;
+    } else {
+      console.error(
+        "Invalid structure in CampaignDetails or fileDetails. Ensure both are non-empty arrays."
+      );
+    }
+
+    // Call external service after updating the campaign details
+    await updateProjectTypeCampaignService(req);
+  } else {
+    throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", "Error in Campaign Search")
+  }
 }
 
 export async function validateSheet(
@@ -679,13 +684,14 @@ export async function validateSheet(
   try {
     const resourceDetails = await createAndPollForCompletion(newRequest);
     logger.info("Final result:", resourceDetails);
-    return resourceDetails || null;
+    return resourceDetails;
   } catch (error) {
     logger.error(
       `Error during resource creation and polling:for type ${type}`,
       error
     );
-    return null;
+    logger.info(`setting resource event it fails for ${type}`)
+    return [{...dataCreateBody?.ResourceDetails,id:"not-validated"}];
   }
 }
 // sample oundary
@@ -743,18 +749,18 @@ const enrichBoundariesWithTheSelectedChildrens = (
 export async function fetchUserRoleMappingFromMDMS(tenantId: any) {
   const MdmsCriteria: MDMSModels.MDMSv1RequestCriteria = {
     MdmsCriteria: {
-    tenantId: tenantId,
-    moduleDetails: [
-      {
-        moduleName: "HCM-ADMIN-CONSOLE",
-        masterDetails: [
-          {
-            name: "microplanIntegration"
-          },
-        ],
-      },
-    ],
-  }
+      tenantId: tenantId,
+      moduleDetails: [
+        {
+          moduleName: "HCM-ADMIN-CONSOLE",
+          masterDetails: [
+            {
+              name: "microplanIntegration"
+            },
+          ],
+        },
+      ],
+    }
   };
   const data = await searchMDMSDataViaV1Api(MdmsCriteria);
   const result: Record<string, any[]> = {};
