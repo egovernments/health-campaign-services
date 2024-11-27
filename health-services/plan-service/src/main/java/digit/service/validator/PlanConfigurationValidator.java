@@ -552,7 +552,7 @@ public class PlanConfigurationValidator {
 
         for (Operation operation : planConfiguration.getOperations()) {
             // Validate input
-            if (!allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
+            if (operation.getActive() && !allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
                 log.error("Input Value " + operation.getInput() + " is not present in allowed columns or previous outputs");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
             }
@@ -579,7 +579,7 @@ public class PlanConfigurationValidator {
             String assumptionValue = operation.getAssumptionValue();
 
             // Validate assumption value
-            if (!allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue) && operation.getSource() == Source.MDMS) {
+            if (operation.getActive() && !allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue) && operation.getSource() == Source.MDMS) {
                 log.error("Assumption Value " + assumptionValue + " is not present in allowed columns, previous outputs, or active Assumption Keys");
                 throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + assumptionValue);
             }
