@@ -3681,48 +3681,32 @@ async function createUniqueUserNameViaIdGen(request: any) {
 }
 
 async function processFetchMicroPlan(request: any) {
-  try {
-    logger.info("Waiting for 1 second for templates to get generated...");
+  try{
+    logger.info("waiting for 1 seconds for templates to get generated");
     await new Promise((resolve) => setTimeout(resolve, 1000));
     
     logger.info("Started processing fetch microplan");
     
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    const resources: any = request?.body?.CampaignDetails?.resources || [];
-    const filteredResources = resources.filter(
-      (obj: any) => obj?.filestoreId && obj?.resourceId
-    );
-
-    logger.info(`Filtered resources with valid IDs: ${filteredResources?.length}`);
-    logger.debug(`Filtered resources: ${getFormattedStringForDebug(filteredResources)}`);
-
-    const fetchOperations: Promise<void>[] = [];
-
-    // Add fetch operations conditionally
-    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "facility")) {
-      fetchOperations.push(fetchFacilityData(request, localizationMap));
-    }
-    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "boundaryWithTarget")) {
-      fetchOperations.push(fetchTargetData(request, localizationMap));
-    }
-    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "user")) {
-      fetchOperations.push(fetchUserData(request, localizationMap));
-    }
-
-    // Run all fetch operations in parallel
-    await Promise.all(fetchOperations);
-
-    logger.info("Updating campaign object after successful fetch microplan...");
-    await updateCampaignAfterSearch(request, "MICROPLAN_COMPLETED");
-
+    const resources:any=request?.body?.CampaignDetails?.resources;
+    const filteredResources:any=resources?.filter((obj:any)=>obj?.filestoreId&&obj?.resourceId);
+    logger.info(`filtered resouces which already has these reources :: ${filteredResources?.length}`);
+    logger.debug(`filtered resouces :: ${getFormattedStringForDebug(filteredResources)}`);
+    filteredResources?.every((obj:any)=>obj?.type!="facility")&& await fetchFacilityData(request, localizationMap);
+    filteredResources?.every((obj:any)=>obj?.type!="boundaryWithTarget")&& await fetchTargetData(request, localizationMap);
+    filteredResources?.every((obj:any)=>obj?.type!="user")&&  await fetchUserData(request, localizationMap);
+  
+    logger.info("Updating back the campaign object after fetch microplan");
+    await updateCampaign(request ,"MICROPLAN_COMPLETED")
     logger.info("Completed processing fetch microplan");
   } catch (error: any) {
-    logger.error(`Error during microplan fetch: ${error.message}`);
-    await updateCampaignAfterSearch(request, "MICROPLAN_FETCH_FAILED");
+    // Log the error
+    logger.error(`Error during ID generation: ${error.message}`);
+    await updateCampaign(request ,"MICROPLAN_FETCH_FAILED");
   }
+ 
 }
-
 
 async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCHING") { 
   logger.info("search campaign with id ")
