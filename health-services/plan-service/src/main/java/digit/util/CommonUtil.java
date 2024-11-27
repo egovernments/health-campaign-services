@@ -265,9 +265,11 @@ public class CommonUtil {
 
     public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
         for (PlanConfiguration planConfiguration : planConfigurations) {
-            planConfiguration.getOperations().sort(
-                    Comparator.comparing(Operation::getExecutionOrder)
-            );
+            List<Operation> operations = planConfiguration.getOperations();
+            if (!ObjectUtils.isEmpty(operations)) {
+                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
+            }
         }
     }
+
 }
