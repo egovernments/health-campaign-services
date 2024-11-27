@@ -16,11 +16,9 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectIndexV1 {
+public class ProjectIndexV1 extends ProjectInfo {
     @JsonProperty("id")
     private String id;
-    @JsonProperty("projectId")
-    private String projectId;
     @JsonProperty("projectBeneficiaryType")
     private String projectBeneficiaryType;
     @JsonProperty("overallTarget")
@@ -47,10 +45,6 @@ public class ProjectIndexV1 {
     private String tenantId;
     @JsonProperty("taskDates")
     private List<String> taskDates;
-    @JsonProperty("projectType")
-    private String projectType;
-    @JsonProperty("projectTypeId")
-    private String projectTypeId;
     @JsonProperty("subProjectType")
     private String subProjectType;
     @JsonProperty("localityCode")

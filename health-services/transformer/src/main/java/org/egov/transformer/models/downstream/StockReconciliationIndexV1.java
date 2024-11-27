@@ -14,7 +14,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockReconciliationIndexV1 {
+public class StockReconciliationIndexV1 extends ProjectInfo {
 
 
     @JsonProperty("stockReconciliation")

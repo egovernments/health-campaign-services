@@ -16,7 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AttendanceLogIndexV1 {
+public class AttendanceLogIndexV1 extends ProjectInfo {
     @JsonProperty("attendanceLog")
     private AttendanceLog attendanceLog;
     @JsonProperty("givenName")
@@ -41,7 +41,5 @@ public class AttendanceLogIndexV1 {
     private Map<String, String> boundaryHierarchy;
     @JsonProperty("boundaryHierarchyCode")
     private Map<String, String> boundaryHierarchyCode;
-    @JsonProperty("projectType")
-    private String projectType;
 
 }

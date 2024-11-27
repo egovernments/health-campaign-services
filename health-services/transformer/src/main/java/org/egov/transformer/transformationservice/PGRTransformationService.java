@@ -88,6 +88,7 @@ public class PGRTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .localityCode(localityCode)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(pgrIndex, service.getAuditDetails().getLastModifiedBy(), tenantId);
         return pgrIndex;
     }
 

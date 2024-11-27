@@ -15,7 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectTaskIndexV1 {
+public class ProjectTaskIndexV1 extends ProjectInfo {
     @JsonProperty("id")
     private String id;
     @JsonProperty("taskId")
@@ -24,8 +24,6 @@ public class ProjectTaskIndexV1 {
     private String taskType;
     @JsonProperty("status")
     private String status;
-    @JsonProperty("projectId")
-    private String projectId;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("nameOfUser")
@@ -54,10 +52,6 @@ public class ProjectTaskIndexV1 {
     private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("tenantId")
     private String tenantId;
-    @JsonProperty("projectType")
-    private String projectType;
-    @JsonProperty("projectTypeId")
-    private String projectTypeId;
     @JsonProperty("latitude")
     private Double latitude;
     @JsonProperty("longitude")

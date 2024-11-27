@@ -69,6 +69,7 @@ public class ReferralServiceTaskTransformationService {
         String projectId = service.getAccountId() != null ? service.getAccountId() :
                 projectService.getProjectByName(projectName, service.getTenantId()).getId();
         Project project = projectService.getProject(projectId, tenantId);
+        String projectType = project.getProjectType();
         String projectTypeId = project.getProjectTypeId();
         BoundaryHierarchyResult boundaryHierarchyResult;
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(service.getAdditionalDetails());
@@ -93,7 +94,6 @@ public class ReferralServiceTaskTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         getAttributeCodeMappings(attributeCodeToQuestionAgeGroup);
         if (checkListName.trim().equals(checkListToFilter)) {
-            String finalProjectId = projectId;
             String checklistName = serviceDefinition.getCode().split("\\.")[1];
             attributeCodeToQuestionAgeGroup.forEach((key, value) -> {
                 ReferralServiceTaskIndexV1 referralServiceTaskIndexV1 = ReferralServiceTaskIndexV1.builder()
@@ -102,7 +102,6 @@ public class ReferralServiceTaskTransformationService {
                         .checklistName(checklistName)
                         .ageGroup(key)
                         .tenantId(tenantId)
-                        .projectId(finalProjectId)
                         .userName(userInfoMap.get(USERNAME))
                         .role(userInfoMap.get(ROLE))
                         .userAddress(userInfoMap.get(CITY))
@@ -115,7 +114,7 @@ public class ReferralServiceTaskTransformationService {
                         .boundaryHierarchyCode(boundaryHierarchyCode)
                         .additionalDetails(additionalDetails)
                         .build();
-
+                referralServiceTaskIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
                 searchAndSetAttribute(attributeValueList, value, referralServiceTaskIndexV1);
                 referralServiceTaskIndexV1List.add(referralServiceTaskIndexV1);
             });

@@ -114,7 +114,6 @@ public class ProjectTaskTransformationService {
                 .taskType("DELIVERY")
                 .status(task.getStatus())
                 .localityCode(localityCode)
-                .projectId(task.getProjectId())
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
@@ -141,8 +140,6 @@ public class ProjectTaskTransformationService {
                 .administrationStatus(task.getStatus())
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
-                .projectType(projectType)
-                .projectTypeId(projectTypeId)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
@@ -150,6 +147,7 @@ public class ProjectTaskTransformationService {
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
                 .build();
+        projectTaskIndexV1.setProjectInfo(task.getId(), projectType, projectTypeId);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();

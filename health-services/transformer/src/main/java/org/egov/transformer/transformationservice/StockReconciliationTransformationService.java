@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
@@ -73,6 +74,8 @@ public class StockReconciliationTransformationService {
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
+        String projectId = stockReconciliation.getReferenceId();
+        Project project = projectService.getProject(projectId, tenantId);
 
         if (facility != null && facility.getAddress() != null &&
                 facility.getAddress().getLocality() != null &&
@@ -115,7 +118,7 @@ public class StockReconciliationTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime()))
                 .build();
-
+        stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId());
         return stockReconciliationIndexV1;
     }
 

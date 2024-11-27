@@ -122,7 +122,6 @@ public class ProjectTransformationService {
 
                     ProjectIndexV1 projectIndexV1 = ProjectIndexV1.builder()
                             .id(r.getId())
-                            .projectId(project.getId())
                             .projectBeneficiaryType(projectBeneficiaryType)
                             .overallTarget(targetNo)
                             .targetPerDay(targetPerDay)
@@ -134,9 +133,7 @@ public class ProjectTransformationService {
                             .targetType(r.getBeneficiaryType())
                             .tenantId(tenantId)
                             .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
-                            .projectType(project.getProjectType())
                             .subProjectType(project.getProjectSubType())
-                            .projectTypeId(projectTypeId)
                             .localityCode(localityCode)
                             .createdTime(project.getAuditDetails().getCreatedTime())
                             .createdBy(project.getAuditDetails().getCreatedBy())
@@ -144,6 +141,7 @@ public class ProjectTransformationService {
                             .boundaryHierarchy(boundaryHierarchy)
                             .boundaryHierarchyCode(boundaryHierarchyCode)
                             .build();
+                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId);
                     return projectIndexV1;
                 }
         ).collect(Collectors.toList());

@@ -18,7 +18,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdIndexV1 {
+public class HouseholdIndexV1 extends ProjectInfo {
     @JsonProperty("household")
     private Household household;
     @JsonProperty("userName")

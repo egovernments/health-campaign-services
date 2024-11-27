@@ -17,7 +17,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralIndexV1 {
+public class ReferralIndexV1 extends ProjectInfo {
     @JsonProperty("referral")
     private Referral referral;
     @JsonProperty("tenantId")

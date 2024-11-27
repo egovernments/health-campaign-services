@@ -15,7 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PGRIndex {
+public class PGRIndex extends ProjectInfo {
     @JsonProperty("service")
     private Service service;
     @JsonProperty("userName")
