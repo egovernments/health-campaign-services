@@ -527,7 +527,7 @@ public class PlanValidator {
             throw new CustomException(JURISDICTION_NOT_FOUND_CODE, JURISDICTION_NOT_FOUND_MESSAGE);
 
         // Enrich jurisdiction of current assignee
-        plan.setAssigneeJurisdiction((List<String>) jurisdictions);
+        plan.setAssigneeJurisdiction(new ArrayList<>(jurisdictions));
 
     }
 
