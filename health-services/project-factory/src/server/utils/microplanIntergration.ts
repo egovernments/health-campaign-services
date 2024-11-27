@@ -817,8 +817,9 @@ export async function validateSheet(
   };
 
   try {
-    const resourceDetails = await createAndPollForCompletion(newRequest);
-    logger.info("Final result:", resourceDetails);
+    const resourceDetails:any = await createAndPollForCompletion(newRequest);
+    logger.info(`validation results :: ${resourceDetails?.[0]?.id} & status: ${resourceDetails?.[0]?.status}`)
+    logger.debug(`Final result:, ${getFormattedStringForDebug(resourceDetails)}`);
     return resourceDetails;
   } catch (error) {
     logger.error(
