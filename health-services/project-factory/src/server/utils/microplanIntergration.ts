@@ -691,7 +691,7 @@ export async function validateSheet(
 // sample oundary
 //{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
 const getFilteredBoundariesAtWhichUserGetsCreated = (boundaries = [], hierarchySchemaDataForConsole: any[]) => {
-  let consolidateUserAtForConsole = null;
+  let consolidateUserAtForConsole = "LOCALITY";
   if(hierarchySchemaDataForConsole?.length > 0) {
     consolidateUserAtForConsole = hierarchySchemaDataForConsole[0]?.data?.consolidateUsersAt;
   }
