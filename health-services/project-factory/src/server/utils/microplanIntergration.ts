@@ -1,4 +1,4 @@
-import { callMdmsTypeSchema, createAndUploadFile } from "../api/genericApis";
+import { callMdmsTypeSchema, createAndUploadFile, searchMDMS } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 
 import { searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../service/campaignManageService";
@@ -502,7 +502,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     request.body.MicroplanDetails;
 
   const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
-
+  const hierarchySchemaDataForConsole = await searchMDMS(["console"], "HCM-ADMIN-CONSOLE.HierarchySchema", request.body.RequestInfo);
   const planResponse = await searchPlan(
     planConfigurationId,
     tenantId,
@@ -514,7 +514,7 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     tenantId
   );
   const filteredBoundariesAtWhichUserGetsCreated =
-    getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign);
+    getFilteredBoundariesAtWhichUserGetsCreated(boundariesOfCampaign, hierarchySchemaDataForConsole?.mdms);
   logger.debug(
     `boundariesOfCampaign : ${getFormattedStringForDebug(boundariesOfCampaign)}`
   );
@@ -699,11 +699,18 @@ export async function validateSheet(
 }
 // sample oundary
 //{code: "MICROPLAN_MO", name: "MICROPLAN_MO", parent:"", type: "COUNTRY", isRoot: true, includeAllChildren: false}
-
-const getFilteredBoundariesAtWhichUserGetsCreated = (boundaries = []) => {
+const getFilteredBoundariesAtWhichUserGetsCreated = (boundaries = [], hierarchySchemaDataForConsole: any[]) => {
+  // setting default value in case data is not present
+  let consolidateUserAtForConsole = "LOCALITY";
+  if(hierarchySchemaDataForConsole?.length > 0) {
+    consolidateUserAtForConsole = hierarchySchemaDataForConsole[0]?.data?.consolidateUsersAt;
+    logger.info("Taking value " + consolidateUserAtForConsole + " for user at console as it is present in mdms data");
+  }else{
+    logger.info("Taking default value " + consolidateUserAtForConsole + " for user at console as it is not present in mdms data");
+  }
   //add config at which level grouping will happen. hardcoded to loclaity
   const filteredBoundariesAtWhichUserGetsCreated = boundaries?.filter(
-    (boundary: any) => boundary?.type == "LOCALITY"
+    (boundary: any) => boundary?.type == consolidateUserAtForConsole
   );
   logger.info(
     `filteredBoundariesAtWhichUserGetsCreated count is ${filteredBoundariesAtWhichUserGetsCreated?.length}`
