@@ -88,7 +88,7 @@ public class FacilityCatchmentConsumer {
                 }
             });
 
-            // Enrich jurisdiction mapping in census
+            // Enrich jurisdiction mapping in census for indexer
             enrichment.enrichJurisdictionMapping(censusFromSearch, boundaryTypeHierarchyResponse.getBoundaryHierarchy().get(0));
             repository.bulkUpdate(BulkCensusRequest.builder().requestInfo(planFacilityRequestDTO.getRequestInfo()).census(censusFromSearch).build());
 
