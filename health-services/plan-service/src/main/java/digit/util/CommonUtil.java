@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
+import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationSearchCriteria;
 import lombok.extern.slf4j.Slf4j;
@@ -259,6 +260,14 @@ public class CommonUtil {
 
         } catch (Exception e) {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+        }
+    }
+
+    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
+        for (PlanConfiguration planConfiguration : planConfigurations) {
+            planConfiguration.getOperations().sort(
+                    Comparator.comparing(Operation::getExecutionOrder)
+            );
         }
     }
 }
