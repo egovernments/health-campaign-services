@@ -147,7 +147,6 @@ public class ExcelParser implements FileParser {
 	 * 
 	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
 	 * @param campaignResponse The response object containing campaign details.
-	 * @param planConfig The configuration details specific to the plan.
 	 * @param workbook The workbook containing data to be uploaded and integrated.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param campaignResourcesList List of campaign resources to be integrated.
@@ -166,10 +165,6 @@ public class ExcelParser implements FileParser {
 			}
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				campaignIntegrationUtil.updateCampaignResources(uploadedFileStoreId, campaignResourcesList,
-						fileToUpload.getName());
-				campaignIntegrationUtil.updateCampaignDetails(planConfigurationRequest, campaignResponse,
-						campaignBoundaryList, campaignResourcesList);
 				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 							}
 		} finally {
