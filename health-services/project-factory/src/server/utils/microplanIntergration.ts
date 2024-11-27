@@ -61,17 +61,10 @@ function updateWorksheetRows(worksheet: any, data: string[][]) {
 }
 
 const getPlanFacilityMapByFacilityId = (planFacilityArray: any = []) => {
-  logger.info(
-    `filtered the plan facility response to have only facility which has only service boundarires`
-  );
-  return planFacilityArray
-    ?.filter(
-      (planFacilityObj: any) => planFacilityObj?.serviceBoundaries?.length > 0
-    )
-    ?.reduce((acc: any, curr: any) => {
-      acc[curr?.facilityId] = curr;
-      return acc;
-    }, {});
+  return planFacilityArray?.reduce((acc: any, curr: any) => {
+    acc[curr?.facilityId] = curr;
+    return acc;
+  }, {});
 };
 const getRolesAndCount = (resources = [], userRoleMapping: any) => {
   const USER_ROLE_MAP: any = {};
