@@ -122,7 +122,7 @@ public class EnrichmentService {
         planConfiguration.setAuditDetails(prepareAuditDetails(request.getPlanConfiguration().getAuditDetails(), request.getRequestInfo(), Boolean.FALSE));
 
         //enrich execution order for operations on setup complete
-        if (commonUtil.isSetupCompleted(planConfiguration)) {
+        if (commonUtil.checkForEmptyOperationsOrAssumptions(planConfiguration)) {
             enrichExecutionOrderForOperations(planConfiguration);
         }
     }
