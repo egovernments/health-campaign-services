@@ -36,13 +36,14 @@ public class PlanConfigurationService {
 
     private CommonUtil commonUtil;
 
-    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService, WorkflowValidator workflowValidator) {
+    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService, WorkflowValidator workflowValidator, CommonUtil commonUtil) {
         this.enrichmentService = enrichmentService;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
         this.workflowService = workflowService;
         this.workflowValidator = workflowValidator;
+        this.commonUtil = commonUtil;
     }
 
     /**
