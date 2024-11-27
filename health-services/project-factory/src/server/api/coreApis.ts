@@ -4,10 +4,14 @@ import config from "../config";
 import { httpRequest } from "../utils/request";
 
 // Default request information for MDMS API requests
-const defaultRequestInfo: any = {
+export const defaultRequestInfo: any = {
   RequestInfo: {
     apiId: "PROJECTFACTORY", // Identifier for the calling application,
+    msgId: `${new Date().getTime()}|${config.localisation.defaultLocale}`,
     ...(config.isProduction && config.token && { authToken :config.token}),
+     ...{ userInfo:{
+      tenantId:config?.app?.defaultTenantId
+     }},
   },
 };
 
@@ -229,5 +233,27 @@ const searchBoundaryRelationshipDefinition = async (
   return response;
 };
 
+
+
+const  fetchFileFromFilestore=async(filestoreId:string,tenantId:string)=> {
+  
+  try {
+    const reqParamsForFetchingFile = {
+      tenantId: tenantId,
+      fileStoreIds: filestoreId
+    };
+    const fileResponse= await httpRequest(
+      `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
+      {},
+      reqParamsForFetchingFile,
+      "get"
+    );
+    return fileResponse?.fileStoreIds?.[0].url;
+  } catch (error) {
+    console.error("Error fetching file URLs:", error);
+    throw error;
+  }
+}
+
 // Exporting all API functions for MDMS operations
-export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api ,searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition };
+export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api ,searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition ,fetchFileFromFilestore};

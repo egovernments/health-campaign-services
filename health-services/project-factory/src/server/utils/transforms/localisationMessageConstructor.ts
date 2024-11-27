@@ -62,9 +62,9 @@ const uploadInChunks = async (messages : any, chunkSize : any, tenantId : any, r
   // Break the messages array into chunks
   for (let i = 0; i < messages.length; i += chunkSize) {
     const chunk = messages.slice(i, i + chunkSize);
-
+    logger.info(`Total messages count ${messages?.length}`);
     try {
-      logger.info(`Uploading chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(messages.length / chunkSize)}`);
+      logger.info(`Uploading chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(messages.length / chunkSize)} of size ${chunkSize}`);
 
       // Check if tenantId and request are defined
       if (!tenantId || !request) {

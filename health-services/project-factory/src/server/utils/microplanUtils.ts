@@ -1,12 +1,14 @@
-import { resourceDataStatuses, rolesForMicroplan } from "../config/constants";
+import { resourceDataStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
-import { getSheetData } from "./../api/genericApis";
-import { getLocalizedName } from "./campaignUtils";
+import { callMdmsData, getSheetData } from "./../api/genericApis";
+import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { searchMDMSDataViaV2Api } from "../api/coreApis";
+import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
 export const filterData = (data: any) => {
@@ -31,6 +33,7 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
+  const rolesForMicroplan = await getRolesForMicroplan(tenantId);
   var userMapping: any = {};
   for (const sheetName of rolesForMicroplan) {
     const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap));
@@ -315,72 +318,161 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
   if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
     const allFacilityDatas = request?.body?.facilityDataForMicroplan;
     const planConfigurationId = request?.body?.ResourceDetails?.additionalDetails?.microplanId;
+    request.body.MicroplanDetails = {
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+      planConfigurationId: planConfigurationId
+    }
+    const planConfigSearchResponse = await planConfigSearch(request);
+    const planConfigurationName = planConfigSearchResponse?.PlanConfiguration?.[0]?.name;
     for (const element of allFacilityDatas) {
-      const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
-      const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
-      const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
-      const facilityType = element?.facilityDetails?.usage;
-      const currTime = new Date().getTime();
-      const produceObject: any = {
-        PlanFacility: {
-          id: uuidv4(),
-          tenantId: element?.facilityDetails?.tenantId,
-          planConfigurationId: planConfigurationId,
-          facilityId: element?.facilityDetails?.id,
-          residingBoundary: singularResidingBoundary,
-          facilityName: element?.facilityDetails?.name,
-          serviceBoundaries: null,
-          additionalDetails: {
-            capacity: element?.facilityDetails?.storageCapacity,
-            facilityName: element?.facilityDetails?.name,
-            facilityType: facilityType,
-            facilityStatus: facilityStatus,
-            assignedVillages: [],
-            servingPopulation: 0
-          },
-          active: true,
-          auditDetails: {
-            createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
-            lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
-            createdTime: currTime,
-            lastModifiedTime: currTime
-          }
-        }
-      }
-      const fixedPostColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN`, localizationMap);
-      if (element?.[fixedPostColumn]) {
-        produceObject.PlanFacility.additionalDetails.fixedPost = element?.[fixedPostColumn]
-      }
+      const produceObject: any = getPlanFacilityObject(request, element, planConfigurationName, planConfigurationId, localizationMap);
       await produceModifiedMessages(produceObject, config?.kafka?.KAFKA_SAVE_PLAN_FACILITY_TOPIC);
     }
   }
 }
 
-
-export async function planFacilitySearch(request:any) {
-  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
-  const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        PlanFacilitySearchCriteria: {
-            tenantId: tenantId,
-            planConfigurationId: planConfigurationId
-        }
+function getPlanFacilityObject(request: any, element: any, planConfigurationName: any, planConfigurationId: any, localizationMap?: any) {
+  const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
+  const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
+  const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
+  const facilityType = element?.facilityDetails?.usage;
+  const currTime = new Date().getTime();
+  const planFacilityProduceObject: any = {
+    PlanFacility: {
+      id: uuidv4(),
+      tenantId: element?.facilityDetails?.tenantId,
+      planConfigurationId: planConfigurationId,
+      facilityId: element?.facilityDetails?.id,
+      residingBoundary: singularResidingBoundary,
+      facilityName: element?.facilityDetails?.name,
+      serviceBoundaries: null,
+      planConfigurationName: planConfigurationName,
+      additionalDetails: {
+        capacity: element?.facilityDetails?.storageCapacity,
+        facilityName: element?.facilityDetails?.name,
+        facilityType: facilityType,
+        facilityStatus: facilityStatus,
+        assignedVillages: [],
+        servingPopulation: 0
+      },
+      active: true,
+      auditDetails: {
+        createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        createdTime: currTime,
+        lastModifiedTime: currTime
+      }
     }
+  }
+  const fixedPostColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN`, localizationMap);
+  if (element?.[fixedPostColumn]) {
+    planFacilityProduceObject.PlanFacility.additionalDetails.fixedPost = element?.[fixedPostColumn]
+  }
+  return planFacilityProduceObject;
+}
 
-    const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planFacilitySearch, searchBody);
-    return searchResponse; 
+
+export async function planFacilitySearch(request: any) {
+  const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
+  const searchBody = {
+    RequestInfo: request.body.RequestInfo,
+    PlanFacilitySearchCriteria: {
+      tenantId: tenantId,
+      planConfigurationId: planConfigurationId
+    }
+  }
+
+  const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planFacilitySearch, searchBody);
+  return searchResponse;
 }
 
 export function planConfigSearch(request: any) {
-  const {tenantId, planConfigurationId} = request.body.MicroplanDetails;
+  const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
   const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        PlanConfigurationSearchCriteria: {
-            tenantId: tenantId,
-            id: planConfigurationId
-        }
+    RequestInfo: request.body.RequestInfo,
+    PlanConfigurationSearchCriteria: {
+      tenantId: tenantId,
+      id: planConfigurationId
     }
+  }
 
-    const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planFacilityConfigSearch, searchBody);
+  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
   return searchResponse;
 }
+
+export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: any) {
+  // Check if the request is for a source microplan and the type is 'facilityWithBoundary'
+  if (request?.body?.isSourceMicroplan && request?.query?.type == 'facilityWithBoundary') {
+    // Extract the boundary hierarchy from the request body
+    const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
+    var villageIndex: any;
+    // Determine the `villageIndex` based on the hierarchy length if present
+    if (hierarchy) {
+      // Set `villageIndex` to the last element in the hierarchy (boundary hierarchy depth)
+      villageIndex = hierarchy?.length - 1;
+    } else {
+      // If no hierarchy is provided, calculate the `villageIndex` dynamically
+      let maxBoundaryDataLength = 0;
+
+      // Iterate through `boundaryData` to find the maximum length of any boundary array
+      for (let boundary of boundaryData) {
+        if (boundary?.length > maxBoundaryDataLength) {
+          maxBoundaryDataLength = boundary?.length;
+        }
+      }
+
+      // If boundary data has sufficient depth, set `villageIndex` to the second-to-last level
+      if (maxBoundaryDataLength >= 2) {
+        villageIndex = maxBoundaryDataLength - 2;
+      }
+    }
+    // Filter out boundaries that don't have the `villageIndex`
+    boundaryData = boundaryData.filter((boundary: any) => boundary?.[villageIndex]);
+  }
+  return boundaryData;
+}
+
+export async function getRolesForMicroplan(tenantId: string) {
+  const MdmsCriteria: any = {
+    tenantId: tenantId,
+    schemaCode: "hcm-microplanning.rolesForMicroplan",
+  };
+  const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
+  if (mdmsResponse?.mdms?.length > 0) {
+    return mdmsResponse?.mdms
+      ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
+      ?.map((role: any) => role?.data?.role); // Map to extract the role
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during rolesForMicroplan mdms search.`);
+    return [];
+  }
+}
+export async function isMicroplanRequest(request: any): Promise<boolean> {
+  const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
+  if (campaignId == "microplan") {
+    return true;
+  }
+  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+  return checkIfSourceIsMicroplan(campaignObject);
+}
+
+export async function getReadMeConfigForMicroplan(request: any) {
+  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
+    const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
+    for (const readMeConfig of readMeConfigsArray) {
+      if (readMeConfig?.type == `${request?.query?.type}_MICROPLAN`) {
+        return readMeConfig
+      }
+    }
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    return {}
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during readme config mdms search.`);
+    return {};
+  }
+}
+

@@ -1,5 +1,5 @@
 import { Producer, KafkaClient } from 'kafka-node';
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { shutdownGracefully, throwError } from '../utils/genericUtils';
 import config from '../config';
 
@@ -63,7 +63,7 @@ const sendWithReconnect = (payloads: any[]): Promise<void> => {
         producer.send(payloads, async (err: any) => {
             if (err) {
                 logger.error('Error sending message:', err);
-                logger.debug(`Was trying to send: ${JSON.stringify(payloads)}`);
+                logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
 
                 // Attempt to reconnect and retry
                 logger.error('Reconnecting producer and retrying...');

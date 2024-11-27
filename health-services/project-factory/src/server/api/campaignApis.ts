@@ -61,12 +61,14 @@ async function enrichCampaign(requestBody: any) {
   // Enrich campaign data with unique IDs and generate campaign numbers
   if (requestBody?.Campaign) {
     requestBody.Campaign.id = uuidv4();
+    logger.info(`ENRICHMENT:: generated id for the campaign ${requestBody.Campaign.id}`);
     requestBody.Campaign.campaignNo = await getCampaignNumber(
       requestBody,
       config.values.idgen.format,
       config.values.idgen.idName,
       requestBody?.Campaign?.tenantId
     );
+    logger.info(`ENRICHMENT:: generated sequence no for the campaign ${requestBody.Campaign.campaignNo}`);
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
       campaignDetails.id = uuidv4();
     }
@@ -1359,9 +1361,12 @@ async function performAndSaveResourceActivity(
           newRequestBody
         );
       }
+      // wait for 5 seconds after each chunk
+      logger.info(`Waiting for 5 seconds after each chunk`);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
     await enrichAlreadyExsistingUser(request);
-    logger.info(`Waiting for 10 seconds`);
+    logger.info(`Final waiting for 10 seconds`);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     await confirmCreation(
       createAndSearchConfig,
@@ -1870,7 +1875,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
 async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
   logger.info("Project Update For Targets started");
 
-  logger.debug("Project update request body: " + JSON.stringify(projectUpdateBody, null, 2));
+  logger.debug("Project update request body: " + getFormattedStringForDebug(projectUpdateBody));
   logger.info(`Project update started for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
 
   try {
@@ -1880,7 +1885,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
       undefined, undefined, undefined, undefined, undefined,
       true
     );
-    logger.debug("Project update response: " + JSON.stringify(projectUpdateResponse, null, 2));
+    logger.debug("Project update response: " + getFormattedStringForDebug(projectUpdateResponse));
     logger.info(`Project update response for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
   } catch (error: any) {
     logger.error("Project update failed", error);
@@ -1888,7 +1893,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
       "PROJECT",
       500,
       "PROJECT_UPDATE_ERROR",
-      `Project update failed for the request: ${JSON.stringify(projectUpdateBody)}. Error: ${error.message}`
+      `Project update failed for the request: ${getFormattedStringForDebug(projectUpdateBody)}. Error: ${getFormattedStringForDebug(error.message)}`
     );
   }
 }

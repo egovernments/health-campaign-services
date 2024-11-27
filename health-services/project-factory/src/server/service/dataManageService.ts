@@ -12,6 +12,7 @@ import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
 import { callGenerate } from "../utils/generateUtils";
+import { generatedResourceStatuses } from "../config/constants";
 
 
 
@@ -35,7 +36,7 @@ const downloadDataService = async (request: express.Request) => {
     const resourceDetails = await getResourceDetails(request);
 
     // Check if response data is available
-    if (!responseData || responseData.length === 0 && !request?.query?.id) {
+    if (!responseData || responseData.length === 0 && !request?.query?.id || responseData?.[0]?.status === generatedResourceStatuses.failed) {
         logger.error("No data of type  " + type + " with status Completed or with given id present in db ")
         // Throw error if data is not found
         const newRequestBody = {
@@ -93,7 +94,7 @@ const getBoundaryDataService = async (
             logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
         }
         const workbook = getNewExcelWorkbook();
-        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType),true);
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
         const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         // Retrieve boundary sheet data

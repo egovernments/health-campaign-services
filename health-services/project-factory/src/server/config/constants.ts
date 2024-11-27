@@ -67,6 +67,9 @@ export const CONSTANTS: any = {
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config",
             MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
+        },
+        DATA:{
+            DATA_CREATE_ERROR : "Error while creating resource data"
         }
     }
 }
@@ -154,10 +157,6 @@ export const processTrackStatuses = {
     toBeCompleted: "toBeCompleted",
     failed: "failed",
 }
-
-export const rolesForMicroplan = ["Plan estimation approver", "Root plan estimation approver", "Population data approver", "Root population data approver", "Facility catchment mapper", "Root facility catchment mapper", "Microplan viewer"];
-
-
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

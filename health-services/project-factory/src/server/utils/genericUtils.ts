@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, rolesForMicroplan } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getUserDataFromMicroplanSheet } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -377,12 +377,13 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     if(type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement'){
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
+      logger.info(`checks for parent campaign for type: ${type}`)
       await checkAndGiveIfParentCampaignAvailable(request, campaignObject);
     }
     if (request?.body?.parentCampaignObject) {
       const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
       const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
-
+      logger.info(` found createdResourceId as ${createdResourceId} `);
       const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
@@ -494,12 +495,13 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
     }, {});
   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
   request.body.dropdowns = dropdowns;
+  return dropdowns;
 }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
   const hiddenColumns = Object.entries(schema.properties).filter(([key, value]: any) => value.hideColumn == true).map(([key, value]: any) => getLocalizedName(key, localizationMap));
-  logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`)
+  logger.info(`Columns to hide ${JSON.stringify(hiddenColumns)}`);
   request.body.hiddenColumns = hiddenColumns;
 }
 
@@ -543,6 +545,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
   setDropdownFromSchema(request, schema, localizationMap);
@@ -596,10 +599,15 @@ function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
 }
 
 async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap = {}) {
-  const readMeConfig = await getReadMeConfig(request);
+  const isSourceMicroplan = await isMicroplanRequest(request);
+  let readMeConfig: any;
+  if(isSourceMicroplan) {
+    readMeConfig = await getReadMeConfigForMicroplan(request);
+  }
+  else{
+    readMeConfig = await getReadMeConfig(request);
+  }
   const headerSet = new Set();
-
-
   const datas = readMeConfig.texts
     .filter((text: any) => text?.inSheet) // Filter out texts with inSheet set to false
     .flatMap((text: any) => {
@@ -755,6 +763,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
+  boundarySheetData = modifyBoundaryIfSourceMicroplan(boundarySheetData, request);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
@@ -782,7 +791,6 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
-              logger.info(`Setting dropdown list for cell at row: ${rowNumber}, column: ${dropdownColumnIndex}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
@@ -806,6 +814,8 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
 }
 
 async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
+  // logger.info(sheet)
+  logger.info("hiddenColumns",hiddenColumns);
   if (hiddenColumns) {
     for (const columnName of hiddenColumns) {
       const firstRow = sheet.getRow(1);
@@ -882,6 +892,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   }
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
+    logger.info("proceed with the filtered boundary data")
     await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
   }
   else {
@@ -913,6 +924,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
     userSheetData = await createExcelSheet(userData, localizedHeaders);
   }
   if (filteredBoundary && filteredBoundary.length > 0) {
+    logger.info("proceed with the filtered boundary data")
     await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, schema, localizationMap, fileUrl);
   }
   else {
@@ -988,7 +1000,7 @@ async function generateUserSheetForMicroPlan(
   localizationMap?: any,
   fileUrl?: any
 ) {
-  const tenantId = request?.query?.tenantId;
+  const { tenantId, type } = request?.query;
   const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
@@ -998,13 +1010,11 @@ async function generateUserSheetForMicroPlan(
 
   const workbook = getNewExcelWorkbook();
   const userSheetData = await createExcelSheet(userData, localizedHeaders); // Create data only once
-  const localisedReadme = getLocalizedName(config.values.readMeTab, localizationMap);
-  const worksheet = workbook.addWorksheet(localisedReadme);
-  // Lock the worksheet
-  worksheet.protect('passwordhere', {
-    selectLockedCells: true,
-    selectUnlockedCells: true
-  });
+
+  // Create and add ReadMe sheet
+  const headingInSheet = headingMapping?.[type];
+  const localizedHeading = getLocalizedName(headingInSheet, localizationMap);
+  await createReadMeSheet(request, workbook, localizedHeading, localizationMap);
 
 
   await makeCustomSheetData(request, request?.query?.type, "USER_MICROPLAN_SHEET_ROLES", workbook, localizationMap);
@@ -1028,14 +1038,17 @@ async function generateUserSheetForMicroPlan(
 
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
   const userData: any[] = [];
-  const isSourceMicroplan = request?.query?.source == "microplan";
+  const tenantId = request?.query?.tenantId;
+  const isSourceMicroplan = await isMicroplanRequest(request);
   if (isSourceMicroplan) {
+    const rolesForMicroplan = await getRolesForMicroplan(tenantId);
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }
   else {
     await generateUserSheet(request, localizationMap, filteredBoundary, userData, fileUrl);
   }
 }
+
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: string) {
   const { type, tenantId } = request.query
   if (type == "facilityWithBoundary") {
@@ -1048,6 +1061,7 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
 
 async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, enableCaching = false, filteredBoundary?: any) {
   request.body.generatedResource = newEntryResponse;
+  logger.info("Generate flow :: processing new request");
   await fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, enableCaching, filteredBoundary);
   return request.body.generatedResource;
 }
@@ -1234,14 +1248,14 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated")
+  logger.info("Boundary relationship search initiated");
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const header = {
     ...defaultheader,
     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
   }
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received")
+  logger.info("Boundary relationship search response received");
   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
 
@@ -1342,10 +1356,10 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId,overrideCache);
   return localizationResponse;
 }
 
@@ -1536,5 +1550,6 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
-  createFacilityAndBoundaryFile
+  createFacilityAndBoundaryFile,
+  hideUniqueIdentifierColumn
 };
