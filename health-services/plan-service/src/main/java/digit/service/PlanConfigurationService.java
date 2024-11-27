@@ -5,16 +5,18 @@ import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
 import digit.service.validator.WorkflowValidator;
 import digit.service.workflow.WorkflowService;
+import digit.util.CommonUtil;
 import digit.util.ResponseInfoFactory;
+import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
-
-import java.util.Collections;
-
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -32,13 +34,16 @@ public class PlanConfigurationService {
 
     private WorkflowService workflowService;
 
-    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService, WorkflowValidator workflowValidator) {
+    private CommonUtil commonUtil;
+
+    public PlanConfigurationService(EnrichmentService enrichmentService, PlanConfigurationValidator validator, PlanConfigurationRepository repository, ResponseInfoFactory responseInfoFactory, WorkflowService workflowService, WorkflowValidator workflowValidator, CommonUtil commonUtil) {
         this.enrichmentService = enrichmentService;
         this.validator = validator;
         this.repository = repository;
         this.responseInfoFactory = responseInfoFactory;
         this.workflowService = workflowService;
         this.workflowValidator = workflowValidator;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -67,10 +72,11 @@ public class PlanConfigurationService {
      */
     public PlanConfigurationResponse search(PlanConfigurationSearchRequest request) {
         validator.validateSearchRequest(request);
-
+        List<PlanConfiguration> planConfigurations = repository.search(request.getPlanConfigurationSearchCriteria());
+        commonUtil.sortOperationsByExecutionOrder(planConfigurations);
         return PlanConfigurationResponse.builder().
                 responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
-                .planConfiguration(repository.search(request.getPlanConfigurationSearchCriteria()))
+                .planConfiguration(planConfigurations)
                 .totalCount(repository.count(request.getPlanConfigurationSearchCriteria()))
                 .build();
     }

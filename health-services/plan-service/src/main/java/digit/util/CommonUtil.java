@@ -2,12 +2,13 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.web.models.*;
+import digit.web.models.Operation;
+import digit.web.models.PlanConfiguration;
+import digit.web.models.PlanConfigurationSearchCriteria;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import static digit.config.ServiceConstants.*;
 
 @Component
@@ -224,6 +226,17 @@ public class CommonUtil {
     }
 
     /**
+     * Checks if the setup process is completed based on the workflow action in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     * @return true if the setup is completed, otherwise false.
+     */
+    public boolean checkForEmptyOperationsOrAssumptions(PlanConfiguration planConfiguration) {
+        return !ObjectUtils.isEmpty(planConfiguration.getOperations()) && !ObjectUtils.isEmpty(planConfiguration.getAssumptions());
+    }
+
+
+    /**
      * Adds or updates the provided fields in the additional details object.
      *
      * @param additionalDetails the additional details object to be updated.
@@ -249,4 +262,14 @@ public class CommonUtil {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
+
+    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
+        for (PlanConfiguration planConfiguration : planConfigurations) {
+            List<Operation> operations = planConfiguration.getOperations();
+            if (!ObjectUtils.isEmpty(operations)) {
+                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
+            }
+        }
+    }
+
 }
