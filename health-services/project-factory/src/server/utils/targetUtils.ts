@@ -1,12 +1,13 @@
 import config from '../config'
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
+import { getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
 import _ from 'lodash';
 import { replicateRequest } from './genericUtils';
 import { callGenerate } from './generateUtils';
+import { isMicroplanRequest } from './microplanUtils';
 
 
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
-    const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+    const isSourceMicroplan = await isMicroplanRequest(request);
     let headerColumnsAfterHierarchy: any;
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0 && !isSourceMicroplan) {
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);

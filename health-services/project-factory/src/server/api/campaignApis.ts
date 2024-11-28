@@ -27,7 +27,6 @@ import {
   getBoundaryOnWhichWeSplit,
   getLocalizedName,
   reorderBoundariesOfDataAndValidate,
-  checkIfSourceIsMicroplan,
   createIdRequests,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
@@ -47,6 +46,7 @@ import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignU
 import { validateMicroplanFacility } from "../validators/microplanValidators";
 import {
   createPlanFacilityForMicroplan,
+  isMicropplanCampaignId,
   updateFacilityDetailsForMicroplan,
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
@@ -856,8 +856,7 @@ async function processValidateAfterSchema(
 ) {
   try {
     if (
-      request?.body?.ResourceDetails?.additionalDetails?.source ==
-      "microplan" &&
+      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "facility"
     ) {
       validateMicroplanFacility(request, dataFromSheet, localizationMap);
@@ -886,7 +885,7 @@ export async function processValidateAfterSchemaSheetWise(
   localizationMap?: { [key: string]: string }
 ) {
   if (
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" &&
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
     request.body.ResourceDetails.type == "user"
   ) {
     await generateProcessedFileAndPersist(request, localizationMap);
@@ -1013,7 +1012,7 @@ async function processValidate(
     if (type == "facility" || type == "user") {
       const isUpdate = request?.body?.parentCampaignObject ? true : false;
       if (
-        request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ) {
         schema = await callMdmsTypeSchema(
           request,
@@ -1029,7 +1028,7 @@ async function processValidate(
     const translatedSchema = await translateSchema(schema, localizationMap);
     if (Array.isArray(dataFromSheet)) {
       if (
-        request?.body?.ResourceDetails?.additionalDetails?.source != "microplan"
+        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ) {
         await validateSheetData(
           dataFromSheet,
@@ -1499,8 +1498,7 @@ async function processAfterValidation(
   await persistCreationProcess(request, processTrackStatuses.inprogress);
   try {
     if (
-      request?.body?.ResourceDetails?.additionalDetails?.source ==
-      "microplan" &&
+      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "user"
     ) {
       await processSearchAndValidation(request);
@@ -1571,7 +1569,7 @@ async function processCreate(request: any, localizationMap?: any) {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignType =
       responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
-    if (checkIfSourceIsMicroplan(request?.body?.ResourceDetails)) {
+    if (await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
       logger.info(`Data create Source is MICROPLAN`);
       if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
         createAndSearchConfig.parseArrayConfig.parseLogic =
@@ -1640,7 +1638,7 @@ async function getSchema(
       "Fetching schema to validate the created data for type: " + type
     );
     if (
-      request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
     ) {
       const mdmsResponse = await callMdmsTypeSchema(
         request,

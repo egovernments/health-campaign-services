@@ -4,11 +4,12 @@ import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { callMdmsData, getSheetData } from "./../api/genericApis";
-import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
+import {  getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
-import { getCampaignSearchResponse } from "../api/campaignApis";
+import { executeQuery } from "./db";
+import { logger } from "./logger";
 
 
 export const filterData = (data: any) => {
@@ -460,15 +461,29 @@ export async function getRolesForMicroplan(tenantId: string, fetchWithRoleCodes:
   }
 }
 
-export async function isMicroplanRequest(request: any): Promise<boolean> {
+export async function isMicroplanRequest(request: any) {
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
-  if (campaignId == "microplan") {
-    return true;
-  }
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-  return checkIfSourceIsMicroplan(campaignObject);
+  return await isMicropplanCampaignId(campaignId);
 }
+
+export async function isMicropplanCampaignId(campaignId: string) {
+  if (campaignId == "microplan") return true;
+  const query = `
+    SELECT (additionaldetails->>'source' = 'microplan') AS is_microplan
+    FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME}
+    WHERE id = $1;
+  `;
+
+  try {
+    const { rowCount, rows } = await executeQuery(query, [campaignId]);
+    return rowCount > 0 ? rows[0].is_microplan : false;
+  } catch (error: any) {
+    logger.error(`Error checking if campaign ${campaignId} is a microplan request: ${error.message}`);
+    throw error;
+  }
+}
+
+
 
 export async function getReadMeConfigForMicroplan(request: any) {
   const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);

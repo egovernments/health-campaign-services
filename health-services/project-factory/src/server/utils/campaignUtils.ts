@@ -93,7 +93,7 @@ import {
   modifyNewSheetData,
   unhideColumnsOfProcessedFile,
 } from "./onGoingCampaignUpdateUtils";
-import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
+import { changeCreateDataForMicroplan, isMicroplanRequest, isMicropplanCampaignId, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
@@ -535,7 +535,7 @@ async function updateStatusFile(
     "get"
   );
   const isLockSheetNeeded =
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ? true
       : false;
 
@@ -595,7 +595,7 @@ async function updateStatusFileForEachSheets(
     "get"
   );
   const isLockSheetNeeded =
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ? true
       : false;
 
@@ -702,7 +702,7 @@ async function processData(
   const requiresToSearchFromSheet =
     createAndSearchConfig?.requiresToSearchFromSheet;
   const isSourceMicroplan =
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   var createData = [],
     searchData = [];
   for (const data of dataFromSheet) {
@@ -810,7 +810,7 @@ async function generateProcessedFileAndPersist(
 ) {
   if (
     request.body.ResourceDetails.type == "boundaryWithTarget" ||
-    (request?.body?.ResourceDetails?.additionalDetails?.source == "microplan" &&
+    (await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "user")
   ) {
     await updateStatusFileForEachSheets(request, localizationMap);
@@ -838,7 +838,7 @@ async function generateProcessedFileAndPersist(
       ...request?.body?.ResourceDetails?.additionalDetails,
       sheetErrors: request?.body?.additionalDetailsErrors,
       source:
-        request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
           ? "microplan"
           : null,
     },
@@ -881,7 +881,7 @@ async function generateProcessedFileAndPersist(
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {
       source:
-        request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
           ? "microplan"
           : null,
       fileName:
@@ -2485,7 +2485,6 @@ async function appendSheetsToWorkbook(
     );
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-    // const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
     const mainSheet = workbook.addWorksheet(
       getLocalizedName(getBoundaryTabName(), localizationMap)
     );
@@ -2978,8 +2977,7 @@ async function updateAndPersistResourceDetails(
           ...request?.body?.ResourceDetails?.additionalDetails,
           sheetErrors: request?.body?.additionalDetailsErrors,
           source:
-            request?.body?.ResourceDetails?.additionalDetails?.source ==
-              "microplan"
+            await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
               ? "microplan"
               : null,
           [name]: [fileStoreId],
@@ -3442,7 +3440,7 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     let campaignType = campaignObject?.projectType;
-    const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+    const isSourceMicroplan =  await isMicroplanRequest(request);
     campaignType = isSourceMicroplan
       ? `${config?.prefixForMicroplanCampaigns}-${campaignType}`
       : campaignType;
@@ -3524,7 +3522,7 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(
   );
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
-  const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+  const isSourceMicroplan = await isMicroplanRequest(request);
   var expectedHeadersForTargetSheetUptoHierarchy: any;
   if (isSourceMicroplan) {
     expectedHeadersForTargetSheetUptoHierarchy = localizedHierarchy;
@@ -3628,10 +3626,6 @@ async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
-}
-
-function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
-  return objectWithAdditionalDetails?.additionalDetails?.source === "microplan";
 }
 
 function createIdRequests(employees: any[]): any[] {
@@ -3782,7 +3776,6 @@ export {
   getConfigurableColumnHeadersBasedOnCampaignType,
   getFinalValidHeadersForTargetSheetAsPerCampaignType,
   getDifferentTabGeneratedBasedOnConfig,
-  checkIfSourceIsMicroplan,
   getBoundaryOnWhichWeSplit,
   createIdRequests,
   createUniqueUserNameViaIdGen,

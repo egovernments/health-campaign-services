@@ -6,7 +6,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
 import { logger } from "./logger";
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
+import { getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, isMicropplanCampaignId, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -544,7 +544,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const isSourceMicroplan = checkIfSourceIsMicroplan(responseFromCampaignSearch?.CampaignDetails?.[0]);
+  const isSourceMicroplan = await isMicropplanCampaignId(request?.query?.campaignId);
   request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
@@ -1232,7 +1232,7 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
+  const isSourceMicroplan = await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   const type = request?.body?.ResourceDetails?.type;
   if (isSourceMicroplan) {
     if (type == 'user') {
@@ -1431,7 +1431,7 @@ function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: 
 async function getConfigurableColumnHeadersFromSchemaForTargetSheet(request: any, hierarchy: any, boundaryData: any, differentTabsBasedOnLevel: any, campaignObject: any, localizationMap?: any) {
   const districtIndex = hierarchy.indexOf(differentTabsBasedOnLevel);
   let headers: any;
-  const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+  const isSourceMicroplan = await isMicroplanRequest(request);
   if (isSourceMicroplan) {
     logger.info(`Source is Microplan.`);
     headers = getLocalizedHeaders(hierarchy, localizationMap);
@@ -1450,7 +1450,7 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
   const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
   let campaignType = campaignObject.projectType;
-  const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
+  const isSourceMicroplan = await isMicroplanRequest(request);
   campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
   const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
