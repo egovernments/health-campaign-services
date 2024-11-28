@@ -5,6 +5,7 @@ import { requestMiddleware } from './utils/middlewares';
 import { errorLogger, errorResponder, invalidPathHandler } from './utils/genericUtils';
 import { tracingMiddleware } from './tracing';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { logger } from './utils/logger';
 
 class App {
   public app: express.Application;
@@ -20,12 +21,14 @@ class App {
 
     // Global error handling for uncaught exceptions
     process.on('uncaughtException', (err) => {
-      console.error('Unhandled Exception:', err);
+      const errorString = JSON.stringify(err, Object.getOwnPropertyNames(err)); // Converts the error to a string
+      logger.error(`Unhandled Exception: ${errorString}`);
     });
 
     // Global error handling for unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      const reasonString = JSON.stringify(reason, Object.getOwnPropertyNames(reason)); // Converts the reason to a string
+      logger.error(`Unhandled Rejection at: ${JSON.stringify(promise)} reason: ${reasonString}`);
     });
   }
 
