@@ -17,6 +17,16 @@ class App {
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
     this.app.use(invalidPathHandler);
+
+    // Global error handling for uncaught exceptions
+    process.on('uncaughtException', (err) => {
+      console.error('Unhandled Exception:', err);
+    });
+
+    // Global error handling for unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
   }
 
   private initializeMiddlewares() {
