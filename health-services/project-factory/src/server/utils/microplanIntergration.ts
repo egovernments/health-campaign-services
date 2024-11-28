@@ -303,6 +303,10 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   const { projectType } = request.body.CampaignDetails;
   const campaignType = "Target-" + projectType;
   const userRoleMapping = await fetchUserRoleMappingFromMDMS(tenantId);
+  logger.info("received mdms data for target column mapping");
+  logger.debug(
+    `target column mapping ${getFormattedStringForDebug(userRoleMapping)}`
+  );
   const planCensusResponse = await searchPlanCensus(
     planConfigurationId,
     tenantId,
@@ -341,6 +345,7 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
 
   await workbook.worksheets.forEach(async (worksheet) => {
     logger.info(`Processing worksheet: ${worksheet.name}`);
+    logger.info(`skipping processing worksheet: ${getLocalizedName(config?.boundary?.boundaryTab, localizationMap)} and ${getLocalizedName(config?.values?.readMeTab, localizationMap)} `);
 
     if (
       worksheet.name !==
@@ -539,6 +544,19 @@ function findAndChangeTargetData(
       Object.keys(mappingData)?.length
     }`
   );
+  logger.info(
+    `Received for Target mapping, headers count : ${
+      headers?.length
+    }`
+  );
+  logger.info(
+    `Received for Target mapping, headers: ${
+      headers?.length
+    }`
+  );
+  logger.debug(
+    `headers: ${getFormattedStringForDebug(headers)}`
+  );
 
   if (headers == null || headers.length == 0) {
     throwError("Error", 500, "Mapping not found in MDMS for Campaign");
@@ -555,6 +573,9 @@ function findAndChangeTargetData(
         localizationMap
       )
     ).value; // Get the value from column 1
+    logger.debug(
+      `column1Value: ${getFormattedStringForDebug(column1Value)}`
+    );
     if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
       // Update columns 5 and 6 if column 1 value matches
       headers[0]?.from.forEach((fromValue: any) => {
@@ -564,6 +585,9 @@ function findAndChangeTargetData(
           mappingData?.[column1Value]?.additionalDetails?.[
             getLocalizedName(headers[0]?.to, localizationMap)
           ];
+          logger.debug(
+            `headers to: ${getFormattedStringForDebug(getLocalizedName(headers[0]?.to, localizationMap))}`
+          );
       });
       mappedData[column1Value] = rowIndex;
     } else {

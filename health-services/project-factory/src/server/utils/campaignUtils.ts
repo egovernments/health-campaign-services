@@ -2983,7 +2983,7 @@ async function updateAndPersistResourceDetails(
               ? "microplan"
               : null,
           [name]: [fileStoreId],
-        } || {},
+        } ,
     };
   } else {
     request.body.ResourceDetails = {
@@ -3006,7 +3006,7 @@ async function updateAndPersistResourceDetails(
             getLatestResourceDetails.additionalDetails?.source == "microplan"
               ? "microplan"
               : null,
-        } || {},
+        } ,
     };
     let additionalDetails = request?.body?.ResourceDetails?.additionalDetails;
     if (additionalDetails && additionalDetails[name]) {
