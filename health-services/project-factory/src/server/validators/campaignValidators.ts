@@ -25,6 +25,8 @@ import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPres
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { MDMSModels } from "../models";
+import { searchMDMSDataViaV1Api } from "../api/coreApis";
 
 
 
@@ -956,8 +958,7 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
         throwError("COMMON", 400, "VALIDATION_ERROR", "projectType is required");
     }
     else {
-        const searchBody = {
-            RequestInfo: request.body.RequestInfo,
+        const searchBody: MDMSModels.MDMSv1RequestCriteria = {
             "MdmsCriteria": {
                 "tenantId": tenantId,
                 "moduleDetails": [
@@ -973,8 +974,7 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
                 ]
             }
         }
-        const params = { tenantId: tenantId }
-        const searchResponse: any = await httpRequest(config.host.mdmsV2 + config?.paths?.mdms_v1_search, searchBody, params);
+        const searchResponse: any = await searchMDMSDataViaV1Api(searchBody);
         if (searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes && Array.isArray(searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes)) {
             const projectTypes = searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
             if (!projectTypes.includes(projectType)) {

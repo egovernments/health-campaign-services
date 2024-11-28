@@ -1,7 +1,7 @@
 // Import necessary types and utilities
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
-import { httpRequest } from "../utils/request";
+import { defaultheader, httpRequest } from "../utils/request";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
@@ -24,7 +24,8 @@ export const defaultRequestInfo: any = {
  * @returns Promise resolving to the MDMS v2 search response containing matched data.
  */
 const searchMDMSDataViaV2Api = async (
-  MdmsCriteria: MDMSModels.MDMSv2RequestCriteria
+  MdmsCriteria: MDMSModels.MDMSv2RequestCriteria, 
+  headers: any = defaultheader
 ): Promise<MDMSModels.MDMSv2Response> => {
   // Construct the full API URL for the v2 MDMS search
   const apiUrl: string = config.host.mdmsV2 + config.paths.mdms_v2_search;
@@ -36,7 +37,7 @@ const searchMDMSDataViaV2Api = async (
   };
 
   // Make an HTTP request to the MDMS v2 API
-  const response: MDMSModels.MDMSv2Response = await httpRequest(apiUrl, data);
+  const response: MDMSModels.MDMSv2Response = await httpRequest(apiUrl, data, undefined, undefined, headers);
 
   // Return the response from the API
   return response;

@@ -19,6 +19,8 @@ import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
 import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { MDMSModels } from "../models";
+import { searchMDMSDataViaV2Api } from "../api/coreApis";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -506,16 +508,13 @@ function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: s
 }
 
 async function getResourceDistributionStrategyTypes(request: any) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
+  const requestBody: MDMSModels.MDMSv2RequestCriteria = {
     MdmsCriteria: {
       tenantId: request?.query?.tenantId,
       schemaCode: "hcm-microplanning.ResourceDistributionStrategy"
     }
   };
-  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
-  const response = await httpRequest(url, requestBody, undefined, undefined, undefined);
+  const response = await searchMDMSDataViaV2Api(requestBody);
   if (response?.mdms && Array.isArray(response?.mdms)) {
     const resourceDistributionStrategyTypes = response?.mdms?.map((mdms: any) => mdms?.data?.resourceDistributionStrategyCode);
     return resourceDistributionStrategyTypes;
@@ -523,6 +522,7 @@ async function getResourceDistributionStrategyTypes(request: any) {
   else {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during resource distribution strategy type search");
   }
+  return null;
 }
 
 async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, resourceDistributionStrategy: string) {
@@ -530,14 +530,14 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
   let schema: any;
   if (isSourceMicroplan) {
     const resourceDistributionStrategyTypes = await getResourceDistributionStrategyTypes(request);
-    if (resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
-      schema = await callMdmsTypeSchema(request, tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
+    if (resourceDistributionStrategyTypes && resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
+      schema = await callMdmsTypeSchema(tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
     }
     else {
       throwError("CAMPAIGN", 500, "INVALID_RESOURCE_DISTRIBUTION_STRATEGY", `Invalid resource distribution strategy: ${resourceDistributionStrategy} ; Allowed resource distribution strategies: ${resourceDistributionStrategyTypes}`);
     }
   } else {
-    schema = await callMdmsTypeSchema(request, tenantId, false, "facility", "all");
+    schema = await callMdmsTypeSchema(tenantId, false, "facility", "all");
   }
   return schema;
 }
@@ -695,7 +695,7 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
 }
 
 async function getReadMeConfig(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await callMdmsData("HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
@@ -884,7 +884,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
     const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(request, processedFacilitySheetData, localizationMap);
     facilitySheetData = modifiedProcessedFacilitySheetData;
-    schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
+    schema = await callMdmsTypeSchema(tenantId, true, "facility", "all");
     setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
@@ -905,7 +905,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   const tenantId = request?.query?.tenantId;
   let schema: any;
   const isUpdate = fileUrl ? true : false;
-  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, "user");
+  schema = await callMdmsTypeSchema(tenantId, isUpdate, "user");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -935,9 +935,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
 
 
 async function getCustomSheetData(request: any, type: any, sheetName: any) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
+  const requestBody: MDMSModels.MDMSv2RequestCriteria = {
     MdmsCriteria: {
       tenantId: request?.query?.tenantId,
       uniqueIdentifiers: [
@@ -946,12 +944,11 @@ async function getCustomSheetData(request: any, type: any, sheetName: any) {
       schemaCode: "HCM-ADMIN-CONSOLE.customSheetData"
     }
   };
-  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
   const header = {
     ...defaultheader,
     cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${sheetName}${type}.${sheetName}${requestBody?.MdmsCriteria?.schemaCode}`
   }
-  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  const response = await searchMDMSDataViaV2Api(requestBody, header);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during customSheet config search");
   }
@@ -1001,7 +998,7 @@ async function generateUserSheetForMicroPlan(
   fileUrl?: any
 ) {
   const { tenantId, type } = request?.query;
-  const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
+  const schema = await callMdmsTypeSchema(tenantId, false, "user", "microplan");
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -1452,7 +1449,7 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
   let campaignType = campaignObject.projectType;
   const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
   campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+  const mdmsResponse = await callMdmsTypeSchema(request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
 }
 

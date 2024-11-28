@@ -1016,14 +1016,13 @@ async function processValidate(
         request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
       ) {
         schema = await callMdmsTypeSchema(
-          request,
           tenantId,
           isUpdate,
           type,
           "microplan"
         );
       } else {
-        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
+        schema = await callMdmsTypeSchema(tenantId, isUpdate, type);
       }
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
@@ -1613,7 +1612,6 @@ async function getSchema(
       "Fetching schema to validate the created data for type: " + type
     );
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       tenantId,
       isUpdate,
       type
@@ -1621,7 +1619,6 @@ async function getSchema(
     schema = mdmsResponse;
   } else if (type == "facilityMicroplan") {
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       tenantId,
       isUpdate,
       "facility",
@@ -1640,7 +1637,6 @@ async function getSchema(
       request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
     ) {
       const mdmsResponse = await callMdmsTypeSchema(
-        request,
         tenantId,
         isUpdate,
         type,
@@ -1649,7 +1645,6 @@ async function getSchema(
       schema = mdmsResponse;
     } else {
       const mdmsResponse = await callMdmsTypeSchema(
-        request,
         tenantId,
         isUpdate,
         type

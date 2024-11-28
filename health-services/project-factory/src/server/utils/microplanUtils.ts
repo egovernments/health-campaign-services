@@ -459,7 +459,7 @@ export async function isMicroplanRequest(request: any): Promise<boolean> {
 }
 
 export async function getReadMeConfigForMicroplan(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await callMdmsData("HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {

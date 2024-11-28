@@ -162,7 +162,7 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   const { tenantId, planConfigurationId, campaignId } =
     request.body.MicroplanDetails;
 
-  const facilityAdminSchema = await callMdmsTypeSchema(request, tenantId, true, "facility");
+  const facilityAdminSchema = await callMdmsTypeSchema(tenantId, true, "facility");
   const localizedHeadersMap = getLocalizedHeadersMapForFacility(facilityAdminSchema.descriptionToFieldMap, localizationMap);
   const planFacilityResponse = await searchPlanFacility(
     planConfigurationId,

@@ -1,3 +1,4 @@
+import { MDMSModels } from '../models';
 // Import necessary modules and libraries
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
@@ -9,6 +10,7 @@ import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "./coreApis";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -276,27 +278,16 @@ const searchMDMS: any = async (
     return;
   }
 
-  // Construct API URL for MDMS search
-  const apiUrl = config.host.mdmsV2 + config.paths.mdms_v2_search;
-
-  // Construct request data for MDMS search
-  const data = {
+  const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
     MdmsCriteria: {
       tenantId: requestinfo?.userInfo?.tenantId,
       uniqueIdentifiers: uniqueIdentifiers,
       schemaCode: schemaCode,
     },
-    RequestInfo: requestinfo,
   };
 
   // Make HTTP request to MDMS API
-  const result = await httpRequest(
-    apiUrl,
-    data,
-    undefined,
-    undefined,
-    undefined
-  );
+  const result = await searchMDMSDataViaV2Api(MdmsCriteria);
 
   // Log search result
   logger.info("Template search Result : " + JSON.stringify(result));
@@ -1214,14 +1205,11 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
 
 
 async function callMdmsData(
-  request: any,
   moduleName: string,
   masterName: string,
   tenantId: string
 ) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
+  const MDMSCriteria: MDMSModels.MDMSv1RequestCriteria = {
     MdmsCriteria: {
       tenantId: tenantId,
       moduleDetails: [
@@ -1236,8 +1224,7 @@ async function callMdmsData(
       ],
     },
   };
-  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
-  const response = await httpRequest(url, requestBody, { tenantId: tenantId });
+  const response = await searchMDMSDataViaV1Api(MDMSCriteria);
   return response;
 }
 
@@ -1343,15 +1330,12 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
 
 
 async function callMdmsTypeSchema(
-  request: any,
   tenantId: string,
   isUpdate: boolean,
   type: any,
   campaignType = "all"
 ) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
+  const MDMSCriteria: MDMSModels.MDMSv2RequestCriteria = {
     MdmsCriteria: {
       tenantId: tenantId,
       uniqueIdentifiers: [
@@ -1360,20 +1344,16 @@ async function callMdmsTypeSchema(
       schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"
     }
   };
-  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
-  const header = {
-    ...defaultheader,
-    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${campaignType}${type}.${campaignType}${requestBody?.MdmsCriteria?.schemaCode}`
-  }
-  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  
+  const response = await searchMDMSDataViaV2Api(MDMSCriteria);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
   return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
 }
 
-async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
-  const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
+async function getMDMSV1Data(moduleName: string, masterName: string, tenantId: string) {
+  const resp: any = await callMdmsData(moduleName, masterName, tenantId);
   return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
 }
 
