@@ -1098,7 +1098,10 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
 }
 
 async function validateForRetry(request: any) {
-    const { id, tenantId } = request?.body?.CampaignDetails
+    if (!request.body || !request.body.CampaignDetails) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails are missing in the request body");
+    }
+    const { id, tenantId } = request.body.CampaignDetails;
     if (!id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
     }
