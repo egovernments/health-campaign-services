@@ -1,7 +1,7 @@
 import express from "express";
-import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaign } from "../utils/campaignUtils";
+import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateMicroplanRequest, validateProjectCampaignRequest, validateSearchProcessTracksRequest, validateSearchProjectCampaignRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest, validateSearchProcessTracksRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
 import { createRelatedResouce } from "../api/genericApis";
 import { enrichCampaign } from "../api/campaignApis";
@@ -28,16 +28,14 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
-async function searchProjectTypeCampaignService(
-    request: express.Request,
+async function searchProjectTypeCampaignService(campaignDetails: any
 ) {
-    // Validate the search request for project type campaigns
-    await validateSearchProjectCampaignRequest(request);
+    // await validateSearchProjectCampaignRequest(request);
     logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
 
     // Search for project campaign resource data
-    await searchProjectCampaignResourcData(request);
-    const responseBody: any = { CampaignDetails: request?.body?.CampaignDetails, totalCount: request?.body?.totalCount }
+    const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails);
+    const responseBody: any = { CampaignDetails: responseData, totalCount: totalCount }
     return responseBody;
 };
 
@@ -83,8 +81,8 @@ async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
     logger.info("Update Campaign Object")
-    await updateCampaign(request ,"MICROPLAN_FETCHING")
-    logger.info("Validated request successfully");   
+    await updateCampaignAfterSearch(request, "MICROPLAN_FETCHING")
+    logger.info("Validated request successfully");
     processFetchMicroPlan(request);
     return request.body.CampaignDetails;
 }
