@@ -539,12 +539,23 @@ function findAndChangeTargetData(
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
   worksheet.eachRow((row: any, rowIndex: number) => {
     if (rowIndex === 1) return; // Skip the header row
-    const column1Value = row.getCell(getHeaderIndex(headersInSheet, config?.boundary?.boundaryCode, localizationMap)).value; // Get the value from column 1
+    const column1Value = row.getCell(
+      getHeaderIndex(
+        headersInSheet,
+        config?.boundary?.boundaryCode,
+        localizationMap
+      )
+    ).value; // Get the value from column 1
     if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
       // Update columns 5 and 6 if column 1 value matches
       headers[0]?.from.forEach((fromValue: any) => {
-        row.getCell(getHeaderIndex(headersInSheet, fromValue, localizationMap)).value = mappingData?.[column1Value]?.additionalDetails?.[getLocalizedName(headers[0]?.to, localizationMap)];
-      })
+        row.getCell(
+          getHeaderIndex(headersInSheet, fromValue, localizationMap)
+        ).value =
+          mappingData?.[column1Value]?.additionalDetails?.[
+            getLocalizedName(headers[0]?.to, localizationMap)
+          ];
+      });
       mappedData[column1Value] = rowIndex;
     } else {
       logger.info(`not doing anything if taregt cel not found`);
