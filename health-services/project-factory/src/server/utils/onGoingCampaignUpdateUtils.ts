@@ -13,15 +13,15 @@ import { produceModifiedMessages } from "../kafka/Producer";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
-    const searchBodyForParent = {
-      RequestInfo: request.body.RequestInfo,
-      CampaignDetails: {
+    // const searchBodyForParent = {
+    //   RequestInfo: request.body.RequestInfo,
+      const CampaignDetails = {
         tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId || request?.body?.CampaignDetails?.tenantId,
         ids: [parentId]
       }
-    };
-    const req: any = replicateRequest(request, searchBodyForParent);
-    const parentSearchResponse = await searchProjectTypeCampaignService(req);
+    // };
+    // const req: any = replicateRequest(request, searchBodyForParent);
+    const parentSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
     console.error("Error fetching parent campaign object:", error);
