@@ -10,3 +10,4 @@ The Census Service introduces core functionalities for managing census data:
 3. Census Update: Updates existing records post-validation and enrichment by sending request to the designated Kafka update topic.
 4. Census Bulk Update: Updates multiple census records in one operation after successful validation.
 5. Census Search: Enables searching for census records with the provided search criteria.
+6. Plan Facility Consumer: Listens to Plan Facility Update topic to assign facility to a boundary in census.
