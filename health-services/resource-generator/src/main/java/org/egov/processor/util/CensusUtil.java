@@ -136,10 +136,15 @@ public class CensusUtil {
                     AdditionalField additionalField = AdditionalField.builder()
                             .key(key)
                             .value((BigDecimal) valueFromRow)
-                            .editable(Boolean.TRUE)
-                            .showOnUi(Boolean.TRUE)
                             .order(orderCounter++)  // Use and increment the local orderCounter
                             .build();
+                    if(config.getCensusAdditionalFieldShowOnUIFalseKeys().contains(key)) {
+                        additionalField.setShowOnUi(Boolean.FALSE);
+                        additionalField.setEditable(Boolean.FALSE);
+                    } else {
+                        additionalField.setShowOnUi(Boolean.TRUE);
+                        additionalField.setEditable(Boolean.TRUE);
+                    }
                     additionalFieldList.add(additionalField);
                 }
             }
