@@ -7,6 +7,10 @@ import { tracingMiddleware } from './tracing';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import * as v8 from 'v8';
 
+const printMemoryInMB=(memoryInBytes:number)=> {
+  const memoryInMB = memoryInBytes / (1024 * 1024); // Convert bytes to MB
+  return `${memoryInMB.toFixed(2)} MB`;
+}
 
 class App {
   public app: express.Application;
@@ -56,8 +60,8 @@ class App {
 
   public listen() {
     this.app.listen(this.port, () => {
-      console.log("Current App's Heap Configuration is set as:", v8.getHeapStatistics());
       console.log(`App listening on the port ${this.port}`);
+      console.log("Current App's Heap Configuration Total Available :", printMemoryInMB(v8.getHeapStatistics()?.total_available_size) ," max limit set to : ",printMemoryInMB(v8.getHeapStatistics()?.heap_size_limit) );
     });
   }
 }
