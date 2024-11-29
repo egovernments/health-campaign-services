@@ -56,8 +56,8 @@ class App {
 
   public listen() {
     this.app.listen(this.port, () => {
-      console.log("Current App's Heap Configuration is set as:", v8.getHeapStatistics());
       console.log(`App listening on the port ${this.port}`);
+      console.log("Current App's Heap Configuration Total Available :", v8.getHeapStatistics()?.total_available_size ," max limit set to : ",v8.getHeapStatistics()?.heap_size_limit );
     });
   }
 }
