@@ -9,7 +9,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -44,7 +43,7 @@ public class PlanFacilitySearchCriteria {
     private String facilityType = null;
 
     @JsonProperty("residingBoundaries")
-    private List<String> residingBoundaries = null;
+    private Set<String> residingBoundaries = null;
 
     @JsonProperty("facilityId")
     private String facilityId = null;

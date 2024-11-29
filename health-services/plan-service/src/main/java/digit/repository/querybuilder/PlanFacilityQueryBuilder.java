@@ -105,7 +105,7 @@ public class PlanFacilityQueryBuilder {
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getResidingBoundaries())) {
-            List<String> residingBoundaries = planFacilitySearchCriteria.getResidingBoundaries();
+            Set<String> residingBoundaries = planFacilitySearchCriteria.getResidingBoundaries();
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" residing_boundary IN ( ").append(queryUtil.createQuery(residingBoundaries.size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));

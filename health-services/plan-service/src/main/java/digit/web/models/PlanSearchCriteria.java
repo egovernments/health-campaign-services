@@ -9,7 +9,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -30,7 +29,7 @@ public class PlanSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("locality")
-    private List<String> locality = null;
+    private Set<String> locality = null;
 
     @JsonProperty("campaignId")
     private String campaignId = null;
@@ -46,7 +45,7 @@ public class PlanSearchCriteria {
 
     @JsonProperty("jurisdiction")
     @Valid
-    private List<String> jurisdiction = null;
+    private Set<String> jurisdiction = null;
 
     @JsonProperty("offset")
     private Integer offset = null;
