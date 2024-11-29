@@ -222,12 +222,12 @@ public class WorkflowService {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
                 PlanEmployeeAssignmentSearchCriteria.builder()
                         .tenantId(plan.getTenantId())
-                        .jurisdiction(Arrays.stream(heirarchysBoundaryCodes).toList())
+                        .jurisdiction(new HashSet<>(Arrays.asList(heirarchysBoundaryCodes)))
                         .planConfigurationId(plan.getPlanConfigurationId())
-                        .role(config.getPlanEstimationApproverRoles())
+                        .role(new HashSet<>(config.getPlanEstimationApproverRoles()))
                         .build();
 
-        //search for plan-employee assignments for the ancestral heirarchy codes.
+        //search for plan-employee assignments for the ancestral hierarchy codes.
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
                 .requestInfo(requestInfo).build());

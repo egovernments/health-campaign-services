@@ -87,7 +87,7 @@ public class PlanFacilityEnricher {
             CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
                     .tenantId(planFacility.getTenantId())
                     .source(planFacility.getPlanConfigurationId())
-                    .areaCodes(new ArrayList<>(boundariesToBeSearched))
+                    .areaCodes(boundariesToBeSearched)
                     .limit(boundariesToBeSearched.size())
                     .build();
 
