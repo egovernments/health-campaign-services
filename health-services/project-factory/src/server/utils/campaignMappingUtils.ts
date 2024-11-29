@@ -349,7 +349,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     }
     const response = await searchProjectTypeCampaignService(CampaignDetails);
     const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
-    const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
+    const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.campaignNumber, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
     const projects = projectObject?.Project?.[0];
     const projectIdsCreatedAfterCampaignCreation = new Set(projects.map((project: any) => project.id));
 

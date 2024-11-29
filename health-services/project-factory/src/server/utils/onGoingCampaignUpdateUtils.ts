@@ -367,13 +367,14 @@ async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId
   }
 }
 
-async function fetchProjectsCreatedAfterCampaignCreationTime(request: any, name: any, tenantId: any, createdFrom: any) {
+async function fetchProjectsCreatedAfterCampaignCreationTime(request: any, name: any, referenceId: any, tenantId: any, createdFrom: any) {
   const projectSearchBody = {
     RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
     Projects: [
       {
         tenantId: tenantId,
-        name: name
+        name: name,
+        referenceID: referenceId
       }
     ]
   }
