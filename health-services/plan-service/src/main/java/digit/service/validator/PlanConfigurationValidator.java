@@ -553,7 +553,7 @@ public class PlanConfigurationValidator {
             }
 
             // Add current operation's output to previousOutputs if it's active
-            if (operation.getActive() && operation.getSource() == Source.MDMS) {
+            if (operation.getActive()) {
                 previousOutputs.add(operation.getOutput());
             }
         }
