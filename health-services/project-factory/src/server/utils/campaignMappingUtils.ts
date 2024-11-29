@@ -6,7 +6,7 @@ import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
-import { createCampaignService } from "../service/campaignManageService";
+import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
@@ -343,6 +343,13 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
+    const CampaignDetails = {
+        "ids": [messageObject?.CampaignDetails?.id],
+        "tenantId": messageObject?.CampaignDetails?.tenantId
+    }
+
+    const response = await searchProjectTypeCampaignService(CampaignDetails);
+    const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
 
 
     for (const key of Object.keys(boundaryWithProject)) {
@@ -350,12 +357,24 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
             const resources: any[] = [];
             const projectId = boundaryWithProject[key];
             const projectObject = await fetchProjectsWithProjectId(messageObject, projectId, messageObject?.CampaignDetails?.tenantId); // Assume this function fetches the project object.
-            if (
-                projectObject?.Project?.[0]?.auditDetails?.lastModifiedTime &&
-                messageObject?.CampaignDetails?.auditDetails?.lastModifiedTime &&
-                projectObject.Project[0].auditDetails.lastModifiedTime >
-                messageObject.CampaignDetails.auditDetails.lastModifiedTime
+            const projectAuditDetails = projectObject?.Project?.[0]?.auditDetails;
+            if (messageObject?.parentCampaign &&
+                projectAuditDetails?.createdTime &&
+                campaignCreatedTime &&
+                projectAuditDetails.createdTime >
+                campaignCreatedTime
             ) {
+                logger.info("project resource mapping for newly creted projects in update flow")
+                const pvarIds = getPvarIds(messageObject);
+                if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
+                    resources.push({
+                        type: "resource",
+                        resourceIds: pvarIds
+                    })
+                }
+            }
+            if (!messageObject?.parentCampaign) {
+                logger.info("project resource mapping in create flow")
                 const pvarIds = getPvarIds(messageObject);
                 if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                     resources.push({
