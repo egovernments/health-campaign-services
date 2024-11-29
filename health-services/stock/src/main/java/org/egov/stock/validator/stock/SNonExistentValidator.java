@@ -24,7 +24,7 @@ import static org.egov.stock.Constants.*;
 
 @Component
 @Slf4j
-@Order(2)
+@Order(3)
 public class SNonExistentValidator implements Validator<StockBulkRequest, Stock> {
 
     private final StockRepository stockRepository;
@@ -36,12 +36,13 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Stock> entities = request.getStock().stream().filter(notHavingErrors()).collect(Collectors.toList());
+        List<Stock> entities = request.getStock();
 
         log.info("validating non existent stock");
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, Stock> eMap = getIdToObjMap(entities, idMethod);
+        Map<String, Stock> eMap = getIdToObjMap(entities
+                .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
         List<String> clientReferenceIdList = new ArrayList<>();

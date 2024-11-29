@@ -8,7 +8,6 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.repository.StockRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -41,11 +40,9 @@ public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> 
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating row version stock");
         Method idMethod = getIdMethod(request.getStock());
-        Map<String, Stock> eMap = getIdToObjMap(request.getStock()
-          .stream()
-          .filter(entity -> StringUtils.hasText(entity.getId()))
-          .collect(Collectors.toList()), idMethod);
-
+        Map<String, Stock> eMap = getIdToObjMap(request.getStock().stream()
+                .filter(notHavingErrors())
+                .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<Stock> existingEntities = stockRepository.findById(entityIds, false,

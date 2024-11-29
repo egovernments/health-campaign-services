@@ -26,11 +26,10 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.stock.Constants.GET_ID;
-import static org.egov.stock.Constants.SR_VALIDATOR_STOCK_SEARCH_FAILED;
 
 @Component
 @Slf4j
-@Order(2)
+@Order(3)
 public class SrNonExistentValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
 
     private final StockReconciliationRepository stockReconciliationRepository;
@@ -46,14 +45,15 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
         List<StockReconciliation> entities = request.getStockReconciliation();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, StockReconciliation> eMap = getIdToObjMap(entities, idMethod);
+        Map<String, StockReconciliation> eMap = getIdToObjMap(entities
+                .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
         List<String> clientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from StockReconciliation entities
         entities.forEach(entity -> {
-            if(entity.getId()!=null) idList.add(entity.getId());
-            if(entity.getClientReferenceId()!=null) clientReferenceIdList.add(entity.getClientReferenceId());
+            idList.add(entity.getId());
+            clientReferenceIdList.add(entity.getClientReferenceId());
         });
         if (!eMap.isEmpty()) {
             StockReconciliationSearch stockReconciliationSearch = StockReconciliationSearch.builder()
@@ -69,7 +69,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
-                throw new CustomException(SR_VALIDATOR_STOCK_SEARCH_FAILED, "Search Failed for StockReconciliation, " + e.getMessage());
+                throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
             }
             List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

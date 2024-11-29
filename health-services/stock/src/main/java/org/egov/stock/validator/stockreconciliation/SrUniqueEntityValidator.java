@@ -20,18 +20,19 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 @Component
 @Slf4j
-@Order(3)
+@Order(2)
 public class SrUniqueEntityValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
     @Override
     
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating unique entity for stock reconciliation");
-        List<StockReconciliation> validEntities = request.getStockReconciliation();
+        List<StockReconciliation> validEntities = request.getStockReconciliation()
+                .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
             Map<String, StockReconciliation> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
-                List<String> duplicates = eMap.keySet().stream().filter(id -> id!=null &&
+                List<String> duplicates = eMap.keySet().stream().filter(id ->
                         validEntities.stream()
                                 .filter(entity -> entity.getId().equals(id)).count() > 1
                 ).collect(Collectors.toList());

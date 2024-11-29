@@ -20,20 +20,21 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 @Component
 @Slf4j
-@Order(3)
+@Order(2)
 public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock> {
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating unique entity for stock");
-        List<Stock> validEntities = request.getStock();
-
+        List<Stock> validEntities = request.getStock()
+                .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
             log.info("valid entity not empty");
             Map<String, Stock> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
-                List<String> duplicates = eMap.keySet().stream().filter(id -> id != null && validEntities.stream()
-	                .filter(entity -> entity.getId().equals(id)).count() > 1
+                List<String> duplicates = eMap.keySet().stream().filter(id ->
+                        validEntities.stream()
+                                .filter(entity -> entity.getId().equals(id)).count() > 1
                 ).collect(Collectors.toList());
                 for (String key : duplicates) {
                     Error error = getErrorForUniqueEntity();

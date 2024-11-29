@@ -40,7 +40,9 @@ public class SrRowVersionValidator implements Validator<StockReconciliationBulkR
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating row version stock reconciliation");
         Method idMethod = getIdMethod(request.getStockReconciliation());
-        Map<String, StockReconciliation> eMap = getIdToObjMap(request.getStockReconciliation(), idMethod);
+        Map<String, StockReconciliation> eMap = getIdToObjMap(request.getStockReconciliation().stream()
+                .filter(notHavingErrors())
+                .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<StockReconciliation> existingEntities = stockReconciliationRepository.findById(entityIds, false,
