@@ -125,11 +125,11 @@ public class CensusValidator {
             validateWorkflowAccess(userInfo, census, roles);
 
             PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                    .employeeId(Collections.singletonList(userInfo.getUuid()))
+                    .employeeId(Collections.singleton(userInfo.getUuid()))
                     .planConfigurationId(request.getCensus().getSource())
                     .tenantId(request.getCensus().getTenantId())
-                    .role(roles.stream().toList())
-                    .jurisdiction(jurisdiction)
+                    .role(roles)
+                    .jurisdiction(new HashSet<>(jurisdiction))
                     .build();
 
             PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
@@ -241,11 +241,11 @@ public class CensusValidator {
         List<String> jurisdiction = Arrays.asList(request.getCensus().get(0).getBoundaryAncestralPath().get(0).split("\\|"));
 
         PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .employeeId(Collections.singletonList(request.getRequestInfo().getUserInfo().getUuid()))
+                .employeeId(Collections.singleton(request.getRequestInfo().getUserInfo().getUuid()))
                 .planConfigurationId(request.getCensus().get(0).getSource())
                 .tenantId(request.getCensus().get(0).getTenantId())
-                .role(configs.getAllowedCensusRoles())
-                .jurisdiction(jurisdiction)
+                .role(new HashSet<>(configs.getAllowedCensusRoles()))
+                .jurisdiction(new HashSet<>(jurisdiction))
                 .build();
 
         PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
