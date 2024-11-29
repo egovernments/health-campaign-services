@@ -108,7 +108,7 @@ public class CommonUtil {
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
-                .areaCodes(areaCodesForSearch.stream().toList())
+                .areaCodes(areaCodesForSearch)
                 .offset(0)
                 .limit(areaCodesForSearch.size())
                 .build();
