@@ -11,6 +11,7 @@ import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Plan Facility DTO
@@ -58,6 +59,9 @@ public class PlanFacilityDTO {
 
     @JsonProperty("facilityName")
     private String facilityName = null;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
