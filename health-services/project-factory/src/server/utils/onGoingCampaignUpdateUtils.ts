@@ -340,7 +340,7 @@ async function getBoundariesFromCampaignSearchResponse(request: any, campaignDet
   return getBoundariesArray(parentCampaignBoundaries, campaignDetails?.boundaries)
 }
 
-async function fetchProjectsWithProjectId(request: any,projectId:any,tenantId:any) {
+async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId: any) {
   const projectSearchBody = {
     RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
     Projects: [
@@ -367,7 +367,34 @@ async function fetchProjectsWithProjectId(request: any,projectId:any,tenantId:an
   }
 }
 
-async function fetchProjectsWithBoundaryCodeAndName(boundaryCode: any, tenantId: any, projectName: any, RequestInfo?: any) {
+async function fetchProjectsCreatedAfterCampaignCreationTime(request: any, name: any, tenantId: any, createdFrom: any) {
+  const projectSearchBody = {
+    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
+    Projects: [
+      {
+        tenantId: tenantId,
+        name: name
+      }
+    ]
+  }
+  const projectSearchParams = {
+    tenantId: tenantId,
+    offset: 0,
+    limit: 1000,
+    createdFrom: createdFrom
+  }
+  logger.info("Project search params " + JSON.stringify(projectSearchParams))
+  const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
+  if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
+    return projectSearchResponse;
+  }
+  else {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+    return []
+  }
+}
+
+async function fetchProjectsWithBoundaryCodeAndNameAndReferenceId(boundaryCode: any, tenantId: any, projectName: any, referenceId: any, RequestInfo?: any) {
   try {
     const projectSearchBody = {
       RequestInfo: RequestInfo,
@@ -377,7 +404,8 @@ async function fetchProjectsWithBoundaryCodeAndName(boundaryCode: any, tenantId:
             boundary: boundaryCode,
           },
           name: projectName,
-          tenantId: tenantId
+          tenantId: tenantId,
+          referenceID: referenceId
         }
       ]
     }
@@ -500,7 +528,7 @@ async function fetchProjectStaffWithProjectId(request: any, projectId: any, staf
 }
 
 async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource: any, messageObject: any, boundaryCode: any, uniqueIdentifier: any, isDelink: boolean) {
-  const projectResponse = await fetchProjectsWithBoundaryCodeAndName(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignName, messageObject?.RequestInfo);
+  const projectResponse = await fetchProjectsWithBoundaryCodeAndNameAndReferenceId(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.campaignNumber, messageObject?.RequestInfo);
   let matchingProjectObject: any;
   if (projectResponse) {
     matchingProjectObject = projectResponse?.Project[0];
@@ -801,7 +829,8 @@ export {
   fetchProjectsWithProjectId,
   getBoundaryProjectMappingFromParentCampaign,
   fetchProjectFacilityWithProjectId,
-  fetchProjectsWithBoundaryCodeAndName,
+  fetchProjectsWithBoundaryCodeAndNameAndReferenceId,
   delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
-  processResources
+  processResources,
+  fetchProjectsCreatedAfterCampaignCreationTime
 }

@@ -10,7 +10,7 @@ import { createCampaignService, searchProjectTypeCampaignService } from "../serv
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
-import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, fetchProjectsWithProjectId, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, fetchProjectsCreatedAfterCampaignCreationTime, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
 
 
@@ -349,20 +349,14 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     }
     const response = await searchProjectTypeCampaignService(CampaignDetails);
     const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
-
+    const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
+    const projects = projectObject?.Project?.[0];
+    const projectIdsCreatedAfterCampaignCreation = new Set(projects.map((project: any) => project.id));
 
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            const projectId = boundaryWithProject[key];
-            const projectObject = await fetchProjectsWithProjectId(messageObject, projectId, messageObject?.CampaignDetails?.tenantId); // Assume this function fetches the project object.
-            const projectAuditDetails = projectObject?.Project?.[0]?.auditDetails;
-            if (messageObject?.parentCampaign &&
-                projectAuditDetails?.createdTime &&
-                campaignCreatedTime &&
-                projectAuditDetails.createdTime >
-                campaignCreatedTime
-            ) {
+            if (messageObject?.parentCampaign && projectIdsCreatedAfterCampaignCreation.has(boundaryWithProject[key])) {
                 logger.info("project resource mapping for newly creted projects in update flow")
                 const pvarIds = getPvarIds(messageObject);
                 if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
