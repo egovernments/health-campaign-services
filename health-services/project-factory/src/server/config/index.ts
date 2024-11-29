@@ -90,7 +90,9 @@ const config = {
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
-    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz"
+    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz".
+    // incomingRequestPayloadLimit : process.env.REQUEST_PAYLOAD_LIMIT || "2mb" @ashish add this key and config helm chart values
+    incomingRequestPayloadLimit: "2mb"
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
