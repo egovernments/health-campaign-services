@@ -92,6 +92,9 @@ public class ServiceConstants {
     public static final String DUPLICATE_KEY_IN_ADDITIONAL_FIELD_CODE = "DUPLICATE_KEY_IN_ADDITIONAL_FIELD";
     public static final String DUPLICATE_KEY_IN_ADDITIONAL_FIELD_MESSGAE = "Duplicate key found in additional field : ";
 
+    public static final String CENSUS_ALREADY_EXISTS_CODE = "CENSUS_ALREADY_EXISTS";
+    public static final String CENSUS_ALREADY_EXISTS_MESSAGE = "Census with the given boundary and source already exists.";
+
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_CODE = "DIFFERENT_WORKFLOW_FOR_BULK_UPDATE";
     public static final String DIFFERENT_WORKFLOW_FOR_BULK_UPDATE_MESSAGE = "All entries should be in the same state for bulk transitioning census records.";
 

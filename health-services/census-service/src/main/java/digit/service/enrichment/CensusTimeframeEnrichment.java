@@ -26,7 +26,7 @@ public class CensusTimeframeEnrichment {
      */
     public void enrichPreviousTimeframe(CensusRequest request) {
         Census census = request.getCensus();
-        List<Census> censusList = repository.search(CensusSearchCriteria.builder().tenantId(census.getTenantId()).areaCodes(Collections.singletonList(census.getBoundaryCode())).effectiveTo(0L).build());
+        List<Census> censusList = repository.search(CensusSearchCriteria.builder().tenantId(census.getTenantId()).areaCodes(Collections.singleton(census.getBoundaryCode())).effectiveTo(0L).build());
 
         if (!CollectionUtils.isEmpty(censusList)) {
             censusList.forEach(censusData -> {

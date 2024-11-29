@@ -53,6 +53,9 @@ public class CensusValidator {
         Census census = request.getCensus();
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), census.getBoundaryCode(), census.getTenantId(), census.getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
 
+        // Validate duplicate records for census
+        validateDuplicateRecords(census);
+
         // Validate boundary code against boundary service
         validateBoundaryCode(boundarySearchResponse, census);
 
@@ -61,6 +64,14 @@ public class CensusValidator {
 
         // Validate keys in additional field
         validateAdditionalFields(request);
+    }
+
+    private void validateDuplicateRecords(Census census) {
+        List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singleton(census.getBoundaryCode())).build());
+
+        if(!CollectionUtils.isEmpty(censusResponseFromSearch)) {
+            throw new CustomException(CENSUS_ALREADY_EXISTS_CODE, CENSUS_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     private void validateAdditionalFields(CensusRequest request) {
