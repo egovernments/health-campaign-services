@@ -29,6 +29,7 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3000
 
-CMD ["yarn", "prod"]
- # Replace "app.js" with your entry point file
+CMD ["sh", "-c", "node --max-old-space-size=2048 $(which yarn) prod"]
+ # Replaced by CMD ["yarn", "prod"]
+
 
