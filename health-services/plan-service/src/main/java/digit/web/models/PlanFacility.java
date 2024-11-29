@@ -14,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Plan Facility
@@ -61,6 +62,9 @@ public class PlanFacility {
 
     @JsonIgnore
     private List<String> initiallySetServiceBoundaries;
+
+    @JsonProperty("jurisdictionMapping")
+    private Map<String, String> jurisdictionMapping;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
