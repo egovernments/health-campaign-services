@@ -19,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 
 
 @SpringBootApplication
-@EnableCaching
 public class AnalyticApp {
 	 public static void main( String[] args ) {
 	        SpringApplication.run(AnalyticApp.class, args);
