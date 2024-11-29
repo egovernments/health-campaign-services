@@ -340,10 +340,9 @@ async function getBoundariesFromCampaignSearchResponse(request: any, campaignDet
   return getBoundariesArray(parentCampaignBoundaries, campaignDetails?.boundaries)
 }
 
-async function fetchProjectsWithParentRootProjectId(request: any) {
-  const { projectId, tenantId } = request?.body?.parentCampaign;
+async function fetchProjectsWithProjectId(request: any,projectId:any,tenantId:any) {
   const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo,
+    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
     Projects: [
       {
         id: projectId,
@@ -799,7 +798,7 @@ export {
   validateBoundariesIfParentPresent,
   callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
-  fetchProjectsWithParentRootProjectId,
+  fetchProjectsWithProjectId,
   getBoundaryProjectMappingFromParentCampaign,
   fetchProjectFacilityWithProjectId,
   fetchProjectsWithBoundaryCodeAndName,
