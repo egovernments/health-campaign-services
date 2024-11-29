@@ -13,6 +13,7 @@ ARG COMMIT_ID
 ENV BRANCH_NAME=$BRANCH_NAME
 ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Copy package.json and yarn.lock (if exists)
 COPY package.json ./
@@ -29,7 +30,7 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3000
 
-CMD ["sh", "-c", "node --max-old-space-size=2048 $(which yarn) prod"]
+CMD ["yarn", "prod"]
  # Replaced by CMD ["yarn", "prod"]
 
 
