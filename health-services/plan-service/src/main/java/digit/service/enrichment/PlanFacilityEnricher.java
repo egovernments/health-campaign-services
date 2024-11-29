@@ -1,11 +1,14 @@
 package digit.service.enrichment;
 
+import digit.util.BoundaryUtil;
 import digit.util.CensusUtil;
 import digit.util.CommonUtil;
 import digit.web.models.PlanFacility;
 import digit.web.models.PlanFacilityRequest;
 import digit.web.models.PlanFacilitySearchCriteria;
 import digit.web.models.PlanFacilitySearchRequest;
+import digit.web.models.boundary.BoundarySearchResponse;
+import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.census.*;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +33,12 @@ public class PlanFacilityEnricher {
 
     private CensusUtil censusUtil;
 
-    public PlanFacilityEnricher(CommonUtil commonUtil, CensusUtil censusUtil) {
+    private BoundaryUtil boundaryUtil;
+
+    public PlanFacilityEnricher(CommonUtil commonUtil, CensusUtil censusUtil, BoundaryUtil boundaryUtil) {
         this.commonUtil = commonUtil;
         this.censusUtil = censusUtil;
+        this.boundaryUtil = boundaryUtil;
     }
 
     /**
@@ -54,6 +60,23 @@ public class PlanFacilityEnricher {
 
         // Add plan config name to which the facility is mapped
         planFacilityRequest.getPlanFacility().setPlanConfigurationName(commonUtil.getPlanConfigName(planFacilityRequest.getPlanFacility().getTenantId(), planFacilityRequest.getPlanFacility().getPlanConfigurationId()));
+    }
+
+    public void enrichJurisdictionMapping(PlanFacilityRequest request, String hierarchyType) {
+        BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlanFacility().getResidingBoundary(), request.getPlanFacility().getTenantId(), hierarchyType, Boolean.TRUE, Boolean.FALSE);
+
+        EnrichedBoundary boundary = boundarySearchResponse.getTenantBoundary().get(0).getBoundary().get(0);
+        Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+        jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+
+        // Iterate through the child boundary until there are no more
+        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+            boundary = boundary.getChildren().get(0);
+            jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+        }
+
+        // Setting jurisdiction mapping for the provided boundary
+        request.getPlanFacility().setJurisdictionMapping(jurisdictionMapping);
     }
 
     /**

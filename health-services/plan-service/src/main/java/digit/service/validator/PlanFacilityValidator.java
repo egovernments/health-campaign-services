@@ -3,6 +3,7 @@ package digit.service.validator;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
+import digit.service.enrichment.PlanFacilityEnricher;
 import digit.util.*;
 import digit.web.models.*;
 import digit.web.models.facility.Facility;
@@ -35,8 +36,9 @@ public class PlanFacilityValidator {
     private MdmsUtil mdmsUtil;
     private FacilityUtil facilityUtil;
     private CommonUtil commonUtil;
+    private PlanFacilityEnricher enrichment;
 
-    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil, CommonUtil commonUtil) {
+    public PlanFacilityValidator(PlanFacilityRepository planFacilityRepository, PlanConfigurationRepository planConfigurationRepository, CampaignUtil campaignUtil, MultiStateInstanceUtil centralInstanceUtil, MdmsUtil mdmsUtil, FacilityUtil facilityUtil, CommonUtil commonUtil, PlanFacilityEnricher enrichment) {
         this.planFacilityRepository = planFacilityRepository;
         this.planConfigurationRepository = planConfigurationRepository;
         this.campaignUtil = campaignUtil;
@@ -44,6 +46,7 @@ public class PlanFacilityValidator {
         this.mdmsUtil = mdmsUtil;
         this.facilityUtil = facilityUtil;
         this.commonUtil = commonUtil;
+        this.enrichment = enrichment;
     }
 
     /**
@@ -130,6 +133,8 @@ public class PlanFacilityValidator {
         // Validate service boundaries
         validateServiceBoundaries(boundaryCodes, planFacility);
 
+        //Enrich jurisdiction mapping for indexer
+        enrichment.enrichJurisdictionMapping(planFacilityRequest, campaignResponse.getCampaignDetails().get(0).getHierarchyType());
     }
 
     /**
