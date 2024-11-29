@@ -60,6 +60,8 @@ public class EducationalQualification {
 	@SafeHtml
 	private String id;
 
+	private String employeeId;
+
 	@SafeHtml
 	@NotNull
 	private String qualification;
