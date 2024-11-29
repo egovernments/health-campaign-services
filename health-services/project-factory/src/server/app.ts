@@ -5,6 +5,8 @@ import { requestMiddleware } from './utils/middlewares';
 import { errorLogger, errorResponder, invalidPathHandler } from './utils/genericUtils';
 import { tracingMiddleware } from './tracing';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import * as v8 from 'v8';
+
 
 class App {
   public app: express.Application;
@@ -30,8 +32,8 @@ class App {
   }
 
   private initializeMiddlewares() {
-    this.app.use(bodyParser.json({ limit: '2mb' }));
-    this.app.use(bodyParser.urlencoded({ limit: '2mb', extended: true }));
+    this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
+    this.app.use(bodyParser.urlencoded({ limit: config.app.incomingRequestPayloadLimit, extended: true }));
     this.app.use(bodyParser.json());
     this.app.use(tracingMiddleware);
     this.app.use(requestMiddleware);
@@ -54,6 +56,7 @@ class App {
 
   public listen() {
     this.app.listen(this.port, () => {
+      console.log("Current App's Heap Configuration is set as:", v8.getHeapStatistics());
       console.log(`App listening on the port ${this.port}`);
     });
   }
