@@ -147,21 +147,21 @@ export function validateTargetsForMicroplanCampaigns(data: any, errors: any, loc
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Data in column '${targetColumn}' must be a whole number, please update the data and re-upload`,
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number from 1 to 100,000,000. Please update the data and re-upload.`,
                                 sheetName: key
                             });
                         } else if (target < 0 || target > 100000000) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Data in column '${targetColumn}' must be a whole number less than 100000000, please update the data and re-upload`,
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number from 1 to 100,000,000. Please update the data and re-upload.`,
                                 sheetName: key
                             });
                         } else if (!Number.isInteger(target)) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Data in column '${targetColumn}' must be a whole number, please update the data and re-upload`,
+                                errorDetails: `Data in column '${targetColumn}' must be a whole number from 1 to 100,000,000. Please update the data and re-upload.`,
                                 sheetName: key
                             });
                         }
