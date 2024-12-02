@@ -85,7 +85,6 @@ public class FacilityRepository extends GenericRepository<Facility> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY f.id ASC";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
