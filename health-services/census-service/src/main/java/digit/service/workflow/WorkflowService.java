@@ -250,9 +250,9 @@ public class WorkflowService {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
                 PlanEmployeeAssignmentSearchCriteria.builder()
                         .tenantId(census.getTenantId())
-                        .jurisdiction(new HashSet<>(Arrays.asList(hierarchiesBoundaryCodes)))
+                        .jurisdiction(Arrays.stream(hierarchiesBoundaryCodes).toList())
                         .planConfigurationId(census.getSource())
-                        .role(new HashSet<>(config.getAllowedCensusRoles()))
+                        .role(config.getAllowedCensusRoles())
                         .build();
 
         //search for plan-employee assignments for the ancestral hierarchy codes.
