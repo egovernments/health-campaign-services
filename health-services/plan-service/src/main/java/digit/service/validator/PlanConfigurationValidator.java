@@ -59,6 +59,9 @@ public class PlanConfigurationValidator {
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS, null);
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
+        // Validate if the plan configuration for the provided name and campaign id already exists
+        validateDuplicateRecord(planConfiguration);
+
         // Validate if campaign id exists against project factory
         validateCampaignId(campaignResponse);
 
@@ -83,6 +86,23 @@ public class PlanConfigurationValidator {
         // Validates the vehicle id from additional details object against the data from mdms v2
         validateVehicleIdsFromAdditionalDetailsAgainstMDMS(request, mdmsV2Data);
 
+    }
+
+    /**
+     * Validates if plan configuration for the provided name and campaign id already exists
+     *
+     * @param planConfiguration the plan configuration from the create request
+     */
+    private void validateDuplicateRecord(PlanConfiguration planConfiguration) {
+        List<PlanConfiguration> planConfigurationsFromSearch = planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
+                .tenantId(planConfiguration.getTenantId())
+                .campaignId(planConfiguration.getCampaignId())
+                .name(planConfiguration.getName())
+                .build());
+
+        if (!CollectionUtils.isEmpty(planConfigurationsFromSearch)) {
+            throw new CustomException(PLAN_CONFIGURATION_ALREADY_EXISTS_CODE, PLAN_CONFIGURATION_ALREADY_EXISTS_MESSAGE);
+        }
     }
 
     /**
@@ -428,13 +448,16 @@ public class PlanConfigurationValidator {
         if (commonUtil.isSetupCompleted(planConfiguration)) {
             performEmptyChecks(planConfiguration);
 
-            HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(request, campaignResponse.getCampaignDetails().get(0).getProjectType());
+            // Get shared data upfront
+            HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(
+                    request, campaignResponse.getCampaignDetails().get(0).getProjectType()
+            );
             Set<String> activeAssumptionKeys = getActiveAssumptionKeys(planConfiguration);
-
             validateOperationInputs(planConfiguration, allowedColumns, activeAssumptionKeys);
             validateOperationAssumptionValues(planConfiguration, allowedColumns, activeAssumptionKeys);
         }
     }
+
 
     /**
      * Performs checks for empty files, assumptions, and operations in the plan configuration.
@@ -524,7 +547,7 @@ public class PlanConfigurationValidator {
 
         for (Operation operation : planConfiguration.getOperations()) {
             // Validate input
-            if (!allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
+            if (operation.getActive() && !allowedColumns.contains(operation.getInput()) && !activeAssumptionKeys.contains(operation.getInput()) &&  !previousOutputs.contains(operation.getInput()) && operation.getSource() == Source.MDMS) {
                 log.error("Input Value " + operation.getInput() + " is not present in allowed columns or previous outputs");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE + operation.getInput());
             }
@@ -551,7 +574,7 @@ public class PlanConfigurationValidator {
             String assumptionValue = operation.getAssumptionValue();
 
             // Validate assumption value
-            if (!allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue) && operation.getSource() == Source.MDMS) {
+            if (operation.getActive() && !allowedColumns.contains(assumptionValue) && !activeAssumptionKeys.contains(assumptionValue) && !previousOutputs.contains(assumptionValue) && operation.getSource() == Source.MDMS) {
                 log.error("Assumption Value " + assumptionValue + " is not present in allowed columns, previous outputs, or active Assumption Keys");
                 throw new CustomException(ASSUMPTION_VALUE_NOT_FOUND_CODE, ASSUMPTION_VALUE_NOT_FOUND_MESSAGE + " - " + assumptionValue);
             }
