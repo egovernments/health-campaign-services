@@ -150,7 +150,7 @@ export function validateTargetsForMicroplanCampaigns(data: any, errors: any, loc
                                 errorDetails: `Data in column '${targetColumn}' must be a whole number from 1 to 100000000. Please update the data and re-upload.`,
                                 sheetName: key
                             });
-                        } else if (target < 0 || target > 100000000) {
+                        } else if (target < 1 || target > 100000000) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
