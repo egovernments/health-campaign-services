@@ -55,4 +55,8 @@ public class ProjectIndexV1 extends ProjectInfo {
     private Long createdTime = null;
     @JsonProperty("additionalDetails")
     private JsonNode additionalDetails;
+    @JsonProperty("referenceID")
+    private String referenceID;
+    @JsonProperty("projectNumber")
+    private String projectNumber;
 }
