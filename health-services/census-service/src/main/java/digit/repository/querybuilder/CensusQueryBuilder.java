@@ -61,7 +61,7 @@ public class CensusQueryBuilder {
         if (!CollectionUtils.isEmpty(ids)) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" cen.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
         return builder.toString();
@@ -160,21 +160,21 @@ public class CensusQueryBuilder {
         if (!CollectionUtils.isEmpty(criteria.getAreaCodes())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" boundary_code IN ( ").append(queryUtil.createQuery(criteria.getAreaCodes().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(criteria.getAreaCodes()));
+            queryUtil.addToPreparedStatement(preparedStmtList, criteria.getAreaCodes());
         }
 
         if (!ObjectUtils.isEmpty(criteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(Collections.singleton(criteria.getAssignee()).size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(assignee, ',') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(Collections.singleton(criteria.getAssignee())));
+            queryUtil.addToPreparedStatement(preparedStmtList, Collections.singleton(criteria.getAssignee()));
         }
 
         if (!CollectionUtils.isEmpty(criteria.getJurisdiction())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(criteria.getJurisdiction().size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(criteria.getJurisdiction()));
+            queryUtil.addToPreparedStatement(preparedStmtList, criteria.getJurisdiction());
         }
 
         StringBuilder countQuery = new StringBuilder();
