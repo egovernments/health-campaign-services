@@ -88,7 +88,7 @@ public class PlanUtil {
 						}).collect(Collectors.toList()))
 						.activities(new ArrayList())
 						.targets(new ArrayList())
-						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).comments(WORKFLOW_COMMENTS_INITIATING_ESTIMATES).build())
+						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
 						.build())
 				.build();

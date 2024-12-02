@@ -84,7 +84,7 @@ public class CensusUtil {
                         .facilityAssigned(Boolean.FALSE)
                         .partnerAssignmentValidationEnabled(Boolean.TRUE)
                         .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
-                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).comments(WORKFLOW_COMMENTS_INITIATING_CENSUS).build())
+                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
                         .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
