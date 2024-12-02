@@ -93,6 +93,18 @@ public class ProjectAddressQueryBuilder {
                 preparedStmtList.add(project.getProjectType());
             }
 
+            if (StringUtils.isNotBlank(project.getReferenceID())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.referenceId =? ");
+                preparedStmtList.add(project.getReferenceID());
+            }
+
+            if (StringUtils.isNotBlank(project.getParent())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.parent =? ");
+                preparedStmtList.add(project.getParent());
+            }
+
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" addr.boundary=? ");

@@ -303,8 +303,6 @@ public class ValidatorUtil {
 					// If facilityIds are empty, log an error for both sender and receiver
 					populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 				}
-			} else {
-				populateErrorForStock(stock, senderId, errorDetailsMap);
 			}
 		}
 	}
