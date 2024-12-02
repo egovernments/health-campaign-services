@@ -67,7 +67,7 @@ public class CensusValidator {
     }
 
     private void validateDuplicateRecords(Census census) {
-        List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singleton(census.getBoundaryCode())).build());
+        List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singletonList(census.getBoundaryCode())).build());
 
         if(!CollectionUtils.isEmpty(censusResponseFromSearch)) {
             throw new CustomException(CENSUS_ALREADY_EXISTS_CODE, CENSUS_ALREADY_EXISTS_MESSAGE);
