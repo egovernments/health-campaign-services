@@ -67,7 +67,7 @@ public class CensusValidator {
     }
 
     private void validateDuplicateRecords(Census census) {
-        List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singleton(census.getBoundaryCode())).build());
+        List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singletonList(census.getBoundaryCode())).build());
 
         if(!CollectionUtils.isEmpty(censusResponseFromSearch)) {
             throw new CustomException(CENSUS_ALREADY_EXISTS_CODE, CENSUS_ALREADY_EXISTS_MESSAGE);
@@ -125,11 +125,11 @@ public class CensusValidator {
             validateWorkflowAccess(userInfo, census, roles);
 
             PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                    .employeeId(Collections.singleton(userInfo.getUuid()))
+                    .employeeId(Collections.singletonList(userInfo.getUuid()))
                     .planConfigurationId(request.getCensus().getSource())
                     .tenantId(request.getCensus().getTenantId())
-                    .role(roles)
-                    .jurisdiction(new HashSet<>(jurisdiction))
+                    .role(roles.stream().toList())
+                    .jurisdiction(jurisdiction)
                     .build();
 
             PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
@@ -241,11 +241,11 @@ public class CensusValidator {
         List<String> jurisdiction = Arrays.asList(request.getCensus().get(0).getBoundaryAncestralPath().get(0).split("\\|"));
 
         PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .employeeId(Collections.singleton(request.getRequestInfo().getUserInfo().getUuid()))
+                .employeeId(Collections.singletonList(request.getRequestInfo().getUserInfo().getUuid()))
                 .planConfigurationId(request.getCensus().get(0).getSource())
                 .tenantId(request.getCensus().get(0).getTenantId())
-                .role(new HashSet<>(configs.getAllowedCensusRoles()))
-                .jurisdiction(new HashSet<>(jurisdiction))
+                .role(configs.getAllowedCensusRoles())
+                .jurisdiction(jurisdiction)
                 .build();
 
         PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()

@@ -10,7 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.Set;
+import java.util.List;
 
 /**
  * PlanEmployeeAssignmentSearchCriteria
@@ -31,7 +31,7 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("employeeId")
-    private Set<String> employeeId = null;
+    private List<String> employeeId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)
@@ -39,11 +39,11 @@ public class PlanEmployeeAssignmentSearchCriteria {
 
     @JsonProperty("role")
     @Size(min = 2, max = 64)
-    private Set<String> role = null;
+    private List<String> role = null;
 
     @JsonProperty("jurisdiction")
     @Valid
-    private Set<String> jurisdiction = null;
+    private List<String> jurisdiction = null;
 
     @JsonProperty("active")
     private Boolean active = null;

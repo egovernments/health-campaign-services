@@ -76,6 +76,12 @@ public class QueryUtil {
         });
     }
 
+    public void addToPreparedStatement(List<Object> preparedStmtList, List<String> ids) {
+        ids.forEach(id -> {
+            preparedStmtList.add(id);
+        });
+    }
+
     /**
      * This method appends order by clause to the query.
      *
