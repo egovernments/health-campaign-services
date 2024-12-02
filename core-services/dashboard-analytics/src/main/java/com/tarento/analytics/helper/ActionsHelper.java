@@ -18,7 +18,7 @@ public class ActionsHelper {
         double cumulativeValue = 0.0;
         List<Plot> plots = new ArrayList<>();
         // Setting the label of plot as the 0th element in aggregation paths array
-        plotList.add(new Data(chartNode.get(IResponseHandler.AGGS_PATH).get(0).asText(), cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
+        plotList.add(new Data(dataList.get(0).getHeaderName(), cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
         Map<String, Double> numeratorMap= new HashMap<String, Double>();
         Map<String, Double> denominatorMap= new HashMap<String, Double>();
         dataList.get(0).getPlots().forEach(plot -> {
