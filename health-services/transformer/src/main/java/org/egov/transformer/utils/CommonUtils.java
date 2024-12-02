@@ -36,7 +36,7 @@ public class CommonUtils {
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
-    private static Map<String, String> userIdVsProjectIdAndProjectTypeIdAndProjectTypeCache = new ConcurrentHashMap<>();
+    private static Map<String, ProjectInfo> userIdVsProjectInfoCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -229,37 +229,37 @@ public class CommonUtils {
         return false;
     }
 
-    public String projectDetailsFromUserId(String userId, String tenantId){
-        if (userIdVsProjectIdAndProjectTypeIdAndProjectTypeCache.containsKey(userId)) {
-            return userIdVsProjectIdAndProjectTypeIdAndProjectTypeCache.get(userId);
+    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
+        if (userIdVsProjectInfoCache.containsKey(userId)) {
+            return userIdVsProjectInfoCache.get(userId);
         }
 
         List<String> userIds = new ArrayList<>(Arrays.asList(userId));
-        String projectIdAndProjectTypeIdAndProjectType = null;
+        ProjectInfo projectInfo = new ProjectInfo();
         List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(userIds, tenantId);
         ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
 
         if (ObjectUtils.isNotEmpty(projectStaff)) {
             Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
             if (ObjectUtils.isNotEmpty(project)) {
-                projectIdAndProjectTypeIdAndProjectType = projectStaff.getProjectId() + ":" + project.getProjectTypeId() + ":" + project.getProjectType();
-                userIdVsProjectIdAndProjectTypeIdAndProjectTypeCache.put(userId, projectIdAndProjectTypeIdAndProjectType);
+                projectInfo.setProjectTypeId(project.getProjectTypeId());
+                projectInfo.setProjectId(projectStaff.getProjectId());
+                projectInfo.setProjectType(project.getProjectType());
+                projectInfo.setProjectName(project.getName());
+                userIdVsProjectInfoCache.put(userId, projectInfo);
             }
         }
 
-        return projectIdAndProjectTypeIdAndProjectType;
+        return projectInfo;
     }
 
     public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
-        String projectDetails = projectDetailsFromUserId(userId, tenantId);
-        if(!StringUtils.isEmpty(projectDetails)) {
-            // ":" is being used to separate project id, project type id and project type
-            String[] projectDetailsParts = projectDetails.split(":");
-            if(projectDetailsParts.length > 2) {
-                projectInfo.setProjectId(projectDetailsParts[0]);
-                projectInfo.setProjectTypeId(projectDetailsParts[1]);
-                projectInfo.setProjectType(projectDetailsParts[2]);
-            }
+        ProjectInfo projectDetails = projectDetailsFromUserId(userId, tenantId);
+        if(ObjectUtils.isNotEmpty(projectDetails)) {
+            projectInfo.setProjectId(projectDetails.getProjectId());
+            projectInfo.setProjectTypeId(projectDetails.getProjectTypeId());
+            projectInfo.setProjectType(projectDetails.getProjectType());
+            projectInfo.setProjectName(projectDetails.getProjectName());
         }
     }
 
