@@ -121,7 +121,7 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
-        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
+        serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
         return serviceIndexV1;
     }
 }

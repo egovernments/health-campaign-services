@@ -86,6 +86,7 @@ public class ProjectTaskTransformationService {
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
         String projectType = project.getProjectType();
+        String projectName = project.getName();
 
         String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
@@ -94,13 +95,13 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode, projectName)
         ).collect(Collectors.toList());
     }
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
-                                                               Map<String, String> userInfoMap, String localityCode) {
+                                                               Map<String, String> userInfoMap, String localityCode, String projectName) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
@@ -147,7 +148,7 @@ public class ProjectTaskTransformationService {
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
                 .build();
-        projectTaskIndexV1.setProjectInfo(task.getId(), projectType, projectTypeId);
+        projectTaskIndexV1.setProjectInfo(task.getId(), projectType, projectTypeId, projectName);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();

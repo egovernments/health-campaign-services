@@ -117,7 +117,7 @@ public class HfServiceTransformationService {
                     .boundaryHierarchyCode(boundaryHierarchyCode)
                     .additionalDetails(additionalDetails)
                     .build();
-            hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
+            hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
         }

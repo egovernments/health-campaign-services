@@ -168,7 +168,7 @@ public class StockTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
-        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId);
+        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         return stockIndexV1;
     }
 

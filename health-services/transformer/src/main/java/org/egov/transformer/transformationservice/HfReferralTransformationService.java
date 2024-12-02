@@ -84,7 +84,7 @@ public class HfReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(hfReferral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
+        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
 
         return hfReferralIndexV1;
     }
