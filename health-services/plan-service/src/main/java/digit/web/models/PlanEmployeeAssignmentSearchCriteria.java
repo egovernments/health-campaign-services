@@ -1,6 +1,7 @@
 package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import java.util.Set;
 
 import jakarta.validation.Valid;
@@ -31,7 +32,7 @@ public class PlanEmployeeAssignmentSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("employeeId")
-    private Set<String> employeeId = null;
+    private List<String> employeeId = null;
 
     @JsonProperty("planConfigurationId")
     @Size(max = 64)
@@ -45,14 +46,14 @@ public class PlanEmployeeAssignmentSearchCriteria {
 
     @JsonProperty("role")
     @Valid
-    private Set<String> role = null;
+    private List<String> role = null;
 
     @JsonProperty("hierarchyLevel")
     private String hierarchyLevel = null;
 
     @JsonProperty("jurisdiction")
     @Valid
-    private Set<String> jurisdiction = null;
+    private List<String> jurisdiction = null;
 
     @JsonProperty("active")
     @Builder.Default

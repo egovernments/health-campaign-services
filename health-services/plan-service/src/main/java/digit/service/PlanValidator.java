@@ -494,9 +494,9 @@ public class PlanValidator {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
                 .builder()
                 .tenantId(planRequest.getPlan().getTenantId())
-                .employeeId(Collections.singleton(planRequest.getRequestInfo().getUserInfo().getUuid()))
+                .employeeId(Collections.singletonList(planRequest.getRequestInfo().getUserInfo().getUuid()))
                 .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
-                .role(new HashSet<>(config.getPlanEstimationApproverRoles()))
+                .role(config.getPlanEstimationApproverRoles())
                 .build();
 
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
@@ -581,9 +581,9 @@ public class PlanValidator {
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
                 .builder()
                 .tenantId(bulkPlanRequest.getPlans().get(0).getTenantId())
-                .employeeId(Collections.singleton(bulkPlanRequest.getRequestInfo().getUserInfo().getUuid()))
+                .employeeId(Collections.singletonList(bulkPlanRequest.getRequestInfo().getUserInfo().getUuid()))
                 .planConfigurationId(bulkPlanRequest.getPlans().get(0).getPlanConfigurationId())
-                .role(new HashSet<>(config.getPlanEstimationApproverRoles()))
+                .role(config.getPlanEstimationApproverRoles())
                 .build();
 
         // Fetch plan employee assignment

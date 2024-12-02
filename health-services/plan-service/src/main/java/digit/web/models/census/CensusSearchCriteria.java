@@ -35,7 +35,7 @@ public class CensusSearchCriteria {
     private String tenantId = null;
 
     @JsonProperty("areaCodes")
-    private Set<String> areaCodes = null;
+    private List<String> areaCodes = null;
 
     @JsonProperty("status")
     private String status = null;
@@ -50,7 +50,7 @@ public class CensusSearchCriteria {
     private Boolean facilityAssigned = null;
 
     @JsonProperty("jurisdiction")
-    private Set<String> jurisdiction = null;
+    private List<String> jurisdiction = null;
 
     @JsonProperty("effectiveTo")
     private Long effectiveTo = null;
@@ -60,4 +60,13 @@ public class CensusSearchCriteria {
 
     @JsonProperty("offset")
     private Integer offset = null;
+
+    public CensusSearchCriteria addAreaCodesItem(String areaCodesItem) {
+        if (this.areaCodes == null) {
+            this.areaCodes = new ArrayList<>();
+        }
+        this.areaCodes.add(areaCodesItem);
+        return this;
+    }
+
 }

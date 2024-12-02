@@ -110,8 +110,8 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanEmployeeAssignment> planEmployeeAssignmentsFromSearch = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                 .tenantId(employeeAssignment.getTenantId())
                 .planConfigurationId(employeeAssignment.getPlanConfigurationId())
-                .employeeId(Collections.singleton(employeeAssignment.getEmployeeId()))
-                .role(Collections.singleton(employeeAssignment.getRole()))
+                .employeeId(Collections.singletonList(employeeAssignment.getEmployeeId()))
+                .role(Collections.singletonList(employeeAssignment.getRole()))
                 .build());
 
         if (!CollectionUtils.isEmpty(planEmployeeAssignmentsFromSearch)) {
@@ -170,8 +170,8 @@ public class PlanEmployeeAssignmentValidator {
             List<PlanEmployeeAssignment> response = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                     .tenantId(planEmployeeAssignment.getTenantId())
                     .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
-                    .employeeId(Collections.singleton(planEmployeeAssignment.getEmployeeId()))
-                    .role(Collections.singleton(roleMap.get(planEmployeeAssignment.getRole()))).build());
+                    .employeeId(Collections.singletonList(planEmployeeAssignment.getEmployeeId()))
+                    .role(Collections.singletonList(roleMap.get(planEmployeeAssignment.getRole()))).build());
 
             // If there are any conflicting assignments found, throw a custom exception
             if (!CollectionUtils.isEmpty(response)) {
@@ -336,9 +336,9 @@ public class PlanEmployeeAssignmentValidator {
         List<PlanEmployeeAssignment> planEmployeeAssignments = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                 .tenantId(planEmployeeAssignment.getTenantId())
                 .id(planEmployeeAssignment.getId())
-                .role(Collections.singleton(planEmployeeAssignment.getRole()))
+                .role(Collections.singletonList(planEmployeeAssignment.getRole()))
                 .planConfigurationId(planEmployeeAssignment.getPlanConfigurationId())
-                .employeeId(Collections.singleton(planEmployeeAssignment.getEmployeeId()))
+                .employeeId(Collections.singletonList(planEmployeeAssignment.getEmployeeId()))
                 .build());
 
         if (CollectionUtils.isEmpty(planEmployeeAssignments)) {
