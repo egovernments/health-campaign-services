@@ -51,7 +51,7 @@ public class PlanConfigQueryBuilder {
         if (!CollectionUtils.isEmpty(ids)) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
         addActiveWhereClause(builder, preparedStmtList);
@@ -105,7 +105,7 @@ public class PlanConfigQueryBuilder {
         if (!CollectionUtils.isEmpty(criteria.getIds())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.id IN ( ").append(queryUtil.createQuery(criteria.getIds().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(criteria.getIds()));
+            queryUtil.addToPreparedStatement(preparedStmtList, criteria.getIds());
         }
 
         if (criteria.getCampaignId() != null) {
@@ -123,7 +123,7 @@ public class PlanConfigQueryBuilder {
         if (!CollectionUtils.isEmpty(criteria.getStatus())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.status IN ( ").append(queryUtil.createQuery(criteria.getStatus().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(criteria.getStatus()));
+            queryUtil.addToPreparedStatement(preparedStmtList, criteria.getStatus());
         }
 
         if (criteria.getUserUuid() != null) {
