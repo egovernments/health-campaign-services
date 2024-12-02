@@ -193,9 +193,9 @@ public class CommonUtil {
      */
     public Map<String, String> getMicroplanHierarchy(Object mdmsData) {
 
-        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_SCHEMA + HIERARCHY_CONFIG_FOR_MICROPLAN;
 
-        List<Map<String, String>> hierarchyForMicroplan;
+        List<Map<String, Object>> hierarchyForMicroplan;
 
         try {
             log.info(jsonPathForMicroplanHierarchy);
@@ -206,8 +206,8 @@ public class CommonUtil {
         }
 
         Map<String, String> hierarchyMap = new HashMap<>();
-        hierarchyMap.put(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN));
-        hierarchyMap.put(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN));
+        hierarchyMap.put(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN).toString().toLowerCase());
+        hierarchyMap.put(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN).toString().toLowerCase());
 
         return hierarchyMap;
     }
