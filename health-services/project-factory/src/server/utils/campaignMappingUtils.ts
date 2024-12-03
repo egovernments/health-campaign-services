@@ -378,9 +378,13 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
                 boundary
             );
             // Add each boundary code to the set if it exists
-            boundaryCodesFetchedFromGivenRoot
-                .filter((boundary: any) => boundary?.code) // Filter boundaries with valid codes
-                .forEach((boundary: any) => newlyAddedBoundaryCodes.add(boundary.code));
+            if (boundaryCodesFetchedFromGivenRoot &&
+                Array.isArray(boundaryCodesFetchedFromGivenRoot) &&
+                boundaryCodesFetchedFromGivenRoot.length > 0) {
+                boundaryCodesFetchedFromGivenRoot
+                    .filter((boundary: any) => boundary?.code) // Filter boundaries with valid codes
+                    .forEach((boundary: any) => newlyAddedBoundaryCodes.add(boundary.code));
+            }
         }
     }
 
