@@ -370,14 +370,18 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         const boundaries = campaignSearchResponse?.CampaignDetails?.[0]?.boundaries;
         const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
         const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
-        boundariesWhichAreRootInThisFlow.forEach((boundary: any) => {
-            consolidateBoundaries(messageObject, messageObject?.CampaignDetails?.hierarchyType, messageObject?.CampaignDetails?.tenantId, boundary);
-            messageObject.boundaries.forEach((boundary: any) => {
-                if (boundary?.code) {
-                    newlyAddedBoundaryCodes.add(boundary.code); // Add each boundary code to the set
-                }
-            });
-        });
+        for (const boundary of boundariesWhichAreRootInThisFlow) {
+            const boundaryCodesFetchedFromGivenRoot = await consolidateBoundaries(
+                messageObject,
+                messageObject?.CampaignDetails?.hierarchyType,
+                messageObject?.CampaignDetails?.tenantId,
+                boundary
+            );
+            // Add each boundary code to the set if it exists
+            boundaryCodesFetchedFromGivenRoot
+                .filter((boundary: any) => boundary?.code) // Filter boundaries with valid codes
+                .forEach((boundary: any) => newlyAddedBoundaryCodes.add(boundary.code));
+        }
     }
 
 
