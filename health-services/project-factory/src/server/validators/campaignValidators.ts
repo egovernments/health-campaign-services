@@ -26,7 +26,7 @@ import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCamp
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
-import { defaultRequestInfo } from "../api/coreApis";
+import { fetchProductVariants } from "../api/healthApis";
 
 
 
@@ -1173,30 +1173,25 @@ async function validateProductVariant(request: any) {
 }
 
 async function validatePvarIds(pvarIds: any) {
-    const CHUNK_SIZE = 100;
-    const missingPvarIds: any[] = [];
-    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: defaultRequestInfo?.RequestInfo?.userInfo?.tenantId };
-
-    for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
-        const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
-        try {
-            const response = await httpRequest(
-                config.host.productHost + config.paths.productVariantSearch,
-                { ProductVariant: { id: chunk }, ...defaultRequestInfo },
-                params
-            );
-            const validIds = new Set(response?.ProductVariant?.map((pvar: any) => pvar?.id) || []);
-            missingPvarIds.push(...chunk.filter((id: any) => !validIds.has(id)));
-        } catch (error: any) {
-            logger.error("Error during product variant validation");
-            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured while validating product variant. ${error?.message}`);
-        }
+    // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
+    if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
     }
+
+    // Fetch product variants using the fetchProductVariants function
+    const allProductVariants = await fetchProductVariants(pvarIds);
+
+    // Extract the ids of the fetched product variants
+    const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));
+
+    // Identify missing or invalid product variants
+    const missingPvarIds = pvarIds.filter((id: any) => !fetchedIds.has(id));
 
     if (missingPvarIds.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
     }
 }
+
 
 async function validateIsActive(request: any) {
     if (!request?.body?.CampaignDetails.isActive) {
