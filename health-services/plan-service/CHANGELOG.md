@@ -2,7 +2,9 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.0 - 2024-12-03
-#### Plan Configuration
+### Plan Service
+
+##### Plan Configuration
 
 1. Validation of Plan Configuration: Validates all plan configuration requests against MDMS and Project Factory before processing the requests.
 2. Plan Configuration Create: Validates and enriches new plan configurations before publishing them to the Kafka topic for asynchronous processing.
@@ -10,12 +12,15 @@ All notable changes to this module will be documented in this file.
 4. Plan Configuration Search: Facilitates searching for plan configurations using the provided search criteria.
 5. Resource Generator Consumer: Listens to resource generator plan configuration update topic to update plan configuration.
 
-#### Plan Employee Assignment
+#### Plan Service
 
-1. Validation: Validates plan employee assignment requests against MDMS, User service and Project Factory before processing the requests.
-2. Plan Employee Assignment Create: Assigns employees to plans post-validation and enrichment, considering roles and jurisdictions by pushing request to create kafka topic.
-3. Plan Employee Assignment Update: Updates existing assignments after validation, publishing the changes to the designated Kafka update topic. 
-4. Plan Employee Assignment Search: Enables searching for employee assignments using provided search criteria.
+1. Plan Service manages: validation of plans, plan search, plan create, plan update.
+2. Validation of  plan: Plan service validates plan request before it takes action on it like update or create.
+3. Plan Create: Plan service creates a plan after successful validation is done. It sends create request on topic to create plan.
+4. Plan Update : Plan service creates a plan after successful validation is done. It sends update request on topic to resource estimation service to further process.
+5. Plan Search: This enables to search plan based on provided search string.
+6. Plan Bulk Update: Allows updating multiple plans in a single operation after validation.
+7. Resource Generator Consumer: Listens to resource plan create topic to trigger the creation of new plans.
 
 #### Plan Facility
 
@@ -24,12 +29,9 @@ All notable changes to this module will be documented in this file.
 3. Plan Facility Update: Updates existing facilities post-validation by pushing update requests to the Kafka topic. Also sends the update request to Census service for facility mapping.
 4. Plan Facility Search: Searches Plan Facility for the provided search criteria.
 
-#### Plan Service 
+#### Plan Employee Assignment
 
-1. Plan Service manages: validation of plans, plan search, plan create, plan update.
-2. Validation of  plan: Plan service validates plan request before it takes action on it like update or create.  
-3. Plan Create: Plan service creates a plan after successful validation is done. It sends create request on topic to create plan. 
-4. Plan Update : Plan service creates a plan after successful validation is done. It sends update request on topic to resource estimation service to further process.
-5. Plan Search: This enables to search plan based on provided search string.
-6. Plan Bulk Update: Allows updating multiple plans in a single operation after validation.
-7. Resource Generator Consumer: Listens to resource plan create topic to trigger the creation of new plans.
+1. Validation: Validates plan employee assignment requests against MDMS, User service and Project Factory before processing the requests.
+2. Plan Employee Assignment Create: Assigns employees to plans post-validation and enrichment, considering roles and jurisdictions by pushing request to create kafka topic.
+3. Plan Employee Assignment Update: Updates existing assignments after validation, publishing the changes to the designated Kafka update topic. 
+4. Plan Employee Assignment Search: Enables searching for employee assignments using provided search criteria.
