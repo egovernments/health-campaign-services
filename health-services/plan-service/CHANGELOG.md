@@ -12,7 +12,7 @@ All notable changes to this module will be documented in this file.
 4. Plan Configuration Search: Facilitates searching for plan configurations using the provided search criteria.
 5. Resource Generator Consumer: Listens to resource generator plan configuration update topic to update plan configuration.
 
-#### Plan Service
+#### Plan
 
 1. Plan Service manages: validation of plans, plan search, plan create, plan update.
 2. Validation of  plan: Plan service validates plan request before it takes action on it like update or create.
