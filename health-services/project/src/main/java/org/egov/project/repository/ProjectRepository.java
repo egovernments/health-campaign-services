@@ -69,7 +69,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
 
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo) {
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Boolean includeImmediateChildren ,Long createdFrom, Long createdTo) {
 
         //Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
@@ -86,14 +86,13 @@ public class ProjectRepository extends GenericRepository<Project> {
                 projectIds.addAll(ancestorProjectIds);
             }
         }
-        //Get Project descendants if includeDescendants flag is true
-        if (includeDescendants) {
+        if (includeImmediateChildren) {
+            descendants = getProjectImmediateDescendants(projects);
+        } else if (includeDescendants) {
             descendants = getProjectDescendants(projects);
-            if (descendants != null && !descendants.isEmpty()) {
-                List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
-                projectIds.addAll(descendantsProjectIds);
-            }
         }
+        List<String> descendantsProjectIds = descendants == null || descendants.isEmpty() ? new ArrayList<>() : descendants.stream().map(Project::getId).collect(Collectors.toList());
+        projectIds.addAll(descendantsProjectIds);
 
         //Fetch targets based on Project Ids
         List<Target> targets = getTargetsBasedOnProjectIds(projectIds);
@@ -176,6 +175,14 @@ public class ProjectRepository extends GenericRepository<Project> {
         return projects;
     }
 
+    /* Fetch Project descendants based on Project ids */
+    private List<Project> getProjectsImmediateDescendantsBasedOnProjectIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+        String query = queryBuilder.getProjectImmediateDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
+        List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
+        log.info("Fetched project immediate descendants list based on given Project Ids");
+        return projects;
+    }
+
     /* Fetch targets based on Project Ids */
     private List<Target> getTargetsBasedOnProjectIds(Set<String> projectIds) {
         List<Object> preparedStmtListTarget = new ArrayList<>();
@@ -224,6 +231,16 @@ public class ProjectRepository extends GenericRepository<Project> {
         log.info("Fetching descendant projects");
 
         return getProjectsDescendantsBasedOnProjectIds(projectIds, preparedStmtListDescendants);
+    }
+
+    /* Fetch projects where project parent for projects in db contains project ID of requested project.*/
+    private List<Project> getProjectImmediateDescendants(List<Project> projects) {
+        List<String> requestProjectIds = projects.stream().map(Project::getId).collect(Collectors.toList());
+
+        List<Object> preparedStmtListDescendants = new ArrayList<>();
+        log.info("Fetching immediate descendant projects");
+
+        return getProjectsImmediateDescendantsBasedOnProjectIds(requestProjectIds, preparedStmtListDescendants);
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
