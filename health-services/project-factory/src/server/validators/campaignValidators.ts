@@ -1167,12 +1167,12 @@ async function validateProductVariant(request: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", `deliveryRules[${index}].resources must be a non-empty array`);
         }
     });
-    const pvarIds = getPvarIds(request?.body);
-    await validatePvarIds(pvarIds);
+    const pvarIds= getPvarIds(request?.body);
+    await validatePvarIds(pvarIds as string[]);
     logger.info("Validated product variants successfully");
 }
 
-async function validatePvarIds(pvarIds: any) {
+async function validatePvarIds(pvarIds: string[]) {
     // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
     if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");

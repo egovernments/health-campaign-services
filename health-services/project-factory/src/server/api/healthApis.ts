@@ -4,7 +4,7 @@ import config from "../config";
 import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
-export async function fetchProductVariants(pvarIds: any) {
+export async function fetchProductVariants(pvarIds: string[]) {
     const CHUNK_SIZE = 100;
     const allProductVariants: any[] = [];
     const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: defaultRequestInfo?.RequestInfo?.userInfo?.tenantId };
