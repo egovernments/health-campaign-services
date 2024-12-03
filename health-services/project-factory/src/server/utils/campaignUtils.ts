@@ -2341,8 +2341,6 @@ async function createProject(
 
           // Set the reference ID and project targets
           Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
-          (Projects[0].department =
-            request?.body?.CampaignDetails?.campaignName),
             (Projects[0].targets = [
               {
                 beneficiaryType:
@@ -2395,7 +2393,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         request.body.CampaignDetails.id,
         processTrackTypes.validation,
         processTrackStatuses.completed
-      ); generateHierarchy
+      );
       await createProjectCampaignResourcData(request);
       await createProject(request, actionInUrl, localizationMap);
       await enrichAndPersistProjectCampaignRequest(
