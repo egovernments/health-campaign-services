@@ -84,8 +84,8 @@ import {
 } from "./targetUtils";
 import {
   callGenerateWhenChildCampaigngetsCreated,
-  fetchProjectsWithBoundaryCodeAndName,
-  fetchProjectsWithParentRootProjectId,
+  fetchProjectsWithBoundaryCodeAndReferenceId,
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getBoundaryProjectMappingFromParentCampaign,
   getColumnIndexByHeader,
@@ -1205,8 +1205,8 @@ async function persistForCampaignProjectMapping(
       Campaign: {},
     };
     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
-    requestBody.Campaign.newlyCreatedBoundaryProjectMap =
-      request?.body?.newlyCreatedBoundaryProjectMap;
+    // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
+    //   request?.body?.newlyCreatedBoundaryProjectMap;
     requestBody.Campaign.hierarchyType =
       request?.body?.CampaignDetails?.hierarchyType;
     requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
@@ -1942,10 +1942,10 @@ async function reorderBoundariesOfDataAndValidate(
   if (request?.body?.ResourceDetails?.campaignId) {
     // const searchBody = {
     //   RequestInfo: request?.body?.RequestInfo,
-      const CampaignDetails = {
-        ids: [request?.body?.ResourceDetails?.campaignId],
-        tenantId: request?.body?.ResourceDetails?.tenantId,
-      }
+    const CampaignDetails = {
+      ids: [request?.body?.ResourceDetails?.campaignId],
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+    }
     // };
     // const req: any = replicateRequest(request, searchBody);
     const response = await searchProjectTypeCampaignService(CampaignDetails);
@@ -2235,9 +2235,10 @@ async function createProject(
       boundaries = await reorderBoundaries(request, localizationMap);
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
-        // make search to project with root project id
+        // make search to project with parent campaign root project id
+        const { projectId, tenantId } = request?.body?.parentCampaign;
         const projectSearchResponse =
-          await fetchProjectsWithParentRootProjectId(request);
+          await fetchProjectsWithProjectId(request, projectId, tenantId);
         boundariesAlreadyWithProjects =
           getBoundaryProjectMappingFromParentCampaign(
             request,
@@ -2255,10 +2256,10 @@ async function createProject(
             boundariesAlreadyWithProjects.has(boundary)
           ) {
             const projectSearchResponse =
-              await fetchProjectsWithBoundaryCodeAndName(
+              await fetchProjectsWithBoundaryCodeAndReferenceId(
                 boundary,
                 tenantId,
-                request?.body?.CampaignDetails?.campaignName,
+                request?.body?.CampaignDetails?.campaignNumber,
                 request?.body?.RequestInfo
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
@@ -2339,9 +2340,7 @@ async function createProject(
           }
 
           // Set the reference ID and project targets
-          Projects[0].referenceID = request?.body?.CampaignDetails?.id;
-          (Projects[0].department =
-            request?.body?.CampaignDetails?.campaignName),
+          Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
             (Projects[0].targets = [
               {
                 beneficiaryType:
@@ -2974,16 +2973,16 @@ async function updateAndPersistResourceDetails(
         lastModifiedTime: Date.now(),
       },
       additionalDetails:
-        {
-          ...request?.body?.ResourceDetails?.additionalDetails,
-          sheetErrors: request?.body?.additionalDetailsErrors,
-          source:
-            request?.body?.ResourceDetails?.additionalDetails?.source ==
-              "microplan"
-              ? "microplan"
-              : null,
-          [name]: [fileStoreId],
-        } ,
+      {
+        ...request?.body?.ResourceDetails?.additionalDetails,
+        sheetErrors: request?.body?.additionalDetailsErrors,
+        source:
+          request?.body?.ResourceDetails?.additionalDetails?.source ==
+            "microplan"
+            ? "microplan"
+            : null,
+        [name]: [fileStoreId],
+      },
     };
   } else {
     request.body.ResourceDetails = {
@@ -2999,14 +2998,14 @@ async function updateAndPersistResourceDetails(
         lastModifiedTime: Date.now(),
       },
       additionalDetails:
-        {
-          ...getLatestResourceDetails.additionalDetails,
-          sheetErrors: request?.body?.additionalDetailsErrors,
-          source:
-            getLatestResourceDetails.additionalDetails?.source == "microplan"
-              ? "microplan"
-              : null,
-        } ,
+      {
+        ...getLatestResourceDetails.additionalDetails,
+        sheetErrors: request?.body?.additionalDetailsErrors,
+        source:
+          getLatestResourceDetails.additionalDetails?.source == "microplan"
+            ? "microplan"
+            : null,
+      },
     };
     let additionalDetails = request?.body?.ResourceDetails?.additionalDetails;
     if (additionalDetails && additionalDetails[name]) {
@@ -3393,10 +3392,10 @@ async function getTargetBoundariesRelatedToCampaignId(
   if (request?.body?.ResourceDetails?.campaignId) {
     // const searchBody = {
     //   RequestInfo: request?.body?.RequestInfo,
-      const CampaignDetails= {
-        ids: [request?.body?.ResourceDetails?.campaignId],
-        tenantId: request?.body?.ResourceDetails?.tenantId,
-      }
+    const CampaignDetails = {
+      ids: [request?.body?.ResourceDetails?.campaignId],
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+    }
     // const req: any = replicateRequest(request, searchBody);
     const response = await searchProjectTypeCampaignService(CampaignDetails);
     if (response?.CampaignDetails?.[0]) {
@@ -3627,6 +3626,10 @@ async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
+  if (!Array.isArray(mdmsResponse?.mdms) || mdmsResponse.mdms.length === 0) {
+    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType} hierarchy not configured in mdms data 
+                ${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`)
+  }
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
 }
 
@@ -3680,9 +3683,9 @@ async function processFetchMicroPlan(request: any) {
   try {
     logger.info("Waiting for 1 second for templates to get generated...");
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    
+
     logger.info("Started processing fetch microplan");
-    
+
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
     const resources: any = request?.body?.CampaignDetails?.resources || [];
@@ -3720,19 +3723,19 @@ async function processFetchMicroPlan(request: any) {
 }
 
 
-async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCHING") { 
+async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCHING") {
   logger.info("search campaign with id ")
   const { tenantId, campaignId } = request.body.MicroplanDetails;
   const campaignDetails = {
-          tenantId: tenantId,
-          ids: [campaignId]
-      }
+    tenantId: tenantId,
+    ids: [campaignId]
+  }
   const searchedCampaignResponse = await searchProjectTypeCampaignService(campaignDetails)
   const searchedCamapignObject = searchedCampaignResponse?.CampaignDetails;
   if (Array.isArray(searchedCamapignObject) && searchedCamapignObject.length > 0) {
     const newRequestBody = {
       RequestInfo: request.body.RequestInfo, // Retain the original RequestInfo
-      CampaignDetails :searchedCamapignObject?.[0] // campaigndetails from search response
+      CampaignDetails: searchedCamapignObject?.[0] // campaigndetails from search response
     };
     const req: any = replicateRequest(request, newRequestBody)
     logger.info("Updating the received campaign object, source & its key");
@@ -3743,7 +3746,7 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
     (!req.body?.CampaignDetails?.additionalDetails?.["disease"]) && (req.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
       (!req.body?.CampaignDetails?.additionalDetails?.["beneficiaryType"]) && (req.body.CampaignDetails.additionalDetails["beneficiaryType"] =
         "INDIVIDUAL");
-        req.body.CampaignDetails.additionalDetails["key"] = 1;
+    req.body.CampaignDetails.additionalDetails["key"] = 1;
     logger.debug(
       `updated object with new source , disease & beneficiarytype ${getFormattedStringForDebug(req.body.CampaignDetails)}`
     );
@@ -3792,4 +3795,5 @@ export {
   enrichInnerCampaignDetails,
   processFetchMicroPlan,
   updateCampaignAfterSearch,
+  processBoundary,
 };
