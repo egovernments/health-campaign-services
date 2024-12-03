@@ -1179,27 +1179,25 @@ async function validatePvarIds(pvarIds: any) {
 
     for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
         const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
-        const response = await httpRequest(
-            config.host.productHost + config.paths.productVariantSearch,
-            {
-                ProductVariant: { id: chunk },
-                ...defaultRequestInfo,
-            },
-            params
-        );
-        const validIds = new Set(response?.ProductVariant?.map((pvar: any) => pvar?.id) || []);
-        missingPvarIds.push(...chunk.filter((id: any) => !validIds.has(id)));
+        try {
+            const response = await httpRequest(
+                config.host.productHost + config.paths.productVariantSearch,
+                { ProductVariant: { id: chunk }, ...defaultRequestInfo },
+                params
+            );
+            const validIds = new Set(response?.ProductVariant?.map((pvar: any) => pvar?.id) || []);
+            missingPvarIds.push(...chunk.filter((id: any) => !validIds.has(id)));
+        } catch (error: any) {
+            logger.error("Error during product variant validation", error);
+            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured while validating product variant. ${error?.message}`);
+        }
     }
 
     if (missingPvarIds.length) {
-        throwError(
-            "COMMON",
-            400,
-            "VALIDATION_ERROR",
-            `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`
-        );
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
     }
 }
+
 
 
 
