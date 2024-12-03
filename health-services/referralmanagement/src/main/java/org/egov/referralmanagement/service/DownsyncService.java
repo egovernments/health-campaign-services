@@ -91,8 +91,9 @@ public class DownsyncService {
 		}
 
 	/**
-	 * @param downsyncRequest downsync request with isCommmunity flag true
-	 *
+	 * @param downsyncRequest downsync request with isCommmunity flag true and optional householdId
+	 * The function returns communal living household ids if isCommunity flag is true and householdId is null
+	 * It returns all the household data for a particular household if id is passed; within given offset and limit
 	 */
 	public Downsync downsyncForCFL(DownsyncRequest downsyncRequest) {
 		Downsync downsync = Downsync.builder().downsyncCriteria(downsyncRequest.getDownsyncCriteria()).build();
@@ -113,6 +114,7 @@ public class DownsyncService {
 		Long requestStartTime = System.currentTimeMillis();
 		Long startTime = System.currentTimeMillis();
 
+		// if household id is null then search for all the household and return the household ids
 		if (downsyncCriteria.getHouseholdId() == null) {
 			List<Household> households = null;
 			log.info("The household search start time : " + startTime);
@@ -130,10 +132,12 @@ public class DownsyncService {
 		List<String> householdBeneficiaryClientRefIds = null;
 		List<String> taskClientRefIds = null;
 
+		// Fetch projectType from mdms
 		log.info("The masterDataService start time : " + startTime);
 		LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 		log.info("The masterDataService call time : " + (System.currentTimeMillis()-startTime)/1000);
 
+		// Fetch households from household ids
 		log.info("The household search start time : " + startTime);
 		households = searchHouseholds(downsyncRequest, downsync);
 		householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
@@ -150,7 +154,6 @@ public class DownsyncService {
 		startTime = System.currentTimeMillis();
 		log.info("The individualas start time : " + startTime);
 		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
-
 			/* search individuals using individual ids */
 			individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
 		}
@@ -180,7 +183,7 @@ public class DownsyncService {
 		startTime = System.currentTimeMillis();
 		log.info("The side effect start time : " + startTime);
 		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(taskClientRefIds)) {
-
+			/* search sideeffects using taskClientRefIds */
 			searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
 		}
 		log.info("The side effect call time : " + (System.currentTimeMillis()-startTime)/1000);
