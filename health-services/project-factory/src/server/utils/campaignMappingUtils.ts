@@ -6,12 +6,14 @@ import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
-import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
+import { createCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
-import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, fetchProjectsCreatedAfterCampaignCreationTime, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
+import { getHierarchy } from "../api/campaignApis";
+import { consolidateBoundaries } from "./boundariesConsolidationUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -336,6 +338,21 @@ async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject
     logger.debug(`boundaryWise Project mapping : ${getFormattedStringForDebug(boundaryWithProject)}`);
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
 }
+function filterBoundariesByHierarchy(hierarchy: any, boundaries: any) {
+    // Iterate through the hierarchy in order
+    for (const level of hierarchy) {
+        // Find boundaries matching the current level type
+        const matchingBoundaries = boundaries.filter((boundary: any) => boundary.type === level);
+
+        if (matchingBoundaries.length > 0) {
+            // If matches are found, return them
+            return matchingBoundaries;
+        }
+    }
+
+    // If no matches are found, return an empty array
+    return [];
+}
 
 async function getProjectMappingBody(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const Campaign: any = {
@@ -343,31 +360,36 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
-    const CampaignDetails = {
-        "ids": [messageObject?.CampaignDetails?.id],
-        "tenantId": messageObject?.CampaignDetails?.tenantId
+    // const CampaignDetails = {
+    //     "ids": [messageObject?.CampaignDetails?.id],
+    //     "tenantId": messageObject?.CampaignDetails?.tenantId
+    // }
+    // const response = await searchProjectTypeCampaignService(CampaignDetails);
+    // const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
+    // const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.campaignNumber, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
+    // const projects = projectObject?.Project?.[0];
+    // const projectIdsCreatedAfterCampaignCreation = new Set(projects.map((project: any) => project.id));
+    let newlyAddedBoundaryCodes = new Set(); // A set to store unique boundary codes
+    if (messageObject?.parentCampaign) {
+        const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
+        const boundaries = messageObject?.CampaignDetails?.boundaries;
+        const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
+        boundariesWhichAreRootInThisFlow.forEach((boundary: any) => {
+            consolidateBoundaries(messageObject, messageObject?.CampaignDetails?.hierarchyType, messageObject?.CampaignDetails?.tenantId, boundary);
+            messageObject.boundaries.forEach((boundary: any) => {
+                if (boundary?.code) {
+                    newlyAddedBoundaryCodes.add(boundary.code); // Add each boundary code to the set
+                }
+            });
+        });
     }
-    const response = await searchProjectTypeCampaignService(CampaignDetails);
-    const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
-    const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.campaignNumber, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
-    const projects = projectObject?.Project?.[0];
-    const projectIdsCreatedAfterCampaignCreation = new Set(projects.map((project: any) => project.id));
+
 
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            if (messageObject?.parentCampaign && projectIdsCreatedAfterCampaignCreation.has(boundaryWithProject[key])) {
+            if (newlyAddedBoundaryCodes.has(key)) {
                 logger.info("project resource mapping for newly creted projects in update flow")
-                const pvarIds = getPvarIds(messageObject);
-                if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
-                    resources.push({
-                        type: "resource",
-                        resourceIds: pvarIds
-                    })
-                }
-            }
-            if (!messageObject?.parentCampaign) {
-                logger.info("project resource mapping in create flow")
                 const pvarIds = getPvarIds(messageObject);
                 if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                     resources.push({
