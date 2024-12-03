@@ -6,7 +6,7 @@ import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
-import { createCampaignService } from "../service/campaignManageService";
+import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
@@ -360,19 +360,15 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
-    // const CampaignDetails = {
-    //     "ids": [messageObject?.CampaignDetails?.id],
-    //     "tenantId": messageObject?.CampaignDetails?.tenantId
-    // }
-    // const response = await searchProjectTypeCampaignService(CampaignDetails);
-    // const campaignCreatedTime = response?.CampaignDetails?.[0]?.auditDetails?.createdTime;
-    // const projectObject = await fetchProjectsCreatedAfterCampaignCreationTime(messageObject, messageObject?.CampaignDetails?.campaignName, messageObject?.CampaignDetails?.campaignNumber, messageObject?.CampaignDetails?.tenantId, campaignCreatedTime);
-    // const projects = projectObject?.Project?.[0];
-    // const projectIdsCreatedAfterCampaignCreation = new Set(projects.map((project: any) => project.id));
     let newlyAddedBoundaryCodes = new Set(); // A set to store unique boundary codes
-    if (messageObject?.parentCampaign) {
+    if (messageObject?.CampaignDetails?.parentId) {
+        const CampaignDetails = {
+            "ids": [messageObject?.CampaignDetails?.id],
+            "tenantId": messageObject?.CampaignDetails?.tenantId
+        }
+        const campaignSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
+        const boundaries = campaignSearchResponse?.CampaignDetails?.[0]?.boundaries;
         const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
-        const boundaries = messageObject?.CampaignDetails?.boundaries;
         const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
         boundariesWhichAreRootInThisFlow.forEach((boundary: any) => {
             consolidateBoundaries(messageObject, messageObject?.CampaignDetails?.hierarchyType, messageObject?.CampaignDetails?.tenantId, boundary);
@@ -388,7 +384,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            if (newlyAddedBoundaryCodes.has(key)) {
+            if (messageObject?.CampaignDetails?.parentId && newlyAddedBoundaryCodes.has(key)) {
                 logger.info("project resource mapping for newly creted projects in update flow")
                 const pvarIds = getPvarIds(messageObject);
                 if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
@@ -398,6 +394,17 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
                     })
                 }
             }
+
+            if (!messageObject?.CampaignDetails?.parentId) {
+                const pvarIds = getPvarIds(messageObject);
+                if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
+                    resources.push({
+                        type: "resource",
+                        resourceIds: pvarIds
+                    })
+                }
+            }
+
             for (const type of Object.keys(boundaryCodes)) {
                 if (boundaryCodes[type][key] && Array.isArray(boundaryCodes[type][key]) && boundaryCodes[type][key].length > 0) {
                     resources.push({

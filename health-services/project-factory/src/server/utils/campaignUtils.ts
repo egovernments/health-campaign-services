@@ -84,7 +84,7 @@ import {
 } from "./targetUtils";
 import {
   callGenerateWhenChildCampaigngetsCreated,
-  fetchProjectsWithBoundaryCodeAndNameAndReferenceId,
+  fetchProjectsWithBoundaryCodeAndReferenceId,
   fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getBoundaryProjectMappingFromParentCampaign,
@@ -2256,10 +2256,9 @@ async function createProject(
             boundariesAlreadyWithProjects.has(boundary)
           ) {
             const projectSearchResponse =
-              await fetchProjectsWithBoundaryCodeAndNameAndReferenceId(
+              await fetchProjectsWithBoundaryCodeAndReferenceId(
                 boundary,
                 tenantId,
-                request?.body?.CampaignDetails?.campaignName,
                 request?.body?.CampaignDetails?.campaignNumber,
                 request?.body?.RequestInfo
               );
