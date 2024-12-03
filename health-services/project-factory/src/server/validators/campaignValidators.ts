@@ -25,6 +25,8 @@ import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPres
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { getPvarIds } from "../utils/campaignMappingUtils";
+import { defaultRequestInfo } from "../api/coreApis";
 
 
 
@@ -1037,6 +1039,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
+        await validateProductVariant(request);
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
@@ -1151,11 +1154,62 @@ async function validateForRetry(request: any) {
     }
 }
 
+async function validateProductVariant(request: any) {
+    const deliveryRules = request?.body?.CampaignDetails?.deliveryRules;
+
+    if (!Array.isArray(deliveryRules)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "deliveryRules must be an array");
+    }
+
+    deliveryRules.forEach((rule: any, index: number) => {
+        const productVariants = rule?.resources;
+        if (!Array.isArray(productVariants) || productVariants.length === 0) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `deliveryRules[${index}].resources must be a non-empty array`);
+        }
+    });
+    const pvarIds = getPvarIds(request?.body);
+    await validatePvarIds(pvarIds);
+    logger.info("Validated product variants successfully");
+}
+
+async function validatePvarIds(pvarIds: any) {
+    const CHUNK_SIZE = 100;
+    const missingPvarIds: any[] = [];
+    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: defaultRequestInfo?.RequestInfo?.userInfo?.tenantId };
+
+    for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
+        const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
+        const response = await httpRequest(
+            config.host.productHost + config.paths.productVariantSearch,
+            {
+                ProductVariant: { id: chunk },
+                ...defaultRequestInfo,
+            },
+            params
+        );
+        const validIds = new Set(response?.ProductVariant?.map((pvar: any) => pvar?.id) || []);
+        missingPvarIds.push(...chunk.filter((id: any) => !validIds.has(id)));
+    }
+
+    if (missingPvarIds.length) {
+        throwError(
+            "COMMON",
+            400,
+            "VALIDATION_ERROR",
+            `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`
+        );
+    }
+}
+
+
+
+
 async function validateIsActive(request: any) {
     if (!request?.body?.CampaignDetails.isActive) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Can't update isActive")
     }
 }
+
 
 async function validateSearchProjectCampaignRequest(request: any) {
     const CampaignDetails = request.body.CampaignDetails;

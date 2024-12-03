@@ -25,7 +25,7 @@ async function createBoundaryWithProjectMapping(projects: any, boundaryWithProje
     }
 }
 
-function getPvarIds(messageObject: any) {
+export function getPvarIds(messageObject: any) {
     //update to set now
     logger.info("campaign product resource mapping started");
     const deliveryRules = messageObject?.CampaignDetails?.deliveryRules;
