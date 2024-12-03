@@ -146,7 +146,12 @@ function getRawCellValue(cell: any) {
     else if ('formula' in cell.value) {
       // Get the result of the formula
       return cell.value.result;
-    } else if ('error' in cell.value) {
+    }
+    else if('sharedFormula' in cell.value){
+      // Get the result of the shared formula
+      return cell.value.result;
+    }
+    else if ('error' in cell.value) {
       // Get the error value
       return cell.value.error;
     } else if (cell.value instanceof Date) {

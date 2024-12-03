@@ -495,7 +495,20 @@ function findAndChangeFacilityData(
   for (const [facilityCode, facilityDetails] of Object.entries(mappingData)) {
     if (!mappedData[facilityCode]) {
       missingFacilities.push(facilityCode);
-      const newRow = worksheet.addRow([]);
+  
+      // Find the first empty row in the sheet
+      let emptyRowIndex = worksheet.rowCount + 1; // Default to the next available row
+      for (let i = 1; i <= worksheet.rowCount; i++) {
+        const row = worksheet.getRow(i);
+        if (!row.getCell(1).value) { // Assuming column 1 is used to determine emptiness
+          emptyRowIndex = i;
+          break;
+        }
+      }
+  
+      const newRow = worksheet.getRow(emptyRowIndex);
+  
+      // Assign values to the identified empty row
       newRow.getCell(facilityCodeIndex).value = facilityCode;
       newRow.getCell(headerValues.indexOf(headersMap["Facility Name"])).value =
         facilityDetails?.additionalDetails?.facilityName;
@@ -509,8 +522,11 @@ function findAndChangeFacilityData(
       newRow.getCell(boundaryCodeIndex).value =
         facilityDetails.serviceBoundaries.join(",") || "";
       newRow.getCell(facilityUsageIndex).value = "Active";
+  
+      newRow.commit(); // Save the changes to the row
     }
   }
+  
   logger.info(
     `Updated the boundary & active/inactive status information in facility received from the microplan`
   );
@@ -529,7 +545,7 @@ function getHeaderIndex(
   localizationMap: any
 ) {
   return headers.indexOf(
-    getLocalizedName(config?.boundary?.boundaryCode, localizationMap)
+    getLocalizedName(headerName, localizationMap)
   );
 }
 
@@ -544,23 +560,18 @@ function findAndChangeTargetData(
       Object.keys(mappingData)?.length
     }`
   );
+
+  if (headers == null || headers.length == 0) {
+    throwError("Error", 500, "Mapping not found in MDMS for Campaign");
+  }
   logger.info(
     `Received for Target mapping, headers count : ${
-      headers?.length
-    }`
-  );
-  logger.info(
-    `Received for Target mapping, headers: ${
       headers?.length
     }`
   );
   logger.debug(
     `headers: ${getFormattedStringForDebug(headers)}`
   );
-
-  if (headers == null || headers.length == 0) {
-    throwError("Error", 500, "Mapping not found in MDMS for Campaign");
-  }
   let headersInSheet = worksheet.getRow(1).values;
   const mappedData: any = {};
   // Iterate through rows in Sheet1 (starting from row 2 to skip the header)
@@ -578,17 +589,19 @@ function findAndChangeTargetData(
     );
     if (mappingData?.[column1Value] && headers != null && headers.length > 0) {
       // Update columns 5 and 6 if column 1 value matches
-      headers[0]?.from.forEach((fromValue: any) => {
-        row.getCell(
-          getHeaderIndex(headersInSheet, fromValue, localizationMap)
-        ).value =
-          mappingData?.[column1Value]?.additionalDetails?.[
-            getLocalizedName(headers[0]?.to, localizationMap)
-          ];
-          logger.debug(
-            `headers to: ${getFormattedStringForDebug(getLocalizedName(headers[0]?.to, localizationMap))}`
-          );
-      });
+      headers.forEach((header: any) => {
+        header.from.forEach((fromValue: any) => {
+          row.getCell(
+            getHeaderIndex(headersInSheet, header?.to, localizationMap)
+          ).value =
+            mappingData?.[column1Value]?.additionalDetails?.[
+              fromValue
+            ];
+            logger.debug(
+              `headers to: ${getFormattedStringForDebug(getLocalizedName(header?.to, localizationMap))}`
+            );
+        });
+      })
       mappedData[column1Value] = rowIndex;
     } else {
       logger.info(`not doing anything if taregt cel not found`);
@@ -943,24 +956,27 @@ export async function fetchUserRoleMappingFromMDMS(tenantId: any) {
   };
   const data = await searchMDMSDataViaV1Api(MdmsCriteria);
   const result: Record<string, any[]> = {};
+
   if (
     data?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.microplanIntegration &&
     Array.isArray(data.MdmsRes["HCM-ADMIN-CONSOLE"].microplanIntegration)
   ) {
-    const integrations = data.MdmsRes["HCM-ADMIN-CONSOLE"].microplanIntegration;
-
+    const integrations =
+      data.MdmsRes["HCM-ADMIN-CONSOLE"].microplanIntegration;
+  
     integrations.forEach((integration: any) => {
       const type = integration.type;
-
+  
       if (!result[type]) {
         result[type] = [];
       }
-
-      result[type].push({
-        to: integration.to,
-        from: integration.from,
-        type: integration.type,
-        filter: integration.filter,
+  
+      integration.mappings.forEach((mapping: any) => {
+        result[type].push({
+          to: mapping.to,
+          from: mapping.from,
+          filter: mapping.filter,
+        });
       });
     });
   }
