@@ -105,19 +105,19 @@ public class PlanEmployeeAssignmentQueryBuilder {
         if (!CollectionUtils.isEmpty(searchCriteria.getEmployeeId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pa.employee_id IN ( ").append(queryUtil.createQuery(searchCriteria.getEmployeeId().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getEmployeeId()));
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getEmployeeId());
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getPlanConfigurationStatus())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.status IN ( ").append(queryUtil.createQuery(searchCriteria.getPlanConfigurationStatus().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getPlanConfigurationStatus()));
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getPlanConfigurationStatus());
         }
 
         if (!CollectionUtils.isEmpty(searchCriteria.getRole())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pa.role IN ( ").append(queryUtil.createQuery(searchCriteria.getRole().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(searchCriteria.getRole()));
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getRole());
         }
 
         if(searchCriteria.getHierarchyLevel() != null) {
@@ -136,7 +136,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(searchCriteria.getJurisdiction().size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(jurisdiction, ',') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(searchCriteria.getJurisdiction()));
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getJurisdiction());
         }
 
         if(searchCriteria.getFilterUniqueByPlanConfig()) {

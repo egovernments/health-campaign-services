@@ -71,7 +71,7 @@ public class PlanFacilityQueryBuilder {
             Set<String> ids = planFacilitySearchCriteria.getIds();
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
         if (!ObjectUtils.isEmpty(planFacilitySearchCriteria.getTenantId())) {
@@ -108,7 +108,7 @@ public class PlanFacilityQueryBuilder {
             List<String> residingBoundaries = planFacilitySearchCriteria.getResidingBoundaries();
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" residing_boundary IN ( ").append(queryUtil.createQuery(residingBoundaries.size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(residingBoundaries));
+            queryUtil.addToPreparedStatement(preparedStmtList, residingBoundaries);
         }
 
         if(!CollectionUtils.isEmpty(planFacilitySearchCriteria.getFiltersMap())) {
