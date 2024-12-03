@@ -67,13 +67,20 @@ public class PlanFacilityEnricher {
 
         EnrichedBoundary boundary = boundarySearchResponse.getTenantBoundary().get(0).getBoundary().get(0);
         Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+
         jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
 
         // Iterate through the child boundary until there are no more
         while (!CollectionUtils.isEmpty(boundary.getChildren())) {
             boundary = boundary.getChildren().get(0);
+
+            boundaryAncestralPath.append("|").append(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         }
+
+        // Setting the boundary ancestral path for the provided boundary
+        request.getPlanFacility().setBoundaryAncestralPath(boundaryAncestralPath.toString());
 
         // Setting jurisdiction mapping for the provided boundary
         request.getPlanFacility().setJurisdictionMapping(jurisdictionMapping);

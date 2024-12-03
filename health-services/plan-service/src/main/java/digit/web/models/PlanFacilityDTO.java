@@ -38,6 +38,9 @@ public class PlanFacilityDTO {
     @JsonProperty("planConfigurationName")
     private String planConfigurationName = null;
 
+    @JsonProperty("boundaryAncestralPath")
+    private String boundaryAncestralPath = null;
+
     @JsonProperty("facilityId")
     @NotNull
     @Size(max = 64)
