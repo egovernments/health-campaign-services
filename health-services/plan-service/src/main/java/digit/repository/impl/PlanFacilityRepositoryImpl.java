@@ -60,6 +60,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .planConfigurationName(planFacility.getPlanConfigurationName())
                 .facilityId(planFacility.getFacilityId())
                 .facilityName(planFacility.getFacilityName())
+                .jurisdictionMapping(planFacility.getJurisdictionMapping())
                 .residingBoundary(planFacility.getResidingBoundary())
                 .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
                 .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())

@@ -84,7 +84,7 @@ public class CensusUtil {
                         .facilityAssigned(Boolean.FALSE)
                         .partnerAssignmentValidationEnabled(Boolean.TRUE)
                         .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
-                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).comments(WORKFLOW_COMMENTS_INITIATING_CENSUS).build())
+                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
                         .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
@@ -136,10 +136,15 @@ public class CensusUtil {
                     AdditionalField additionalField = AdditionalField.builder()
                             .key(key)
                             .value((BigDecimal) valueFromRow)
-                            .editable(Boolean.TRUE)
-                            .showOnUi(Boolean.TRUE)
                             .order(orderCounter++)  // Use and increment the local orderCounter
                             .build();
+                    if(config.getCensusAdditionalFieldShowOnUIFalseKeys().contains(key)) {
+                        additionalField.setShowOnUi(Boolean.FALSE);
+                        additionalField.setEditable(Boolean.FALSE);
+                    } else {
+                        additionalField.setShowOnUi(Boolean.TRUE);
+                        additionalField.setEditable(Boolean.TRUE);
+                    }
                     additionalFieldList.add(additionalField);
                 }
             }

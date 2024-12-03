@@ -67,13 +67,25 @@ public class MdmsUtil {
     public MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId) {
 
         ModuleDetail assumptionModuleDetail = getPlanModuleDetail();
+        ModuleDetail adminConsoleModuleDetail = getAdminConsoleModuleDetail();
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(assumptionModuleDetail);
+        moduleDetails.add(adminConsoleModuleDetail);
 
         MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId).build();
 
         return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
+    }
+
+    private ModuleDetail getAdminConsoleModuleDetail() {
+        List<MasterDetail> adminConsoleMasters = new ArrayList<>();
+
+        MasterDetail hierarchyConfigMaster = MasterDetail.builder().name(MDMS_MASTER_HIERARCHY_SCHEMA).build();
+
+        adminConsoleMasters.add(hierarchyConfigMaster);
+
+        return ModuleDetail.builder().masterDetails(adminConsoleMasters).moduleName(MDMS_ADMIN_CONSOLE_MODULE_NAME).build();
     }
 
     /**
@@ -91,7 +103,6 @@ public class MdmsUtil {
         MasterDetail metricDetails = MasterDetail.builder().name(MDMS_MASTER_METRIC).build();
         MasterDetail unitDetails = MasterDetail.builder().name(MDMS_MASTER_UOM).build();
         MasterDetail namingRegexDetails = MasterDetail.builder().name(MDMS_MASTER_NAME_VALIDATION).build();
-        MasterDetail hierarchyConfig = MasterDetail.builder().name(MDMS_MASTER_HIERARCHY_CONFIG).build();
 
         assumptionMasterDetails.add(assumptionMasterDetail);
         assumptionMasterDetails.add(uploadConfigMasterDetail);
@@ -100,7 +111,6 @@ public class MdmsUtil {
         assumptionMasterDetails.add(metricDetails);
         assumptionMasterDetails.add(unitDetails);
         assumptionMasterDetails.add(namingRegexDetails);
-        assumptionMasterDetails.add(hierarchyConfig);
 
         return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }

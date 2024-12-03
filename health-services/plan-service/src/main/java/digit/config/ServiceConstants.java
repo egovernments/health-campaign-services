@@ -215,6 +215,7 @@ public class ServiceConstants {
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
     public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
+    public static final String MDMS_MASTER_HIERARCHY_SCHEMA = "HierarchySchema";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
@@ -269,7 +270,7 @@ public class ServiceConstants {
 
     public static final String FILTER_ALL_ASSUMPTIONS = ".assumptionCategories[*].assumptions[*]";
 
-    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
+    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.type == 'microplan')]";
 
     public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 

@@ -445,22 +445,17 @@ public class PlanConfigurationValidator {
     public void validateOperations(PlanConfigurationRequest request, CampaignResponse campaignResponse) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-        // Exit early if there are no operations or assumptions
-        if (!commonUtil.checkForEmptyOperationsOrAssumptions(planConfiguration)) {
-            return;
-        }
-
         if (commonUtil.isSetupCompleted(planConfiguration)) {
             performEmptyChecks(planConfiguration);
-        }
 
-        // Get shared data upfront
-        HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(
-                request, campaignResponse.getCampaignDetails().get(0).getProjectType()
-        );
-        Set<String> activeAssumptionKeys = getActiveAssumptionKeys(planConfiguration);
-        validateOperationInputs(planConfiguration, allowedColumns, activeAssumptionKeys);
-        validateOperationAssumptionValues(planConfiguration, allowedColumns, activeAssumptionKeys);
+            // Get shared data upfront
+            HashSet<String> allowedColumns = getAllowedColumnsFromMDMS(
+                    request, campaignResponse.getCampaignDetails().get(0).getProjectType()
+            );
+            Set<String> activeAssumptionKeys = getActiveAssumptionKeys(planConfiguration);
+            validateOperationInputs(planConfiguration, allowedColumns, activeAssumptionKeys);
+            validateOperationAssumptionValues(planConfiguration, allowedColumns, activeAssumptionKeys);
+        }
     }
 
 
@@ -558,7 +553,7 @@ public class PlanConfigurationValidator {
             }
 
             // Add current operation's output to previousOutputs if it's active
-            if (operation.getActive() && operation.getSource() == Source.MDMS) {
+            if (operation.getActive()) {
                 previousOutputs.add(operation.getOutput());
             }
         }
