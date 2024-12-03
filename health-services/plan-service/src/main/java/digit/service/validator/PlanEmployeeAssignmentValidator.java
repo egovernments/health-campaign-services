@@ -145,7 +145,7 @@ public class PlanEmployeeAssignmentValidator {
             campaignDetail.getBoundaries().stream()
                     .filter(boundary -> boundary.getCode().equals(rootLevelJurisdiction))
                     .forEach(boundary -> {
-                        if (!boundary.getType().equals(highestHierarchy)) {
+                        if (!boundary.getType().toLowerCase().equals(highestHierarchy)) {
                             throw new CustomException(INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE, INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE);
                         }
                     });
@@ -227,8 +227,8 @@ public class PlanEmployeeAssignmentValidator {
             campaignDetail.getBoundaries().stream()
                     .filter(boundary -> jurisdiction.contains(boundary.getCode()))
                     .forEach(boundary -> {
-                        if (boundary.getType().equals(lowestHierarchy) ||
-                                boundary.getType().equals(highestHierarchy)) {
+                        if (boundary.getType().toLowerCase().equals(lowestHierarchy) ||
+                                boundary.getType().toLowerCase().equals(highestHierarchy)) {
                             throw new CustomException(INVALID_EMPLOYEE_JURISDICTION_CODE, INVALID_EMPLOYEE_JURISDICTION_MESSAGE);
                         }
                     });

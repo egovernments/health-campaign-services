@@ -122,7 +122,8 @@ public class PlanFacilityValidator {
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(planFacilityRequest.getRequestInfo(), campaignId, rootTenantId);
 
         // Validate hierarchy type for campaign
-        String lowestHierarchy = validateHierarchyType(campaignResponse, mdmsData);
+        Map<String, String> hierarchyMap = commonUtil.getMicroplanHierarchy(mdmsData);
+        String lowestHierarchy = hierarchyMap.get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
 
         // Collect all boundary code for the campaign
         Set<String> boundaryCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
@@ -145,7 +146,7 @@ public class PlanFacilityValidator {
      */
     private Set<String> fetchBoundaryCodes(CampaignDetail campaignDetail, String lowestHierarchy) {
         Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
-                .filter(boundary -> lowestHierarchy.equals(boundary.getType()))
+                .filter(boundary -> lowestHierarchy.equals(boundary.getType().toLowerCase()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
 
