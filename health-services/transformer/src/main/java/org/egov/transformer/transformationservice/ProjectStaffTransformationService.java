@@ -58,17 +58,17 @@ public class ProjectStaffTransformationService {
         String projectId = projectStaff.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-        String localityCode;
-        if (project.getAddress() != null) {
-            localityCode = project.getAddress().getBoundary() != null ?
-                    project.getAddress().getBoundary() :
-                    project.getAddress().getLocality() != null ?
-                            project.getAddress().getLocality().getCode() :
-                            null;
+        String localityCode = null;
+        BoundaryHierarchyResult boundaryHierarchyResult = null;
+        if (project.getAddress() != null && project.getAddress().getBoundary() != null) {
+            localityCode = project.getAddress().getBoundary();
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+        } else if (project.getAddress() != null && project.getAddress().getLocality() != null && project.getAddress().getLocality().getCode() != null) {
+            localityCode = project.getAddress().getLocality().getCode();
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
         } else {
-            localityCode = null;
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         }
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
