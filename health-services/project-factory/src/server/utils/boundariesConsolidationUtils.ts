@@ -2,10 +2,10 @@ import config from "../config/index";
 import { httpRequest } from "./request";
 import { processBoundary } from "./campaignUtils";
 
-async function consolidateBoundaries(messageObject: any, hierarchyType: any, tenantId: any, boundary: any) {
+async function consolidateBoundaries(messageObject: any, hierarchyType: any, tenantId: any, code: any, boundaries: any) {
   const params = {
     tenantId: tenantId,
-    codes: boundary?.code,
+    codes: code,
     hierarchyType: hierarchyType,
     includeChildren: true,
   };
@@ -22,23 +22,23 @@ async function consolidateBoundaries(messageObject: any, hierarchyType: any, ten
     header
   );
   if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
-    var boundaryChildren = boundary.reduce((acc: any, boundary: any) => {
+    var boundaryChildren = boundaries.reduce((acc: any, boundary: any) => {
       acc[boundary.code] = boundary?.includeAllChildren;
       return acc;
     }, {});
     var boundaryCodes = new Set(
-      boundary.map((boundary: any) => boundary.code)
+      boundaries.map((boundary: any) => boundary.code)
     );
     await processBoundary(
       boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0],
-      boundary,
+      boundaries,
       boundaryChildren[
       boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code
       ],
       boundaryCodes,
       boundaryChildren
     );
-    return boundary;
+    return boundaries;
   }
 }
 export { consolidateBoundaries, }

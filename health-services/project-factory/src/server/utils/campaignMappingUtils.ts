@@ -375,7 +375,8 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
                 messageObject,
                 messageObject?.CampaignDetails?.hierarchyType,
                 messageObject?.CampaignDetails?.tenantId,
-                boundary
+                boundary?.code,
+                boundaries
             );
             // Add each boundary code to the set if it exists
             if (boundaryCodesFetchedFromGivenRoot &&
