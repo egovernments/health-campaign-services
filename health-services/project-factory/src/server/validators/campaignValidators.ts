@@ -1198,10 +1198,6 @@ async function validatePvarIds(pvarIds: any) {
     }
 }
 
-
-
-
-
 async function validateIsActive(request: any) {
     if (!request?.body?.CampaignDetails.isActive) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Can't update isActive")
