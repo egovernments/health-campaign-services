@@ -31,6 +31,7 @@ public class PlanFacilityQueryBuilder {
                     "plan_facility_linkage.plan_configuration_name as plan_facility_plan_configuration_name, " +
                     "plan_facility_linkage.facility_id as plan_facility_facility_id, " +
                     "plan_facility_linkage.facility_name as plan_facility_facility_name, " +
+                    "plan_facility_linkage.boundary_ancestral_path as plan_facility_boundary_ancestral_path, " +
                     "plan_facility_linkage.residing_boundary as plan_facility_residing_boundary, " +
                     "plan_facility_linkage.service_boundaries as plan_facility_service_boundaries, " +
                     "plan_facility_linkage.additional_details as plan_facility_additional_details, " +
@@ -109,6 +110,13 @@ public class PlanFacilityQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" residing_boundary IN ( ").append(queryUtil.createQuery(residingBoundaries.size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, residingBoundaries);
+        }
+
+        if (!CollectionUtils.isEmpty(planFacilitySearchCriteria.getJurisdiction())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ").append(queryUtil.createQuery(planFacilitySearchCriteria.getJurisdiction().size())).append(" ]::text[] ");
+            builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, planFacilitySearchCriteria.getJurisdiction());
         }
 
         if(!CollectionUtils.isEmpty(planFacilitySearchCriteria.getFiltersMap())) {

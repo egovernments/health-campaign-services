@@ -134,7 +134,7 @@ public class PlanFacilityValidator {
         // Validate service boundaries
         validateServiceBoundaries(boundaryCodes, planFacility);
 
-        //Enrich jurisdiction mapping for indexer
+        //Enrich jurisdiction mapping and boundary ancestral path
         enrichment.enrichJurisdictionMapping(planFacilityRequest, campaignResponse.getCampaignDetails().get(0).getHierarchyType());
     }
 
