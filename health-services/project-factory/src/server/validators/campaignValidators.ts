@@ -1188,7 +1188,7 @@ async function validatePvarIds(pvarIds: any) {
             const validIds = new Set(response?.ProductVariant?.map((pvar: any) => pvar?.id) || []);
             missingPvarIds.push(...chunk.filter((id: any) => !validIds.has(id)));
         } catch (error: any) {
-            logger.error("Error during product variant validation", error);
+            logger.error("Error during product variant validation");
             throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured while validating product variant. ${error?.message}`);
         }
     }
