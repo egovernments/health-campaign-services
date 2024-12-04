@@ -604,23 +604,21 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
         const { resource, projectId, resouceBody, tenantId, startDate, endDate } = mapping;
 
         for (const resourceId of resource?.resourceIds || []) {
-            try {
                 promises.push(
                     createHelperFn(resourceId, projectId, resouceBody, tenantId, startDate, endDate).then(() => {
                         totalCreated++;
-                    }).catch((error:any) => {
-                        logger.error(`Failed to create resource ${resourceId}:`, error);
                     })
                 );
-            } catch (error) {
-                logger.error("Error adding promise to the batch:", error);
-            }
 
             if (promises.length >= batchSize) {
                 batchCount++;
                 logger.info(`Processing batch ${batchCount} with ${promises.length} promises.`);
-                await Promise.all(promises); // Wait for all promises in the current batch
-                promises = []; // Reset the array for the next batch
+                try {
+                    await Promise.all(promises); // Wait for all promises in the current batch
+                } catch (error) {
+                    logger.error(`Batch ${batchCount} failed:`, error);
+                    throw error; // Ensure any error in the batch is propagated
+                } promises = []; // Reset the array for the next batch
             }
         }
     }

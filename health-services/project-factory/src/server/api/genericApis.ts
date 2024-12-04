@@ -986,43 +986,62 @@ async function createProjectFacility(resouceBody: any) {
 
 // Helper function to create staff
 const createProjectStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
-  const ProjectStaff = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    userId: resourceId,
-    startDate,
-    endDate,
-  };
-  const newResourceBody = { ...resouceBody, ProjectStaff };
-  return createStaff(newResourceBody);
+  try {
+    const ProjectStaff = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      userId: resourceId,
+      startDate,
+      endDate,
+    };
+    const newResourceBody = { ...resouceBody, ProjectStaff };
+    return createStaff(newResourceBody);
+  } catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create project staff for staffId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 // Helper function to create project resource
 const createProjectResourceHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
-  const ProjectResource = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    resource: {
-      productVariantId: resourceId,
-      type: "DRUG",
-      isBaseUnitVariant: false,
-    },
-    startDate,
-    endDate,
-  };
-  const newResourceBody = { ...resouceBody, ProjectResource };
-  return createProjectResource(newResourceBody);
+  try {
+    const ProjectResource = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      resource: {
+        productVariantId: resourceId,
+        type: "DRUG",
+        isBaseUnitVariant: false,
+      },
+      startDate,
+      endDate,
+    };
+    const newResourceBody = { ...resouceBody, ProjectResource };
+    return createProjectResource(newResourceBody);
+  }
+  catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create project resource for resourceId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 // Helper function to create project facility
 const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
-  const ProjectFacility = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    facilityId: resourceId,
-  };
-  const newResourceBody = { ...resouceBody, ProjectFacility };
-  return createProjectFacility(newResourceBody);
+  try {
+    const ProjectFacility = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      facilityId: resourceId,
+    };
+    const newResourceBody = { ...resouceBody, ProjectFacility };
+    return createProjectFacility(newResourceBody);
+  } catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create facility for facilityId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 
