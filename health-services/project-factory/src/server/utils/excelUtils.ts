@@ -3,6 +3,9 @@ import { changeFirstRowColumnColour, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import config from "../config";
+import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { getLocalizedName } from "./campaignUtils";
+import createAndSearch from "../config/createAndSearch";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -15,7 +18,7 @@ const getNewExcelWorkbook = () => {
 // Function to retrieve workbook from Excel file URL and sheet name
 const getExcelWorkbookFromFileURL = async (
   fileUrl: string,
-  sheetName: string
+  sheetName?: string
 ) => {
   // Define headers for HTTP request
   const headers = {
@@ -34,20 +37,23 @@ const getExcelWorkbookFromFileURL = async (
   );
   logger.info("received the file response");
 
-  // Create a new workbook instance
+
   const workbook = getNewExcelWorkbook();
   await workbook.xlsx.load(responseFile);
   logger.info("workbook created based on the fileresponse");
 
-  // Check if the specified sheet exists in the workbook
-  const worksheet = workbook.getWorksheet(sheetName);
-  if (sheetName && !worksheet) {
-    throwError(
-      "FILE",
-      400,
-      "INVALID_SHEETNAME",
-      `Sheet with name "${sheetName}" is not present in the file.`
-    );
+
+  if (sheetName) {
+    // Check if the specified sheet exists in the workbook
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) {
+      throwError(
+        "FILE",
+        400,
+        "INVALID_SHEETNAME",
+        `Sheet with name "${sheetName}" is not present in the file.`
+      );
+    }
   }
 
   // Return the workbook
@@ -55,7 +61,7 @@ const getExcelWorkbookFromFileURL = async (
 };
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
-  worksheet.eachRow({ includeEmpty: true }, (row) => {
+  worksheet?.eachRow({ includeEmpty: true }, (row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
       // Preserve existing font properties
       const existingFont = cell.font || {};
@@ -96,7 +102,7 @@ function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
 
   worksheet.getColumn(1).width = 130;
   logger.info(`Freezing the whole sheet ${worksheet.name}`);
-  worksheet.eachRow((row: any) => {
+  worksheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -104,7 +110,7 @@ function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
   worksheet.protect('passwordhere', { selectLockedCells: true });
 }
 
-function performUnfreezeCells(sheet: any) {
+function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) {
   logger.info(`Unfreezing the sheet ${sheet.name}`);
 
   let lastFilledColumn = 1;
@@ -128,7 +134,7 @@ function performUnfreezeCells(sheet: any) {
 
 function performFreezeWholeSheet(sheet: any) {
   logger.info(`Freezing the whole sheet ${sheet.name}`);
-  sheet.eachRow((row: any) => {
+  sheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -137,19 +143,30 @@ function performFreezeWholeSheet(sheet: any) {
 }
 
 // Function to add data to the sheet
-function addDataToSheet(sheet: any, sheetData: any, firstRowColor: string = '93C47D', columnWidth: number = 40, frozeCells: boolean = false, frozeWholeSheet: boolean = false) {
+function addDataToSheet(
+  request: any,
+  sheet: any,
+  sheetData: any,
+  firstRowColor: string = '93C47D',
+  columnWidth: number = 40,
+  frozeCells: boolean = false,
+  frozeWholeSheet: boolean = false,
+  localizationMap?: any,
+  fileUrl?: any,
+  schema?: any
+) {
   sheetData?.forEach((row: any, index: number) => {
-    const worksheetRow = sheet.addRow(row);
 
+    const worksheetRow = sheet.addRow(row);
     if (index === 0) {
       formatFirstRow(worksheetRow, sheet, firstRowColor, columnWidth, frozeCells);
     } else {
       formatOtherRows(worksheetRow, frozeCells);
     }
   });
-
-  finalizeSheet(sheet, frozeCells, frozeWholeSheet);
+  finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
 }
+
 
 // Function to format the first row
 function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {
@@ -199,12 +216,41 @@ function formatOtherRows(row: any, frozeCells: boolean) {
 }
 
 // Function to finalize the sheet settings
-function finalizeSheet(sheet: any, frozeCells: boolean, frozeWholeSheet: boolean) {
+function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
+  const type = (request?.query?.type || request?.body?.ResourceDetails?.type);
+  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
+  const createAndSearchConfig = createAndSearch[typeWithoutWith];
+  const columnIndexesToBeFreezed: any = [];
+  const columnIndexesToBeHidden: any = [];
   if (frozeCells) {
-    performUnfreezeCells(sheet);
+    performUnfreezeCells(sheet, localizationMap, fileUrl);
   }
   if (frozeWholeSheet) {
     performFreezeWholeSheet(sheet);
+  }
+  let columnsToBeFreezed: any[] = [];
+  let columnsToHide: any[] = [];
+  if (fileUrl) {
+    columnsToHide = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",...schema?.columnsToHide];
+    columnsToHide.forEach((column: any) => {
+      const localizedColumn = getLocalizedName(column, localizationMap);
+      const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
+      columnIndexesToBeHidden.push(columnIndex);
+    });
+
+    columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToBeFreezed]
+    columnsToBeFreezed.forEach((column: any) => {
+      const localizedColumn = getLocalizedName(column, localizationMap);
+      const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
+      columnIndexesToBeFreezed.push(columnIndex);
+    });
+    const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
+    const boundaryCodeMandatoryColumnWhichIsNotToBeFreezed = getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap);
+    const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
+    const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
+    const columnIndexOfBoundaryCodeMandatory = getColumnIndexByHeader(sheet, boundaryCodeMandatoryColumnWhichIsNotToBeFreezed);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]); // Example columns to freeze and unfreeze
+    hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);
   sheet.views = [{ state: 'frozen', ySplit: 1, zoomScale: 110 }];
@@ -216,7 +262,7 @@ function finalizeSheet(sheet: any, frozeCells: boolean, frozeWholeSheet: boolean
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
   // Make every cell locked by default
-  newSheet.eachRow((row: any) => {
+  newSheet?.eachRow((row: any) => {
     row.eachCell((cell: any) => {
       cell.protection = { locked: true };
     });
@@ -232,7 +278,7 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
       const targetColumnNumber = headers.indexOf(header) + 1; // Excel columns are 1-based
       logger.info(`Header: ${header}, Target Column Index: ${targetColumnNumber}`);
       if (targetColumnNumber > -1) {
-        newSheet.eachRow((row: any, rowNumber: number) => {
+        newSheet?.eachRow((row: any, rowNumber: number) => {
           changeFirstRowColumnColour(newSheet, 'B6D7A8', targetColumnNumber);
           if (rowNumber === 1) return;
 
@@ -259,4 +305,4 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
 }
 
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto };
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet };

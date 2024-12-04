@@ -1,6 +1,6 @@
 import { getLocalizedMessagesHandler, processGenerate, replicateRequest, throwError } from "./genericUtils";
 import _ from 'lodash';
-import { logger } from "./logger";
+import { getFormattedStringForDebug, logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
 import { getLocalisationModuleName } from "./localisationUtils";
 
@@ -20,18 +20,26 @@ function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
     const currentSetOfBoundaries = new Set(currentBoundaries.map((currboundary: any) => JSON.stringify(extractProperties(currboundary))));
     return _.isEqual(existingSetOfBoundaries, currentSetOfBoundaries);
 }
+function isCampaignTypeSame(request: any) {
+    const existingCampaignType = request?.body?.ExistingCampaignDetails?.projectType;
+    const currentCampaignType = request?.body?.CampaignDetails?.projectType;
+    return _.isEqual(existingCampaignType, currentCampaignType);
+}
 
-async function callGenerateIfBoundariesDiffer(request: any) {
+async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+        const boundaries = request?.body?.boundariesCombined
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, request?.body?.CampaignDetails?.boundaries)) {
-                logger.info("Boundaries differ, generating new resources");
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
+                logger.info("Boundaries or Campaign Type  differ, generating new resources");
+                // Apply 2-second timeout after the condition check
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
                 const newRequestBody = {
                     RequestInfo: request?.body?.RequestInfo,
                     Filters: {
-                        boundaries: request?.body?.CampaignDetails?.boundaries
+                        boundaries: boundaries
                     }
                 };
 
@@ -42,7 +50,8 @@ async function callGenerateIfBoundariesDiffer(request: any) {
                     hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
                     campaignId: request?.body?.CampaignDetails?.id
                 };
-
+                logger.info(`generating new resources for the campaignId: ${request?.body?.CampaignDetails?.id}`);
+                logger.debug(`boundaries of the generate request : ${getFormattedStringForDebug(boundaries)}`)
                 const newParamsBoundary = { ...query, ...params, type: "boundary" };
                 const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
                 await callGenerate(newRequestBoundary, "boundary");
@@ -60,6 +69,16 @@ async function callGenerateIfBoundariesDiffer(request: any) {
         logger.error(error);
         throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
+}
+
+function isSourceDifferent(request: any){
+    const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const CampaignDetails = request?.body?.CampaignDetails;
+
+    if(CampaignDetails.additionalDetails.source !== ExistingCampaignDetails.additionalDetails.source){
+        return true;
+    }
+    return false;
 }
 
 async function callGenerate(request: any, type: any, enableCaching = false) {
@@ -82,4 +101,4 @@ async function callGenerate(request: any, type: any, enableCaching = false) {
 
 
 
-export { callGenerateIfBoundariesDiffer, callGenerate, areBoundariesSame }
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, callGenerate, areBoundariesSame }

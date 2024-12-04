@@ -2,14 +2,14 @@
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
-import config from "../config/index";
-import { httpRequest } from "../utils/request";
 import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 import { persistTrack } from "../utils/processTrackUtils";
 import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../config/constants";
 import { validateMappingId } from "../utils/campaignMappingUtils";
+import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { BoundaryModels } from "../models";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
@@ -202,18 +202,18 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
 
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
-    const searchBody = {
-        RequestInfo: request?.body?.RequestInfo,
-        BoundaryTypeHierarchySearchCriteria: {
-            "tenantId": tenantId,
-            "limit": 5,
-            "offset": 0,
-            "hierarchyType": hierarchyType
+
+    const BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria={
+        BoundaryTypeHierarchySearchCriteria:{
+            tenantId,
+            hierarchyType
         }
-    }
-    const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
+    }; 
+    const response:BoundaryModels.BoundaryHierarchyDefinitionResponse  =await searchBoundaryRelationshipDefinition(BoundaryTypeHierarchySearchCriteria);
+
     if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
         logger.info(`hierarchyType : ${hierarchyType} :: got validated`);
+        request.body.hierarchyType = response?.BoundaryHierarchy?.[0];        
     }
     else {
         throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);
