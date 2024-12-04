@@ -248,8 +248,7 @@ async function updateErrorsForUser(
   createAndSearchConfig: any,
   userNameAndPassword: any[]
 ) {
-  const isSourceMicroplan =
-    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
+  const isSourceMicroplan = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {

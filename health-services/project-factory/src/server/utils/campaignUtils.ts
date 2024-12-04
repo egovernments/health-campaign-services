@@ -534,10 +534,7 @@ async function updateStatusFile(
     { tenantId: tenantId, fileStoreIds: fileStoreId },
     "get"
   );
-  const isLockSheetNeeded =
-    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
-      ? true
-      : false;
+  const isLockSheetNeeded = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
 
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "INVALID_FILE");
@@ -594,10 +591,7 @@ async function updateStatusFileForEachSheets(
     { tenantId: tenantId, fileStoreIds: fileStoreId },
     "get"
   );
-  const isLockSheetNeeded =
-    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
-      ? true
-      : false;
+  const isLockSheetNeeded = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
 
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "INVALID_FILE");
@@ -823,6 +817,7 @@ async function generateProcessedFileAndPersist(
     }
   }
   updateActivityResourceId(request);
+  const isMicroplan = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   request.body.ResourceDetails = {
     ...request?.body?.ResourceDetails,
     status:
@@ -837,10 +832,7 @@ async function generateProcessedFileAndPersist(
     additionalDetails: {
       ...request?.body?.ResourceDetails?.additionalDetails,
       sheetErrors: request?.body?.additionalDetailsErrors,
-      source:
-        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
-          ? "microplan"
-          : null,
+      source: isMicroplan ? "microplan" : null,
     },
   };
   if (
@@ -880,10 +872,7 @@ async function generateProcessedFileAndPersist(
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {
-      source:
-        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
-          ? "microplan"
-          : null,
+      source: isMicroplan ? "microplan" : null,
       fileName:
         request?.body?.ResourceDetails?.additionalDetails?.fileName || null,
     };
@@ -2957,7 +2946,7 @@ async function updateAndPersistResourceDetails(
 ) {
   const fileStoreId = boundaryFileDetails[0]?.fileStoreId;
   const getLatestResourceDetails = await getResourceDetails(request);
-
+  const isMicroplan = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   if (getLatestResourceDetails == null) {
     request.body.ResourceDetails = {
       ...request?.body?.ResourceDetails,
@@ -2975,10 +2964,7 @@ async function updateAndPersistResourceDetails(
         {
           ...request?.body?.ResourceDetails?.additionalDetails,
           sheetErrors: request?.body?.additionalDetailsErrors,
-          source:
-            await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
-              ? "microplan"
-              : null,
+          source: isMicroplan ? "microplan" : null,
           [name]: [fileStoreId],
         } ,
     };
