@@ -120,7 +120,7 @@ const getBoundaryDataService = async (
 
 const createDataService = async (request: any) => {
 
-    const { hierarchyType } = request?.body?.ResourceDetails;
+    const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId, getLocalisationModuleName(hierarchyType), true);
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
