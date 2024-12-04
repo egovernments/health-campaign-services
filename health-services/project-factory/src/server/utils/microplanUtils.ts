@@ -340,6 +340,7 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
   const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
   const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
   const facilityType = element?.facilityDetails?.usage;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
   const currTime = new Date().getTime();
   const planFacilityProduceObject: any = {
     PlanFacility: {
@@ -357,7 +358,8 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
         facilityType: facilityType,
         facilityStatus: facilityStatus,
         assignedVillages: [],
-        servingPopulation: 0
+        servingPopulation: 0,
+        hierarchyType: hierarchyType
       },
       active: true,
       auditDetails: {
