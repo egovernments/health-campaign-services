@@ -38,7 +38,7 @@ function getCreatedResourceIds(resources: any, type: any) {
 }
 
 function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
-  let processedType = type === 'boundary'
+  const processedType = type === 'boundary'
     ? 'boundaryWithTarget'
     : (type === 'boundaryWithTarget' ? type : (type.includes('With') ? type.split('With')[0] : type));
 
@@ -203,7 +203,7 @@ function unhideColumnsOfProcessedFile(sheet: any, columnsToUnide: any) {
 
 function modifyNewSheetData(processedDistrictSheetData: any, newSheetData: any, headers: any, oldTargetColumnsToHide: any[], localizationMap?: any) {
   let modifiedData = [];
-  let localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   if (processedDistrictSheetData && processedDistrictSheetData.length > 0) {
     const dataRows = processedDistrictSheetData.map((row: any) => {
       return localizedHeaders.map((header: any) => row[header] || '');
@@ -618,7 +618,7 @@ async function getHeadersAccordingToWhichWeReorder(mappingObject: any, parentFil
 
   // Get the first row (assuming it's the header row)
   const headerRow = sheet.getRow(1);
-  let headers: any = [];
+  const headers: any = [];
 
   headerRow.eachCell((cell, colNumber) => {
     headers.push(cell.value); // Collect header cell values
@@ -681,7 +681,7 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
   const resourceDetails = (await getResourceFromResourceId(mappingObject, [resource.createResourceId], resource))[0];
   resourceDetails.processedFilestoreId = fileStoreId;
   resourceDetails.processedFileStoreId = resourceDetails.processedFilestoreId;
-  delete resourceDetails.processedFilestoreId;
+  resourceDetails.processedFilestoreId = undefined;
 
   const persistMessage: any = { ResourceDetails: resourceDetails };
   await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
