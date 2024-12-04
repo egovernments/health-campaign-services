@@ -11,7 +11,9 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import static digit.config.ServiceConstants.HIERARCHY_TYPE;
@@ -43,6 +45,9 @@ public class ProjectFactoryCreatePlanFacilityConsumer {
 
             if(!StringUtils.isEmpty(hierarchyType))
                 enrichment.enrichJurisdictionMapping(planFacilityRequest, hierarchyType);
+
+            if(CollectionUtils.isEmpty(planFacilityRequest.getPlanFacility().getServiceBoundaries()))
+                planFacilityRequest.getPlanFacility().setServiceBoundaries(new ArrayList<>());
 
             repository.create(planFacilityRequest);
         } catch (Exception exception) {
