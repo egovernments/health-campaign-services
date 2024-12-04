@@ -1969,14 +1969,10 @@ const getHeadersOfBoundarySheet = async (
 async function getCampaignSearchResponse(request: any) {
   try {
     logger.info(`searching for campaign details`);
-     const  CampaignDetails = {
-        tenantId:
-          request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
-        ids: [
-          request?.query?.campaignId ||
-          request?.body?.ResourceDetails?.campaignId,
-        ],
-      }
+const CampaignDetails = {
+  tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+  ids: [request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId],
+};
     const projectTypeSearchResponse: any =
       await searchProjectTypeCampaignService(CampaignDetails);
     return projectTypeSearchResponse;
