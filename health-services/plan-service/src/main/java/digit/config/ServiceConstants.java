@@ -225,6 +225,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
     public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
     public static final String BOUNDARY = "boundary";
+    public static final String HIERARCHY_TYPE = "hierarchyType";
 
     //MDMS field Constants
     public static final String PROPERTIES = "properties";
