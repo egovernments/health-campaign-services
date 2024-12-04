@@ -320,7 +320,7 @@ export function updateFacilityDetailsForMicroplan(request: any, createdData: any
 
 
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
-  if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
+  if (request?.body?.ResourceDetails?.type == 'facility' &&  await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
     const allFacilityDatas = request?.body?.facilityDataForMicroplan;
     const planConfigurationId = request?.body?.ResourceDetails?.additionalDetails?.microplanId;
     request.body.MicroplanDetails = {

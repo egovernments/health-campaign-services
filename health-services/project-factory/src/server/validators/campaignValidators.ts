@@ -24,7 +24,7 @@ import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplate
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { isMicropplanCampaignId, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { isMicroplanRequest, isMicropplanCampaignId, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 
@@ -699,7 +699,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
     var boundaryColumn: any;
-    if (resource?.additionalDetails?.source == 'microplan') {
+    if (await isMicroplanRequest(request)) {
         boundaryColumn = getLocalizedName(createAndSearch?.[`${resource.type}Microplan`]?.boundaryValidation?.column, localizationMap);
     }
     else {

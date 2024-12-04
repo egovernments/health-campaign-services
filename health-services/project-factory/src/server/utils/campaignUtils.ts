@@ -305,7 +305,7 @@ function enrichActiveAndUUidColumn(
   }
 }
 
-function deterMineLastColumnAndEnrichUserDetails(
+async function deterMineLastColumnAndEnrichUserDetails(
   worksheet: any,
   errorDetailsColumn: number,
   userNameAndPassword:
@@ -313,7 +313,7 @@ function deterMineLastColumnAndEnrichUserDetails(
     | undefined,
   request: any,
   createAndSearchConfig: { uniqueIdentifierColumn?: number }
-): string {
+){
   // Determine the last column
   let lastColumn: any = errorDetailsColumn;
   if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
@@ -329,7 +329,7 @@ function deterMineLastColumnAndEnrichUserDetails(
 
   // Update columns if the request indicates a different source
   if (
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
   ) {
     usernameColumn = "F";
     passwordColumn = "G";
@@ -387,7 +387,7 @@ function adjustRef(worksheet: any, lastColumn: any) {
   };
 }
 
-function processErrorData(
+async function processErrorData(
   request: any,
   createAndSearchConfig: any,
   workbook: any,
@@ -418,7 +418,7 @@ function processErrorData(
     : additionalDetailsErrors;
 
   // Determine the last column to set the worksheet ref
-  const lastColumn = deterMineLastColumnAndEnrichUserDetails(
+  const lastColumn = await deterMineLastColumnAndEnrichUserDetails(
     worksheet,
     errorDetailsColumn,
     userNameAndPassword,
@@ -554,7 +554,7 @@ async function updateStatusFile(
     const columnsToUnhide = ["G", "H", "J", "K"];
     unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
   }
-  processErrorData(
+  await processErrorData(
     request,
     createAndSearchConfig,
     workbook,

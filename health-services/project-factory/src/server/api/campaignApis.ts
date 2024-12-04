@@ -240,7 +240,7 @@ function changeBodyViaElements(elements: any, requestBody: any) {
 //   }
 // }
 
-function updateErrorsForUser(
+async function updateErrorsForUser(
   request: any,
   newCreatedData: any[],
   newSearchedData: any[],
@@ -249,7 +249,7 @@ function updateErrorsForUser(
   userNameAndPassword: any[]
 ) {
   const isSourceMicroplan =
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
+    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
@@ -340,7 +340,7 @@ function updateErrors(
   });
 }
 
-function matchCreatedAndSearchedData(
+async function matchCreatedAndSearchedData(
   createdData: any[],
   searchedData: any[],
   request: any,
@@ -369,7 +369,7 @@ function matchCreatedAndSearchedData(
     updateFacilityDetailsForMicroplan(request, newCreatedData);
   } else {
     var userNameAndPassword: any = [];
-    updateErrorsForUser(
+    await updateErrorsForUser(
       request,
       newCreatedData,
       newSearchedData,
@@ -584,7 +584,7 @@ async function matchUserValidation(createdData: any[], request: any) {
     ? [...request?.body?.sheetErrorDetails, ...errors]
     : errors;
 }
-function matchViaUserIdAndCreationTime(
+async function matchViaUserIdAndCreationTime(
   createdData: any[],
   searchedData: any[],
   request: any,
@@ -612,7 +612,7 @@ function matchViaUserIdAndCreationTime(
   if (count < createdData.length) {
     request.body.ResourceDetails.status = "PERSISTER_ERROR";
   }
-  matchCreatedAndSearchedData(
+  await matchCreatedAndSearchedData(
     createdData,
     matchingSearchData,
     request,
@@ -828,7 +828,7 @@ async function confirmCreation(
       request,
       params
     );
-    matchViaUserIdAndCreationTime(
+    await matchViaUserIdAndCreationTime(
       dataToCreate,
       arraysToMatch,
       request,
@@ -838,7 +838,7 @@ async function confirmCreation(
     );
   } else {
     const arraysToMatch = await getEmployeesBasedOnUuids(dataToCreate, request);
-    matchViaUserIdAndCreationTime(
+    await matchViaUserIdAndCreationTime(
       dataToCreate,
       arraysToMatch,
       request,
