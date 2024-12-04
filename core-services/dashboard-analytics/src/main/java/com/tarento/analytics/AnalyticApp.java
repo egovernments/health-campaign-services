@@ -23,6 +23,7 @@ import java.security.cert.X509Certificate;
 
 
 @SpringBootApplication
+@EnableCaching
 public class AnalyticApp {
 	public static void trustSelfSignedSSL() {
 		try {
