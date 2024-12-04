@@ -28,6 +28,7 @@ All notable changes to this module will be documented in this file.
 2. Plan Facility Create: Creates a plan facility after validation and enrichment, pushing the create request to the designated kafka topic.
 3. Plan Facility Update: Updates existing facilities post-validation by pushing update requests to the Kafka topic. Also sends the update request to Census service for facility mapping.
 4. Plan Facility Search: Searches Plan Facility for the provided search criteria.
+5. Project Factory Consumer: Listens to project factory consumer to enrich and create new plan facility. 
 
 #### Plan Employee Assignment
 
