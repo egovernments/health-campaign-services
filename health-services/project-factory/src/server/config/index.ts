@@ -67,7 +67,7 @@ const config = {
     KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
     KAFKA_SAVE_PROCESS_TRACK_TOPIC: process.env.KAFKA_SAVE_PROCESS_TRACK_TOPIC || "save-process-track",
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
-    KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "save-plan-facility",
+    KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -90,7 +90,9 @@ const config = {
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
-    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz"
+    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
+    // incomingRequestPayloadLimit : process.env.REQUEST_PAYLOAD_LIMIT || "2mb" @ashish add this key and config helm chart values
+    incomingRequestPayloadLimit: "2mb"
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",

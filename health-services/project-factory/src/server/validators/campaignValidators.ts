@@ -25,6 +25,8 @@ import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPres
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { getPvarIds } from "../utils/campaignMappingUtils";
+import { fetchProductVariants } from "../api/healthApis";
 
 
 
@@ -487,14 +489,13 @@ async function validateCampaignId(request: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignId is missing");
     }
     else {
-        const searchBody = {
-            CampaignDetails: {
+        // const searchBody = {
+            const CampaignDetails= {
                 ids: [campaignId],
                 tenantId: tenantId
             }
-        }
-        const req: any = replicateRequest(request, searchBody);
-        const response = await searchProjectTypeCampaignService(req);
+        // const req: any = replicateRequest(request, searchBody);
+        const response = await searchProjectTypeCampaignService(CampaignDetails);
         if (response?.CampaignDetails?.[0]) {
             const boundaries = await getBoundariesFromCampaignSearchResponse(request, response?.CampaignDetails?.[0]);
             if (!boundaries) {
@@ -832,17 +833,15 @@ function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
 
 async function validateParent(request: any, actionInUrl: any) {
     if (request?.body?.CampaignDetails?.parentId) {
-        const CampaignDetails: any = request.body.CampaignDetails;
         const tenantId = request.body.CampaignDetails?.tenantId
-        const searchBodyForParent: any = {
-            RequestInfo: request.body.RequestInfo,
-            CampaignDetails: {
-                tenantId: tenantId,
-                ids: [CampaignDetails?.parentId]
-            }
+        // const searchBodyForParent: any = {
+        //     RequestInfo: request.body.RequestInfo,
+        const CampaignDetails = {
+            tenantId: tenantId,
+            ids: [request.body.CampaignDetails?.parentId]
         }
-        const req: any = replicateRequest(request, searchBodyForParent)
-        const parentSearchResponse: any = await searchProjectTypeCampaignService(req)
+        // const req: any = replicateRequest(request, searchBodyForParent)
+        const parentSearchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
         if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
             if (actionInUrl == "create") {
                 if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
@@ -868,8 +867,7 @@ async function validateParent(request: any, actionInUrl: any) {
 }
 
 async function validateCampaignName(request: any, actionInUrl: any) {
-    const CampaignDetails = request.body.CampaignDetails;
-    const { campaignName, tenantId } = CampaignDetails;
+    const { campaignName, tenantId } = request.body.CampaignDetails;
     if (!campaignName) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "campaignName is required");
     }
@@ -877,21 +875,21 @@ async function validateCampaignName(request: any, actionInUrl: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
     }
     if (campaignName.length >= 2) {
-        const searchBody = {
-            RequestInfo: request.body.RequestInfo,
-            CampaignDetails: {
+        // const searchBody = {
+        //     RequestInfo: request.body.RequestInfo,
+            const CampaignDetails = {
                 tenantId: tenantId,
                 campaignName: campaignName,
                 status: [campaignStatuses.drafted, campaignStatuses.started, campaignStatuses.inprogress],
             }
-        }
+        // }
         if (request.body?.parentCampaign) {
             if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
                 throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR", "Campaign name should be same as that of parent");
             }
         }
-        const req: any = replicateRequest(request, searchBody)
-        const searchResponse: any = await searchProjectTypeCampaignService(req)
+        // const req: any = replicateRequest(request, searchBody)
+        const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
         if (Array.isArray(searchResponse?.CampaignDetails)) {
             if (searchResponse?.CampaignDetails?.length > 0) {
                 const allCampaigns = searchResponse?.CampaignDetails;
@@ -899,14 +897,14 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                 const matchingCampaigns: any[] = allCampaigns.filter((campaign: any) => campaign?.campaignName === campaignName);
                 for (const campaignWithMatchingName of matchingCampaigns) {
                     if (campaignWithMatchingName && actionInUrl == "create") {
-                        if (!CampaignDetails?.parentId) {
+                        if (!request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != CampaignDetails?.parentId) {
+                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
                     }
-                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != CampaignDetails?.id) {
+                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
                         throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                     }
                 }
@@ -923,15 +921,15 @@ async function validateById(request: any) {
     if (!id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
     }
-    const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        CampaignDetails: {
+    // const searchBody = {
+    //     RequestInfo: request.body.RequestInfo,
+        const CampaignDetails ={
             tenantId: tenantId,
             ids: [id]
         }
-    }
-    const req: any = replicateRequest(request, searchBody)
-    const searchResponse: any = await searchProjectTypeCampaignService(req)
+    // }
+    // const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
     if (Array.isArray(searchResponse?.CampaignDetails)) {
         if (searchResponse?.CampaignDetails?.length > 0) {
             logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
@@ -1041,6 +1039,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
+        await validateProductVariant(request);
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
@@ -1109,15 +1108,15 @@ async function validateForRetry(request: any) {
     if (!tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
     }
-    const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        CampaignDetails: {
+    // const searchBody = {
+    //     RequestInfo: request.body.RequestInfo,
+        const CampaignDetails= {
             tenantId: tenantId,
             ids: [id]
         }
-    }
-    const req: any = replicateRequest(request, searchBody)
-    const searchResponse: any = await searchProjectTypeCampaignService(req)
+    // }
+    // const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
     if (Array.isArray(searchResponse?.CampaignDetails)) {
         if (searchResponse?.CampaignDetails?.length > 0) {
             logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
@@ -1155,11 +1154,51 @@ async function validateForRetry(request: any) {
     }
 }
 
+async function validateProductVariant(request: any) {
+    const deliveryRules = request?.body?.CampaignDetails?.deliveryRules;
+
+    if (!Array.isArray(deliveryRules)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "deliveryRules must be an array");
+    }
+
+    deliveryRules.forEach((rule: any, index: number) => {
+        const productVariants = rule?.resources;
+        if (!Array.isArray(productVariants) || productVariants.length === 0) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `deliveryRules[${index}].resources must be a non-empty array`);
+        }
+    });
+    const pvarIds= getPvarIds(request?.body);
+    await validatePvarIds(pvarIds as string[]);
+    logger.info("Validated product variants successfully");
+}
+
+async function validatePvarIds(pvarIds: string[]) {
+    // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
+    if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
+    }
+
+    // Fetch product variants using the fetchProductVariants function
+    const allProductVariants = await fetchProductVariants(pvarIds);
+
+    // Extract the ids of the fetched product variants
+    const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));
+
+    // Identify missing or invalid product variants
+    const missingPvarIds = pvarIds.filter((id: any) => !fetchedIds.has(id));
+
+    if (missingPvarIds.length) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
+    }
+}
+
+
 async function validateIsActive(request: any) {
     if (!request?.body?.CampaignDetails.isActive) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Can't update isActive")
     }
 }
+
 
 async function validateSearchProjectCampaignRequest(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
@@ -1354,8 +1393,8 @@ function validateSearchProcessTracksRequest(request: any) {
     }
 }
 
-async function validateMicroplanRequest(request: any){
-    const {tenantId, campaignId, planConfigurationId} = request.body.MicroplanDetails;
+async function validateMicroplanRequest(request: any) {
+    const { tenantId, campaignId, planConfigurationId } = request.body.MicroplanDetails;
     if (!tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
     }
@@ -1375,7 +1414,7 @@ async function validatePlanFacility(request: any) {
     const planConfigSearchResponse = await planConfigSearch(request);
     const planFacilitySearchResponse = await planFacilitySearch(request);
 
-    if(planFacilitySearchResponse.PlanFacility.length === 0){
+    if (planFacilitySearchResponse.PlanFacility.length === 0) {
         throwError("COMMAN", 400, "Plan facilities not found");
     }
 
@@ -1383,21 +1422,21 @@ async function validatePlanFacility(request: any) {
     request.body.planConfig = planConfigSearchResponse.PlanConfiguration[0];
 }
 
-async function validateCampaignFromId(request :any) {
-    const {tenantId, campaignId} = request.body.MicroplanDetails;
+async function validateCampaignFromId(request: any) {
+    const { tenantId, campaignId } = request.body.MicroplanDetails;
 
-    const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        CampaignDetails: {
-            tenantId: tenantId,
-            ids: [campaignId]
-        }
+    // const searchBody = {
+    //     RequestInfo: request.body.RequestInfo,
+    const campaignDetails = {
+        tenantId: tenantId,
+        ids: [campaignId]
     }
+    // }
 
-    const req: any = replicateRequest(request, searchBody)
-    const searchResponse: any = await searchProjectTypeCampaignService(req);
+    // const req: any = replicateRequest(request, searchBody)
+    const searchResponse: any = await searchProjectTypeCampaignService(campaignDetails);
 
-    if(searchResponse?.CampaignDetails?.length == 0){
+    if (searchResponse?.CampaignDetails?.length == 0) {
         throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
     }
 

@@ -1,5 +1,4 @@
 import { defaultRequestInfo } from "../api/coreApis"; // Import default request metadata
-import config from "../config"; // Import configuration settings
 import { getFormattedStringForDebug, logger } from "./logger"; // Import logger for logging information and errors
 import { createDataService, downloadDataService, searchDataService } from "../service/dataManageService";
 import { throwError } from "./genericUtils";
@@ -30,7 +29,7 @@ export const downloadTemplate = async (
   };
 
   logger.info(
-    `Received a request to download the template for campaign ID: ${campaignId} & type: ${type} ,${config.host.projectFactoryBff}`
+    `Received a request to download the template for campaign ID: ${campaignId} & type: ${type} `
   );
   const request: any = {
     body: { ...searchBody },

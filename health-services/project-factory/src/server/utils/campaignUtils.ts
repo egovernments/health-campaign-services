@@ -84,8 +84,8 @@ import {
 } from "./targetUtils";
 import {
   callGenerateWhenChildCampaigngetsCreated,
-  fetchProjectsWithBoundaryCodeAndName,
-  fetchProjectsWithParentRootProjectId,
+  fetchProjectsWithBoundaryCodeAndReferenceId,
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getBoundaryProjectMappingFromParentCampaign,
   getColumnIndexByHeader,
@@ -633,11 +633,11 @@ async function updateStatusFileForEachSheets(
   localizedSheetNames.forEach((sheetName: any) => {
     if (
       sheetName !==
-        getLocalizedName(config?.boundary?.boundaryTab, localizationMap) &&
+      getLocalizedName(config?.boundary?.boundaryTab, localizationMap) &&
       sheetName !==
-        getLocalizedName(config.values.readMeTab, localizationMap) &&
+      getLocalizedName(config.values.readMeTab, localizationMap) &&
       sheetName !==
-        getLocalizedName("USER_MICROPLAN_SHEET_ROLES", localizationMap)
+      getLocalizedName("USER_MICROPLAN_SHEET_ROLES", localizationMap)
     ) {
       processErrorDataForEachSheets(
         request,
@@ -984,7 +984,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     ...requestBody?.CampaignDetails?.additionalDetails,
     error: String(
       error?.message + (error?.description ? ` : ${error?.description}` : "") ||
-        error
+      error
     ),
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
@@ -1000,7 +1000,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     {
       error: String(
         error?.message +
-          (error?.description ? ` : ${error?.description}` : "") || error
+        (error?.description ? ` : ${error?.description}` : "") || error
       ),
     }
   );
@@ -1108,12 +1108,12 @@ async function enrichAndPersistCampaignForUpdate(
     action == "changeDates"
       ? request.body.CampaignDetails.status
       : action == "create"
-      ? campaignStatuses.started
-      : campaignStatuses.drafted;
+        ? campaignStatuses.started
+        : campaignStatuses.drafted;
   const boundaryCode = !request?.body?.CampaignDetails?.projectId
     ? getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     : request?.body?.CampaignDetails?.boundaryCode ||
-      ExistingCampaignDetails?.boundaryCode;
+    ExistingCampaignDetails?.boundaryCode;
   request.body.CampaignDetails.boundaryCode = boundaryCode;
   request.body.CampaignDetails.startDate =
     request?.body?.CampaignDetails?.startDate ||
@@ -1205,8 +1205,8 @@ async function persistForCampaignProjectMapping(
       Campaign: {},
     };
     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
-    requestBody.Campaign.newlyCreatedBoundaryProjectMap =
-      request?.body?.newlyCreatedBoundaryProjectMap;
+    // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
+    //   request?.body?.newlyCreatedBoundaryProjectMap;
     requestBody.Campaign.hierarchyType =
       request?.body?.CampaignDetails?.hierarchyType;
     requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
@@ -1426,9 +1426,8 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
   return codes;
 }
 
-async function getTotalCount(request: any) {
-  const CampaignDetails = request.body.CampaignDetails;
-  const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
+async function getTotalCount(campaignDetails: any) {
+  const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
   let conditions = [];
   let values = [tenantId];
   let index = 2;
@@ -1488,14 +1487,14 @@ async function getTotalCount(request: any) {
   }
   const queryResult = await executeQuery(query, values);
   const totalCount = parseInt(queryResult.rows[0].count, 10);
-  request.body.totalCount = totalCount;
+  return totalCount;
 }
 
-async function searchProjectCampaignResourcData(request: any) {
-  const CampaignDetails = request.body.CampaignDetails;
-  const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
+async function searchProjectCampaignResourcData(campaignDetails: any) {
+  // const CampaignDetails = request.body.CampaignDetails;
+  const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
   const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
-  await getTotalCount(request);
+  const totalCount = await getTotalCount(campaignDetails);
   const responseData: any[] = await executeSearchQuery(
     queryData.query,
     queryData.values
@@ -1517,7 +1516,7 @@ async function searchProjectCampaignResourcData(request: any) {
     delete data.createdTime;
     delete data.lastModifiedTime;
   }
-  request.body.CampaignDetails = responseData;
+  return { responseData, totalCount };
 }
 
 function buildSearchQuery(
@@ -1797,9 +1796,8 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
     };
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${
-        params?.tenantId
-      }${params.codes || ""}${params?.includeChildren || ""}`,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId
+        }${params.codes || ""}${params?.includeChildren || ""}`,
     };
     const boundaryResponse = await httpRequest(
       config.host.boundaryHost + config.paths.boundaryRelationship,
@@ -1821,7 +1819,7 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
         boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0],
         boundaries,
         boundaryChildren[
-          boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code
+        boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code
         ],
         boundaryCodes,
         boundaryChildren
@@ -1881,7 +1879,7 @@ function reorderBoundariesWithParentFirst(
   );
 
   // Step 2: Perform topological sort using Kahn's Algorithm
-  const queue:any = [];
+  const queue: any = [];
   const sortedBoundaries = [];
 
   // Enqueue nodes with 0 in-degree
@@ -1910,7 +1908,7 @@ function reorderBoundariesWithParentFirst(
     }
 
     const children = boundaryGraph.get(currentBoundary.code) || [];
-    children.forEach((childCode:any) => {
+    children.forEach((childCode: any) => {
       inDegree.set(childCode, inDegree.get(childCode) - 1);
       if (inDegree.get(childCode) === 0) {
         queue.push(
@@ -1933,7 +1931,7 @@ function reorderBoundariesWithParentFirst(
       (endTime - startTime) / 1000
     ).toFixed(2)} seconds.`
   );
- 
+
   return sortedBoundaries;
 }
 
@@ -1942,21 +1940,21 @@ async function reorderBoundariesOfDataAndValidate(
   localizationMap?: any
 ) {
   if (request?.body?.ResourceDetails?.campaignId) {
-    const searchBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      CampaignDetails: {
-        ids: [request?.body?.ResourceDetails?.campaignId],
-        tenantId: request?.body?.ResourceDetails?.tenantId,
-      },
-    };
-    const req: any = replicateRequest(request, searchBody);
-    const response = await searchProjectTypeCampaignService(req);
+    // const searchBody = {
+    //   RequestInfo: request?.body?.RequestInfo,
+    const CampaignDetails = {
+      ids: [request?.body?.ResourceDetails?.campaignId],
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+    }
+    // };
+    // const req: any = replicateRequest(request, searchBody);
+    const response = await searchProjectTypeCampaignService(CampaignDetails);
     if (response?.CampaignDetails?.[0]) {
       const CampaignDetails = response?.CampaignDetails?.[0];
       await addBoundariesForData(request, CampaignDetails);
       logger.debug(
         "Boundaries after addition " +
-          getFormattedStringForDebug(CampaignDetails?.boundaries)
+        getFormattedStringForDebug(CampaignDetails?.boundaries)
       );
       await validateBoundaryOfResouces(
         CampaignDetails,
@@ -1988,9 +1986,8 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
     };
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${
-        params?.tenantId
-      }${params.codes || ""}${params?.includeChildren || ""}`,
+      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId
+        }${params.codes || ""}${params?.includeChildren || ""}`,
     };
     const boundaryResponse = await httpRequest(
       config.host.boundaryHost + config.paths.boundaryRelationship,
@@ -2010,7 +2007,7 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
         request.body.CampaignDetails.codesTargetMapping = codesTargetMapping;
         logger.debug(
           "codesTargetMapping mapping :: " +
-            getFormattedStringForDebug(codesTargetMapping)
+          getFormattedStringForDebug(codesTargetMapping)
         );
       }
       mapBoundariesParent(
@@ -2046,7 +2043,7 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
   logger.info("Boundaries for campaign creation in received");
   logger.debug(
     "Boundaries after addition " +
-      getFormattedStringForDebug(request?.body?.boundariesCombined)
+    getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
   const start = Date.now();
   const sortedBoundaries = reorderBoundariesWithParentFirst(
@@ -2059,7 +2056,7 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
   logger.info("Reordered the Boundaries for mapping");
   logger.debug(
     "Reordered Boundaries " +
-      getFormattedStringForDebug(request?.body?.boundariesCombined)
+    getFormattedStringForDebug(request?.body?.boundariesCombined)
   );
   return request.body.boundariesCombined;
 }
@@ -2187,7 +2184,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
           if (
             entry["Parent Target at the Selected Boundary level"] !== 0 &&
             entry["Parent Target at the Selected Boundary level"] !==
-              entry["Target at the Selected Boundary level"]
+            entry["Target at the Selected Boundary level"]
           ) {
             boundaryCodesWhoseTargetsHasToBeUpdated.push(entry[codeColumnName]);
           }
@@ -2196,7 +2193,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
     }
     logger.info(
       "Boundary target mapping count" +
-        Object.keys(boundaryTargetMapping)?.length
+      Object.keys(boundaryTargetMapping)?.length
     );
     request.body.boundaryCodesWhoseTargetsHasToBeUpdated =
       boundaryCodesWhoseTargetsHasToBeUpdated;
@@ -2238,9 +2235,10 @@ async function createProject(
       boundaries = await reorderBoundaries(request, localizationMap);
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
-        // make search to project with root project id
+        // make search to project with parent campaign root project id
+        const { projectId, tenantId } = request?.body?.parentCampaign;
         const projectSearchResponse =
-          await fetchProjectsWithParentRootProjectId(request);
+          await fetchProjectsWithProjectId(request, projectId, tenantId);
         boundariesAlreadyWithProjects =
           getBoundaryProjectMappingFromParentCampaign(
             request,
@@ -2258,10 +2256,10 @@ async function createProject(
             boundariesAlreadyWithProjects.has(boundary)
           ) {
             const projectSearchResponse =
-              await fetchProjectsWithBoundaryCodeAndName(
+              await fetchProjectsWithBoundaryCodeAndReferenceId(
                 boundary,
                 tenantId,
-                request?.body?.CampaignDetails?.campaignName,
+                request?.body?.CampaignDetails?.campaignNumber,
                 request?.body?.RequestInfo
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
@@ -2280,11 +2278,11 @@ async function createProject(
                         ?.beneficiaryType,
                     totalNo:
                       request?.body?.CampaignDetails?.codesTargetMapping[
-                        boundary
+                      boundary
                       ],
                     targetNo:
                       request?.body?.CampaignDetails?.codesTargetMapping[
-                        boundary
+                      boundary
                       ],
                   },
                 ];
@@ -2294,7 +2292,7 @@ async function createProject(
                   request?.body?.CampaignDetails?.codesTargetMapping[boundary]),
                   (targetobj.targetNo =
                     request?.body?.CampaignDetails?.codesTargetMapping[
-                      boundary
+                    boundary
                     ]);
                 projectToUpdate.targets = [targetobj];
               }
@@ -2342,9 +2340,7 @@ async function createProject(
           }
 
           // Set the reference ID and project targets
-          Projects[0].referenceID = request?.body?.CampaignDetails?.id;
-          (Projects[0].department =
-            request?.body?.CampaignDetails?.campaignName),
+          Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
             (Projects[0].targets = [
               {
                 beneficiaryType:
@@ -2352,11 +2348,11 @@ async function createProject(
                     ?.beneficiaryType,
                 totalNo:
                   request?.body?.CampaignDetails?.codesTargetMapping[
-                    boundaryCode
+                  boundaryCode
                   ],
                 targetNo:
                   request?.body?.CampaignDetails?.codesTargetMapping[
-                    boundaryCode
+                  boundaryCode
                   ],
               },
             ]);
@@ -2373,7 +2369,7 @@ async function createProject(
       {
         error: String(
           error?.message +
-            (error?.description ? ` : ${error?.description}` : "") || error
+          (error?.description ? ` : ${error?.description}` : "") || error
         ),
       }
     );
@@ -2564,7 +2560,7 @@ async function appendDistricts(
     const districtDataFiltered = boundaryData.filter(
       (boundary: any) =>
         boundary[differentTabsBasedOnLevel] ===
-          uniqueDataFromLevelForDifferentTabs &&
+        uniqueDataFromLevelForDifferentTabs &&
         boundary[hierarchy[hierarchy.length - 1]]
     );
     const modifiedFilteredData = modifyFilteredData(
@@ -2977,16 +2973,16 @@ async function updateAndPersistResourceDetails(
         lastModifiedTime: Date.now(),
       },
       additionalDetails:
-        {
-          ...request?.body?.ResourceDetails?.additionalDetails,
-          sheetErrors: request?.body?.additionalDetailsErrors,
-          source:
-            request?.body?.ResourceDetails?.additionalDetails?.source ==
+      {
+        ...request?.body?.ResourceDetails?.additionalDetails,
+        sheetErrors: request?.body?.additionalDetailsErrors,
+        source:
+          request?.body?.ResourceDetails?.additionalDetails?.source ==
             "microplan"
-              ? "microplan"
-              : null,
-          [name]: [fileStoreId],
-        } || {},
+            ? "microplan"
+            : null,
+        [name]: [fileStoreId],
+      },
     };
   } else {
     request.body.ResourceDetails = {
@@ -3002,14 +2998,14 @@ async function updateAndPersistResourceDetails(
         lastModifiedTime: Date.now(),
       },
       additionalDetails:
-        {
-          ...getLatestResourceDetails.additionalDetails,
-          sheetErrors: request?.body?.additionalDetailsErrors,
-          source:
-            getLatestResourceDetails.additionalDetails?.source == "microplan"
-              ? "microplan"
-              : null,
-        } || {},
+      {
+        ...getLatestResourceDetails.additionalDetails,
+        sheetErrors: request?.body?.additionalDetailsErrors,
+        source:
+          getLatestResourceDetails.additionalDetails?.source == "microplan"
+            ? "microplan"
+            : null,
+      },
     };
     let additionalDetails = request?.body?.ResourceDetails?.additionalDetails;
     if (additionalDetails && additionalDetails[name]) {
@@ -3392,20 +3388,19 @@ async function getTargetBoundariesRelatedToCampaignId(
   request: any,
   localizationMap?: any
 ) {
-  let CampaignDetails: any;
+  let CampaignDetailsNew: any;
   if (request?.body?.ResourceDetails?.campaignId) {
-    const searchBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      CampaignDetails: {
-        ids: [request?.body?.ResourceDetails?.campaignId],
-        tenantId: request?.body?.ResourceDetails?.tenantId,
-      },
-    };
-    const req: any = replicateRequest(request, searchBody);
-    const response = await searchProjectTypeCampaignService(req);
+    // const searchBody = {
+    //   RequestInfo: request?.body?.RequestInfo,
+    const CampaignDetails = {
+      ids: [request?.body?.ResourceDetails?.campaignId],
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+    }
+    // const req: any = replicateRequest(request, searchBody);
+    const response = await searchProjectTypeCampaignService(CampaignDetails);
     if (response?.CampaignDetails?.[0]) {
-      CampaignDetails = response?.CampaignDetails?.[0];
-      await addBoundariesForData(request, CampaignDetails);
+      CampaignDetailsNew = response?.CampaignDetails?.[0];
+      await addBoundariesForData(request, CampaignDetailsNew);
     } else {
       throwError(
         "CAMPAIGN",
@@ -3415,7 +3410,7 @@ async function getTargetBoundariesRelatedToCampaignId(
       );
     }
   }
-  return CampaignDetails?.boundaries;
+  return CampaignDetailsNew?.boundaries;
 }
 
 async function getFiltersFromCampaignSearchResponse(
@@ -3537,14 +3532,14 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(
       index !== -1
         ? localizedHierarchy.slice(index)
         : throwError(
-            "COMMON",
-            400,
-            "VALIDATION_ERROR",
-            `${getLocalizedName(
-              config?.boundary?.generateDifferentTabsOnBasisOf,
-              localizationMap
-            )} level not present in the hierarchy`
-          );
+          "COMMON",
+          400,
+          "VALIDATION_ERROR",
+          `${getLocalizedName(
+            config?.boundary?.generateDifferentTabsOnBasisOf,
+            localizationMap
+          )} level not present in the hierarchy`
+        );
   }
   const columnFromSchemaOfTargetTemplate = await generateDynamicTargetHeaders(
     request,
@@ -3604,7 +3599,7 @@ async function getDifferentTabGeneratedBasedOnConfig(
   if (
     isKeyOfThatTypePresent &&
     boundaryTypeOnWhichWeSplit.length >=
-      parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)
+    parseInt(config?.boundary?.numberOfBoundaryDataOnWhichWeSplit)
   ) {
     logger.info(
       `sinces the conditions are matched boundaries are getting splitted into different tabs`
@@ -3631,6 +3626,10 @@ async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
+  if (!Array.isArray(mdmsResponse?.mdms) || mdmsResponse.mdms.length === 0) {
+    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType} hierarchy not configured in mdms data 
+                ${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`)
+  }
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
 }
 
@@ -3681,60 +3680,81 @@ async function createUniqueUserNameViaIdGen(request: any) {
 }
 
 async function processFetchMicroPlan(request: any) {
-  try{
-    logger.info("waiting for 1 seconds for templates to get generated");
+  try {
+    logger.info("Waiting for 1 second for templates to get generated...");
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
     logger.info("Started processing fetch microplan");
+
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    const resources:any=request?.body?.CampaignDetails?.resources;
-    const filteredResources:any=resources?.filter((obj:any)=>obj?.filestoreId&&obj?.resourceId);
-    logger.info(`filtered resouces which already has these reources :: ${filteredResources?.length}`);
-    logger.debug(`filtered resouces :: ${getFormattedStringForDebug(filteredResources)}`);
-    filteredResources?.every((obj:any)=>obj?.type!="facility")&& await fetchFacilityData(request, localizationMap);
-    filteredResources?.every((obj:any)=>obj?.type!="boundaryWithTarget")&& await fetchTargetData(request, localizationMap);
-    filteredResources?.every((obj:any)=>obj?.type!="user")&&  await fetchUserData(request, localizationMap);
-  
-    logger.info("Updating back the campaign object after fetch microplan");
-    await updateCampaign(request ,"MICROPLAN_COMPLETED")
+    const resources: any = request?.body?.CampaignDetails?.resources || [];
+    const filteredResources = resources.filter(
+      (obj: any) => obj?.filestoreId && obj?.resourceId
+    );
+
+    logger.info(`Filtered resources with valid IDs: ${filteredResources?.length}`);
+    logger.debug(`Filtered resources: ${getFormattedStringForDebug(filteredResources)}`);
+
+    const fetchOperations: Promise<void>[] = [];
+
+    // Add fetch operations conditionally
+    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "facility")) {
+      fetchOperations.push(fetchFacilityData(request, localizationMap));
+    }
+    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "boundaryWithTarget")) {
+      fetchOperations.push(fetchTargetData(request, localizationMap));
+    }
+    if (filteredResources.length === 0 || filteredResources.every((obj: any) => obj?.type !== "user")) {
+      fetchOperations.push(fetchUserData(request, localizationMap));
+    }
+
+    // Run all fetch operations in parallel
+    await Promise.all(fetchOperations);
+
+    logger.info("Updating campaign object after successful fetch microplan...");
+    await updateCampaignAfterSearch(request, "MICROPLAN_COMPLETED");
+
     logger.info("Completed processing fetch microplan");
   } catch (error: any) {
-    // Log the error
-    logger.error(`Error during ID generation: ${error.message}`);
-    await updateCampaign(request ,"MICROPLAN_FETCH_FAILED");
+    logger.error(`Error during microplan fetch: ${error.message}`);
+    await updateCampaignAfterSearch(request, "MICROPLAN_FETCH_FAILED");
   }
- 
 }
 
-async function updateCampaign(request: any ,source="MICROPLAN_FETCHING") {
-  // Get the current date
-  const currentDate = new Date();
-  logger.info("Updating the received campaign object, date, source & its key");
-  // Set to the next day
-  const nextDay = new Date(currentDate);
-  nextDay.setDate(currentDate.getDate() + 1);
 
-  const newEndDate = new Date(currentDate);
-  newEndDate.setDate(currentDate.getDate() + 3);
-
-  // Convert to epoch time in milliseconds
-  const nextDayEpoch = nextDay.getTime();
-  const newEndDateEpoch = newEndDate.getTime();
-  request.body.CampaignDetails.startDate = nextDayEpoch;
-  request.body.CampaignDetails.endDate = newEndDateEpoch;
-  if (!request.body.CampaignDetails.additionalDetails) {
-    request.body.CampaignDetails.additionalDetails = {};
+async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCHING") {
+  logger.info("search campaign with id ")
+  const { tenantId, campaignId } = request.body.MicroplanDetails;
+  const campaignDetails = {
+    tenantId: tenantId,
+    ids: [campaignId]
   }
-  request.body.CampaignDetails.additionalDetails.source = "MICROPLAN_FETCHING";
-  (!request.body?.CampaignDetails?.additionalDetails?.["disease"])&&(request.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
-  (!request.body?.CampaignDetails?.additionalDetails?.["beneficiaryType"])&&(request.body.CampaignDetails.additionalDetails["beneficiaryType"] =
-      "INDIVIDUAL");
-  request.body.CampaignDetails.additionalDetails["key"] = 1;
-  logger.debug(
-    `updated object with new source , disease & beneficiarytype ${getFormattedStringForDebug(request.body.CampaignDetails)}`
-  );
-  await updateProjectTypeCampaignService(request);
-  logger.info("Updated the received campaign object");
+  const searchedCampaignResponse = await searchProjectTypeCampaignService(campaignDetails)
+  const searchedCamapignObject = searchedCampaignResponse?.CampaignDetails;
+  if (Array.isArray(searchedCamapignObject) && searchedCamapignObject.length > 0) {
+    const newRequestBody = {
+      RequestInfo: request.body.RequestInfo, // Retain the original RequestInfo
+      CampaignDetails: searchedCamapignObject?.[0] // campaigndetails from search response
+    };
+    const req: any = replicateRequest(request, newRequestBody)
+    logger.info("Updating the received campaign object, source & its key");
+    if (!req.body.CampaignDetails.additionalDetails) {
+      req.body.CampaignDetails.additionalDetails = {};
+    }
+    req.body.CampaignDetails.additionalDetails.activity = source;
+    (!req.body?.CampaignDetails?.additionalDetails?.["disease"]) && (req.body.CampaignDetails.additionalDetails["disease"] = "MALARIA"),
+      (!req.body?.CampaignDetails?.additionalDetails?.["beneficiaryType"]) && (req.body.CampaignDetails.additionalDetails["beneficiaryType"] =
+        "INDIVIDUAL");
+    req.body.CampaignDetails.additionalDetails["key"] = 1;
+    logger.debug(
+      `updated object with new source , disease & beneficiarytype ${getFormattedStringForDebug(req.body.CampaignDetails)}`
+    );
+    await updateProjectTypeCampaignService(req);
+    logger.info("Updated the received campaign object");
+  } else {
+    throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", "Error in campaign search");
+  }
 }
 
 export {
@@ -3774,5 +3794,6 @@ export {
   getResourceDetails,
   enrichInnerCampaignDetails,
   processFetchMicroPlan,
-  updateCampaign,
+  updateCampaignAfterSearch,
+  processBoundary,
 };

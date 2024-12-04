@@ -146,7 +146,12 @@ function getRawCellValue(cell: any) {
     else if ('formula' in cell.value) {
       // Get the result of the formula
       return cell.value.result;
-    } else if ('error' in cell.value) {
+    }
+    else if('sharedFormula' in cell.value){
+      // Get the result of the shared formula
+      return cell.value.result;
+    }
+    else if ('error' in cell.value) {
       // Get the error value
       return cell.value.error;
     } else if (cell.value instanceof Date) {
@@ -791,7 +796,7 @@ async function getBoundarySheetData(
     }
 
     if (request?.query?.type === "boundaryManagement" || request?.query?.type === 'boundaryGeometryManagement') {
-      headerColumnsAfterHierarchy = getLocalizedHeaders(["HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_LAT", "HCM_ADMIN_CONSOLE_LONG"], localizationMap);
+      headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
     }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
@@ -839,6 +844,66 @@ async function getBoundarySheetData(
   }
 }
 
+async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request:any, localizationMap?: { [key: string]: string }) {
+try {
+  const mdmsResponse = await callMdmsTypeSchema(
+    request,
+    request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+    false,
+    request?.query?.type || request?.body?.ResourceDetails?.type,
+    "all"
+  );
+  if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
+    logger.error(
+      `Campaign Type all has not any columns configured in schema`
+    );
+    throwError(
+      "COMMON",
+      400,
+      "SCHEMA_ERROR",
+      `Campaign Type all has not any columns configured in schema`
+    );
+  }
+  // Extract columns from the response
+  const columnsForGivenCampaignId = mdmsResponse?.columns;
+
+  // Get localized headers based on the column names
+  const headerColumnsAfterHierarchy = getLocalizedHeaders(
+    columnsForGivenCampaignId,
+    localizationMap
+  );
+  if (
+    !headerColumnsAfterHierarchy.includes(
+      getLocalizedName(config.boundary.boundaryCode, localizationMap)
+    )
+  ) {
+    logger.error(
+      `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+        config.boundary.boundaryCode,
+        localizationMap
+      )} column`
+    );
+    throwError(
+      "COMMON",
+      400,
+      "VALIDATION_ERROR",
+      `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+        config.boundary.boundaryCode,
+        localizationMap
+      )} column`
+    );
+  }
+  return headerColumnsAfterHierarchy;
+} catch (error: any) {
+  console.log(error);
+  throwError(
+    "FILE",
+    400,
+    "FETCHING_COLUMN_ERROR",
+    "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+  );
+}
+}
 async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
@@ -1403,5 +1468,6 @@ export {
   getSheetDataFromWorksheet,
   createStaffHelper,
   createProjectFacilityHelper, createProjectResourceHelper,
-  createAndUploadJsonFile
+  createAndUploadJsonFile,
+  getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement
 };
