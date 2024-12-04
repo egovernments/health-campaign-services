@@ -31,6 +31,8 @@ public class ErrorCode {
 
     public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG = "Attribute Value provided against the attribute definition of type multi value list must be an instance of list";
 
+    public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG = "Attribute Value provided against the attribute definition of type boolean must be an instance of boolean";
+
     public static final String INVALID_SIZE_OF_INPUT_CODE = "INVALID_SIZE_OF_INPUT_CODE";
 
     public static final String INVALID_SIZE_OF_TEXT_MSG = "Text value cannot be of length greater than configured length ";
