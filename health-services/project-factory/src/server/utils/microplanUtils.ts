@@ -29,7 +29,7 @@ export const filterData = (data: any) => {
 
 
 export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
-  const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+  const fileResponse = await httpRequest(`${config.host.filestore}${config.paths.filestore}/url`, {}, { tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
@@ -38,7 +38,7 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
     acc[role.role] = role.code;
     return acc;
   }, {});
-  var userMapping: any = {};
+  const userMapping: any = {};
   for (const sheetName of Object.keys(rolesCodeMapping)) {
     const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap));
     for (const user of dataOfSheet) {
@@ -65,7 +65,7 @@ export function getAllUserData(request: any, userMapping: any, localizationMap: 
   const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
   validateInConsistency(request, userMapping, emailKey, nameKey);
   validateNationalDuplicacy(request, userMapping, phoneNumberKey);
-  var dataToCreate: any = [];
+  const dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
     const email = userMapping[phoneNumber]?.[0]?.[emailKey] || null;
@@ -84,7 +84,7 @@ export function getAllUserData(request: any, userMapping: any, localizationMap: 
 }
 
 function validateInConsistency(request: any, userMapping: any, emailKey: any, nameKey: any) {
-  let overallInconsistencies: string[] = []; // Collect all inconsistencies here
+  const overallInconsistencies: string[] = []; // Collect all inconsistencies here
 
   enrichInconsistencies(overallInconsistencies, userMapping, nameKey, emailKey);
   if (overallInconsistencies.length > 0) {
@@ -102,7 +102,7 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
     const users = userMapping[phoneNumber];
 
     for (const user of users) {
-      if (user.role && user.role.startsWith("Root ")) {
+      if (user.role?.startsWith("Root ")) {
         // Trim the role
         const trimmedRole = user.role.replace("Root ", "").trim().toLowerCase();
         const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
@@ -149,8 +149,8 @@ function convertDataSheetWise(userMapping: any) {
 
 function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
   // Create the error message mentioning all the records for this phone number
-  var errors: any = []
-  let errorMessage = `User details for the same contact number isn’t matching. Please check the user’s name or email ID`;
+  const errors: any = []
+  const errorMessage = `User details for the same contact number isn't matching. Please check the user's name or email ID`;
   for (const record of userRecords) {
     errors.push({ rowNumber: record.row, sheetName: record.sheet, status: "INVALID", errorDetails: errorMessage });
   }
@@ -162,7 +162,7 @@ function enrichInconsistencies(overallInconsistencies: any, userMapping: any, na
   for (const phoneNumber in userMapping) {
     if (phoneNumber && phoneNumber != 'undefined') {
       const users = userMapping[phoneNumber];
-      let userRecords: any[] = [];
+      const userRecords: any[] = [];
 
       // Collect all user data for this phone number
       for (const user of users) {
@@ -233,8 +233,8 @@ function lockTillStatus(workbook: any) {
 }
 
 export function lockWithConfig(sheet: any) {
-  for (let row = 1; row <= parseInt(config.values.unfrozeTillRow); row++) {
-    for (let col = 1; col <= parseInt(config.values.unfrozeTillColumn); col++) {
+  for (let row = 1; row <= Number.parseInt(config.values.unfrozeTillRow); row++) {
+    for (let col = 1; col <= Number.parseInt(config.values.unfrozeTillColumn); col++) {
       const cell = sheet.getCell(row, col);
       if (!cell.value && cell.value !== 0) {
         cell.protection = { locked: false };
@@ -411,7 +411,7 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
   if (request?.body?.isSourceMicroplan && request?.query?.type == 'facilityWithBoundary') {
     // Extract the boundary hierarchy from the request body
     const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
-    var villageIndex: any;
+    let villageIndex: any;
     // Determine the `villageIndex` based on the hierarchy length if present
     if (hierarchy) {
       // Set `villageIndex` to the last element in the hierarchy (boundary hierarchy depth)
@@ -421,7 +421,7 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
       let maxBoundaryDataLength = 0;
 
       // Iterate through `boundaryData` to find the maximum length of any boundary array
-      for (let boundary of boundaryData) {
+      for (const boundary of boundaryData) {
         if (boundary?.length > maxBoundaryDataLength) {
           maxBoundaryDataLength = boundary?.length;
         }
