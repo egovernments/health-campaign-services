@@ -22,11 +22,11 @@ async function consolidateBoundaries(messageObject: any, hierarchyType: any, ten
     header
   );
   if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]) {
-    var boundaryChildren = boundaries.reduce((acc: any, boundary: any) => {
+    const boundaryChildren = boundaries.reduce((acc: any, boundary: any) => {
       acc[boundary.code] = boundary?.includeAllChildren;
       return acc;
     }, {});
-    var boundaryCodes = new Set(
+    const boundaryCodes = new Set(
       boundaries.map((boundary: any) => boundary.code)
     );
     await processBoundary(
