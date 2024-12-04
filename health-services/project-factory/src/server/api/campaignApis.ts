@@ -47,7 +47,7 @@ import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignU
 import { validateMicroplanFacility } from "../validators/microplanValidators";
 import {
   createPlanFacilityForMicroplan,
-  isMicropplanCampaignId,
+  isMicroplanCampaignId,
   updateFacilityDetailsForMicroplan,
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
@@ -249,7 +249,7 @@ async function updateErrorsForUser(
   userNameAndPassword: any[]
 ) {
   const isSourceMicroplan =
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
@@ -858,7 +858,7 @@ async function processValidateAfterSchema(
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
     if (
-      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
+      await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "facility"
     ) {
       validateMicroplanFacility(request, dataFromSheet, localizationMap);
@@ -887,7 +887,7 @@ export async function processValidateAfterSchemaSheetWise(
   localizationMap?: { [key: string]: string }
 ) {
   if (
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
     request.body.ResourceDetails.type == "user"
   ) {
     await generateProcessedFileAndPersist(request, localizationMap);
@@ -1014,7 +1014,7 @@ async function processValidate(
     if (type == "facility" || type == "user") {
       const isUpdate = request?.body?.parentCampaignObject ? true : false;
       if (
-        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ) {
         schema = await callMdmsTypeSchema(
           request,
@@ -1030,7 +1030,7 @@ async function processValidate(
     const translatedSchema = await translateSchema(schema, localizationMap);
     if (Array.isArray(dataFromSheet)) {
       if (
-        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ) {
         await validateSheetData(
           dataFromSheet,
@@ -1501,7 +1501,7 @@ async function processAfterValidation(
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
     if (
-      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
+      await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "user"
     ) {
       await processSearchAndValidation(request);
@@ -1572,7 +1572,7 @@ async function processCreate(request: any, localizationMap?: any) {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignType =
       responseFromCampaignSearch?.CampaignDetails[0]?.projectType;
-    if (await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+    if (await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
       logger.info(`Data create Source is MICROPLAN`);
       if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
         createAndSearchConfig.parseArrayConfig.parseLogic =
@@ -1641,7 +1641,7 @@ async function getSchema(
       "Fetching schema to validate the created data for type: " + type
     );
     if (
-      await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+      await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
     ) {
       const mdmsResponse = await callMdmsTypeSchema(
         request,

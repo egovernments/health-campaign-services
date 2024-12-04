@@ -93,7 +93,7 @@ import {
   modifyNewSheetData,
   unhideColumnsOfProcessedFile,
 } from "./onGoingCampaignUpdateUtils";
-import { changeCreateDataForMicroplan, isMicroplanRequest, isMicropplanCampaignId, lockSheet } from "./microplanUtils";
+import { changeCreateDataForMicroplan, isMicroplanRequest, isMicroplanCampaignId, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { searchMDMSDataViaV2Api } from "../api/coreApis";
@@ -329,7 +329,7 @@ async function deterMineLastColumnAndEnrichUserDetails(
 
   // Update columns if the request indicates a different source
   if (
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
   ) {
     usernameColumn = "F";
     passwordColumn = "G";
@@ -535,7 +535,7 @@ async function updateStatusFile(
     "get"
   );
   const isLockSheetNeeded =
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ? true
       : false;
 
@@ -595,7 +595,7 @@ async function updateStatusFileForEachSheets(
     "get"
   );
   const isLockSheetNeeded =
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
       ? true
       : false;
 
@@ -702,7 +702,7 @@ async function processData(
   const requiresToSearchFromSheet =
     createAndSearchConfig?.requiresToSearchFromSheet;
   const isSourceMicroplan =
-    await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
+    await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   var createData = [],
     searchData = [];
   for (const data of dataFromSheet) {
@@ -810,7 +810,7 @@ async function generateProcessedFileAndPersist(
 ) {
   if (
     request.body.ResourceDetails.type == "boundaryWithTarget" ||
-    (await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
+    (await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId) &&
       request.body.ResourceDetails.type == "user")
   ) {
     await updateStatusFileForEachSheets(request, localizationMap);
@@ -838,7 +838,7 @@ async function generateProcessedFileAndPersist(
       ...request?.body?.ResourceDetails?.additionalDetails,
       sheetErrors: request?.body?.additionalDetailsErrors,
       source:
-        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
           ? "microplan"
           : null,
     },
@@ -881,7 +881,7 @@ async function generateProcessedFileAndPersist(
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {
       source:
-        await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+        await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
           ? "microplan"
           : null,
       fileName:
@@ -2976,7 +2976,7 @@ async function updateAndPersistResourceDetails(
           ...request?.body?.ResourceDetails?.additionalDetails,
           sheetErrors: request?.body?.additionalDetailsErrors,
           source:
-            await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)
+            await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)
               ? "microplan"
               : null,
           [name]: [fileStoreId],

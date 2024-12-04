@@ -18,7 +18,7 @@ import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToR
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, isMicropplanCampaignId, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, isMicroplanCampaignId, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -544,7 +544,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
 
 async function createFacilitySheet(request: any, allFacilities: any[], localizationMap?: { [key: string]: string }) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const isSourceMicroplan = await isMicropplanCampaignId(request?.query?.campaignId);
+  const isSourceMicroplan = await isMicroplanCampaignId(request?.query?.campaignId);
   request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
@@ -1232,7 +1232,7 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const isSourceMicroplan = await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId);
+  const isSourceMicroplan = await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId);
   const type = request?.body?.ResourceDetails?.type;
   if (isSourceMicroplan) {
     if (type == 'user') {

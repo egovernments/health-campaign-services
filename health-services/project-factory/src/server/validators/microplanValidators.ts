@@ -3,7 +3,7 @@ import createAndSearch from "../config/createAndSearch";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { resourceDataStatuses } from "../config/constants";
 import config from "../config";
-import { isMicropplanCampaignId } from "../utils/microplanUtils";
+import { isMicroplanCampaignId } from "../utils/microplanUtils";
 
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
@@ -288,7 +288,7 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
 }
 
 export async function validateFacilityBoundaryForLowestLevel(request: any, boundaries: any, rowData: any, errors: any = [], localizationMap?: { [key: string]: string }) {
-    if (request?.body?.ResourceDetails?.type == "facility" && await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+    if (request?.body?.ResourceDetails?.type == "facility" && await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
         const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy
         const lastLevel = hierarchy?.[hierarchy.length - 1]?.boundaryType
         for (const data of rowData?.boundaryCodes) {

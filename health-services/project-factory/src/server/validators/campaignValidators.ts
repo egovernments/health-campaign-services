@@ -24,7 +24,7 @@ import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplate
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { isMicroplanRequest, isMicropplanCampaignId, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { isMicroplanRequest, isMicroplanCampaignId, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 
@@ -150,7 +150,7 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
         columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
     }
     const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
-    if (await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+    if (await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
         validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
@@ -296,7 +296,7 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
         if (request?.body?.ResourceDetails?.type == "user") {
             validatePhoneNumber(data, localizationMap);
         }
-        if (data?.length > 0 && await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+        if (data?.length > 0 && await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
             if (!request?.body?.parentCampaignObject && data[0]?.[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", localizationMap)]) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `${request?.body?.ResourceDetails?.type} template downloaded from update campaign flow has been uploaded in create campaign flow`);
             }
@@ -379,7 +379,7 @@ export async function validateViaSchemaSheetWise(dataFromExcel: any, schema: any
             const validationErrors: any[] = [];
             const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap);
             const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
-            if (request?.body?.ResourceDetails?.type == "user" && await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+            if (request?.body?.ResourceDetails?.type == "user" && await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
                 validateUserForMicroplan(data, sheetName, request, errorMap, newSchema, rowMapping, localizationMap);
             }
             else {

@@ -320,7 +320,7 @@ export function updateFacilityDetailsForMicroplan(request: any, createdData: any
 
 
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
-  if (request?.body?.ResourceDetails?.type == 'facility' &&  await isMicropplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
+  if (request?.body?.ResourceDetails?.type == 'facility' &&  await isMicroplanCampaignId(request?.body?.ResourceDetails?.campaignId)) {
     const allFacilityDatas = request?.body?.facilityDataForMicroplan;
     const planConfigurationId = request?.body?.ResourceDetails?.additionalDetails?.microplanId;
     request.body.MicroplanDetails = {
@@ -465,10 +465,10 @@ export async function getRolesForMicroplan(tenantId: string, localizationMap: an
 
 export async function isMicroplanRequest(request: any) {
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
-  return await isMicropplanCampaignId(campaignId);
+  return await isMicroplanCampaignId(campaignId);
 }
 
-export async function isMicropplanCampaignId(campaignId: string) {
+export async function isMicroplanCampaignId(campaignId: string) {
   if (campaignId == "microplan") return true;
   const query = `
     SELECT (additionaldetails->>'source' = 'microplan') AS is_microplan
