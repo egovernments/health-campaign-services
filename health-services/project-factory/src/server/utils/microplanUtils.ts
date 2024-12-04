@@ -133,7 +133,7 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
 }
 
 function convertDataSheetWise(userMapping: any) {
-  var sheetMapping: any = {}
+  const sheetMapping: any = {}
   for (const phoneNumber in userMapping) {
     const users = userMapping[phoneNumber];
     for (const user of users) {
