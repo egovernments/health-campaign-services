@@ -9,7 +9,7 @@ import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
-import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
+import { createProjectFacilityHelper, createProjectResourceHelper, createProjectStaffHelper } from "../api/genericApis";
 import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
@@ -562,18 +562,17 @@ export async function handleCampaignMapping(messageObject: any) {
     }
 }
 
-export async function handleStaffMapping(mappingArray: any[], campaignId: string, messageObject: any) {
+export async function handleStaffMapping(mappingArray: any[], campaignId: string, messageObject: any, type: string) {
     await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.inprogress);
     try {
-        const promises = []
-        logger.debug("Array of staff mapping: " + getFormattedStringForDebug(mappingArray));
-        for (const staffMapping of mappingArray) {
-            const { resource, projectId, resouceBody, tenantId, startDate, endDate } = staffMapping;
-            for (const resourceId of resource?.resourceIds) {
-                promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate))
-            }
-        }
-        await Promise.all(promises);
+        logger.debug(`staff mapping count: ${mappingArray.length}`);
+        await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
+        // for (const staffMapping of mappingArray) {
+        //     const { resource, projectId, resouceBody, tenantId, startDate, endDate } = staffMapping;
+        //     for (const resourceId of resource?.resourceIds) {
+        //         promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate))
+        //     }
+        // }
     } catch (error: any) {
         logger.error("Error in staff mapping: " + error);
         await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
@@ -583,18 +582,65 @@ export async function handleStaffMapping(mappingArray: any[], campaignId: string
     await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.completed);
 }
 
-export async function handleResourceMapping(mappingArray: any, campaignId: any, messageObject: any) {
-    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.inprogress);
-    try {
-        const promises = []
-        logger.debug("Arrray of resource mapping: " + getFormattedStringForDebug(mappingArray));
-        for (const mapping of mappingArray) {
-            const { resource, projectId, resouceBody, tenantId, startDate, endDate } = mapping;
-            for (const resourceId of resource?.resourceIds) {
-                promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
+async function processResourceOrFacilityOrUserMappingsInBatches(type: string, mappingArray: any, batchSize: number) {
+    logger.info("Processing resource mappings in batches...");
+    let promises: Promise<void>[] = [];
+    let totalCreated = 0; // To keep track of the total number of created resources
+    let batchCount = 0;   // To log batch-wise progress
+    // Determine the helper function to use based on the type
+    let createHelperFn: any;
+    if (type === 'resource') {
+        createHelperFn = createProjectResourceHelper;
+    } else if (type === 'staff') {
+        createHelperFn = createProjectStaffHelper;
+    } else if (type === 'facility') {
+        createHelperFn = createProjectFacilityHelper;
+    } else {
+        logger.error(`Unsupported type: ${type}`);
+        return;  // Exit the function if the type is unsupported
+    }
+
+    for (const mapping of mappingArray) {
+        const { resource, projectId, resouceBody, tenantId, startDate, endDate } = mapping;
+
+        for (const resourceId of resource?.resourceIds || []) {
+            try {
+                promises.push(
+                    createHelperFn(resourceId, projectId, resouceBody, tenantId, startDate, endDate).then(() => {
+                        totalCreated++;
+                    }).catch((error:any) => {
+                        logger.error(`Failed to create resource ${resourceId}:`, error);
+                    })
+                );
+            } catch (error) {
+                logger.error("Error adding promise to the batch:", error);
+            }
+
+            if (promises.length >= batchSize) {
+                batchCount++;
+                logger.info(`Processing batch ${batchCount} with ${promises.length} promises.`);
+                await Promise.all(promises); // Wait for all promises in the current batch
+                promises = []; // Reset the array for the next batch
             }
         }
+    }
+
+    // Process any remaining promises
+    if (promises.length > 0) {
+        batchCount++;
+        logger.info(`Processing final batch ${batchCount} with ${promises.length} promises.`);
         await Promise.all(promises);
+    }
+
+    logger.info(`Processing completed. Total resources created: ${totalCreated}`);
+}
+
+
+export async function handleResourceMapping(mappingArray: any[], campaignId: any, messageObject: any, type: string) {
+    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.inprogress);
+    try {
+        logger.debug(`Resource mapping count: ${mappingArray.length}`);
+        await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
     } catch (error: any) {
         logger.error("Error in resource mapping: " + error);
         await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
@@ -604,18 +650,17 @@ export async function handleResourceMapping(mappingArray: any, campaignId: any, 
     await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.completed);
 }
 
-export async function handleFacilityMapping(mappingArray: any, campaignId: any, messageObject: any) {
+export async function handleFacilityMapping(mappingArray: any, campaignId: any, messageObject: any, type: string) {
     await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.inprogress);
     try {
-        const promises = []
-        logger.debug("Array of facility mapping: " + getFormattedStringForDebug(mappingArray));
-        for (const mapping of mappingArray) {
-            const { resource, projectId, resouceBody, tenantId } = mapping;
-            for (const resourceId of resource?.resourceIds) {
-                promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
-            }
-        }
-        await Promise.all(promises);
+        logger.debug(`facility mapping count: ${mappingArray.length}`);
+        // for (const mapping of mappingArray) {
+        //     const { resource, projectId, resouceBody, tenantId } = mapping;
+        //     for (const resourceId of resource?.resourceIds) {
+        //         promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
+        //     }
+        // }
+        await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
     } catch (error: any) {
         logger.error("Error in facility mapping: " + error);
         await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
@@ -631,9 +676,9 @@ export async function processMapping(mappingObject: any) {
             const resourceMappingArray = mappingObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "resource");
             const facilityMappingArray = mappingObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "facility");
             const staffMappingArray = mappingObject?.mappingArray?.filter((mappingObject: any) => mappingObject?.type == "staff");
-            await handleResourceMapping(resourceMappingArray, mappingObject?.CampaignDetails?.id, mappingObject);
-            await handleFacilityMapping(facilityMappingArray, mappingObject?.CampaignDetails?.id, mappingObject);
-            await handleStaffMapping(staffMappingArray, mappingObject?.CampaignDetails?.id, mappingObject);
+            await handleResourceMapping(resourceMappingArray, mappingObject?.CampaignDetails?.id, mappingObject, "resource");
+            await handleFacilityMapping(facilityMappingArray, mappingObject?.CampaignDetails?.id, mappingObject, "facility");
+            await handleStaffMapping(staffMappingArray, mappingObject?.CampaignDetails?.id, mappingObject, "staff");
         }
         logger.info("Mapping completed successfully for campaign: " + mappingObject?.CampaignDetails?.id);
         mappingObject.CampaignDetails.status = campaignStatuses.inprogress
