@@ -103,6 +103,7 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
+import { MDMSModels } from "server/models";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2220,7 +2221,6 @@ async function createProject(
     var boundaries = request?.body?.boundariesCombined;
     if (boundaries && projectType && !projectId) {
       const projectTypeResponse = await getMDMSV1Data(
-        {},
         "HCM-PROJECT-TYPES",
         "projectTypes",
         tenantId
@@ -3452,7 +3452,6 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (
       : campaignType;
     const isUpdate = request?.body?.parentCampaignObject ? true : false;
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
       isUpdate,
       request?.query?.type || request?.body?.ResourceDetails?.type,
@@ -3623,11 +3622,13 @@ async function getDifferentTabGeneratedBasedOnConfig(
 
 async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
   const responseFromCampaignSearch = await getCampaignSearchResponse(request);
-  const MdmsCriteria: any = {
-    tenantId: tenantId,
-    schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`,
-    filters: {
-      hierarchy: responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType,
+  const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
+    MdmsCriteria: {
+      tenantId: tenantId,
+      schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`,
+      filters: {
+        hierarchy: responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType,
+      },
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);

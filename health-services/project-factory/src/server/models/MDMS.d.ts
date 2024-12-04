@@ -30,6 +30,7 @@ interface MDMSv2Criteria {
   schemaCode: string; // Code representing the schema to query
   ids?: string[]; // Optional array of specific IDs to fetch
   uniqueIdentifiers?: string[]; // Optional array of unique identifiers for the data
+  filters?: any; // Optional array of filters to apply
 }
 
 /**

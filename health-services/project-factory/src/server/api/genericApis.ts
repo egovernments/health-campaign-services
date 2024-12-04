@@ -1335,7 +1335,7 @@ async function callMdmsTypeSchema(
   type: any,
   campaignType = "all"
 ) {
-  const MDMSCriteria: MDMSModels.MDMSv2RequestCriteria = {
+  const request: MDMSModels.MDMSv2RequestCriteria = {
     MdmsCriteria: {
       tenantId: tenantId,
       uniqueIdentifiers: [
@@ -1345,7 +1345,7 @@ async function callMdmsTypeSchema(
     }
   };
   
-  const response = await searchMDMSDataViaV2Api(MDMSCriteria);
+  const response = await searchMDMSDataViaV2Api(request);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
