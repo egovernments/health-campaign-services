@@ -3535,10 +3535,7 @@ async function getFinalValidHeadersForTargetSheetAsPerCampaignType(
           "COMMON",
           400,
           "VALIDATION_ERROR",
-          `${getLocalizedName(
-            config?.boundary?.generateDifferentTabsOnBasisOf,
-            localizationMap
-          )} level not present in the hierarchy`
+          `${differentTabsBasedOnLevel} level not present in the hierarchy`
         );
   }
   const columnFromSchemaOfTargetTemplate = await generateDynamicTargetHeaders(
