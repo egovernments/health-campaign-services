@@ -33,12 +33,16 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
-  const rolesForMicroplan = await getRolesForMicroplan(tenantId);
+  const rolesForMicroplanWithCode = await getRolesForMicroplan(tenantId, localizationMap, true);
+  const rolesCodeMapping = rolesForMicroplanWithCode.reduce((acc: any, role: any) => {
+    acc[role.role] = role.code;
+    return acc;
+  }, {});
   var userMapping: any = {};
-  for (const sheetName of rolesForMicroplan) {
+  for (const sheetName of Object.keys(rolesCodeMapping)) {
     const dataOfSheet = filterData(await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, sheetName, true, undefined, localizationMap));
     for (const user of dataOfSheet) {
-      user.role = sheetName;
+      user.role = rolesCodeMapping?.[sheetName];
       user["!sheet#name!"] = sheetName;
       const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap)
       user[emailKey] = user[emailKey]?.text || user[emailKey];
@@ -432,22 +436,30 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
   return boundaryData;
 }
 
-export async function getRolesForMicroplan(tenantId: string) {
+export async function getRolesForMicroplan(tenantId: string, localizationMap: any, fetchWithRoleCodes: boolean = false) {
   const MdmsCriteria: any = {
     tenantId: tenantId,
     schemaCode: "hcm-microplanning.rolesForMicroplan",
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
   if (mdmsResponse?.mdms?.length > 0) {
-    return mdmsResponse?.mdms
-      ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
-      ?.map((role: any) => role?.data?.role); // Map to extract the role
+    if (fetchWithRoleCodes) {
+      // return array { role : "role", code : "roleCode" }
+      return mdmsResponse?.mdms?.filter((role: any) => role?.isActive)
+        ?.map((role: any) => ({ role: getLocalizedName(role?.data?.roleCode, localizationMap), code: role?.data?.roleCode }));
+    }
+    else {
+      return mdmsResponse?.mdms
+        ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
+        ?.map((role: any) => getLocalizedName(role?.data?.roleCode, localizationMap)); // Map to extract the role
+    }
   }
   else {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during rolesForMicroplan mdms search.`);
     return [];
   }
 }
+
 export async function isMicroplanRequest(request: any): Promise<boolean> {
   const campaignId = request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId;
   if (campaignId == "microplan") {

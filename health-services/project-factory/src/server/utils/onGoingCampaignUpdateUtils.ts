@@ -13,15 +13,15 @@ import { produceModifiedMessages } from "../kafka/Producer";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
-    const searchBodyForParent = {
-      RequestInfo: request.body.RequestInfo,
-      CampaignDetails: {
+    // const searchBodyForParent = {
+    //   RequestInfo: request.body.RequestInfo,
+      const CampaignDetails = {
         tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId || request?.body?.CampaignDetails?.tenantId,
         ids: [parentId]
       }
-    };
-    const req: any = replicateRequest(request, searchBodyForParent);
-    const parentSearchResponse = await searchProjectTypeCampaignService(req);
+    // };
+    // const req: any = replicateRequest(request, searchBodyForParent);
+    const parentSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
     console.error("Error fetching parent campaign object:", error);
@@ -340,10 +340,9 @@ async function getBoundariesFromCampaignSearchResponse(request: any, campaignDet
   return getBoundariesArray(parentCampaignBoundaries, campaignDetails?.boundaries)
 }
 
-async function fetchProjectsWithParentRootProjectId(request: any) {
-  const { projectId, tenantId } = request?.body?.parentCampaign;
+async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId: any) {
   const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo,
+    RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
     Projects: [
       {
         id: projectId,
@@ -368,7 +367,8 @@ async function fetchProjectsWithParentRootProjectId(request: any) {
   }
 }
 
-async function fetchProjectsWithBoundaryCodeAndName(boundaryCode: any, tenantId: any, projectName: any, RequestInfo?: any) {
+
+async function fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode: any, tenantId: any, referenceId: any, RequestInfo?: any) {
   try {
     const projectSearchBody = {
       RequestInfo: RequestInfo,
@@ -377,8 +377,8 @@ async function fetchProjectsWithBoundaryCodeAndName(boundaryCode: any, tenantId:
           address: {
             boundary: boundaryCode,
           },
-          name: projectName,
-          tenantId: tenantId
+          tenantId: tenantId,
+          referenceID: referenceId
         }
       ]
     }
@@ -501,7 +501,7 @@ async function fetchProjectStaffWithProjectId(request: any, projectId: any, staf
 }
 
 async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource: any, messageObject: any, boundaryCode: any, uniqueIdentifier: any, isDelink: boolean) {
-  const projectResponse = await fetchProjectsWithBoundaryCodeAndName(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignName, messageObject?.RequestInfo);
+  const projectResponse = await fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignNumber, messageObject?.RequestInfo);
   let matchingProjectObject: any;
   if (projectResponse) {
     matchingProjectObject = projectResponse?.Project[0];
@@ -799,10 +799,10 @@ export {
   validateBoundariesIfParentPresent,
   callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
-  fetchProjectsWithParentRootProjectId,
+  fetchProjectsWithProjectId,
   getBoundaryProjectMappingFromParentCampaign,
   fetchProjectFacilityWithProjectId,
-  fetchProjectsWithBoundaryCodeAndName,
+  fetchProjectsWithBoundaryCodeAndReferenceId,
   delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
   processResources
 }

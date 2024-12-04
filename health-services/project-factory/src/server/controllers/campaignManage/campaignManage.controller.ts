@@ -2,6 +2,7 @@ import * as express from "express";
 import { createCampaignService, createProjectTypeCampaignService, fetchFromMicroplanService, retryProjectTypeCampaignService, searchProcessTracksService, searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../../service/campaignManageService";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
+import { validateSearchProjectCampaignRequest } from "../../validators/campaignValidators";
 
 
 
@@ -82,7 +83,9 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
-            const responseBody = await searchProjectTypeCampaignService(request);
+            // Validate the search request for project type campaigns
+            await validateSearchProjectCampaignRequest(request);
+            const responseBody = await searchProjectTypeCampaignService(request?.body?.CampaignDetails);
             // Send response with campaign details and total count
             return sendResponse(response, responseBody, request);
         } catch (e: any) {

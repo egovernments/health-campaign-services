@@ -1360,9 +1360,12 @@ async function performAndSaveResourceActivity(
           newRequestBody
         );
       }
+      // wait for 5 seconds after each chunk
+      logger.info(`Waiting for 5 seconds after each chunk`);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
     await enrichAlreadyExsistingUser(request);
-    logger.info(`Waiting for 10 seconds`);
+    logger.info(`Final waiting for 10 seconds`);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     await confirmCreation(
       createAndSearchConfig,
@@ -1838,21 +1841,21 @@ async function projectCreate(projectCreateBody: any, request: any) {
     logger.info(
       `for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`
     );
-    if (
-      !request.body.newlyCreatedBoundaryProjectMap[
-      projectCreateBody?.Projects?.[0]?.address?.boundary
-      ]
-    ) {
-      request.body.newlyCreatedBoundaryProjectMap[
-        projectCreateBody?.Projects?.[0]?.address?.boundary
-      ] = {};
-    }
+    // if (
+    //   !request.body.newlyCreatedBoundaryProjectMap[
+    //   projectCreateBody?.Projects?.[0]?.address?.boundary
+    //   ]
+    // ) {
+    //   request.body.newlyCreatedBoundaryProjectMap[
+    //     projectCreateBody?.Projects?.[0]?.address?.boundary
+    //   ] = {};
+    // }
     request.body.boundaryProjectMapping[
       projectCreateBody?.Projects?.[0]?.address?.boundary
     ].projectId = projectCreateResponse?.Project[0]?.id;
-    request.body.newlyCreatedBoundaryProjectMap[
-      projectCreateBody?.Projects?.[0]?.address?.boundary
-    ].projectId = projectCreateResponse?.Project[0]?.id;
+    // request.body.newlyCreatedBoundaryProjectMap[
+    //   projectCreateBody?.Projects?.[0]?.address?.boundary
+    // ].projectId = projectCreateResponse?.Project[0]?.id;
   } else {
     throwError(
       "PROJECT",
@@ -1958,21 +1961,16 @@ const getHeadersOfBoundarySheet = async (
 async function getCampaignSearchResponse(request: any) {
   try {
     logger.info(`searching for campaign details`);
-    const requestInfo = { RequestInfo: request?.body?.RequestInfo };
-    const campaignDetails = {
-      CampaignDetails: {
+     const  CampaignDetails = {
         tenantId:
           request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
         ids: [
           request?.query?.campaignId ||
           request?.body?.ResourceDetails?.campaignId,
         ],
-      },
-    };
-    const requestBody = { ...requestInfo, ...campaignDetails };
-    const req: any = replicateRequest(request, requestBody);
+      }
     const projectTypeSearchResponse: any =
-      await searchProjectTypeCampaignService(req);
+      await searchProjectTypeCampaignService(CampaignDetails);
     return projectTypeSearchResponse;
   } catch (error: any) {
     logger.error(
