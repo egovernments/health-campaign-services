@@ -1041,7 +1041,7 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const tenantId = request?.query?.tenantId;
   const isSourceMicroplan = await isMicroplanRequest(request);
   if (isSourceMicroplan) {
-    const rolesForMicroplan = await getRolesForMicroplan(tenantId);
+    const rolesForMicroplan = await getRolesForMicroplan(tenantId, localizationMap);
     await generateUserSheetForMicroPlan(request, rolesForMicroplan, userData, localizationMap, fileUrl);
   }
   else {

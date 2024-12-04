@@ -6,12 +6,14 @@ import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
 import { campaignStatuses, resourceDataStatuses } from "../config/constants";
-import { createCampaignService } from "../service/campaignManageService";
+import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createStaffHelper } from "../api/genericApis";
 import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
+import { getHierarchy } from "../api/campaignApis";
+import { consolidateBoundaries } from "./boundariesConsolidationUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -25,7 +27,7 @@ async function createBoundaryWithProjectMapping(projects: any, boundaryWithProje
     }
 }
 
-function getPvarIds(messageObject: any) {
+export function getPvarIds(messageObject: any) {
     //update to set now
     logger.info("campaign product resource mapping started");
     const deliveryRules = messageObject?.CampaignDetails?.deliveryRules;
@@ -336,6 +338,21 @@ async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject
     logger.debug(`boundaryWise Project mapping : ${getFormattedStringForDebug(boundaryWithProject)}`);
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
 }
+function filterBoundariesByHierarchy(hierarchy: any, boundaries: any) {
+    // Iterate through the hierarchy in order
+    for (const level of hierarchy) {
+        // Find boundaries matching the current level type
+        const matchingBoundaries = boundaries.filter((boundary: any) => boundary.type === level);
+
+        if (matchingBoundaries.length > 0) {
+            // If matches are found, return them
+            return matchingBoundaries;
+        }
+    }
+
+    // If no matches are found, return an empty array
+    return [];
+}
 
 async function getProjectMappingBody(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const Campaign: any = {
@@ -343,22 +360,60 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
+    let newlyAddedBoundaryCodes = new Set(); // A set to store unique boundary codes
+    if (messageObject?.CampaignDetails?.parentId) {
+        const CampaignDetails = {
+            "ids": [messageObject?.CampaignDetails?.id],
+            "tenantId": messageObject?.CampaignDetails?.tenantId
+        }
+        const campaignSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
+        const boundaries = campaignSearchResponse?.CampaignDetails?.[0]?.boundaries;
+        const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
+        const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
+        for (const boundary of boundariesWhichAreRootInThisFlow) {
+            const boundaryCodesFetchedFromGivenRoot = await consolidateBoundaries(
+                messageObject,
+                messageObject?.CampaignDetails?.hierarchyType,
+                messageObject?.CampaignDetails?.tenantId,
+                boundary?.code,
+                boundaries
+            );
+            // Add each boundary code to the set if it exists
+            if (boundaryCodesFetchedFromGivenRoot &&
+                Array.isArray(boundaryCodesFetchedFromGivenRoot) &&
+                boundaryCodesFetchedFromGivenRoot.length > 0) {
+                boundaryCodesFetchedFromGivenRoot
+                    .filter((boundary: any) => boundary?.code) // Filter boundaries with valid codes
+                    .forEach((boundary: any) => newlyAddedBoundaryCodes.add(boundary.code));
+            }
+        }
+    }
 
 
     for (const key of Object.keys(boundaryWithProject)) {
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
-            if (messageObject?.Campaign?.newlyCreatedBoundaryProjectMap?.hasOwnProperty(key)) {
-                if (messageObject.Campaign.newlyCreatedBoundaryProjectMap[key]?.projectId) {
-                    const pvarIds = getPvarIds(messageObject);
-                    if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
-                        resources.push({
-                            type: "resource",
-                            resourceIds: pvarIds
-                        })
-                    }
+            if (messageObject?.CampaignDetails?.parentId && newlyAddedBoundaryCodes.has(key)) {
+                logger.info("project resource mapping for newly creted projects in update flow")
+                const pvarIds = getPvarIds(messageObject);
+                if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
+                    resources.push({
+                        type: "resource",
+                        resourceIds: pvarIds
+                    })
                 }
             }
+
+            if (!messageObject?.CampaignDetails?.parentId) {
+                const pvarIds = getPvarIds(messageObject);
+                if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
+                    resources.push({
+                        type: "resource",
+                        resourceIds: pvarIds
+                    })
+                }
+            }
+
             for (const type of Object.keys(boundaryCodes)) {
                 if (boundaryCodes[type][key] && Array.isArray(boundaryCodes[type][key]) && boundaryCodes[type][key].length > 0) {
                     resources.push({

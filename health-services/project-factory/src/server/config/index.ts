@@ -32,19 +32,15 @@ const config = {
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
     boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-    // Default criteria for generating different tabs
-    generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
     // default configurable number of data of boundary type on which generate different tabs
     numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
     boundaryRelationShipDelay: 3500
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-    facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-    userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
@@ -67,7 +63,7 @@ const config = {
     KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC: process.env.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC || "create-generated-resource-details",
     KAFKA_SAVE_PROCESS_TRACK_TOPIC: process.env.KAFKA_SAVE_PROCESS_TRACK_TOPIC || "save-process-track",
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
-    KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "save-plan-facility",
+    KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -90,7 +86,9 @@ const config = {
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
-    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz"
+    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
+    // incomingRequestPayloadLimit : process.env.REQUEST_PAYLOAD_LIMIT || "2mb" @ashish add this key and config helm chart values
+    incomingRequestPayloadLimit: "2mb"
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
@@ -165,7 +163,7 @@ const config = {
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "10000",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
-    readMeTab: "HCM_README_SHEETNAME",
+    readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: "mz",
     userMainBoundaryType: "Country",
     idgen: {

@@ -34,7 +34,7 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
-  const rolesForMicroplanWithCode = await getRolesForMicroplan(tenantId, true);
+  const rolesForMicroplanWithCode = await getRolesForMicroplan(tenantId, localizationMap, true);
   const rolesCodeMapping = rolesForMicroplanWithCode.reduce((acc: any, role: any) => {
     acc[role.role] = role.code;
     return acc;
@@ -341,6 +341,7 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
   const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
   const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
   const facilityType = element?.facilityDetails?.usage;
+  const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
   const currTime = new Date().getTime();
   const planFacilityProduceObject: any = {
     PlanFacility: {
@@ -358,7 +359,8 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
         facilityType: facilityType,
         facilityStatus: facilityStatus,
         assignedVillages: [],
-        servingPopulation: 0
+        servingPopulation: 0,
+        hierarchyType: hierarchyType
       },
       active: true,
       auditDetails: {
@@ -437,7 +439,7 @@ export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: an
   return boundaryData;
 }
 
-export async function getRolesForMicroplan(tenantId: string, fetchWithRoleCodes: boolean = false) {
+export async function getRolesForMicroplan(tenantId: string, localizationMap: any, fetchWithRoleCodes: boolean = false) {
   const MdmsCriteria: any = {
     tenantId: tenantId,
     schemaCode: "hcm-microplanning.rolesForMicroplan",
@@ -447,12 +449,12 @@ export async function getRolesForMicroplan(tenantId: string, fetchWithRoleCodes:
     if (fetchWithRoleCodes) {
       // return array { role : "role", code : "roleCode" }
       return mdmsResponse?.mdms?.filter((role: any) => role?.isActive)
-        ?.map((role: any) => ({ role: role?.data?.role, code: role?.data?.roleCode }));
+        ?.map((role: any) => ({ role: getLocalizedName(role?.data?.roleCode, localizationMap), code: role?.data?.roleCode }));
     }
     else {
       return mdmsResponse?.mdms
         ?.filter((role: any) => role?.isActive) // Filter roles with isActive true
-        ?.map((role: any) => role?.data?.role); // Map to extract the role
+        ?.map((role: any) => getLocalizedName(role?.data?.roleCode, localizationMap)); // Map to extract the role
     }
   }
   else {
