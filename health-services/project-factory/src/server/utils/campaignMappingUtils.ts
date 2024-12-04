@@ -42,7 +42,7 @@ export function getPvarIds(messageObject: any) {
             }
         }
     }
-    logger.info("campaign product resource found items  : " + JSON.stringify(uniquePvarIds));
+    logger.info(`campaign product resource found items : ${JSON.stringify(uniquePvarIds)}`);
     return Array.from(uniquePvarIds); // Convert Set to array before returning
 }
 
@@ -173,8 +173,8 @@ async function fetchActiveIdentifiersFromParentCampaign(
         );
 
         if (matchingParentResource) {
-            const parentCreateResouceId = matchingParentResource.createResourceId || '';
-            const searchCriteria = buildSearchCriteria(messageObject, [parentCreateResouceId], matchingParentResource?.type);
+            const parentCreateResourceId = matchingParentResource.createResourceId || '';
+            const searchCriteria = buildSearchCriteria(messageObject, [parentCreateResourceId], matchingParentResource?.type);
             const responseFromDataSearch = await searchDataService(replicateRequest(messageObject, searchCriteria));
 
             const parentProcessedFileStoreId = responseFromDataSearch?.[0]?.processedFilestoreId;
@@ -206,7 +206,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
     const resourcesFromParentCampaign = messageObject?.parentCampaign?.resources || [];
     for (const resource of resources) {
         const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
-        var activeColumn: any;
+        let activeColumn: any;
         if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
             activeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.activeColumnName, localizationMap);
         }
@@ -227,7 +227,7 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
                 if (code) {
                     // Extract boundary codes
                     const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
-                    var active: any = "Active";
+                    let active: any = "Active";
                     if (createAndSearch?.[resource?.type]?.activeColumn && createAndSearch?.[resource?.type]?.activeColumnName) {
                         active = data[activeColumn];
                     }
@@ -360,7 +360,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
-    let newlyAddedBoundaryCodes = new Set(); // A set to store unique boundary codes
+    const newlyAddedBoundaryCodes = new Set(); // A set to store unique boundary codes
     if (messageObject?.CampaignDetails?.parentId) {
         const CampaignDetails = {
             "ids": [messageObject?.CampaignDetails?.id],
@@ -394,7 +394,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         if (boundaryWithProject[key]) {
             const resources: any[] = [];
             if (messageObject?.CampaignDetails?.parentId && newlyAddedBoundaryCodes.has(key)) {
-                logger.info("project resource mapping for newly creted projects in update flow")
+                logger.info("project resource mapping for newly created projects in update flow")
                 const pvarIds = getPvarIds(messageObject);
                 if (pvarIds && Array.isArray(pvarIds) && pvarIds.length > 0) {
                     resources.push({
