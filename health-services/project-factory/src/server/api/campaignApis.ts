@@ -1849,21 +1849,21 @@ async function projectCreate(projectCreateBody: any, request: any) {
     logger.info(
       `for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`
     );
-    if (
-      !request.body.newlyCreatedBoundaryProjectMap[
-      projectCreateBody?.Projects?.[0]?.address?.boundary
-      ]
-    ) {
-      request.body.newlyCreatedBoundaryProjectMap[
-        projectCreateBody?.Projects?.[0]?.address?.boundary
-      ] = {};
-    }
+    // if (
+    //   !request.body.newlyCreatedBoundaryProjectMap[
+    //   projectCreateBody?.Projects?.[0]?.address?.boundary
+    //   ]
+    // ) {
+    //   request.body.newlyCreatedBoundaryProjectMap[
+    //     projectCreateBody?.Projects?.[0]?.address?.boundary
+    //   ] = {};
+    // }
     request.body.boundaryProjectMapping[
       projectCreateBody?.Projects?.[0]?.address?.boundary
     ].projectId = projectCreateResponse?.Project[0]?.id;
-    request.body.newlyCreatedBoundaryProjectMap[
-      projectCreateBody?.Projects?.[0]?.address?.boundary
-    ].projectId = projectCreateResponse?.Project[0]?.id;
+    // request.body.newlyCreatedBoundaryProjectMap[
+    //   projectCreateBody?.Projects?.[0]?.address?.boundary
+    // ].projectId = projectCreateResponse?.Project[0]?.id;
   } else {
     throwError(
       "PROJECT",
