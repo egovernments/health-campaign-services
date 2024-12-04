@@ -24,7 +24,7 @@ async function getParentCampaignObject(request: any, parentId: any) {
     const parentSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
-    console.error("Error fetching parent campaign object:", error);
+    logger.error("Error fetching parent campaign object:", error);
     throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign fetching error ");
   }
 }
