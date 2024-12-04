@@ -35,11 +35,9 @@ const config = {
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-    facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-    userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
@@ -151,7 +149,7 @@ const config = {
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "10000",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
-    readMeTab: "HCM_README_SHEETNAME",
+    readMeTab:  process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: "mz",
     userMainBoundaryType: "Country",
     idgen: {
