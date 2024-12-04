@@ -227,13 +227,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         if(isPredictionEnabled){
             addPredictionPlot(dataList,predictionPath,distributionPath,actualEpochKeys, finalStartDate);
         }
-        if (action.equals(IResponseHandler.DIVISIONBYCONSTANT))  {
-            dataList = actionsHelper.divisionByConstant(action, dataList, chartNode,divisorValues);
-        }
 
-        if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
-            dataList = actionsHelper.divide(action, dataList, chartNode);
-        }
         if(chartNode.has(COMPUTE_MULTIPLE_PATHS) && chartNode.get(COMPUTE_MULTIPLE_PATHS).asBoolean()) {
             List<ComputedFields> computedFieldsList = mapper.readValue(computedFields.toString(), new TypeReference<List<ComputedFields>>() {
             });
@@ -245,6 +239,15 @@ public class LineChartResponseHandler implements IResponseHandler {
 
             }
         }
+
+        if (action.equals(IResponseHandler.DIVISIONBYCONSTANT))  {
+            dataList = actionsHelper.divisionByConstant(action, dataList, chartNode,divisorValues);
+        }
+
+        if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
+            dataList = actionsHelper.divide(action, dataList, chartNode);
+        }
+
         //"sort" key as final String
         if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has(SORT)) {
             String sortingKey = computedFields.get(0).get(SORT).asText();
