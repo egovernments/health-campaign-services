@@ -35,7 +35,7 @@ public class ProjectFactoryCreatePlanFacilityConsumer {
         this.repository = repository;
     }
 
-    @KafkaListener(topics = {"${plan.facility.create.topic}"})
+    @KafkaListener(topics = {"${project.factory.save.plan.facility.consumer.topic}"})
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanFacilityRequest planFacilityRequest = objectMapper.convertValue(consumerRecord, PlanFacilityRequest.class);
