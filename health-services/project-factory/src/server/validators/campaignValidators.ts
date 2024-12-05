@@ -1478,13 +1478,19 @@ function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localized
 export function validateEmptyActive(data: any, type: string, localizationMap?: { [key: string]: string }) {
     let isActiveRowsZero = true;
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
-    data.forEach((item: any) => {
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active") {
-            isActiveRowsZero = false;
-            return;
-        }
-    });
+    if(Array.isArray(data)){
+        data.forEach((item: any) => {
+            const active = activeColumnName ? item[activeColumnName] : "Active";
+            if (active == "Active") {
+                isActiveRowsZero = false;
+                return;
+            }
+        });
+    }
+    else{
+        // Data is not coming from a single sheet so no require for this active check
+        isActiveRowsZero = false;
+    }
     if(isActiveRowsZero){
         throwError("COMMON", 400, "VALIDATION_ERROR", "At least one active row is required");
     }
