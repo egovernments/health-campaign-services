@@ -118,7 +118,7 @@ public class StockReconciliationTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime()))
                 .build();
-        stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId());
+        stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId(), project.getName());
         return stockReconciliationIndexV1;
     }
 

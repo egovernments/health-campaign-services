@@ -140,8 +140,10 @@ public class ProjectTransformationService {
                             .additionalDetails(additionalDetails)
                             .boundaryHierarchy(boundaryHierarchy)
                             .boundaryHierarchyCode(boundaryHierarchyCode)
+                            .referenceID(project.getReferenceID())
+                            .projectNumber(project.getProjectNumber())
                             .build();
-                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId);
+                    projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
                     return projectIndexV1;
                 }
         ).collect(Collectors.toList());

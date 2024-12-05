@@ -87,7 +87,7 @@ public class ProjectStaffTransformationService {
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
                 .build();
-        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId);
+        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         return projectStaffIndexV1;
     }
 }

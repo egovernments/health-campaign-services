@@ -79,6 +79,7 @@ public class ReferralTransformationService {
         String projectId = null;
         String projectType = null;
         String projectTypeId = null;
+        String projectName = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
@@ -86,6 +87,7 @@ public class ReferralTransformationService {
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
             projectType = project.getProjectType();
+            projectName = project.getName();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -129,7 +131,7 @@ public class ReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
+        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
         return referralIndexV1;
     }
 }

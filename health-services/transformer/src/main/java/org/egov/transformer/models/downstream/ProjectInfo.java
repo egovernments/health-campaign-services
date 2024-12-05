@@ -17,10 +17,13 @@ public class ProjectInfo {
     protected String projectType;
     @JsonProperty("projectTypeId")
     protected String projectTypeId;
+    @JsonProperty("projectName")
+    protected String projectName;
 
-    public void setProjectInfo(String projectId, String projectType, String projectTypeId) {
+    public void setProjectInfo(String projectId, String projectType, String projectTypeId, String projectName) {
         this.projectId = projectId;
         this.projectType = projectType;
         this.projectTypeId = projectTypeId;
+        this.projectName = projectName;
     }
 }

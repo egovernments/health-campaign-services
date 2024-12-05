@@ -114,7 +114,7 @@ public class ReferralServiceTaskTransformationService {
                         .boundaryHierarchyCode(boundaryHierarchyCode)
                         .additionalDetails(additionalDetails)
                         .build();
-                referralServiceTaskIndexV1.setProjectInfo(projectId, projectType, projectTypeId);
+                referralServiceTaskIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
                 searchAndSetAttribute(attributeValueList, value, referralServiceTaskIndexV1);
                 referralServiceTaskIndexV1List.add(referralServiceTaskIndexV1);
             });

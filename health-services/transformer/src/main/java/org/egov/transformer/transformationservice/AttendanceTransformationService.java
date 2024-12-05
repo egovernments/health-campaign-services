@@ -1,6 +1,7 @@
 package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
@@ -10,6 +11,7 @@ import org.egov.transformer.models.attendance.IndividualEntry;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
 import org.egov.transformer.models.downstream.AttendanceRegisterIndexV1;
+import org.egov.transformer.models.downstream.ProjectInfo;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.AttendanceRegisterService;
 import org.egov.transformer.service.BoundaryService;
@@ -143,9 +145,9 @@ public class AttendanceTransformationService {
             boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
         }
         else {
-            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
-            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-                String projectId = projectIdProjectTypeId.split(":")[0];
+            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
+            if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
+                String projectId = projectInfo.getProjectId();
                 boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
             }
         }
