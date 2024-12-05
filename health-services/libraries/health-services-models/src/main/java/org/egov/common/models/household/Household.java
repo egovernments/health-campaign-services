@@ -45,7 +45,7 @@ public class Household {
 
     @JsonProperty("memberCount")
     @NotNull
-    @Range(min = 0, max = 1000)
+    @Range(min = 0, max = 10000)
     private Integer memberCount = null;
 
     @JsonProperty("address")
