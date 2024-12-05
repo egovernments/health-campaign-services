@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -128,6 +129,19 @@ public class CommonUtils {
             localityCode = additionalDetails.asText();
         }
         return localityCode;
+    }
+
+    public String getLocalityCodeFromAdditionalFields(Object additionalFields) {
+        if(additionalFields == null) return null;
+        AtomicReference<String> localityCode = new AtomicReference<>();
+        JsonNode node = objectMapper.valueToTree(additionalFields);
+        ArrayNode fields = (ArrayNode) node.get(ADDITIONAL_FIELDS_FIELDS_KEY);
+        fields.spliterator().forEachRemaining(field -> {
+            if(BOUNDARY_CODE_KEY.equals(field.get(ADDITIONAL_FIELDS_FIELDS_KEY_KEY).asText())) {
+                localityCode.set(field.get(ADDITIONAL_FIELDS_FIELDS_VALUE_KEY).asText());
+            }
+        });
+        return localityCode.get();
     }
 
     public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
