@@ -32,12 +32,16 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = request.query.type;
     // Get response data from the database
-    var responseData = await searchGeneratedResources(request);
+    const responseData = await searchGeneratedResources(request);
     const resourceDetails = await getResourceDetails(request);
 
     // Check if response data is available
-    if (!responseData || responseData.length === 0 && !request?.query?.id || responseData?.[0]?.status === generatedResourceStatuses.failed) {
-        logger.error("No data of type  " + type + " with status Completed or with given id present in db ")
+    if (
+      !responseData ||
+      (responseData.length === 0 && !request?.query?.id) ||
+      responseData?.[0]?.status === generatedResourceStatuses.failed
+    ) {
+        logger.error(`No data of type ${type} with status Completed or with given id present in db`)
         // Throw error if data is not found
         const newRequestBody = {
             RequestInfo: request?.body?.RequestInfo

@@ -91,7 +91,7 @@ function validateInConsistency(request: any, userMapping: any, emailKey: any, na
     request.body.ResourceDetails.status = resourceDataStatuses.invalid
   }
 
-  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
+  request.body.sheetErrorDetails = Array.isArray(request.body.sheetErrorDetails) ? [...request.body.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
 }
 
 function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKey: any) {
@@ -150,7 +150,7 @@ function convertDataSheetWise(userMapping: any) {
 function getInconsistencyErrorMessage(phoneNumber: any, userRecords: any) {
   // Create the error message mentioning all the records for this phone number
   const errors: any = []
-  const errorMessage = `User details for the same contact number isn't matching. Please check the user's name or email ID`;
+  const errorMessage = `User details for the same contact number don't match. Please check the user's name or email ID`;
   for (const record of userRecords) {
     errors.push({ rowNumber: record.row, sheetName: record.sheet, status: "INVALID", errorDetails: errorMessage });
   }
@@ -337,7 +337,9 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
 
 function getPlanFacilityObject(request: any, element: any, planConfigurationName: any, planConfigurationId: any, localizationMap?: any) {
   const residingBoundariesColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN`, localizationMap);
-  const singularResidingBoundary = element?.[residingBoundariesColumn]?.split(",")?.[0];
+  const singularResidingBoundary = element?.[residingBoundariesColumn]
+    ? element[residingBoundariesColumn].split(",")[0]
+    : null;
   const facilityStatus = element?.facilityDetails?.isPermanent ? "Permanent" : "Temporary";
   const facilityType = element?.facilityDetails?.usage;
   const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
