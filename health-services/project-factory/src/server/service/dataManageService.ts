@@ -47,7 +47,7 @@ const downloadDataService = async (request: express.Request) => {
             tenantId: request?.query?.tenantId,
             forceUpdate: 'true',
             hierarchyType: request?.query?.hierarchyType,
-            campaignId :request?.query?.campaignId,
+            campaignId: request?.query?.campaignId,
         };
         const newRequestToGenerate = replicateRequest(request, newRequestBody, params);
         // Added auto generate since no previous generate request found
@@ -60,11 +60,11 @@ const downloadDataService = async (request: express.Request) => {
     // Send response with resource details
     if (resourceDetails != null && responseData != null && responseData.length > 0) {
         responseData[0].additionalDetails = {
-            ...responseData[0].additionalDetails, 
+            ...responseData[0].additionalDetails,
             ...resourceDetails.additionalDetails // Spread the properties of resourceDetails.additionalDetails
         };
     }
-    
+
     return responseData;
 }
 
@@ -94,14 +94,14 @@ const getBoundaryDataService = async (
             logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
         }
         const workbook = getNewExcelWorkbook();
-        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType),true);
+        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
         const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         // Retrieve boundary sheet data
         const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-        addDataToSheet(request,boundarySheet, boundarySheetData, '93C47D', 40, true);
+        addDataToSheet(request, boundarySheet, boundarySheetData, '93C47D', 40, true);
         const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
         // Return boundary file details
         logger.info("RETURNS THE BOUNDARY RESPONSE");
@@ -120,7 +120,10 @@ const getBoundaryDataService = async (
 
 const createDataService = async (request: any) => {
 
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+    const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
+    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId, getLocalisationModuleName(hierarchyType), true);
+    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     // Validate the create request
     logger.info("Validating data create request")
     await validateCreateRequest(request, localizationMap);

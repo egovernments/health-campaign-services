@@ -17,6 +17,7 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  batchSize:100,
   cacheTime: 300,
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
