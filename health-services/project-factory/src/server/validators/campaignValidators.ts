@@ -1372,12 +1372,12 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         const MissingDistricts: any = [];
         const campaignBoundaries = request?.body?.campaignBoundaries;
         if (campaignBoundaries && campaignBoundaries?.length > 0) {
-            const districtsUnlocalised = campaignBoundaries
+            const districtsLocalised = campaignBoundaries
                 .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type.toUpperCase()}`, localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
             tabsOfDistrict.forEach((tab: any) => {
-                if (!districtsUnlocalised.includes(tab)) {
+                if (!districtsLocalised.includes(tab)) {
                     MissingDistricts.push(tab);
                 }
             });

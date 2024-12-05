@@ -17,6 +17,7 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
+  batchSize:100,
   cacheTime: 300,
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
@@ -32,19 +33,15 @@ const config = {
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
     boundaryCodeOld: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",
     boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-    // Default criteria for generating different tabs
-    generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
     // default configurable number of data of boundary type on which generate different tabs
     numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
     boundaryRelationShipDelay: 3500
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-    facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-    userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
@@ -167,7 +164,7 @@ const config = {
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "10000",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
-    readMeTab: "HCM_README_SHEETNAME",
+    readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: "mz",
     userMainBoundaryType: "Country",
     idgen: {
