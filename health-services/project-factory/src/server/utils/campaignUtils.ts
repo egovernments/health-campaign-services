@@ -103,7 +103,7 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
-import { MDMSModels } from "server/models";
+import { MDMSModels } from "../models";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;

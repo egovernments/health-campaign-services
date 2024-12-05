@@ -944,11 +944,11 @@ async function getCustomSheetData(request: any, type: any, sheetName: any) {
       schemaCode: "HCM-ADMIN-CONSOLE.customSheetData"
     }
   };
-  const header = {
-    ...defaultheader,
-    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${sheetName}${type}.${sheetName}${requestBody?.MdmsCriteria?.schemaCode}`
-  }
-  const response = await searchMDMSDataViaV2Api(requestBody, header);
+  // const header = {
+  //   ...defaultheader,
+  //   cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${sheetName}${type}.${sheetName}${requestBody?.MdmsCriteria?.schemaCode}`
+  // }
+  const response = await searchMDMSDataViaV2Api(requestBody);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during customSheet config search");
   }
