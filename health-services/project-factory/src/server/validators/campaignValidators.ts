@@ -1488,14 +1488,13 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
         });
     }
     else{
-        // data is not coming from a single sheet so no require for this active check
+        // Data is not coming from a single sheet so no require for this active check
         isActiveRowsZero = false;
     }
     if(isActiveRowsZero){
         throwError("COMMON", 400, "VALIDATION_ERROR", "At least one active row is required");
     }
 }
-
 
 
 export {
