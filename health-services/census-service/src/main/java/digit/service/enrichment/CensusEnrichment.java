@@ -91,6 +91,11 @@ public class CensusEnrichment {
         // Setting the boundary ancestral path for the provided boundary
         census.setBoundaryAncestralPath(Collections.singletonList(boundaryAncestralPath.toString()));
 
+        if(ObjectUtils.isEmpty(jurisdictionMapping))
+        {
+            log.error("Boundary ancestral mapping for - " + census.getBoundaryCode());
+//                throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
+        }
         // Setting jurisdiction mapping for the provided boundary
         census.setJurisdictionMapping(jurisdictionMapping);
     }
