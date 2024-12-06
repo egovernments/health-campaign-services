@@ -6,7 +6,7 @@ import { getLocalizedName } from "./campaignUtils";
 import { logger } from "./logger";
 import { callGenerate } from "./generateUtils";
 // import { getCampaignSearchResponse } from "server/api/campaignApis";
-import { getExcelWorkbookFromFileURL, getNewExcelWorkbook } from "./excelUtils";
+import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -590,37 +590,27 @@ function findParentResource(resource: any, resourcesArrayFromParentCampaign: any
   );
 }
 
-function copySheet(sourceSheet: any, targetWorkbook: any) {
-  const newSheet = targetWorkbook.addWorksheet(sourceSheet.name);
-
-  sourceSheet.eachRow((row: any, rowNumber: any) => {
-    const newRow = newSheet.getRow(rowNumber);
-    row.eachCell((cell: any, colNumber: any) => {
-      newRow.getCell(colNumber).value = cell.value;
-    });
-    newRow.commit();
-  });
-}
-
-async function getHeadersAccordingToWhichWeReorder(mappingObject: any, parentFileUrl: string, resource: any) {
-  // Retrieve the workbook from the parent file URL
-  const workbook = await getExcelWorkbookFromFileURL(parentFileUrl);
+async function getHeadersAccordingToWhichWeReorder(parentWorkbook: any, resource: any) {
 
   // Determine the sheet name dynamically based on resource type
   const headerSourceSheetName: any = resource?.type === 'boundaryWithTarget'
-    ? workbook.worksheets[2]?.name  // Use the third sheet for 'boundaryWithTarget' type
-    : workbook.worksheets[1]?.name; // Use the second sheet for other types
+    ? parentWorkbook.worksheets[2]?.name  // Use the third sheet for 'boundaryWithTarget' type
+    : parentWorkbook.worksheets[1]?.name; // Use the second sheet for other types
 
-  const sheet = workbook.getWorksheet(headerSourceSheetName);
+  const sheet = parentWorkbook.getWorksheet(headerSourceSheetName);
   if (!sheet) {
     throw new Error(`Sheet with name "${headerSourceSheetName}" not found`);
   }
 
   // Get the first row (assuming it's the header row)
   const headerRow = sheet.getRow(1);
+  // Get the first row (assuming it's the header row)
+  if (!headerRow || headerRow.cellCount === 0) {
+    throw new Error(`Header row is empty in sheet "${headerSourceSheetName}"`);
+  }
   const headers: any = [];
 
-  headerRow.eachCell((cell, colNumber) => {
+  headerRow.eachCell((cell: any) => {
     headers.push(cell.value); // Collect header cell values
   });
 
@@ -629,8 +619,8 @@ async function getHeadersAccordingToWhichWeReorder(mappingObject: any, parentFil
 
 
 
-async function addDataToWorkbook(newWorkbook: any, workbook: any, currentFileUrl: any, resource: any, headersAccordingToWhichWeReorder: any) {
-  const sourceSheet = workbook.worksheets[1];
+async function addDataToWorkbook(currentWorkbook: any, parentWorkbook: any, currentFileUrl: any, resource: any, headersAccordingToWhichWeReorder: any) {
+  const currentSheet = currentWorkbook.worksheets[1];
   if (resource?.type === 'boundaryWithTarget') {
     const boundaryWithTargetSheetData = await getTargetSheetData(currentFileUrl, false, false);
     const sheetNames = Object.keys(boundaryWithTargetSheetData); // Get sheet names
@@ -645,32 +635,19 @@ async function addDataToWorkbook(newWorkbook: any, workbook: any, currentFileUrl
         return headersAccordingToWhichWeReorder.map((header: any) => row[header] || "");
       });
 
-      await addConsolidatedDataToSheet(newWorkbook, sheetName, headersAccordingToWhichWeReorder, reorderedData);
+      await addConsolidatedDataToSheet(parentWorkbook, sheetName, headersAccordingToWhichWeReorder, reorderedData);
     }
   } else {
     // Perform further processing using the filestoreId
-    const sourceSheetData: any = await getSheetData(currentFileUrl, sourceSheet.name, false)
+    const currentSheetData: any = await getSheetData(currentFileUrl, currentSheet.name, false)
 
-    const reorderedData = sourceSheetData.map((row: any) => {
+    const reorderedData = currentSheetData.map((row: any) => {
       // Map each header in `targetHeaders` to the corresponding value in the row,
       // or set to an empty string if the header is missing in the row
       return headersAccordingToWhichWeReorder.map((header: any) => row[header] || "");
     });
 
-    // addDataToSheet(mappingObject,secondSheet.name,,40,)
-
-    await addConsolidatedDataToSheet(newWorkbook, sourceSheet.name, headersAccordingToWhichWeReorder, reorderedData);
-
-
-    const newThirdSheet = newWorkbook.addWorksheet(workbook.worksheets[2].name);
-
-    workbook.worksheets[2].eachRow((row: any, rowNumber: any) => {
-      const newRow = newThirdSheet.getRow(rowNumber);
-      row.eachCell((cell: any, colNumber: any) => {
-        newRow.getCell(colNumber).value = cell.value; // Copy cell value
-      });
-      newRow.commit(); // Commit the row to finalize it in the new sheet
-    });
+    await addConsolidatedDataToSheet(parentWorkbook, currentSheet.name, headersAccordingToWhichWeReorder, reorderedData);
   }
 }
 
@@ -691,21 +668,16 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
 
 
 async function processIndividualResource(mappingObject: any, resource: any, resourcesArrayFromParentCampaign: any) {
-  const newWorkbook = getNewExcelWorkbook();
   const parentResource = findParentResource(resource, resourcesArrayFromParentCampaign);
   const fileUrls = await getParentAndCurrentFileUrl(mappingObject, resource, parentResource);
 
-  const workbook = await getExcelWorkbookFromFileURL(fileUrls.currentFileUrl);
-  copySheet(workbook.worksheets[0], newWorkbook); // Copy first sheet to new workbook
+  const parentWorkbook = await getExcelWorkbookFromFileURL(fileUrls.parentFileUrl);
+  const currentWorkbook = await getExcelWorkbookFromFileURL(fileUrls.currentFileUrl)
 
-  if (resource?.type === 'boundaryWithTarget') {
-    copySheet(workbook.worksheets[1], newWorkbook); // Copy second sheet if `boundaryWithTarget`
-  }
+  const headersAccordingToWhichWeReorder = await getHeadersAccordingToWhichWeReorder(parentWorkbook, resource);
+  await addDataToWorkbook(currentWorkbook, parentWorkbook, fileUrls?.currentFileUrl, resource, headersAccordingToWhichWeReorder);
 
-  const headersAccordingToWhichWeReorder = await getHeadersAccordingToWhichWeReorder(mappingObject, fileUrls.parentFileUrl, resource);
-  await addDataToWorkbook(newWorkbook, workbook, fileUrls?.currentFileUrl, resource, headersAccordingToWhichWeReorder);
-
-  await finalizeAndUpload(newWorkbook, mappingObject, resource);
+  await finalizeAndUpload(parentWorkbook, mappingObject, resource);
 }
 
 
@@ -743,26 +715,23 @@ async function getResourceFromResourceId(mappingObject: any, createResourceId: a
 }
 
 
-async function addConsolidatedDataToSheet(workbook: any, sheetName: string, targetHeaders: string[], reorderedData: any[]) {
+async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string, targetHeaders: string[], reorderedData: any[]) {
   // Get or create a worksheet
-  let sheet = workbook.getWorksheet(sheetName);
+  let sheet = parentWorkbook.getWorksheet(sheetName);
   if (!sheet) {
-    sheet = workbook.addWorksheet(sheetName);
+    sheet = parentWorkbook.addWorksheet(sheetName);
+  } else {
+    // Clear all rows except the first row
+    while (sheet.rowCount > 1) {
+      sheet.spliceRows(2, 1); // Remove rows starting from the second row
+    }
   }
-
-  // Set headers in the first row
-  sheet.addRow(targetHeaders);
 
   // Add each modified row to the sheet
   reorderedData.forEach(row => {
     sheet.addRow(row);
   });
 
-
-  // Optionally, auto-fit columns to content
-  sheet.columns.forEach((column: any) => {
-    column.width = Math.max(...column.values.map((value: any) => (value ? value.toString().length : 10))) + 2;
-  });
 }
 
 
