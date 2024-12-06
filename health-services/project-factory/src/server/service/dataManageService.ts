@@ -32,12 +32,16 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = request.query.type;
     // Get response data from the database
-    var responseData = await searchGeneratedResources(request);
+    const responseData = await searchGeneratedResources(request);
     const resourceDetails = await getResourceDetails(request);
 
     // Check if response data is available
-    if (!responseData || responseData.length === 0 && !request?.query?.id || responseData?.[0]?.status === generatedResourceStatuses.failed) {
-        logger.error("No data of type  " + type + " with status Completed or with given id present in db ")
+    if (
+      !responseData ||
+      (responseData.length === 0 && !request?.query?.id) ||
+      responseData?.[0]?.status === generatedResourceStatuses.failed
+    ) {
+        logger.error(`No data of type '${type}' with status 'Completed' or the provided ID is present in the database.`)
         // Throw error if data is not found
         const newRequestBody = {
             RequestInfo: request?.body?.RequestInfo
@@ -57,13 +61,14 @@ const downloadDataService = async (request: express.Request) => {
         // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
 
-    // Send response with resource details
+        // Send response with resource details
     if (resourceDetails != null && responseData != null && responseData.length > 0) {
         responseData[0].additionalDetails = {
-            ...responseData[0].additionalDetails,
-            ...resourceDetails.additionalDetails // Spread the properties of resourceDetails.additionalDetails
+            ...(responseData[0].additionalDetails || {}),
+            ...(resourceDetails?.additionalDetails || {})
         };
     }
+    
 
     return responseData;
 }
@@ -96,7 +101,7 @@ const getBoundaryDataService = async (
         const workbook = getNewExcelWorkbook();
         const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-        const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+        const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         // Retrieve boundary sheet data
         const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
@@ -123,7 +128,7 @@ const createDataService = async (request: any) => {
     const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId, getLocalisationModuleName(hierarchyType), true);
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+    const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
     // Validate the create request
     logger.info("Validating data create request")
     await validateCreateRequest(request, localizationMap);
