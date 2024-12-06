@@ -149,26 +149,50 @@ const httpRequest = async (
           errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
         )}`
       );
-      if (retry|| config.values.autoRetryIfHttpError?.includes(errorResponse?.data?.Errors?.[0]?.code)) {
-        logger.info(`retrying the failed api call since retry is enabled or error is equal to configured ${config.values.autoRetryIfHttpError}`);
+      if (
+        retry ||
+        (config.values.autoRetryIfHttpError &&
+          config.values.autoRetryIfHttpError?.includes(
+            errorResponse?.data?.Errors?.[0]?.code
+          ))
+      ) {
+        logger.info(
+          `retrying the failed api call since retry is enabled or error is equal to configured ${config.values.autoRetryIfHttpError}`
+        );
         attempt++;
         if (attempt >= maxAttempts) {
           if (dontThrowError) {
-            logger.warn(`Maximum retry attempts reached for httprequest with url ${_url}`);
-            return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
+            logger.warn(
+              `Maximum retry attempts reached for httprequest with url ${_url}`
+            );
+            return (
+              errorResponse?.data || {
+                Errors: [{ code: error.message, description: error.stack }],
+              }
+            );
           } else {
             throwTheHttpError(errorResponse, error, _url);
           }
         }
-        logger.warn(`Waiting for 20 seconds before retrying httprequest with url ${_url}`);
+        logger.warn(
+          `Waiting for 20 seconds before retrying httprequest with url ${_url}`
+        );
         await new Promise((resolve) => setTimeout(resolve, 20000));
       } else if (dontThrowError) {
         logger.warn(
-          `Error occurred while making request to ${getServiceName(_url)}: returning error response ${JSON.stringify(
-            errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
+          `Error occurred while making request to ${getServiceName(
+            _url
+          )}: returning error response ${JSON.stringify(
+            errorResponse?.data || {
+              Errors: [{ code: error.message, description: error.stack }],
+            }
           )}`
         );
-        return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
+        return (
+          errorResponse?.data || {
+            Errors: [{ code: error.message, description: error.stack }],
+          }
+        );
       } else {
         throwTheHttpError(errorResponse, error, _url);
       }
