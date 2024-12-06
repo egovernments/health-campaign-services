@@ -149,7 +149,8 @@ const httpRequest = async (
           errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
         )}`
       );
-      if (retry) {
+      if (retry|| config.values.autoRetryIfHttpError?.includes(errorResponse?.data?.Errors?.[0]?.code)) {
+        logger.info(`retrying the failed api call since retry is enabled or error is equal to configured ${config.values.autoRetryIfHttpError}`);
         attempt++;
         if (attempt >= maxAttempts) {
           if (dontThrowError) {
