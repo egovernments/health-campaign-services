@@ -16,7 +16,7 @@ export const transformAndCreateLocalisation = async (
   boundaryMap: any,
   request: any
 ) => {
-  const CHUNK_SIZE = 200;  // Adjust this size based on your API limits and performance
+  const CHUNK_SIZE = 100;  // Adjust this size based on your API limits and performance
 
   try {
     const { tenantId, hierarchyType } = request?.body?.ResourceDetails || {};
@@ -65,7 +65,7 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
     logger.error("Invalid chunkSize provided");
     return;
   }
-  const MAX_RETRIES = 3; // Maximum number of retries for a chunk
+  const MAX_RETRIES = 5; // Maximum number of retries for a chunk
   // Break the messages array into chunks
   for (let i = 0; i < messages.length; i += chunkSize) {
     let retries = 0;
@@ -86,6 +86,7 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
 
         // Upload the current chunk
         await localisation.createLocalisation(chunk, tenantId, request);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
         success = true; // Mark as successful
