@@ -2,12 +2,13 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.web.models.*;
+import digit.web.models.Operation;
+import digit.web.models.PlanConfiguration;
+import digit.web.models.PlanConfigurationSearchCriteria;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import static digit.config.ServiceConstants.*;
 
 @Component
@@ -191,9 +193,9 @@ public class CommonUtil {
      */
     public Map<String, String> getMicroplanHierarchy(Object mdmsData) {
 
-        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + HIERARCHY_CONFIG_FOR_MICROPLAN;
+        String jsonPathForMicroplanHierarchy = JSON_ROOT_PATH + MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_SCHEMA + HIERARCHY_CONFIG_FOR_MICROPLAN;
 
-        List<Map<String, String>> hierarchyForMicroplan;
+        List<Map<String, Object>> hierarchyForMicroplan;
 
         try {
             log.info(jsonPathForMicroplanHierarchy);
@@ -204,8 +206,8 @@ public class CommonUtil {
         }
 
         Map<String, String> hierarchyMap = new HashMap<>();
-        hierarchyMap.put(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN));
-        hierarchyMap.put(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN));
+        hierarchyMap.put(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN).toString().toLowerCase());
+        hierarchyMap.put(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN, hierarchyForMicroplan.get(0).get(HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN).toString().toLowerCase());
 
         return hierarchyMap;
     }
@@ -222,6 +224,17 @@ public class CommonUtil {
 
         return false;
     }
+
+    /**
+     * Checks if the setup process is completed based on the workflow action in the plan configuration.
+     *
+     * @param planConfiguration The plan configuration to check.
+     * @return true if the setup is completed, otherwise false.
+     */
+    public boolean checkForEmptyOperationsOrAssumptions(PlanConfiguration planConfiguration) {
+        return !ObjectUtils.isEmpty(planConfiguration.getOperations()) && !ObjectUtils.isEmpty(planConfiguration.getAssumptions());
+    }
+
 
     /**
      * Adds or updates the provided fields in the additional details object.
@@ -249,4 +262,14 @@ public class CommonUtil {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
+
+    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
+        for (PlanConfiguration planConfiguration : planConfigurations) {
+            List<Operation> operations = planConfiguration.getOperations();
+            if (!ObjectUtils.isEmpty(operations)) {
+                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
+            }
+        }
+    }
+
 }

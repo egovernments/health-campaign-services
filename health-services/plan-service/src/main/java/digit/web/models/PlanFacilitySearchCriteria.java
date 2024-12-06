@@ -46,6 +46,9 @@ public class PlanFacilitySearchCriteria {
     @JsonProperty("residingBoundaries")
     private List<String> residingBoundaries = null;
 
+    @JsonProperty("jurisdiction")
+    private List<String> jurisdiction = null;
+
     @JsonProperty("facilityId")
     private String facilityId = null;
 

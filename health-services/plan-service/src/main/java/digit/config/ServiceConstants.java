@@ -79,8 +79,14 @@ public class ServiceConstants {
     public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records does not exists for the given details: ";
 
 
+    public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_CODE = "INVALID_ROOT_EMPLOYEE_JURISDICTION";
+    public static final String INVALID_ROOT_EMPLOYEE_JURISDICTION_MESSAGE = "The root employee's jurisdiction should be at highest hierarchy";
+
     public static final String INVALID_EMPLOYEE_JURISDICTION_CODE = "INVALID_EMPLOYEE_JURISDICTION";
-    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
+    public static final String INVALID_EMPLOYEE_JURISDICTION_MESSAGE = "The employee's jurisdiction can't be at highest or lowest hierarchy";
+
+    public static final String INVALID_JURISDICTION_CODE = "INVALID_JURISDICTION";
+    public static final String INVALID_JURISDICTION_MESSAGE = "The employee's jurisdiction provided is invalid";
 
     public static final String INVALID_HIERARCHY_LEVEL_CODE = "INVALID_HIERARCHY_LEVEL";
     public static final String INVALID_HIERARCHY_LEVEL_MESSAGE = "The hierarchy level provided is invalid";
@@ -96,6 +102,9 @@ public class ServiceConstants {
 
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_CODE = "INVALID_PLAN_EMPLOYEE_ASSIGNMENT";
     public static final String INVALID_PLAN_EMPLOYEE_ASSIGNMENT_MESSAGE = "Plan employee assignment to be updated doesn't exists";
+
+    public static final String PLAN_CONFIGURATION_ALREADY_EXISTS_CODE = "PLAN_CONFIGURATION_ALREADY_EXISTS";
+    public static final String PLAN_CONFIGURATION_ALREADY_EXISTS_MESSAGE = "Plan Configuration for the provided name and campaign id already exists";
 
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_CODE = "PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS";
     public static final String PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS_MESSAGE = "Plan employee assignment for the provided details already exists";
@@ -206,6 +215,7 @@ public class ServiceConstants {
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
     public static final String MDMS_MASTER_HIERARCHY_CONFIG = "hierarchyConfig";
+    public static final String MDMS_MASTER_HIERARCHY_SCHEMA = "HierarchySchema";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
@@ -215,6 +225,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_NAME_VALIDATION= "MicroplanNamingRegex";
     public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
     public static final String BOUNDARY = "boundary";
+    public static final String HIERARCHY_TYPE = "hierarchyType";
 
     //MDMS field Constants
     public static final String PROPERTIES = "properties";
@@ -260,7 +271,7 @@ public class ServiceConstants {
 
     public static final String FILTER_ALL_ASSUMPTIONS = ".assumptionCategories[*].assumptions[*]";
 
-    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.hierarchy == 'MICROPLAN')]";
+    public static final String HIERARCHY_CONFIG_FOR_MICROPLAN = "[?(@.type == 'microplan')]";
 
     public static final String HIGHEST_HIERARCHY_FIELD_FOR_MICROPLAN = "highestHierarchy";
 

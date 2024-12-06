@@ -122,6 +122,9 @@ public class Configuration {
 	@Value("${census.additional.field.prefix.append.keys}")
 	public List<String> censusAdditionalPrefixAppendKeys;
 
+	@Value("${census.additional.field.show.on.ui.false.keys}")
+	public List<String> censusAdditionalFieldShowOnUIFalseKeys;
+
 	//census host
 	@Value("${egov.census.host}")
 	private String censusHost;

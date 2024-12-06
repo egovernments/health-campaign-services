@@ -55,10 +55,10 @@ public class PlanQueryBuilder {
         if (!CollectionUtils.isEmpty(ids)) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" plan.id IN ( ").append(queryUtil.createQuery(ids.size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+            queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
-        return builder.toString();
+        return queryUtil.addOrderByClause(builder.toString(), PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
@@ -126,7 +126,7 @@ public class PlanQueryBuilder {
         if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" locality IN ( ").append(queryUtil.createQuery(planSearchCriteria.getLocality().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(planSearchCriteria.getLocality()));
+            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getLocality());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getCampaignId())) {
@@ -157,7 +157,7 @@ public class PlanQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(Collections.singleton(planSearchCriteria.getAssignee()).size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(assignee, ',') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(Collections.singleton(planSearchCriteria.getAssignee())));
+            queryUtil.addToPreparedStatement(preparedStmtList, Collections.singleton(planSearchCriteria.getAssignee()));
         }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getJurisdiction())) {
@@ -167,7 +167,7 @@ public class PlanQueryBuilder {
                     .append(" ]::text[] ");
 
             builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
-            queryUtil.addToPreparedStatement(preparedStmtList, new HashSet<>(planSearchCriteria.getJurisdiction()));
+            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getJurisdiction());
         }
 
 
