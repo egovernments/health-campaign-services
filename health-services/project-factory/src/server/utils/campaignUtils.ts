@@ -1157,7 +1157,7 @@ async function enrichAndPersistCampaignForUpdate(
     producerMessage,
     config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
   );
-  delete request.body.ExistingCampaignDetails;
+  // delete request.body.ExistingCampaignDetails;
   delete request.body.CampaignDetails.campaignDetails;
 }
 
@@ -1204,6 +1204,9 @@ async function persistForCampaignProjectMapping(
       RequestInfo: request?.body?.RequestInfo,
       Campaign: {},
     };
+    if (request?.body?.ExistingCampaignDetails) {
+      delete request.body.ExistingCampaignDetails;
+    }
     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
     // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
     //   request?.body?.newlyCreatedBoundaryProjectMap;
