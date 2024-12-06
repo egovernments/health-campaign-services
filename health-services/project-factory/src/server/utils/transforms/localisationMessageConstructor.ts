@@ -86,7 +86,6 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
 
         // Upload the current chunk
         await localisation.createLocalisation(chunk, tenantId, request);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
         success = true; // Mark as successful
