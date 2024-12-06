@@ -61,19 +61,14 @@ const downloadDataService = async (request: express.Request) => {
         // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
 
-    // Send response with resource details
+        // Send response with resource details
     if (resourceDetails != null && responseData != null && responseData.length > 0) {
         responseData[0].additionalDetails = {
             ...(responseData[0].additionalDetails || {}),
             ...(resourceDetails?.additionalDetails || {})
         };
     }
-    responseData[0].additionalDetails = {
-        ...(responseData[0].additionalDetails || {}),
-        ...(resourceDetails?.additionalDetails || {})
-    };
-}
-    }
+    
 
     return responseData;
 }
