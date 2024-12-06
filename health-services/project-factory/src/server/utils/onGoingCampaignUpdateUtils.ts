@@ -720,10 +720,11 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
   let sheet = parentWorkbook.getWorksheet(sheetName);
   if (!sheet) {
     sheet = parentWorkbook.addWorksheet(sheetName);
+    sheet.addRow(targetHeaders);
   } else {
-    // Clear all rows except the first row
-    while (sheet.rowCount > 1) {
-      sheet.spliceRows(2, 1); // Remove rows starting from the second row
+    // Clear all rows except the first row at once
+    if (sheet.rowCount > 1) {
+      sheet.spliceRows(2, sheet.rowCount - 1);
     }
   }
 
