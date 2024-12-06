@@ -175,7 +175,7 @@ public class CensusEnrichment {
         if(ObjectUtils.isEmpty(jurisdictionMapping))
         {
             log.error("Boundary ancestral mapping = " + boundaryCode);
-            throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
+//            throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
         }
 
         census.setJurisdictionMapping(jurisdictionMapping);
@@ -210,7 +210,7 @@ public class CensusEnrichment {
             if(ObjectUtils.isEmpty(jurisdictionMapping))
             {
                 log.error("Boundary ancestral mapping = " + boundaryCode);
-                throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
+//                throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
             }
 
             census.setJurisdictionMapping(jurisdictionMapping);
