@@ -58,7 +58,7 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
-        return builder.toString();
+        return queryUtil.addOrderByClause(builder.toString(), PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
