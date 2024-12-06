@@ -816,7 +816,8 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     }
 
     if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-        await validateResources(request.body.CampaignDetails.resources, request);
+        logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
+        !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
     }
 }
 
