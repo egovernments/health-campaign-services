@@ -1,50 +1,54 @@
-name: project factory service test builder
+name: Project Factory Service Test Builder
 
 on:
   push:
-    branches: [ "console" , "master" ]
+    branches: 
+      - "console"
+      - "master"
     paths:
       - 'health-services/project-factory/**'
   pull_request:
-    branches: [ "console" , "master" ]
+    branches: 
+      - "console"
+      - "master"
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # Fetch all history for tags and branches
+      # Step 1: Checkout the repository
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for tags and branches
 
-    - name: Set up environment variables
-      id: env
-      run: |
-        echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-        echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+      # Step 2: Set up environment variables
+      - name: Set up environment variables
+        id: env
+        run: |
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
-    - name: Build the service Docker image
-      id: docker_build
-      working-directory: ./utilities/project-factory
-      run: |
-        IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
-        docker build . \
-          --file Dockerfile \
-          --tag $IMAGE_TAG
-        echo "::set-output name=image_name::$IMAGE_TAG"
+      # Step 3: Build the service Docker image
+      - name: Build the service Docker image
+        id: docker_build
+        working-directory: ./health-services/project-factory
+        run: |
+          IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
+          docker build . \
+            --file Dockerfile \
+            --tag $IMAGE_TAG
+          echo "::set-output name=image_name::$IMAGE_TAG"
+          echo "Code compiled without error"
 
-
-    - name: Build the db migration Docker image
-      id: docker_db_build
-      working-directory: ./utilities/project-factory/migration
-      run: |
-        IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
-        docker build . \
-          --file Dockerfile \
-          --tag $IMAGE_TAG
-        echo "::set-output name=db_image_name::$IMAGE_TAG"
-        echo "code compiled without error"
-
-
+      # Step 4: Build the database migration Docker image
+      - name: Build the DB migration Docker image
+        id: docker_db_build
+        working-directory: ./health-services/project-factory/migration
+        run: |
+          IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
+          docker build . \
+            --file Dockerfile \
+            --tag $IMAGE_TAG
+          echo "::set-output name=db_image_name::$IMAGE_TAG"
+          echo "Code compiled without error"
