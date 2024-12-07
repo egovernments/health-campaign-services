@@ -32,7 +32,8 @@ async function getParentCampaignObject(request: any, parentId: any) {
 function getCreatedResourceIds(resources: any, type: any) {
   const processedType = type === 'boundary'
     ? 'boundaryWithTarget'
-    : (type.includes('With') ? type.split('With')[0] : type); return resources
+    : (type.includes('With') ? type.split('With')[0] : type);
+    return resources
       .filter((item: any) => item.type === processedType)
       .map((item: any) => item.createResourceId);
 }
