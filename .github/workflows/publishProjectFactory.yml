@@ -52,10 +52,8 @@ jobs:
           echo "::set-output name=db_image_name::$IMAGE_TAG"
           echo "DB migration Docker image built successfully"
 
-  # Additional job for running a Node.js environment build
   node_build:
     runs-on: ubuntu-latest
-    working-directory: ./health-services/project-factory
 
     steps:
       # Step 1: Checkout the repository
@@ -68,6 +66,7 @@ jobs:
 
       # Step 3: Install dependencies and build for production
       - name: Install dependencies and build
+        working-directory: ./health-services/project-factorys
         run: |
           yarn install
           yarn prod
