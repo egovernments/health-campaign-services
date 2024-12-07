@@ -38,7 +38,7 @@ jobs:
             --file Dockerfile \
             --tag $IMAGE_TAG
           echo "::set-output name=image_name::$IMAGE_TAG"
-          echo "Code compiled without error"
+          echo "Service Docker image built successfully"
 
       # Step 4: Build the database migration Docker image
       - name: Build the DB migration Docker image
@@ -50,4 +50,24 @@ jobs:
             --file Dockerfile \
             --tag $IMAGE_TAG
           echo "::set-output name=db_image_name::$IMAGE_TAG"
-          echo "Code compiled without error"
+          echo "DB migration Docker image built successfully"
+
+  # Additional job for running a Node.js environment build
+  node_build:
+    runs-on: ubuntu-latest
+    working-directory: ./health-services/project-factory
+
+    steps:
+      # Step 1: Checkout the repository
+      - uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js environment
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 20
+
+      # Step 3: Install dependencies and build for production
+      - name: Install dependencies and build
+        run: |
+          yarn install
+          yarn prod
