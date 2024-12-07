@@ -66,7 +66,7 @@ jobs:
 
       # Step 3: Install dependencies and build for production
       - name: Install dependencies and build
-        working-directory: ./health-services/project-factorys
+        working-directory: ./health-services/project-factory
         run: |
           yarn install
           yarn prod
