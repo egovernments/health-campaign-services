@@ -26,7 +26,6 @@ jobs:
       - name: Set up environment variables
         id: env
         run: |
-          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
           echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
       # Step 3: Build the service Docker image
@@ -34,7 +33,7 @@ jobs:
         id: docker_build
         working-directory: ./health-services/project-factory
         run: |
-          IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
+          IMAGE_TAG=egovio/project-factory:${{ env.ACTION_NUMBER }}
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
@@ -46,7 +45,7 @@ jobs:
         id: docker_db_build
         working-directory: ./health-services/project-factory/migration
         run: |
-          IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
+          IMAGE_TAG=egovio/project-factory-db:${{ env.ACTION_NUMBER }}
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
