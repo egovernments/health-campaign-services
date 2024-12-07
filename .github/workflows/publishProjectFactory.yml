@@ -69,4 +69,4 @@ jobs:
         working-directory: ./health-services/project-factory
         run: |
           yarn install
-          yarn prod
+          yarn build
