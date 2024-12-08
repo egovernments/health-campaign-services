@@ -721,16 +721,18 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
   if (!sheet) {
     sheet = parentWorkbook.addWorksheet(sheetName);
     sheet.addRow(targetHeaders);
-  } else {
-    // Clear all rows except the first row at once
-    if (sheet.rowCount > 1) {
-      sheet.spliceRows(2, sheet.rowCount - 1);
+  }
+  if (sheet.rowCount > 1) {
+    // Clear all existing row data starting from the second row
+    for (let i = 2; i <= sheet.rowCount; i++) {
+      sheet.getRow(i).values = [];
     }
   }
 
-  // Add each modified row to the sheet
-  reorderedData.forEach(row => {
-    sheet.addRow(row);
+  // Overwrite cleared rows with new data
+  reorderedData.forEach((row, index) => {
+    const targetRow = sheet.getRow(index + 2); // Start from the second row
+    targetRow.values = row; // Add the row's values
   });
 
 }
