@@ -60,9 +60,7 @@ public class AttributeDefinition {
 
         MULTIVALUELIST("MultiValueList"),
 
-        FILE("File"),
-
-        BOOLEAN("Boolean");
+        FILE("File");
 
         private String value;
 

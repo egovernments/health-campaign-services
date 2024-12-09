@@ -35,10 +35,6 @@ public class Workflow   {
         @Valid
         private List<String> assignes = null;
 
-        @JsonProperty("hrmsAssignes")
-        @Valid
-        private List<String> hrmsAssignees = null;
-
         @SafeHtml
         @JsonProperty("comments")
         private String comments = null;
