@@ -10,7 +10,7 @@ CREATE TABLE census (
   effective_to                              bigint,
   source                                    character varying(255) NOT NULL,
   status                                    character varying(255),
-  assignee                                  character varying(255),
+  assignee                                  TEXT,
   facility_assigned                         boolean,
   boundary_ancestral_path                   TEXT NOT NULL,
   additional_details                        JSONB,
@@ -32,5 +32,18 @@ CREATE TABLE population_by_demographics (
   last_modified_by                          character varying(64),
   last_modified_time                        bigint,
   CONSTRAINT uk_population_by_demographics_id PRIMARY KEY (id),
+  FOREIGN KEY (census_id) REFERENCES census(id)
+);
+
+-- Table: additional_field
+CREATE TABLE additional_field (
+  id                            character varying(64) NOT NULL,
+  census_id                     character varying(64) NOT NULL,
+  "key"                         character varying(64) NOT NULL,
+  "value"                       numeric(12,2) NOT NULL,
+  show_on_ui                    boolean DEFAULT true NOT NULL,
+  editable                      boolean DEFAULT true NOT NULL,
+  "order"                       bigint NOT NULL,
+  CONSTRAINT uk_additional_field_id PRIMARY KEY (id),
   FOREIGN KEY (census_id) REFERENCES census(id)
 );
