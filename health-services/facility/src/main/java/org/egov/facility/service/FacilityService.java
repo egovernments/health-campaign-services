@@ -196,7 +196,6 @@ public class FacilityService {
                     .collect(Collectors.toList());
             searchResponse.setResponse(facilities);
 
-            /// TODO FIX TOTAL COUNT AFTER FILTERING THE FACILITIES
             return searchResponse;
         }
 
