@@ -31,7 +31,7 @@ LABEL commit_id=$COMMIT_ID
 COPY . .
 
 # Copy the correct tsconfig.json based on the DEBUG environment variable
-RUN if [ "$DEBUG" = "true" ]; then cp tsconfig.debug.json tsconfig.json; else cp tsconfig.json tsconfig.json; fi
+RUN if [ "$DEBUG" = "true" ]; then cp tsconfig.debug.json tsconfig.json; fi
 
 # Expose the port your app runs on and the debugging port
 EXPOSE 3000
