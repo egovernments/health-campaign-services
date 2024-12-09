@@ -5,6 +5,7 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.producer.Producer;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
@@ -35,7 +37,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
                 facilityRowMapper, Optional.of("facility"));
     }
 
-    public List<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+    public SearchResponse<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         List<Facility> objFound = findInCache(ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
@@ -48,7 +50,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
-                return objFound;
+                return SearchResponse.<Facility>builder().response(objFound).build();
             }
         }
 
@@ -61,10 +63,12 @@ public class FacilityRepository extends GenericRepository<Facility> {
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
-        return objFound;
+
+        /*The totalCount is being set automatically through the builder method.*/
+        return SearchResponse.<Facility>builder().response(objFound).build();
     }
 
-    public List<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
         String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
@@ -83,12 +87,17 @@ public class FacilityRepository extends GenericRepository<Facility> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY f.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+
+        query = query + " LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        List<Facility> facilities =  this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+
+        return SearchResponse.<Facility>builder().response(facilities).totalCount(totalCount).build();
     }
 }
