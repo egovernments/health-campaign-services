@@ -7,14 +7,13 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "yarn run build-ts",
-    "build-ts": "tsc",
-    "clean": "rm -rf ./dist",
-    "serve": "if [ \"$DEBUG\" = \"true\" ]; then node --inspect=0.0.0.0:9229 dist/index.js; else node dist/index.js; fi",
-    "start": "yarn run dev",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "serve": "node ${DEBUG:+--inspect=0.0.0.0:9229} dist/index.js",
+    "start": "yarn dev",
     "test": "jest",
-    "dev": "ts-node-dev --respawn src/server/index.ts",
-    "prod": "if [ \"$DEBUG\" = \"true\" ]; then cp tsconfig.debug.json tsconfig.json; fi && yarn build && yarn serve",
+    "dev": "ts-node-dev src/server/index.ts",
+    "prod": "${DEBUG:+cp tsconfig.debug.json tsconfig.json &&} yarn build && yarn serve",
     "watch-ts": "tsc --watch"
   },
   "repository": {
