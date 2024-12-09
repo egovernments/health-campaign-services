@@ -60,6 +60,7 @@ public interface Constants {
     String ROLE = "role";
     String CITY = "city";
     String INDIVIDUAL_ID = "individualId";
+    String INDIVIDUAL_CLIENTREFERENCEID = "individualClientreferenceId";
     String GEO_POINT = "geoPoint";
     String INDIVIDUAL_IDENTIFIER_TYPE = "identifierType";
     String ADDRESS_CODE = "addressLocalityCode";

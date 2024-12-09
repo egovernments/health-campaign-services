@@ -90,7 +90,7 @@ public class SideEffectTransformationService {
             else if (DISABILITY_TYPE.equals(f.getKey())) {
                 disabilityType = f.getValue();
             }
-            else if (INDIVIDUAL_ID.equals(f.getKey())) {
+            else if (INDIVIDUAL_CLIENTREFERENCEID.equals(f.getKey())) {
                 individualId = f.getValue();
             }
         }
