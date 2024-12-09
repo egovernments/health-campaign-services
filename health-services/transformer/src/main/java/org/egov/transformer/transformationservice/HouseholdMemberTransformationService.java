@@ -18,6 +18,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -67,10 +68,11 @@ public class HouseholdMemberTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;
+        Map<String, String> userInfoMap = userService.
+                getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
         if (!CollectionUtils.isEmpty(households) && households.get(0).getAddress() != null
                 && households.get(0).getAddress().getLocality() != null
                 && households.get(0).getAddress().getLocality().getCode() != null) {
@@ -84,19 +86,49 @@ public class HouseholdMemberTransformationService {
                 additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
             }
         }
-
+        List<Field> fields = new ArrayList<>();
         if (householdMember.getAdditionalFields() != null && householdMember.getAdditionalFields().getFields() != null
                 && !CollectionUtils.isEmpty(householdMember.getAdditionalFields().getFields())) {
-            List<Field> fields = householdMember.getAdditionalFields().getFields();
+            fields = householdMember.getAdditionalFields().getFields();
             addToAdditionalDetails(fields, additionalDetails);
         }
-
-        Map<String, String> userInfoMap = userService.
-                getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
-        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
+        Integer age = null;
+        String gender = null;
+        Long dob = null;
+        Integer height = null;
+        String disabilityType = null;
+        String identifierType = null;
+        for (Field f : fields){
+            if (AGE.equals(f.getKey())) {
+                age = Integer.valueOf(f.getValue());
+            }
+            else if (GENDER.equals(f.getKey())) {
+                gender = f.getValue().toUpperCase();
+            }
+            else if (DATE_OF_BIRTH.equals(f.getKey())) {
+                dob = Long.valueOf(f.getValue());
+            }
+            else if (HEIGHT.equals(f.getKey())) {
+                height = Integer.valueOf(f.getValue());
+            }
+            else if (DISABILITY_TYPE.equals(f.getKey())) {
+                disabilityType = f.getValue();
+            }
+            else if (INDIVIDUAL_IDENTIFIER_TYPE.equals(f.getKey())) {
+                identifierType = f.getValue();
+            }
         }
+        if(age == null && gender == null) {
+            Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
+            age = individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null;
+            gender = individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null;
+            identifierType = individualDetails.containsKey(INDIVIDUAL_IDENTIFIER_TYPE) ? (String) individualDetails.get(INDIVIDUAL_IDENTIFIER_TYPE) : null;
+            dob = individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null;
+            disabilityType = individualDetails.containsKey(DISABILITY_TYPE) ? (String) individualDetails.get(DISABILITY_TYPE) : null;
+            height = individualDetails.containsKey(HEIGHT) ? (Integer) individualDetails.get(HEIGHT) : null;
+        }
+            additionalDetails.put(HEIGHT, height);
+            additionalDetails.put(DISABILITY_TYPE,disabilityType);
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
@@ -104,10 +136,10 @@ public class HouseholdMemberTransformationService {
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
-                .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
-                .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
-                .identifierType(individualDetails.containsKey(INDIVIDUAL_IDENTIFIER_TYPE) ? (String) individualDetails.get(INDIVIDUAL_IDENTIFIER_TYPE) : null)
-                .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                .dateOfBirth(dob)
+                .age(age)
+                .identifierType(identifierType)
+                .gender(gender)
                 .geoPoint(geoPoint)
                 .localityCode(localityCode)
                 .taskDates(commonUtils.getDateFromEpoch(householdMember.getClientAuditDetails().getLastModifiedTime()))

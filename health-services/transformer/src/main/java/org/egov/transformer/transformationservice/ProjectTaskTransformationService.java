@@ -79,8 +79,51 @@ public class ProjectTaskTransformationService {
 
         String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
-        Map<String, Object> beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId);
-
+        AdditionalFields additionalFields = task.getAdditionalFields();
+        List<Field> fields = new ArrayList<>();
+        if (additionalFields != null && additionalFields.getFields() != null
+                && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+            fields = additionalFields.getFields();
+        }
+        Integer age = null;
+        String gender = null;
+        Long dob = null;
+        Integer height = null;
+        String disabilityType = null;
+        String individualId = null;
+        for (Field f : fields){
+            if (AGE.equals(f.getKey())) {
+                age = Integer.valueOf(f.getValue());
+            }
+            else if (GENDER.equals(f.getKey())) {
+                gender = f.getValue().toUpperCase();
+            }
+            else if (DATE_OF_BIRTH.equals(f.getKey())) {
+                dob = Long.valueOf(f.getValue());
+            }
+            else if (HEIGHT.equals(f.getKey())) {
+                height = Integer.valueOf(f.getValue());
+            }
+            else if (DISABILITY_TYPE.equals(f.getKey())) {
+                disabilityType = f.getValue();
+            }
+            else if (INDIVIDUAL_ID.equals(f.getKey())) {
+                individualId = f.getValue();
+            }
+        }
+        Map<String, Object> beneficiaryInfo;
+        if(age == null && gender == null) {
+            beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId);
+        }
+        else{
+            beneficiaryInfo = new HashMap<>();
+            beneficiaryInfo.put(AGE, age);
+            beneficiaryInfo.put(GENDER, gender);
+            beneficiaryInfo.put(DATE_OF_BIRTH, dob);
+            beneficiaryInfo.put(DISABILITY_TYPE, disabilityType);
+            beneficiaryInfo.put(INDIVIDUAL_ID, individualId);
+            beneficiaryInfo.put(HEIGHT, height);
+        }
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->

@@ -61,17 +61,50 @@ public class SideEffectTransformationService {
     private SideEffectsIndexV1 transform(SideEffect sideEffect) {
 
         AdditionalFields additionalFields = sideEffect.getAdditionalFields();
+        List<Field> fields = new ArrayList<>();
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (additionalFields != null && additionalFields.getFields() != null
                 && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+            fields = additionalFields.getFields();
             additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+        }
+        Integer age = null;
+        String gender = null;
+        Long dob = null;
+        Integer height = null;
+        String disabilityType = null;
+        String individualId = null;
+        for (Field f : fields){
+            if (AGE.equals(f.getKey())) {
+                age = Integer.valueOf(f.getValue());
+            }
+            else if (GENDER.equals(f.getKey())) {
+                gender = f.getValue().toUpperCase();
+            }
+            else if (DATE_OF_BIRTH.equals(f.getKey())) {
+                dob = Long.valueOf(f.getValue());
+            }
+            else if (HEIGHT.equals(f.getKey())) {
+                height = Integer.valueOf(f.getValue());
+            }
+            else if (DISABILITY_TYPE.equals(f.getKey())) {
+                disabilityType = f.getValue();
+            }
+            else if (INDIVIDUAL_ID.equals(f.getKey())) {
+                individualId = f.getValue();
+            }
         }
         String tenantId = sideEffect.getTenantId();
         String localityCode = null;
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
         List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
-
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getCreatedBy(), tenantId);
+        String projectTypeId = null;
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         if (!CollectionUtils.isEmpty(taskList)) {
             Task task = taskList.get(0);
             localityCode = (task.getAddress() != null &&
@@ -81,34 +114,33 @@ public class SideEffectTransformationService {
                     null;
             boundaryHierarchy = localityCode != null ? projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
                     projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
-            List<ProjectBeneficiary> projectBeneficiaries = projectService
-                    .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
-
-            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-                ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
-                individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+            if(age == null && gender == null) {
+                List<ProjectBeneficiary> projectBeneficiaries = projectService
+                        .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
+                if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                    ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
+                    individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+                    age = individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null;
+                    gender = individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null;
+                    individualId = individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null;
+                    dob = individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null;
+                    disabilityType = individualDetails.containsKey(DISABILITY_TYPE) ? (String) individualDetails.get(DISABILITY_TYPE) : null;
+                    height = individualDetails.containsKey(HEIGHT) ? (Integer) individualDetails.get(HEIGHT) : null;
+                }
             }
             addSpecificAdditionalFields(task, additionalDetails);
         }
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(sideEffect.getClientAuditDetails().getCreatedBy(), tenantId);
-        String projectTypeId = null;
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            projectTypeId = projectIdProjectTypeId.split(":")[1];
-        }
-        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(HEIGHT, height);
+        additionalDetails.put(DISABILITY_TYPE, disabilityType);
         Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
-        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
-        }
         SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                 .sideEffect(sideEffect)
                 .boundaryHierarchy(boundaryHierarchy)
                 .localityCode(localityCode)
-                .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
-                .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
-                .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
-                .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                .dateOfBirth(dob)
+                .age(age)
+                .gender(gender)
+                .individualId(individualId)
                 .symptoms(String.join(COMMA, sideEffect.getSymptoms()))
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
