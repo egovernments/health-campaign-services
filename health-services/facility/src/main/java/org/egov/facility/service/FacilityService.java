@@ -195,7 +195,8 @@ public class FacilityService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             searchResponse.setResponse(facilities);
-            searchResponse.setTotalCount((long) facilities.size());
+
+            /// TODO FIX TOTAL COUNT AFTER FILTERING THE FACILITIES
             return searchResponse;
         }
 
