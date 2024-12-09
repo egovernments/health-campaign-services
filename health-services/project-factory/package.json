@@ -14,7 +14,7 @@
     "start": "yarn run dev",
     "test": "jest",
     "dev": "ts-node-dev --respawn src/server/index.ts",
-    "prod": "yarn build && yarn serve",
+    "prod": "if [ \"$DEBUG\" = \"true\" ]; then cp tsconfig.debug.json tsconfig.json; fi && yarn build && yarn serve",
     "watch-ts": "tsc --watch"
   },
   "repository": {
