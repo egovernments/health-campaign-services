@@ -32,7 +32,8 @@ async function getParentCampaignObject(request: any, parentId: any) {
 function getCreatedResourceIds(resources: any, type: any) {
   const processedType = type === 'boundary'
     ? 'boundaryWithTarget'
-    : (type.includes('With') ? type.split('With')[0] : type); return resources
+    : (type.includes('With') ? type.split('With')[0] : type);
+    return resources
       .filter((item: any) => item.type === processedType)
       .map((item: any) => item.createResourceId);
 }
@@ -68,7 +69,7 @@ async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility
       "get"
     );
   } catch (error) {
-    console.error("Error fetching file URLs:", error);
+    logger.error("Error fetching file URLs:", error);
     throw error;
   }
 }
@@ -240,7 +241,7 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
     for (let i = boundaryCodeIndex + 1; i < localizedHeaders.length; i++) {
       updatedValues.push(newRow[i]);  // Store original value
       if (rowIndex === 0) {  // Only modify the first row
-        const modifiedValue = newRow[i] + "(OLD)"; // Create modified value with (OLD) suffix
+        const modifiedValue = `${newRow[i]}(OLD)`; // Create modified value with (OLD) suffix
         newRow[i] = modifiedValue; // Update newRow[i] with the modified value
         oldTargetColumnsToHide.push(modifiedValue); // Push the modified value      
       }

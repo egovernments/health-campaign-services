@@ -20,9 +20,6 @@ export const searchCriteriaSchema = {
         },
         "hierarchyType": {
             "type": "string"
-        },
-        "source": {
-            "type": "string"
         }
     },
     "required": ["tenantId"],
