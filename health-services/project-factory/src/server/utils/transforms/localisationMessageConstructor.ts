@@ -91,8 +91,8 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         success = true; // Mark as successful
         break;
       } catch (error: any) {
-        logger.info(`retrying chunk ${Math.floor(i / chunkSize) + 1}, Attempt ${retries}`)
         retries += 1;
+        logger.info(`Retrying chunk ${Math.floor(i / chunkSize) + 1}, Attempt ${retries}`);
         logger.error(
           `Error uploading chunk ${Math.floor(i / chunkSize) + 1}, Attempt ${retries}: ${error.message}`
         );
