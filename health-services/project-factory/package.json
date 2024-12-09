@@ -16,7 +16,7 @@
     "dev": "ts-node-dev --respawn src/server/index.ts",
     "prod": "yarn build && yarn serve",
     "watch-ts": "tsc --watch",
-    "inspect": "yarn build && node --inspect=0.0.0.0:9229 dist/index.js"
+    "debug": "yarn build && node --inspect=0.0.0.0:9229 dist/index.js"
   },
   "repository": {
     "type": "git",

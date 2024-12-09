@@ -37,4 +37,4 @@ RUN if [ "$DEBUG" = "true" ]; then cp tsconfig.debug.json tsconfig.json; fi
 EXPOSE 3000
 
 # Run the application based on the DEBUG environment variable
-CMD ["sh", "-c", "if [ \"$DEBUG\" = \"true\" ]; then yarn inspect; else yarn prod; fi"]
+CMD ["sh", "-c", "if [ \"$DEBUG\" = \"true\" ]; then yarn debug; else yarn prod; fi"]
