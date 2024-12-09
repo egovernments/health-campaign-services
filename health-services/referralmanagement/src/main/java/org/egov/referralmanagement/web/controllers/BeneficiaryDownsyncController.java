@@ -44,8 +44,8 @@ public class BeneficiaryDownsyncController {
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
 		Downsync downsync = null;
-		if (request.getDownsyncCriteria().getIsCommunity()) {
-			downsync = downsyncService.downsyncForCFL(request);
+		if (Boolean.TRUE.equals(request.getDownsyncCriteria().getIsCommunity())) {
+			downsync = downsyncService.downsyncForCLF(request);
 		} else {
 			downsync = downsyncService.prepareDownsyncData(request);
 		}

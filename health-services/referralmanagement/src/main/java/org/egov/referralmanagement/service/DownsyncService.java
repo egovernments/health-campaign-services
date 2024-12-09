@@ -95,7 +95,7 @@ public class DownsyncService {
 	 * The function returns communal living household ids if isCommunity flag is true and householdId is null
 	 * It returns all the household data for a particular household if id is passed; within given offset and limit
 	 */
-	public Downsync downsyncForCFL(DownsyncRequest downsyncRequest) {
+	public Downsync downsyncForCLF(DownsyncRequest downsyncRequest) {
 		Downsync downsync = Downsync.builder().downsyncCriteria(downsyncRequest.getDownsyncCriteria()).build();
 		DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
@@ -133,11 +133,13 @@ public class DownsyncService {
 		List<String> taskClientRefIds = null;
 
 		// Fetch projectType from mdms
+		startTime = System.currentTimeMillis();
 		log.info("The masterDataService start time : " + startTime);
 		LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 		log.info("The masterDataService call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 		// Fetch households from household ids
+		startTime = System.currentTimeMillis();
 		log.info("The household search start time : " + startTime);
 		households = searchHouseholds(downsyncRequest, downsync);
 		householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
@@ -306,7 +308,7 @@ public class DownsyncService {
 			//HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
 			Tuple<Long, List<Household>> res = null;
 			if (downsyncRequest.getDownsyncCriteria().getIsCommunity()) {
-				res = householdRepository.findByViewCFL(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L, criteria.getHouseholdId());
+				res = householdRepository.findByViewCLF(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L, criteria.getHouseholdId());
 			} else {
 				res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L);
 			}

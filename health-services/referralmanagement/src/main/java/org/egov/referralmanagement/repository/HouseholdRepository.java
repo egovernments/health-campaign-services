@@ -38,25 +38,24 @@ public class HouseholdRepository {
 	        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, householdRowMapper));
 	    }
 
-	public Tuple<Long, List<Household>> findByViewCFL (String localityCode, Integer limit, Integer offset, String tenantId, Long lastModifiedTime, String householdId) {
+	public Tuple<Long, List<Household>> findByViewCLF(String localityCode, Integer limit, Integer offset, String tenantId, Long lastModifiedTime, String householdId) {
 		String query = null;
 		Map<String, Object> paramsMap = new HashMap<>();
 		if (householdId == null) {
-			query = "select * from household_address_cfl_mv where localitycode=:localitycode and rank between :start and :end ";
+			query = "select * from household_address_clf_mv where localitycode=:localitycode and rank between :start and :end ";
 			paramsMap.put("start", offset);
 			paramsMap.put("end", offset+limit);
 		} else {
-			query = "select * from household_address_cfl_mv where localitycode=:localitycode and householdType=:householdType and householdId=:householdId";
+			query = "select * from household_address_clf_mv where localitycode=:localitycode and householdId=:householdId";
 			paramsMap.put("householdId", householdId);
 		}
 
 		paramsMap.put("localitycode", localityCode);
-		paramsMap.put("householdType", "HOUSEHOLD");
 
 		Map<String, Object> paramsMapCount = new HashMap<>();
 		paramsMapCount.put("localitycode", localityCode);
 		paramsMapCount.put("lastModifiedTime", lastModifiedTime);
-		Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_cfl_mv where localitycode=:localitycode and lastModifiedTime>=:lastModifiedTime", paramsMapCount, Integer.class);
+		Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_clf_mv where localitycode=:localitycode and lastModifiedTime>=:lastModifiedTime", paramsMapCount, Integer.class);
 		Long totalCount = maxRank == null ? 0L : Long.valueOf(maxRank);
 		return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, householdRowMapper));
 
