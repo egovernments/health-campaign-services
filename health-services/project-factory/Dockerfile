@@ -1,4 +1,4 @@
-# Use Node.js base image with version 16
+# Use Node.js base image with version 20
 FROM node:20 AS build
 
 # Set working directory
@@ -15,6 +15,9 @@ ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
+# Set the DEBUG environment variable (default to "false")
+ENV DEBUG=false
+
 # Copy package.json and yarn.lock (if exists)
 COPY package.json ./
 
@@ -27,10 +30,11 @@ LABEL commit_id=$COMMIT_ID
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port your app runs on
+# Copy the correct tsconfig.json based on the DEBUG environment variable
+RUN if [ "$DEBUG" = "true" ]; then cp tsconfig.debug.json tsconfig.json; else cp tsconfig.json tsconfig.json; fi
+
+# Expose the port your app runs on and the debugging port
 EXPOSE 3000
 
-CMD ["yarn", "prod"]
- # Replaced by CMD ["yarn", "prod"]
-
-
+# Run the application based on the DEBUG environment variable
+CMD ["sh", "-c", "if [ \"$DEBUG\" = \"true\" ]; then yarn inspect; else yarn prod; fi"]
