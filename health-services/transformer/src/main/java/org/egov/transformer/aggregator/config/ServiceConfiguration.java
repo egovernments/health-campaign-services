@@ -43,6 +43,9 @@ public class ServiceConfiguration {
   @Value("${egov.aggregated-household.index}")
   private String aggregatedHouseholdIndex;
 
+  @Value("${egov.aggregated-project-beneficiary.index}")
+  private String aggregatedProjectBeneficiaryIndex;
+
   @Value("${egov.household.index}")
   private String householdIndex;
 

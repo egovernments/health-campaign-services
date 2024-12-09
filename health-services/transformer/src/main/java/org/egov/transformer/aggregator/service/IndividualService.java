@@ -38,7 +38,9 @@ public class IndividualService {
 
   public void processIndividuals(List<Individual> individuals) {
     for (Individual individual : individuals) {
+      //TODO Add try catch here
       String householdId = getHouseholdId(individual);
+
       if (Strings.isEmpty(householdId)) {
         List<HouseholdMember> members = householdMemberService.findByIndividualId(
             individual.getId());
