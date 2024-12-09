@@ -14,3 +14,9 @@ All notable changes to this module will be documented in this file.
    1. Timeline integration for workflow of campaign.
    2. Call user, facility and boundary generate when boundaries changed in campaign update flow
    3. Generate target template based on delivery conditions changed to anything from default.
+
+## 0.3.0 - 2024-12-03
+  1.  Campaign Details Table Updates -> added new columns: parentId and active,removed unique constraint on campaignName.
+  2.  Update Ongoing Campaign (can add new boundaries , edit facilities , user and target sheet).
+  3.  Boundary Management Apis added.
+  4.  Microplan Integration api (fetch-from-microplan api) added.

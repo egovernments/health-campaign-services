@@ -99,7 +99,7 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
             const newRequestBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Filters: {
-                    boundaries: request?.body?.CampaignDetails?.boundaries
+                    boundaries: request?.body?.boundariesCombined
                 }
             };
 
