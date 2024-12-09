@@ -63,6 +63,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
+
+        /*The totalCount is being set automatically through the builder method.*/
         return SearchResponse.<Facility>builder().response(objFound).build();
     }
 
