@@ -90,6 +90,114 @@ public class DownsyncService {
 			this.masterDataService = masterDataService;
 		}
 
+	/**
+	 * @param downsyncRequest downsync request with isCommmunity flag true and optional householdId
+	 * The function returns communal living household ids if isCommunity flag is true and householdId is null
+	 * It returns all the household data for a particular household if id is passed; within given offset and limit
+	 */
+	public Downsync downsyncForCLF(DownsyncRequest downsyncRequest) {
+		Downsync downsync = Downsync.builder().downsyncCriteria(downsyncRequest.getDownsyncCriteria()).build();
+		DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+
+		downsyncCriteria.setLastSyncedTime(null);
+
+		String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit() +
+				downsyncCriteria.getIsCommunity() + downsyncCriteria.getHouseholdId();
+
+		Object obj = getFromCache(key);
+		if (null != obj) {
+			return (Downsync) obj;
+		}
+
+		boolean isSyncTimeAvalable = null != downsyncCriteria.getLastSyncedTime();
+
+		Long requestStartTime = System.currentTimeMillis();
+		Long startTime = System.currentTimeMillis();
+
+		// if household id is null then search for all the household and return the household ids
+		if (downsyncCriteria.getHouseholdId() == null) {
+			List<Household> households = null;
+			log.info("The household search start time : " + startTime);
+			households = searchHouseholds(downsyncRequest, downsync);
+			log.info("The household call time : " + (System.currentTimeMillis()-startTime)/1000);
+			downsync.setHouseholds(households);
+			return  downsync;
+		}
+
+		List<Household> households = null;
+		downsyncRequest.getDownsyncCriteria().getHouseholdId();
+		List<String> householdClientRefIds = null;
+		List<String> individualClientRefIds = null;
+		List<String> beneficiaryClientRefIds = null;
+		List<String> householdBeneficiaryClientRefIds = null;
+		List<String> taskClientRefIds = null;
+
+		// Fetch projectType from mdms
+		startTime = System.currentTimeMillis();
+		log.info("The masterDataService start time : " + startTime);
+		LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
+		log.info("The masterDataService call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+		// Fetch households from household ids
+		startTime = System.currentTimeMillis();
+		log.info("The household search start time : " + startTime);
+		households = searchHouseholds(downsyncRequest, downsync);
+		householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+		log.info("The household call time : " + (System.currentTimeMillis()-startTime)/1000);
+		downsync.setHouseholds(households);
+
+		startTime = System.currentTimeMillis();
+		log.info("The members start time : " + startTime);
+		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds))
+			/* search household member using household ids */
+			individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
+		log.info("The members call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+		startTime = System.currentTimeMillis();
+		log.info("The individualas start time : " + startTime);
+		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
+			/* search individuals using individual ids */
+			individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
+		}
+		log.info("The individual call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+		startTime = System.currentTimeMillis();
+		log.info("The beneficiary start time : " + startTime);
+		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
+			/* search beneficiary using individual ids */
+			beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+		}
+		log.info("The beneficiary call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+
+		startTime = System.currentTimeMillis();
+		log.info("The task ref start time : " + startTime);
+		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+
+			/* search tasks using beneficiary uuids */
+			taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType);
+
+			/* ref search */
+			referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
+		}
+		log.info("The task ref call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+		startTime = System.currentTimeMillis();
+		log.info("The side effect start time : " + startTime);
+		if (isSyncTimeAvalable || !CollectionUtils.isEmpty(taskClientRefIds)) {
+			/* search sideeffects using taskClientRefIds */
+			searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
+		}
+		log.info("The side effect call time : " + (System.currentTimeMillis()-startTime)/1000);
+
+		log.info("The total call time -- : " + (System.currentTimeMillis()-requestStartTime)/1000);
+		log.info("The end total call time -- : " + System.currentTimeMillis());
+
+		cacheByKey(downsync, key);
+
+		return downsync;
+	}
+
 		/**
 		 * 
 		 * @param downsyncRequest
@@ -198,7 +306,13 @@ public class DownsyncService {
 			DownsyncCriteria  criteria = downsyncRequest.getDownsyncCriteria();
 			
 			//HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
-			Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L);
+			Tuple<Long, List<Household>> res = null;
+			if (downsyncRequest.getDownsyncCriteria().getIsCommunity()) {
+				res = householdRepository.findByViewCLF(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L, criteria.getHouseholdId());
+			} else {
+				res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L);
+			}
+
 			List<Household> households = res.getY();
 			downsync.setHouseholds(households);
 			downsync.getDownsyncCriteria().setTotalCount(res.getX());

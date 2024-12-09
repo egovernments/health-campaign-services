@@ -35,5 +35,10 @@ public class DownsyncCriteria {
 	private Integer limit = 50;
 	
 	private Long totalCount;
+
+	private Boolean isCommunity;
+
+	private String householdId;
+
 }
 
