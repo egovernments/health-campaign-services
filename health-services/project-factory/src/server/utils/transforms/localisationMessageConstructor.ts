@@ -4,6 +4,7 @@ import {
 } from "../localisationUtils";
 import Localisation from "../../controllers/localisationController/localisation.controller";
 import { logger } from "../logger";
+import config from "../../config";
 
 /**
  * Transforms boundary map into localisation messages and creates localisation entries.
@@ -16,7 +17,7 @@ export const transformAndCreateLocalisation = async (
   boundaryMap: any,
   request: any
 ) => {
-  const CHUNK_SIZE = 200;  // Adjust this size based on your API limits and performance
+  const CHUNK_SIZE = parseInt(config.localisation.localizationChunkSizeForBoundaryCreation || "2000")
 
   try {
     const { tenantId, hierarchyType } = request?.body?.ResourceDetails || {};
@@ -86,6 +87,11 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
 
         // Upload the current chunk
         await localisation.createLocalisation(chunk, tenantId, request);
+
+        // wait for 3 second
+        const waitTime = parseInt(config.localisation.localizationWaitTimeInBoundaryCreation || "30000")
+        logger.info(`Waiting for ${waitTime / 1000} seconds after each localisation chunk`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
 
         logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
         success = true; // Mark as successful

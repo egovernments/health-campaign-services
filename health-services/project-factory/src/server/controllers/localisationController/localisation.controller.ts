@@ -132,6 +132,7 @@ class Localisation {
       // Log and handle any errors that occur during the process
       console.log(e);
       logger.error(String(e));
+      throw new Error(e);
     }
   };
 }

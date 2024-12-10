@@ -97,6 +97,8 @@ const config = {
     defaultLocale: process.env.LOCALE || "en_MZ",
     boundaryPrefix: "hcm-boundary",
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
+    localizationWaitTimeInBoundaryCreation: "30000",
+    localizationChunkSizeForBoundaryCreation: "2000",
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
