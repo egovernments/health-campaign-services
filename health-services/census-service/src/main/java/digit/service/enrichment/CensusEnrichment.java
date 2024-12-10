@@ -8,6 +8,7 @@ import digit.web.models.boundary.BoundaryTypeHierarchy;
 import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
 import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.boundary.HierarchyRelation;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
+@Slf4j
 @Component
 public class CensusEnrichment {
 
@@ -89,6 +91,11 @@ public class CensusEnrichment {
         // Setting the boundary ancestral path for the provided boundary
         census.setBoundaryAncestralPath(Collections.singletonList(boundaryAncestralPath.toString()));
 
+        if(ObjectUtils.isEmpty(jurisdictionMapping))
+        {
+            log.error("Boundary ancestral mapping for - " + census.getBoundaryCode());
+//                throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
+        }
         // Setting jurisdiction mapping for the provided boundary
         census.setJurisdictionMapping(jurisdictionMapping);
     }
@@ -170,6 +177,12 @@ public class CensusEnrichment {
             boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
         }
 
+        if(ObjectUtils.isEmpty(jurisdictionMapping))
+        {
+            log.error("Boundary ancestral mapping = " + boundaryCode);
+//            throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
+        }
+
         census.setJurisdictionMapping(jurisdictionMapping);
     }
 
@@ -197,6 +210,12 @@ public class CensusEnrichment {
             for (String boundary : boundaryCode) {
                 jurisdictionMapping.put(boundaryHierarchy, boundary);
                 boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
+            }
+
+            if(ObjectUtils.isEmpty(jurisdictionMapping))
+            {
+                log.error("Boundary ancestral mapping = " + boundaryCode);
+//                throw new CustomException("NOT_ABLE_TO_FORM_JURISDICTION_MAPPING", "Not able to form jurisdiction mapping for - " + census.getBoundaryCode());
             }
 
             census.setJurisdictionMapping(jurisdictionMapping);
