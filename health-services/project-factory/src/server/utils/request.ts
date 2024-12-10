@@ -125,6 +125,10 @@ const httpRequest = async (
         }
         return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
+      else{
+        logger.warn(`Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(response.data)}`);
+        return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
+      }
     } catch (error: any) {
       const errorResponse = error?.response;
       logger.error(
