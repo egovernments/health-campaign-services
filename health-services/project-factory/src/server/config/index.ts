@@ -39,6 +39,8 @@ const config = {
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
+    facilityCodeColumn : "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+    facilityType : "facility"
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",

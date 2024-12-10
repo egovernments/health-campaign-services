@@ -33,9 +33,9 @@ function getCreatedResourceIds(resources: any, type: any) {
   const processedType = type === 'boundary'
     ? 'boundaryWithTarget'
     : (type.includes('With') ? type.split('With')[0] : type);
-    return resources
-      .filter((item: any) => item.type === processedType)
-      .map((item: any) => item.createResourceId);
+  return resources
+    .filter((item: any) => item.type === processedType)
+    .map((item: any) => item.createResourceId);
 }
 
 function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
@@ -76,23 +76,10 @@ async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility
 
 
 
-function modifyProcessedSheetData(request: any, sheetData: any, localizationMap?: any) {
-  // const type = request?.query?.type || request?.body?.ResourceDetails?.type;
-  // const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
+function modifyProcessedSheetData(type: any, sheetData: any, schema: any, localizationMap?: any) {
   if (!sheetData || sheetData.length === 0) return [];
 
-  // Find the row with the maximum number of keys
-  const maxLengthRow = sheetData.reduce((maxRow: any, row: any) => {
-    return Object.keys(row).length > Object.keys(maxRow).length ? row : maxRow;
-  }, {});
-
-  // Extract headers from the keys of the row with the maximum number of keys
-  const originalHeaders = Object.keys(maxLengthRow);
-  const statusIndex = originalHeaders.indexOf('#status#');
-  // Insert 'errordetails' after '#status#' if found
-  if (statusIndex !== -1) {
-    originalHeaders.splice(statusIndex + 1, 0, '#errorDetails#');
-  }
+  const originalHeaders = type === config?.facility?.facilityType ? [config?.facility?.facilityCodeColumn, ...schema?.columns] : schema?.columns;
 
   let localizedHeaders = getLocalizedHeaders(originalHeaders, localizationMap);
 
