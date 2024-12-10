@@ -94,10 +94,12 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     private void addAdditionalField(ResultSet rs, Map<String, AdditionalField> additionalFieldMap, Census censusEntry) throws SQLException {
         String additionalFieldId = rs.getString("additional_field_id");
 
+        // Skip processing if the additionalField Id is empty or already processed
         if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldMap.containsKey(additionalFieldId)) {
             return;
         }
 
+        // Create and populate the AdditionalField object
         AdditionalField additionalField = new AdditionalField();
         additionalField.setId(rs.getString("additional_field_id"));
         additionalField.setKey(rs.getString("additional_field_key"));
@@ -115,6 +117,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getAdditionalFields().add(additionalField);
         }
 
+        // Mark this additionalFieldId as processed
         additionalFieldMap.put(additionalFieldId, additionalField);
     }
 
@@ -130,10 +133,12 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     private void addPopulationByDemographic(ResultSet rs, Map<String, PopulationByDemographic> populationByDemographicMap, Census censusEntry) throws SQLException {
         String populationByDemographicId = rs.getString("population_by_demographics_id");
 
+        // Skip processing if the populationByDemographic Id is empty or already processed
         if (ObjectUtils.isEmpty(populationByDemographicId) || populationByDemographicMap.containsKey(populationByDemographicId)) {
             return;
         }
 
+        // Create and populate the PopulationByDemographic object
         PopulationByDemographic populationByDemographic = new PopulationByDemographic();
         populationByDemographic.setId(rs.getString("population_by_demographics_id"));
         populationByDemographic.setDemographicVariable(PopulationByDemographic.DemographicVariableEnum.fromValue(rs.getString("population_by_demographics_demographic_variable")));
@@ -148,6 +153,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getPopulationByDemographics().add(populationByDemographic);
         }
 
+        // Mark this populationByDemographicId as processed
         populationByDemographicMap.put(populationByDemographicId, populationByDemographic);
     }
 }
