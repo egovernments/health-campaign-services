@@ -1035,7 +1035,7 @@ async function enrichAndPersistCampaignForCreate(
   request.body.CampaignDetails.status =
     action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
   request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(
-    request.body.CampaignDetails.boundaries
+    request.body.boundariesCombined
   );
   request.body.CampaignDetails.projectType =
     request?.body?.CampaignDetails?.projectType || null;
