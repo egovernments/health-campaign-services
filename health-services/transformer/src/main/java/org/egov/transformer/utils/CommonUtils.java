@@ -113,7 +113,7 @@ public class CommonUtils {
     public List<Double> getGeoPointFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
         if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.has(ADDITIONAL_FIELDS_FIELDS_KEY)) {
             JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
-            if(additionalFieldsMap != null) additionalDetails = additionalFields;
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
         }
         if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
                 && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
@@ -128,7 +128,7 @@ public class CommonUtils {
     public String getLocalityCodeFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
         if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.hasNonNull(ADDITIONAL_FIELDS_FIELDS_KEY)) {
             JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
-            if(additionalFieldsMap != null) additionalDetails = additionalFields;
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
         }
         if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull(BOUNDARY_CODE_KEY)) {
             return additionalDetails.get(BOUNDARY_CODE_KEY).asText();
