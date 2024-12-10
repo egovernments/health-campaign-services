@@ -77,16 +77,20 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     private void addFiles(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, File> fileMap) throws SQLException {
         String fileId = rs.getString("plan_configuration_files_id");
 
+        // Skip processing if the fileId is empty or already processed
         if (ObjectUtils.isEmpty(fileId) || fileMap.containsKey(fileId)) {
             return;
         }
 
+        // Create and populate the File object
         File file = new File();
         file.setId(fileId);
         file.setFilestoreId(rs.getString("plan_configuration_files_filestore_id"));
         file.setInputFileType(File.InputFileTypeEnum.valueOf(rs.getString("plan_configuration_files_input_file_type").toUpperCase()));
         file.setTemplateIdentifier(rs.getString("plan_configuration_files_template_identifier"));
         file.setActive(rs.getBoolean("plan_configuration_files_active"));
+
+        // Creates a new file list if it is not already initialized in planConfigEntry and adds the file object.
         if (CollectionUtils.isEmpty(planConfigEntry.getFiles())) {
             List<File> fileList = new ArrayList<>();
             fileList.add(file);
@@ -95,6 +99,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getFiles().add(file);
         }
 
+        // Mark this fileId as processed
         fileMap.put(fileId, file);
     }
 
@@ -110,10 +115,12 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     private void addAssumptions(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, Assumption> assumptionMap) throws SQLException {
         String assumptionId = rs.getString("plan_configuration_assumptions_id");
 
+        // Skip processing if the assumptionId is empty or already processed
         if (ObjectUtils.isEmpty(assumptionId) || assumptionMap.containsKey(assumptionId)) {
             return;
         }
 
+        // Create and populate the Assumption object
         Assumption assumption = new Assumption();
         assumption.setId(assumptionId);
         assumption.setKey(rs.getString("plan_configuration_assumptions_key"));
@@ -122,6 +129,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         assumption.setSource(Source.valueOf(rs.getString("plan_configuration_assumptions_source")));
         assumption.setCategory(rs.getString("plan_configuration_assumptions_category"));
 
+        // Creates a new assumption list if it is not already initialized in planConfigEntry and adds the assumption object.
         if (CollectionUtils.isEmpty(planConfigEntry.getAssumptions())) {
             List<Assumption> assumptionList = new ArrayList<>();
             assumptionList.add(assumption);
@@ -130,6 +138,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getAssumptions().add(assumption);
         }
 
+        // Mark this assumptionId as processed
         assumptionMap.put(assumptionId, assumption);
     }
 
@@ -144,10 +153,12 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     private void addOperations(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, Operation> operationMap) throws SQLException {
         String operationId = rs.getString("plan_configuration_operations_id");
 
+        // Skip processing if the operationId is empty or already processed
         if (ObjectUtils.isEmpty(operationId) || operationMap.containsKey(operationId)) {
             return;
         }
 
+        // Create and populate the Operation object
         Operation operation = new Operation();
         operation.setId(operationId);
         operation.setInput(rs.getString("plan_configuration_operations_input"));
@@ -160,6 +171,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         operation.setCategory(rs.getString("plan_configuration_operations_category"));
         operation.setExecutionOrder(rs.getInt("plan_configuration_execution_order"));
 
+        // Creates a new operation list if it is not already initialized in planConfigEntry and adds the operation object.
         if (CollectionUtils.isEmpty(planConfigEntry.getOperations())) {
             List<Operation> operationList = new ArrayList<>();
             operationList.add(operation);
@@ -168,6 +180,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getOperations().add(operation);
         }
 
+        // Mark this operationId as processed
         operationMap.put(operationId, operation);
     }
 
@@ -182,10 +195,12 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     private void addResourceMappings(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, ResourceMapping> mappingMap) throws SQLException {
         String mappingId = rs.getString("plan_configuration_mapping_id");
 
+        // Skip processing if the mappingId is empty or already processed
         if (ObjectUtils.isEmpty(mappingId) || mappingMap.containsKey(mappingId)) {
             return;
         }
 
+        // Create and populate the ResourceMapping object
         ResourceMapping mapping = new ResourceMapping();
         mapping.setId(mappingId);
         mapping.setFilestoreId(rs.getString("plan_configuration_mapping_filestore_id"));
@@ -193,6 +208,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         mapping.setMappedTo(rs.getString("plan_configuration_mapping_mapped_to"));
         mapping.setActive(rs.getBoolean("plan_configuration_mapping_active"));
 
+        // Creates a new ResourceMapping list if it is not already initialized in planConfigEntry and adds the ResourceMapping object.
         if (CollectionUtils.isEmpty(planConfigEntry.getResourceMapping())) {
             List<ResourceMapping> mappingList = new ArrayList<>();
             mappingList.add(mapping);
@@ -201,6 +217,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getResourceMapping().add(mapping);
         }
 
+        // Mark this mappingId as processed
         mappingMap.put(mappingId, mapping);
     }
 
