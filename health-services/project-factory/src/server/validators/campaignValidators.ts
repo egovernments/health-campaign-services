@@ -835,13 +835,10 @@ function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
 async function validateParent(request: any, actionInUrl: any) {
     if (request?.body?.CampaignDetails?.parentId) {
         const tenantId = request.body.CampaignDetails?.tenantId
-        // const searchBodyForParent: any = {
-        //     RequestInfo: request.body.RequestInfo,
         const CampaignDetails = {
             tenantId: tenantId,
             ids: [request.body.CampaignDetails?.parentId]
         }
-        // const req: any = replicateRequest(request, searchBodyForParent)
         const parentSearchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
         if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
             if (actionInUrl == "create") {
