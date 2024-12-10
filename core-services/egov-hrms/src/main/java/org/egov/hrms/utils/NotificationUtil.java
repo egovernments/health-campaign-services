@@ -130,7 +130,7 @@ public class NotificationUtil {
      *
      * @param emailRequestList The list of emailRequests
      */
-    public void sendEmail(List<EmailRequest> emailRequestList) {
+    public void sendEmail(List<EmailRequest> emailRequestList) throws InterruptedException {
         if (propertiesManager.getIsEmailNotificationEnabled()) {
             if (CollectionUtils.isEmpty(emailRequestList)) {
                 log.error("No Emails Found!");
@@ -139,6 +139,7 @@ public class NotificationUtil {
                     producer.push(propertiesManager.getEmailNotifTopic(), emailRequest);
                     log.info("Email Request -> " + emailRequest.toString());
                     log.info("EMAIL notification sent!");
+                    Thread.sleep(5000);
                 }
             }
         }

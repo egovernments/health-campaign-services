@@ -207,7 +207,7 @@ public class NotificationService {
 	 *
 	 * @param employeeRequest The employee request
 	 */
-	public void processEmailNotification(EmployeeRequest employeeRequest) {
+	public void processEmailNotification(EmployeeRequest employeeRequest) throws InterruptedException {
 		String localizationMessages = notificationUtil.getLocalizationMessages(employeeRequest);
 		String messageTemplate = notificationUtil.getMessageTemplate(HEALTH_HRMS_EMAIL_LOCALIZATION_CODE, localizationMessages);
 		List<EmailRequest> emailRequests = notificationUtil.createEmailRequest(employeeRequest, messageTemplate);
