@@ -116,6 +116,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             plan.getActivities().add(activity);
         }
 
+        // Mark this activityId as processed
         activityMap.put(activity.getId(), activity);
 
     }
@@ -152,6 +153,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             activity.getConditions().add(condition);
         }
 
+        // Mark this conditionId as processed
         conditionMap.put(condition.getId(), condition);
 
     }
@@ -189,6 +191,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getResources().add(resource);
         }
 
+        // Mark this resourceId as processed
         resourceMap.put(resource.getId(), resource);
 
     }
@@ -231,6 +234,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getTargets().add(target);
         }
 
+        // Mark this targetId as processed
         targetMap.put(target.getId(), target);
 
     }
