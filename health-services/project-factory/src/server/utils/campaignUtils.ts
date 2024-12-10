@@ -958,7 +958,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   requestBody.CampaignDetails.status = campaignStatuses?.failed;
   // requestBody.CampaignDetails.isActive = false;
   requestBody.CampaignDetails.boundaryCode =
-    getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null;
+    getRootBoundaryCode(requestBody?.boundariesCombined) || null;
   requestBody.CampaignDetails.projectType =
     requestBody?.CampaignDetails?.projectType || null;
   requestBody.CampaignDetails.hierarchyType =
@@ -1035,7 +1035,7 @@ async function enrichAndPersistCampaignForCreate(
   request.body.CampaignDetails.status =
     action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
   request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(
-    request.body.boundariesCombined
+    request.body?.boundariesCombined
   );
   request.body.CampaignDetails.projectType =
     request?.body?.CampaignDetails?.projectType || null;
@@ -1111,7 +1111,7 @@ async function enrichAndPersistCampaignForUpdate(
         ? campaignStatuses.started
         : campaignStatuses.drafted;
   const boundaryCode = !request?.body?.CampaignDetails?.projectId
-    ? getRootBoundaryCode(request.body.CampaignDetails.boundaries)
+    ? getRootBoundaryCode(request.body?.boundariesCombined)
     : request?.body?.CampaignDetails?.boundaryCode ||
     ExistingCampaignDetails?.boundaryCode;
   request.body.CampaignDetails.boundaryCode = boundaryCode;
@@ -2414,6 +2414,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         localizationMap
       );
     }
+    delete request.body?.boundariesCombined;
   } catch (error: any) {
     console.log(error);
     logger.error(error);
