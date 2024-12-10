@@ -47,7 +47,12 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry = new Census();
 
                 // Prepare audit details
-                AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
+                AuditDetails auditDetails = AuditDetails.builder()
+                        .createdBy(rs.getString("census_created_by"))
+                        .createdTime(rs.getLong("census_created_time"))
+                        .lastModifiedBy(rs.getString("census_last_modified_by"))
+                        .lastModifiedTime(rs.getLong("census_last_modified_time"))
+                        .build();
 
                 String commaSeparatedAssignee = rs.getString("census_assignee");
                 List<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? Arrays.asList(commaSeparatedAssignee.split(",")) : null;
@@ -101,6 +106,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
         additionalField.setEditable(rs.getBoolean("additional_field_editable"));
         additionalField.setOrder(rs.getInt("additional_field_order"));
 
+        // Creates a new additionalField list if it is not already initialized in censusEntry and adds the additionalField object.
         if (CollectionUtils.isEmpty(censusEntry.getAdditionalFields())) {
             List<AdditionalField> additionalFields = new ArrayList<>();
             additionalFields.add(additionalField);
@@ -133,6 +139,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
         populationByDemographic.setDemographicVariable(PopulationByDemographic.DemographicVariableEnum.fromValue(rs.getString("population_by_demographics_demographic_variable")));
         populationByDemographic.setPopulationDistribution(queryUtil.parseJson((PGobject) rs.getObject("population_by_demographics_population_distribution")));
 
+        // Creates a new populationByDemographic list if it is not already initialized in censusEntry and adds the populationByDemographic object.
         if (CollectionUtils.isEmpty(censusEntry.getPopulationByDemographics())) {
             List<PopulationByDemographic> populationByDemographicList = new ArrayList<>();
             populationByDemographicList.add(populationByDemographic);

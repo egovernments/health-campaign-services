@@ -72,7 +72,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         if(censusSearchCriteria.getAreaCodes() != null && censusSearchCriteria.getAreaCodes().isEmpty())
             return new ArrayList<>();
 
-        // Fetch census ids from database
+        // Fetch census ids from database based on the provided search criteria
         List<String> censusIds = queryDatabaseForCensusIds(censusSearchCriteria);
 
         // Return empty list back as response if no census ids are found
@@ -94,6 +94,12 @@ public class CensusRepositoryImpl implements CensusRepository {
 
     }
 
+    /**
+     * Based on the provided census search criteria, it fetches the corresponding census ids from the database.
+     *
+     * @param censusSearchCriteria census search criteria from the search request.
+     * @return returns a list of census ids.
+     */
     private List<String> queryDatabaseForCensusIds(CensusSearchCriteria censusSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCensusSearchQuery(censusSearchCriteria, preparedStmtList);
