@@ -1079,7 +1079,7 @@ async function handleGenerateError(newEntryResponse: any, generatedResource: any
         code: error.code,
         description: error.description,
         message: error.message
-      } || String(error)
+      }
     }
   })
   generatedResource = { generatedResource: newEntryResponse };
