@@ -87,6 +87,7 @@ class Localisation {
   // Calls the cache burst API of localization
   public cacheBurst = async (
   ) => {
+    logger.info(`Calling localization cache burst api`);
     const RequestInfo = defaultRequestInfo;
     const requestBody = {
       RequestInfo
