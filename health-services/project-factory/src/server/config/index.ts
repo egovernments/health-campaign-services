@@ -152,6 +152,7 @@ const config = {
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
     localizationCreate: "localization/messages/v1/_upsert",
     projectTypeSearch: "project-factory/v1/project-type/search",
+    cacheBurst: process.env.CACHE_BURST || "localization/messages/cache-bust",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
