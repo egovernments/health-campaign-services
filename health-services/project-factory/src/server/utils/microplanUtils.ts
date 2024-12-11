@@ -62,9 +62,8 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
 export function getAllUserData(request: any, userMapping: any, localizationMap: any) {
   const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap);
   const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
-  const phoneNumberKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER_MICROPLAN", localizationMap);
   validateInConsistency(request, userMapping, emailKey, nameKey);
-  validateNationalDuplicacy(request, userMapping, phoneNumberKey);
+  validateNationalDuplicacy(request, userMapping, localizationMap);
   const dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
@@ -94,7 +93,7 @@ function validateInConsistency(request: any, userMapping: any, emailKey: any, na
   request.body.sheetErrorDetails = Array.isArray(request.body.sheetErrorDetails) ? [...request.body.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
 }
 
-function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKey: any) {
+function validateNationalDuplicacy(request: any, userMapping: any, localizationMap: any) {
   const duplicates: any[] = [];
 
   for (const phoneNumber in userMapping) {
@@ -102,23 +101,22 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
     const users = userMapping[phoneNumber];
 
     for (const user of users) {
-      const userRoleAsSheet = user?.["!sheet#name!"];
-      if (userRoleAsSheet?.startsWith("Root ")) {
+      const userRole = user?.role;
+      if (userRole?.startsWith("ROOT_")) {
         // Trim the role
-        const trimmedRole = userRoleAsSheet.replace("Root ", "").trim().toLowerCase();
-        const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
+        const trimmedRole = userRole.replace("ROOT_", "");
 
         // Check for duplicates in the roleMap
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
-          const errorMessage: any = `An user with ${trimmedRoleWithCapital} role can’t be assigned to ${userRoleAsSheet} role`;
+          const errorMessage: any = `An user with ${getLocalizedName(trimmedRole, localizationMap)} role can’t be assigned to ${getLocalizedName(userRole, localizationMap)} role`;
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
           roleMap[trimmedRole] = user;
         }
       }
       else {
-        const trimmedRole = userRoleAsSheet.toLowerCase();
-        const errorMessage: any = `An user with ${"Root " + trimmedRole} role can’t be assigned to ${userRoleAsSheet} role`;
+        const trimmedRole = userRole;
+        const errorMessage: any = `An user with ${getLocalizedName("ROOT_" + trimmedRole, localizationMap)} role can’t be assigned to ${getLocalizedName(userRole, localizationMap)} role`;
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
