@@ -39,6 +39,10 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
 
             if (ObjectUtils.isEmpty(planConfigEntry)) {
                 planConfigEntry = new PlanConfiguration();
+                fileSet.clear();
+                operationSet.clear();
+                assumptionSet.clear();
+                resourceMappingSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("plan_configuration_created_by")).createdTime(rs.getLong("plan_configuration_created_time")).lastModifiedBy(rs.getString("plan_configuration_last_modified_by")).lastModifiedTime(rs.getLong("plan_configuration_last_modified_time")).build();
