@@ -1320,6 +1320,7 @@ async function validateDownloadRequest(request: any) {
 async function immediateValidationForTargetSheet(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap: any) {
     logger.info("validating all district tabs present started")
     validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
+    const campaignBoundariesSet = new Set(request?.body?.campaignBoundaries.map((boundary:any) => boundary.code));
     logger.info("validation of all district tabs present completed")
     for (const key in dataFromSheet) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -1330,6 +1331,7 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                 }
                 const root = getLocalizedName(differentTabsBasedOnLevel, localizationMap);
                 for (const boundaryRow of dataArray) {
+                    const boundaryCode = boundaryRow[getLocalizedName(getBoundaryColumnName(), localizationMap)];
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
                             throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
@@ -1340,6 +1342,9 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                     }
                     if (!boundaryRow[root]) {
                         throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}. Please upload from downloaded template only.`);
+                    }
+                    if(!campaignBoundariesSet.has(boundaryCode)){
+                        throwError("COMMON", 400, "VALIDATION_ERROR", `Some boundaries in uploaded sheet are not present in campaign boundaries. Please upload from downloaded template only.`);
                     }
                 }
             }
