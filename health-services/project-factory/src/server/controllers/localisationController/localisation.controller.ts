@@ -85,7 +85,7 @@ class Localisation {
   };
   
   // Calls the cache burst API of localization
-  private cacheBurst = async (
+  public cacheBurst = async (
   ) => {
     const RequestInfo = defaultRequestInfo;
     const requestBody = {
@@ -101,8 +101,6 @@ class Localisation {
     logger.info(
       `Received to checkCacheAndDeleteIfExists for module ${module}, locale ${locale}`
     );
-    logger.info("Calling localization burst API");
-    await this.cacheBurst();
     if (this.cachedResponse?.[`${module}-${locale}`]) {
       logger.info(`cache found to for module ${module}, locale ${locale}`);
       if (delete this.cachedResponse?.[`${module}-${locale}`]) {
