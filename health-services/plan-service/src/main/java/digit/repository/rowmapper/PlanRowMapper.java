@@ -39,6 +39,10 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
             if (ObjectUtils.isEmpty(planEntry)) {
                 planEntry = new Plan();
+                activityMap.clear();
+                conditionSet.clear();
+                resourceSet.clear();
+                targetSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder()
