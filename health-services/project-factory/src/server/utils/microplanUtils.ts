@@ -102,22 +102,23 @@ function validateNationalDuplicacy(request: any, userMapping: any, phoneNumberKe
     const users = userMapping[phoneNumber];
 
     for (const user of users) {
-      if (user.role?.startsWith("Root ")) {
+      const userRoleAsSheet = user?.["!sheet#name!"];
+      if (userRoleAsSheet?.startsWith("Root ")) {
         // Trim the role
-        const trimmedRole = user.role.replace("Root ", "").trim().toLowerCase();
+        const trimmedRole = userRoleAsSheet.replace("Root ", "").trim().toLowerCase();
         const trimmedRoleWithCapital = trimmedRole.charAt(0).toUpperCase() + trimmedRole.slice(1);
 
         // Check for duplicates in the roleMap
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
-          const errorMessage: any = `An user with ${trimmedRoleWithCapital} role can’t be assigned to ${user.role} role`;
+          const errorMessage: any = `An user with ${trimmedRoleWithCapital} role can’t be assigned to ${userRoleAsSheet} role`;
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
           roleMap[trimmedRole] = user;
         }
       }
       else {
-        const trimmedRole = user.role.toLowerCase();
-        const errorMessage: any = `An user with ${"Root " + trimmedRole} role can’t be assigned to ${user.role} role`;
+        const trimmedRole = userRoleAsSheet.toLowerCase();
+        const errorMessage: any = `An user with ${"Root " + trimmedRole} role can’t be assigned to ${userRoleAsSheet} role`;
         if (roleMap[trimmedRole] && roleMap[trimmedRole]["!sheet#name!"] != user["!sheet#name!"]) {
           duplicates.push({ rowNumber: user["!row#number!"], sheetName: user["!sheet#name!"], status: "INVALID", errorDetails: errorMessage });
         } else {
