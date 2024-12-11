@@ -45,6 +45,8 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
 
             if (ObjectUtils.isEmpty(censusEntry)) {
                 censusEntry = new Census();
+                populationByDemographicSet.clear();
+                additionalFieldSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
