@@ -17,7 +17,7 @@ export const transformAndCreateLocalisation = async (
   boundaryMap: any,
   request: any
 ) => {
-  const CHUNK_SIZE = parseInt(config.localisation.localizationChunkSizeForBoundaryCreation || "2000")
+  const CHUNK_SIZE = config.localisation.localizationChunkSizeForBoundaryCreation
 
   try {
     const { tenantId, hierarchyType } = request?.body?.ResourceDetails || {};
@@ -89,7 +89,7 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         await localisation.createLocalisation(chunk, tenantId, request);
 
         // wait for 3 second
-        const waitTime = parseInt(config.localisation.localizationWaitTimeInBoundaryCreation || "30000")
+        const waitTime = config.localisation.localizationWaitTimeInBoundaryCreation
         logger.info(`Waiting for ${waitTime / 1000} seconds after each localisation chunk`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
 
