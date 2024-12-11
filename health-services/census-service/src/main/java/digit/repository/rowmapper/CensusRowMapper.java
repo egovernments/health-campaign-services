@@ -82,7 +82,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
      * Adds a AdditionalField object to the census entry based on the result set.
      *
      * @param rs                The ResultSet containing the data.
-     * @param additionalFieldSet A map to keep track of added AdditionalField objects.
+     * @param additionalFieldSet A set to keep track of added AdditionalField objects.
      * @param censusEntry       The Census entry to which the AdditionalField object will be added.
      * @throws SQLException If an SQL error occurs.
      */
@@ -117,7 +117,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
      * Adds a PopulationByDemographics object to the census entry based on the result set.
      *
      * @param rs                         The ResultSet containing the data.
-     * @param populationByDemographicSet A map to keep track of added PopulationByDemographics objects.
+     * @param populationByDemographicSet A set to keep track of added PopulationByDemographics objects.
      * @param censusEntry                The Census entry to which the PopulationByDemographics object will be added.
      * @throws SQLException If an SQL error occurs.
      */
