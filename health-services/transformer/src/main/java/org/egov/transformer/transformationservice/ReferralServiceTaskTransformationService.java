@@ -72,7 +72,7 @@ public class ReferralServiceTaskTransformationService {
         String projectType = project.getProjectType();
         String projectTypeId = project.getProjectTypeId();
         BoundaryHierarchyResult boundaryHierarchyResult;
-        String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(service.getAdditionalDetails());
+        String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(service.getAdditionalFields(), service.getAdditionalDetails());
         if (localityCode != null) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
         } else {

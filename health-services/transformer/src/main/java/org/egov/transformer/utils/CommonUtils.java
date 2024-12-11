@@ -3,6 +3,7 @@ package org.egov.transformer.utils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
@@ -109,39 +110,52 @@ public class CommonUtils {
         }
     }
 
-    public List<Double> getGeoPointFromAdditionalDetails(JsonNode additionalDetails) {
-        List<Double> geoPoint = null;
+    public List<Double> getGeoPointFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
+        if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.has(ADDITIONAL_FIELDS_FIELDS_KEY)) {
+            JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
+        }
         if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
                 && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
-            geoPoint = Arrays.asList(
+            return Arrays.asList(
                     additionalDetails.get(LNG).asDouble(),
                     additionalDetails.get(LAT).asDouble()
             );
         }
-        return geoPoint;
+        return null;
     }
 
-    public String getLocalityCodeFromAdditionalDetails(JsonNode additionalDetails) {
-        String localityCode = null;
-        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull(BOUNDARY_CODE_KEY)) {
-            localityCode = additionalDetails.get(BOUNDARY_CODE_KEY).asText();
-        } else if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
-            localityCode = additionalDetails.asText();
+    public String getLocalityCodeFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
+        if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.hasNonNull(ADDITIONAL_FIELDS_FIELDS_KEY)) {
+            JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
         }
-        return localityCode;
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull(BOUNDARY_CODE_KEY)) {
+            return additionalDetails.get(BOUNDARY_CODE_KEY).asText();
+        }
+        if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
+            return additionalDetails.asText();
+        }
+        return null;
     }
 
     public String getLocalityCodeFromAdditionalFields(Object additionalFields) {
         if(additionalFields == null) return null;
-        AtomicReference<String> localityCode = new AtomicReference<>();
+        JsonNode node = objectMapper.valueToTree(additionalFields);
+        return getLocalityCodeFromAdditionalFields(node, null);
+    }
+
+    public JsonNode convertAdditionalFieldsToMap(Object additionalFields) {
+        ObjectNode data = JsonNodeFactory.instance.objectNode();
         JsonNode node = objectMapper.valueToTree(additionalFields);
         ArrayNode fields = (ArrayNode) node.get(ADDITIONAL_FIELDS_FIELDS_KEY);
         fields.spliterator().forEachRemaining(field -> {
-            if(BOUNDARY_CODE_KEY.equals(field.get(ADDITIONAL_FIELDS_FIELDS_KEY_KEY).asText())) {
-                localityCode.set(field.get(ADDITIONAL_FIELDS_FIELDS_VALUE_KEY).asText());
-            }
+            data.set(
+                    field.get(ADDITIONAL_FIELDS_FIELDS_KEY_KEY).asText(),
+                    field.get(ADDITIONAL_FIELDS_FIELDS_VALUE_KEY)
+            );
         });
-        return localityCode.get();
+        return data;
     }
 
     public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
