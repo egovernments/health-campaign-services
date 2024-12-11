@@ -268,7 +268,7 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
     }
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
     if (!item?.[facilityCapacityColumn]) {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column can’t be empty, please update the data and re-upload` })
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column can’t be empty or zero, please update the data and re-upload` })
     }
     else if (typeof (item?.[facilityCapacityColumn]) != "number") {
         errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 1 and 100000000` })
