@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
@@ -1320,7 +1320,7 @@ async function validateDownloadRequest(request: any) {
 async function immediateValidationForTargetSheet(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap: any) {
     logger.info("validating all district tabs present started")
     validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
-    const campaignBoundariesSet = new Set(request?.body?.campaignBoundaries.map((boundary:any) => boundary.code));
+    await validateExtraBoundariesForMicroplan(request, dataFromSheet, localizationMap);
     logger.info("validation of all district tabs present completed")
     for (const key in dataFromSheet) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
@@ -1331,7 +1331,6 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                 }
                 const root = getLocalizedName(differentTabsBasedOnLevel, localizationMap);
                 for (const boundaryRow of dataArray) {
-                    const boundaryCode = boundaryRow[getLocalizedName(getBoundaryColumnName(), localizationMap)];
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
                             throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}`);
@@ -1342,9 +1341,6 @@ async function immediateValidationForTargetSheet(request: any, dataFromSheet: an
                     }
                     if (!boundaryRow[root]) {
                         throwError("COMMON", 400, "VALIDATION_ERROR", ` ${root} column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']}. Please upload from downloaded template only.`);
-                    }
-                    if(!campaignBoundariesSet.has(boundaryCode)){
-                        throwError("COMMON", 400, "VALIDATION_ERROR", `Some boundaries in uploaded sheet are not present in campaign boundaries. Please upload from downloaded template only.`);
                     }
                 }
             }

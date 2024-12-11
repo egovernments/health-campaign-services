@@ -1,8 +1,10 @@
-import { getBoundaryTabName } from "../utils/boundaryUtils";
+import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { resourceDataStatuses } from "../config/constants";
 import config from "../config";
+import { isMicroplanRequest } from "../utils/microplanUtils";
+import { throwError } from "../utils/genericUtils";
 
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
@@ -294,6 +296,27 @@ export function validateFacilityBoundaryForLowestLevel(request: any, boundaries:
             const boundaryFromBoundariesType = boundaries.find((boundary: any) => boundary.code == data)?.type
             if (boundaryFromBoundariesType != lastLevel) {
                 errors.push({ status: "INVALID", rowNumber: rowData?.rowNumber, errorDetails: `${data} is not a ${lastLevel} level boundary` })
+            }
+        }
+    }
+}
+
+
+
+export async function validateExtraBoundariesForMicroplan(request: any, dataFromSheet: any, localizationMap: any) {
+    if (await isMicroplanRequest(request)) {
+        const campaignBoundariesSet = new Set(request?.body?.campaignBoundaries?.map((boundary: any) => boundary.code));
+        for (const key in dataFromSheet) {
+            if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+                if (Object.prototype.hasOwnProperty.call(dataFromSheet, key)) {
+                    const dataArray = (dataFromSheet as { [key: string]: any[] })[key];
+                    for (const boundaryRow of dataArray) {
+                        const boundaryCode = boundaryRow[getLocalizedName(getBoundaryColumnName(), localizationMap)];
+                        if (!campaignBoundariesSet.has(boundaryCode)) {
+                            throwError("COMMON", 400, "VALIDATION_ERROR", `Some boundaries in uploaded sheet are not present in campaign boundaries. Please upload from downloaded template only.`);
+                        }
+                    }
+                }
             }
         }
     }
