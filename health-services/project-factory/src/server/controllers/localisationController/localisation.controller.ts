@@ -97,7 +97,7 @@ class Localisation {
   };
 
 
-  private checkCacheAndDeleteIfExists = async (module: string, locale: "string") => {
+  private checkCacheAndDeleteIfExists = (module: string, locale: "string") => {
     logger.info(
       `Received to checkCacheAndDeleteIfExists for module ${module}, locale ${locale}`
     );
@@ -136,7 +136,7 @@ class Localisation {
 
       messages &&
         messages?.length > 0 &&
-        await this.checkCacheAndDeleteIfExists(
+        this.checkCacheAndDeleteIfExists(
           messages?.[0]?.module,
           messages?.[0]?.locale
         );
