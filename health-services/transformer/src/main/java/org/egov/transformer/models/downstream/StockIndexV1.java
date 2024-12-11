@@ -19,7 +19,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockIndexV1 {
+public class StockIndexV1 extends ProjectInfo {
 
     @JsonProperty("id")
     private String id;
@@ -68,6 +68,9 @@ public class StockIndexV1 {
 
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
 
     @JsonProperty("createdBy")
     private String createdBy;

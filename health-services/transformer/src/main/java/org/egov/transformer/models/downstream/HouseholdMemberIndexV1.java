@@ -17,11 +17,13 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdMemberIndexV1  {
+public class HouseholdMemberIndexV1 extends ProjectInfo {
     @JsonProperty("householdMember")
     private HouseholdMember householdMember;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("dateOfBirth")
     private Long dateOfBirth;
     @JsonProperty("age")
