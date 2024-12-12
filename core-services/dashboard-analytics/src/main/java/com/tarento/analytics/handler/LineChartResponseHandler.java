@@ -245,7 +245,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         }
 
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
-            dataList = actionsHelper.divide(action, dataList, chartNode);
+            dataList = actionsHelper.divide(action, null, dataList, chartNode);
         }
 
         //"sort" key as final String
