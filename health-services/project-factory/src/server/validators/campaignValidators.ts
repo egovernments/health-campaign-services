@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
@@ -835,13 +835,10 @@ function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
 async function validateParent(request: any, actionInUrl: any) {
     if (request?.body?.CampaignDetails?.parentId) {
         const tenantId = request.body.CampaignDetails?.tenantId
-        // const searchBodyForParent: any = {
-        //     RequestInfo: request.body.RequestInfo,
         const CampaignDetails = {
             tenantId: tenantId,
             ids: [request.body.CampaignDetails?.parentId]
         }
-        // const req: any = replicateRequest(request, searchBodyForParent)
         const parentSearchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
         if (Array.isArray(parentSearchResponse?.CampaignDetails)) {
             if (actionInUrl == "create") {
@@ -1323,6 +1320,7 @@ async function validateDownloadRequest(request: any) {
 async function immediateValidationForTargetSheet(request: any, dataFromSheet: any, differentTabsBasedOnLevel: any, localizationMap: any) {
     logger.info("validating all district tabs present started")
     validateAllDistrictTabsPresentOrNot(request, dataFromSheet, differentTabsBasedOnLevel, localizationMap);
+    await validateExtraBoundariesForMicroplan(request, dataFromSheet, localizationMap);
     logger.info("validation of all district tabs present completed")
     for (const key in dataFromSheet) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {

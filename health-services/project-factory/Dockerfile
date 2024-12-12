@@ -31,6 +31,4 @@ COPY . .
 EXPOSE 3000
 
 CMD ["yarn", "prod"]
- # Replaced by CMD ["yarn", "prod"]
-
-
+# Replaced by CMD ["yarn", "prod"]

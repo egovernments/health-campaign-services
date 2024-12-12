@@ -374,7 +374,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    if(type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement'){
+    if (type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement') {
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
       logger.info(`checks for parent campaign for type: ${type}`)
@@ -407,7 +407,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == 'boundaryManagement'  || type === 'boundaryGeometryManagement'){
+    else if (type == 'boundaryManagement' || type === 'boundaryGeometryManagement') {
       // get boundary data from boundary relationship search api
       logger.info("Generating Boundary Data")
       const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
@@ -601,10 +601,10 @@ function setAndFormatHeaders(worksheet: any, mainHeader: any, headerSet: any) {
 async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap = {}) {
   const isSourceMicroplan = await isMicroplanRequest(request);
   let readMeConfig: any;
-  if(isSourceMicroplan) {
+  if (isSourceMicroplan) {
     readMeConfig = await getReadMeConfigForMicroplan(request);
   }
-  else{
+  else {
     readMeConfig = await getReadMeConfig(request);
   }
   const headerSet = new Set();
@@ -749,13 +749,13 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  let receivedDropdowns=request.body?.dropdowns;
-  logger.info("started adding dropdowns in facility",JSON.stringify(receivedDropdowns))
+  let receivedDropdowns = request.body?.dropdowns;
+  logger.info("started adding dropdowns in facility", JSON.stringify(receivedDropdowns))
 
-  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
     logger.info("No dropdowns found");
-    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
-    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(facilitySheet, receivedDropdowns);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
@@ -777,7 +777,7 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
     logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
       if (dropdowns[key]) {
-        logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);      
+        logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);
         const firstRow = sheet.getRow(1);
         firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
           if (cell.value === key) {
@@ -815,7 +815,7 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
 
 async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
   // logger.info(sheet)
-  logger.info("hiddenColumns",hiddenColumns);
+  logger.info("hiddenColumns", hiddenColumns);
   if (hiddenColumns) {
     for (const columnName of hiddenColumns) {
       const firstRow = sheet.getRow(1);
@@ -849,13 +849,13 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
 
-  let receivedDropdowns=request.body?.dropdowns;
-  logger.info("started adding dropdowns in user",JSON.stringify(receivedDropdowns))
+  let receivedDropdowns = request.body?.dropdowns;
+  logger.info("started adding dropdowns in user", JSON.stringify(receivedDropdowns))
 
-  if(!receivedDropdowns||Object.keys(receivedDropdowns)?.length==0){
+  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
     logger.info("No dropdowns found");
-    receivedDropdowns= setDropdownFromSchema(request,schema,localizationMap);
-    logger.info("refetched drodowns",JSON.stringify(receivedDropdowns))
+    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(userSheet, receivedDropdowns);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
@@ -870,6 +870,8 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
 
 async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, fileUrl?: any) {
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
+  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
   const allFacilities = await getAllFacilities(tenantId, request.body);
@@ -881,10 +883,10 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   if (fileUrl) {
     /* fetch facility from processed file 
     and generate facility sheet data */
+    schema = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
-    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(request, processedFacilitySheetData, localizationMap);
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schema, localizationMap);
     facilitySheetData = modifiedProcessedFacilitySheetData;
-    schema = await callMdmsTypeSchema(request, tenantId, true, "facility", "all");
     setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
@@ -903,9 +905,11 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
 
 async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any, fileUrl?: any) {
   const tenantId = request?.query?.tenantId;
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
+  const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   let schema: any;
   const isUpdate = fileUrl ? true : false;
-  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, "user");
+  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, typeWithoutWith);
   setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -917,7 +921,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
     /* fetch facility from processed file 
     and generate facility sheet data */
     const processedUserSheetData = await getSheetData(fileUrl, localizedUserTab, false, undefined, localizationMap);
-    const modifiedProcessedUserSheetData = modifyProcessedSheetData(request, processedUserSheetData, localizationMap);
+    const modifiedProcessedUserSheetData = modifyProcessedSheetData(typeWithoutWith, processedUserSheetData, schema, localizationMap);
     userSheetData = modifiedProcessedUserSheetData;
   }
   else {
@@ -1075,7 +1079,7 @@ async function handleGenerateError(newEntryResponse: any, generatedResource: any
         code: error.code,
         description: error.description,
         message: error.message
-      } || String(error)
+      }
     }
   })
   generatedResource = { generatedResource: newEntryResponse };
@@ -1303,12 +1307,12 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
-  if(type == "boundaryManagement"){
+  if (type == "boundaryManagement") {
     logger.info("Processing data for boundaryManagement type")
     const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
     for (let d of data) {
       const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
-    
+
       if (latLongBoundaryMap[boundaryCode]) {
         const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
         d.push(latitude);   // Append latitude
@@ -1359,7 +1363,7 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId,overrideCache);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
   return localizationResponse;
 }
 

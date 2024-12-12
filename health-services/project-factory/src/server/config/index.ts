@@ -39,6 +39,8 @@ const config = {
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
+    facilityCodeColumn : "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+    facilityType : "facility"
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
@@ -95,6 +97,8 @@ const config = {
     defaultLocale: process.env.LOCALE || "en_MZ",
     boundaryPrefix: "hcm-boundary",
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
+    localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
+    localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],
@@ -148,6 +152,7 @@ const config = {
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
     localizationCreate: "localization/messages/v1/_upsert",
     projectTypeSearch: "project-factory/v1/project-type/search",
+    cacheBurst: process.env.CACHE_BURST || "localization/messages/cache-bust",
     boundaryRelationshipCreate: "boundary-service/boundary-relationships/_create",
     healthIndividualSearch: process.env.EGOV_HEALTH_INDIVIDUAL_SEARCH || "health-individual/v1/_search",
     projectFacilitySearch: process.env.EGOV_HEALTH_PROJECT_FACILITY_SEARCH || "health-project/facility/v1/_search",
