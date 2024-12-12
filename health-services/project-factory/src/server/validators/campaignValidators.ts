@@ -1375,8 +1375,8 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
                 .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type.toUpperCase()}`, localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
-            districtsLocalised.forEach((tab: any) => {
-                if (!tabsOfDistrict.includes(tab)) {
+            districtsLocalised?.forEach((tab: any) => {
+                if (!tabsOfDistrict?.includes(tab)) {
                     MissingDistricts.push(tab);
                 }
             });
