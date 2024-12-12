@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 import lombok.Data;
 import lombok.Builder;
 
+import java.util.Arrays;
+
 /**
  * File
  */
@@ -72,12 +74,10 @@ public class File {
 
         @JsonCreator
         public static InputFileTypeEnum fromValue(String text) {
-            for (InputFileTypeEnum b : InputFileTypeEnum.values()) {
-                if (String.valueOf(b.value).equals(text)) {
-                    return b;
-                }
-            }
-            return null;
+            return Arrays.stream(InputFileTypeEnum.values())
+                    .filter(b -> String.valueOf(b.value).equals(text))
+                    .findFirst()
+                    .orElse(null); // Return null if no matching enum value is found
         }
     }
 
