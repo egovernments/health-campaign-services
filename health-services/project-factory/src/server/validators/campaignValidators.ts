@@ -1375,15 +1375,15 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
                 .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type.toUpperCase()}`, localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
-            tabsOfDistrict.forEach((tab: any) => {
-                if (!districtsLocalised.includes(tab)) {
+            districtsLocalised.forEach((tab: any) => {
+                if (!tabsOfDistrict.includes(tab)) {
                     MissingDistricts.push(tab);
                 }
             });
         }
 
         if (MissingDistricts.length > 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Districts ${MissingDistricts.join(', ')} not present in the Target Sheet Uploaded`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `District${MissingDistricts?.length > 1 ? 's' : ''} ${MissingDistricts.join(', ')} not present in the Target Sheet Uploaded`);
         }
     }
 
