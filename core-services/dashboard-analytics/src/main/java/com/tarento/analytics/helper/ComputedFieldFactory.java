@@ -16,6 +16,8 @@ public class ComputedFieldFactory {
     private SumComputedField sumComputedField;
     @Autowired
     private NoOpsComputedField noOpsComputedField;
+    @Autowired
+    private StackPercentageComputedField stackPercentageComputedField;
 
     public IComputedField getInstance(String className){
 
@@ -31,7 +33,10 @@ public class ComputedFieldFactory {
         } else if(className.equalsIgnoreCase(sumComputedField.getClass().getSimpleName())) {
             return sumComputedField;
 
-        }else if(className.isEmpty()) {
+        } else if(className.equalsIgnoreCase(stackPercentageComputedField.getClass().getSimpleName())) {
+            return stackPercentageComputedField;
+
+        } else if(className.isEmpty()) {
             return noOpsComputedField;
 
         } else {

@@ -10,15 +10,16 @@ import java.util.*;
 
 @Component
 public class ActionsHelper {
-    public List<Data> divide(String action, List<Data> dataList, JsonNode chartNode) {
+    public List<Data> divide(String action, String newHeaderName, List<Data> dataList, JsonNode chartNode) {
         if (dataList.size() != 2 || dataList.get(0).getPlots().size() > dataList.get(1).getPlots().size()) {
             throw new RuntimeException("Plot size of numerator is more than denominator to compute percentage");
         }
         List<Data> plotList = new LinkedList<>();
+        String headerName = newHeaderName != null ? newHeaderName : dataList.get(0).getHeaderName();
         double cumulativeValue = 0.0;
         List<Plot> plots = new ArrayList<>();
         // Setting the label of plot as the 0th element in aggregation paths array
-        plotList.add(new Data(dataList.get(0).getHeaderName(), cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
+        plotList.add(new Data(headerName, cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
         Map<String, Double> numeratorMap= new HashMap<String, Double>();
         Map<String, Double> denominatorMap= new HashMap<String, Double>();
         dataList.get(0).getPlots().forEach(plot -> {
