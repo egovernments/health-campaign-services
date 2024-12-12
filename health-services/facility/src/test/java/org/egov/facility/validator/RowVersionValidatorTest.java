@@ -1,6 +1,7 @@
 package org.egov.facility.validator;
 
 import org.egov.common.models.Error;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
@@ -39,7 +40,9 @@ class RowVersionValidatorTest {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
         request.getFacilities().get(0).setRowVersion(2);
         when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
-                .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
+                .thenReturn(SearchResponse.<Facility>builder()
+                        .response(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()))
+                        .build());
 
         Map<Facility, List<Error>> errorDetailsMap = fRowVersionValidator.validate(request);
 
@@ -51,7 +54,8 @@ class RowVersionValidatorTest {
     void shouldNotAddToErrorDetailsIfRowVersionSimilar() {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
         when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
-                .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
+                .thenReturn(SearchResponse.<Facility>builder()
+                        .response(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build())).build());
 
         Map<Facility, List<Error>> errorDetailsMap = fRowVersionValidator.validate(request);
 
