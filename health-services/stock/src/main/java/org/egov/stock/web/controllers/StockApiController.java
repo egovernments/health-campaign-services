@@ -8,6 +8,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
@@ -80,7 +81,7 @@ public class StockApiController {
             @ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stockSearchRequest
     ) throws Exception {
 
-        List<Stock> stock = stockService.search(
+        SearchResponse<Stock> searchResponse = stockService.search(
                 stockSearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -89,7 +90,7 @@ public class StockApiController {
                 urlParams.getIncludeDeleted()
         );
         StockBulkResponse response = StockBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(stockSearchRequest.getRequestInfo(), true)).stock(stock).build();
+                .createResponseInfo(stockSearchRequest.getRequestInfo(), true)).stock(searchResponse.getResponse()).totalCount(searchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

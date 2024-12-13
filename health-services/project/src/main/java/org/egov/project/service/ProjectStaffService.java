@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffRequest;
@@ -28,9 +29,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.Type;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -224,26 +223,27 @@ public class ProjectStaffService {
         return new Tuple<>(validEntities, errorDetailsMap);
     }
 
-    public List<ProjectStaff> search(ProjectStaffSearchRequest projectStaffSearchRequest,
-                                     Integer limit,
-                                     Integer offset,
-                                     String tenantId,
-                                     Long lastChangedSince,
-                                     Boolean includeDeleted) throws Exception {
+    public SearchResponse<ProjectStaff> search(ProjectStaffSearchRequest projectStaffSearchRequest,
+                                               Integer limit,
+                                               Integer offset,
+                                               String tenantId,
+                                               Long lastChangedSince,
+                                               Boolean includeDeleted) throws Exception {
         log.info("received request to search project staff");
 
         if (isSearchByIdOnly(projectStaffSearchRequest.getProjectStaff())) {
             log.info("searching project staff by id");
             List<String> ids = projectStaffSearchRequest.getProjectStaff().getId();
             log.info("fetching project staff with ids: {}", ids);
-            return projectStaffRepository.findById(ids, includeDeleted).stream()
+            List<ProjectStaff> projectStaffs = projectStaffRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<ProjectStaff>builder().response(projectStaffs).build();
         }
         log.info("searching project staff using criteria");
-        return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
+        return projectStaffRepository.findWithCount(projectStaffSearchRequest.getProjectStaff(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 
