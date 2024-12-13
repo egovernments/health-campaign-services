@@ -51,7 +51,7 @@ public class Service {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
     @JsonProperty("accountId")

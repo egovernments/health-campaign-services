@@ -144,6 +144,7 @@ public class EnrichmentUtil {
                     }
                 }
             }
+
             log.info("Successfully update file with approved census data.");
         }
     }
@@ -264,6 +265,7 @@ public class EnrichmentUtil {
                     }
                 }
             }
+
             log.info("Successfully update file with approved census data.");
         }
     }
