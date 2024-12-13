@@ -8,7 +8,7 @@ const createAndSearch: any = {
             }
         ],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -132,14 +132,151 @@ const createAndSearch: any = {
             searchPath: "Facilities"
         }
     },
+    "facilityMicroplan": {
+        requiresToSearchFromSheet: [
+            {
+                sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+                searchPath: "Facility.id"
+            }
+        ],
+        boundaryValidation: {
+            column: "HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN"
+        },
+        sheetSchema: {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "FacilityTemplateSchema",
+            "type": "object",
+            "properties": {
+                "Facility Name": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 1
+                },
+                "Facility Type": {
+                    // "type": "string",
+                    "enum": ["Warehouse", "Health Facility", "Storing Resource"]
+                },
+                "Facility Status": {
+                    // "type": "string",
+                    "enum": ["Temporary", "Permanent"]
+                },
+                "Capacity": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 100000000
+                }
+            },
+            "required": [
+                "Facility Name",
+                "Facility Type",
+                "Facility Status",
+                "Capacity"
+            ],
+            "unique": [
+                "Facility Name"
+            ]
+        },
+        uniqueIdentifier: "id",
+        uniqueIdentifierColumn: "A",
+        activeColumn: "F",
+        activeColumnName: "HCM_ADMIN_CONSOLE_FACILITY_USAGE_MICROPLAN",
+        uniqueIdentifierColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+        matchEachKey: true,
+        parseArrayConfig: {
+            sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
+            parseLogic: [
+                {
+                    sheetColumn: "A",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+                    resultantPath: "id",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "B",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_NAME_MICROPLAN",
+                    resultantPath: "name",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "C",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_TYPE_MICROPLAN",
+                    resultantPath: "usage",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "D",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_STATUS_MICROPLAN",
+                    resultantPath: "isPermanent",
+                    type: "boolean",
+                    conversionCondition: {
+                        "Permanent": "true",
+                        "Temporary": ""
+                    }
+                },
+                {
+                    sheetColumn: "E",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN",
+                    resultantPath: "storageCapacity",
+                    type: "number"
+                },
+                {
+                    sheetColumn: "J",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_RESIDING_BOUNDARY_CODE_MICROPLAN"
+                }
+            ],
+            tenantId: {
+                getValueViaPath: "ResourceDetails.tenantId",
+                resultantPath: "tenantId"
+            }
+        },
+        createBulkDetails: {
+            limit: 50,
+            createPath: "Facilities",
+            url: config.host.facilityHost + "facility/v1/bulk/_create"
+        },
+        searchDetails: {
+            searchElements: [
+                {
+                    keyPath: "tenantId",
+                    getValueViaPath: "ResourceDetails.tenantId",
+                    isInParams: true,
+                    isInBody: false,
+                },
+                {
+                    keyPath: "Facility",
+                    isInParams: false,
+                    isInBody: true,
+                }
+            ],
+            searchLimit: {
+                keyPath: "limit",
+                value: "200",
+                isInParams: true,
+                isInBody: false,
+            },
+            searchOffset: {
+                keyPath: "offset",
+                value: "0",
+                isInParams: true,
+                isInBody: false,
+            },
+            url: config.host.facilityHost + "facility/v1/_search",
+            searchPath: "Facilities"
+        }
+    },
     "boundary": {
         parseArrayConfig: {
             sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
         }
     },
     "user": {
+        requiresToSearchFromSheet: [
+            {
+                sheetColumnName: "UserService Uuids",
+                searchPath: "user.mobileNumber"
+            }],
         boundaryValidation: {
-            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
         },
         sheetSchema: {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -217,8 +354,10 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "H",
+        uniqueIdentifierColumn: "I",
         uniqueIdentifierColumnName: "UserService Uuids",
+        activeColumn: "F",
+        activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",
@@ -250,6 +389,14 @@ const createAndSearch: any = {
         }
     },
     "boundaryWithTarget": {
+        parseArrayConfig: {
+            sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+        },
+        boundaryValidation: {
+            column: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
+        }
+    },
+    "boundaryManagement": {
         parseArrayConfig: {
             sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
         },
