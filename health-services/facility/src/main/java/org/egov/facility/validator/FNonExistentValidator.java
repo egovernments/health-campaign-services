@@ -50,7 +50,7 @@ public class FNonExistentValidator implements Validator<FacilityBulkRequest, Fac
             Map<String, Facility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<Facility> existingEntities = facilityRepository.findById(entityIds, getIdFieldName(idMethod), false);
+                List<Facility> existingEntities = facilityRepository.findById(entityIds, getIdFieldName(idMethod), false).getResponse();
                 List<Facility> nonExistentEntities = checkNonExistentEntities(eMap,
                         existingEntities, idMethod);
                 nonExistentEntities.forEach(facility -> {

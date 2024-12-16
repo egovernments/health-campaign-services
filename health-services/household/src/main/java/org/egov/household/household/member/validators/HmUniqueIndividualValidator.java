@@ -69,7 +69,7 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
 
                     log.info("finding individuals mappings in household member");
                     List<HouseholdMember> individualSearchResult = householdMemberRepository
-                            .findIndividual(individual.getId());
+                            .findIndividual(individual.getId()).getResponse();
                     if(!individualSearchResult.isEmpty()) {
                         Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
                                 .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
