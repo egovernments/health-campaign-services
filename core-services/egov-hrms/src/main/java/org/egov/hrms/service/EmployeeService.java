@@ -306,9 +306,12 @@ public class EmployeeService {
 	 */
 	private void enrichCreateRequest(Employee employee, RequestInfo requestInfo) {
 
+		long time = new Date().getTime();
 		AuditDetails auditDetails = AuditDetails.builder()
 				.createdBy(requestInfo.getUserInfo().getUuid())
-				.createdDate(new Date().getTime())
+				.createdDate(time)
+				.lastModifiedBy(requestInfo.getUserInfo().getUuid())
+				.lastModifiedDate(time)
 				.build();
 		
 		employee.getJurisdictions().stream().forEach(jurisdiction -> {
@@ -448,10 +451,10 @@ public class EmployeeService {
 	 * @param existingEmployeesData
 	 */
 	private void enrichUpdateRequest(Employee employee, RequestInfo requestInfo, List<Employee> existingEmployeesData) {
-		AuditDetails auditDetails = AuditDetails.builder()
-				.createdBy(requestInfo.getUserInfo().getUserName())
-				.createdDate(new Date().getTime())
-				.build();
+
+		AuditDetails auditDetails = employee.getAuditDetails();
+		auditDetails.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+		auditDetails.setLastModifiedDate(new Date().getTime());
 		// Find the existing employee data matching the current employee's UUID
 		Employee existingEmpData = existingEmployeesData.stream()
 				.filter(existingEmployee -> existingEmployee.getUuid().equals(employee.getUuid()))

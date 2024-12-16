@@ -60,6 +60,8 @@ public class Assignment {
 	@SafeHtml
 	private String id;
 
+	private String employeeId;
+
 	private Long position;
 
 	@SafeHtml
