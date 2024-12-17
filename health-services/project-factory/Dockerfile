@@ -14,7 +14,7 @@ ENV BRANCH_NAME=$BRANCH_NAME
 ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
 ENV NODE_OPTIONS="--max-old-space-size=2048"
-ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache  # Disable cache by setting custom folder
+ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 
 # Set proxy settings if Jenkins or environment is behind a proxy (uncomment if needed)
 # ENV HTTP_PROXY=http://your-proxy.com:8080
