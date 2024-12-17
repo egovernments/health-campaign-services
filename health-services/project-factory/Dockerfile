@@ -19,7 +19,7 @@ ENV NODE_OPTIONS="--max-old-space-size=2048"
 COPY package.json ./
 
 # Install dependencies
-RUN yarn cache clean && yarn install
+RUN yarn cache clean --force && yarn install --no-cache
 
 # Optionally, you can add a label with the commit ID
 LABEL commit_id=$COMMIT_ID
