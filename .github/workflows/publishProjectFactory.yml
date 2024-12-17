@@ -5,12 +5,14 @@ on:
     branches: 
       - "console"
       - "master"
+      - "buildFixProjectFactory"
     paths:
       - 'health-services/project-factory/**'
   pull_request:
     branches: 
       - "console"
       - "master"
+      - "buildFixProjectFactory"
 
 jobs:
   build:
@@ -27,13 +29,15 @@ jobs:
         id: env
         run: |
           echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          echo "COMMIT_ID=${GITHUB_SHA: -8}" >> $GITHUB_ENV
 
       # Step 3: Build the service Docker image
       - name: Build the service Docker image
         id: docker_build
         working-directory: ./health-services/project-factory
         run: |
-          IMAGE_TAG=egovio/project-factory:${{ env.ACTION_NUMBER }}
+          IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
