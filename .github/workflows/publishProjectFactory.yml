@@ -49,7 +49,7 @@ jobs:
         id: docker_db_build
         working-directory: ./health-services/project-factory/migration
         run: |
-          IMAGE_TAG=egovio/project-factory-db:${{ env.ACTION_NUMBER }}
+          IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
