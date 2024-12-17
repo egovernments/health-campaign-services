@@ -24,13 +24,22 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history for tags and branches
 
-      # Step 2: Set up environment variables
+      # Step 2: Set up environment variables with clean BRANCH_NAME
       - name: Set up environment variables
         id: env
         run: |
           echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          
+          # Check if it's a pull request
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BRANCH_NAME="${{ github.base_ref }}"
+          else
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          fi
+          
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           echo "COMMIT_ID=${GITHUB_SHA: -8}" >> $GITHUB_ENV
+          echo "Branch name is set to ${BRANCH_NAME}"
 
       # Step 3: Build the service Docker image
       - name: Build the service Docker image
@@ -49,12 +58,42 @@ jobs:
         id: docker_db_build
         working-directory: ./health-services/project-factory/migration
         run: |
-          IMAGE_TAG=egovio/project-factory-db:${{ env.ACTION_NUMBER }}
+          IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.ACTION_NUMBER }}
           docker build . \
             --file Dockerfile \
             --tag $IMAGE_TAG
           echo "::set-output name=db_image_name::$IMAGE_TAG"
           echo "DB migration Docker image built successfully"
+
+      # Step 5: Login to Docker Hub and Push the service Docker image
+      - name: Login to Docker Hub and Push Docker Image
+        working-directory: ./health-services/project-factory
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAME: ${{ steps.docker_build.outputs.image_name }}
+        run: |      
+          # Authenticate with Docker Hub
+          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          
+          # Push the image to Docker Hub
+          docker push $IMAGE_NAME
+          echo "Docker image pushed: $IMAGE_NAME"
+
+      # Step 6: Login to Docker Hub and Push the DB migration Docker image
+      - name: Login to Docker Hub and Push DB Migration Docker Image
+        working-directory: ./health-services/project-factory/migration
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DB_IMAGE_NAME: ${{ steps.docker_db_build.outputs.db_image_name }}
+        run: |      
+          # Authenticate with Docker Hub
+          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          
+          # Push the image to Docker Hub
+          docker push $DB_IMAGE_NAME
+          echo "DB migration Docker image pushed: $DB_IMAGE_NAME"
 
   node_build:
     runs-on: ubuntu-latest
