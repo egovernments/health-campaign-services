@@ -19,7 +19,12 @@ ENV NODE_OPTIONS="--max-old-space-size=2048"
 COPY package.json ./
 
 # Install dependencies
-RUN yarn cache clean --force && yarn install --force
+RUN yarn config set network-timeout 600000 && \
+    yarn config set fetch-retries 5 && \
+    yarn config set fetch-retry-factor 10 && \
+    yarn config set fetch-retry-mintime 1000 && \
+    yarn cache clean --force && \
+    yarn install --no-cache --force
 
 # Optionally, you can add a label with the commit ID
 LABEL commit_id=$COMMIT_ID
