@@ -1344,7 +1344,6 @@ async function performAndSaveResourceActivity(
         createAndSearchConfig?.createBulkDetails?.createPath,
         chunkData
       );
-      creationTime = Date.now();
       if (type == "facility" || type == "facilityMicroplan") {
         await handeFacilityProcess(
           request,
