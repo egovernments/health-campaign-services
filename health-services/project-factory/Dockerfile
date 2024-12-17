@@ -23,13 +23,9 @@ ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 # Copy package.json and yarn.lock (if exists)
 COPY package.json ./
 
-# Install dependencies with various yarn config options
-RUN yarn config set network-timeout 600000 && \
-    yarn config set fetch-retries 5 && \
-    yarn config set fetch-retry-factor 10 && \
-    yarn config set fetch-retry-mintime 1000 && \
+RUN yarn config set registry https://registry.npmjs.org && \
     yarn cache clean --force && \
-    yarn install --force --no-cache --prefer-offline --no-lockfile  # Force fresh install with no cache
+    yarn install --force --no-cache
 
 # Optionally, you can add a label with the commit ID
 LABEL commit_id=$COMMIT_ID
