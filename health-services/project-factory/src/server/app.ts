@@ -11,6 +11,7 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { handleGzipRequest } from "./utils/gzipHandler";
 
 const printMemoryInMB = (memoryInBytes: number) => {
   const memoryInMB = memoryInBytes / (1024 * 1024); // Convert bytes to MB
@@ -41,16 +42,24 @@ class App {
   }
 
   private initializeMiddlewares() {
-    this.app.use(
-      bodyParser.json({ limit: config.app.incomingRequestPayloadLimit })
-    );
+    this.app.use((req, res, next) => {
+      const contentType = req.headers["content-type"];
+
+      if (contentType === "application/gzip") {
+        return handleGzipRequest(req, res, next);
+      }
+
+      return bodyParser.json({ limit: config.app.incomingRequestPayloadLimit })(req, res, next);
+    });
+
+
     this.app.use(
       bodyParser.urlencoded({
         limit: config.app.incomingRequestPayloadLimit,
         extended: true,
       })
     );
-    this.app.use(bodyParser.json());
+    // this.app.use(bodyParser.json());
     this.app.use(tracingMiddleware);
     this.app.use(requestMiddleware);
     this.app.use(errorLogger);

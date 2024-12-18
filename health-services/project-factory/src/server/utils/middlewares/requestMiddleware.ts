@@ -18,9 +18,9 @@ const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
     logger.info(`RECEIVED A HTTP REQUEST :: URI :: ${req.url}`);
     // Check if the content type is 'application/json'
     const contentType = req.headers['content-type'];
-    if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json')) {
-      // If content type is not 'application/json', throw Unsupported Media Type error
-      let e: any = new Error("Unsupported Media Type: Content-Type should be 'application/json'");
+    if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json') && !contentType.split(';').map(part => part.trim()).includes('application/gzip')) {
+      // If content type is not 'application/json' or 'application/gzip', throw Unsupported Media Type error
+      let e: any = new Error("Unsupported Media Type: Content-Type should be 'application/json' or 'application/gzip'");
       e = Object.assign(e, { status: 415, code: "UNSUPPORTED_MEDIA_TYPE" });
       errorResponder(e, req, res, 415)
       return;
