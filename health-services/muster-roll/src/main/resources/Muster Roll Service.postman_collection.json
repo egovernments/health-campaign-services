@@ -1,0 +1,824 @@
+{
+	"info": {
+		"_postman_id": "d06e2af1-4655-4db7-9a30-72d6a09babca",
+		"name": "Muster Roll Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Estimate muster roll - Success",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.be.not.null});",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.not.be.undefined});",
+							"",
+							"pm.test(\"registerId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.registerId).to.be.not.null});",
+							"",
+							"pm.test(\"registerId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.registerId).to.not.be.undefined});",
+							"",
+							"pm.test(\"startDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.startDate).to.be.not.null});",
+							"",
+							"pm.test(\"startDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.startDate).to.not.be.undefined});",
+							"",
+							"pm.test(\"endDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.endDate).to.be.not.null});",
+							"",
+							"pm.test(\"endDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.endDate).to.not.be.undefined});",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"f31d4d19-d539-4242-9b96-5316afa8bb81\",\n    \"startDate\": 1670178600000,\n    \"endDate\": 1670697000000\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_estimate",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_estimate"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Estimate muster roll - Validation error",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"56shcwgdt227\",\n    \"startDate\": 1669919400000\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_estimate",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_estimate"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Success - Default skill level",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.be.not.null});",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.not.be.undefined});",
+							"",
+							"pm.test(\"registerId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.registerId).to.be.not.null});",
+							"",
+							"pm.test(\"registerId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.registerId).to.not.be.undefined});",
+							"",
+							"pm.test(\"startDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.startDate).to.be.not.null});",
+							"",
+							"pm.test(\"startDate is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.startDate).to.not.be.undefined});",
+							"",
+							"pm.test(\"skill level is default\", function () {",
+							"    let responseData = pm.response.json();",
+							"    pm.expect(responseData.musterRolls[0].individualEntries[0].additionalDetails.skillCode).eq(\"UNSKILLED\")});",
+							"",
+							"pm.test(\"workflow status is submitted\", function () {",
+							"    let responseData = pm.response.json();",
+							"    pm.expect(responseData.musterRolls[0].musterRollStatus).eq(\"SUBMITTED\")});",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"let responseData = pm.response.json();",
+							"pm.environment.set(\"musterRollId\", responseData.musterRolls[0].id);",
+							"pm.environment.set(\"musterRollNumber\", responseData.musterRolls[0].musterRollNumber);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"{{registerId}}\",\n    \"startDate\": 1670178600000,\n    \"endDate\": 1670697000000,\n     \"additionalDetails\": {\"org details\":\"org1\"}\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\",\n        \"assignees\": []       \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Success  with Individual Skill all individuals",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"9d8ec5f2-a1ed-4e60-afb3-96a6ab73c2b6\",\n    \"startDate\": 1670178600000,\n    \"endDate\": 1670697000000,\n    \"individualEntries\": [\n                {\n                    \"individualId\": \"123e4567-e89b-12d3-a456-426614174444\",\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_1\"}\n                },\n                {\n                    \"individualId\": \"123e4567-e89b-12d3-a456-426614174445\",\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_2\"}\n                }\n\n     ],\n     \"additionalDetails\": {\"org details\":\"org1\"}\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\",\n        \"assignees\": []       \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Success  with Individual Skill for one individual (Not all)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"9d8ec5f2-a1ed-4e60-afb3-96a6ab73c2b7\",\n    \"startDate\": 1670178600000,\n    \"endDate\": 1670697000000,\n    \"individualEntries\": [\n                {\n                    \"individualId\": \"123e4567-e89b-12d3-a456-426614174444\",\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_4\"}\n                }\n\n     ],\n     \"additionalDetails\": {\"org details\":\"org1\"}\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\",\n        \"assignees\": []       \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Validation error - StartDate not Monday",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"56shcwgdt227\",\n    \"startDate\": 1669919400000\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\"\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Validation error - Tenant id not in MDMS",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"bp.amritsar\",\n    \"registerId\": \"56shcwgdt227\",\n    \"startDate\": 1670178600000\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create muster roll - Validation error - duplicate muster",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n    \"registerId\": \"{{registerId}}\",\n    \"startDate\": 1670178600000\n  },\n  \"workflow\": {\n      \"action\": \"SUBMIT\",\n        \"comments\": \"Sumbit muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_create",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - VERIFY action - No update of totalAttendance and skills",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.be.not.null});",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.tenantId).to.not.be.undefined});",
+							"",
+							"pm.test(\"muster id is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.id).to.be.not.null});",
+							"",
+							"pm.test(\"muster id is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.musterRoll.id).to.not.be.undefined});",
+							"",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"{{musterRollId}}\"\n  },\n  \"workflow\": {\n      \"action\": \"VERIFY\",\n        \"comments\": \"Verify muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - VERIFY action - Update total attendance for one individual only",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"c46f6626-a31b-4038-b981-a9655438f10a\",\n     \"individualEntries\": [\n                {\n                    \"id\": \"3d69126d-7808-4516-8915-b9338fe0f081\",\n                    \"modifiedTotalAttendance\": 4.5\n\n                }\n\n     ]\n  },\n  \"workflow\": {\n      \"action\": \"VERIFY\",\n        \"comments\": \"Verify muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - VERIFY action - Update skill for one individual only",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"9d69c270-4040-4c40-9c38-83d30bea5760\",\n     \"individualEntries\": [\n                {\n                    \"id\": \"0bbd99e9-01bb-4a04-9acf-21dc9cbb6c1a\",\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_4\"}\n                }\n\n     ]\n  },\n  \"workflow\": {\n      \"action\": \"VERIFY\",\n        \"comments\": \"Verify muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - VERIFY action - Update total attendance  and skill",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"43c11c3e-a157-49f9-80fe-58089d74c334\",\n     \"individualEntries\": [\n                {\n                    \"id\": \"9b4de87b-0cb6-4d43-91fc-ff7fa05b4068\",\n                    \"modifiedTotalAttendance\": 4.5,\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_3\"}\n                },\n                {\n                    \"id\": \"e37149f2-f92a-48f0-ab15-76d8cdd8a1b4\",\n                    \"additionalDetails\": {\"code\":\"SKILLED_LEVEL_4\"}\n                }\n\n     ]\n  },\n  \"workflow\": {\n      \"action\": \"VERIFY\",\n        \"comments\": \"Verify muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - REJECT action",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"f9665338-8a0c-4054-93c7-ff1526616da6\",\n      \"userName\": \"9070102020\",\n      \"name\": \"test4\",\n      \"mobileNumber\": \"9070102020\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"MUNICIPAL_ENGINEER\",\n                    \"name\": \"MUNICIPAL ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n            ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"{{musterRollId}}\"\n     \n  },\n  \"workflow\": {\n      \"action\": \"REJECT\",\n        \"comments\": \"Reject muster roll\"\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - RESUBMIT action",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"{{musterRollId}}\",\n     \"additionalDetails\": {\"computeAttendance\":\"true\"}\n  },\n  \"workflow\": {\n      \"action\": \"RESUBMIT\",\n        \"comments\": \"Resubmit muster roll\",\n        \"assignees\": []       \n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Success - APPROVE action",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"f9665338-8a0c-4054-93c7-ff1526616da6\",\n      \"userName\": \"9070102020\",\n      \"name\": \"test4\",\n      \"mobileNumber\": \"9070102020\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"MUNICIPAL_ENGINEER\",\n                    \"name\": \"MUNICIPAL ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n            ]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"{{musterRollId}}\"\n     \n  },\n  \"workflow\": {\n      \"action\": \"APPROVE\",\n        \"comments\": \"Approve muster roll\"\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update muster roll - Validation error - VERIFY ineligible",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 169,\n      \"uuid\": \"81a1988f-9072-4ff9-8aa4-eee5cf10ba57\",\n      \"userName\": \"7070102021\",\n      \"name\": \"test2\",\n      \"mobileNumber\": \"9130011254\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"Organization staff\",\n          \"code\": \"ORG_STAFF\",\n          \"tenantId\": \"{{tenantId}}\"\n        }]\n    }\n  },\n  \"musterRoll\": {\n    \"tenantId\": \"{{tenantId}}\",\n     \"id\":\"4a8ee311-3354-4c2b-8569-27c4798d4669\",\n     \"individualEntries\": [\n                {\n                    \"id\": \"ed30593b-afd6-4497-86a7-9c8e203a0d4f\",\n                    \"totalAttendance\": 3.5\n                },\n                {\n                    \"id\": \"fb8bf65e-8565-4d64-8cc7-4b04bc1edfad\",\n                    \"totalAttendance\": 2\n                }\n\n     ]\n  },\n  \"workflow\": {\n      \"action\": \"VERIFY\",\n        \"comments\": \"Verify muster roll\",\n        \"assignees\": []\n        \n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_update",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Muster Roll - musterRollNumber based",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_search?tenantId=pb.amritsar&musterRollNumber={{musterRollNumber}}",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "pb.amritsar"
+						},
+						{
+							"key": "musterRollNumber",
+							"value": "{{musterRollNumber}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Muster Roll - startDate and endDate based - multi muster roll response",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_search?tenantId=pb.amritsar&fromDate=1670178600000&toDate=1670697000000",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "pb.amritsar"
+						},
+						{
+							"key": "fromDate",
+							"value": "1670178600000"
+						},
+						{
+							"key": "toDate",
+							"value": "1670697000000"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Muster Roll - state level tenant",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"asset-services\",\n    \"ver\": null,\n    \"ts\": null,\n    \"action\": null,\n    \"did\": null,\n    \"key\": null,\n    \"msgId\": \"search with from and to values\",\n    \"authToken\": \"{{envAUTH}}\",\n    \"userInfo\": {\n      \"id\": 172,\n      \"uuid\": \"5ce80dd3-b1c0-42fd-b8f6-a2be456db31c\",\n      \"userName\": \"8070102021\",\n      \"name\": \"test3\",\n      \"mobileNumber\": \"8070102021\",\n      \"emailId\": \"xyz@egovernments.org\",\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n                {\n                    \"code\": \"JUNIOR_ENGINEER\",\n                    \"name\": \"JUNIOR ENGINEER\",\n                    \"tenantId\": \"{{tenantId}}\"\n                }\n        ]\n    }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{envURL}}/muster-roll/v1/_search?tenantId=pb",
+					"host": [
+						"{{envURL}}"
+					],
+					"path": [
+						"muster-roll",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "pb"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

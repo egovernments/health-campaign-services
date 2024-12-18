@@ -1,0 +1,65 @@
+{
+  "ResponseInfo": null,
+  "MdmsRes": {
+    "common-masters": {
+      "WageSeekerSkills": [
+        {
+          "name": "Unskilled",
+          "code": "UNSKILLED",
+          "active": true,
+          "amount": 2000
+        },
+        {
+          "name": "Skilled Level 1",
+          "code": "SKILLED_LEVEL_1",
+          "active": true,
+          "amount": 2000
+        },
+        {
+          "name": "Skilled Level 2",
+          "code": "SKILLED_LEVEL_2",
+          "active": true,
+          "amount": 2000
+        },
+        {
+          "name": "Skilled Level 3",
+          "code": "SKILLED_LEVEL_3",
+          "active": true,
+          "amount": 1000
+        },
+        {
+          "name": "Skilled Level 4",
+          "code": "SKILLED_LEVEL_4",
+          "active": true,
+          "amount": 1000
+        }
+      ],
+      "MusterRoll": [
+        {
+          "code": "ENTRY_HOUR",
+          "value": "9"
+        },
+        {
+          "code": "EXIT_HOUR_HALF_DAY",
+          "value": "14"
+        },
+        {
+          "code": "EXIT_HOUR_FULL_DAY",
+          "value": "18"
+        },
+        {
+          "code": "HALF_DAY_NUM_HOURS",
+          "value": "4"
+        },
+        {
+          "code": "FULL_DAY_NUM_HOURS",
+          "value": "8"
+        },
+        {
+          "code": "ROUND_OFF_HOURS",
+          "value": "true"
+        }
+      ]
+    }
+  }
+}

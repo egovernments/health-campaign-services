@@ -1,0 +1,126 @@
+"BusinessServices": [
+    {
+      "tenantId": "pg",
+      "businessService": "MR",
+      "business": "muster-roll-services",
+      "businessServiceSla": 432000000,
+      "states": [
+        {
+          "sla": null,
+          "state": null,
+          "applicationStatus": null,
+          "docUploadRequired": false,
+          "isStartState": true,
+          "isTerminateState": false,
+          "isStateUpdatable": true,
+          "actions": [
+            {
+              "action": "SUBMIT",
+              "nextState": "SUBMITTED",
+              "roles": [
+                "ORG_STAFF",
+                "ORG_ADMIN"
+              ]
+            }
+          ]
+        },
+        {
+          "sla": null,
+          "state": "SUBMITTED",
+          "applicationStatus": "INWORKFLOW",
+          "docUploadRequired": false,
+          "isStartState": false,
+          "isTerminateState": false,
+          "isStateUpdatable": true,
+          "actions": [
+            {
+              "action": "VERIFY AND FORWARD",
+              "nextState": "PENDING_FOR_APPROVAL",
+              "roles": [
+                "MUSTER_ROLL_VERIFIER"
+              ]
+            },
+            {
+              "action": "REJECT",
+              "nextState": "REJECTED",
+              "roles": [
+                "MUSTER_ROLL_VERIFIER"
+              ]
+            }
+          ]
+        },
+        {
+          "sla": null,
+          "state": "PENDING_FOR_APPROVAL",
+          "applicationStatus": "INWORKFLOW",
+          "docUploadRequired": false,
+          "isStartState": false,
+          "isTerminateState": false,
+          "isStateUpdatable": false,
+          "actions": [
+            {
+              "action": "APPROVE",
+              "nextState": "APPROVED",
+              "roles": [
+                "MUSTER_ROLL_APPROVER"
+              ]
+            },
+            {
+              "action": "REJECT",
+              "nextState": "REJECTED",
+              "roles": [
+                "MUSTER_ROLL_APPROVER"
+              ]
+            }
+          ]
+        },
+        {
+          "sla": null,
+          "state": "APPROVED",
+          "applicationStatus": "ACTIVE",
+          "docUploadRequired": false,
+          "isStartState": false,
+          "isTerminateState": true,
+          "isStateUpdatable": false,
+          "actions": [
+            {
+              "action": "BILLCREATE",
+              "nextState": "BILLCREATED",
+              "roles": [
+                "BILL_CREATOR",
+                "BILL_VIEWER"
+              ]
+            }
+          ]
+        },
+        {
+          "sla": null,
+          "state": "BILLCREATED",
+          "applicationStatus": "BILLCREATED",
+          "docUploadRequired": false,
+          "isStartState": false,
+          "isTerminateState": true,
+          "isStateUpdatable": false
+        },
+        {
+          "sla": null,
+          "state": "REJECTED",
+          "applicationStatus": "REJECTED",
+          "docUploadRequired": false,
+          "isStartState": false,
+          "isTerminateState": false,
+          "isStateUpdatable": false,
+          "actions": [
+            {
+              "action": "RESUBMIT",
+              "nextState": "SUBMITTED",
+              "roles": [
+                "ORG_ADMIN",
+                "ORG_STAFF"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]

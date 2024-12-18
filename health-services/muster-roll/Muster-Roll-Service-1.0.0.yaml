@@ -1,0 +1,285 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Muster Roll Service
+  description: ''
+
+paths:
+  /muster-roll/v1/_estimate:
+    post:
+      tags:
+        - Muster Roll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MusterRollRequest'
+      responses:
+        '202':
+          description: 'Muster Roll created'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusterRollResponse'
+
+  /muster-roll/v1/_create:
+    post:
+      tags:
+        - Muster Roll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MusterRollRequest'
+      responses:
+        '202':
+          description: 'Muster Roll created'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusterRollResponse'
+
+  /muster-roll/v1/_update:
+    post:
+      tags:
+        - Muster Roll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MusterRollRequest'
+      responses:
+        '202':
+          description: 'Muster Roll updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusterRollResponse'
+
+  /muster-roll/v1/_search:
+    post:
+      tags:
+        - Muster Roll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      parameters:
+        - $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/components/parameters/tenantId'
+        - name: ids
+          description: Ids of the muster roll
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: musterRollNumber
+          description: (Custom-formatted) Muster roll number
+          in: query
+          schema:
+            type: string
+        - name: registerId
+          description: Register Id
+          in: query
+          schema:
+            type: string
+        - name: fromDate
+          description: Return registers with any overlap in the given time period
+          in: query
+          schema:
+            type: number
+        - name: toDate
+          description: Return registers with any overlap in the given time period
+          in: query
+          schema:
+            type: number
+        - name: status
+          description: Status of the muster roll. This can't be the only query param. It should be paired with some other search param.
+          in: query
+          schema:
+            type: string
+        - name: musterRollStatus
+          description: Workflow Status of the muster roll. This can't be the only query param. It should be paired with some other search param.
+          in: query
+          schema:
+            type: string
+        - name: referenceId
+          description: Id of the entity to which register is associated. Example ContractId
+          in: query
+          schema:
+            type: string
+        - name: serviceCode
+          description: Service to which register is associated.
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'Search results'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusterRollResponse'
+
+components:
+  schemas:
+    MusterRoll:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifer of the roll
+          readOnly: true
+        tenantId:
+          type: string
+          example: pb.amritsar
+        musterRollNumber:
+          type: string
+          description: Custom-formatted system generated unique identifier
+          readOnly: true
+        registerId:
+          type: string
+          description: Reference to the register id upon which the muster roll is being generated.
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - CANCELLED
+        musterRollStatus:
+          type: string
+          description: It will store the state of the workflow.
+          example: CREATED
+        startDate:
+          type: number
+          format: timestamp
+          example: 1665497225000
+          description: Timestamp of the start date in milliseconds. In case of weekly registers, there will be additional checks for the starting date like muster roll start on every Monday.
+        endDate:
+          type: number
+          format: timestamp
+          example: 1665497271000
+          description: Timestamp of the end date in milliseconds. In case of mandatory weekly muster rolls, it is set automatically.
+        referenceId:
+          type: string
+          example: idGen generated value
+          description: Id of the entity to which register is associated. Example ContractId
+          maxLength: 256
+        serviceCode:
+          type: string
+          example: WORKS-CONTRACT
+          description: Service to which register is associated.
+          maxLength: 64
+        individualEntries:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndividualEntry'
+        additionalDetails:
+          type: object
+          description: This is an updatable field from the user's input.
+      required:
+        - tenantId
+        - registerId
+        - startDate
+
+    IndividualEntry:
+      type: object
+      readOnly: true
+      properties:
+        Id:
+          type: string
+          description: Id of the IndividualEntry
+        individualId:
+          type: string
+          description: Reference of the attendee from the Individual Registry.
+        actualTotalAttendance:
+          type: number
+          readOnly: true
+          description: It is the computed sum of attendance in the given time period of the muster roll. This will be stored in the muster roll service's db. It will be computed only when the muster is created. So the computation will happen with CREATE actions only.
+        modifiedTotalAttendance:
+          type: number
+          readOnly: true
+          description: It is the modified sum of attendance in the given time period of the muster roll. This will be stored in the muster roll service's db. It will be stored when the totalAttendance is edited. So the updation will happen with EDIT actions only.
+        attendanceEntries:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/AttendanceEntry'
+        additionalDetails:
+          type: object
+          description: This can be used to store skillset that is a requirement for Mukta. This is an updatable field from the user's input.
+
+    AttendanceEntry:
+      type: object
+      readOnly: true
+      description: This computed data will also be stored as part of the muster roll db.
+      properties:
+        Id:
+          type: string
+          description: Id of the AttendanceEntry
+        time:
+          type: number
+          readOnly: true
+          format: timestamp
+          description: The timestamp for a given time period against which the attendance is marked.
+        attendance:
+          type: number
+          example: 0
+          description: It is the computed attendance value based on the entry and exit events fetched from the Attendance service. The muster roll service will still allow the user to override the value of this attendance.
+        additionalDetails:
+          type: object
+          description: This is an updatable field from the user's input.
+
+    AttendanceLog:
+      $ref: 'https://github.com/egovernments/DIGIT-Works/blob/develop/backend/attendance-service/Attendance-Service-1.0.0.yaml#/components/schemas/AttendanceLog'
+
+    AttendanceLogResponse:
+      $ref: 'https://github.com/egovernments/DIGIT-Works/blob/develop/backend/attendance-service/Attendance-Service-1.0.0.yaml#/components/schemas/AttendanceLogResponse'
+
+    AttendanceRegister:
+      $ref: 'https://github.com/egovernments/DIGIT-Works/blob/develop/backend/attendance-service/Attendance-Service-1.0.0.yaml#/components/schemas/AttendanceRegister'
+
+    AttendanceRegisterResponse:
+      $ref: 'https://github.com/egovernments/DIGIT-Works/blob/develop/backend/attendance-service/Attendance-Service-1.0.0.yaml#/components/schemas/AttendanceRegisterResponse'
+
+    MusterRollRequest:
+      type: object
+      properties:
+        requestInfo:
+          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/components/schemas/RequestHeader'
+        musterRoll:
+          $ref: '#/components/schemas/MusterRoll'
+        workflow:
+          type: object
+          properties:
+            action:
+              type: string
+              description: 'Action of the workflow to be performned on the request'
+            comment:
+              type: string
+              description: 'comment for the workflow action to be performed'
+            assignees:
+              type: array
+              items:
+                type: string
+                description: ' uuid of the users in the system to assign workflow to the specific user intead of a all the users with the gien role.'
+          required:
+            - action
+
+    MusterRollResponse:
+      type: object
+      properties:
+        responseInfo:
+          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/components/schemas/ResponseHeader'
+        musterRolls:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusterRoll'
+
+    RequestInfoWrapper:
+      type: object
+      properties:
+        requestInfo:
+          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/components/schemas/RequestHeader'
