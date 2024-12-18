@@ -22,7 +22,7 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
@@ -103,30 +103,33 @@ function validateTargetForNormalCampaigns(data: any, errors: any, localizedTarge
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value is missing at row ${obj['!row#number!']} in sheet ${key}.(Targets values can only be positive numbers less than 1 Million)`,
+                                errorDetails: `Data in column '${targetColumn}' cannot be empty or zero.(It can only be positive numbers less than or equal to 1 Million)`,
                                 sheetName: key
                             });
-                        } else if (typeof target !== 'number') {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not a number.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
-                        } else if (target <= 0 || target > 1000000) {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is out of range.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
-                        } else if (!Number.isInteger(target)) {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not an integer.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
+                        }
+                        else if (target) {
+                            if (typeof target !== 'number') {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is not a number.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            } else if (target <= 0 || target > 1000000) {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is out of range.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            } else if (!Number.isInteger(target)) {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is not an integer.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            }
                         }
                     }
                 });
@@ -142,22 +145,21 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
-
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
         columnsToValidate = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
 
     }
     else {
-        const mdmsResponse = await getMdmsDataBasedOnCampaignType(request);
-        const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
-        const requiredColumns = mdmsResponse?.required;
+        const schema = await getMdmsDataBasedOnCampaignType(request);
+        const columnsNotToBeFreezed = schema?.columnsNotToBeFreezed;
+        const requiredColumns = schema?.required;
         columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
         targetColumnsWhoseValidationIsNotMandatory = columnsNotToBeFreezed.filter((element: any) => !requiredColumns.includes(element));
     }
     const localizedRequiredTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
     const localizedNotRequiredTargetColumnNames = getLocalizedHeaders(targetColumnsWhoseValidationIsNotMandatory, localizationMap);
     if (request?.body?.ResourceDetails?.additionalDetails?.source === "microplan") {
-        validateTargetsForMicroplanCampaigns(data, errors, localizedRequiredTargetColumnNames, localizationMap);
+        validateRequiredTargetsForMicroplanCampaigns(data, errors, localizedRequiredTargetColumnNames, localizationMap);
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
