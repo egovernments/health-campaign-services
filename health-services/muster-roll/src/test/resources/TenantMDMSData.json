@@ -1,0 +1,402 @@
+{
+  "ResponseInfo": null,
+  "MdmsRes": {
+    "tenant": {
+      "tenants": [
+        {
+          "code": "pb",
+          "name": "Punjab",
+          "description": "Punjab",
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.jalandhar/logo.png",
+          "imageId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.jalandhar/logo.png",
+          "domainUrl": "www.mcjalandhar.in",
+          "type": "CITY",
+          "twitterUrl": "https://twitter.com/search?q=%23jalandhar",
+          "facebookUrl": "https://www.facebook.com/city/jalandhar-Punjab",
+          "emailId": "complaints.mcj@gmail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Punjab",
+            "localName": "Punjab",
+            "districtCode": "0",
+            "districtName": "Punjab",
+            "districtTenantCode": "pb.punjab",
+            "regionName": "Punjab",
+            "ulbGrade": "ST",
+            "longitude": 75.3412,
+            "latitude": 31.1471,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "0",
+            "ddrName": null
+          },
+          "address": "5 Punjab Municipal Bhawan, 3, Dakshin Marg, 35A, Sector 35A, Chandigarh, 160022",
+          "pincode": [],
+          "contactNumber": "0181-2227015",
+          "pdfHeader": "PB_PDF_HEADER",
+          "pdfContactDetails": "PB_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.jalandhar",
+          "name": "Jalandhar",
+          "description": "Jalandhar",
+          "logoId": "",
+          "imageId": "",
+          "domainUrl": "www.mcjalandhar.in",
+          "type": "CITY",
+          "twitterUrl": "https://twitter.com/search?q=%23jalandhar",
+          "facebookUrl": "https://www.facebook.com/city/jalandhar-Punjab",
+          "emailId": "complaints.mcj@gmail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Jalandhar",
+            "localName": "Janlandhar",
+            "districtCode": "10",
+            "districtName": "Jalandhar",
+            "districtTenantCode": "pb.jalandhar",
+            "regionName": "Jalandhar Region",
+            "ulbGrade": "Municipal Corporation",
+            "ulbType": "Municipal Corporation",
+            "longitude": 75.5761829,
+            "latitude": 31.3260152,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1013",
+            "regionCode": "4",
+            "municipalityName": "Janlandhar",
+            "ddrName": "Jalandhar-MC"
+          },
+          "address": "Municipal Corporation Office, Dr. B.R.Ambedkar Admin Complex, Nehru Garden, Jalandhar City-144001",
+          "pincode": [
+            144001,
+            144002,
+            144003,
+            144004,
+            144005,
+            144006,
+            144007,
+            144008,
+            144009,
+            144010
+          ],
+          "contactNumber": "0181-2227015",
+          "pdfHeader": "PB_JALANDHAR_PDF_HEADER",
+          "pdfContactDetails": "PB_JALANDHAR_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.phagwara",
+          "name": "Phagwara",
+          "description": "Phagwara",
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.phagwara/logo.png",
+          "imageId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.phagwara/logo.png",
+          "domainUrl": "http://www.mcphagwara.com/index.php",
+          "type": "CITY",
+          "twitterUrl": null,
+          "facebookUrl": null,
+          "emailId": "comm.mcpgr@punjab.gov.in",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Phagwara",
+            "localName": "Phagwara",
+            "districtCode": "10",
+            "districtName": "Jalandhar",
+            "districtTenantCode": "pb.jalandhar",
+            "regionName": "Jalandhar Region",
+            "ulbGrade": "Municipal Corporation",
+            "ulbType": "Municipal Corporation",
+            "longitude": 75.7708,
+            "latitude": 31.224,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1014",
+            "regionCode": "4",
+            "municipalityName": "Phagwara",
+            "ddrName": "Phagwara-MC"
+          },
+          "address": "Town Hall, Phagwara, Punjab - 144401",
+          "pincode": [
+            144401,
+            144402,
+            144403
+          ],
+          "contactNumber": "01824-260426",
+          "pdfHeader": "PB_PHAGWARA_PDF_HEADER",
+          "pdfContactDetails": "PB_PHAGWARA_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.amritsar",
+          "name": "Amritsar",
+          "description": null,
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.amritsar/logo.png",
+          "imageId": "/pb-egov-assets/pb.amritsar/logo.png",
+          "domainUrl": "www.amritsarcorp.com",
+          "type": "CITY",
+          "twitterUrl": "https://twitter.com/search?q=%23AMRITSAR",
+          "facebookUrl": "https://www.facebook.com/city/Amritsar-Punjab",
+          "emailId": "cmcasr@gmail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM",
+            "Sat": "9.00 AM - 12.00 PM"
+          },
+          "city": {
+            "name": "Amritsar",
+            "localName": "Amritsar",
+            "districtCode": "1",
+            "districtName": "Amritsar",
+            "districtTenantCode": "pb.amritsar",
+            "regionName": "Amritsar Region",
+            "ulbGrade": "Municipal Corporation",
+            "ulbType": "Municipal Corporation",
+            "longitude": 74.8723,
+            "latitude": 31.634,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "107",
+            "regionCode": "1",
+            "municipalityName": "Amritsar",
+            "ddrName": "Amritsar-MC"
+          },
+          "address": "Municipal Corporation Amritsar, C Block, Ranjit Avenue, Amritsar, Punjab",
+          "pincode": [
+            143001,
+            143002,
+            143003,
+            143004,
+            143005,
+            143006,
+            143007,
+            143008,
+            143009,
+            143010
+          ],
+          "contactNumber": "0183-2545155",
+          "helpLineNumber": "0183-2210300",
+          "pdfHeader": "PB_AMRITSAR_PDF_HEADER",
+          "pdfContactDetails": "PB_AMRITSAR_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.nawanshahr",
+          "name": "Nawanshahr",
+          "description": null,
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.nawanshahr/logo.png",
+          "imageId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.nawanshahr/logo.png",
+          "domainUrl": "www.nawanshahr.com",
+          "type": "CITY",
+          "twitterUrl": null,
+          "facebookUrl": null,
+          "emailId": "",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Nawanshahr",
+            "localName": "Nawanshahr",
+            "districtCode": "17",
+            "districtName": "Nawanshar",
+            "districtTenantCode": "pb.nawanshar",
+            "regionName": "Jalandhar Region",
+            "ulbGrade": "MC Class I",
+            "ulbType": "Municipal Council",
+            "longitude": 76.0392,
+            "latitude": 31.0913,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1703",
+            "regionCode": "4",
+            "municipalityName": "SBS Nagar",
+            "ddrName": "Jalandhar-DDR"
+          },
+          "address": "Committee Bazar",
+          "pincode": [
+            144513,
+            144514,
+            144516,
+            144517
+          ],
+          "contactNumber": "1823220085",
+          "helpLineNumber": "",
+          "pdfHeader": "PB_NAWANSHAHR_PDF_HEADER",
+          "pdfContactDetails": "PB_NAWANSHAHR_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.mohali",
+          "name": "Mohali",
+          "description": "Mohali",
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.mohali/logo.png",
+          "imageId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.mohali/logo.png",
+          "domainUrl": "www.mcjalandhar.in",
+          "type": "CITY",
+          "twitterUrl": "https://twitter.com/search?q=%23mohali",
+          "facebookUrl": "https://www.facebook.com/city/mohali-Punjab",
+          "emailId": "complaints.mcj@gmail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Mohali",
+            "localName": "Mohali",
+            "districtCode": "15",
+            "districtName": "Mohali",
+            "districtTenantCode": "pb.mohali",
+            "regionName": "Patiala Region",
+            "ulbGrade": "Municipal Corporation",
+            "ulbType": "Municipal Corporation",
+            "longitude": 76.7179,
+            "latitude": 30.7046,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1508",
+            "regionCode": "6",
+            "municipalityName": "SAS Nagar",
+            "ddrName": "Mohali-MC"
+          },
+          "address": "Sector 68, Sahibzada Ajit Singh Nagar, Punjab 160062",
+          "pincode": [
+            140301,
+            140302,
+            140303,
+            140304,
+            140305,
+            140306,
+            140307
+          ],
+          "contactNumber": "0172-5044907",
+          "pdfHeader": "PB_MOHALI_PDF_HEADER",
+          "pdfContactDetails": "PB_MOHALI_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.nayagaon",
+          "name": "Nayagaon",
+          "description": "Nayagaon",
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.nayagaon/logo.png",
+          "imageId": null,
+          "domainUrl": "http://lgpunjab.gov.in/eSewa/nayagaon",
+          "type": "CITY",
+          "twitterUrl": null,
+          "facebookUrl": null,
+          "emailId": "eonpnayagaon@ymail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 5.00 PM"
+          },
+          "city": {
+            "name": "Nayagaon",
+            "localName": "NayaGaon",
+            "districtCode": "15",
+            "districtName": "Mohali",
+            "districtTenantCode": "pb.mohali",
+            "regionName": "Patiala Region",
+            "ulbGrade": "MC Class II",
+            "ulbType": "Municipal Council",
+            "longitude": 76.7943,
+            "latitude": 30.7761,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1506",
+            "regionCode": "6",
+            "municipalityName": "NayaGaon",
+            "ddrName": "Patiala-DDR"
+          },
+          "address": "Not available",
+          "pincode": [
+            147001,
+            147002,
+            147003,
+            147004,
+            147005
+          ],
+          "contactNumber": "Not available",
+          "pdfHeader": "PB_NAYAGAON_PDF_HEADER",
+          "pdfContactDetails": "PB_NAYAGAON_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.derabassi",
+          "name": "Derabassi",
+          "description": "Derabassi",
+          "logoId": "https://s3.ap-south-1.amazonaws.com/pb-egov-assets/pb.derabassi/logo.png",
+          "imageId": null,
+          "domainUrl": "http://lgpunjab.gov.in/eSewa/derabassi",
+          "type": "CITY",
+          "twitterUrl": null,
+          "facebookUrl": null,
+          "emailId": "eomcdera@gmail.com",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 5.00 PM"
+          },
+          "city": {
+            "name": "Derabassi",
+            "localName": "DeraBassi",
+            "districtCode": "15",
+            "districtName": "Mohali",
+            "districtTenantCode": "pb.mohali",
+            "regionName": "Patiala Region",
+            "ulbGrade": "MC Class I",
+            "ulbType": "Municipal Council",
+            "longitude": 76.8433,
+            "latitude": 30.5964,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1502",
+            "regionCode": "6",
+            "municipalityName": "DerraBassi",
+            "ddrName": "Patiala-DDR"
+          },
+          "address": "Not available",
+          "pincode": [
+            140506,
+            140507
+          ],
+          "contactNumber": "1762281025",
+          "pdfHeader": "PB_DERABASSI_PDF_HEADER",
+          "pdfContactDetails": "PB_DERABASSI_CONTACT_DETAILS"
+        },
+        {
+          "code": "pb.patiala",
+          "name": "Patiala",
+          "description": "Patiala",
+          "logoId": "http://mseva.lgpunjab.gov.in/pb-egov-assets/pb.patiala/logo.png",
+          "imageId": null,
+          "domainUrl": "https://patiala.nic.in/",
+          "type": "CITY",
+          "twitterUrl": null,
+          "facebookUrl": null,
+          "emailId": "dc.ptl@punjab.gov.in",
+          "OfficeTimings": {
+            "Mon - Fri": "9.00 AM - 6.00 PM"
+          },
+          "city": {
+            "name": "Patiala",
+            "localName": "Patiala",
+            "districtCode": "19",
+            "districtName": "Patiala",
+            "districtTenantCode": "pb.patiala",
+            "regionName": "Patiala Region",
+            "ulbGrade": "Municipal Corporation",
+            "ulbType": "Municipal Corporation",
+            "longitude": 76.3869,
+            "latitude": 30.3398,
+            "shapeFileLocation": null,
+            "captcha": null,
+            "code": "1910",
+            "regionCode": "6",
+            "municipalityName": "Patiala",
+            "ddrName": "Patiala-MC"
+          },
+          "address": "Office of the Deputy Commissioner District Administrative Complex, Patiala-147001",
+          "contactNumber": "0175-2311300",
+          "pincode": [
+            140506,
+            140507
+          ],
+          "pdfHeader": "PB_PATIALA_PDF_HEADER",
+          "pdfContactDetails": "PB_PATIALA_CONTACT_DETAILS"
+        }
+      ]
+    }
+  }
+}
