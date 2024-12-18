@@ -67,7 +67,7 @@ public class OutputEstimationGenerationUtil {
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (!parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
 
                 // Get column index of assigned facility name in the sheet being processed
                 Integer indexOfFacility = sheet.getRow(0).getLastCellNum() + 1;
