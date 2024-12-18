@@ -128,7 +128,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
     }
 }
 
-export function validateTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
+export function validateRequiredTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {

@@ -3,7 +3,8 @@
 import { getErrorCodes } from "./constants";
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
-  "https://unified-dev.digit.org/";
+  "http://localhost:8080/" ||
+  "https://unified-qa.digit.org/";
 // Checking if HOST is set, if not, exiting the process
 if (!HOST) {
   console.log("You need to set the HOST variable");
@@ -12,7 +13,7 @@ if (!HOST) {
 
 
 const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
+  return "health";
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 // Configuration object containing various environment variables
@@ -20,7 +21,7 @@ const config = {
   batchSize:100,
   cacheTime: 300,
   isProduction: process.env ? true : false,
-  token: "", // add default token if core services are not port forwarded
+  token: "8f97b18e-87d9-43b6-8e7f-085a7d261237", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
@@ -108,23 +109,23 @@ const config = {
   host: {
     serverHost: HOST,
     // Kafka broker host
-    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
+    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "localhost:9092" || "kafka-v2.kafka-cluster:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
-    mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
-    mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
-    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-dev.digit.org/",
+    mdms: process.env.EGOV_MDMS_HOST || "https://unified-qa.digit.org/",
+    mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-qa.digit.org/",
+    filestore: process.env.EGOV_FILESTORE_SERVICE_HOST || "https://unified-qa.digit.org/",
     projectFactoryBff: "http://localhost:8080/",
-    idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
-    facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-dev.digit.org/",
-    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-dev.digit.org/",
-    projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-dev.digit.org/",
-    userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
-    productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
-    hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
-    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
-    healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
-    planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
-    censusServiceHost: process.env.EGOV_CENSUS_HOST ||"https://unified-dev.digit.org/",  },
+    idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-qa.digit.org/",
+    facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-qa.digit.org/",
+    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-qa.digit.org/",
+    projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-qa.digit.org/",
+    userHost: process.env.EGOV_USER_HOST || "https://unified-qa.digit.org/",
+    productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-qa.digit.org/",
+    hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-qa.digit.org/",
+    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-qa.digit.org/",
+    healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-qa.digit.org/",
+    planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-qa.digit.org/",
+    censusServiceHost: process.env.EGOV_CENSUS_HOST ||"https://unified-qa.digit.org/",  },
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
