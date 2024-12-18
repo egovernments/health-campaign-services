@@ -116,8 +116,9 @@ public class DownsyncService {
         }else {
             householdIds = searchHouseholds(downsyncRequest, downsync);
         }
-
-
+        if (CollectionUtils.isEmpty(householdIds)) {
+            householdIds = households.stream().map(Household::getId).collect(Collectors.toList());
+        }
 
         /* search household member using household ids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(householdIds)) {
