@@ -25,23 +25,24 @@ public class HouseholdRepository {
 	public Tuple<Long, List<Household>> findByViewCLF(String localityCode, Integer limit, Integer offset, String tenantId, Long lastModifiedTime, String householdId) {
 		String query = null;
 		Map<String, Object> paramsMap = new HashMap<>();
+		Long totalCount = null;
 
-		query = "select * from household_address_clf_mv where localitycode=:localitycode and rank between :start and :end ";
+		query = "select * from household_address_clf_mv where localitycode=:localitycode ";
 		if (StringUtils.hasLength(householdId)) {
 			query = query + " and id=:id";
 			paramsMap.put("id", householdId);
+		} else {
+			paramsMap.put("start", offset);
+			paramsMap.put("end", offset+limit);
+			query = query + " and rank between :start and :end ";
+
+			Map<String, Object> paramsMapCount = new HashMap<>();
+			paramsMapCount.put("localitycode", localityCode);
+			paramsMapCount.put("lastModifiedTime", lastModifiedTime);
+			Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_clf_mv where localitycode=:localitycode and lastModifiedTime>=:lastModifiedTime", paramsMapCount, Integer.class);
+			totalCount = maxRank == null ? 0L : Long.valueOf(maxRank);
 		}
 		paramsMap.put("localitycode", localityCode);
-		paramsMap.put("start", offset);
-		paramsMap.put("end", offset+limit);
-
-		Map<String, Object> paramsMapCount = new HashMap<>();
-		paramsMapCount.put("localitycode", localityCode);
-		paramsMapCount.put("lastModifiedTime", lastModifiedTime);
-
-
-		Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_clf_mv where localitycode=:localitycode and lastModifiedTime>=:lastModifiedTime", paramsMapCount, Integer.class);
-		Long totalCount = maxRank == null ? 0L : Long.valueOf(maxRank);
 		return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, householdRowMapper));
 
 	}

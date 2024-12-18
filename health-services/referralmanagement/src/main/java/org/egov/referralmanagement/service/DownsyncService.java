@@ -112,7 +112,6 @@ public class DownsyncService {
         List<Household> households = null;
         if (isCLF) {
             households  = searchHouseholdsCLF(downsyncRequest);
-            downsyncCriteria.setTotalCount(null);
         }else {
             householdIds = searchHouseholds(downsyncRequest, downsync);
         }
