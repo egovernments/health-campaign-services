@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express"; // Importing necessar
 const { object, string } = require("yup"); // Importing object and string from yup for schema validation
 import { errorResponder } from "../genericUtils"; // Importing errorResponder function from genericUtils
 import { logger } from "../logger";
+import { handleGzipRequest } from "../gzipHandler";
 
 // Defining the request schema using yup
 const requestSchema = object({
@@ -25,18 +26,22 @@ const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
       errorResponder(e, req, res, 415)
       return;
     }
-    // Check if tenantId is missing in RequestInfo.userInfo
-    if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
-      // If tenantId is missing, throw Validation Error
-      let e: any = new Error("RequestInfo.userInfo.tenantId is missing");
-      e = Object.assign(e, { status: 400, code: "VALIDATION_ERROR" });
-      errorResponder(e, req, res, 400)
-      return;
+    if (contentType === 'application/gzip') {
+      return handleGzipRequest(req, res, next);
+    } else {
+      // Check if tenantId is missing in RequestInfo.userInfo
+      if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
+        // If tenantId is missing, throw Validation Error
+        let e: any = new Error("RequestInfo.userInfo.tenantId is missing");
+        e = Object.assign(e, { status: 400, code: "VALIDATION_ERROR" });
+        errorResponder(e, req, res, 400)
+        return;
+      }
+      // Validate request payload against the defined schema
+      requestSchema.validateSync(req.body.RequestInfo);
+      // If validation succeeds, proceed to the next middleware
+      next();
     }
-    // Validate request payload against the defined schema
-    requestSchema.validateSync(req.body.RequestInfo);
-    // If validation succeeds, proceed to the next middleware
-    next();
   } catch (error) {
     // If an error occurs during validation process, handle the error using errorResponder function
     errorResponder(error, req, res);
