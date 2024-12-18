@@ -209,7 +209,9 @@ public class DownsyncService {
                 .build();
 
         if (StringUtils.hasLength(criteria.getHouseholdId())) {
-            householdSearch.setId(Collections.singletonList(criteria.getHouseholdId()));
+            List<String> householdIds = new ArrayList<>();
+            householdIds.add(criteria.getHouseholdId());
+            householdSearch.setId(householdIds);
         }
         HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
                 .household(householdSearch)
