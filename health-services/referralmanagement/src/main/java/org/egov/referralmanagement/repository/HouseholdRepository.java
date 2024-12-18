@@ -28,8 +28,8 @@ public class HouseholdRepository {
 
 		query = "select * from household_address_clf_mv where localitycode=:localitycode and rank between :start and :end ";
 		if (StringUtils.hasLength(householdId)) {
-			query = query + " and householdId=:householdId";
-			paramsMap.put("householdId", householdId);
+			query = query + " and id=:id";
+			paramsMap.put("id", householdId);
 		}
 		paramsMap.put("localitycode", localityCode);
 		paramsMap.put("start", offset);
