@@ -140,7 +140,7 @@ public class DownsyncService {
             if (households == null)
                 beneficiaryClientRefIds = downsync.getHouseholds().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
             else
-                beneficiaryClientRefIds = households.stream().map(Household::getClientReferenceId).toList();
+                beneficiaryClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
         }
 
 
@@ -209,9 +209,7 @@ public class DownsyncService {
                 .build();
 
         if (StringUtils.hasLength(criteria.getHouseholdId())) {
-            List<String> householdIds = new ArrayList<>();
-            householdIds.add(criteria.getHouseholdId());
-            householdSearch.setId(householdIds);
+            householdSearch.setId(Collections.singletonList(criteria.getHouseholdId()));
         }
         HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
                 .household(householdSearch)
@@ -281,7 +279,7 @@ public class DownsyncService {
         }
         downsync.setIndividuals(individuals);
 
-        return individuals.stream().map(Individual::getClientReferenceId).toList();
+        return individuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
     }
 
     /**
@@ -371,7 +369,7 @@ public class DownsyncService {
         }
         downsync.setProjectBeneficiaries(beneficiaries);
 
-        return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).toList();
+        return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
     }
 
 
@@ -418,7 +416,7 @@ public class DownsyncService {
         }
         downsync.setTasks(tasks);
 
-        return tasks.stream().map(Task::getClientReferenceId).toList();
+        return tasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
     }
 
     /**
