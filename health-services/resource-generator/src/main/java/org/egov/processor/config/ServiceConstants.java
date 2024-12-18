@@ -39,6 +39,9 @@ public class ServiceConstants {
     public static final String FILE_NOT_FOUND_CODE = "FILE_NOT_FOUND";
     public static final String FILE_NOT_FOUND_MESSAGE = "No file with the specified templateIdentifier found - ";
 
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
+
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
@@ -116,6 +119,7 @@ public class ServiceConstants {
     public static final String SOURCE_KEY = "source";
     public static final String MICROPLAN_SOURCE_KEY = "microplan";
     public static final String MICROPLAN_ID_KEY = "microplanId";
+    public static final String FACILITY_NAME = "facilityName";
 
     //Census additional field constants
     public static final String UPLOADED_KEY = "UPLOADED_";

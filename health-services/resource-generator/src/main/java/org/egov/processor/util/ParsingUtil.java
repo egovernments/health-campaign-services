@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
@@ -38,11 +39,14 @@ public class ParsingUtil {
 
     private MdmsUtil mdmsUtil;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil) {
+    private ObjectMapper objectMapper;
+
+    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
         this.planConfigurationUtil = planConfigurationUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
         this.mdmsUtil = mdmsUtil;
+        this.objectMapper = objectMapper;
     }
 
     public List<String> fetchAttributeNamesFromJson(JsonNode jsonNode)
@@ -346,6 +350,23 @@ public class ParsingUtil {
         return indexValue;
     }
 
+    public Integer getIndexOfBoundaryCode(Integer indexValue, Sheet sheet, Map<String, String> mappedValues) {
+
+        DataFormatter dataFormatter = new DataFormatter();
+
+        // Assuming the first row contains column headers
+        Row headerRow = sheet.getRow(0);
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            Cell cell = headerRow.getCell(i);
+            String columnHeader = dataFormatter.formatCellValue(cell);
+            if(columnHeader.equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
+                indexValue = i;
+                break;
+            }
+        }
+        return indexValue;
+    }
+
     /**
      * Sorts the column names and indices based on the provided map of column names and indices.
      *
@@ -418,4 +439,37 @@ public class ParsingUtil {
 
     }
 
+    /**
+     * Extracts provided field from the additional details object
+     *
+     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
+     * @param fieldToExtract the name of the field to be extracted from the additional details
+     * @return the value of the specified field as a string
+     * @throws CustomException if the field does not exist
+     */
+    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            JsonNode node = rootNode.get(fieldToExtract);
+            if (node != null && !node.isNull()) {
+
+                // Check for different types of JSON nodes
+                if (node.isDouble() || node.isFloat()) {
+                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
+                } else if (node.isLong() || node.isInt()) {
+                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
+                } else if (node.isBoolean()) {
+                    return node.asBoolean();
+                } else if (node.isTextual()) {
+                    return node.asText();
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
 }
