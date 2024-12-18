@@ -127,6 +127,9 @@ public class MusterRollServiceConfiguration {
     @Value("${works.contract.service.code}")
     private String contractServiceCode;
 
+    @Value("${musterroll.update.recompute.attendance.enabled:false}")
+    private boolean recomputeAttendanceEnabled;
+
     @PostConstruct
     public void initialize() {
         TimeZone.setDefault(TimeZone.getTimeZone(timeZone));

@@ -270,7 +270,7 @@ public class MusterRollService {
      * @return
      */
     private boolean isComputeAttendance (MusterRoll musterRoll) {
-       if (musterRoll.getAdditionalDetails() != null) {
+       if (config.isRecomputeAttendanceEnabled() && musterRoll.getAdditionalDetails() != null) {
            try {
                JsonNode node = mapper.readTree(mapper.writeValueAsString(musterRoll.getAdditionalDetails()));
                if (node.findValue(COMPUTE_ATTENDENSE) != null && StringUtils.isNotBlank(node.findValue(COMPUTE_ATTENDENSE).textValue())) {
