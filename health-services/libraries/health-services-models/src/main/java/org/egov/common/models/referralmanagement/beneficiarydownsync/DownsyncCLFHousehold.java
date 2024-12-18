@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.household.Household;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -15,8 +16,8 @@ import java.util.Map;
 @Builder
 public class DownsyncCLFHousehold {
 
-    @JsonProperty("Household")
-    Map<Household, Integer> householdMemberCountMap;
+    @JsonProperty("HouseholdCountMap")
+    List<HouseholdMemberMap> householdMemberCountMap;
 
     @JsonProperty("DownsyncCriteria")
     DownsyncCriteria downsyncCriteria;

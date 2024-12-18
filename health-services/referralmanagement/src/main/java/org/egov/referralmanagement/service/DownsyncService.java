@@ -37,10 +37,7 @@ import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralSearch;
 import org.egov.common.models.referralmanagement.ReferralSearchRequest;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncCLFHousehold;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncCriteria;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
+import org.egov.common.models.referralmanagement.beneficiarydownsync.*;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
@@ -178,11 +175,13 @@ public class DownsyncService {
 
         Map<String, Integer> householdIdMemberCountMap = gethouseholdMemberCountMap(householdList.stream()
                 .map(Household::getId).collect(Collectors.toList()));
+        List<HouseholdMemberMap> householdMemberCountMap = new ArrayList<>();
 
-        Map<Household, Integer> householdMemberCountMap = new HashMap<>();
-        for (Household household : householdList) {
-            householdMemberCountMap.put(household, householdIdMemberCountMap.getOrDefault(household.getId(), 0));
-        }
+       for (Household household : householdList) {
+           Integer memberCount = householdIdMemberCountMap.get(household.getId()) == null ? 0 : householdIdMemberCountMap.get(household.getId());
+           HouseholdMemberMap householdMemberMap = HouseholdMemberMap.builder().household(household).numberOfMembers(memberCount).build();
+           householdMemberCountMap.add(householdMemberMap);
+       }
 
         downsyncCLFHousehold.setHouseholdMemberCountMap(householdMemberCountMap);
         log.info("The search time : " + (System.currentTimeMillis() - startTime)/1000);

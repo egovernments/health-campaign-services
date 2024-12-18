@@ -31,6 +31,7 @@ public class HouseholdRepository {
 			query = query + " and householdId=:householdId";
 			paramsMap.put("householdId", householdId);
 		}
+		paramsMap.put("localitycode", localityCode);
 		paramsMap.put("start", offset);
 		paramsMap.put("end", offset+limit);
 
