@@ -321,7 +321,7 @@ public class ParsingUtil {
      * @param row the Row to check
      * @return true if the row is empty, false otherwise
      */
-    public static boolean isRowEmpty(Row row) {
+    public boolean isRowEmpty(Row row) {
         if (row == null) {
             return true;
         }

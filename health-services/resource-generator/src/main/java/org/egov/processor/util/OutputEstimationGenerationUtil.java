@@ -1,6 +1,7 @@
 package org.egov.processor.util;
 
 import org.apache.poi.ss.usermodel.*;
+import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
@@ -11,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.egov.tracer.model.CustomException;
 
 import static org.egov.processor.config.ServiceConstants.FACILITY_ASSIGNED_CODE;
 import static org.egov.processor.config.ServiceConstants.FACILITY_NAME;
@@ -39,15 +41,37 @@ public class OutputEstimationGenerationUtil {
                 workbook.removeSheetAt(i);
             }
         }
+
+        //
+        Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream().collect(Collectors.toMap(Locale::getCode, Locale::getMessage));
+
+        for(Sheet sheet: workbook) {
+            processSheetForHeaderLocalization(sheet, localizationCodeAndMessageMap);
+        }
     }
 
-    public void processSheetForHeaderLocalization(Sheet sheet, LocaleResponse localeResponse) {
-        for (Row row : sheet) {
-            if (parsingUtil.isRowEmpty(row)) continue;
+    public void processSheetForHeaderLocalization(Sheet sheet, Map<String, String> localizationCodeAndMessageMap) {
+        // Fetch the header row from sheet
+        Row row = sheet.getRow(0);
+        if (parsingUtil.isRowEmpty(row)) throw new CustomException();
 
-            if (row.getRowNum() == 0) {
 
+        //Iterate from the end, for every cell localize the header value
+        for (int i = row.getLastCellNum() - 1; i >= 0; i--) {
+            Cell headerColumn = row.getCell(i);
+
+            if (headerColumn == null || headerColumn.getCellType() != CellType.STRING) {
+                continue;
             }
+            String headerColumnValue = headerColumn.getStringCellValue();
+
+            // Exit the loop if the header column value is not in the localization map
+            if (!localizationCodeAndMessageMap.containsKey(headerColumnValue)) {
+                break;
+            }
+
+            // Update the cell value with the localized message
+            headerColumn.setCellValue(localizationCodeAndMessageMap.get(headerColumnValue));
         }
 
     }
