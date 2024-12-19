@@ -51,7 +51,7 @@
 		<dependency>
 			<groupId>org.egov.common</groupId>
 			<artifactId>health-services-models</artifactId>
-			<version>1.0.24-dev-SNAPSHOT</version>
+			<version>1.0.23-dev-SNAPSHOT</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -112,9 +112,24 @@
 
 	<repositories>
 		<repository>
+			<id>repo.egovernments.org</id>
+			<name>eGov ERP Releases Repository</name>
+			<url>https://nexus-repo.egovernments.org/nexus/content/repositories/releases/</url>
+		</repository>
+		<repository>
+			<id>repo.egovernments.org.snapshots</id>
+			<name>eGov ERP Releases Repository</name>
+			<url>https://nexus-repo.egovernments.org/nexus/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>repo.egovernments.org.public</id>
+			<name>eGov Public Repository Group</name>
+			<url>https://nexus-repo.egovernments.org/nexus/content/groups/public/</url>
+		</repository>
+		<repository>
 			<id>repo.digit.org</id>
 			<name>eGov DIGIT Releases Repository</name>
-			<url>https://nexus-repo.digit.org/nexus/content/repositories/releases/</url>
+			<url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
 		</repository>
 	</repositories>
 </project>
