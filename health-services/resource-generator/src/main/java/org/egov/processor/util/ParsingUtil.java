@@ -359,7 +359,7 @@ public class ParsingUtil {
         for (int i = 0; i < headerRow.getLastCellNum(); i++) {
             Cell cell = headerRow.getCell(i);
             String columnHeader = dataFormatter.formatCellValue(cell);
-            if(columnHeader.equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
+            if (columnHeader.equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
                 indexValue = i;
                 break;
             }
@@ -443,7 +443,7 @@ public class ParsingUtil {
      * Extracts provided field from the additional details object
      *
      * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @param fieldToExtract the name of the field to be extracted from the additional details
+     * @param fieldToExtract    the name of the field to be extracted from the additional details
      * @return the value of the specified field as a string
      * @throws CustomException if the field does not exist
      */
