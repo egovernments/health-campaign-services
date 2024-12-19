@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express"; // Importing necessar
 const { object, string } = require("yup"); // Importing object and string from yup for schema validation
 import { errorResponder } from "../genericUtils"; // Importing errorResponder function from genericUtils
 import { logger } from "../logger";
+import { handleGzipRequest } from "../gzipHandler";
 
 // Defining the request schema using yup
 const requestSchema = object({
@@ -13,17 +14,20 @@ const requestSchema = object({
 });
 
 // Middleware function to validate request payload
-const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
+const requestMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     logger.info(`RECEIVED A HTTP REQUEST :: URI :: ${req.url}`);
     // Check if the content type is 'application/json'
     const contentType = req.headers['content-type'];
-    if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json')) {
-      // If content type is not 'application/json', throw Unsupported Media Type error
-      let e: any = new Error("Unsupported Media Type: Content-Type should be 'application/json'");
+    if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json') && !contentType.split(';').map(part => part.trim()).includes('application/gzip')) {
+      // If content type is not 'application/json' or 'application/gzip', throw Unsupported Media Type error
+      let e: any = new Error("Unsupported Media Type: Content-Type should be 'application/json' or 'application/gzip'");
       e = Object.assign(e, { status: 415, code: "UNSUPPORTED_MEDIA_TYPE" });
       errorResponder(e, req, res, 415)
       return;
+    }
+    if (contentType === 'application/gzip') {
+      await handleGzipRequest(req);
     }
     // Check if tenantId is missing in RequestInfo.userInfo
     if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -37,7 +41,8 @@ const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
     requestSchema.validateSync(req.body.RequestInfo);
     // If validation succeeds, proceed to the next middleware
     next();
-  } catch (error) {
+  }
+  catch (error) {
     // If an error occurs during validation process, handle the error using errorResponder function
     errorResponder(error, req, res);
   }
