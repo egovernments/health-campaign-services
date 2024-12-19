@@ -50,7 +50,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.24-dev</version>
+            <version>1.0.24-dev-snapshot</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
