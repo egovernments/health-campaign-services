@@ -31,11 +31,13 @@ public class PlanConsumer {
         this.config = config;
     }
 
+    //TODO: Add comments what this consumer does
     @KafkaListener(topics = { "${plan.config.consumer.kafka.save.topic}", "${plan.config.consumer.kafka.update.topic}" })
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
-            if (!ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()) && (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())
+            if (!ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()) &&
+                    (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())
                     || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())
                     || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())
                     || planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()))) {

@@ -49,6 +49,7 @@ public class ResourceEstimationService {
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
         Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
 		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
+		//TODO: rename processFiles to processPopulationFiles
 		processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
 
@@ -88,6 +89,8 @@ public class ResourceEstimationService {
 		    FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                 throw new IllegalArgumentException("Unsupported file type: " + ft);
             });
+
+			//TODO: if condition should check for Population files
 		    if (!ServiceConstants.FILE_TEMPLATE.equalsIgnoreCase(file.getTemplateIdentifier())) {
 		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
 		    }

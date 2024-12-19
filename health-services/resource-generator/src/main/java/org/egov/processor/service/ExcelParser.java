@@ -122,12 +122,16 @@ public class ExcelParser implements FileParser {
 	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
 			Object campaignResponse) {
 		try (Workbook workbook = new XSSFWorkbook(file)) {
+			//TODO: remove campaignBoundaryList, campaignResourcesList
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
 			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
+			//TODO: think of better name, cleanup this function
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
-            uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
+
+			//TODO: remove campaignBoundaryList, campaignResourcesList from uploadFileAndIntegrateCampaign
+			uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
                     workbook, campaignBoundaryList, campaignResourcesList);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
@@ -189,7 +193,7 @@ public class ExcelParser implements FileParser {
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
-
+	//TODO: rename this function provide comments
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
 							   Object campaignResponse, Workbook excelWorkbook,
 							   List<Boundary> campaignBoundaryList,
@@ -198,6 +202,7 @@ public class ExcelParser implements FileParser {
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
+		//TODO: move into just estimate calculation function orderPlanConfigurationOperations
 		planConfigurationUtil.orderPlanConfigurationOperations(request);
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
