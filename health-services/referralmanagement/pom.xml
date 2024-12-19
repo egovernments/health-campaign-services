@@ -129,11 +129,6 @@
 		<repository>
 			<id>repo.digit.org</id>
 			<name>eGov DIGIT Releases Repository</name>
-			<url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
-		</repository>
-		<repository>
-			<id>repo.digit.org</id>
-			<name>eGov DIGIT Releases Repository</name>
 			<url>https://nexus-repo.digit.org/nexus/content/repositories/releases/</url>
 		</repository>
 	</repositories>
