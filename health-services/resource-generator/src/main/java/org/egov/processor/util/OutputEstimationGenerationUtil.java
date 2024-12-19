@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.processor.config.ServiceConstants.FACILITY_ASSIGNED_CODE;
 import static org.egov.processor.config.ServiceConstants.FACILITY_NAME;
 
 @Component
@@ -61,9 +62,9 @@ public class OutputEstimationGenerationUtil {
     public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
-//        String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), "FACILITY_ASSIGNED");
+        String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), FACILITY_ASSIGNED_CODE);
 
-        String assignedFacilityColHeader = "Facility assigned";
+        assignedFacilityColHeader = assignedFacilityColHeader != null ? assignedFacilityColHeader : FACILITY_ASSIGNED_CODE;
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
