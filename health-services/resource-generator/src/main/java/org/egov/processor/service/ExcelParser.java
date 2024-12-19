@@ -203,7 +203,9 @@ public class ExcelParser implements FileParser {
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
 				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
 
+		//TODO: remove boundaryCodeList not required
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
+		//TODO: rename mappedValues, see whether to pass it as a func param in processRowsForCensusRecords
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
 				.collect(Collectors.toMap(
@@ -214,6 +216,7 @@ public class ExcelParser implements FileParser {
 				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
+				//TODO: arrange if conditions chronologically accordingly to workflow
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
@@ -254,6 +257,7 @@ public class ExcelParser implements FileParser {
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
+		//TODO pass mappedValues in func param
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
 				.collect(Collectors.toMap(
@@ -277,6 +281,7 @@ public class ExcelParser implements FileParser {
 				continue;
 			}
 
+			//TODO: no need to pass firstrow
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
 					planConfigurationRequest, boundaryCodeList, sheet);
 			JsonNode currentRow = createFeatureNodeFromRow(row, mapOfColumnNameAndIndex);
@@ -311,8 +316,6 @@ public class ExcelParser implements FileParser {
 	 * @param planConfig The configuration details specific to the plan.
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
-
-
 	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
@@ -668,6 +671,8 @@ public class ExcelParser implements FileParser {
 	 * @param row             The row containing the data to be validated.
 	 * @param columnHeaderRow The row containing the column headers.
 	 */
+
+
 	private void validateTillBoundaryCode(Integer indexOfBoundaryCode, Row row, Row columnHeaderRow) {
 		for (int j = 0; j <= indexOfBoundaryCode - 1; j++) {
 			Cell cell = row.getCell(j);

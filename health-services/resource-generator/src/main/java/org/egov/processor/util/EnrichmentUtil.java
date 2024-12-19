@@ -92,6 +92,7 @@ public class EnrichmentUtil {
     public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
+        //TODO: pass mapOfColumnNameAndIndex, indexOfBoundaryCode as func param in getBoundaryCodesFromTheSheet
         Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
         Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
                 parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
@@ -105,6 +106,7 @@ public class EnrichmentUtil {
 
 
         for(Row row: sheet) {
+            //TODO: remove from here
             parsingUtil.printRow(sheet, row);
             // Skip the header row and empty rows
             if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
@@ -112,6 +114,7 @@ public class EnrichmentUtil {
             }
 
             // Get the boundaryCode in the current row
+            //TODO: make it inline row.getCell(indexOfBoundaryCode).getStringCellValue();
             Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
             String boundaryCode = boundaryCodeCell.getStringCellValue();
 
@@ -121,6 +124,7 @@ public class EnrichmentUtil {
                 // For each field in the sheetToCensusMap, update the cell if the field is editable
                 for (Map.Entry<String, String> entry : mappedValues.entrySet()) {
                     String censusKey = entry.getKey();
+                    //TODO: rename to localizedSheetColumn
                     String sheetColumn = entry.getValue();
 
                     if(config.getCensusAdditionalFieldOverrideKeys().contains(censusKey))
