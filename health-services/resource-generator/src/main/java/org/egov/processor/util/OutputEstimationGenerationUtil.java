@@ -14,8 +14,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
 
-import static org.egov.processor.config.ServiceConstants.FACILITY_ASSIGNED_CODE;
 import static org.egov.processor.config.ServiceConstants.FACILITY_NAME;
+import static org.egov.processor.config.ServiceConstants.HCM_MICROPLAN_SERVING_FACILITY;
 
 @Component
 public class OutputEstimationGenerationUtil {
@@ -86,9 +86,9 @@ public class OutputEstimationGenerationUtil {
     public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
-        String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), FACILITY_ASSIGNED_CODE);
+        String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), HCM_MICROPLAN_SERVING_FACILITY);
 
-        assignedFacilityColHeader = assignedFacilityColHeader != null ? assignedFacilityColHeader : FACILITY_ASSIGNED_CODE;
+        assignedFacilityColHeader = assignedFacilityColHeader != null ? assignedFacilityColHeader : HCM_MICROPLAN_SERVING_FACILITY;
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
