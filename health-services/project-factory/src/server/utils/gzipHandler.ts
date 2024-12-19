@@ -1,63 +1,36 @@
-import zlib from "zlib";
-import { Request, Response, NextFunction } from "express";
-const { object, string } = require("yup"); // Importing object and string from yup for schema validation
-import { logger } from "./logger";
-import { errorResponder } from "./genericUtils";
+import { Request } from "express";
+import * as zlib from "zlib";
 
-
-const requestSchema = object({
-    apiId: string().nullable(), // Nullable string field for API ID
-    action: string().nullable(), // Nullable string field for action
-    msgId: string().required(), // Required string field for message ID
-    authToken: string().nullable(), // Nullable string field for authentication token
-    userInfo: object().nonNullable() // Non-nullable object field for user information
-});
-
-export const handleGzipRequest = (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
+export const handleGzipRequest = async (req: Request): Promise<void> => {
     const buffers: Buffer[] = [];
 
-    req.on("data", (chunk) => buffers.push(chunk));
-    req.on("end", () => {
-        try {
-            const gzipBuffer = Buffer.concat(buffers);
-            logger.info("Gzip buffer size:", gzipBuffer.length);
+    // Collect data chunks from the request
+    await new Promise<void>((resolve, reject) => {
+        req.on("data", (chunk: any) => buffers.push(chunk));
+        req.on("end", resolve);
+        req.on("error", reject);
+    });
 
-            // Decompress the Gzip data
-            zlib.gunzip(gzipBuffer, (err, decompressedBuffer) => {
-                if (err) {
-                    logger.error("Error decompressing Gzip file:", err);
-                    res.status(500).send("Invalid Gzip file");
-                    return;
-                }
+    // Concatenate and decompress the data
+    const gzipBuffer = Buffer.concat(buffers);
+    try {
+        const decompressedData = await decompressGzip(gzipBuffer);
+        req.body = decompressedData; // Assign the parsed data to req.body
+    } catch (err: any) {
+        throw new Error(`Failed to process Gzip data: ${err.message}`);
+    }
+};
 
-                try {
-                    // Convert the decompressed buffer to string and parse as JSON
-                    const jsonData = decompressedBuffer.toString().trim();
-                    logger.info("Decompressed JSON data:", jsonData);
-                    const parsedData = JSON.parse(jsonData);
-                    req.body = parsedData;
-                    // Validation 1: Check if tenantId is present
-                    if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
-                        let e: any = new Error("RequestInfo.userInfo.tenantId is missing");
-                        e = Object.assign(e, { status: 400, code: "VALIDATION_ERROR" });
-                        return errorResponder(e, req, res, 400); // Return error response if tenantId is missing
-                    }
-
-                    // Validation 2: Validate the request payload against the defined schema
-                    requestSchema.validateSync(req.body.RequestInfo); // Assuming validateSync is synchronous
-                    next(); // Proceed to next middleware or controller if valid
-                } catch (parseError) {
-                    logger.error("Error parsing JSON data:", parseError);
-                    res.status(500).send("Invalid JSON in Gzip content");
-                }
-            });
-        } catch (err) {
-            logger.error("Error processing Gzip content:", err);
-            res.status(500).send("Invalid Gzip content");
-        }
+// Helper function to decompress Gzip data
+const decompressGzip = (gzipBuffer: Buffer): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        zlib.gunzip(gzipBuffer, (err, result) => {
+            if (err) return reject(err);
+            try {
+                resolve(JSON.parse(result.toString()));
+            } catch (parseErr) {
+                reject(new Error("Invalid JSON format in decompressed data"));
+            }
+        });
     });
 };

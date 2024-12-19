@@ -14,7 +14,7 @@ const requestSchema = object({
 });
 
 // Middleware function to validate request payload
-const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
+const requestMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     logger.info(`RECEIVED A HTTP REQUEST :: URI :: ${req.url}`);
     // Check if the content type is 'application/json'
@@ -27,22 +27,22 @@ const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
       return;
     }
     if (contentType === 'application/gzip') {
-      return handleGzipRequest(req, res, next);
-    } else {
-      // Check if tenantId is missing in RequestInfo.userInfo
-      if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
-        // If tenantId is missing, throw Validation Error
-        let e: any = new Error("RequestInfo.userInfo.tenantId is missing");
-        e = Object.assign(e, { status: 400, code: "VALIDATION_ERROR" });
-        errorResponder(e, req, res, 400)
-        return;
-      }
-      // Validate request payload against the defined schema
-      requestSchema.validateSync(req.body.RequestInfo);
-      // If validation succeeds, proceed to the next middleware
-      next();
+      await handleGzipRequest(req);
     }
-  } catch (error) {
+    // Check if tenantId is missing in RequestInfo.userInfo
+    if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
+      // If tenantId is missing, throw Validation Error
+      let e: any = new Error("RequestInfo.userInfo.tenantId is missing");
+      e = Object.assign(e, { status: 400, code: "VALIDATION_ERROR" });
+      errorResponder(e, req, res, 400)
+      return;
+    }
+    // Validate request payload against the defined schema
+    requestSchema.validateSync(req.body.RequestInfo);
+    // If validation succeeds, proceed to the next middleware
+    next();
+  }
+  catch (error) {
     // If an error occurs during validation process, handle the error using errorResponder function
     errorResponder(error, req, res);
   }
