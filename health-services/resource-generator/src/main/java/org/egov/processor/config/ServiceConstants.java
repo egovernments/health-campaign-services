@@ -1,6 +1,7 @@
 package org.egov.processor.config;
 
 
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.springframework.stereotype.Component;
 
 
@@ -120,4 +121,10 @@ public class ServiceConstants {
     //Census additional field constants
     public static final String UPLOADED_KEY = "UPLOADED_";
     public static final String CONFIRMED_KEY = "CONFIRMED_";
+
+    //Excel header row styling constants
+    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Constant background color
+    public static final boolean FREEZE_CELL = true; // Constant to lock cell
+    public static final int COLUMN_WIDTH = 40; // Column width in characters
+
 }

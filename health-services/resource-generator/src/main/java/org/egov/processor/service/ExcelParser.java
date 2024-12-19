@@ -165,8 +165,7 @@ public class ExcelParser implements FileParser {
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
 				//Upload the processed output file into project factory
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
-
+//				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest);
 
 

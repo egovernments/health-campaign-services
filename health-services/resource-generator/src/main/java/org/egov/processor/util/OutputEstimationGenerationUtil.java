@@ -1,23 +1,33 @@
 package org.egov.processor.util;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.*;
 import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.tracer.model.CustomException;
+import org.springframework.stereotype.Component;
+import java.awt.Color;
 
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.processor.config.ServiceConstants.*;
+
+
+@Component
 public class OutputEstimationGenerationUtil {
 
     private LocaleUtil localeUtil;
 
     private ParsingUtil parsingUtil;
 
-    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil) {
+    private ExcelStylingUtil excelStylingUtil;
+
+    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, ExcelStylingUtil excelStylingUtil) {
         this.localeUtil = localeUtil;
         this.parsingUtil = parsingUtil;
+        this.excelStylingUtil = excelStylingUtil;
     }
 
     public void processOutputFile(Workbook workbook, PlanConfigurationRequest request) {
@@ -30,8 +40,12 @@ public class OutputEstimationGenerationUtil {
             }
         }
 
-        //
-        Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream().collect(Collectors.toMap(Locale::getCode, Locale::getMessage));
+        Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream()
+                .collect(Collectors.toMap(
+                        Locale::getCode,
+                        Locale::getMessage,
+                        (existingValue, newValue) -> existingValue // Keep the existing value in case of duplicates
+                ));
 
         for(Sheet sheet: workbook) {
             processSheetForHeaderLocalization(sheet, localizationCodeAndMessageMap);
@@ -59,8 +73,9 @@ public class OutputEstimationGenerationUtil {
             }
 
             // Update the cell value with the localized message
+            excelStylingUtil.styleCell(headerColumn);
             headerColumn.setCellValue(localizationCodeAndMessageMap.get(headerColumnValue));
         }
-
     }
+
 }
