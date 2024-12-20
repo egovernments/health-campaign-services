@@ -25,6 +25,9 @@ public class HouseholdSearch extends EgovOfflineSearchModel {
     @JsonProperty("boundaryCode")
     private String localityCode = null;
 
+    @JsonProperty("householdType")
+    private String householdType = null;
+
     @Exclude
     @JsonProperty("latitude")
     @DecimalMin("-90")
