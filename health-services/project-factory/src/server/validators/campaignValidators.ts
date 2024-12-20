@@ -88,13 +88,16 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, isGenericType: boolean, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
+                const targetColumnsToValidate = isGenericType ? localizedTargetColumnNames.filter((column: string) =>
+                    boundaryData.some((row: any) => row.hasOwnProperty(column) && row[column] !== null && row[column] !== undefined)
+                ) : localizedTargetColumnNames;
                 boundaryData.forEach((obj: any, index: number) => {
-                    for (const targetColumn of localizedTargetColumnNames) {
+                    for (const targetColumn of targetColumnsToValidate) {
                         const target = obj[targetColumn];
                         if (!target) {
                             errors.push({
@@ -135,6 +138,7 @@ function validateTargetForNormalCampaigns(data: any, errors: any, localizedTarge
 
 async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
     let columnsToValidate: any;
+    let targetColumnsWhoseValidationIsNotMandatory: any;
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
@@ -148,14 +152,18 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
         const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
         const requiredColumns = mdmsResponse?.required;
         columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
+        targetColumnsWhoseValidationIsNotMandatory = columnsNotToBeFreezed.filter((element: any) => !requiredColumns.includes(element));
     }
-    const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+    const localizedRequiredTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+    const localizedNotRequiredTargetColumnNames = getLocalizedHeaders(targetColumnsWhoseValidationIsNotMandatory, localizationMap);
     if (request?.body?.ResourceDetails?.additionalDetails?.source === "microplan") {
-        validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateTargetsForMicroplanCampaigns(data, errors, localizedRequiredTargetColumnNames, localizationMap);
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
-        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedRequiredTargetColumnNames, false, localizationMap);
+        // validate target columns which are not required but has data present in those columns for genric camapign types 
+        validateTargetForNormalCampaigns(data, errors, localizedNotRequiredTargetColumnNames, true, localizationMap)
     }
 }
 
