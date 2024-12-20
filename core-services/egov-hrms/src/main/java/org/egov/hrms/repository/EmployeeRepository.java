@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.hrms.utils.HRMSUtils;
+import org.egov.hrms.web.contract.EmployeeCountResponse;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -44,13 +45,13 @@ public class EmployeeRepository {
 	 * @param requestInfo
 	 * @return
 	 */
-	public List<Employee> fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
+	public EmployeeCountResponse fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
 		if(hrmsUtils.isAssignmentSearchReqd(criteria)) {
 			List<String> empUuids = fetchEmployeesforAssignment(criteria, requestInfo);
 			if (CollectionUtils.isEmpty(empUuids))
-				return employees;
+				return new EmployeeCountResponse(employees, 0);
 			else {
 				if(!CollectionUtils.isEmpty(criteria.getUuids()))
 					criteria.setUuids(criteria.getUuids().stream().filter(empUuids::contains).collect(Collectors.toList()));
@@ -62,6 +63,17 @@ public class EmployeeRepository {
 			List<String> empUuids = fetchUnassignedEmployees(criteria, requestInfo);
 			criteria.setUuids(empUuids);
 		}
+		List<Employee> employeesCount = new ArrayList<>();
+		String queryCount = queryBuilder.getEmployeeSearchQueryWithoutPagination(criteria, preparedStmtList);
+		int count=0;
+		try {
+			employeesCount = jdbcTemplate.query(queryCount, preparedStmtList.toArray(),rowMapper);
+			 count = employeesCount.size();
+		}catch(Exception e) {
+			log.error("Exception while making the db call: ",e);
+			log.error("query; "+queryCount);
+		}
+
 		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
@@ -69,7 +81,7 @@ public class EmployeeRepository {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);
 		}
-		return employees;
+		return new EmployeeCountResponse(employees, count);
 	}
 
 	private List<String> fetchUnassignedEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {

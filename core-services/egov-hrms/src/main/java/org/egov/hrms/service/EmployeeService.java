@@ -195,8 +195,10 @@ public class EmployeeService {
 		if(userChecked)
 			criteria.setTenantId(null);
         List <Employee> employees = new ArrayList<>();
+		EmployeeCountResponse employeeCountResponse=new EmployeeCountResponse();
         if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids())))
-            employees = repository.fetchEmployees(criteria, requestInfo);
+			employeeCountResponse = repository.fetchEmployees(criteria, requestInfo);
+		employees=employeeCountResponse.getEmployees();
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
@@ -217,7 +219,7 @@ public class EmployeeService {
             }
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
-				.employees(employees).build();
+				.employees(employees).count(employeeCountResponse.getCount()).build();
 	}
 	
 	
