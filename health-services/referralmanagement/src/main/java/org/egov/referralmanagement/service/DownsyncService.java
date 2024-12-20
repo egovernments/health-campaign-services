@@ -205,6 +205,7 @@ public class DownsyncService {
 
         HouseholdSearch householdSearch = HouseholdSearch.builder()
                 .localityCode(criteria.getLocality())
+                .householdType("FAMILY")
                 .build();
 
         if (StringUtils.hasLength(criteria.getHouseholdId())) {
