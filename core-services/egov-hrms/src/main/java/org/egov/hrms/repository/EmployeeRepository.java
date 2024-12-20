@@ -11,6 +11,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.hrms.utils.ErrorConstants;
 import org.egov.hrms.utils.HRMSUtils;
+import org.egov.hrms.web.contract.EmployeeCountResponse;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
