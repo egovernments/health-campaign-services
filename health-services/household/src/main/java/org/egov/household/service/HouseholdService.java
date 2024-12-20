@@ -65,7 +65,8 @@ public class HouseholdService {
                     || validator.getClass().equals(HUniqueEntityValidator.class)
                     || validator.getClass().equals(HNonExistentEntityValidator.class)
                     || validator.getClass().equals(HRowVersionValidator.class)
-                    || validator.getClass().equals(HCommunityValidator.class);
+                    || validator.getClass().equals(HCommunityValidator.class)
+            || validator.getClass().equals(HHouseholdTypeChangeValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
