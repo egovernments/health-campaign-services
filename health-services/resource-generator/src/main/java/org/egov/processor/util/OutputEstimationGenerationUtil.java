@@ -112,11 +112,12 @@ public class OutputEstimationGenerationUtil {
             if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
 
                 // Get column index of assigned facility name in the sheet being processed
-                Integer indexOfFacility = sheet.getRow(0).getLastCellNum() + 1;
+                Integer indexOfFacility = (int) sheet.getRow(0).getLastCellNum();
 
                 // Create a new column for assigned facility name
-                Cell cell = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
-                cell.setCellValue(assignedFacilityColHeader);
+                Cell facilityCell = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
+                excelStylingUtil.styleCell(facilityCell);
+                facilityCell.setCellValue(assignedFacilityColHeader);
 
                 // Get column index of boundary code in the sheet being processed from map of col name and index
                 Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
@@ -144,14 +145,13 @@ public class OutputEstimationGenerationUtil {
                     Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
                     String boundaryCode = boundaryCodeCell.getStringCellValue();
 
-                    Cell facilityCell = row.getCell(indexOfFacility);
-                    if (facilityCell == null) {
-                        facilityCell = row.createCell(indexOfFacility, CellType.STRING);
+                    Cell facilityName = row.getCell(indexOfFacility);
+                    if (facilityName == null) {
+                        facilityName = row.createCell(indexOfFacility, CellType.STRING);
                     }
 
                     // Setting facility name for the boundary from boundaryCodeToFacility map
-                    excelStylingUtil.styleCell(facilityCell);
-                    facilityCell.setCellValue(boundaryCodeToFacility.get(boundaryCode));
+                    facilityName.setCellValue(boundaryCodeToFacility.get(boundaryCode));
                 }
             }
         }
