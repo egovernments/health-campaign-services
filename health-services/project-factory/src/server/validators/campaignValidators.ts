@@ -88,13 +88,27 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
+const getPresentTargetColumns = (
+    campaignType: string,
+    boundaryData: any[],
+    localizedTargetColumnNames: string[]
+): string[] => {
+    if (campaignType === config?.coDeliveryCampaign) {
+        return localizedTargetColumnNames.filter((column: string) =>
+            boundaryData.some((row: any) => row.hasOwnProperty(column))
+        );
+    }
+    return localizedTargetColumnNames;
+};
+
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }, campaignType?: any) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
+                const presentTargetColumns = getPresentTargetColumns(campaignType, boundaryData, localizedTargetColumnNames);
                 boundaryData.forEach((obj: any, index: number) => {
-                    for (const targetColumn of localizedTargetColumnNames) {
+                    for (const targetColumn of presentTargetColumns) {
                         const target = obj[targetColumn];
                         if (!target) {
                             errors.push({
@@ -155,7 +169,7 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
-        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap, campaignObject?.projectType);
     }
 }
 
