@@ -350,23 +350,6 @@ public class ParsingUtil {
         return indexValue;
     }
 
-    public Integer getIndexOfBoundaryCode(Integer indexValue, Sheet sheet, Map<String, String> mappedValues) {
-
-        DataFormatter dataFormatter = new DataFormatter();
-
-        // Assuming the first row contains column headers
-        Row headerRow = sheet.getRow(0);
-        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
-            Cell cell = headerRow.getCell(i);
-            String columnHeader = dataFormatter.formatCellValue(cell);
-            if (columnHeader.equals(mappedValues.get(ServiceConstants.BOUNDARY_CODE))) {
-                indexValue = i;
-                break;
-            }
-        }
-        return indexValue;
-    }
-
     /**
      * Sorts the column names and indices based on the provided map of column names and indices.
      *

@@ -24,11 +24,14 @@ public class OutputEstimationGenerationUtil {
 
     private ParsingUtil parsingUtil;
 
+    private ExcelStylingUtil excelStylingUtil;
+
     private EnrichmentUtil enrichmentUtil;
 
-    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil) {
+    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil, ExcelStylingUtil excelStylingUtil) {
         this.localeUtil = localeUtil;
         this.parsingUtil = parsingUtil;
+        this.excelStylingUtil = excelStylingUtil;
         this.enrichmentUtil = enrichmentUtil;
     }
 
@@ -42,8 +45,12 @@ public class OutputEstimationGenerationUtil {
             }
         }
 
-        //
-        Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream().collect(Collectors.toMap(Locale::getCode, Locale::getMessage));
+        Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream()
+                .collect(Collectors.toMap(
+                        Locale::getCode,
+                        Locale::getMessage,
+                        (existingValue, newValue) -> existingValue // Keep the existing value in case of duplicates
+                ));
 
         for(Sheet sheet: workbook) {
             processSheetForHeaderLocalization(sheet, localizationCodeAndMessageMap);
@@ -71,6 +78,7 @@ public class OutputEstimationGenerationUtil {
             }
 
             // Update the cell value with the localized message
+            excelStylingUtil.styleCell(headerColumn);
             headerColumn.setCellValue(localizationCodeAndMessageMap.get(headerColumnValue));
         }
 
@@ -87,8 +95,17 @@ public class OutputEstimationGenerationUtil {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
         String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), HCM_MICROPLAN_SERVING_FACILITY);
-
         assignedFacilityColHeader = assignedFacilityColHeader != null ? assignedFacilityColHeader : HCM_MICROPLAN_SERVING_FACILITY;
+
+        // Creating a map of MappedTo and MappedFrom values from resource mapping
+        Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
+                .filter(f -> f.getFilestoreId().equals(fileStoreId))
+                .collect(Collectors.toMap(
+                        ResourceMapping::getMappedTo,
+                        ResourceMapping::getMappedFrom,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
@@ -101,18 +118,10 @@ public class OutputEstimationGenerationUtil {
                 Cell cell = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
                 cell.setCellValue(assignedFacilityColHeader);
 
-                // Creating a map of MappedTo and MappedFrom values from resource mapping
-                Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
-                        .filter(f -> f.getFilestoreId().equals(fileStoreId))
-                        .collect(Collectors.toMap(
-                                ResourceMapping::getMappedTo,
-                                ResourceMapping::getMappedFrom,
-                                (existing, replacement) -> existing,
-                                LinkedHashMap::new
-                        ));
-
-                // Get column index of boundary code in the sheet being processed
-                Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0, sheet, mappedValues);
+                // Get column index of boundary code in the sheet being processed from map of col name and index
+                Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+                Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                        parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
                 // Get a list of boundary codes
                 List<String> boundaryCodes = enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId);
@@ -126,7 +135,6 @@ public class OutputEstimationGenerationUtil {
 
                 // for each boundary code in the sheet add the name of the facility assigned to it.
                 for (Row row : sheet) {
-
                     // Skip the header row and empty rows
                     if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
                         continue;
@@ -136,13 +144,14 @@ public class OutputEstimationGenerationUtil {
                     Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
                     String boundaryCode = boundaryCodeCell.getStringCellValue();
 
-                    String facility = boundaryCodeToFacility.get(boundaryCode);
-
                     Cell facilityCell = row.getCell(indexOfFacility);
                     if (facilityCell == null) {
                         facilityCell = row.createCell(indexOfFacility, CellType.STRING);
                     }
-                    facilityCell.setCellValue(facility);
+
+                    // Setting facility name for the boundary from boundaryCodeToFacility map
+                    excelStylingUtil.styleCell(facilityCell);
+                    facilityCell.setCellValue(boundaryCodeToFacility.get(boundaryCode));
                 }
             }
         }
