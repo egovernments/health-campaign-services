@@ -21,7 +21,7 @@ public enum HouseHoldType {
     @JsonCreator
     public static HouseHoldType fromValue(String text) {
         for (HouseHoldType b : HouseHoldType.values()) {
-            if (String.valueOf(b.value).equals(text)) {
+            if (String.valueOf(b.value).equalsIgnoreCase(text)) {
                 return b;
             }
         }

@@ -11,7 +11,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,8 +19,6 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
-import static org.egov.household.Constants.GET_ID;
 
 @Slf4j
 @Component
@@ -40,13 +37,8 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
         Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
         // Get the list of household entities from the request
         List<Household> entities = request.getHouseholds();
-        // Get the class of the household entity
-        Class<?> objClass = getObjClass(entities);
-        // Get the method for fetching the ID of the entity
-        Method idMethod = getMethod(GET_ID, objClass);
         // Map to store entities by their IDs
-        Map<String, Household> eMap = getIdToObjMap(
-                entities.stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        Map<String, Household> eMap = entities.stream().filter(notHavingErrors()).collect(Collectors.toMap(Household::getId, household -> household));
         // Lists to store IDs and client reference IDs
         List<String> idList = new ArrayList<>();
         List<String> clientReferenceIdList = new ArrayList<>();
@@ -57,8 +49,6 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
         });
         // Check if the entity map is not empty
         if (!eMap.isEmpty()) {
-            // Extract entity IDs
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
             // Create a search object for querying existing entities
             HouseholdSearch householdSearch = HouseholdSearch.builder()
                     .clientReferenceId(clientReferenceIdList)
@@ -77,7 +67,7 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
             }
             // Check for non-existent entities
             List<Household> entitiesWithHouseholdTypeChange = changeInHouseholdType(eMap,
-                    existingEntities, idMethod);
+                    existingEntities);
             // Populate error details for non-existent entities
             entitiesWithHouseholdTypeChange.forEach(entity -> {
                 Error error = Error.builder().errorMessage("Household Type change").errorCode("HOUSEHOLD_TYPE_CHANGE")
@@ -92,7 +82,7 @@ public class HHouseholdTypeChangeValidator implements Validator<HouseholdBulkReq
 
 
     private List<Household> changeInHouseholdType(Map<String, Household> eMap,
-            List<Household> existingEntities, Method idMethod) {
+            List<Household> existingEntities) {
         List<Household> entitiesWithHouseholdTypeChange = new ArrayList<>();
 
         for (Household existingEntity : existingEntities) {

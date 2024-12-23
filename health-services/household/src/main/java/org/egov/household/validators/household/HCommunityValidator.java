@@ -2,11 +2,13 @@ package org.egov.household.validators.household;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -24,6 +26,7 @@ public class HCommunityValidator implements Validator<HouseholdBulkRequest, Hous
 
     private final HouseholdConfiguration configuration;
 
+    @Autowired
     public HCommunityValidator(HouseholdConfiguration configuration) {
         this.configuration = configuration;
     }
@@ -34,7 +37,7 @@ public class HCommunityValidator implements Validator<HouseholdBulkRequest, Hous
         List<Household> communityHouseholds = request.getHouseholds()
                 .stream()
                 .filter(household -> household.getHouseholdType() != null &&
-                        household.getHouseholdType().toString().equals(configuration.getCommunityHouseholdType()))
+                        household.getHouseholdType().equals(HouseHoldType.COMMUNITY))
                 .toList();
 
         if (!CollectionUtils.isEmpty(communityHouseholds) &&
@@ -51,7 +54,6 @@ public class HCommunityValidator implements Validator<HouseholdBulkRequest, Hous
                 // Populate error details for the household
                 populateErrorDetails(household, error, errorDetailsMap);
             });
-            return errorDetailsMap;
         }
         return errorDetailsMap;
     }
