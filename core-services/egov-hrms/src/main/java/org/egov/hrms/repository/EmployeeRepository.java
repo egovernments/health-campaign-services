@@ -48,6 +48,7 @@ public class EmployeeRepository {
 	public EmployeeCountResponse fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
+		List<Object> preparedStmtListCount = new ArrayList<>();
 		if(hrmsUtils.isAssignmentSearchReqd(criteria)) {
 			List<String> empUuids = fetchEmployeesforAssignment(criteria, requestInfo);
 			if (CollectionUtils.isEmpty(empUuids))
@@ -64,10 +65,10 @@ public class EmployeeRepository {
 			criteria.setUuids(empUuids);
 		}
 		List<Employee> employeesCount = new ArrayList<>();
-		String queryCount = queryBuilder.getEmployeeSearchQueryWithoutPagination(criteria, preparedStmtList);
+		String queryCount = queryBuilder.getEmployeeSearchQueryWithoutPagination(criteria, preparedStmtListCount);
 		int count=0;
 		try {
-			employeesCount = jdbcTemplate.query(queryCount, preparedStmtList.toArray(),rowMapper);
+			employeesCount = jdbcTemplate.query(queryCount, preparedStmtListCount.toArray(),rowMapper);
 			 count = employeesCount.size();
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
