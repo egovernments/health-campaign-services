@@ -47,7 +47,7 @@ public class ProjectAddressQueryBuilder {
             "on prj.id = addr.projectId ";;
 
     /* Constructs project search query based on conditions */
-    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStmtList, boolean isCountQuery) {
+    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<String> ancestorIds, List<Object> preparedStmtList, boolean isCountQuery) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
         StringBuilder queryBuilder = new StringBuilder(query);
@@ -73,6 +73,12 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.id =? ");
                 preparedStmtList.add(project.getId());
+            }
+
+            if (ancestorIds != null && !ancestorIds.isEmpty()) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.projectHierarchy ~ ? ");
+                preparedStmtList.add(String.join("|", ancestorIds));
             }
 
             if (StringUtils.isNotBlank(project.getProjectNumber())) {
@@ -379,8 +385,8 @@ public class ProjectAddressQueryBuilder {
     }
     
     /* Returns query to get total projects count based on project search params */
-    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStatement) {
-        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement, true);
+    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<String> ancestorIds, List<Object> preparedStatement) {
+        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, ancestorIds, preparedStatement, true);
         return query;
     }
 

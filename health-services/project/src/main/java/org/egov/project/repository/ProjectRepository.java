@@ -69,10 +69,10 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
 
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo) {
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, List<String> ancestorIds) {
 
         //Fetch Projects based on search criteria
-        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
+        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, ancestorIds);
 
         Set<String> projectIds = projects.stream().map(Project :: getId).collect(Collectors.toSet());
 
@@ -151,9 +151,9 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on search criteria */
-    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
+    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<String> ancestorIds) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStmtList, false);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, ancestorIds, preparedStmtList, false);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
         log.info("Fetched project list based on given search criteria");
@@ -339,9 +339,9 @@ public class ProjectRepository extends GenericRepository<Project> {
      * query build at the run time)
      * @return
      */
-    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
+    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<String> ancestorIds) {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, ancestorIds, preparedStatement);
 
         if (query == null)
             return 0;
