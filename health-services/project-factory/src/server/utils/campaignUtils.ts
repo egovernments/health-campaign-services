@@ -1695,21 +1695,37 @@ function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
 function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   if (!boundaryResponses || !codesTargetMapping) return;
 
-  for (const boundaryResponse of boundaryResponses) {
-    const mapBoundary = (boundary: any) => {
-      if (!boundary.children || boundary.children.length === 0) {
-        const targetValue = codesTargetMapping[boundary.code];
-        return targetValue ? targetValue : 0;
-      }
+  // Helper function to map individual boundaries
+  const mapBoundary = (boundary: any) => {
+    if (!boundary.children || boundary.children.length === 0) {
+      // If no children, simply return the target value object or default to empty object
+      const targetValue = codesTargetMapping[boundary.code];
+      return targetValue || {};
+    }
 
-      let totalTargetValue = 0;
-      for (const child of boundary.children) {
-        const childTargetValue = mapBoundary(child);
-        totalTargetValue += childTargetValue;
+    // Initialize a new object to accumulate total target values from children
+    let totalTargetValue: any = {};
+
+    // Iterate through each child and accumulate their target values
+    for (const child of boundary.children) {
+      const childTargetValue = mapBoundary(child);
+
+      // Accumulate the child target values into the total target value
+      for (const key in childTargetValue) {
+        if (childTargetValue.hasOwnProperty(key)) {
+          // Initialize key in totalTargetValue if it doesn't exist
+          totalTargetValue[key] = (totalTargetValue[key] || 0) + childTargetValue[key];
+        }
       }
-      codesTargetMapping[boundary.code] = totalTargetValue;
-      return totalTargetValue;
-    };
+    }
+
+    // Store the accumulated total target value for the current boundary
+    codesTargetMapping[boundary.code] = totalTargetValue;
+    return totalTargetValue;
+  };
+
+  // Map each boundary response
+  for (const boundaryResponse of boundaryResponses) {
     mapBoundary(boundaryResponse);
   }
 }
@@ -2169,13 +2185,14 @@ async function getCodesTarget(request: any, localizationMap?: any) {
       fileResponse?.fileStoreIds?.[0]?.url,
       true,
       true,
-      codeColumnName
+      codeColumnName,
+      localizationMap
     );
     const boundaryTargetMapping: any = {};
     // Iterate through each key in targetData
     for (const key in targetData) {
       // Iterate through each entry in the array under the current key
-      targetData[key].forEach((entry) => {
+      targetData[key].forEach((entry : any) => {
         // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
         if (
           entry[codeColumnName] !== undefined &&
@@ -2185,7 +2202,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
           boundaryTargetMapping[entry[codeColumnName]] =
             entry["Target at the Selected Boundary level"];
           if (
-            entry["Parent Target at the Selected Boundary level"] !== 0 &&
+            Object.keys(entry["Parent Target at the Selected Boundary level"]).length > 0 &&
             entry["Parent Target at the Selected Boundary level"] !==
             entry["Target at the Selected Boundary level"]
           ) {
@@ -2236,6 +2253,7 @@ async function createProject(
         Projects,
       };
       boundaries = await reorderBoundaries(request, localizationMap);
+      const codesTargetMapping = request?.body?.CampaignDetails?.codesTargetMapping;
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
         // make search to project with parent campaign root project id
@@ -2267,38 +2285,7 @@ async function createProject(
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
             if (projectToUpdate) {
-              const filteredTargets = projectToUpdate.targets.filter(
-                (e: any) =>
-                  e.beneficiaryType ==
-                  request?.body?.CampaignDetails?.additionalDetails
-                    ?.beneficiaryType
-              );
-              if (filteredTargets.length == 0) {
-                projectToUpdate.targets = [
-                  {
-                    beneficiaryType:
-                      request?.body?.CampaignDetails?.additionalDetails
-                        ?.beneficiaryType,
-                    totalNo:
-                      request?.body?.CampaignDetails?.codesTargetMapping[
-                      boundary
-                      ],
-                    targetNo:
-                      request?.body?.CampaignDetails?.codesTargetMapping[
-                      boundary
-                      ],
-                  },
-                ];
-              } else {
-                const targetobj = filteredTargets[0];
-                (targetobj.totalNo =
-                  request?.body?.CampaignDetails?.codesTargetMapping[boundary]),
-                  (targetobj.targetNo =
-                    request?.body?.CampaignDetails?.codesTargetMapping[
-                    boundary
-                    ]);
-                projectToUpdate.targets = [targetobj];
-              }
+              enrichTargetForProject(projectToUpdate, codesTargetMapping, boundary);
               const projectUpdateBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Projects: [projectToUpdate],
@@ -2344,21 +2331,7 @@ async function createProject(
 
           // Set the reference ID and project targets
           Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
-            (Projects[0].targets = [
-              {
-                beneficiaryType:
-                  request?.body?.CampaignDetails?.additionalDetails
-                    ?.beneficiaryType,
-                totalNo:
-                  request?.body?.CampaignDetails?.codesTargetMapping[
-                  boundaryCode
-                  ],
-                targetNo:
-                  request?.body?.CampaignDetails?.codesTargetMapping[
-                  boundaryCode
-                  ],
-              },
-            ]);
+          enrichTargetForProject(Projects[0], codesTargetMapping, boundaryCode);
           await projectCreate(projectCreateBody, request);
         }
       }
@@ -2383,6 +2356,23 @@ async function createProject(
     processTrackTypes.targetAndDeliveryRulesCreation,
     processTrackStatuses.completed
   );
+}
+
+const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryCode: any) => {
+  if ( codesTargetMapping && Object.keys(codesTargetMapping?.[boundaryCode]).length > 0) {
+    let targets = [];
+    for (const key in codesTargetMapping?.[boundaryCode]) {
+      let targetNo = parseInt(codesTargetMapping?.[boundaryCode][key]);
+      let beneficiaryType = key;
+      targets.push({
+        beneficiaryType: beneficiaryType,
+        targetNo: targetNo,
+      });
+    }
+    if(targets.length > 0){
+      project.targets = targets;
+    }
+  }
 }
 
 async function processAfterPersist(request: any, actionInUrl: any) {
