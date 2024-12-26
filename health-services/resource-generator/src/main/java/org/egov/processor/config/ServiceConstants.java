@@ -61,7 +61,7 @@ public class ServiceConstants {
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
-    public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundary";
+    public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";
     public static final String INPUT_IS_NOT_VALID = "File does not contain valid input for row ";
 
