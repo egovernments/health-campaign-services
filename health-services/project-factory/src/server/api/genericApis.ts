@@ -9,6 +9,7 @@ import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { targetConfigs } from "../config/targetConfigs";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -209,6 +210,7 @@ const getTargetSheetDataAfterCode = async (
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
     const sheetData = getSheetDataFromWorksheet(worksheet);
+    const jsonData = getJsonData(sheetData,true,true, sheetName);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
@@ -225,43 +227,64 @@ const getTargetSheetDataAfterCode = async (
       continue;
     }
 
-    // Process data from sheet
-    const processedData = sheetData.map((row: any, rowIndex: any) => {
-      if (rowIndex <= 0) return null; // Skip header row
+    // Process each row of the sheet data
+    const processedData = jsonData.map((row: any, rowIndex: any) => {
+      // Skip the header row (rowIndex 0)
+      if (rowIndex <= 0) return null;
 
-      let rowData: any = { [codeColumnName]: row[boundaryCodeColumnIndex] };
+      // Initialize an object to hold row-specific data
+      let rowData: any = { [codeColumnName]: row[codeColumnName] };
 
-      // Add integer values in the target column for the current row
-      let sumOfCurrentTargets = 0;
-      let sumOfParentTargets = 0;
-      const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
-      const halfPoint = Math.floor(remainingColumns / 2);
-      let startColIndex = boundaryCodeColumnIndex + 1;
+      // Add placeholder fields for Parent Target and Current Target data
+      rowData['Parent Target at the Selected Boundary level'] = {};
+      rowData['Target at the Selected Boundary level'] = {};
+      const beneficiaries = targetConfigs?.[request?.body?.CampaignDetails?.projectType]?.beneficiaries;
 
+      // Check if a parent campaign exists in the request body
       if (request?.body?.parentCampaign) {
-        for (let colIndex = startColIndex; colIndex < startColIndex + halfPoint; colIndex++) {
-          const value = row[colIndex];
-          if (typeof value === 'number' && Number.isInteger(value)) {
-            sumOfParentTargets += value;
+        // Loop through the beneficiaries for the specified campaign type
+        if (beneficiaries?.length > 0) {
+          for (const beneficiary of beneficiaries) {
+            const beneficiaryType = beneficiary?.beneficiaryType;
+            const columns = beneficiary?.columns;
+            let totalParentValue = 0;
+
+            // Loop through each column to calculate the total parent value
+            for (const col of columns) {
+              // Get the parent value from the column and add it if it's an integer
+              const parentValue = row[`${getLocalizedName(col, localizationMap)}(OLD)`];
+              if (typeof parentValue === 'number' && Number.isInteger(parentValue)) {
+                totalParentValue += parentValue;
+              }
+            }
+            // Assign the total parent value to the corresponding beneficiary type
+            rowData['Parent Target at the Selected Boundary level'][beneficiaryType] = totalParentValue;
           }
         }
-        // Add the sum to the row data
-        rowData['Parent Target at the Selected Boundary level'] = sumOfParentTargets;
-
-        // Calculate middle point of remaining columns
-        startColIndex = boundaryCodeColumnIndex + 1 + halfPoint;
       }
-      for (let colIndex = startColIndex; colIndex < row.length; colIndex++) {
-        const value = row[colIndex];
-        if (typeof value === 'number' && Number.isInteger(value)) {
-          sumOfCurrentTargets += value;
+
+      // Loop through the beneficiaries again to calculate the current target values
+      if (beneficiaries?.length > 0) {
+        for (const beneficiary of beneficiaries) {
+          const beneficiaryType = beneficiary?.beneficiaryType;
+          const columns = beneficiary?.columns;
+          let totalCurrentValue = 0;
+
+          // Loop through each column to calculate the total current value
+          for (const col of columns) {
+            const currentValue = row[getLocalizedName(col, localizationMap)];
+            if (typeof currentValue === 'number' && Number.isInteger(currentValue)) {
+              totalCurrentValue += currentValue;
+            }
+          }
+          // Assign the total current value to the corresponding beneficiary type
+          rowData['Target at the Selected Boundary level'][beneficiaryType] = totalCurrentValue;
         }
       }
 
-      // Add the sum to the row data
-      rowData['Target at the Selected Boundary level'] = sumOfCurrentTargets;
+      // Return the processed row data
       return rowData;
-    }).filter(Boolean); // Remove null entries
+    }).filter(Boolean); // Remove any null entries from the map (i.e., skip the header row)
 
     workbookData[sheetName] = processedData;
   }
