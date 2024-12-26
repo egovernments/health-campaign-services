@@ -2359,7 +2359,7 @@ async function createProject(
 }
 
 const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryCode: any) => {
-  if ( codesTargetMapping && Object.keys(codesTargetMapping?.[boundaryCode]).length > 0) {
+  if (codesTargetMapping?.[boundaryCode] && Object.keys(codesTargetMapping[boundaryCode]).length > 0) {
     let targets = [];
     for (const key in codesTargetMapping?.[boundaryCode]) {
       let targetNo = parseInt(codesTargetMapping?.[boundaryCode][key]);
@@ -2372,6 +2372,9 @@ const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryC
     if(targets.length > 0){
       project.targets = targets;
     }
+  }
+  else{
+    logger.info(`No targets found for boundary code ${boundaryCode}`);
   }
 }
 

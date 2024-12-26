@@ -229,8 +229,6 @@ const getTargetSheetDataAfterCode = async (
 
     // Process each row of the sheet data
     const processedData = jsonData.map((row: any, rowIndex: any) => {
-      // Skip the header row (rowIndex 0)
-      if (rowIndex <= 0) return null;
 
       // Initialize an object to hold row-specific data
       let rowData: any = { [codeColumnName]: row[codeColumnName] };
