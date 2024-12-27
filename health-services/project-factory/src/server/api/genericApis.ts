@@ -7,7 +7,7 @@ import { correctParentValues, findMapValue, generateActivityMessage, getBoundary
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
-import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { enrichTemplateMetaDatas, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
 
 
@@ -471,6 +471,8 @@ async function createAndUploadFile(
   let retries: any = 3;
   while (retries--) {
     try {
+      // Enrich metadatas
+      enrichTemplateMetaDatas(updatedWorkbook, request);
       // Write the updated workbook to a buffer
       const buffer = await updatedWorkbook.xlsx.writeBuffer();
 

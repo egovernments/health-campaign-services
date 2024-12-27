@@ -6,6 +6,7 @@ import config from "../config";
 import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
+import { getLocaleFromRequestInfo } from "./localisationUtils";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -59,6 +60,74 @@ const getExcelWorkbookFromFileURL = async (
   // Return the workbook
   return workbook;
 };
+
+
+export async function validateFileMetaDataViaFileUrl(fileUrl: any, expectedLocale: string, expectedCampaignId: string) {
+  if (!fileUrl) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
+  }
+  else {
+    const workbook = await getExcelWorkbookFromFileURL(fileUrl);
+    if (!workbook) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no workbook was found.");
+    }
+    else {
+      validateFileMetadata(workbook, expectedLocale, expectedCampaignId);
+    }
+  }
+}
+
+export const validateFileMetadata = (workbook: any, expectedLocale: string, expectedCampaignId: string) => {
+  // Retrieve and validate keywords from the workbook's custom properties
+  const keywords = workbook?.keywords;
+  if (!keywords || !keywords.includes("#")) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  const [templateLocale, templateCampaignId] = keywords.split("#");
+
+  // Ensure there are exactly two parts in the metadata
+  if (!templateLocale || !templateCampaignId) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have valid campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  // Validate locale if provided
+  if (templateLocale !== expectedLocale) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      `The template doesn't have matching locale metadata. Please upload the generated template for the current locale.`
+    );
+  }
+
+  // Validate campaignId if provided
+  if (templateCampaignId !== expectedCampaignId) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      `The template doesn't have matching campaign metadata. Please upload the generated template for the current campaign only.`
+    );
+  }
+};
+
+
+export function enrichTemplateMetaDatas(updatedWorkbook : any, request : any ){
+  if(request?.body?.RequestInfo && request?.query?.campaignId){
+    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
+  }
+}
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
   worksheet?.eachRow({ includeEmpty: true }, (row) => {
