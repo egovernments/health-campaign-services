@@ -4,13 +4,11 @@ import FormData from "form-data"; // Import FormData for handling multipart/form
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
-import { targetConfigs } from "../config/targetConfigs";
-
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -226,63 +224,7 @@ const getTargetSheetDataAfterCode = async (
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
-
-    // Process each row of the sheet data
-    const processedData = jsonData.map((row: any, rowIndex: any) => {
-
-      // Initialize an object to hold row-specific data
-      let rowData: any = { [codeColumnName]: row[codeColumnName] };
-
-      // Add placeholder fields for Parent Target and Current Target data
-      rowData['Parent Target at the Selected Boundary level'] = {};
-      rowData['Target at the Selected Boundary level'] = {};
-      const beneficiaries = targetConfigs?.[request?.body?.CampaignDetails?.projectType]?.beneficiaries;
-
-      // Check if a parent campaign exists in the request body
-      if (request?.body?.parentCampaign) {
-        // Loop through the beneficiaries for the specified campaign type
-        if (beneficiaries?.length > 0) {
-          for (const beneficiary of beneficiaries) {
-            const beneficiaryType = beneficiary?.beneficiaryType;
-            const columns = beneficiary?.columns;
-            let totalParentValue = 0;
-
-            // Loop through each column to calculate the total parent value
-            for (const col of columns) {
-              // Get the parent value from the column and add it if it's an integer
-              const parentValue = row[`${getLocalizedName(col, localizationMap)}(OLD)`];
-              if (typeof parentValue === 'number' && Number.isInteger(parentValue)) {
-                totalParentValue += parentValue;
-              }
-            }
-            // Assign the total parent value to the corresponding beneficiary type
-            rowData['Parent Target at the Selected Boundary level'][beneficiaryType] = totalParentValue;
-          }
-        }
-      }
-
-      // Loop through the beneficiaries again to calculate the current target values
-      if (beneficiaries?.length > 0) {
-        for (const beneficiary of beneficiaries) {
-          const beneficiaryType = beneficiary?.beneficiaryType;
-          const columns = beneficiary?.columns;
-          let totalCurrentValue = 0;
-
-          // Loop through each column to calculate the total current value
-          for (const col of columns) {
-            const currentValue = row[getLocalizedName(col, localizationMap)];
-            if (typeof currentValue === 'number' && Number.isInteger(currentValue)) {
-              totalCurrentValue += currentValue;
-            }
-          }
-          // Assign the total current value to the corresponding beneficiary type
-          rowData['Target at the Selected Boundary level'][beneficiaryType] = totalCurrentValue;
-        }
-      }
-
-      // Return the processed row data
-      return rowData;
-    }).filter(Boolean); // Remove any null entries from the map (i.e., skip the header row)
+    const processedData = await processDataForTargetCalculation(request, jsonData, codeColumnName, localizationMap);
 
     workbookData[sheetName] = processedData;
   }
