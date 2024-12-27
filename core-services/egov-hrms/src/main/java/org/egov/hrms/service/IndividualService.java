@@ -17,16 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.UserDetails;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -306,6 +297,9 @@ public class IndividualService implements UserService {
                                 .build()).collect(Collectors.toList()))
                         .userType(UserType.fromValue(userRequest.getUser().getType()))
                         .build())
+                .skills(userRequest.getUser().getRoles().stream().map(role -> Skill.builder()
+                        .type(role.getCode()).level(role.getCode())
+                        .build()).collect(Collectors.toList()))
                 .isDeleted(Boolean.FALSE)
                 .clientAuditDetails(AuditDetails.builder().createdBy(userRequest.getRequestInfo().getUserInfo().getUuid()).lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
                 .rowVersion(userRequest.getUser().getRowVersion())
