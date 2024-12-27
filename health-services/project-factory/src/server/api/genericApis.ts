@@ -4,12 +4,11 @@ import FormData from "form-data"; // Import FormData for handling multipart/form
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
-
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -209,6 +208,7 @@ const getTargetSheetDataAfterCode = async (
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
     const sheetData = getSheetDataFromWorksheet(worksheet);
+    const jsonData = getJsonData(sheetData,true,true, sheetName);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
@@ -224,44 +224,7 @@ const getTargetSheetDataAfterCode = async (
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
-
-    // Process data from sheet
-    const processedData = sheetData.map((row: any, rowIndex: any) => {
-      if (rowIndex <= 0) return null; // Skip header row
-
-      let rowData: any = { [codeColumnName]: row[boundaryCodeColumnIndex] };
-
-      // Add integer values in the target column for the current row
-      let sumOfCurrentTargets = 0;
-      let sumOfParentTargets = 0;
-      const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
-      const halfPoint = Math.floor(remainingColumns / 2);
-      let startColIndex = boundaryCodeColumnIndex + 1;
-
-      if (request?.body?.parentCampaign) {
-        for (let colIndex = startColIndex; colIndex < startColIndex + halfPoint; colIndex++) {
-          const value = row[colIndex];
-          if (typeof value === 'number' && Number.isInteger(value)) {
-            sumOfParentTargets += value;
-          }
-        }
-        // Add the sum to the row data
-        rowData['Parent Target at the Selected Boundary level'] = sumOfParentTargets;
-
-        // Calculate middle point of remaining columns
-        startColIndex = boundaryCodeColumnIndex + 1 + halfPoint;
-      }
-      for (let colIndex = startColIndex; colIndex < row.length; colIndex++) {
-        const value = row[colIndex];
-        if (typeof value === 'number' && Number.isInteger(value)) {
-          sumOfCurrentTargets += value;
-        }
-      }
-
-      // Add the sum to the row data
-      rowData['Target at the Selected Boundary level'] = sumOfCurrentTargets;
-      return rowData;
-    }).filter(Boolean); // Remove null entries
+    const processedData = await processDataForTargetCalculation(request, jsonData, codeColumnName, localizationMap);
 
     workbookData[sheetName] = processedData;
   }
