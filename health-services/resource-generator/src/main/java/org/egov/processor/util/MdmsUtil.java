@@ -109,6 +109,11 @@ public class MdmsUtil {
 				.moduleName(ServiceConstants.MDMS_PLAN_MODULE_NAME).build();
 	}
 
+	/**
+	 * Retrieves the module details for the HCM-ADMIN-CONSOLE module.
+	 *
+	 * @return ModuleDetail object containing master details for the HCM-ADMIN-CONSOLE module.
+	 */
 	private ModuleDetail getAdminConsoleModuleDetail() {
 		List<MasterDetail> adminSchemaMasterDetails = new ArrayList<>();
 		MasterDetail schemaDetails = MasterDetail.builder().name(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA).build();
