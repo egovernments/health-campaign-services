@@ -11,12 +11,17 @@ import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.PlanResponse;
 import org.egov.processor.web.PlanSearchRequest;
 import org.egov.processor.web.models.*;
+import org.egov.processor.web.models.census.CensusResponse;
+import org.egov.processor.web.models.census.CensusSearchCriteria;
+import org.egov.processor.web.models.census.CensusSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -33,11 +38,17 @@ public class PlanUtil {
 
 	private ObjectMapper mapper;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper) {
+	private CensusUtil censusUtil;
+
+	private ParsingUtil parsingUtil;
+
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, CensusUtil censusUtil, ParsingUtil parsingUtil) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.producer = producer;
         this.mapper = mapper;
+        this.censusUtil = censusUtil;
+        this.parsingUtil = parsingUtil;
     }
 
 	/**
@@ -72,14 +83,15 @@ public class PlanUtil {
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
+
 		return PlanRequest.builder()
 				.requestInfo(planConfigurationRequest.getRequestInfo())
 				.plan(Plan.builder()
 						.tenantId(planConfig.getTenantId())
 						.planConfigurationId(planConfig.getId())
 						.campaignId(planConfig.getCampaignId())
-						.locality(getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE,
-								feature, mappedValues))
+						.locality(boundaryCodeValue)
 						.resources(resultMap.entrySet().stream().map(result -> {
 							Resource res = new Resource();
 							res.setResourceType(result.getKey());
@@ -90,9 +102,36 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
+						.additionalDetails(enrichAdditionalDetials(planConfigurationRequest, boundaryCodeValue, new Object()))
 						.build())
 				.build();
+	}
 
+	private Object enrichAdditionalDetials(PlanConfigurationRequest planConfigurationRequest, String boundaryCodeValue, Object additionalDetails) {
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+
+		CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
+				.tenantId(planConfig.getTenantId())
+				.areaCodes(Collections.singletonList(boundaryCodeValue))
+				.limit(Collections.singletonList(boundaryCodeValue).size())
+				.source(planConfig.getId()).build();
+
+		CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
+				.censusSearchCriteria(censusSearchCriteria)
+				.requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
+		CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
+
+		String facilityName = (String) parsingUtil.extractFieldsFromJsonObject(censusResponse.getCensus().get(0).getAdditionalDetails(), FACILITY_NAME);
+
+		if(facilityName != null && !facilityName.isEmpty()) {
+			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
+			fieldsToBeUpdated.put(FACILITY_NAME, facilityName);
+
+			return parsingUtil.updateFieldInAdditionalDetails(additionalDetails, fieldsToBeUpdated);
+		}
+
+		return null;
 	}
 	
 	/**

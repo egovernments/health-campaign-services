@@ -3,6 +3,8 @@ package org.egov.processor.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.DecimalNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -17,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
@@ -24,7 +27,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static org.egov.processor.config.ServiceConstants.PROPERTIES;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Component
@@ -36,10 +39,13 @@ public class ParsingUtil {
 
     private CalculationUtil calculationUtil;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil) {
+    private ObjectMapper objectMapper;
+
+    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, ObjectMapper objectMapper) {
         this.planConfigurationUtil = planConfigurationUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
+        this.objectMapper = objectMapper;
     }
 
     public List<String> fetchAttributeNamesFromJson(JsonNode jsonNode)
@@ -392,4 +398,62 @@ public class ParsingUtil {
         System.out.println(); // Move to the next line after printing the row
     }
 
+    /**
+     * Adds or updates the value of provided field in the additional details object.
+     * @param additionalDetails
+     * @param fieldsToBeUpdated
+     * @return
+     */
+    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+        try {
+
+            // Get or create the additionalDetails as an ObjectNode
+            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+
+            // Update or add the field in additional details object
+            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+
+            // Convert updated ObjectNode back to a Map
+            return objectMapper.convertValue(objectNode, Map.class);
+
+        } catch (Exception e) {
+            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+        }
+    }
+
+    /**
+     * Extracts provided field from the additional details object
+     *
+     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
+     * @param fieldToExtract    the name of the field to be extracted from the additional details
+     * @return the value of the specified field as a string
+     * @throws CustomException if the field does not exist
+     */
+    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            JsonNode node = rootNode.get(fieldToExtract);
+            if (node != null && !node.isNull()) {
+
+                // Check for different types of JSON nodes
+                if (node.isDouble() || node.isFloat()) {
+                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
+                } else if (node.isLong() || node.isInt()) {
+                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
+                } else if (node.isBoolean()) {
+                    return node.asBoolean();
+                } else if (node.isTextual()) {
+                    return node.asText();
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException("PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE", "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE " + fieldToExtract);
+        }
+    }
 }
