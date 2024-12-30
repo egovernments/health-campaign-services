@@ -88,7 +88,7 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, isGenericType: boolean, localizationMap?: { [key: string]: string }) {
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, isGenericType: boolean, shouldNotBeEmpty: boolean, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
@@ -99,7 +99,7 @@ function validateTargetForNormalCampaigns(data: any, errors: any, localizedTarge
                 boundaryData.forEach((obj: any, index: number) => {
                     for (const targetColumn of targetColumnsToValidate) {
                         const target = obj[targetColumn];
-                        if (!target) {
+                        if (!target && shouldNotBeEmpty) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
@@ -163,9 +163,10 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
-        validateTargetForNormalCampaigns(data, errors, localizedRequiredTargetColumnNames, false, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedRequiredTargetColumnNames, false, true, localizationMap);
         // validate target columns which are not required but has data present in those columns for genric camapign types 
-        validateTargetForNormalCampaigns(data, errors, localizedNotRequiredTargetColumnNames, true, localizationMap)
+        validateTargetForNormalCampaigns(data, errors, localizedNotRequiredTargetColumnNames, true, true, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedNotRequiredTargetColumnNames, false, false, localizationMap);
     }
 }
 
