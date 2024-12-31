@@ -90,7 +90,7 @@ public class ProjectService {
             Boolean includeDescendants,
             Long createdFrom,
             Long createdTo,
-            List<String> ancestorIds
+            boolean isAncestorProjectId
     ) {
         projectValidator.validateSearchProjectRequest(project, limit, offset, tenantId, createdFrom, createdTo);
         List<Project> projects = projectRepository.getProjects(
@@ -104,7 +104,7 @@ public class ProjectService {
                 includeDescendants,
                 createdFrom,
                 createdTo,
-                ancestorIds
+                isAncestorProjectId
         );
         return projects;
     }
@@ -127,7 +127,7 @@ public class ProjectService {
         List<Project> projectsFromDB = searchProject(
             getSearchProjectRequest(request.getProjects(), request.getRequestInfo(), false),
             projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(),
-            request.getProjects().get(0).getTenantId(), null, false, false, false, null, null, null
+            request.getProjects().get(0).getTenantId(), null, false, false, false, null, null, false
         );
         log.info("Fetched projects for update request");
 
@@ -283,7 +283,7 @@ public class ProjectService {
             true,
             null,
             null,
-            null
+            false
         );
 
         /*
@@ -304,7 +304,7 @@ public class ProjectService {
         List<Project> parentProjects = null;
         List<Project> projectsForSearchRequest = projectRequest.getProjects().stream().filter(p -> StringUtils.isNotBlank(p.getParent())).collect(Collectors.toList());
         if (projectsForSearchRequest.size() > 0) {
-            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, null, null, null);
+            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, null, null, false);
         }
         log.info("Fetched parent projects from DB");
         return parentProjects;
@@ -332,8 +332,8 @@ public class ProjectService {
     /**
      * @return Count of List of matching projects
      */
-    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<String> ancestorIds) {
-        return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, ancestorIds);
+    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+        return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
     }
 
 
