@@ -303,19 +303,6 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
   }
 }
 
-export function updateFacilityDetailsForMicroplan(request: any, createdData: any) {
-  const facilityDataForMicroplan = request?.body?.facilityDataForMicroplan;
-  if (Array.isArray(facilityDataForMicroplan) && facilityDataForMicroplan.length > 0) {
-    for (const element of facilityDataForMicroplan) {
-      const rowNumber = element['!row#number!'];
-      const createdDataWithMatchingRowNumber = createdData.find((data: any) => data['!row#number!'] == rowNumber) || null;
-      if (createdDataWithMatchingRowNumber) {
-        element.facilityDetails.id = createdDataWithMatchingRowNumber.id
-      }
-    }
-  }
-}
-
 
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
   if (request?.body?.ResourceDetails?.type == 'facility' && request?.body?.ResourceDetails?.additionalDetails?.source == 'microplan') {
@@ -393,7 +380,7 @@ export async function planFacilitySearch(request: any) {
   return searchResponse;
 }
 
-export function planConfigSearch(request: any) {
+export async function planConfigSearch(request: any) {
   const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
   const searchBody = {
     RequestInfo: request.body.RequestInfo,
@@ -403,7 +390,7 @@ export function planConfigSearch(request: any) {
     }
   }
 
-  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
+  const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
   return searchResponse;
 }
 
