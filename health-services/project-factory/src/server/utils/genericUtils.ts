@@ -223,29 +223,6 @@ const trimError = (e: any) => {
   return e;
 }
 
-
-async function generateActivityMessage(tenantId: any, requestBody: any, requestPayload: any, responsePayload: any, type: any, url: any, status: any) {
-  const activityMessage = {
-    id: uuidv4(),
-    status: status,
-    retryCount: 0,
-    tenantId: tenantId,
-    type: type,
-    url: url,
-    requestPayload: requestPayload,
-    responsePayload: responsePayload,
-    auditDetails: {
-      createdBy: requestBody?.RequestInfo?.userInfo?.uuid,
-      lastModifiedBy: requestBody?.RequestInfo?.userInfo?.uuid,
-      createdTime: Date.now(),
-      lastModifiedTime: Date.now()
-    },
-    additionalDetails: {},
-    resourceDetailsId: null
-  }
-  return activityMessage;
-}
-
 /* Fetches data from the database */
 async function searchGeneratedResources(request: any) {
   try {
@@ -1518,7 +1495,6 @@ export {
   cacheResponse,
   getCachedResponse,
   generateAuditDetails,
-  generateActivityMessage,
   searchGeneratedResources,
   generateNewRequestObject,
   updateExistingResourceExpired,
