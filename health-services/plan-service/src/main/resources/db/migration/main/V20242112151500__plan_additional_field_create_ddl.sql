@@ -7,6 +7,6 @@ CREATE TABLE plan_additional_field (
   show_on_ui                    boolean DEFAULT true NOT NULL,
   editable                      boolean DEFAULT true NOT NULL,
   "order"                       bigint NOT NULL,
-  CONSTRAINT uk_additional_field_id PRIMARY KEY (id),
+  CONSTRAINT uk_plan_additional_field_id PRIMARY KEY (id),
   FOREIGN KEY (plan_id) REFERENCES plan(id)
 );
