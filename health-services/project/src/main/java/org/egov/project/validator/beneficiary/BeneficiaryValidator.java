@@ -3,10 +3,11 @@ package org.egov.project.validator.beneficiary;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
+import org.egov.common.models.project.*;
+import org.egov.mdms.model.MasterDetail;
+import org.egov.mdms.model.MdmsCriteria;
+import org.egov.mdms.model.MdmsCriteriaReq;
+import org.egov.mdms.model.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -20,7 +21,6 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.project.*;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
@@ -92,8 +92,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
             log.info("fetch the projects");
             List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
             log.info("fetch the project types");
-//            List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
-            List<ProjectType> projectTypes = getProjectType(existingProjects);
+            List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
 
             log.info("creating projectType map");
             Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
@@ -288,32 +287,6 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 populateErrorDetails(b, error, errorDetailsMap);
             });
         }
-    }
-
-    private List<ProjectType> getProjectType(List<Project> existingProjects) {
-        List<ProjectType> projectTypes = new ArrayList<>();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        existingProjects.forEach(project -> {
-            Object additionalDetails = project.getAdditionalDetails();
-
-            if(additionalDetails!=null) {
-                if(((JsonNode) additionalDetails).get("projectType")==null){
-                    return;
-                }
-
-                Object projectTypeObj = ((JsonNode) additionalDetails).get("projectType");
-
-                if(projectTypeObj!=null) {
-                    ProjectType projectType = objectMapper.convertValue(projectTypeObj,ProjectType.class);
-                    projectTypes.add(projectType);
-                }
-            }
-        });
-        if(projectTypes.isEmpty()){
-            throw new CustomException("PROJECT_TYPE_ERROR","Project Type needs to be provided with the additional details of project");
-        }
-        return projectTypes;
     }
 
     private List<ProjectType> getProjectTypes(String tenantId, RequestInfo requestInfo) {
