@@ -52,6 +52,7 @@ public class BeneficiaryDownsyncController {
 
 	@PostMapping(value = "/v1/_get/CLF/household")
 	public ResponseEntity<DownsyncCLFHouseholdResponse> getBeneficaryDataCFLHousehold (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+		// API response only contains household data and number of members present in that household
 		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
 		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
 		DownsyncCLFHousehold downsyncCLFHousehold = downsyncService.prepareDownsyncCLFDataHousehold(request);
