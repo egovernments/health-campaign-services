@@ -170,6 +170,12 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getJurisdiction());
         }
 
+        if(!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" additional_details @> CAST( ? AS jsonb )");
+            String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap());
+            preparedStmtList.add(partialQueryJsonString);
+        }
 
         StringBuilder countQuery = new StringBuilder();
         if (isCount) {
