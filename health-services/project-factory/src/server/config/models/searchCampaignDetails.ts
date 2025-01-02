@@ -9,6 +9,9 @@ export const searchCampaignDetailsSchema = {
                 "type": "string"
             }
         },
+        "isActive":{
+            "type":"boolean"
+        },
         "tenantId": {
             "type": "string",
             "minLength": 1

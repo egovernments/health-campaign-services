@@ -189,7 +189,7 @@ public class ExcelParser implements FileParser {
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
-	//TODO: processsheetforestimate and processsheetforcensus
+
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
 							   Object campaignResponse, Workbook excelWorkbook,
 							   List<Boundary> campaignBoundaryList,
@@ -312,6 +312,7 @@ public class ExcelParser implements FileParser {
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
 
+
 	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
@@ -369,8 +370,7 @@ public class ExcelParser implements FileParser {
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
-			// TODO: remove after testing
-			parsingUtil.printRow(sheet, row);
+
 		}
 	}
 

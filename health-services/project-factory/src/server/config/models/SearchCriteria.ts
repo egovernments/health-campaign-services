@@ -17,6 +17,9 @@ export const searchCriteriaSchema = {
         },
         "status": {
             "type": "string"
+        },
+        "hierarchyType": {
+            "type": "string"
         }
     },
     "required": ["tenantId"],
