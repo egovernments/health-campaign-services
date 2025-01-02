@@ -95,7 +95,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
             log.info("fetch the projects");
             List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
             log.info("fetch the project types");
-            List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
+            List<ProjectType> projectTypes = getProjectType(existingProjects);
 
             log.info("creating projectType map");
             Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
@@ -332,5 +332,31 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
+    }
+
+    private List<ProjectType> getProjectType(List<Project> existingProjects) {
+        List<ProjectType> projectTypes = new ArrayList<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        existingProjects.forEach(project -> {
+            Object additionalDetails = project.getAdditionalDetails();
+
+            if(additionalDetails!=null) {
+                if(((JsonNode) additionalDetails).get("projectType")==null){
+                    return;
+                }
+
+                Object projectTypeObj = ((JsonNode) additionalDetails).get("projectType");
+
+                if(projectTypeObj!=null) {
+                    ProjectType projectType = objectMapper.convertValue(projectTypeObj,ProjectType.class);
+                    projectTypes.add(projectType);
+                }
+            }
+        });
+        if(projectTypes.isEmpty()){
+            throw new CustomException("PROJECT_TYPE_ERROR","Project Type needs to be provided with the additional details of project");
+        }
+        return projectTypes;
     }
 }
