@@ -288,20 +288,6 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
     }
 }
 
-export function validateFacilityBoundaryForLowestLevel(request: any, boundaries: any, rowData: any, errors: any = [], localizationMap?: { [key: string]: string }) {
-    if (request?.body?.ResourceDetails?.type == "facility" && request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
-        const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy
-        const lastLevel = hierarchy?.[hierarchy.length - 1]?.boundaryType
-        for (const data of rowData?.boundaryCodes) {
-            const boundaryFromBoundariesType = boundaries.find((boundary: any) => boundary.code == data)?.type
-            if (boundaryFromBoundariesType != lastLevel) {
-                errors.push({ status: "INVALID", rowNumber: rowData?.rowNumber, errorDetails: `${data} is not a ${lastLevel} level boundary` })
-            }
-        }
-    }
-}
-
-
 
 export async function validateExtraBoundariesForMicroplan(request: any, dataFromSheet: any, localizationMap: any) {
     if (await isMicroplanRequest(request)) {
