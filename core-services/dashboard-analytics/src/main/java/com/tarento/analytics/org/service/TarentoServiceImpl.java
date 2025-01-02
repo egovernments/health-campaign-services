@@ -100,7 +100,13 @@ public class TarentoServiceImpl implements ClientService {
 
 
 		if (isCappedTillToday(chartNode)){
-			long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
+			long campaignStartDateInMillis = 0L; // Default value
+			if (request.getFilters().containsKey("campaignStartDate")) {
+				Object campaignStartDate = request.getFilters().get("campaignStartDate");
+				if (campaignStartDate != null) {
+					campaignStartDateInMillis = Long.parseLong(String.valueOf(campaignStartDate));
+				}
+			}
 			long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
 			request.getRequestDate().setStartDate(String.valueOf(campaignStartDateInMillis));
 			request.getRequestDate().setEndDate(String.valueOf(currentDateTimeInMillis));
