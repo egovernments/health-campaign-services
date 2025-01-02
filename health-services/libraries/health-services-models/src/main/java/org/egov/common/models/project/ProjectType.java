@@ -48,7 +48,7 @@ public class ProjectType   {
     private String group = null;
 
     @JsonProperty("beneficiaryType")
-    private BeneficiaryType beneficiaryType = null;
+    private String beneficiaryType = null;
 
     @JsonProperty("eligibilityCriteria")
     @Size(max=10)
