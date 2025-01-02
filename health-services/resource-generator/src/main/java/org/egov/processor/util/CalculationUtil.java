@@ -79,7 +79,7 @@ public class CalculationUtil {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
-            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, Optional.empty(), Optional.empty());
+            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, Optional.empty());
             
         }
     }

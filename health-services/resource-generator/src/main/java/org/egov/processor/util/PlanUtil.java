@@ -51,8 +51,8 @@ public class PlanUtil {
 	 * @param mappedValues The mapped values.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, String>> BCodeToFacilityDetails, Optional<Map<String, Object>> BCodeToAccessiblityDetails) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, BCodeToFacilityDetails.orElse(Collections.emptyMap()), BCodeToAccessiblityDetails.orElse(Collections.emptyMap()));
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, Object>> BCodeToCensusAdditionalDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, BCodeToCensusAdditionalDetails.orElse(Collections.emptyMap()));
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -71,7 +71,7 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, String> BCodeToFacilityDetails, Map<String, Object> BCodeToAccessiblityDetails) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> BCodeToCensusAdditionalDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
@@ -93,24 +93,26 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
-						.additionalDetails(enrichAdditionalDetials(BCodeToFacilityDetails, BCodeToAccessiblityDetails, boundaryCodeValue))
+						.additionalDetails(enrichAdditionalDetials(BCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
 				.build();
 	}
 
-	private Object enrichAdditionalDetials(Map<String, String> BCodeToFacilityDetails, Map<String, Object> BCodeToAccessiblityDetails, String boundaryCodeValue) {
-		if(!CollectionUtils.isEmpty(BCodeToFacilityDetails)) {
+	private Object enrichAdditionalDetials(Map<String, Object> BCodeToCensusAdditionalDetails, String boundaryCodeValue) {
+		if(!CollectionUtils.isEmpty(BCodeToCensusAdditionalDetails)) {
 
-			// If facility and accessibility details are found for a boundary, add it to the corresponding details map
-			String facilityName = BCodeToFacilityDetails.get(boundaryCodeValue);
-			Object accessibilityDetails = BCodeToAccessiblityDetails.get(boundaryCodeValue);
+			Object censusAdditionalDetails = BCodeToCensusAdditionalDetails.get(boundaryCodeValue);
+
+			// Extract required details from census additional details object.
+			String facilityName = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_NAME);
+			Object accessibilityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS);
 
 			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
 			if(facilityName != null && !facilityName.isEmpty())
 				fieldsToBeUpdated.put(FACILITY_NAME, facilityName);
 
 			if(accessibilityDetails != null)
-				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, facilityName);
+				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, accessibilityDetails);
 
 			if(CollectionUtils.isEmpty(fieldsToBeUpdated))
 				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
