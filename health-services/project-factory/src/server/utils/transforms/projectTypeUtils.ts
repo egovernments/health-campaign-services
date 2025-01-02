@@ -54,32 +54,40 @@ const defaultProjectType: any = {
 Convert campaign details to project details enriched with campaign information.
 */
 export const projectTypeConversion = (
-  projectType: any = {},
   campaignObject: any = {}
 ) => {
   const deliveryRules = campaignObject.deliveryRules;
-  const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e: { products: any }) =>
-    [...e.products].map((ele, ind) => ({
-      isBaseUnitVariant: ind == 0,
-      productVariantId: ele.value,
-    }))
-  ));
-  const minAndMaxAge = getMinAndMaxAge(deliveryRules);
-  var newProjectType = {
-    ...projectType,
-    validMinAge: minAndMaxAge?.min,
-    validMaxAge: minAndMaxAge?.max,
-    name: campaignObject.campaignName,
-    resources,
-  };
-  /*Handled the logics for the SMC Project Type  */
-  if (projectType.code == "MR-DN") {
-    newProjectType["cycles"] = transformData(deliveryRules);
-  }
-  logger.debug(
-    "transformed projectType : " + getFormattedStringForDebug(newProjectType)
-  );
-  return newProjectType;
+  // const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e: { products: any }) =>
+  //   [...e.products].map((ele, ind) => ({
+  //     isBaseUnitVariant: ind == 0,
+  //     productVariantId: ele.value,
+  //   }))
+  // ));
+// /* Temporay fix for project creation of LLIN since the structure of delivery rules is getting changed */
+//   const resources = getUniqueArrayByProductVariantId(deliveryRules.flatMap((e:any) =>
+//     [...e.deliveries].map((ele, ind) => ({
+//       isBaseUnitVariant: ind == 0,
+//       productVariantId: ele.deliveryRules?.[0]?.products?.[0]?.value,
+//     }))
+//   ));
+//   const minAndMaxAge = getMinAndMaxAge(deliveryRules);
+//   var newProjectType = {
+//     ...projectType,
+//     validMinAge: minAndMaxAge?.min,
+//     validMaxAge: minAndMaxAge?.max,
+//     name: campaignObject.campaignName,
+//     resources,
+//   };
+//   /*Handled the logics for the SMC Project Type  */
+//   if (projectType.code == "MR-DN") {
+//     newProjectType["cycles"] = transformData(deliveryRules);
+//   }
+//   logger.debug(
+//     "transformed projectType : " + getFormattedStringForDebug(newProjectType)
+//   );
+ /*  since the structure of delivery rules is getting changed so returning back the same delivery rules */
+
+  return deliveryRules?.[0] || defaultProjectType?.["LLIN-mz"];
 };
 /* 
 Enrich project details from campaign details.
@@ -94,10 +102,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
   logger.debug(
     "project type : " + getFormattedStringForDebug(projectTypeObject)
   );
-  const defaultProject =
-    projectTypeObject ||
-    defaultProjectType?.[projectType] ||
-    defaultProjectType?.["MR-DN"];
+  const defaultProject = projectTypeConversion( CampaignDetails);
   return [
     {
       tenantId,
@@ -106,11 +111,11 @@ export const enrichProjectDetailsFromCampaignDetails = (
       endDate,
       projectSubType: projectType,
       department: defaultProject?.group,
-      description: defaultProject?.name,
+      description:`${defaultProject?.name}, disease ${defaultProject?.group} campaign created through Admin Console with Campaign Id as ${CampaignDetails?.campaignNumber}`,
       projectTypeId: defaultProject?.id,
       name: campaignName,
       additionalDetails: {
-        projectType: projectTypeConversion(defaultProject, CampaignDetails),
+        projectType: defaultProject,
       },
     },
   ];
@@ -118,7 +123,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
 
 
 /* construct max and min age */
-const getMinAndMaxAge = (deliveries = []) => {
+export const getMinAndMaxAge = (deliveries = []) => {
   // Flatten the conditions arrays from all delivery objects and filter to keep only 'Age' attributes
   const ageConditions = deliveries
     .flatMap((e: any) => e?.conditions)
@@ -281,7 +286,7 @@ const getRequiredCondition = (conditions: Condition[]): string => {
 };
 
 // Transformation function
-const transformData = (input: DeliveryItem[]): TransformedCycle[] => {
+export const transformData = (input: DeliveryItem[]): TransformedCycle[] => {
   const groupedByCycle = input.reduce<Record<number, TransformedCycle>>((acc, item) => {
     const { cycleNumber, deliveryNumber, deliveryType, products, conditions,startDate,endDate } = item;
 

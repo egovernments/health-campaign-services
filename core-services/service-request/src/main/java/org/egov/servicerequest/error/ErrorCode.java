@@ -1,6 +1,7 @@
 package org.egov.servicerequest.error;
 
 import org.springframework.stereotype.Component;
+import org.apache.kafka.common.protocol.types.Field;
 
 @Component
 public class ErrorCode {
@@ -29,6 +30,8 @@ public class ErrorCode {
     public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_SINGLE_VALUE_LIST_VALUE_MSG = "Attribute Value provided against the attribute definition of type single value list must be an instance of String";
 
     public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG = "Attribute Value provided against the attribute definition of type multi value list must be an instance of list";
+
+    public static final String SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG = "Attribute Value provided against the attribute definition of type boolean must be an instance of boolean";
 
     public static final String INVALID_SIZE_OF_INPUT_CODE = "INVALID_SIZE_OF_INPUT_CODE";
 
@@ -61,4 +64,17 @@ public class ErrorCode {
     public static final String INVALID_REGEX_ERR_CODE = "INVALID_REGEX_ERR_CODE";
 
     public static final String INVALID_REGEX_ERR_MSG = "The provided regex failed to compile for attribute definition with code - ";
+
+    public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_CODE = "SERVICE_DEFINITION_NOT_EXIST_ERR_CODE";
+
+    public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_MSG = "Provided tenantId and code unique combination does not exist";
+
+    public static final String VALID_SERVICE_EXIST_ERR_CODE = "VALID_SERVICE_EXIST_ERR_CODE";
+
+    public static final String VALID_SERVICE_EXIST_ERR_MSG = "Valid Service exists corresponding to Service Definition";
+
+    public static final String INACTIVE_SERVICE_DEFINITION_ERR_CODE = "INACTIVE_SERVICE_DEFINITION_ERR_CODE";
+
+    public static final String INACTIVE_SERVICE_DEFINITION_ERR_MSG = "Inactive Service Definition cannot be updated";
+
 }
