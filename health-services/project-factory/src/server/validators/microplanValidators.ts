@@ -273,10 +273,10 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
         errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column can’t be empty, please update the data and re-upload` })
     }
     else if (typeof (item?.[facilityCapacityColumn]) != "number") {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 0 and 100000000` })
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number from 0 to 100000000` })
     }
     else if (item?.[facilityCapacityColumn] < 0 || item?.[facilityCapacityColumn] > 100000000) {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 0 and 100000000` })
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number from 0 to 100000000` })
     }
     const fixedPostColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN", localizationMap);
     if (request?.body?.showFixedPost && !item?.[fixedPostColumn]) {
