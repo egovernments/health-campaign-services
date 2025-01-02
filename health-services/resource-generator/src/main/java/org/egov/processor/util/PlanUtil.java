@@ -11,18 +11,12 @@ import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.PlanResponse;
 import org.egov.processor.web.PlanSearchRequest;
 import org.egov.processor.web.models.*;
-import org.egov.processor.web.models.census.CensusResponse;
-import org.egov.processor.web.models.census.CensusSearchCriteria;
-import org.egov.processor.web.models.census.CensusSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
@@ -38,16 +32,13 @@ public class PlanUtil {
 
 	private ObjectMapper mapper;
 
-	private CensusUtil censusUtil;
-
 	private ParsingUtil parsingUtil;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, CensusUtil censusUtil, ParsingUtil parsingUtil) {
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, ParsingUtil parsingUtil) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.producer = producer;
         this.mapper = mapper;
-        this.censusUtil = censusUtil;
         this.parsingUtil = parsingUtil;
     }
 
@@ -60,8 +51,8 @@ public class PlanUtil {
 	 * @param mappedValues The mapped values.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues);
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, String>> BCodeToFacilityDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, BCodeToFacilityDetails.orElse(Collections.emptyMap()));
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -80,7 +71,7 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, String> BCodeToFacilityDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
@@ -102,35 +93,24 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
-						.additionalDetails(enrichAdditionalDetials(planConfigurationRequest, boundaryCodeValue, new Object()))
+						.additionalDetails(enrichAdditionalDetials(BCodeToFacilityDetails, boundaryCodeValue))
 						.build())
 				.build();
 	}
 
-	private Object enrichAdditionalDetials(PlanConfigurationRequest planConfigurationRequest, String boundaryCodeValue, Object additionalDetails) {
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+	private Object enrichAdditionalDetials(Map<String, String> BCodeToFacilityDetails, String boundaryCodeValue) {
+		if(!CollectionUtils.isEmpty(BCodeToFacilityDetails)) {
 
-		CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
-				.tenantId(planConfig.getTenantId())
-				.areaCodes(Collections.singletonList(boundaryCodeValue))
-				.limit(Collections.singletonList(boundaryCodeValue).size())
-				.source(planConfig.getId()).build();
+			// Iterate over each boundary and add facility details in plan additional details
+			String facilityName = BCodeToFacilityDetails.get(boundaryCodeValue);
 
-		CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
-				.censusSearchCriteria(censusSearchCriteria)
-				.requestInfo(planConfigurationRequest.getRequestInfo()).build();
+			if(facilityName != null && !facilityName.isEmpty()) {
+				Map<String, Object> fieldsToBeUpdated = new HashMap<>();
+				fieldsToBeUpdated.put(FACILITY_NAME, facilityName);
 
-		CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
-
-		String facilityName = (String) parsingUtil.extractFieldsFromJsonObject(censusResponse.getCensus().get(0).getAdditionalDetails(), FACILITY_NAME);
-
-		if(facilityName != null && !facilityName.isEmpty()) {
-			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
-			fieldsToBeUpdated.put(FACILITY_NAME, facilityName);
-
-			return parsingUtil.updateFieldInAdditionalDetails(additionalDetails, fieldsToBeUpdated);
+				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
+			}
 		}
-
 		return null;
 	}
 	
