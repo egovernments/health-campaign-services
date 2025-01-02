@@ -61,6 +61,9 @@ public class PlanService {
      * @return
      */
     public PlanResponse searchPlan(PlanSearchRequest body) {
+        // Enrich search request
+        planEnricher.enrichSearchRequest(body);
+
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 
