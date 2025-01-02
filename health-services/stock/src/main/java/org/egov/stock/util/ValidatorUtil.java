@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.user.UserSearchRequest;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
