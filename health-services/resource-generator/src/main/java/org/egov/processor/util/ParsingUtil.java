@@ -33,18 +33,12 @@ import static org.egov.processor.config.ServiceConstants.*;
 @Component
 public class ParsingUtil {
 
-    private PlanConfigurationUtil planConfigurationUtil;
-
     private FilestoreUtil filestoreUtil;
-
-    private CalculationUtil calculationUtil;
 
     private ObjectMapper objectMapper;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, ObjectMapper objectMapper) {
-        this.planConfigurationUtil = planConfigurationUtil;
+    public ParsingUtil(FilestoreUtil filestoreUtil, ObjectMapper objectMapper) {
         this.filestoreUtil = filestoreUtil;
-        this.calculationUtil = calculationUtil;
         this.objectMapper = objectMapper;
     }
 
