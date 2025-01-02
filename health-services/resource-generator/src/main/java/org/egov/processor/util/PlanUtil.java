@@ -114,7 +114,7 @@ public class PlanUtil {
 			if(accessibilityDetails != null)
 				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, accessibilityDetails);
 
-			if(CollectionUtils.isEmpty(fieldsToBeUpdated))
+			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
 				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
 		}
 		return null;
