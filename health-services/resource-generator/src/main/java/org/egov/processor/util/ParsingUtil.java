@@ -442,6 +442,8 @@ public class ParsingUtil {
                     return node.asBoolean();
                 } else if (node.isTextual()) {
                     return node.asText();
+                } else if (node.isObject()) {
+                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
                 }
             }
             return null;
