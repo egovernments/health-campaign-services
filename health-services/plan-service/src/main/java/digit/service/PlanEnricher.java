@@ -13,7 +13,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
-import static digit.config.ServiceConstants.FACILITY_NAME_SEARCH_PARAMETER_KEY;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanEnricher {
@@ -244,6 +244,16 @@ public class PlanEnricher {
         // Add facility name as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityName())) {
             filtersMap.put(FACILITY_NAME_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityName());
+        }
+
+        // Add terrain as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getTerrain())) {
+            filtersMap.put(TERRAIN_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getTerrain());
+        }
+
+        // Add onRoadCondition as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getOnRoadCondition())) {
+            filtersMap.put(ROAD_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getOnRoadCondition());
         }
 
         if(!CollectionUtils.isEmpty(filtersMap))
