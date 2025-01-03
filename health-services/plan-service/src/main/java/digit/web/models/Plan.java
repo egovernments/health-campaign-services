@@ -74,6 +74,10 @@ public class Plan {
     @JsonProperty("jurisdictionMapping")
     private Map<String, String> jurisdictionMapping;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private List<AdditionalField> additionalFields = null;
+
     @JsonIgnore
     private String boundaryAncestralPath = null;
 
