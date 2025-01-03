@@ -2361,23 +2361,37 @@ async function createProject(
 
 const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryCode: any) => {
   if (codesTargetMapping?.[boundaryCode] && Object.keys(codesTargetMapping[boundaryCode]).length > 0) {
-    let targets = [];
-    for (const key in codesTargetMapping?.[boundaryCode]) {
-      let targetNo = parseInt(codesTargetMapping?.[boundaryCode][key]);
-      let beneficiaryType = key;
-      targets.push({
-        beneficiaryType: beneficiaryType,
-        targetNo: targetNo,
-      });
+    let targets: any[] = [];
+    const alreadyPresentTargets = project?.targets || [];
+
+    // Iterate through the mappings and update/create targets
+    for (const beneficiaryType in codesTargetMapping[boundaryCode]) {
+      const targetNo = parseInt(codesTargetMapping[boundaryCode][beneficiaryType], 10); // Ensure numeric conversion
+      updateOrAddTarget(alreadyPresentTargets, beneficiaryType, targetNo, targets);
     }
-    if(targets.length > 0){
+
+    // Update project targets if new/modified targets exist
+    if (targets.length > 0) {
       project.targets = targets;
     }
-  }
-  else{
+  } else {
     logger.info(`No targets found for boundary code ${boundaryCode}`);
   }
-}
+};
+
+// Helper function to update or add a target
+const updateOrAddTarget = (alreadyPresentTargets: any, beneficiaryType: string, targetNo: number, targets: any[]) => {
+  const existingTarget = alreadyPresentTargets.find((target: any) => target.beneficiaryType === beneficiaryType);
+
+  if (existingTarget) {
+    // Update existing target
+    existingTarget.targetNo = targetNo;
+    targets.push(existingTarget);
+  } else {
+    // Add new target
+    targets.push({ beneficiaryType, targetNo });
+  }
+};
 
 async function processAfterPersist(request: any, actionInUrl: any) {
   try {
