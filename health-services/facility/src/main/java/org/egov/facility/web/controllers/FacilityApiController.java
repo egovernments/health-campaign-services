@@ -8,6 +8,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
@@ -111,7 +112,7 @@ public class FacilityApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request
     ) throws Exception {
-        List<Facility> facilities = facilityService.search(
+        SearchResponse<Facility> searchResponse = facilityService.search(
                 request,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -119,7 +120,9 @@ public class FacilityApiController {
                 urlParams.getLastChangedSince(),
                 urlParams.getIncludeDeleted());
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).facilities(facilities).build();
+                .createResponseInfo(request.getRequestInfo(), true))
+                .facilities(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

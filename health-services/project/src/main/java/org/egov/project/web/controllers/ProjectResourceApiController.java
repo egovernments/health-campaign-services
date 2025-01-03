@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
@@ -75,7 +76,7 @@ public class ProjectResourceApiController {
             @ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResourceSearchRequest
     ) throws QueryBuilderException {
 
-        List<ProjectResource> projectResource = projectResourceService.search(
+        SearchResponse<ProjectResource> searchResponse = projectResourceService.search(
                 projectResourceSearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -84,7 +85,10 @@ public class ProjectResourceApiController {
                 urlParams.getIncludeDeleted()
         );
         ProjectResourceBulkResponse response = ProjectResourceBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true)).projectResource(projectResource).build();
+                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true))
+                .projectResource(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
+                .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

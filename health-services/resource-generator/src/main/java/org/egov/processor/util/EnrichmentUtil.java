@@ -144,9 +144,6 @@ public class EnrichmentUtil {
                     }
                 }
             }
-            //TODO: remove after testing
-            log.info("After updating values in sheet -> ");
-            parsingUtil.printRow(sheet, row);
 
             log.info("Successfully update file with approved census data.");
         }
@@ -223,10 +220,10 @@ public class EnrichmentUtil {
         Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
                 parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
-        //Getting plan records for the list of boundaryCodes
+        //Getting census records for the list of boundaryCodes
         List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
 
-        // Create a map from boundaryCode to Plan for quick lookups
+        // Create a map from boundaryCode to Census for quick lookups
         Map<String, Plan> planMap = planList.stream()
                 .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
 
@@ -236,7 +233,6 @@ public class EnrichmentUtil {
 
 
         for(Row row: sheet) {
-            parsingUtil.printRow(sheet, row);
             // Skip the header row and empty rows
             if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
                 continue;
@@ -269,9 +265,6 @@ public class EnrichmentUtil {
                     }
                 }
             }
-            //TODO: remove after testing
-            log.info("After updating values in sheet -> ");
-            parsingUtil.printRow(sheet, row);
 
             log.info("Successfully update file with approved census data.");
         }
