@@ -5,6 +5,7 @@ import { resourceDataStatuses } from "../config/constants";
 import config from "../config";
 import { isMicroplanRequest } from "../utils/microplanUtils";
 import { throwError } from "../utils/genericUtils";
+import { logger } from "../utils/logger";
 
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
@@ -276,7 +277,7 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
     }
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
     if (!item?.[facilityCapacityColumn]) {
-        item[facilityCapacityColumn] = 0
+        logger.info(`Data in ${facilityCapacityColumn} column is empty, it will be ignored for microplan validation.`)
     }
     else if (typeof (item?.[facilityCapacityColumn]) != "number") {
         errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number from 0 to 100000000` })
