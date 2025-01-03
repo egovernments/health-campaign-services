@@ -27,12 +27,15 @@ public class Household extends EgovOfflineModel {
 
     @JsonProperty("memberCount")
     @NotNull
-    @Range(min = 0, max = 1000)
+//    @Range(min = 0, max = 1000)
     private Integer memberCount = null;
 
     @JsonProperty("address")
     @Valid
     private Address address = null;
+
+    @JsonProperty("householdType")
+    private HouseHoldType householdType = null;
 
     //TODO remove
     @JsonProperty("isDeleted")

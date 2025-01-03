@@ -31,7 +31,7 @@ public class Target {
     private String projectid = null;
 
     @JsonProperty("beneficiaryType")
-    private String beneficiaryType = null;
+    private BeneficiaryType beneficiaryType = null;
 
     @JsonProperty("totalNo")
     private Integer totalNo = null;
