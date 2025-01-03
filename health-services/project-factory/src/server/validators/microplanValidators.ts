@@ -191,11 +191,14 @@ export function validateRequiredTargetsForMicroplanCampaigns(data: any, errors: 
 export function validateLatLongForMicroplanCampaigns(data: any, errors: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+            const latLongUnlocalisedColumns = config.values.latLongColumns?.split(',') || [];
+            const latLongColumns = latLongUnlocalisedColumns?.map((column: string) => getLocalizedName(column, localizationMap));
+            const latLongColumnsSet = new Set(latLongColumns);
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
                     for (const column of Object.keys(obj)) {
-                        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+                        if (latLongColumnsSet.has(column)) {
                             const value = obj[column];
                             if (typeof value !== 'number') {
                                 errors.push({
@@ -214,9 +217,12 @@ export function validateLatLongForMicroplanCampaigns(data: any, errors: any, loc
 }
 
 
-function validateLatLongForFacility(data: any, errors: any) {
+function validateLatLongForFacility(data: any, errors: any, localizationMap?: { [key: string]: string }) {
+    const latLongUnlocalisedColumns = config.values.latLongColumns?.split(',') || [];
+    const latLongColumns = latLongUnlocalisedColumns?.map((column: string) => getLocalizedName(column, localizationMap));
+    const latLongColumnsSet = new Set(latLongColumns);
     for (const column of Object.keys(data)) {
-        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+        if (latLongColumnsSet.has(column)) {
             const value = data[column];
             if (typeof value !== 'number') {
                 errors.push({
@@ -245,7 +251,7 @@ export function validateMicroplanFacility(request: any, data: any, localizationM
         const active = activeColumnName ? item[activeColumnName] : "Active";
         if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
             enrichErrorForFcailityMicroplan(request, item, errors, localizationMap);
-            validateLatLongForFacility(item, errors);
+            validateLatLongForFacility(item, errors, localizationMap);
         }
     });
     request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
