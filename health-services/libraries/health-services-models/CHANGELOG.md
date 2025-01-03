@@ -1,8 +1,8 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.25 - 2025-01-03
-- Added BeneficiaryType Enum, HouseHoldType Enum
-- Updated ProjectType, Target for BeneficiaryType change, Household, HouseholdSearch for HouseHoldType changes
+- Added BeneficiaryType Enum for ProjectType, Target models
+- Added HouseHoldType Enum for Household, HouseholdSearch models
 - Added DownsyncCLFHousehold, DownsyncCLFHouseholdResponse, HouseholdMemberMap
 - Updated DownsyncCriteria to include householdId
 
