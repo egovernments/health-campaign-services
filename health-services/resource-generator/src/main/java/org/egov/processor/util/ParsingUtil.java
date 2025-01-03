@@ -7,8 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.ResourceMapping;
+import org.egov.processor.web.models.Locale;
+import org.egov.processor.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -17,6 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static org.egov.processor.config.ServiceConstants.PROPERTIES;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Component
@@ -36,10 +37,16 @@ public class ParsingUtil {
 
     private CalculationUtil calculationUtil;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil) {
+    private MdmsUtil mdmsUtil;
+
+    private ObjectMapper objectMapper;
+
+    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
         this.planConfigurationUtil = planConfigurationUtil;
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
+        this.mdmsUtil = mdmsUtil;
+        this.objectMapper = objectMapper;
     }
 
     public List<String> fetchAttributeNamesFromJson(JsonNode jsonNode)
@@ -314,7 +321,7 @@ public class ParsingUtil {
      * @param row the Row to check
      * @return true if the row is empty, false otherwise
      */
-    public static boolean isRowEmpty(Row row) {
+    public boolean isRowEmpty(Row row) {
         if (row == null) {
             return true;
         }
@@ -392,4 +399,61 @@ public class ParsingUtil {
         System.out.println(); // Move to the next line after printing the row
     }
 
+    /**
+     * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
+     *
+     * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
+     * @param sheetName The name of the sheet to be processed.
+     * @return true if the sheet is allowed to be processed, false otherwise.
+     */
+    public boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
+        Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+                planConfigurationRequest.getRequestInfo(),
+                planConfigurationRequest.getPlanConfiguration().getTenantId());
+
+        for (Locale locale : localeResponse.getMessages()) {
+            if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
+                    || locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
+                if (sheetName.equals(locale.getMessage()))
+                    return false;
+            }
+        }
+        return true;
+
+    }
+
+    /**
+     * Extracts provided field from the additional details object
+     *
+     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
+     * @param fieldToExtract    the name of the field to be extracted from the additional details
+     * @return the value of the specified field as a string
+     * @throws CustomException if the field does not exist
+     */
+    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+
+            JsonNode node = rootNode.get(fieldToExtract);
+            if (node != null && !node.isNull()) {
+
+                // Check for different types of JSON nodes
+                if (node.isDouble() || node.isFloat()) {
+                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
+                } else if (node.isLong() || node.isInt()) {
+                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
+                } else if (node.isBoolean()) {
+                    return node.asBoolean();
+                } else if (node.isTextual()) {
+                    return node.asText();
+                }
+            }
+            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
 }
