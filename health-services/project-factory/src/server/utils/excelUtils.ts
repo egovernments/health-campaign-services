@@ -62,11 +62,11 @@ const getExcelWorkbookFromFileURL = async (
 };
 
 
-export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLocale: string, expectedCampaignId: string) {
+export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLocale: string, expectedCampaignId: string, action: string) {
   if (!fileUrl) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
   }
-  else {
+  else if(action === "validate"){
     const workbook = await getExcelWorkbookFromFileURL(fileUrl);
     if (!workbook) {
       throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no workbook was found.");
