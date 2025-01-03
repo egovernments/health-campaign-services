@@ -7,7 +7,7 @@ import { correctParentValues, findMapValue, getBoundaryRelationshipData, getData
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
-import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
 
 //Function to get Workbook with different tabs (for type target)
@@ -432,6 +432,8 @@ async function createAndUploadFile(
   tenantId?: any
 ) {
   let retries: any = 3;
+  // Enrich metadatas
+  enrichTemplateMetaData(updatedWorkbook, request);
   while (retries--) {
     try {
       // Write the updated workbook to a buffer
