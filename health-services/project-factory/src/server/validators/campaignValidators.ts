@@ -22,9 +22,9 @@ import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtil
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateExtraBoundariesForMicroplan, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
@@ -711,8 +711,8 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
     var boundaryColumn: any;
-    if (resource?.additionalDetails?.source == 'microplan') {
-        boundaryColumn = getLocalizedName(createAndSearch?.[`${resource.type}Microplan`]?.boundaryValidation?.column, localizationMap);
+    if (await isMicroplanRequest(request) && resource?.type == "facility") {
+        boundaryColumn = getLocalizedName(config.boundary.boundaryCodeMandatoryForMicroplanFacility, localizationMap);
     }
     else {
         boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
@@ -741,7 +741,6 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
             const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
             errors.push({ status: "BOUNDARYERROR", rowNumber: rowData.rowNumber, errorDetails: errorString })
         }
-        validateFacilityBoundaryForLowestLevel(request, boundaries, rowData, errors, localizationMap);
     }
     if (errors?.length > 0) {
         request.body.ResourceDetails.status = resourceDataStatuses.invalid
