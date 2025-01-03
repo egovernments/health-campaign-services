@@ -55,14 +55,18 @@ public class ExcelStylingUtil {
      * @return XSSFColor The corresponding XSSFColor object.
      */
     public static XSSFColor hexToXSSFColor(String hexColor, XSSFWorkbook xssfWorkbook) {
+
+        if (hexColor == null || hexColor.length() < 6)
+            throw new IllegalArgumentException(INVALID_HEX + hexColor);
+
         // Convert HEX to RGB
         int red = Integer.valueOf(hexColor.substring(0, 2), 16);
         int green = Integer.valueOf(hexColor.substring(2, 4), 16);
         int blue = Integer.valueOf(hexColor.substring(4, 6), 16);
 
-        red = (int) (red * 1.1);   // increase red component by 10%
-        green = (int) (green * 1.1); // increase green component by 10%
-        blue = (int) (blue * 1.1);   // increase blue component by 10%
+        red = (int) (red * BRIGHTEN_FACTOR);   // increase red component by 10%
+        green = (int) (green * BRIGHTEN_FACTOR); // increase green component by 10%
+        blue = (int) (blue * BRIGHTEN_FACTOR);   // increase blue component by 10%
 
         // Clamp the values to be between 0 and 255
         red = Math.min(255, Math.max(0, red));

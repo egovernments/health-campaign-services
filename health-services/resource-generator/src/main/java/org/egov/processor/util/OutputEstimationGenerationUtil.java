@@ -15,8 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
 
-import static org.egov.processor.config.ServiceConstants.FACILITY_NAME;
-import static org.egov.processor.config.ServiceConstants.HCM_MICROPLAN_SERVING_FACILITY;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
 public class OutputEstimationGenerationUtil {
@@ -61,7 +60,8 @@ public class OutputEstimationGenerationUtil {
     public void processSheetForHeaderLocalization(Sheet sheet, Map<String, String> localizationCodeAndMessageMap) {
         // Fetch the header row from sheet
         Row row = sheet.getRow(0);
-        if (parsingUtil.isRowEmpty(row)) throw new CustomException();
+        if (parsingUtil.isRowEmpty(row))
+            throw new CustomException(EMPTY_HEADER_ROW_CODE, EMPTY_HEADER_ROW_MESSAGE);
 
 
         //Iterate from the end, for every cell localize the header value

@@ -449,6 +449,7 @@ public class ParsingUtil {
                     return node.asText();
                 }
             }
+            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);

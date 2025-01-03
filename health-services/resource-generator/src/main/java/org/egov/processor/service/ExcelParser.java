@@ -380,8 +380,7 @@ public class ExcelParser implements FileParser {
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
-			// TODO: remove after testing
-			parsingUtil.printRow(sheet, row);
+
 		}
 	}
 

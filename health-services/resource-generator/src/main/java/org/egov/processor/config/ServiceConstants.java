@@ -42,6 +42,9 @@ public class ServiceConstants {
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
     public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
 
+    public static final String EMPTY_HEADER_ROW_CODE = "EMPTY_HEADER_ROW";
+    public static final String EMPTY_HEADER_ROW_MESSAGE = "The header row is empty for the given sheet";
+
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
@@ -60,6 +63,7 @@ public class ServiceConstants {
     public static final String ERROR_WHILE_DATA_CREATE_CALL = "Exception occurred while creating data for campaign - ";
     public static final String ERROR_WHILE_CALLING_MICROPLAN_API =
             "Unexpected error while calling fetch from Microplan API for plan config Id: ";
+    public static final String INVALID_HEX = "Invalid hex color specified: ";
 
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
@@ -77,6 +81,7 @@ public class ServiceConstants {
     public static final String BOUNDARY = "boundary";
     public static final String DOT_SEPARATOR = ".";
     public static final String MICROPLAN_PREFIX = "MP-";
+    public static final Double BRIGHTEN_FACTOR = 1.1;
 
     //MDMS field Constants
     public static final String DATA = "data";
