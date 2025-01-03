@@ -143,11 +143,14 @@ public class MdmsUtil {
 		for (Map<String, Object> schema : adminSchema) {
 			String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
 
+			// Check if the schema's title matches the required template identifier
+			// and the campaign matches the specified campaign type.
 			if (schema.get(ServiceConstants.MDMS_SCHEMA_TITLE).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_BOUNDARY)
 					&& campaign.equals(MICROPLAN_PREFIX + campaignType)) {
 				Map<String, List<Object>> schemaProperties = (Map<String, List<Object>>) schema.get("properties");
 
 				schemaProperties.forEach((propertyType, propertyList) ->
+						// For each property in the property list, extract its name and add it to the map with the property.
 						propertyList.forEach(property -> {
 							String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
 							properties.put(propertyName, property);
