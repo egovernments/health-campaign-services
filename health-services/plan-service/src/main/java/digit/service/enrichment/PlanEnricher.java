@@ -1,4 +1,4 @@
-package digit.service;
+package digit.service.enrichment;
 
 import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
