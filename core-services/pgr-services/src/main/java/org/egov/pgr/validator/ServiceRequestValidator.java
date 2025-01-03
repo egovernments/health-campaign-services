@@ -159,12 +159,10 @@ public class ServiceRequestValidator {
         String serviceCode = request.getService().getServiceCode();
         List<String> assignes = request.getWorkflow().getAssignes();
 
-        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignees();
-
         if(CollectionUtils.isEmpty(assignes))
             return;
 
-        List<String> departments = hrmsUtil.getDepartment(assignes, hrmsAssignes, request.getRequestInfo());
+        List<String> departments = hrmsUtil.getDepartment(assignes, request.getRequestInfo());
 
         String jsonPath = MDMS_DEPARTMENT_SEARCH.replace("{SERVICEDEF}",serviceCode);
 

@@ -61,7 +61,7 @@ public class HfrRowVersionValidator implements Validator<HFReferralBulkRequest, 
         if (!iMap.isEmpty()) {
             List<String> hfReferralIds = new ArrayList<>(iMap.keySet());
             List<HFReferral> existingHfReferrals = hfReferralRepository.findById(hfReferralIds,
-                    getIdFieldName(idMethod), false).getResponse();
+                    false, getIdFieldName(idMethod));
             List<HFReferral> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(iMap, existingHfReferrals, idMethod);
             entitiesWithMismatchedRowVersion.forEach(hfReferral -> {

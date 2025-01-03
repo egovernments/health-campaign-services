@@ -113,7 +113,7 @@ public class MockController {
     public ResponseEntity<List<String>> requestsTest(@RequestBody RequestInfoWrapper requestInfoWrapper,
                                                @RequestParam String tenantId, @RequestParam List<String> uuids) {
 
-        List<String> department = hrmsUtil.getDepartment(uuids, uuids, requestInfoWrapper.getRequestInfo());
+        List<String> department = hrmsUtil.getDepartment(uuids, requestInfoWrapper.getRequestInfo());
 
         return  new ResponseEntity<>(department, HttpStatus.OK);
     }

@@ -8,7 +8,6 @@ All notable changes to this module will be documented in this file.
 - Upgraded PostgresSQL Driver version to 42.7.1
 - Upgraded Flyway base image version to 10.7.1 for DB Migration
 - Upgraded Flyway-Core to 9.22.3
-- Added `ExistentEntityValidator` fixes
 
 ## 1.1.2 - 2024-02-26
 - Enhance inventory flow with sender id and receiver id added.

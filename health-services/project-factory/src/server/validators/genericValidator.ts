@@ -2,14 +2,11 @@
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
+import config from "../config/index";
+import { httpRequest } from "../utils/request";
 import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
-import { persistTrack } from "../utils/processTrackUtils";
-import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../config/constants";
-import { validateMappingId } from "../utils/campaignMappingUtils";
-import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
-import { BoundaryModels } from "../models";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
@@ -31,11 +28,6 @@ function validateCampaignBodyViaSchema(schema: any, objectData: any) {
             if (error?.dataPath) {
                 // Replace slash with dot and remove leading dot if present
                 const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
-                formattedErrorMessage = `${dataPath} ${error.message}`;
-            }
-            else if (error?.instancePath) {
-                // Replace slash with dot and remove leading dot if present
-                const dataPath = error.instancePath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
             else {
@@ -67,11 +59,6 @@ function validateBodyViaSchema(schema: any, objectData: any) {
             if (error?.dataPath) {
                 // Replace slash with dot and remove leading dot if present
                 const dataPath = error.dataPath.replace(/\//g, '.').replace(/^\./, '');
-                formattedErrorMessage = `${dataPath} ${error.message}`;
-            }
-            else if (error?.instancePath) {
-                // Replace slash with dot and remove leading dot if present
-                const dataPath = error.instancePath.replace(/\//g, '.').replace(/^\./, '');
                 formattedErrorMessage = `${dataPath} ${error.message}`;
             }
             else {
@@ -128,40 +115,15 @@ async function validateCampaign(requestBody: any) {
 
 // Function to validate the entire campaign request
 async function validateCampaignRequest(requestBody: any) {
-    await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.inprogress);
-    try {
-        if (requestBody?.Campaign) {
-            if (!requestBody?.Campaign?.tenantId) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", "Enter TenantId");
-            }
-            await validateCampaign(requestBody);
-            const id = requestBody?.Campaign?.id;
-            const campaignDetails = await validateMappingId(requestBody, id);
-            if (campaignDetails?.status == campaignStatuses.inprogress) {
-                logger.error("Campaign Already In Progress and Mapped");
-                throwError("CAMPAIGN", 400, "CAMPAIGN_ALREADY_MAPPED");
-            }
+    if (requestBody?.Campaign) {
+        if (!requestBody?.Campaign?.tenantId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "Enter TenantId");
         }
-        else {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign object is missing");
-        }
-        if (requestBody?.CampaignDetails) {
-            if (!requestBody?.CampaignDetails?.tenantId) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", "Enter TenantId");
-            }
-            if (!requestBody?.CampaignDetails?.id) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", "Enter id in CampaignDetails");
-            }
-        }
-        else {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is missing");
-        }
-    } catch (error: any) {
-        console.log(error)
-        await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
-        throw new Error(error)
+        await validateCampaign(requestBody);
     }
-    await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.completed);
+    else {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign is required");
+    }
 }
 
 // Function to validate and update project response and its ID
@@ -202,18 +164,18 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
 
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
-
-    const BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria={
-        BoundaryTypeHierarchySearchCriteria:{
-            tenantId,
-            hierarchyType
+    const searchBody = {
+        RequestInfo: request?.body?.RequestInfo,
+        BoundaryTypeHierarchySearchCriteria: {
+            "tenantId": tenantId,
+            "limit": 5,
+            "offset": 0,
+            "hierarchyType": hierarchyType
         }
-    }; 
-    const response:BoundaryModels.BoundaryHierarchyDefinitionResponse  =await searchBoundaryRelationshipDefinition(BoundaryTypeHierarchySearchCriteria);
-
+    }
+    const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
     if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
         logger.info(`hierarchyType : ${hierarchyType} :: got validated`);
-        request.body.hierarchyType = response?.BoundaryHierarchy?.[0];        
     }
     else {
         throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);

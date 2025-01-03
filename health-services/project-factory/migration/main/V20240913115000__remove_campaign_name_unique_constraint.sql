@@ -1,2 +1,0 @@
-ALTER TABLE eg_cm_campaign_details
-DROP CONSTRAINT eg_cm_campaign_details_campaignname_key;

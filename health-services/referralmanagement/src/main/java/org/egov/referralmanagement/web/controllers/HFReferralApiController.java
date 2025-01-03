@@ -6,7 +6,6 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
@@ -108,7 +107,7 @@ public class HFReferralApiController {
             @ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request
     ) throws Exception {
 
-        SearchResponse<HFReferral> searchResponse = hfReferralService.search(
+        List<HFReferral> hfReferrals = hfReferralService.search(
                 request,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -116,10 +115,7 @@ public class HFReferralApiController {
                 urlParams.getLastChangedSince(),
                 urlParams.getIncludeDeleted());
         HFReferralBulkResponse response = HFReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true))
-                .hfReferrals(searchResponse.getResponse())
-                .totalCount(searchResponse.getTotalCount())
-                .build();
+                .createResponseInfo(request.getRequestInfo(), true)).hfReferrals(hfReferrals).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

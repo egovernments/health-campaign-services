@@ -5,7 +5,7 @@ export const downloadRequestSchema = {
         "tenantId": {
             "type": "string",
             "maxLength": 128,
-            "minLength": 1
+            "minLength": 1,
         },
         "type": {
             "type": "string",
@@ -16,32 +16,20 @@ export const downloadRequestSchema = {
                 "user",
                 "boundary",
                 "facilityWithBoundary",
-                "userWithBoundary",
-                "boundaryManagement",
-                "boundaryGeometryManagement"
+                "userWithBoundary"
             ]
         },
         "hierarchyType": {
             "type": "string",
             "maxLength": 128,
-            "minLength": 1
+            "minLength": 1,
         },
         "id": {
             "type": "string",
-            "maxLength": 128,
-            "minLength": 1
-        },
-        "status": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1
-        },
-        "campaignId": {
-            "type": "string",
-            "maxLength": 128,
-            "minLength": 1
+            "maxlength": 128,
+            "minLength": 1,
         }
     },
     "required": ["tenantId", "type", "hierarchyType"],
     "additionalProperties": false
-}  
+}

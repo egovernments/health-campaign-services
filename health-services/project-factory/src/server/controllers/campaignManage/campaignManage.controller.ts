@@ -1,16 +1,7 @@
 import * as express from "express";
-import {
-  createCampaignService,
-  createProjectTypeCampaignService,
-  fetchFromMicroplanService,
-  retryProjectTypeCampaignService,
-  searchProcessTracksService,
-  searchProjectTypeCampaignService,
-  updateProjectTypeCampaignService
-} from "../../service/campaignManageService";
+import { createCampaignService, createProjectTypeCampaignService, searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../../service/campaignManageService";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { validateSearchProjectCampaignRequest } from "../../validators/campaignValidators";
 
 
 
@@ -31,13 +22,8 @@ class campaignManageController {
         this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
         this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
-        this.router.post(`${this.path}/retry`, this.retryProjectTypeCampaign);
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
-        this.router.post(`${this.path}/getProcessTrack`, this.searchProcessTracks);
-        this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
     }
-    
-    
     /**
  * Handles the creation of a project type campaign.
  * @param request The Express request object.
@@ -91,9 +77,7 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
-            // Validate the search request for project type campaigns
-            await validateSearchProjectCampaignRequest(request);
-            const responseBody = await searchProjectTypeCampaignService(request?.body?.CampaignDetails);
+            const responseBody = await searchProjectTypeCampaignService(request);
             // Send response with campaign details and total count
             return sendResponse(response, responseBody, request);
         } catch (e: any) {
@@ -127,58 +111,7 @@ class campaignManageController {
         }
     };
 
-    searchProcessTracks = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A PROCESS SEARCH REQUEST");
-            const processTrack = await searchProcessTracksService(request);
-            // Send response with campaign details
-            return sendResponse(response, { processTrack }, request);
-        }
-        catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    };
-
-    retryProjectTypeCampaign = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A PROJECT TYPE RETRY REQUEST");
-            const CampaignDetails = await retryProjectTypeCampaignService(request);
-            return sendResponse(response, { CampaignDetails }, request);
-        } catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    }
-
-    fetchFromMicroplan = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A FETCH FROM MICROPLAN REQUEST");
-            const CampaignDetails = await fetchFromMicroplanService(request);
-            return sendResponse(response, { CampaignDetails }, request);
-        }
-        catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    }
-
 };
-
 export default campaignManageController;
 
 

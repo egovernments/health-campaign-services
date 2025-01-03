@@ -1,7 +1,7 @@
 package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;

@@ -2,7 +2,6 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkResponse;
 import org.egov.common.models.project.ProjectStaffRequest;
@@ -176,7 +175,7 @@ class ProjectStaffApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(SearchResponse.<ProjectStaff>builder().response(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build())).build());
+                any(Boolean.class))).thenReturn(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(post(
                         "/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")

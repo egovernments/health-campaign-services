@@ -12,7 +12,10 @@ import org.springframework.util.ObjectUtils;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfiguration>> {
@@ -26,10 +29,10 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     @Override
     public List<PlanConfiguration> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, PlanConfiguration> planConfigurationMap = new LinkedHashMap<>();
-        Set<String> fileSet = new HashSet<>();
-        Set<String> operationSet = new HashSet<>();
-        Set<String> assumptionSet = new HashSet<>();
-        Set<String> resourceMappingSet = new HashSet<>();
+        Map<String, File> fileMap = new LinkedHashMap<>();
+        Map<String, Operation> operationMap = new LinkedHashMap<>();
+        Map<String, Assumption> assumptionMap = new LinkedHashMap<>();
+        Map<String, ResourceMapping> resourceMappingMap = new LinkedHashMap<>();
 
 
         while (rs.next()) {
@@ -39,10 +42,6 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
 
             if (ObjectUtils.isEmpty(planConfigEntry)) {
                 planConfigEntry = new PlanConfiguration();
-                fileSet.clear();
-                operationSet.clear();
-                assumptionSet.clear();
-                resourceMappingSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("plan_configuration_created_by")).createdTime(rs.getLong("plan_configuration_created_time")).lastModifiedBy(rs.getString("plan_configuration_last_modified_by")).lastModifiedTime(rs.getLong("plan_configuration_last_modified_time")).build();
@@ -57,10 +56,10 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setAuditDetails(auditDetails);
 
             }
-            addFiles(rs, planConfigEntry, fileSet);
-            addAssumptions(rs, planConfigEntry, assumptionSet);
-            addOperations(rs, planConfigEntry, operationSet);
-            addResourceMappings(rs, planConfigEntry, resourceMappingSet);
+            addFiles(rs, planConfigEntry, fileMap);
+            addAssumptions(rs, planConfigEntry, assumptionMap);
+            addOperations(rs, planConfigEntry, operationMap);
+            addResourceMappings(rs, planConfigEntry, resourceMappingMap);
 
             planConfigurationMap.put(planConfigId, planConfigEntry);
         }
@@ -72,13 +71,13 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
      *
      * @param rs              The ResultSet containing the data.
      * @param planConfigEntry The PlanConfiguration entry to which the File object will be added.
-     * @param fileSet         A set to keep track of added File objects.
+     * @param fileMap         A map to keep track of added File objects.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addFiles(ResultSet rs, PlanConfiguration planConfigEntry, Set<String> fileSet) throws SQLException {
+    private void addFiles(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, File> fileMap) throws SQLException {
         String fileId = rs.getString("plan_configuration_files_id");
 
-        if (ObjectUtils.isEmpty(fileId) || fileSet.contains(fileId)) {
+        if (ObjectUtils.isEmpty(fileId) || fileMap.containsKey(fileId)) {
             return;
         }
 
@@ -96,7 +95,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getFiles().add(file);
         }
 
-        fileSet.add(fileId);
+        fileMap.put(fileId, file);
     }
 
 
@@ -105,13 +104,13 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
      *
      * @param rs              The ResultSet containing the data.
      * @param planConfigEntry The PlanConfiguration entry to which the Assumption object will be added.
-     * @param assumptionSet   A set to keep track of added Assumption objects.
+     * @param assumptionMap   A map to keep track of added Assumption objects.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addAssumptions(ResultSet rs, PlanConfiguration planConfigEntry, Set<String> assumptionSet) throws SQLException {
+    private void addAssumptions(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, Assumption> assumptionMap) throws SQLException {
         String assumptionId = rs.getString("plan_configuration_assumptions_id");
 
-        if (ObjectUtils.isEmpty(assumptionId) || assumptionSet.contains(assumptionId)) {
+        if (ObjectUtils.isEmpty(assumptionId) || assumptionMap.containsKey(assumptionId)) {
             return;
         }
 
@@ -131,7 +130,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getAssumptions().add(assumption);
         }
 
-        assumptionSet.add(assumptionId);
+        assumptionMap.put(assumptionId, assumption);
     }
 
     /**
@@ -139,13 +138,13 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
      *
      * @param rs              The ResultSet containing the data.
      * @param planConfigEntry The PlanConfiguration entry to which the Operation object will be added.
-     * @param operationSet    A set to keep track of added Operation objects.
+     * @param operationMap    A map to keep track of added Operation objects.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addOperations(ResultSet rs, PlanConfiguration planConfigEntry, Set<String> operationSet) throws SQLException {
+    private void addOperations(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, Operation> operationMap) throws SQLException {
         String operationId = rs.getString("plan_configuration_operations_id");
 
-        if (ObjectUtils.isEmpty(operationId) || operationSet.contains(operationId)) {
+        if (ObjectUtils.isEmpty(operationId) || operationMap.containsKey(operationId)) {
             return;
         }
 
@@ -169,7 +168,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getOperations().add(operation);
         }
 
-        operationSet.add(operationId);
+        operationMap.put(operationId, operation);
     }
 
     /**
@@ -177,13 +176,13 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
      *
      * @param rs              The ResultSet containing the data.
      * @param planConfigEntry The PlanConfiguration entry to which the ResourceMapping object will be added.
-     * @param resourceMappingSet      A set to keep track of added ResourceMapping objects.
+     * @param mappingMap      A map to keep track of added ResourceMapping objects.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addResourceMappings(ResultSet rs, PlanConfiguration planConfigEntry, Set<String> resourceMappingSet) throws SQLException {
+    private void addResourceMappings(ResultSet rs, PlanConfiguration planConfigEntry, Map<String, ResourceMapping> mappingMap) throws SQLException {
         String mappingId = rs.getString("plan_configuration_mapping_id");
 
-        if (ObjectUtils.isEmpty(mappingId) || resourceMappingSet.contains(mappingId)) {
+        if (ObjectUtils.isEmpty(mappingId) || mappingMap.containsKey(mappingId)) {
             return;
         }
 
@@ -202,7 +201,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
             planConfigEntry.getResourceMapping().add(mapping);
         }
 
-        resourceMappingSet.add(mappingId);
+        mappingMap.put(mappingId, mapping);
     }
 
 }

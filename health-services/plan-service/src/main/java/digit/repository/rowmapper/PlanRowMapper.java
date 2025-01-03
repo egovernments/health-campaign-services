@@ -27,9 +27,9 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     public List<Plan> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, Plan> planMap = new LinkedHashMap<>();
         Map<String, Activity> activityMap = new LinkedHashMap<>();
-        Set<String> conditionSet = new HashSet<>();
-        Set<String> resourceSet = new HashSet<>();
-        Set<String> targetSet = new HashSet<>();
+        Map<String, Condition> conditionMap = new LinkedHashMap<>();
+        Map<String, Resource> resourceMap = new LinkedHashMap<>();
+        Map<String, Target> targetMap = new LinkedHashMap<>();
 
         // Traverse through result set and create plan objects
         while (rs.next()) {
@@ -39,10 +39,6 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
             if (ObjectUtils.isEmpty(planEntry)) {
                 planEntry = new Plan();
-                activityMap.clear();
-                conditionSet.clear();
-                resourceSet.clear();
-                targetSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder()
@@ -69,9 +65,9 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
             }
 
-            addActivities(rs, planEntry, activityMap, conditionSet);
-            addResources(rs, planEntry, resourceSet);
-            addTargets(rs, planEntry, targetSet);
+            addActivities(rs, planEntry, activityMap, conditionMap);
+            addResources(rs, planEntry, resourceMap);
+            addTargets(rs, planEntry, targetMap);
             planMap.put(planId, planEntry);
         }
 
@@ -79,12 +75,12 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     }
 
     private void addActivities(ResultSet rs, Plan plan,
-                               Map<String, Activity> activityMap, Set<String> conditionSet) throws SQLException, DataAccessException {
+                               Map<String, Activity> activityMap, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
 
         String activityId = rs.getString("plan_activity_id");
 
         if (!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
-            addActivityConditions(rs, activityMap.get(activityId), conditionSet);
+            addActivityConditions(rs, activityMap.get(activityId), conditionMap);
             return;
         } else if (ObjectUtils.isEmpty(activityId)) {
             // Set activities list to empty if no activity found
@@ -109,7 +105,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .dependencies(ObjectUtils.isEmpty(dependencies) ? new ArrayList<>() : Arrays.asList(rs.getString("plan_activity_dependencies").split(",")))
                 .build();
 
-        addActivityConditions(rs, activity, conditionSet);
+        addActivityConditions(rs, activity, conditionMap);
 
         if (CollectionUtils.isEmpty(plan.getActivities())) {
             List<Activity> activityList = new ArrayList<>();
@@ -123,10 +119,10 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
     }
 
-    private void addActivityConditions(ResultSet rs, Activity activity, Set<String> conditionSet) throws SQLException, DataAccessException {
+    private void addActivityConditions(ResultSet rs, Activity activity, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
         String conditionId = rs.getString("plan_activity_condition_id");
 
-        if (ObjectUtils.isEmpty(conditionId) || conditionSet.contains(conditionId)) {
+        if (ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
             List<Condition> conditionList = new ArrayList<>();
             activity.setConditions(conditionList);
             return;
@@ -154,15 +150,15 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             activity.getConditions().add(condition);
         }
 
-        conditionSet.add(condition.getId());
+        conditionMap.put(condition.getId(), condition);
 
     }
 
-    private void addResources(ResultSet rs, Plan planEntry, Set<String> resourceSet) throws SQLException, DataAccessException {
+    private void addResources(ResultSet rs, Plan planEntry, Map<String, Resource> resourceMap) throws SQLException, DataAccessException {
 
         String resourceId = rs.getString("plan_resource_id");
 
-        if (ObjectUtils.isEmpty(resourceId) || resourceSet.contains(resourceId)) {
+        if (ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
             List<Resource> resourceList = new ArrayList<>();
             planEntry.setResources(resourceList);
             return;
@@ -190,14 +186,14 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getResources().add(resource);
         }
 
-        resourceSet.add(resource.getId());
+        resourceMap.put(resource.getId(), resource);
 
     }
 
-    private void addTargets(ResultSet rs, Plan planEntry, Set<String> targetSet) throws SQLException, DataAccessException {
+    private void addTargets(ResultSet rs, Plan planEntry, Map<String, Target> targetMap) throws SQLException, DataAccessException {
         String targetId = rs.getString("plan_target_id");
 
-        if (ObjectUtils.isEmpty(targetId) || targetSet.contains(targetId)) {
+        if (ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
             List<Target> targetList = new ArrayList<>();
             planEntry.setTargets(targetList);
             return;
@@ -231,7 +227,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getTargets().add(target);
         }
 
-        targetSet.add(target.getId());
+        targetMap.put(target.getId(), target);
 
     }
 }

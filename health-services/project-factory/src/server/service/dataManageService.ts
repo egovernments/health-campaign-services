@@ -1,19 +1,14 @@
 import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
-import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, replicateRequest } from "../utils/genericUtils";
-import { getFormattedStringForDebug, logger } from "../utils/logger";
+import { getLocalizedName, processDataSearchRequest } from "../utils/campaignUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
+import { logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
 import { getLocalisationModuleName } from "../utils/localisationUtils";
 import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
-import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
-import config from '../config/index'
-import { callGenerate } from "../utils/generateUtils";
-import { generatedResourceStatuses } from "../config/constants";
-
 
 
 const generateDataService = async (request: express.Request) => {
@@ -33,89 +28,34 @@ const downloadDataService = async (request: express.Request) => {
     const type = request.query.type;
     // Get response data from the database
     const responseData = await searchGeneratedResources(request);
-    const resourceDetails = await getResourceDetails(request);
-
     // Check if response data is available
-    if (
-      !responseData ||
-      (responseData.length === 0 && !request?.query?.id) ||
-      responseData?.[0]?.status === generatedResourceStatuses.failed
-    ) {
-        logger.error(`No data of type '${type}' with status 'Completed' or the provided ID is present in the database.`)
+    if (!responseData || responseData.length === 0 && !request?.query?.id) {
+        logger.error("No data of type  " + type + " with status Completed or with given id presnt in db ")
         // Throw error if data is not found
-        const newRequestBody = {
-            RequestInfo: request?.body?.RequestInfo
-        };
-        const params = {
-            type: request?.query?.type,
-            tenantId: request?.query?.tenantId,
-            forceUpdate: 'true',
-            hierarchyType: request?.query?.hierarchyType,
-            campaignId: request?.query?.campaignId,
-        };
-        const newRequestToGenerate = replicateRequest(request, newRequestBody, params);
-        // Added auto generate since no previous generate request found
-        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}  `)
-        callGenerate(newRequestToGenerate, request?.query?.type);
-
-        // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
+        throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
-
-        // Send response with resource details
-    if (resourceDetails != null && responseData != null && responseData.length > 0) {
-        responseData[0].additionalDetails = {
-            ...(responseData[0].additionalDetails || {}),
-            ...(resourceDetails?.additionalDetails || {})
-        };
-    }
-    
-
     return responseData;
 }
 
 const getBoundaryDataService = async (
-    request: express.Request, enableCaching = false) => {
+    request: express.Request) => {
     try {
-        const { hierarchyType, campaignId } = request?.query;
-        const cacheTTL = config?.cacheTime; // TTL in seconds (5 minutes)
-        const cacheKey = `${campaignId}-${hierarchyType}`;
-        let isRedisConnected = false;
-        let cachedData: any = null;
-        if (cacheKey && enableCaching) {
-            isRedisConnected = await checkRedisConnection();
-            cachedData = await redis.get(cacheKey); // Get cached data
-        }
-        if (cachedData) {
-            logger.info("CACHE HIT :: " + cacheKey);
-            logger.debug(`CACHED DATA :: ${getFormattedStringForDebug(cachedData)}`);
-
-            // Reset the TTL for the cache key
-            if (config.cacheValues.resetCache) {
-                await redis.expire(cacheKey, cacheTTL);
-            }
-
-            return JSON.parse(cachedData); // Return parsed cached data if available
-        } else {
-            logger.info("NO CACHE FOUND :: REQUEST :: " + cacheKey);
-        }
         const workbook = getNewExcelWorkbook();
-        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType), true);
+        const { hierarchyType } = request?.query;
+        const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-        const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
+        const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
         // Retrieve boundary sheet data
         const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-        addDataToSheet(request, boundarySheet, boundarySheetData, '93C47D', 40, true);
-        const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
+        addDataToSheet(boundarySheet, boundarySheetData);
+        const BoundaryFileDetails: any = await createAndUploadFile(workbook, request);
         // Return boundary file details
         logger.info("RETURNS THE BOUNDARY RESPONSE");
-        if (cacheKey && isRedisConnected) {
-            await redis.set(cacheKey, JSON.stringify(boundaryFileDetails), "EX", cacheTTL); // Cache the response data with TTL
-        }
-        return boundaryFileDetails;
+        return BoundaryFileDetails;
     } catch (e: any) {
-        console.log(e)
         logger.error(String(e))
         // Handle errors and send error response
         throw (e);
@@ -125,10 +65,7 @@ const getBoundaryDataService = async (
 
 const createDataService = async (request: any) => {
 
-    const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
-    const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId, getLocalisationModuleName(hierarchyType), true);
-    const localizationMapModule = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-    const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
+    const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
     // Validate the create request
     logger.info("Validating data create request")
     await validateCreateRequest(request, localizationMap);

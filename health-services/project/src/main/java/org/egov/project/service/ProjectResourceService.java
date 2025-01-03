@@ -5,7 +5,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.models.project.ProjectResourceRequest;
@@ -183,28 +182,27 @@ public class ProjectResourceService {
     }
 
 
-    public SearchResponse<ProjectResource> search(ProjectResourceSearchRequest request,
-                                                  Integer limit,
-                                                  Integer offset,
-                                                  String tenantId,
-                                                  Long lastChangedSince,
-                                                  Boolean includeDeleted) throws QueryBuilderException {
+    public List<ProjectResource> search(ProjectResourceSearchRequest request,
+                                        Integer limit,
+                                        Integer offset,
+                                        String tenantId,
+                                        Long lastChangedSince,
+                                        Boolean includeDeleted) throws QueryBuilderException {
         String idFieldName = getIdFieldName(request.getProjectResource());
 
         if (isSearchByIdOnly(request.getProjectResource(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod((Collections
                     .singletonList(request.getProjectResource()))),
                     request.getProjectResource());
-            List<ProjectResource> projectResources = projectResourceRepository.findById(ids, includeDeleted, idFieldName).stream()
+            return projectResourceRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            return SearchResponse.<ProjectResource>builder().response(projectResources).build();
         }
 
         log.info("completed search method for project resource");
-        return projectResourceRepository.findWithCount(request.getProjectResource(),
+        return projectResourceRepository.find(request.getProjectResource(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }

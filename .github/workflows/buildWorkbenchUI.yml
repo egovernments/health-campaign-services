@@ -1,0 +1,64 @@
+name: Digit Admin Console Build workflow
+on:
+  push:
+    branches:
+      - campaign
+    paths:
+      - 'micro-ui/web/micro-ui-internals/**'
+  pull_request:
+    branches:
+      - campaign
+  workflow_dispatch:
+jobs:
+  docker_image-build:
+    outputs:
+      run_job_digit_ui: ${{ steps.check_files.outputs.run_job_digit_ui }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v1
+      - name: check modified files
+        id: check_files
+        run: |
+          echo "=============== list modified files ==============="
+          git diff --name-only HEAD^ HEAD
+
+          echo "========== check paths of modified files =========="
+          git diff --name-only HEAD^ HEAD > files.txt
+          run_job_digit_ui=false
+          while IFS= read -r file
+          do
+            if [[ $file == micro-ui/* ]]; then
+              echo "This modified file is under the 'digit_ui' folder."
+              run_job_digit_ui=true
+            fi
+          done < files.txt
+
+          # Set the output based on whether the job should run
+          echo "::set-output name=run_job_digit_ui::$run_job_digit_ui"
+          echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "COMMIT_ID=${GITHUB_SHA: -8}" >> $GITHUB_ENV  # Extract last 8 characters of SHA
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+
+
+
+      - name: Login to egovio docker Container Registry
+        env:
+            DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+            DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |      
+          # Authenticate with Docker Hub
+          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+      - name: Build and Push Docker image for digit-ui
+        if: ${{ steps.check_files.outputs.run_job_digit_ui == 'true' }}
+        run: |
+          docker build -t workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }} -f web/workbench/Dockerfile .
+          docker tag workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }} egovio/workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
+          docker push egovio/workbench-ui:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
+        working-directory: micro-ui

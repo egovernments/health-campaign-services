@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockRequest;
@@ -178,28 +177,27 @@ public class StockService {
         return validEntities;
     }
 
-    public SearchResponse<Stock> search(StockSearchRequest stockSearchRequest,
-                                        Integer limit,
-                                        Integer offset,
-                                        String tenantId,
-                                        Long lastChangedSince,
-                                        Boolean includeDeleted) throws Exception  {
+    public List<Stock> search(StockSearchRequest stockSearchRequest,
+                              Integer limit,
+                              Integer offset,
+                              String tenantId,
+                              Long lastChangedSince,
+                              Boolean includeDeleted) throws Exception  {
         log.info("starting search method for stock");
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
         if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(stockSearchRequest.getStock())),
                     stockSearchRequest.getStock());
-            List<Stock> stocks = stockRepository.findById(ids, includeDeleted, idFieldName).stream()
+            return stockRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            return SearchResponse.<Stock>builder().response(stocks).build();
         }
 
         log.info("completed search method for stock");
-        return stockRepository.findWithCount(stockSearchRequest.getStock(),
+        return stockRepository.find(stockSearchRequest.getStock(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }

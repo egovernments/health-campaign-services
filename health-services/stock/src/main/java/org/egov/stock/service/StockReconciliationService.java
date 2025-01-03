@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationRequest;
@@ -183,27 +182,26 @@ public class StockReconciliationService {
         return validEntities;
     }
 
-    public SearchResponse<StockReconciliation> search(StockReconciliationSearchRequest request,
-                                                      Integer limit,
-                                                      Integer offset,
-                                                      String tenantId,
-                                                      Long lastChangedSince,
-                                                      Boolean includeDeleted) throws Exception  {
+    public List<StockReconciliation> search(StockReconciliationSearchRequest request,
+                                            Integer limit,
+                                            Integer offset,
+                                            String tenantId,
+                                            Long lastChangedSince,
+                                            Boolean includeDeleted) throws Exception  {
         log.info("starting search method for stock reconciliation");
         String idFieldName = getIdFieldName(request.getStockReconciliation());
         if (isSearchByIdOnly(request.getStockReconciliation(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(request.getStockReconciliation())),
                     request.getStockReconciliation());
-            List<StockReconciliation> stockReconciliations = stockRepository.findById(ids, includeDeleted, idFieldName).stream()
+            return stockRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            return SearchResponse.<StockReconciliation>builder().response(stockReconciliations).build();
         }
         log.info("completed search method for stock reconciliation");
-        return stockRepository.findWithCount(request.getStockReconciliation(),
+        return stockRepository.find(request.getStockReconciliation(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }

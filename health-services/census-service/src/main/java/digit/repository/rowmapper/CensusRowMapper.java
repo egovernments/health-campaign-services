@@ -36,8 +36,8 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     @Override
     public List<Census> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, Census> censusMap = new LinkedHashMap<>();
-        Set<String> populationByDemographicSet = new HashSet<>();
-        Set<String> additionalFieldSet = new HashSet<>();
+        Map<String, PopulationByDemographic> populationByDemographicMap = new LinkedHashMap<>();
+        Map<String, AdditionalField> additionalFieldMap = new LinkedHashMap<>();
 
         while (rs.next()) {
             String censusId = rs.getString("census_id");
@@ -45,8 +45,6 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
 
             if (ObjectUtils.isEmpty(censusEntry)) {
                 censusEntry = new Census();
-                populationByDemographicSet.clear();
-                additionalFieldSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
@@ -71,8 +69,8 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 censusEntry.setAdditionalDetails(queryUtil.parseJson((PGobject) rs.getObject("census_additional_details")));
                 censusEntry.setAuditDetails(auditDetails);
             }
-            addPopulationByDemographic(rs, populationByDemographicSet, censusEntry);
-            addAdditionalField(rs, additionalFieldSet, censusEntry);
+            addPopulationByDemographic(rs, populationByDemographicMap, censusEntry);
+            addAdditionalField(rs, additionalFieldMap, censusEntry);
 
             censusMap.put(censusId, censusEntry);
         }
@@ -84,14 +82,14 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
      * Adds a AdditionalField object to the census entry based on the result set.
      *
      * @param rs                The ResultSet containing the data.
-     * @param additionalFieldSet A set to keep track of added AdditionalField objects.
+     * @param additionalFieldMap A map to keep track of added AdditionalField objects.
      * @param censusEntry       The Census entry to which the AdditionalField object will be added.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addAdditionalField(ResultSet rs, Set<String> additionalFieldSet, Census censusEntry) throws SQLException {
+    private void addAdditionalField(ResultSet rs, Map<String, AdditionalField> additionalFieldMap, Census censusEntry) throws SQLException {
         String additionalFieldId = rs.getString("additional_field_id");
 
-        if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldSet.contains(additionalFieldId)) {
+        if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldMap.containsKey(additionalFieldId)) {
             return;
         }
 
@@ -111,7 +109,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getAdditionalFields().add(additionalField);
         }
 
-        additionalFieldSet.add(additionalFieldId);
+        additionalFieldMap.put(additionalFieldId, additionalField);
     }
 
 
@@ -119,14 +117,14 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
      * Adds a PopulationByDemographics object to the census entry based on the result set.
      *
      * @param rs                         The ResultSet containing the data.
-     * @param populationByDemographicSet A set to keep track of added PopulationByDemographics objects.
+     * @param populationByDemographicMap A map to keep track of added PopulationByDemographics objects.
      * @param censusEntry                The Census entry to which the PopulationByDemographics object will be added.
      * @throws SQLException If an SQL error occurs.
      */
-    private void addPopulationByDemographic(ResultSet rs, Set<String> populationByDemographicSet, Census censusEntry) throws SQLException {
+    private void addPopulationByDemographic(ResultSet rs, Map<String, PopulationByDemographic> populationByDemographicMap, Census censusEntry) throws SQLException {
         String populationByDemographicId = rs.getString("population_by_demographics_id");
 
-        if (ObjectUtils.isEmpty(populationByDemographicId) || populationByDemographicSet.contains(populationByDemographicId)) {
+        if (ObjectUtils.isEmpty(populationByDemographicId) || populationByDemographicMap.containsKey(populationByDemographicId)) {
             return;
         }
 
@@ -143,6 +141,6 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getPopulationByDemographics().add(populationByDemographic);
         }
 
-        populationByDemographicSet.add(populationByDemographicId);
+        populationByDemographicMap.put(populationByDemographicId, populationByDemographic);
     }
 }

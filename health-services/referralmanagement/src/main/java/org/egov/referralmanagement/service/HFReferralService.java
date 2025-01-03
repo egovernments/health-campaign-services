@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralRequest;
@@ -170,12 +169,12 @@ public class HFReferralService {
     }
 
     // Method to search for HFReferrals based on certain criteria
-    public SearchResponse<HFReferral> search(HFReferralSearchRequest referralSearchRequest,
-                                             Integer limit,
-                                             Integer offset,
-                                             String tenantId,
-                                             Long lastChangedSince,
-                                             Boolean includeDeleted) {
+    public List<HFReferral> search(HFReferralSearchRequest referralSearchRequest,
+                                   Integer limit,
+                                   Integer offset,
+                                   String tenantId,
+                                   Long lastChangedSince,
+                                   Boolean includeDeleted) {
         log.info("Received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getHfReferral());
 
@@ -187,12 +186,11 @@ public class HFReferralService {
                     referralSearchRequest.getHfReferral());
             log.info("Fetching referrals with IDs: {}", ids);
 
-            List<HFReferral> hfReferrals = hfReferralRepository.findById(ids, idFieldName, includeDeleted).getResponse().stream()
+            return hfReferralRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            return SearchResponse.<HFReferral>builder().response(hfReferrals).build();
         }
 
         log.info("Searching referrals using criteria");

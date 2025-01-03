@@ -1,0 +1,331 @@
+@import "../../typography.scss";
+
+.campaign-cycle-container {
+  .campaign-tabs-container {
+  }
+  .sub-tab-container {
+    margin-top: 5px;
+    padding: 1.5rem;
+    .card-text {
+      margin-bottom: 0;
+    }
+  }
+  .add-resource-container {
+    background-color: #fafafa;
+    border: 1px solid #d6d5d4;
+    border-radius: 0.4rem;
+    padding: 1rem;
+    margin-right: 1.5rem;
+    margin-bottom: 1.5rem;
+    .card-text {
+      margin: 0;
+      font-weight: 700;
+    }
+    .header-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+  }
+  .delete-resource-icon {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    color: theme(digitv2.lightTheme.primary);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .add-resource-label-field-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-gap: 2rem;
+    .options-card {
+      max-height: 10rem !important;
+    }
+  }
+  .popup-wrap {
+    .popup-module-main {
+      max-height: 707px;
+      overflow-y: auto;
+      width: 99%;
+      &::-webkit-scrollbar {
+        width: 0.5rem;
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #d6d5d4; /* Color of the scrollbar thumb */
+        border-radius: 5px; /* Adjust the border-radius for rounded corners */
+        height: 0.5rem;
+      }
+    }
+    .popup-module-action-bar {
+      .selector-button-primary {
+        padding: 0.6rem 2.5rem;
+        height: unset;
+        margin: 1.5rem;
+        background-color: theme(digitv2.lightTheme.primary);
+      }
+    }
+  }
+}
+.selector-button-primary {
+  background-color: theme(digitv2.lightTheme.primary);
+}
+.campaign-breadcrumb {
+  margin: 0;
+  margin-bottom: 1.5rem;
+  color: theme(digitv2.lightTheme.primary) !important;
+}
+.sc-jlZhew.dVtbRz {
+  overflow: hidden;
+}
+.campaign-popup-module {
+  margin: auto;
+  width: calc(100% - 5rem);
+}
+.campaign-bulk-upload {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  .campaign-download-template-btn {
+    font-weight: 700;
+  }
+}
+.bulk-info-text {
+  margin-bottom: 1.5rem;
+}
+.delete-and-download-button {
+  display: flex;
+  gap: 1.5rem;
+}
+.bulk-upload-file {
+  .uploaded-file-container {
+    margin: 0;
+    margin-bottom: 1.5rem;
+  }
+}
+.uploaded-file-container {
+  margin-left: 0rem;
+}
+.upload-drag-drop-container {
+  background-color: #fafafa;
+  border: 1.5px dashed #d6d5d4;
+  border-radius: 5px;
+  padding: 1rem 1rem 1rem 1rem;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+
+  .drag-drop-text {
+    text-decoration: none;
+
+    .browse-text {
+      text-decoration: none;
+      color: theme(digitv2.lightTheme.primary);
+      transition: color 0.3s;
+    }
+
+    .browse-text:hover {
+      color: theme(digitv2.lightTheme.primary);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+  }
+}
+
+.upload-drag-drop-container {
+  margin-left: 0rem;
+  .drag-drop {
+    color: #b1b4b6;
+  }
+  .browse-text {
+    text-decoration: underline;
+    color: theme(digitv2.lightTheme.primary);
+    transition: color 0.3s;
+  }
+}
+
+.campaign-counter-container {
+  padding: 1.5rem;
+  padding-bottom: 0.5rem;
+  .card-text {
+    margin-top: 0;
+  }
+  .label-field-pair {
+    margin-bottom: 1rem;
+    .card-label {
+      font-weight: 700;
+    }
+  }
+  .date-field-container {
+    display: grid;
+    grid-template-columns: 18.75rem 18.75rem;
+    grid-gap: 1.5rem;
+    width: 100%;
+  }
+  .PlusMinus {
+    width: 30%;
+    input {
+      width: 100%;
+    }
+  }
+}
+
+.campaign-tab-head {
+  padding: 1rem;
+  width: 12.5rem;
+  height: 3rem;
+  border-radius: 10px 10px 0px 0px;
+  background-color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  font-weight: 700;
+  font-size: 1rem;
+  font-family: "Roboto";
+  color: #505a5f;
+  margin-bottom: -6px;
+  border: 1px solid #d6d5d4;
+  background-color: #fafafa;
+  &.active {
+    height: 3.375rem;
+    background-color: #ffffff;
+    outline: none;
+    font-weight: bold;
+    color: theme(digitv2.lightTheme.primary);
+    border: 1px solid theme(digitv2.lightTheme.primary);
+    border-bottom: 4px solid theme(digitv2.lightTheme.primary);
+    box-sizing: border-box;
+    font-size: 1.5rem;
+  }
+  :focus {
+    outline: none;
+  }
+}
+.campaign-sub-tab-head {
+  outline: none;
+  background-color: #ffffff;
+  color: theme(digitv2.lightTheme.primary);
+  border: 1px solid theme(digitv2.lightTheme.primary);
+  height: 2rem;
+  width: 9.188rem;
+  font-size: 1rem;
+  font-weight: 400;
+  &.active {
+    background-color: theme(digitv2.lightTheme.primary);
+    color: #ffffff;
+    font-weight: bold;
+    outline: none;
+    height: 2rem;
+    width: 9.188rem;
+    font-family: "Roboto";
+    font-weight: 700;
+    font-size: 1rem;
+  }
+}
+.tab-content-header {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem !important;
+}
+
+.delivery-rule-container {
+  padding-top: 0;
+  .card-header {
+    .title {
+      margin: 0 !important;
+    }
+    font-size: 1.5rem !important;
+    margin: 0;
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+  }
+  .attribute-container {
+    border: 1px solid #d6d5d4;
+    background-color: #fafafa;
+    padding: 1rem;
+    padding-top: 0;
+    .add-attribute {
+      width: 74.5%;
+      justify-content: center;
+      h2 {
+        font-size: 1rem;
+        font-family: Roboto;
+        width: unset !important;
+        font-weight: 600;
+      }
+    }
+  }
+}
+.attribute-field-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  align-items: center;
+  gap: 2.5rem;
+  .label-field-pair {
+    flex-direction: column;
+    align-items: flex-start !important;
+    .card-label.card-label-smaller {
+      font-weight: 700;
+    }
+    .employee-select-wrap.form-field {
+      width: 100%;
+    }
+    .digit-employee-card-input {
+      margin-bottom: 0;
+    }
+  }
+  .options-card {
+    max-height: 10rem !important;
+  }
+  .card-label {
+    margin-bottom: 0.5rem;
+  }
+}
+.add-rule-btn {
+  margin: auto;
+  h2 {
+    font-family: Roboto;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+.add-product-btn {
+  h2 {
+    font-family: Roboto;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+.popup-wrap.campaign-product-wrapper {
+  .popup-module {
+    width: 70%;
+    padding-left: 1.5rem;
+    padding-bottom: 1.5rem;
+    .header-wrap {
+      font-size: 1.5rem;
+      font-weight: 700;
+      .header-content.popup-header-fix {
+        margin-top: 1.5rem;
+      }
+    }
+  }
+  .popup-module-action-bar {
+    margin-top: 1.5rem;
+    margin-right: 1.5rem;
+  }
+}
+.search-button-wrapper {
+  grid-column-end: -1 !important;
+  flex-direction: row !important;
+}
+.add-resource-modal {
+}
+.add-resource-wrapper {
+  .link {
+    color: theme(digitv2.lightTheme.primary);
+  }
+}
+.digit-toast-success {
+  margin-bottom: -0.5rem;
+}

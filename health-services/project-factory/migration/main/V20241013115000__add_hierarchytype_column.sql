@@ -1,1 +1,0 @@
-ALTER TABLE eg_cm_resource_details ADD COLUMN hierarchytype character varying(128);

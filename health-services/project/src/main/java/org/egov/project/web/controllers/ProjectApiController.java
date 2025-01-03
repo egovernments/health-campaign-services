@@ -220,7 +220,7 @@ public class ProjectApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
-        SearchResponse<ProjectFacility> searchResponse = projectFacilityService.search(
+        List<ProjectFacility> projectFacilities = projectFacilityService.search(
                 projectFacilitySearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -229,8 +229,7 @@ public class ProjectApiController {
                 urlParams.getIncludeDeleted()
         );
         ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-                .projectFacilities(searchResponse.getResponse())
-                .totalCount(searchResponse.getTotalCount())
+                .projectFacilities(projectFacilities)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
                 .build();
@@ -311,7 +310,7 @@ public class ProjectApiController {
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest
     ) throws Exception {
-        SearchResponse<ProjectStaff> searchResponse = projectStaffService.search(
+        List<ProjectStaff> projectStaffList = projectStaffService.search(
                 projectStaffSearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -320,8 +319,7 @@ public class ProjectApiController {
                 urlParams.getIncludeDeleted()
         );
         ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
-                .projectStaff(searchResponse.getResponse())
-                .totalCount(searchResponse.getTotalCount())
+                .projectStaff(projectStaffList)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();

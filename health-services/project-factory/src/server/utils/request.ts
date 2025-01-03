@@ -47,7 +47,6 @@ const cacheEnabled = config.cacheValues.cacheEnabled; // Variable to indicate wh
 
 /**
  * Used to Make API call through axios library
- * @author jagankumar-egov
  * 
  * @param {string} _url - The URL to make the HTTP request to
  * @param {Object} _requestBody - The request body
@@ -125,10 +124,6 @@ const httpRequest = async (
         }
         return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
       }
-      else{
-        logger.warn(`Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(response.data)}`);
-        return sendStatusCode ? { ...response.data, statusCode: responseStatus } : response.data;
-      }
     } catch (error: any) {
       const errorResponse = error?.response;
       logger.error(
@@ -153,50 +148,25 @@ const httpRequest = async (
           errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
         )}`
       );
-      if (
-        retry ||
-        (config.values.autoRetryIfHttpError &&
-          config.values.autoRetryIfHttpError?.includes(
-            errorResponse?.data?.Errors?.[0]?.code
-          ))
-      ) {
-        logger.info(
-          `retrying the failed api call since retry is enabled or error is equal to configured ${config.values.autoRetryIfHttpError}`
-        );
+      if (retry) {
         attempt++;
         if (attempt >= maxAttempts) {
           if (dontThrowError) {
-            logger.warn(
-              `Maximum retry attempts reached for httprequest with url ${_url}`
-            );
-            return (
-              errorResponse?.data || {
-                Errors: [{ code: error.message, description: error.stack }],
-              }
-            );
+            logger.warn(`Maximum retry attempts reached for httprequest with url ${_url}`);
+            return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
           } else {
             throwTheHttpError(errorResponse, error, _url);
           }
         }
-        logger.warn(
-          `Waiting for 20 seconds before retrying httprequest with url ${_url}`
-        );
+        logger.warn(`Waiting for 20 seconds before retrying httprequest with url ${_url}`);
         await new Promise((resolve) => setTimeout(resolve, 20000));
       } else if (dontThrowError) {
         logger.warn(
-          `Error occurred while making request to ${getServiceName(
-            _url
-          )}: returning error response ${JSON.stringify(
-            errorResponse?.data || {
-              Errors: [{ code: error.message, description: error.stack }],
-            }
+          `Error occurred while making request to ${getServiceName(_url)}: returning error response ${JSON.stringify(
+            errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
           )}`
         );
-        return (
-          errorResponse?.data || {
-            Errors: [{ code: error.message, description: error.stack }],
-          }
-        );
+        return errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] };
       } else {
         throwTheHttpError(errorResponse, error, _url);
       }

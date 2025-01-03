@@ -41,7 +41,7 @@ public class AttributeDefinition {
 
     @JsonProperty("code")
     @NotNull
-    @Size(min = 2, max = 256)
+    @Size(min = 2, max = 64)
     private String code = null;
 
     /**
@@ -49,8 +49,6 @@ public class AttributeDefinition {
      */
     public enum DataTypeEnum {
         STRING("String"),
-
-        BOOLEAN("Boolean"),
 
         NUMBER("Number"),
 
@@ -112,7 +110,7 @@ public class AttributeDefinition {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalFields")
+    @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 
 
