@@ -1,6 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.project.BeneficiaryType;
 import org.egov.common.models.project.Target;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -40,7 +41,7 @@ public class TargetRowMapper  implements ResultSetExtractor<List<Target>> {
             Target target = Target.builder()
                     .id(target_id)
                     .projectid(target_projectId)
-                    .beneficiaryType(target_beneficiaryType)
+                    .beneficiaryType(BeneficiaryType.fromValue(target_beneficiaryType))
                     .totalNo(target_totalNo)
                     .targetNo(target_targetNo)
                     .isDeleted(target_isDeleted)

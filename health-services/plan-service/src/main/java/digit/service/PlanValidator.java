@@ -544,15 +544,12 @@ public class PlanValidator {
             throw new CustomException(NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE);
         }
 
-        //TODO: change to if(!plan.isRequestFromResourceEstimationConsumer()) after triggering from consumer
-
         // Enrich the boundary ancestral path and jurisdiction mapping for the provided boundary code
         if(plan.isRequestFromResourceEstimationConsumer())
             planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
     }
 
     /**
-     * TODO - 1. plan existence 2. plan employee assignment 3. uniqueness check across records
      * @param bulkPlanRequest
      */
     public void validateBulkPlanUpdate(BulkPlanRequest bulkPlanRequest) {
