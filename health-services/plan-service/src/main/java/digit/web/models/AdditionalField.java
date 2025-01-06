@@ -1,4 +1,4 @@
-package digit.web.models.census;
+package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
