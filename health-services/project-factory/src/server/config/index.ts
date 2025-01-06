@@ -17,8 +17,9 @@ const getDBSchemaName = (dbSchema = "") => {
 }
 // Configuration object containing various environment variables
 const config = {
-  batchSize:100,
+  batchSize: 100,
   cacheTime: 300,
+  allTypesOfTemplate: ["user", "facility", "boundary"],
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
@@ -28,6 +29,10 @@ const config = {
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   masterNameForSchemaOfColumnHeaders: "adminSchema",
   masterNameForSplitBoundariesOn: "HierarchySchema",
+  moduleNameForProjectTypes: "HCM-PROJECT-TYPES",
+  masterNameForProjectTypes: "projectTypes",
+  commonMastersModule: "common-masters",
+  stateInfoMasters: "StateInfo",
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
@@ -40,8 +45,8 @@ const config = {
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-    facilityCodeColumn : "HCM_ADMIN_CONSOLE_FACILITY_CODE",
-    facilityType : "facility"
+    facilityCodeColumn: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+    facilityType: "facility"
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
@@ -81,7 +86,8 @@ const config = {
     DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
     DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`
+    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
+    DB_TEMPLATE_TABLE_NAME: "template_table"
   },
   // Application configuration
   app: {
@@ -125,7 +131,8 @@ const config = {
     localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
-    censusServiceHost: process.env.EGOV_CENSUS_HOST ||"https://unified-dev.digit.org/",  },
+    censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
+  },
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
@@ -162,7 +169,8 @@ const config = {
     planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
     planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
     planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
-    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"  },
+    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"
+  },
   // Values configuration
   values: {
     //module name
@@ -181,7 +189,7 @@ const config = {
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
     notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE || false,
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    skipResourceCheckValidationBeforeCreateForLocalTesting:false, // can be set to true for local development 
+    skipResourceCheckValidationBeforeCreateForLocalTesting: false, // can be set to true for local development 
     autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" // can be retry if there is any error for which default retry can be set
   }
 };

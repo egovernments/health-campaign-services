@@ -1530,5 +1530,7 @@ export {
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
-  hideUniqueIdentifierColumn
+  hideUniqueIdentifierColumn,
+  setDropdownFromSchema,
+  handledropdownthings
 };

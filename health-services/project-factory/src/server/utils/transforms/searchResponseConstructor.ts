@@ -93,3 +93,21 @@ export const generatedResourceTransformer = (dbRows: any[] = []) => {
     return { ...item }; // Return the transformed object
   });
 };
+
+export const TemplateTransformer = (dbRows: any[] = []) => {
+  return dbRows?.map((row: any) => ({
+    id: row?.id,
+    tenantId: row?.tenantid,
+    fileStoreId: row?.filestoreid,
+    campaignType: row?.campaigntype,
+    type: row?.type,
+    auditDetails: {
+      createdBy: row?.createdby,
+      lastModifiedBy: row?.lastmodifiedby,
+      createdTime: Number(row?.createdtime),
+      lastModifiedTime: row?.lastmodifiedtime
+        ? Number(row?.lastmodifiedtime)
+        : null,
+    }
+  }));
+}
