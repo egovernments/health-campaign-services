@@ -68,6 +68,8 @@ const config = {
     KAFKA_SAVE_PROCESS_TRACK_TOPIC: process.env.KAFKA_SAVE_PROCESS_TRACK_TOPIC || "save-process-track",
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
     KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
+    KAFKA_SAVE_CAMPAIGN_PROJECT : process.env.KAFKA_SAVE_CAMPAIGN_PROJECT || "save-campaign-project",
+    KAFKA_UPDATE_CAMPAIGN_PROJECT : process.env.KAFKA_UPDATE_CAMPAIGN_PROJECT || "update-campaign-project",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -81,7 +83,8 @@ const config = {
     DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
     DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`
+    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
+    DB_CAMPAIGN_PROJECTS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_projects`
   },
   // Application configuration
   app: {
@@ -184,7 +187,7 @@ const config = {
     skipResourceCheckValidationBeforeCreateForLocalTesting:false, // can be set to true for local development 
     autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
     latLongColumns: process.env.LAT_LONG_SUBSTRINGS || "HCM_ADMIN_CONSOLE_FACILITY_LATITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_FACILITY_LONGITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_TARGET_LAT_OPT,HCM_ADMIN_CONSOLE_TARGET_LONG_OPT",
-    validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
+    validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA || false
   }
 };
 // Exporting getErrorCodes function and config object

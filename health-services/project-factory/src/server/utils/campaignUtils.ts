@@ -86,9 +86,7 @@ import {
 import {
   callGenerateWhenChildCampaigngetsCreated,
   fetchProjectsWithBoundaryCodeAndReferenceId,
-  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
-  getBoundaryProjectMappingFromParentCampaign,
   getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
   modifyNewSheetData,
@@ -2161,7 +2159,6 @@ async function updateProjectDates(request: any, actionInUrl: any) {
 }
 
 async function getCodesTarget(request: any, localizationMap?: any) {
-  let boundaryCodesWhoseTargetsHasToBeUpdated: any = [];
   const { tenantId, resources } = request?.body?.CampaignDetails;
   const boundaryWithTargetResource = resources?.filter(
     (resource: any) => resource?.type == "boundaryWithTarget"
@@ -2194,21 +2191,14 @@ async function getCodesTarget(request: any, localizationMap?: any) {
     for (const key in targetData) {
       // Iterate through each entry in the array under the current key
       targetData[key].forEach((entry : any) => {
-        // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
+        // Check if the entry has both "Boundary Code" and "currentBoundaryTarget"
         if (
           entry[codeColumnName] !== undefined &&
-          entry["Target at the Selected Boundary level"] !== undefined
+          entry["currentBoundaryTarget"] !== undefined
         ) {
           // Add the mapping to the boundaryTargetMapping object
           boundaryTargetMapping[entry[codeColumnName]] =
-            entry["Target at the Selected Boundary level"];
-          if (
-            Object.keys(entry["Parent Target at the Selected Boundary level"]).length > 0 &&
-            entry["Parent Target at the Selected Boundary level"] !==
-            entry["Target at the Selected Boundary level"]
-          ) {
-            boundaryCodesWhoseTargetsHasToBeUpdated.push(entry[codeColumnName]);
-          }
+            entry["currentBoundaryTarget"];
         }
       });
     }
@@ -2216,8 +2206,6 @@ async function getCodesTarget(request: any, localizationMap?: any) {
       "Boundary target mapping count" +
       Object.keys(boundaryTargetMapping)?.length
     );
-    request.body.boundaryCodesWhoseTargetsHasToBeUpdated =
-      boundaryCodesWhoseTargetsHasToBeUpdated;
     return boundaryTargetMapping;
   } else return null;
 }
@@ -2255,28 +2243,12 @@ async function createProject(
       };
       boundaries = await reorderBoundaries(request, localizationMap);
       const codesTargetMapping = request?.body?.CampaignDetails?.codesTargetMapping;
-      let boundariesAlreadyWithProjects: any;
-      if (request?.body?.parentCampaign) {
-        // make search to project with parent campaign root project id
-        const { projectId, tenantId } = request?.body?.parentCampaign;
-        const projectSearchResponse =
-          await fetchProjectsWithProjectId(request, projectId, tenantId);
-        boundariesAlreadyWithProjects =
-          getBoundaryProjectMappingFromParentCampaign(
-            request,
-            projectSearchResponse?.Project?.[0]
-          );
-      }
-
-      const boundaryCodesWhoseTargetsHasToBeUpdated =
-        request?.body?.boundaryCodesWhoseTargetsHasToBeUpdated;
-      if (boundaryCodesWhoseTargetsHasToBeUpdated) {
+      let boundariesCampaignProjectsMapping: any = await getBoundariesCampaignProjectsMapping(request?.body?.CampaignDetails?.campaignNumber);
+      let boundaryCodesWhoseTargetsHasToBeUpdated = getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping, codesTargetMapping, request?.body?.CampaignDetails?.parentId);  
+      if (boundaryCodesWhoseTargetsHasToBeUpdated && boundaryCodesWhoseTargetsHasToBeUpdated?.length > 0) {
         for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
-          if (
-            boundariesAlreadyWithProjects &&
-            boundariesAlreadyWithProjects.size > 0 &&
-            boundariesAlreadyWithProjects.has(boundary)
-          ) {
+          if ( boundariesCampaignProjectsMapping?.[boundary]) {
+            const campaignProjectId = boundariesCampaignProjectsMapping?.[boundary]?.id;
             const projectSearchResponse =
               await fetchProjectsWithBoundaryCodeAndReferenceId(
                 boundary,
@@ -2291,25 +2263,20 @@ async function createProject(
                 RequestInfo: request?.body?.RequestInfo,
                 Projects: [projectToUpdate],
               };
-
               await projectUpdateForTargets(
                 projectUpdateBody,
                 request,
-                boundary
+                boundary,
+                campaignProjectId
               );
             }
           }
         }
       }
-      delete request.body.boundaryCodesWhoseTargetsHasToBeUpdated;
       for (const boundary of boundaries) {
         const boundaryCode = boundary?.code;
         // Only proceed if the boundary code is not already mapped to an existing project
-        if (
-          !boundariesAlreadyWithProjects ||
-          (boundariesAlreadyWithProjects.size > 0 &&
-            !boundariesAlreadyWithProjects.has(boundaryCode))
-        ) {
+        if (!boundariesCampaignProjectsMapping?.[boundaryCode]) {
           // Set the address for the project
           Projects[0].address = {
             tenantId: tenantId,
@@ -2357,6 +2324,29 @@ async function createProject(
     processTrackTypes.targetAndDeliveryRulesCreation,
     processTrackStatuses.completed
   );
+}
+
+function getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping: any, codesTargetMapping: any, parentId: any){
+   if(!parentId){
+     return [];
+   }
+   let boundaryCodesWhoseTargetsHasToBeUpdated = [];
+   for(const boundaryCode in boundariesCampaignProjectsMapping){
+     if(boundariesCampaignProjectsMapping?.[boundaryCode]){
+       const oldTargets = boundariesCampaignProjectsMapping?.[boundaryCode]?.additionalDetails?.targets || [];
+       const newTargets = codesTargetMapping?.[boundaryCode] || {};
+       for(const beneficiary of newTargets){
+         const beneficiaryType = beneficiary?.beneficiaryType;
+         const newTargetNoForCurrentBeneficiaryType = beneficiary?.targetNo;
+         const oldTargetNoForCurrentBeneficiaryType = oldTargets?.find((target: any) => target?.beneficiaryType == beneficiaryType)?.targetNo;
+         if(newTargetNoForCurrentBeneficiaryType != oldTargetNoForCurrentBeneficiaryType){
+           boundaryCodesWhoseTargetsHasToBeUpdated.push(boundaryCode);
+           break;
+         }
+       }
+     }
+   }
+   return boundaryCodesWhoseTargetsHasToBeUpdated;
 }
 
 const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryCode: any) => {
@@ -3048,12 +3038,9 @@ export async function processDataForTargetCalculation(request: any, jsonData: an
     // Initialize an object to hold row-specific data
     let rowData: any = { [codeColumnName]: row[codeColumnName] };
 
-    // Add placeholder fields for Parent Target and Current Target data
-    rowData['Parent Target at the Selected Boundary level'] = {};
-    rowData['Target at the Selected Boundary level'] = {};
+    rowData['currentBoundaryTarget'] = {};
     const beneficiaries = targetConfigs?.mdms?.[0]?.data?.beneficiaries;
-    // Calculate the parent target values
-    calculateTargetsAtParentLevel(request, row, rowData, beneficiaries, localizationMap);
+
     // Calculate the current target values
     calculateTargetsAtCurrentLevel(row, rowData, beneficiaries, localizationMap);
 
@@ -3062,34 +3049,6 @@ export async function processDataForTargetCalculation(request: any, jsonData: an
   }).filter(Boolean); // Remove any null entries from the map (i.e., skip the header row)
 
   return resultantData;
-}
-
-export function calculateTargetsAtParentLevel(request: any, row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
-  // Check if a parent campaign exists in the request body
-  if (request?.body?.parentCampaign) {
-    // Loop through the beneficiaries for the specified campaign type
-    if (Array.isArray(beneficiaries) && beneficiaries?.length > 0) {
-      for (const beneficiary of beneficiaries) {
-        const beneficiaryType = beneficiary?.beneficiaryType;
-        const columns = beneficiary?.columns;
-        let totalParentValue = 0;
-
-        // Loop through each column to calculate the total parent value
-        for (const col of columns) {
-          // Get the parent value from the column and add it if it's an integer
-          const parentValue = row[`${getLocalizedName(col, localizationMap)}(OLD)`];
-          if (typeof parentValue === 'number' && Number.isInteger(parentValue)) {
-            totalParentValue += parentValue;
-          }
-        }
-        // Assign the total parent value to the corresponding beneficiary type
-        rowData['Parent Target at the Selected Boundary level'][beneficiaryType] = totalParentValue;
-      }
-    }
-    else {
-      logger.warn("No beneficiaries config found for the specified campaign type");
-    }
-  }
 }
 
 export function calculateTargetsAtCurrentLevel(row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
@@ -3108,7 +3067,7 @@ export function calculateTargetsAtCurrentLevel(row: any, rowData: any, beneficia
         }
       }
       // Assign the total current value to the corresponding beneficiary type
-      rowData['Target at the Selected Boundary level'][beneficiaryType] = totalCurrentValue;
+      rowData['currentBoundaryTarget'][beneficiaryType] = totalCurrentValue;
     }
   }
   else {
@@ -3841,6 +3800,73 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
     logger.info("Updated the received campaign object");
   } else {
     throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", "Error in campaign search");
+  }
+}
+
+export async function persistCampaignProject(project: any, campaignDetails: any, requestInfo: any, campaignProjectId? : string) {
+  const currentTime = new Date().getTime()
+  const currentUserUuid = requestInfo?.userInfo?.uuid;
+  const campainProject : any = {
+    id: campaignProjectId || uuidv4(),
+    projectId : project.id,
+    campaignNumber : campaignDetails.campaignNumber,
+    boundaryCode : project?.address?.boundary,
+    additionalDetails : {
+      targets : project?.targets?.map((target:any)=>{
+        return {
+          beneficiaryType: target?.beneficiaryType,
+          targetNo : target?.targetNo,
+        }
+      })
+    },
+    isActive : true,
+    createdBy : currentUserUuid,
+    lastModifiedBy : currentUserUuid,
+    createdTime : currentTime,
+    lastModifiedTime : currentTime
+  }
+  const produceMessage : any = {
+    campaignProject : campainProject
+  }
+  await produceModifiedMessages(produceMessage, campaignProjectId ? config?.kafka?.KAFKA_UPDATE_CAMPAIGN_PROJECT : config?.kafka?.KAFKA_SAVE_CAMPAIGN_PROJECT);
+}
+
+async function getBoundariesCampaignProjectsMapping(campaignNumber: string) {
+  const campaignProjects: any[] = await getCampaignProjects(campaignNumber, true);
+  return campaignProjects.reduce((acc: any, curr: any) => {
+    acc[curr.boundaryCode] = curr;
+    return acc;
+  }, {});
+}
+
+async function getCampaignProjects(campaignNumber: string, searchActiveOnly: boolean) {
+  // Adjust query based on the searchActiveOnly parameter
+  const query = `SELECT * from ${config?.DB_CONFIG.DB_CAMPAIGN_PROJECTS_TABLE_NAME} WHERE campaignnumber = $1 ${searchActiveOnly ? 'AND isactive = true' : ''}`;
+  const values = [campaignNumber];
+
+  try {
+    const queryResponse = await executeQuery(query, values);
+
+    // Map over rows and return an array of formatted objects
+    const projects = queryResponse.rows.map((row: any) => {
+      return {
+        id: row.id,
+        projectId: row.projectid,
+        campaignNumber: row.campaignnumber,
+        boundaryCode: row.boundarycode,
+        additionalDetails: row.additionaldetails,
+        isActive: row.isactive,
+        createdBy: row.createdby,
+        lastModifiedBy: row.lastmodifiedby,
+        createdTime: row.createdtime,
+        lastModifiedTime: row.lastmodifiedtime
+      };
+    });
+
+    return projects;
+  } catch (error) {
+    console.error("Error fetching campaign projects:", error);
+    throw error;
   }
 }
 

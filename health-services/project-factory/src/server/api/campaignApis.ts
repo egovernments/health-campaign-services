@@ -30,6 +30,7 @@ import {
   createIdRequests,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
+  persistCampaignProject,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -1822,6 +1823,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[
       projectCreateBody?.Projects?.[0]?.address?.boundary
     ].projectId = projectCreateResponse?.Project[0]?.id;
+    await persistCampaignProject(projectCreateResponse?.Project[0], request?.body?.CampaignDetails, request?.body?.RequestInfo);
   } else {
     throwError(
       "PROJECT",
@@ -1833,7 +1835,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
   }
 }
 
-async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
+async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any, campaignProjectId : string) {
   logger.info("Project Update For Targets started");
 
   logger.debug("Project update request body: " + getFormattedStringForDebug(projectUpdateBody));
@@ -1848,6 +1850,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
     );
     logger.debug("Project update response: " + getFormattedStringForDebug(projectUpdateResponse));
     logger.info(`Project update response for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
+    await persistCampaignProject(projectUpdateResponse?.Project[0], request?.body?.CampaignDetails, request?.body?.RequestInfo, campaignProjectId);
   } catch (error: any) {
     logger.error("Project update failed", error);
     throwError(
