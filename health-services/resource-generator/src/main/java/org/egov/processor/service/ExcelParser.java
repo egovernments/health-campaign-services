@@ -127,7 +127,7 @@ public class ExcelParser implements FileParser {
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-                    workbook, campaignBoundaryList, campaignResourcesList);
+                    workbook, campaignBoundaryList, campaignResourcesList, fileStoreId);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -152,7 +152,7 @@ public class ExcelParser implements FileParser {
 	 */
 	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
 			Object campaignResponse, Workbook workbook,
-			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
+			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList, String filestoreId) {
 		File fileToUpload = null;
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
@@ -165,9 +165,12 @@ public class ExcelParser implements FileParser {
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
 				//Upload the processed output file into project factory
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-//				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
+
 				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest);
 
+				// Adding facility information for each boundary code
+				outputEstimationGenerationUtil.addAssignedFacility(workbook, planConfigurationRequest, filestoreId);
 
 				//update processed output file into plan configuration file object
 				fileToUpload = convertWorkbookToXls(workbook);
