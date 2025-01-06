@@ -54,7 +54,8 @@ public class PlanEnricher {
         body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, "id"));
 
         // Generate id for additional fields
-        body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+        if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields()))
+            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
 
         // Enrich audit details
         body.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
