@@ -85,7 +85,7 @@ import {
 } from "./targetUtils";
 import {
   callGenerateWhenChildCampaigngetsCreated,
-  fetchProjectsWithBoundaryCodeAndReferenceId,
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
@@ -2249,12 +2249,12 @@ async function createProject(
         for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
           if ( boundariesCampaignProjectsMapping?.[boundary]) {
             const campaignProjectId = boundariesCampaignProjectsMapping?.[boundary]?.id;
+            const projectId = boundariesCampaignProjectsMapping?.[boundary]?.projectId;
             const projectSearchResponse =
-              await fetchProjectsWithBoundaryCodeAndReferenceId(
-                boundary,
-                tenantId,
-                request?.body?.CampaignDetails?.campaignNumber,
-                request?.body?.RequestInfo
+              await fetchProjectsWithProjectId(
+                request,
+                projectId,
+                tenantId
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
             if (projectToUpdate) {
@@ -2335,9 +2335,8 @@ function getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMa
      if(boundariesCampaignProjectsMapping?.[boundaryCode]){
        const oldTargets = boundariesCampaignProjectsMapping?.[boundaryCode]?.additionalDetails?.targets || [];
        const newTargets = codesTargetMapping?.[boundaryCode] || {};
-       for(const beneficiary of newTargets){
-         const beneficiaryType = beneficiary?.beneficiaryType;
-         const newTargetNoForCurrentBeneficiaryType = beneficiary?.targetNo;
+       for(const beneficiaryType in newTargets){
+         const newTargetNoForCurrentBeneficiaryType = newTargets?.[beneficiaryType];
          const oldTargetNoForCurrentBeneficiaryType = oldTargets?.find((target: any) => target?.beneficiaryType == beneficiaryType)?.targetNo;
          if(newTargetNoForCurrentBeneficiaryType != oldTargetNoForCurrentBeneficiaryType){
            boundaryCodesWhoseTargetsHasToBeUpdated.push(boundaryCode);
