@@ -53,6 +53,10 @@ public class PlanEnricher {
         // Generate id for targets
         body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, "id"));
 
+        // Generate id for additional fields
+        if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields()))
+            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+
         // Enrich audit details
         body.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
                 .prepareAuditDetails(body.getPlan().getAuditDetails(), body.getRequestInfo(), Boolean.TRUE));
@@ -104,6 +108,13 @@ public class PlanEnricher {
         body.getPlan().getTargets().forEach(target -> {
             if(ObjectUtils.isEmpty(target.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(target, "id");
+            }
+        });
+
+        // Generate uuid for new additionalFields
+        body.getPlan().getAdditionalFields().forEach(additionalFields -> {
+            if(ObjectUtils.isEmpty(additionalFields.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
             }
         });
 
