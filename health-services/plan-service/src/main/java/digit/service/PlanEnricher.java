@@ -1,7 +1,6 @@
-package digit.service.enrichment;
+package digit.service;
 
-import digit.web.models.Plan;
-import digit.web.models.PlanRequest;
+import digit.web.models.*;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
 import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
 import digit.web.models.boundary.EnrichedBoundary;
@@ -13,6 +12,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+
+import static digit.config.ServiceConstants.FACILITY_NAME_SEARCH_PARAMETER_KEY;
 
 @Component
 public class PlanEnricher {
@@ -227,5 +228,25 @@ public class PlanEnricher {
             return Collections.emptyList();
         }
         return Arrays.asList(boundaryAncestralPath.split("\\|"));
+    }
+
+    /**
+     * Enriches plan search request
+     *
+     * @param planSearchRequest
+     */
+    public void enrichSearchRequest(PlanSearchRequest planSearchRequest) {
+        PlanSearchCriteria planSearchCriteria = planSearchRequest.getPlanSearchCriteria();
+
+        // Filter map for filtering plan metadata present in additional details
+        Map<String, String> filtersMap = new LinkedHashMap<>();
+
+        // Add facility name as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityName())) {
+            filtersMap.put(FACILITY_NAME_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityName());
+        }
+
+        if(!CollectionUtils.isEmpty(filtersMap))
+            planSearchCriteria.setFiltersMap(filtersMap);
     }
 }

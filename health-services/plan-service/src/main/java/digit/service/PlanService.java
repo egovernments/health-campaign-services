@@ -1,13 +1,13 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
-import digit.service.enrichment.PlanEnricher;
-import digit.service.validator.PlanValidator;
 import digit.service.workflow.WorkflowService;
 import digit.web.models.*;
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +61,9 @@ public class PlanService {
      * @return
      */
     public PlanResponse searchPlan(PlanSearchRequest body) {
+        // Enrich search request
+        planEnricher.enrichSearchRequest(body);
+
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 
