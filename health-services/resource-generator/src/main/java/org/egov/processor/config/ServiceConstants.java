@@ -77,6 +77,7 @@ public class ServiceConstants {
     public static final String BOUNDARY = "boundary";
     public static final String DOT_SEPARATOR = ".";
     public static final String MICROPLAN_PREFIX = "MP-";
+    public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
 
     //MDMS field Constants
     public static final String DATA = "data";
