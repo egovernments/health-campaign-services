@@ -42,9 +42,31 @@ public class ExcelStylingUtil {
         // Apply the style to the cell
         cell.setCellStyle(cellStyle);
 
-        // Adjust the column width
+    }
+
+    /**
+     * Adjusts the column width to fit the content of the given cell, adding padding for readability.
+     *
+     * @param cell the cell whose column width is to be adjusted; does nothing if null.
+     */
+    public void adjustColumnWidthForCell(Cell cell) {
+        if (cell == null) {
+            return;
+        }
+
+        Sheet sheet = cell.getSheet();
         int columnIndex = cell.getColumnIndex();
-        sheet.setColumnWidth(columnIndex, COLUMN_WIDTH * 256); // Width is measured in units of 1/256 of a character
+        int maxWidth = sheet.getColumnWidth(columnIndex);
+
+        // Calculate the width needed for the current cell content
+        String cellValue = cell.toString(); // Convert cell content to string
+        int cellWidth = cellValue.length() * 256; // Approximate width (1/256th of character width)
+
+        // Use the maximum width seen so far, including padding for readability
+        int padding = 512; // Adjust padding as needed
+        int newWidth = Math.max(maxWidth, cellWidth + padding);
+
+        sheet.setColumnWidth(columnIndex, newWidth);
     }
 
     /**
