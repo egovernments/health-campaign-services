@@ -49,12 +49,27 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse createUser(UserRequest userRequest) {
-        IndividualRequest request = mapToIndividualRequest(userRequest);
+        IndividualRequest request = mapToIndividualRequest(userRequest, null);
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
         IndividualResponse response = restCallRepository
                 .fetchResult(uri, request, IndividualResponse.class);
+        UserResponse userResponse = null;
+        if (response != null && response.getIndividual() != null) {
+            log.info("response received from individual service");
+            userResponse = mapToUserResponse(response);
+        }
+        return userResponse;
+    }
+
+    public UserResponse createUserByLocality(UserRequest userRequest, String localityCode) {
+        IndividualRequest request = mapToIndividualRequest(userRequest,localityCode);
+        StringBuilder uri = new StringBuilder();
+        uri.append(propertiesManager.getIndividualHost());
+        uri.append(propertiesManager.getIndividualCreateEndpoint());
+        IndividualResponse response = restCallRepository
+          .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
@@ -250,7 +265,7 @@ public class IndividualService implements UserService {
         }
     }
 
-    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest) {
+    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
                 .userId(userRequest.getUser().getId() != null ?
@@ -270,6 +285,7 @@ public class IndividualService implements UserService {
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                                .locality(Boundary.builder().code(localityCode).build())
                                 .isDeleted(Boolean.FALSE)
                         .build()))
                 /*
