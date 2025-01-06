@@ -81,6 +81,7 @@ public class OutputEstimationGenerationUtil {
             // Update the cell value with the localized message
             excelStylingUtil.styleCell(headerColumn);
             headerColumn.setCellValue(localizationCodeAndMessageMap.get(headerColumnValue));
+            excelStylingUtil.adjustColumnWidthForCell(headerColumn);
         }
 
     }
@@ -190,6 +191,7 @@ public class OutputEstimationGenerationUtil {
         Cell facilityColHeader = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
         excelStylingUtil.styleCell(facilityColHeader);
         facilityColHeader.setCellValue(assignedFacilityColHeader);
+        excelStylingUtil.adjustColumnWidthForCell(facilityColHeader);
         return indexOfFacility;
     }
 }
