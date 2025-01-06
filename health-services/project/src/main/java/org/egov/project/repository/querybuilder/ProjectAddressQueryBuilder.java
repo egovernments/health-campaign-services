@@ -71,8 +71,8 @@ public class ProjectAddressQueryBuilder {
 
             if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.projectHierarchy ~ ? ");
-                preparedStmtList.add(project.getId());
+                queryBuilder.append(" prj.projectHierarchy LIKE ? ");
+                preparedStmtList.add('%' + project.getId() + '%');
             } else if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.id =? ");
