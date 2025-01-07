@@ -1,810 +1,1891 @@
-swagger: '2.0'
+openapi: 3.0.1
 info:
-  version: 1.0.0
-  title: Referral Management System
-  contact:
-    name: egovernments foundation
-    email: info@egovernments.org
-schemes:
-  - https
-x-common-path: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+  title:  Referral Management System
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
 paths:
   /referralmanagement/beneficiary-downsync/v1/_get:
     post:
-      summary: Downsync beneficiary details for a Project
-      description: when data created by a different registar needs to be downsynced by another registar/device, this api will serve as a one point search for benefeiciary details
-      parameters:
-        - name: Downsync
-          in: body
-          description: Downsync of registry based on area.
-          required: true
-          schema:
-            $ref: '#/definitions/DownsyncRequest'
       tags:
         - Beneficiary Downsync
+      summary: Downsync beneficiary details for a Project
+      description: when data created by a different registar needs to be downsynced by another registar/device, this api will serve as a one point search for benefeiciary details
+      operationId: getBeneficaryData
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DownsyncRequest'
+        required: true
       responses:
         '200':
-          description: Downsync.
-          schema:
-            $ref: '#/definitions/DownsyncResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DownsyncResponse'
         '400':
           description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/_create:
-    post:
-      summary: Create side effect for the project
-      description: Create side effect for the project
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Side Effect
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: Create side effect request has been accepted for creation.
-          schema:
-            $ref: '#/definitions/SideEffectResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/bulk/_create:
-    post:
-      summary: Create side effects for the project in bulk
-      description: Create side effects for the project in bulk
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Task
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectBulkRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: Create side effect request has been accepted for creation.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/_update:
-    post:
-      summary: Side Effect Request
-      description: Side Effect Request
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Existing side effect
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: update side effect request has been accepted for update.
-          schema:
-            $ref: '#/definitions/SideEffectResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/bulk/_update:
-    post:
-      summary: Side Effect Request in bulk for a project
-      description: Side Effect Request in bulk for a project
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Existing Side Effects
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectBulkRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: update Side Effects bulk request has been accepted for update.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/_delete:
-    post:
-      summary: Soft delete Side Effect for a project
-      description: Soft delete Side Effect for a project
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Existing Side Effect
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: delete Side Effect request has been accepted for deletion.
-          schema:
-            $ref: '#/definitions/SideEffectResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/bulk/_delete:
-    post:
-      summary: Soft delete Side Effects for a project
-      description: Soft delete Side Effects for a project
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Capture details of Existing Side Effect
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectRequest'
-      tags:
-        - Side Effect
-      responses:
-        '202':
-          description: delete bulk Side Effect request has been accepted for deletion.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/side-effect/v1/_search:
-    post:
-      summary: Search Side Effect for Project
-      description: Search Side Effect for Project
-      parameters:
-        - name: SideEffect
-          in: body
-          description: Side Effect Search.
-          required: true
-          schema:
-            $ref: '#/definitions/SideEffectSearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Side Effect
-      responses:
-        '200':
-          description: Side Effects.
-          schema:
-            $ref: '#/definitions/SideEffectBulkResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
   /referralmanagement/v1/_create:
     post:
+      tags:
+        - Referral
       summary: Create referral for the project beneficiary
       description: Create referral for the project benefiaciary
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Referral
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: Create referral request has been accepted for creation.
-          schema:
-            $ref: '#/definitions/ReferralResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/bulk/_create:
-    post:
-      summary: Create referrals for the project beneficiary in bulk
-      description: Create referrals for the project beneficiary in bulk
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Task
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralBulkRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: Create referral request has been accepted for creation.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/_update:
-    post:
-      summary: Referral Request
-      description: Referral Request
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Existing referral
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: update referral request has been accepted for update.
-          schema:
-            $ref: '#/definitions/ReferralResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/bulk/_update:
-    post:
-      summary: Referral Request in bulk for a project beneficiary
-      description: Referral Request in bulk for a project beneficiary
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Existing Referrals
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralBulkRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: update Referrals bulk request has been accepted for update.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/_delete:
-    post:
-      summary: Soft delete Referral for a project beneficiary
-      description: Soft delete Referral for a project beneficiary
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Existing Referral
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: delete Referral request has been accepted for deletion.
-          schema:
-            $ref: '#/definitions/ReferralResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/bulk/_delete:
-    post:
-      summary: Soft delete Referrals for a project beneficiary
-      description: Soft delete Referrals for a project beneficiary
-      parameters:
-        - name: Referral
-          in: body
-          description: Capture details of Existing Referral
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralRequest'
-      tags:
-        - Referral
-      responses:
-        '202':
-          description: delete bulk Referral request has been accepted for deletion.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /referralmanagement/v1/_search:
-    post:
-      summary: Search Referral for Project
-      description: Search Referral for Project
-      parameters:
-        - name: Referral
-          in: body
-          description: Referral Search.
-          required: true
-          schema:
-            $ref: '#/definitions/ReferralSearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Referral
+      operationId: referralV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralRequest'
+        required: true
       responses:
         '200':
-          description: Referrals.
-          schema:
-            $ref: '#/definitions/ReferralBulkResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
         '400':
           description: Invalid Input body.
-          schema:
-            $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/bulk/_create:
+    post:
+      tags:
+        - Referral
+      summary: Create referrals for the project beneficiary in bulk
+      description: Create referrals for the project beneficiary in bulk
+      operationId: referralBulkV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/_update:
+    post:
+      tags:
+        - Referral
+      summary: Referral Update
+      description: Referral Update
+      operationId: referralV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/bulk/_update:
+    post:
+      tags:
+        - Referral
+      summary: Referral Update in bulk for a project beneficiary
+      description: Referral Update in bulk for a project beneficiary
+      operationId: referralV1BulkUpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/_delete:
+    post:
+      tags:
+        - Referral
+      summary: Soft delete Referral for a project beneficiary
+      description: Soft delete Referral for a project beneficiary
+      operationId: referralV1DeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/bulk/_delete:
+    post:
+      tags:
+        - Referral
+      summary: Soft delete Referrals for a project beneficiary
+      description: Soft delete Referrals for a project beneficiary
+      operationId: referralV1BulkDeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/v1/_search:
+    post:
+      tags:
+        - Referral
+      summary: Search Referral for Project
+      description: Search Referral for Project
+      operationId: referralV1SearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                referralSearchRequest:
+                  $ref: '#/components/schemas/ReferralSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReferralBulkResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/_create:
+    post:
+      tags:
+        - Side Effect
+      summary: Create side effect for the project
+      description: Create side effect for the project
+      operationId: sideEffectV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/bulk/_create:
+    post:
+      tags:
+        - Side Effect
+      summary: Create side effects for the project in bulk
+      description: Create side effects for the project in bulk
+      operationId: sideEffectBulkV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/_update:
+    post:
+      tags:
+        - Side Effect
+      summary: Side Effect Request
+      description: Side Effect Request
+      operationId: sideEffectV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/bulk/_update:
+    post:
+      tags:
+        - Side Effect
+      summary: Side Effect Request in bulk for a project
+      description: Side Effect Request in bulk for a project
+      operationId: sideEffectV1BulkUpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/_delete:
+    post:
+      tags:
+        - Side Effect
+      summary: Soft delete Side Effect for a project
+      description: Soft delete Side Effect for a project
+      operationId: sideEffectV1DeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/bulk/_delete:
+    post:
+      tags:
+        - Side Effect
+      summary: Soft delete Side Effects for a project
+      description: Soft delete Side Effects for a project
+      operationId: sideEffectV1BulkDeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SideEffectBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/side-effect/v1/_search:
+    post:
+      tags:
+        - Side Effect
+      summary: Search Side Effect for Project
+      description: Search Side Effect for Project
+      operationId: sideEffectV1SearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                request:
+                  $ref: '#/components/schemas/SideEffectSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SideEffectBulkResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/_create:
+    post:
+      tags:
+        - HF Refferal
+      summary: Create a new Health Facility Referral
+      description: API to create a new health facility referral for individuals.
+      operationId: referralV1CreatePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/HFReferralResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/bulk/_create:
+    post:
+      tags:
+        -  HF Refferal
+      summary: Create multiple Health Facility Referrals
+      description: API to bulk create health facility referrals.
+      operationId: referralBulkV1CreatePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/_update:
+    post:
+      tags:
+        -  HF Refferal
+      summary: Update a Health Facility Referral
+      description: API to update details of an existing health facility referral.
+      operationId: referralV1UpdatePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/HFReferralResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/bulk/_update:
+    post:
+      tags:
+        - HF Refferal
+      summary: Update multiple Health Facility Referrals
+      description: API to bulk update health facility referrals.
+      operationId: referralV1BulkUpdatePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/_delete:
+    post:
+      tags:
+        -  HF Refferal
+      summary: Delete a Health Facility Referral
+      description: API to delete an existing health facility referral.
+      operationId: referralV1DeletePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/HFReferralResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-parameters:
-  tenantId:
-    name: tenantId
-    in: query
-    description: Unique id for a tenant.
-    required: true
-    type: string
-    format: varchar
-  lastChangedSince:
-    name: lastChangedSince
-    description: |
-      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
-    in: query
-    required: false
-    type: integer
-    format: int64
-  echoResource:
-    name: echoResource
-    in: query
-    type: boolean
-    required: false
-    default: true
-    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
-  serverHandlesErrors:
-    name: serverHandlesErrors
-    in: query
-    type: boolean
-    required: false
-    default: false
-    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
-  limit:
-    name: limit
-    description: Pagination - limit records in response
-    in: query
-    type: integer
-    minimum: 0
-    maximum: 1000
-    required: true
-  offset:
-    name: offset
-    description: Pagination - offset from which records should be returned in response
-    in: query
-    type: integer
-    minimum: 0
-    required: true
-  includeDeleted:
-    name: includeDeleted
-    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
-    in: query
-    type: boolean
-    default: false
-    required: false
-  includeEnded:
-    name: includeEnded
-    description: Used in project search API to specify if records past end date should be included in search results.
-    in: query
-    type: boolean
-    default: false
-    required: false
-  includeAncestors:
-    name: includeAncestors
-    description: Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.
-    in: query
-    type: boolean
-    default: false
-    required: false
-  includeDescendants:
-    name: includeDescendants
-    description: Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.
-    in: query
-    type: boolean
-    default: false
-    required: false
-  createdFrom:
-    name: createdFrom
-    description: |
-      Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date.
-    in: query
-    required: false
-    type: integer
-    format: int64
-  createdTo:
-    name: createdTo
-    description: |
-      Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date.
-    in: query
-    required: false
-    type: integer
-    format: int64
-definitions:
-  boundaryCode:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode
-  id:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id
-  idForSearch:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch
-  clientReferenceIdForSearch:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch
-  clientReferenceId:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId
-  tenantId:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId
-  eventTimestamp:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp
-  isDeleted:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted
-  rowVersion:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion
-  apiOperation:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation
-  additionalFields:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields
-  Address:
-    $ref: https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address
-  SideEffect:
-    type: object
-    required:
-      - tenantId
-      - taskId
-      - symptoms
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceId'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      taskId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Unique TaskId
-      taskClientReferenceId:
-        type: string
-        example: R-ID-1
-        description: Unique Task Client Reference Id
-      projectBeneficiaryId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Project Beneficiary Id
-      projectBeneficiaryClientReferenceId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Project Beneficiary Client Reference Id
-      symptoms:
-        type: array
-        items:
-          type: string
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-      clientAuditDetails:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-  SideEffectRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      SideEffect:
-        type: object
-        $ref: '#/definitions/SideEffect'
-    required:
-      - RequestInfo
-      - SideEffect
-  SideEffectBulkRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      SideEffects:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/SideEffect'
-    required:
-      - RequestInfo
-      - SideEffects
-  SideEffectSearch:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/idForSearch'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceIdForSearch'
-      taskId:
-        type: array
-        items:
-          type: string
-        minLength: 2
-        maxLength: 64
-        description: Unique TaskId
-      taskClientReferenceId:
-        type: array
-        items:
-          type: string
-          example: R-ID-1
-  SideEffectSearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      SideEffect:
-        $ref: '#/definitions/SideEffectSearch'
-    required:
-      - RequestInfo
-      - SideEffect
-  SideEffectResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      SideEffect:
-        type: object
-        $ref: '#/definitions/SideEffect'
-    required:
-      - ResponseInfo
-      - SideEffect
-  SideEffectBulkResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      SideEffects:
-        type: array
-        items:
-          $ref: '#/definitions/SideEffect'
-    required:
-      - ResponseInfo
-      - SideEffects
-  Referral:
-    type: object
-    required:
-      - tenantId
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceId'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      projectBeneficiaryId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Project Beneficiary Id
-      projectBeneficiaryClientReferenceId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Project Beneficiary Client Reference Id
-      referrerId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Worker Id that is referring the Beneficiary
-      recipientId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Individual or Facility Id whom the Beneficiary is referred to.
-      recipientType:
-        type: string
-        description: Individual or Facility
-      reasons:
-        type: array
-        items:
-          type: string
-      sideEffect:
-        $ref: '#/definitions/SideEffect'
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-      clientAuditDetails:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-  ReferralRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Referral:
-        type: object
-        $ref: '#/definitions/Referral'
-    required:
-      - RequestInfo
-      - Referral
-  ReferralBulkRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Referrals:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/Referral'
-    required:
-      - RequestInfo
-      - Referrals
-  ReferralSearch:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/idForSearch'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceIdForSearch'
-      projectBeneficiaryId:
-        type: array
-        items:
-          type: string
-      projectBeneficiaryClientReferenceId:
-        type: array
-        items:
-          type: string
-      sideEffectId:
-        type: array
-        items:
-          type: string
-      sideEffectClientReferenceId:
-        type: array
-        items:
-          type: string
-      referrerId:
-        type: array
-        items:
-          type: string
-      recipientId:
-        type: array
-        items:
-          type: string
+  /referralmanagement/hf-referral/v1/bulk/_delete:
+    post:
+      tags:
+        -  HF Refferal
+      summary: Delete multiple Health Facility Referrals
+      description: API to bulk delete health facility referrals.
+      operationId: referralV1BulkDeletePost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HFReferralBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /referralmanagement/hf-referral/v1/_search:
+    post:
+      tags:
+        -  HF Refferal
+      summary: Search Health Facility Referrals
+      description: API to search for health facility referrals based on given criteria.
+      operationId: referralV1SearchPost_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                request:
+                  $ref: '#/components/schemas/HFReferralSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/HFReferralBulkResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
 
-  ReferralSearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Referral:
-        $ref: '#/definitions/ReferralSearch'
-    required:
-      - RequestInfo
-      - Referral
-  ReferralResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Referral:
-        type: object
-        $ref: '#/definitions/Referral'
-    required:
-      - ResponseInfo
-      - Referral
-  ReferralBulkResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Referrals:
-        type: array
-        items:
-          $ref: '#/definitions/Referral'
-    required:
-      - ResponseInfo
-      - Referrals
-  BulkAcceptedResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-    required:
-      - ResponseInfo
-
-  DownsyncRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      DownsyncCriteria:
-        $ref: '#/definitions/DownsyncCriteria'
-    required:
-      - RequestInfo
-      - DownsyncCriteria
-  DownsyncResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Downsync:
-        $ref: '#/definitions/Downsync'
-    required:
-      - ResponseInfo
-      - Downsync
-  DownsyncCriteria:
-    type: object
-    properties:
-      locality:
-        type: string
-        description: locality/boundary code from which all beneficiary has to be downloaded
-      totalCount:
-        type: [null,long]
-        description: totalCount
-      tenantId:
-        $ref: '#/parameters/tenantId'
-      offset:
-        $ref: '#/parameters/offset'
-      limit:
-        $ref: '#/parameters/limit'
-      lastSyncedTime:
-        $ref: '#/parameters/lastChangedSince'
-      includeDeleted:
-        $ref: '#/parameters/includeDeleted'
-  Downsync:
-    type: object
-    properties:
-      DownsyncCriteria:
-        $ref: '#/definitions/DownsyncCriteria'
-      Households:
-        type: array
-        items:
-          $ref: https://raw.githubusercontent.com/egovernments/health-api-specs/main/contracts/registries/household.yml#/definitions/Household
-      HouseholdMembers:
-        type: array
-        items:
-          $ref: https://raw.githubusercontent.com/egovernments/health-api-specs/main/contracts/registries/household.yml#/definitions/HouseholdMember
-      Individuals:
-        type: array
-        items:
-          $ref: https://raw.githubusercontent.com/egovernments/health-api-specs/main/contracts/registries/individual.yml#/definitions/Individual
-      ProjectBeneficiaries:
-        type: array
-        items:
-          $ref: https://raw.githubusercontent.com/egovernments/health-api-specs/main/contracts/project.yml#/definitions/ProjectBeneficiary
-      Tasks:
-        type: array
-        items:
-          $ref: https://raw.githubusercontent.com/egovernments/health-api-specs/main/contracts/project.yml#/definitions/Task
-      SideEffects:
-        type: array
-        items:
-          $ref: '#/definitions/SideEffect'
-      Referrals:
-        type: array
-        items:
-          $ref: '#/definitions/Referral'
-
-
+components:
+  schemas:
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          maxLength: 64
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 1
+          type: string
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    Referral:
+      required:
+        - reasons
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectBeneficiaryId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectBeneficiaryClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        referrerId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        recipientType:
+          type: string
+        recipientId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        reasons:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            type: string
+        referralCode:
+          maxLength: 100
+          minLength: 0
+          type: string
+        sideEffect:
+          $ref: '#/components/schemas/SideEffect'
+        isDeleted:
+          type: boolean
+    ReferralBulkRequest:
+      required:
+        - Referrals
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Referrals:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Referral'
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        tenantId:
+          type: string
+    SideEffect:
+      required:
+        - symptoms
+        - taskClientReferenceId
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        taskId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        taskClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectBeneficiaryId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectBeneficiaryClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        symptoms:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            type: string
+        isDeleted:
+          type: boolean
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+        uuid:
+          type: string
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    ReferralRequest:
+      required:
+        - Referral
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Referral:
+          $ref: '#/components/schemas/Referral'
+    ReferralResponse:
+      required:
+        - Referral
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Referral:
+          $ref: '#/components/schemas/Referral'
+    URLParams:
+      required:
+        - limit
+        - offset
+        - tenantId
+      type: object
+      properties:
+        urlparams:
+          $ref: '#/components/schemas/URLParams'
+        limit:
+          maximum: 1000
+          minimum: 0
+          type: integer
+          format: int32
+        offset:
+          minimum: 0
+          type: integer
+          format: int32
+        tenantId:
+          type: string
+        lastChangedSince:
+          type: integer
+          format: int64
+        includeDeleted:
+          type: boolean
+    ReferralSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        projectBeneficiaryId:
+          type: array
+          items:
+            type: string
+        projectBeneficiaryClientReferenceId:
+          type: array
+          items:
+            type: string
+        sideEffectId:
+          type: array
+          items:
+            type: string
+        sideEffectClientReferenceId:
+          type: array
+          items:
+            type: string
+        referrerId:
+          type: array
+          items:
+            type: string
+        recipientId:
+          type: array
+          items:
+            type: string
+    ReferralSearchRequest:
+      required:
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Referral:
+          $ref: '#/components/schemas/ReferralSearch'
+    ReferralBulkResponse:
+      required:
+        - Referrals
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        TotalCount:
+          type: integer
+          format: int64
+        Referrals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Referral'
+    SideEffectBulkRequest:
+      required:
+        - RequestInfo
+        - SideEffects
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SideEffects:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/SideEffect'
+    SideEffectRequest:
+      required:
+        - RequestInfo
+        - SideEffect
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SideEffect:
+          $ref: '#/components/schemas/SideEffect'
+    SideEffectResponse:
+      required:
+        - ResponseInfo
+        - SideEffect
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        SideEffect:
+          $ref: '#/components/schemas/SideEffect'
+    SideEffectSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        taskId:
+          type: array
+          items:
+            type: string
+        taskClientReferenceId:
+          type: array
+          items:
+            type: string
+    SideEffectSearchRequest:
+      required:
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SideEffect:
+          $ref: '#/components/schemas/SideEffectSearch'
+    SideEffectBulkResponse:
+      required:
+        - ResponseInfo
+        - SideEffects
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        TotalCount:
+          type: integer
+          format: int64
+        SideEffects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SideEffect'
+    HFReferral:
+      required:
+        - symptom
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectFacilityId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        symptom:
+          maxLength: 256
+          minLength: 2
+          type: string
+        symptomSurveyId:
+          maxLength: 100
+          minLength: 2
+          type: string
+        beneficiaryId:
+          maxLength: 100
+          minLength: 0
+          type: string
+        referralCode:
+          maxLength: 100
+          minLength: 0
+          type: string
+        nationalLevelId:
+          maxLength: 100
+          minLength: 0
+          type: string
+        isDeleted:
+          type: boolean
+    HFReferralBulkRequest:
+      required:
+        - HFReferrals
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        HFReferrals:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/HFReferral'
+    HFReferralRequest:
+      required:
+        - HFReferral
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        HFReferral:
+          $ref: '#/components/schemas/HFReferral'
+    HFReferralResponse:
+      required:
+        - HFReferral
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        HFReferral:
+          $ref: '#/components/schemas/HFReferral'
+    HFReferralSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        facilityId:
+          type: array
+          items:
+            type: string
+        projectId:
+          type: string
+        symptom:
+          type: array
+          items:
+            type: string
+        symptomSurveyId:
+          type: array
+          items:
+            type: string
+        beneficiaryId:
+          type: array
+          items:
+            type: string
+        referralCode:
+          type: array
+          items:
+            type: string
+        nationalLevelId:
+          type: array
+          items:
+            type: string
+    HFReferralSearchRequest:
+      required:
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        HFReferral:
+          $ref: '#/components/schemas/HFReferralSearch'
+    HFReferralBulkResponse:
+      required:
+        - HFReferrals
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        HFReferrals:
+          type: array
+          items:
+            $ref: '#/components/schemas/HFReferral'
+        TotalCount:
+          type: integer
+          format: int64
+    DownsyncCriteria:
+      required:
+        - locality
+        - projectId
+        - tenantId
+      type: object
+      properties:
+        locality:
+          type: string
+        lastSyncedTime:
+          type: integer
+          format: int64
+        projectId:
+          type: string
+        tenantId:
+          type: string
+        includeDeleted:
+          type: boolean
+        offset:
+          type: integer
+          format: int32
+        limit:
+          type: integer
+          format: int32
+        totalCount:
+          type: integer
+          format: int64
+        householdId:
+          type: string
+    DownsyncRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        DownsyncCriteria:
+          $ref: '#/components/schemas/DownsyncCriteria'
+    Address:
+      required:
+        - type
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        doorNo:
+          maxLength: 64
+          minLength: 2
+          type: string
+        latitude:
+          maximum: 90
+          exclusiveMaximum: false
+          minimum: -90
+          exclusiveMinimum: false
+          type: number
+          format: double
+        longitude:
+          maximum: 180
+          exclusiveMaximum: false
+          minimum: -180
+          exclusiveMinimum: false
+          type: number
+          format: double
+        locationAccuracy:
+          minimum: 0
+          exclusiveMinimum: false
+          type: number
+          format: double
+        type:
+          type: string
+          enum:
+            - PERMANENT
+            - CORRESPONDENCE
+            - OTHER
+        addressLine1:
+          maxLength: 256
+          minLength: 2
+          type: string
+        addressLine2:
+          maxLength: 256
+          minLength: 2
+          type: string
+        landmark:
+          maxLength: 256
+          minLength: 2
+          type: string
+        city:
+          maxLength: 256
+          minLength: 2
+          type: string
+        pincode:
+          maxLength: 64
+          minLength: 2
+          type: string
+        buildingName:
+          maxLength: 256
+          minLength: 2
+          type: string
+        street:
+          maxLength: 256
+          minLength: 2
+          type: string
+        boundaryType:
+          type: string
+        boundary:
+          type: string
+        locality:
+          $ref: '#/components/schemas/Boundary'
+    Boundary:
+      required:
+        - code
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        code:
+          type: string
+        geometry:
+          $ref: '#/components/schemas/JsonNode'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          $ref: '#/components/schemas/JsonNode'
+    Downsync:
+      type: object
+      properties:
+        Households:
+          type: array
+          items:
+            $ref: '#/components/schemas/Household'
+        HouseholdMembers:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseholdMember'
+        Individuals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Individual'
+        ProjectBeneficiaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectBeneficiary'
+        Tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        SideEffects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SideEffect'
+        Referrals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Referral'
+        DownsyncCriteria:
+          $ref: '#/components/schemas/DownsyncCriteria'
+    DownsyncResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Downsync:
+          $ref: '#/components/schemas/Downsync'
+    Household:
+      required:
+        - memberCount
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        memberCount:
+          type: integer
+          format: int32
+        address:
+          $ref: '#/components/schemas/Address'
+        householdType:
+          type: string
+          enum:
+            - FAMILY
+            - COMMUNITY
+            - OTHER
+        isDeleted:
+          type: boolean
+    HouseholdMember:
+      required:
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        householdId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        householdClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isHeadOfHousehold:
+          type: boolean
+        isDeleted:
+          type: boolean
+    Identifier:
+      required:
+        - identifierId
+        - identifierType
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        identifierType:
+          maxLength: 64
+          minLength: 2
+          type: string
+        identifierId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    Individual:
+      required:
+        - name
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        userId:
+          type: string
+        userUuid:
+          type: string
+        name:
+          $ref: '#/components/schemas/Name'
+        dateOfBirth:
+          type: string
+          format: date-time
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+            - OTHER
+            - TRANSGENDER
+        bloodGroup:
+          type: string
+          enum:
+            - B+
+            - B-
+            - A+
+            - A-
+            - AB+
+            - AB-
+            - O-
+            - O+
+        mobileNumber:
+          maxLength: 20
+          minLength: 0
+          type: string
+        altContactNumber:
+          maxLength: 16
+          minLength: 0
+          type: string
+        email:
+          maxLength: 200
+          minLength: 5
+          type: string
+        address:
+          maxItems: 3
+          minItems: 0
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        fatherName:
+          maxLength: 100
+          minLength: 0
+          type: string
+        husbandName:
+          maxLength: 100
+          minLength: 0
+          type: string
+        relationship:
+          maxLength: 100
+          minLength: 1
+          type: string
+        identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Identifier'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        photo:
+          type: string
+        isDeleted:
+          type: boolean
+        isSystemUser:
+          type: boolean
+        isSystemUserActive:
+          type: boolean
+        userDetails:
+          $ref: '#/components/schemas/UserDetails'
+    JsonNode:
+      type: object
+    Name:
+      type: object
+      properties:
+        givenName:
+          maxLength: 200
+          minLength: 2
+          type: string
+        familyName:
+          maxLength: 200
+          minLength: 2
+          type: string
+        otherNames:
+          maxLength: 200
+          minLength: 0
+          type: string
+    ProjectBeneficiary:
+      required:
+        - projectId
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        beneficiaryId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        dateOfRegistration:
+          minimum: 0
+          type: integer
+          format: int64
+        beneficiaryClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+        tag:
+          type: string
+    Skill:
+      required:
+        - type
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        type:
+          maxLength: 64
+          minLength: 2
+          type: string
+        level:
+          maxLength: 64
+          minLength: 2
+          type: string
+        experience:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    Task:
+      required:
+        - projectId
+        - status
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectBeneficiaryId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        projectBeneficiaryClientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResource'
+        plannedStartDate:
+          type: integer
+          format: int64
+        plannedEndDate:
+          type: integer
+          format: int64
+        actualStartDate:
+          type: integer
+          format: int64
+        actualEndDate:
+          type: integer
+          format: int64
+        createdBy:
+          type: string
+        createdDate:
+          type: integer
+          format: int64
+        address:
+          $ref: '#/components/schemas/Address'
+        isDeleted:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - ADMINISTRATION_FAILED
+            - ADMINISTRATION_SUCCESS
+            - BENEFICIARY_REFUSED
+            - CLOSED_HOUSEHOLD
+            - DELIVERED
+            - NOT_ADMINISTERED
+    TaskResource:
+      required:
+        - isDelivered
+        - productVariantId
+        - quantity
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        taskId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        productVariantId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        quantity:
+          type: number
+          format: double
+        isDelivered:
+          type: boolean
+        deliveryComment:
+          maxLength: 1000
+          minLength: 0
+          type: string
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+    UserDetails:
+      type: object
+      properties:
+        username:
+          maxLength: 180
+          minLength: 0
+          type: string
+        password:
+          maxLength: 64
+          minLength: 0
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        type:
+          maxLength: 50
+          minLength: 0
+          type: string
+          enum:
+            - CITIZEN
+            - EMPLOYEE
+            - SYSTEM
+            - BUSINESS
