@@ -126,27 +126,43 @@ public class PlanFacilityValidator {
         String lowestHierarchy = hierarchyMap.get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
 
         // Collect all boundary code for the campaign
-        Set<String> boundaryCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
+        Set<String> lowestHierarchyBCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
+        Set<String> allBoundaryCodes = fetchAllBoundaryCodes(campaignResponse.getCampaignDetails().get(0));
 
-        // Validate residing boundaries
-        validateResidingBoundaries(boundaryCodes, planFacility);
+        // Validate residing boundaries with all the boundary codes.
+        validateResidingBoundaries(allBoundaryCodes, planFacility);
 
-        // Validate service boundaries
-        validateServiceBoundaries(boundaryCodes, planFacility);
+        // Validate service boundaries with the lowest hierarchy boundary codes.
+        validateServiceBoundaries(lowestHierarchyBCodes, planFacility);
 
         //Enrich jurisdiction mapping and boundary ancestral path
         enrichment.enrichJurisdictionMapping(planFacilityRequest, campaignResponse.getCampaignDetails().get(0).getHierarchyType());
     }
 
     /**
-     * This method returns boundary code for the campaign
+     * This method returns a set of all boundary codes for the given campaign.
      *
-     * @param campaignDetail
-     * @param lowestHierarchy
+     * @param campaignDetail the campaign details whose BCodes are required.
+     * @return returns a set of boundaries for the given campaign.
      */
-    private Set<String> fetchBoundaryCodes(CampaignDetail campaignDetail, String lowestHierarchy) {
+    private Set<String> fetchAllBoundaryCodes(CampaignDetail campaignDetail) {
         Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
-                .filter(boundary -> lowestHierarchy.equals(boundary.getType().toLowerCase()))
+                .map(Boundary::getCode)
+                .collect(Collectors.toSet());
+
+        return boundaryCodes;
+    }
+
+    /**
+     * This method filters the boundaries based on given hierarchy type for the campaign and returns a set of those boundaries.
+     *
+     * @param campaignDetail the campaign details whose BCodes are required.
+     * @param hierarchyType  hierarchy type of the required boundaries.
+     * @return returns a set of boundaries of the given hierarchy type.
+     */
+    private Set<String> fetchBoundaryCodes(CampaignDetail campaignDetail, String hierarchyType) {
+        Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
+                .filter(boundary -> hierarchyType.equals(boundary.getType().toLowerCase()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
 
