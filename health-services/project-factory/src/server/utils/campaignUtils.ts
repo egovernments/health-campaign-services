@@ -2243,7 +2243,7 @@ async function createProject(
       };
       boundaries = await reorderBoundaries(request, localizationMap);
       const codesTargetMapping = request?.body?.CampaignDetails?.codesTargetMapping;
-      let boundariesCampaignProjectsMapping: any = await getBoundariesCampaignProjectsMapping("CMP-2025-01-06-004833");
+      let boundariesCampaignProjectsMapping: any = await getBoundariesCampaignProjectsMapping(request?.body?.CampaignDetails?.campaignNumber);
       let boundaryCodesWhoseTargetsHasToBeUpdated = getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping, codesTargetMapping, request?.body?.CampaignDetails?.parentId);
       enrichBoundaryProjectMapping(boundariesCampaignProjectsMapping, request?.body?.boundaryProjectMapping);
       if (boundaryCodesWhoseTargetsHasToBeUpdated && boundaryCodesWhoseTargetsHasToBeUpdated?.length > 0) {
