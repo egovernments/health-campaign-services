@@ -94,7 +94,7 @@ public class OutputEstimationGenerationUtil {
      * @param request     the plan configuration request containing the resource mapping and other configurations.
      * @param fileStoreId the associated file store ID used to filter resource mappings.
      */
-    public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId, Map<String, String> boundaryCodeToFacility) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
         String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), HCM_MICROPLAN_SERVING_FACILITY);
@@ -110,8 +110,8 @@ public class OutputEstimationGenerationUtil {
                         LinkedHashMap::new
                 ));
 
-        // Get the map of boundary code to the facility assigned to that boundary.
-        Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
+        // Enrich the map of boundary code to the facility assigned to that boundary.
+        boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);

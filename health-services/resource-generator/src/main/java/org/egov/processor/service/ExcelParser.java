@@ -239,10 +239,12 @@ public class ExcelParser implements FileParser {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
-					// Adding facility information for each boundary code
-					outputEstimationGenerationUtil.addAssignedFacility(excelWorkbook, request, fileStoreId);
+					Map<String, String> boundaryCodeToFacility = new HashMap<>();
 
-					Map<String, String> facilityToFixedPost = fetchFixedPostDetails(request);
+					// Adding facility information for each boundary code
+					outputEstimationGenerationUtil.addAssignedFacility(excelWorkbook, request, fileStoreId, boundaryCodeToFacility);
+
+					Map<String, String> facilityToFixedPost = fetchFixedPostDetails(request, boundaryCodeToFacility);
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
@@ -250,12 +252,13 @@ public class ExcelParser implements FileParser {
 	}
 
 	/**
-	 * This method makes plan facility search call and creates a map of facility name to it's fixed post details.
+	 * This method makes plan facility search call and creates a map of boundary code to it's fixed post facility details.
 	 *
-	 * @param request the plan configuration request.
-	 * @return returns a map of facility name to it's fixed post details.
+	 * @param request                the plan configuration request.
+	 * @param boundaryCodeToFacility map of boundary code to facility assigned.
+	 * @return returns a map of boundary code to it's fixed post facility details.
 	 */
-	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request) {
+	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request, Map<String, String> boundaryCodeToFacility) {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
 		//Create plan facility search request
@@ -272,7 +275,7 @@ public class ExcelParser implements FileParser {
 		// Create and return a map of facility name to fixed post details
 		return planFacilityResponse.getPlanFacility().stream()
 				.collect(Collectors.toMap(
-						PlanFacility::getFacilityName,
+						planFacility -> findByValue(boundaryCodeToFacility, planFacility.getFacilityName()),
 						planFacility -> (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST)
 				));
 	}
