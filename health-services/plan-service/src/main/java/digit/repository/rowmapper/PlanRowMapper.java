@@ -30,6 +30,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         Set<String> conditionSet = new HashSet<>();
         Set<String> resourceSet = new HashSet<>();
         Set<String> targetSet = new HashSet<>();
+        Set<String> additionalFieldSet = new HashSet<>();
 
         // Traverse through result set and create plan objects
         while (rs.next()) {
@@ -43,6 +44,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 conditionSet.clear();
                 resourceSet.clear();
                 targetSet.clear();
+                additionalFieldSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder()
@@ -72,6 +74,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             addActivities(rs, planEntry, activityMap, conditionSet);
             addResources(rs, planEntry, resourceSet);
             addTargets(rs, planEntry, targetSet);
+            addAdditionalField(rs, planEntry, additionalFieldSet);
             planMap.put(planId, planEntry);
         }
 
@@ -234,4 +237,39 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         targetSet.add(target.getId());
 
     }
+
+    /**
+     * Adds a AdditionalField object to the plan entry based on the result set.
+     *
+     * @param rs                 The ResultSet containing the data.
+     * @param additionalFieldSet A set to keep track of added AdditionalField objects.
+     * @param planEntry          The Plan entry to which the AdditionalField object will be added.
+     * @throws SQLException If an SQL error occurs.
+     */
+    private void addAdditionalField(ResultSet rs, Plan planEntry, Set<String> additionalFieldSet) throws SQLException {
+        String additionalFieldId = rs.getString("plan_additional_field_id");
+
+        if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldSet.contains(additionalFieldId)) {
+            return;
+        }
+
+        AdditionalField additionalField = new AdditionalField();
+        additionalField.setId(rs.getString("plan_additional_field_id"));
+        additionalField.setKey(rs.getString("plan_additional_field_key"));
+        additionalField.setValue(rs.getBigDecimal("plan_additional_field_value"));
+        additionalField.setShowOnUi(rs.getBoolean("plan_additional_field_show_on_ui"));
+        additionalField.setEditable(rs.getBoolean("plan_additional_field_editable"));
+        additionalField.setOrder(rs.getInt("plan_additional_field_order"));
+
+        if (CollectionUtils.isEmpty(planEntry.getAdditionalFields())) {
+            List<AdditionalField> additionalFields = new ArrayList<>();
+            additionalFields.add(additionalField);
+            planEntry.setAdditionalFields(additionalFields);
+        } else {
+            planEntry.getAdditionalFields().add(additionalField);
+        }
+
+        additionalFieldSet.add(additionalFieldId);
+    }
+
 }

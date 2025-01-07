@@ -372,7 +372,6 @@ public class ExcelParser implements FileParser {
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, Optional.of(BCodeToCensusAdditionalDetails));
-
 		}
 	}
 
