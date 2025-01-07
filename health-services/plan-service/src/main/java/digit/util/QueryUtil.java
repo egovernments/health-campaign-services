@@ -110,7 +110,14 @@ public class QueryUtil {
                 String[] keyArray = key.split(DOT_REGEX);
                 Map<String, Object> nestedQueryMap = new HashMap<>();
                 prepareNestedQueryMap(0, keyArray, nestedQueryMap, filterMap.get(key));
-                queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
+                queryMap.merge(keyArray[0], nestedQueryMap.get(keyArray[0]), (existing, newValue) -> {
+                    if (existing instanceof Map && newValue instanceof Map) {
+                        ((Map<String, Object>) existing).putAll((Map<String, Object>) newValue);
+                        return existing;
+                    }
+                    return newValue;
+                });
+
             } else {
                 queryMap.put(key, filterMap.get(key));
             }
