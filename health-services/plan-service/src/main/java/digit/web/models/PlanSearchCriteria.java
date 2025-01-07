@@ -49,6 +49,12 @@ public class PlanSearchCriteria {
     @JsonProperty("terrain")
     private String terrain = null;
 
+    @JsonProperty("securityQ1")
+    private String securityQ1 = null;
+
+    @JsonProperty("securityQ2")
+    private String securityQ2 = null;
+
     @JsonProperty("status")
     private String status = null;
 
