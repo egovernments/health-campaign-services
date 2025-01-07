@@ -127,12 +127,12 @@ public class PlanFacilityValidator {
 
         // Collect all boundary code for the campaign
         Set<String> lowestHierarchyBCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
-        Set<String> boundaryCode = fetchAllBoundaryCodes(campaignResponse.getCampaignDetails().get(0));
+        Set<String> allBoundaryCodes = fetchAllBoundaryCodes(campaignResponse.getCampaignDetails().get(0));
 
-        // Validate residing boundaries
-        validateResidingBoundaries(boundaryCode, planFacility);
+        // Validate residing boundaries with all the boundary codes.
+        validateResidingBoundaries(allBoundaryCodes, planFacility);
 
-        // Validate service boundaries
+        // Validate service boundaries with the lowest hierarchy boundary codes.
         validateServiceBoundaries(lowestHierarchyBCodes, planFacility);
 
         //Enrich jurisdiction mapping and boundary ancestral path
