@@ -1,597 +1,901 @@
-swagger: '2.0'
+openapi: 3.0.1
 info:
-  version: 1.0.0
   title: Individual Registry
-  description: >
-    This module facilitates maintenance of an Individual registry.
-  contact:
-    name: Digit
-    email: info@egovernments.org
-schemes:
-  - https
-x-common-path: >-
-  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
 paths:
+
   /individual/v1/_create:
     post:
-      summary: >-
-        Create/Add a new Individual
-      description: >-
-        Create a new Individual
-      parameters:
-        - name: Individual
-          in: body
-          description: Capture details of Individual.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualRequest'
-        - $ref: '#/parameters/echoResource'
       tags:
         - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/bulk/_create:
-    post:
-      summary: >-
-        Create/Add Individuals
-      description: >-
-        Create a new Individuals
+      operationId: individualV1CreatePost
       parameters:
-        - name: Individual
-          in: body
-          description: Capture details of Individual.
-          required: true
+        - name: echoResource
+          in: query
+          required: false
           schema:
-            $ref: '#/definitions/IndividualBulkRequest'
-        - $ref: '#/parameters/echoResource'
-      tags:
-        - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualBulkResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/_update:
-    post:
-      summary: >-
-        Update the details of a existing Individual
-      description: >-
-        Update the details of a existing Individual
-      parameters:
-        - name: Individual
-          in: body
-          description: Details for the Individual.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualRequest'
-        - $ref: '#/parameters/echoResource'
-      tags:
-        - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/bulk/_update:
-    post:
-      summary: >-
-        Update the details of existing Individuals
-      description: >-
-        Update the details of existing Individuals
-      parameters:
-        - name: Individual
-          in: body
-          description: Details for the Individual.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualBulkRequest'
-        - $ref: '#/parameters/echoResource'
-      tags:
-        - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualBulkResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/_delete:
-    post:
-      summary: >-
-        Soft delete the details of a existing Individual and nested entities
-      description: >-
-        Soft delete the details of a existing Individual and nested entities
-      parameters:
-        - name: Individual
-          in: body
-          description: Details for the Individual.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualRequest'
-        - $ref: '#/parameters/echoResource'
-      tags:
-        - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/bulk/_delete:
-    post:
-      summary: >-
-        Soft delete the details of a existing Individual and nested entities in bulk
-      description: >-
-        Soft delete the details of a existing Individual and nested entities in bulk
-      parameters:
-        - name: Individual
-          in: body
-          description: Details for the Individual.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualBulkRequest'
-        - $ref: '#/parameters/echoResource'
-      tags:
-        - Individual
-      responses:
-        '202':
-          description: Accepted
-          schema:
-            $ref: '#/definitions/IndividualBulkResponse'
-        '400':
-          description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-        '500':
-          description: Internal Server Error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /individual/v1/_search:
-    post:
-      summary: >-
-        Search existing Individual
-      description: >-
-        Search existing Individual
-      parameters:
-        - name: Individual
-          in: body
-          description: Individual details.
-          required: true
-          schema:
-            $ref: '#/definitions/IndividualSearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Individual
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualRequest'
+        required: true
       responses:
         '200':
-          description: Ok
-          schema:
-            $ref: '#/definitions/IndividualBulkSearchResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/IndividualResponse'
         '400':
           description: Bad Request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
         '500':
           description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/bulk/_create:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1BulkCreatePost
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
           schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/_update:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1UpdatePost
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/IndividualResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/bulk/_update:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1BulkUpdatePost
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/_delete:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1DeletePost
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/IndividualResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/bulk/_delete:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1BulkDeletePost
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IndividualBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /individual/v1/_search:
+    post:
+      tags:
+        - Individual
+      operationId: individualV1SearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                request:
+                  $ref: '#/components/schemas/IndividualSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/IndividualBulkResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-parameters:
-  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
-  tenantId:
-    name: tenantId
-    in: query
-    description: Unique id for a tenant.
-    required: true
-    type: string
-    format: varchar
-
-  lastChangedSince:
-    name: lastChangedSince
-    description: |
-      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
-    in: query
-    required: false
-    type: integer
-    format: int64
-
-  echoResource:
-    name: echoResource
-    in: query
-    type: boolean
-    required: false
-    default: true
-    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
-
-  serverHandlesErrors:
-    name: serverHandlesErrors
-    in: query
-    type: boolean
-    required: false
-    default: false
-    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
-
-  limit:
-    name: limit
-    description: Pagination - limit records in response
-    in: query
-    type: integer
-    minimum: 0
-    maximum: 1000
-    required: true
-
-  offset:
-    name: offset
-    description: Pagination - offset from which records should be returned in response
-    in: query
-    type: integer
-    minimum: 0
-    required: true
-
-  includeDeleted:
-    name: includeDeleted
-    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
-    in: query
-    type: boolean
-    default: false
-    required: false
-
-definitions:
-  boundaryCode:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
-  id:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
-  idForSearch:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
-  clientReferenceIdForSearch:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
-  clientReferenceId:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
-  gender:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/gender'
-  dateOfBirth:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/dateDDMMYYYY'
-  tenantId:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
-  eventTimestamp:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
-  isDeleted:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
-  rowVersion:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
-  apiOperation:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
-  additionalFields:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
-  Address:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
-  name:
-    type: object
-    properties:
-      givenName:
-        type: string
-        minLength: 2
-        maxLength: 200
-        description: Given name of individual
-      familyName:
-        type: string
-        minLength: 2
-        maxLength: 200
-        description: Family name of individual
-      otherNames:
-        type: string
-        minLength: 0
-        maxLength: 200
-        description: Other names of individual
-  individualId:
-    type: string
-    minLength: 2
-    maxLength: 64
-    description: Formatted id
-  Individual:
-    description: A representation of an Individual.
-    type: object
-    required:
-      - name
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      individualId:
-        $ref: '#/definitions/individualId'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceId'
-      userId: #reference to user service id for this individual
-        $ref: '#/definitions/id'
-      name:
-        $ref: '#/definitions/name'
-      dateOfBirth:
-        $ref: '#/definitions/dateOfBirth'
-      gender:
-        $ref: '#/definitions/gender'
-      bloodGroup:
-        type: string
-        description: Blood group of the user.
-        maxLength: 3
-        items:
+components:
+  schemas:
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          maxLength: 64
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    Address:
+      required:
+        - type
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          type: string
+        doorNo:
+          maxLength: 64
+          minLength: 2
+          type: string
+        latitude:
+          maximum: 90
+          exclusiveMaximum: false
+          minimum: -90
+          exclusiveMinimum: false
+          type: number
+          format: double
+        longitude:
+          maximum: 180
+          exclusiveMaximum: false
+          minimum: -180
+          exclusiveMinimum: false
+          type: number
+          format: double
+        locationAccuracy:
+          minimum: 0
+          exclusiveMinimum: false
+          type: number
+          format: double
+        type:
           type: string
           enum:
-            - A+
+            - PERMANENT
+            - CORRESPONDENCE
+            - OTHER
+        addressLine1:
+          maxLength: 256
+          minLength: 2
+          type: string
+        addressLine2:
+          maxLength: 256
+          minLength: 2
+          type: string
+        landmark:
+          maxLength: 256
+          minLength: 2
+          type: string
+        city:
+          maxLength: 256
+          minLength: 2
+          type: string
+        pincode:
+          maxLength: 64
+          minLength: 2
+          type: string
+        buildingName:
+          maxLength: 256
+          minLength: 2
+          type: string
+        street:
+          maxLength: 256
+          minLength: 2
+          type: string
+        locality:
+          $ref: '#/components/schemas/Boundary'
+        ward:
+          $ref: '#/components/schemas/Boundary'
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Boundary:
+      required:
+        - code
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        code:
+          type: string
+        geometry:
+          $ref: '#/components/schemas/JsonNode'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          $ref: '#/components/schemas/JsonNode'
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 1
+          type: string
+    Identifier:
+      required:
+        - identifierId
+        - identifierType
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        identifierType:
+          maxLength: 64
+          minLength: 2
+          type: string
+        identifierId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    Individual:
+      required:
+        - name
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        status:
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        userId:
+          type: string
+        userUuid:
+          type: string
+        name:
+          $ref: '#/components/schemas/Name'
+        dateOfBirth:
+          type: string
+          format: date-time
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+            - OTHER
+            - TRANSGENDER
+        bloodGroup:
+          type: string
+          enum:
             - B+
-            - O+
-            - AB+
-            - A-
             - B-
+            - A+
+            - A-
+            - AB+
             - AB-
             - O-
-          example: AB+
-      mobileNumber:
-        type: string
-        description: Mobile number of the user
-        maxLength: 20
-      altContactNumber:
-        type: string
-        description: Alternate contact number of the user
-        maxLength: 16
-      email:
-        type: string
-        format: email
-        minLength: 5
-        maxLength: 200
-      address:
-        type: array
-        items:
-          $ref: '#/definitions/Address'
-      fatherName:
-        type: string
-        description: Individual's father's name - if available
-        maxLength: 100
-      husbandName:
-        type: string
-        description: Individual's husband's name - if applicable
-        maxLength: 100
-      relationship:
-        type: string
-        description: Relationship - if guardian
-        maxLength: 100
-      identifiers:
-        type: array
-        items:
-          $ref: '#/definitions/Identifier'
-      skills:
-        type: array
-        items:
-          $ref: '#/definitions/Skill'
-      photo:
-        type: string
-        description : Filestore service uuid holding individual's photograph
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      isSystemUser:
-        type: boolean
-        description: Flag to indicate if the individual should be registered with Egov-user service
-        readOnly: true
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails'
-
-  IndividualSearch:
-    description: A representation of an Individual.
-    type: object
-    properties:
-      individualId:
-#        $ref: '#/definitions/individualId'
-        type: array
-        items:
-          type: string
-      id:
-        $ref: '#/definitions/idForSearch'
-      clientReferenceId:
-        $ref: '#/definitions/clientReferenceIdForSearch'
-      name:
-        $ref: '#/definitions/name'
-      dateOfBirth:
-        $ref: '#/definitions/dateOfBirth'
-      gender:
-        $ref: '#/definitions/gender'
-      mobileNumber:
-        type: array
-        items:
-          type: string
+            - O+
+        mobileNumber:
           maxLength: 20
-        description: Mobile number of the user
-
-      socialCategory:
-        type: string
-        description: Social category of the user
-      identifier:
-        $ref: '#/definitions/Identifier'
-      boundaryCode:
-        $ref: '#/definitions/boundaryCode'
-      wardCode:
-        $ref: '#/definitions/boundaryCode'
-      createdFrom:
-        type: number
-      createdTo:
-        type: number
-
-  Identifier:
-    type: object
-    required:
-      - type
-      - id
-    properties:
-      identifierType:
-        type: string
-        example: 'SYSTEM_GENERATED'
-        minLength: 2
-        maxLength: 64
-      identifierId:
-        type: string
-        example: 'ABCD-1212'
-        minLength: 2
-        maxLength: 64
-
-  IndividualRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Individual:
-        type: object
-        $ref: '#/definitions/Individual'
-    required:
-      - RequestInfo
-      - Individual
-
-  IndividualBulkRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Individuals:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/Individual'
-    required:
-      - RequestInfo
-      - Individual
-
-  IndividualSearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Individual:
-        $ref: '#/definitions/IndividualSearch'
-    required:
-      - RequestInfo
-      - Individual
-
-  IndividualResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Individual:
-        type: object
-        $ref: '#/definitions/Individual'
-    required:
-      - ResponseInfo
-
-  IndividualBulkResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-    required:
-      - ResponseInfo
-
-  IndividualBulkSearchResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Individuals:
-        type: array
-        items:
-          $ref: '#/definitions/Individual'
-    required:
-      - ResponseInfo
-
-  Skill:
-    type: object
-    required: [type]
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      type:
-        type: string
-        description: skill type of the individual
-        minLength: 2
-        maxLength: 64
-      level:
-        type: string
-        description: skill level of the individual
-        minLength: 2
-        maxLength: 64
-      experience:
-        type: string
-        description: experience of the individual
-        minLength: 2
-        maxLength: 64
+          minLength: 0
+          type: string
+        altContactNumber:
+          maxLength: 16
+          minLength: 0
+          type: string
+        email:
+          maxLength: 200
+          minLength: 5
+          type: string
+        address:
+          maxItems: 3
+          minItems: 0
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        fatherName:
+          maxLength: 100
+          minLength: 0
+          type: string
+        husbandName:
+          maxLength: 100
+          minLength: 0
+          type: string
+        relationship:
+          maxLength: 100
+          minLength: 1
+          type: string
+        identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Identifier'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        photo:
+          type: string
+        isDeleted:
+          type: boolean
+        isSystemUser:
+          type: boolean
+        isSystemUserActive:
+          type: boolean
+        userDetails:
+          $ref: '#/components/schemas/UserDetails'
+    IndividualBulkRequest:
+      required:
+        - Individuals
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Individuals:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Individual'
+    JsonNode:
+      type: object
+    Name:
+      type: object
+      properties:
+        givenName:
+          maxLength: 200
+          minLength: 2
+          type: string
+        familyName:
+          maxLength: 200
+          minLength: 2
+          type: string
+        otherNames:
+          maxLength: 200
+          minLength: 0
+          type: string
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+        tenantId:
+          type: string
+    Skill:
+      required:
+        - type
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        individualId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        type:
+          maxLength: 64
+          minLength: 2
+          type: string
+        level:
+          maxLength: 64
+          minLength: 2
+          type: string
+        experience:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+        uuid:
+          type: string
+    UserDetails:
+      type: object
+      properties:
+        username:
+          maxLength: 180
+          minLength: 0
+          type: string
+        password:
+          maxLength: 64
+          minLength: 0
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        type:
+          maxLength: 50
+          minLength: 0
+          type: string
+          enum:
+            - CITIZEN
+            - EMPLOYEE
+            - SYSTEM
+            - BUSINESS
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    IndividualRequest:
+      required:
+        - Individual
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Individual:
+          $ref: '#/components/schemas/Individual'
+    IndividualResponse:
+      required:
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Individual:
+          $ref: '#/components/schemas/Individual'
+    URLParams:
+      required:
+        - limit
+        - offset
+        - tenantId
+      type: object
+      properties:
+        urlparams:
+          $ref: '#/components/schemas/URLParams'
+        limit:
+          maximum: 1000
+          minimum: 0
+          type: integer
+          format: int32
+        offset:
+          minimum: 0
+          type: integer
+          format: int32
+        tenantId:
+          type: string
+        lastChangedSince:
+          type: integer
+          format: int64
+        includeDeleted:
+          type: boolean
+    IndividualSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        individualId:
+          type: array
+          items:
+            type: string
+        name:
+          $ref: '#/components/schemas/Name'
+        dateOfBirth:
+          type: string
+          format: date-time
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+            - OTHER
+            - TRANSGENDER
+        mobileNumber:
+          type: array
+          items:
+            type: string
+        socialCategory:
+          type: string
+        wardCode:
+          type: string
+        individualName:
+          type: string
+        createdFrom:
+          type: number
+        createdTo:
+          type: number
+        identifier:
+          $ref: '#/components/schemas/Identifier'
+        boundaryCode:
+          type: string
+        roleCodes:
+          type: array
+          items:
+            type: string
+        username:
+          type: array
+          items:
+            type: string
+        userId:
+          type: array
+          items:
+            type: integer
+            format: int64
+        userUuid:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            type: string
+        latitude:
+          maximum: 90
+          exclusiveMaximum: false
+          minimum: -90
+          exclusiveMinimum: false
+          type: number
+          format: double
+        longitude:
+          maximum: 180
+          exclusiveMaximum: false
+          minimum: -180
+          exclusiveMinimum: false
+          type: number
+          format: double
+        searchRadius:
+          minimum: 0
+          exclusiveMinimum: false
+          type: number
+          format: double
+        type:
+          type: string
+    IndividualSearchRequest:
+      required:
+        - Individual
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Individual:
+          $ref: '#/components/schemas/IndividualSearch'
+    IndividualBulkResponse:
+      required:
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        TotalCount:
+          type: integer
+          format: int64
+        Individual:
+          type: array
+          items:
+            $ref: '#/components/schemas/Individual'

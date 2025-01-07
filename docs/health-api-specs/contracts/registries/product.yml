@@ -1,515 +1,576 @@
-swagger: '2.0'
+openapi: 3.0.1
 info:
-  version: 1.0.0
-  title: Product Registry
-  description: >
-    This module facilitates maintenance of a Product registry.
-  contact:
-    name: Digit
-    email: info@egovernments.org
-schemes:
-  - https
-x-common-path: >-
-  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+  title: Household Registry
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
 paths:
-  /product/v1/_create:
+  /v1/_create:
     post:
-      summary: >-
-        Create/Add a new product
-      description: >-
-        Create a new product
-      parameters:
-        - name: Product
-          in: body
-          description: Capture details of Product.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductRequest'
       tags:
         - Product
-      responses:
-        '202':
-          description: Product request has been accepted.
-          schema:
-            $ref: '#/definitions/ProductResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /product/v1/_update:
-    post:
-      summary: >-
-        Update product
-      description: >-
-        Update product
-      parameters:
-        - name: Product
-          in: body
-          description: Capture details of Product.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductRequest'
-      tags:
-        - Product
-      responses:
-        '202':
-          description: Product request has been accepted.
-          schema:
-            $ref: '#/definitions/ProductResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /product/v1/_search:
-    post:
-      summary: >-
-        Search product
-      description: >-
-        Search product
-      parameters:
-        - name: Product
-          in: body
-          description: Capture details of Product.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductSearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Product
+      summary: Create/Add a new product
+      description: Create/Add a new product
+      operationId: productV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+        required: true
       responses:
         '200':
-          description: Product.
-          schema:
-            $ref: '#/definitions/ProductResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
         '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-  /product/variant/v1/_create:
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /v1/_update:
     post:
-      summary: >-
-        Create/Add a new variant for a product
-      description: >-
-        Create/Add a new variant for a product
-      parameters:
-        - name: ProductVariant
-          in: body
-          description: Capture details of Product Variant.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductVariantRequest'
       tags:
         - Product
-      responses:
-        '202':
-          description: Product Variant request has been accepted.
-          schema:
-            $ref: '#/definitions/ProductVariantResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /product/variant/v1/_update:
-    post:
-      summary: >-
-        Update product variant
-      description: >-
-        Update product variant
-      parameters:
-        - name: ProductVariant
-          in: body
-          description: Capture details of Product Variant.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductVariantRequest'
-      tags:
-        - Product
-      responses:
-        '202':
-          description: Product variant request has been accepted.
-          schema:
-            $ref: '#/definitions/ProductVariantResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /product/variant/v1/_search:
-    post:
-      summary: >-
-        Search product variant
-      description: >-
-        Search product variant
-      parameters:
-        - name: ProductVariant
-          in: body
-          description: Capture details of Product variant.
-          required: true
-          schema:
-            $ref: '#/definitions/ProductVariantSearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Product
+      summary: Update product
+      description: Update product
+      operationId: productV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+        required: true
       responses:
         '200':
-          description: Product Variant.
-          schema:
-            $ref: '#/definitions/ProductVariantResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
         '400':
-          description: Invalid Input body.
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /v1/_search:
+    post:
+      tags:
+        - Product
+      summary: Search product
+      description: Search product
+      operationId: productV1SearchPost
+      parameters:
+        - name: limit
+          in: query
+          required: true
           schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-parameters:
-  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
-  tenantId:
-    name: tenantId
-    in: query
-    description: Unique id for a tenant.
-    required: true
-    type: string
-    format: varchar
-
-  lastChangedSince:
-    name: lastChangedSince
-    description: |
-      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
-    in: query
-    required: false
-    type: integer
-    format: int64
-
-  echoResource:
-    name: echoResource
-    in: query
-    type: boolean
-    required: false
-    default: true
-    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
-
-  serverHandlesErrors:
-    name: serverHandlesErrors
-    in: query
-    type: boolean
-    required: false
-    default: false
-    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
-
-  limit:
-    name: limit
-    description: Pagination - limit records in response
-    in: query
-    type: integer
-    minimum: 0
-    maximum: 1000 #TODO review
-    required: true
-
-  offset:
-    name: offset
-    description: Pagination - offset from which records should be returned in response
-    in: query
-    type: integer
-    minimum: 0
-    required: true
-
-  includeDeleted:
-    name: includeDeleted
-    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
-    in: query
-    type: boolean
-    default: false
-    required: false
-
-definitions:
-  boundaryCode:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
-  id:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
-  idForSearch:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
-  tenantId:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
-  eventTimestamp:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
-  isDeleted:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
-  rowVersion:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
-  apiOperation:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
-  additionalFields:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
-  Address:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
-
-
-  Product:
-    type: object
-    required:
-      - type
-      - name
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      type:
-        type: string
-        description: Define the type of product
-        example: 'DRUG'
-        minLength: 2
-        maxLength: 100
-      #        enum:
-      #          - MEDICINE
-      #          - VACCINE
-      #          - SPRAY
-      #          - BEDNET
-      #          - EDUCATIONAL_MATERIAL
-      name:
-        type: string
-        description: Capture name of the product
-        example: Paracetamol
-        minLength: 2
-        maxLength: 1000
-      manufacturer:
-        type: string
-        description: Capture manufacturer of product
-        example: 'J&J'
-        minLength: 0
-        maxLength: 1000
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-
-  ProductSearch:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/idForSearch'
-      type:
-        type: string
-        description: Define the type of product
-        example: 'DRUG'
-      name:
-        type: array
-        items:
-          type: string
-          example: Paracetamol
-        description: Capture name of the product
-
-      manufacturer:
-        type: array
-        items:
-          type: string
-          example: 'J&J'
-        description: Capture manufacturer of product
-
-
-  ProductVariant:
-    type: object
-    required:
-      - productId
-      - variation
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      productId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Product for which this variant is being created
-      sku:
-        type: string
-        description: Capture sku code of the variant
-        example: 'PAR-200'
-        minLength: 0
-        maxLength: 1000
-      variation:
-        type: string
-        description: Capture name of the variant
-        example: Paracetamol 200mg white color
-        minLength: 0
-        maxLength: 1000
-      #      variant:
-      #        #A variant is a combination of 1 or more variations for a product
-      #        type: array
-      #        items:
-      #          $ref: '#/definitions/Variation'
-      #        description: Capture product variant
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-
-  ProductVariantSearch:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/idForSearch'
-      productId:
-        type: array
-        items:
-          type: string
-          minLength: 2
+            maximum: 1000
+            minimum: 0
+            type: integer
+            format: int32
+        - name: offset
+          in: query
+          required: true
+          schema:
+            minimum: 0
+            type: integer
+            format: int32
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            maxLength: 1000
+            minLength: 2
+            type: string
+        - name: lastChangedSince
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: includeDeleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /variant/v1/_create:
+    post:
+      tags:
+        - Product Variant
+      summary: Create/Add a new variant for a product
+      description: Create/Add a new variant for a product
+      operationId: productVariantV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductVariantResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /variant/v1/_update:
+    post:
+      tags:
+        - Product Variant
+      summary: Update product variant
+      description: Update product variant
+      operationId: productVariantV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductVariantResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /variant/v1/_search:
+    post:
+      tags:
+        - Product Variant
+      summary: Search product variant
+      description: Search product variant
+      operationId: productVariantV1SearchPost
+      parameters:
+        - name: limit
+          in: query
+          required: true
+          schema:
+            maximum: 1000
+            minimum: 0
+            type: integer
+            format: int32
+        - name: offset
+          in: query
+          required: true
+          schema:
+            minimum: 0
+            type: integer
+            format: int32
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            maxLength: 1000
+            minLength: 2
+            type: string
+        - name: lastChangedSince
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: includeDeleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProductVariantResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+components:
+  schemas:
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
           maxLength: 64
-        description: Product for which this variant is being created
-      sku:
-        type: string
-        description: Capture sku code of the variant
-        example: 'PAR-200'
-        minLength: 0
-        maxLength: 1000
-      variation:
-        type: string
-        description: Capture name of the variant
-        example: Paracetamol 200mg white color
-        minLength: 0
-        maxLength: 1000
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 2
+          type: string
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    ProductVariant:
+      required:
+        - productId
+        - tenantId
+        - variation
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        productId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        sku:
+          maxLength: 1000
+          minLength: 0
+          type: string
+        variation:
+          maxLength: 1000
+          minLength: 0
+          type: string
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        isDeleted:
+          type: boolean
+        rowVersion:
+          type: integer
+          format: int32
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    ProductVariantRequest:
+      required:
+        - ProductVariant
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProductVariant:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+        apiOperation:
+          type: string
+          enum:
+            - CREATE
+            - UPDATE
+            - DELETE
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          maxLength: 128
+          minLength: 0
+          type: string
+        code:
+          maxLength: 50
+          minLength: 0
+          type: string
+        tenantId:
+          maxLength: 256
+          minLength: 0
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          maxLength: 180
+          minLength: 0
+          type: string
+        name:
+          maxLength: 250
+          minLength: 0
+          type: string
+        type:
+          maxLength: 50
+          minLength: 0
+          type: string
+        mobileNumber:
+          maxLength: 150
+          minLength: 0
+          type: string
+        emailId:
+          maxLength: 300
+          minLength: 0
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          maxLength: 256
+          minLength: 0
+          type: string
+        uuid:
+          maxLength: 36
+          minLength: 0
+          type: string
+    ProductVariantResponse:
+      required:
+        - ProductVariant
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ProductVariant:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    ProductVariantSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        productId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        sku:
+          maxLength: 1000
+          minLength: 0
+          type: string
+        variation:
+          maxLength: 1000
+          minLength: 0
+          type: string
+    ProductVariantSearchRequest:
+      required:
+        - ProductVariant
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProductVariant:
+          $ref: '#/components/schemas/ProductVariantSearch'
+    Product:
+      required:
+        - name
+        - tenantId
+        - type
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        type:
+          maxLength: 100
+          minLength: 2
+          type: string
+        name:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        manufacturer:
+          maxLength: 1000
+          minLength: 0
+          type: string
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        isDeleted:
+          type: boolean
+        rowVersion:
+          type: integer
+          format: int32
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+    ProductRequest:
+      required:
+        - Product
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Product:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        apiOperation:
+          type: string
+          enum:
+            - CREATE
+            - UPDATE
+            - DELETE
+    ProductResponse:
+      required:
+        - Product
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Product:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    ProductSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        type:
+          type: string
+        name:
+          type: string
+        manufacturer:
+          type: string
+    ProductSearchRequest:
+      required:
+        - Product
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Product:
+          $ref: '#/components/schemas/ProductSearch'
 
-  #  Variation:
-  #    type: object
-  #    properties:
-  #      variation:
-  #        type: string
-  #        description: Capture product variation
-  #        example: '200'
-  #      variationUnit:
-  #        type: string
-  #        example: 'MG'
-  #        enum:
-  #          - BALE
-  #          - CARTONS
-  #          - VIALS
-  #          - MG
-  #          - ML
-
-  ProjectProductVariant:
-    #Master Data MDMS
-    #Required to map projects to product variants and define the type and if the variant is considered as a base unit within this project
-    type: object
-    required:
-      - productVariantId
-    properties:
-      productVariantId:
-        type: string
-        description: Reference to id in ProductVariant
-      type:
-        type: string
-        description: Type of resource i.e. Human, Product in the context of the project
-      isBaseUnitVariant:
-        type: boolean
-        description: Denotes if a variant is a base unit variant. Useful to filter variants applicable for tasks within a project.
-
-
-  ProductRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Product:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/Product'
-      apiOperation:
-        $ref: '#/definitions/apiOperation'
-    required:
-      - RequestInfo
-      - Product
-
-  ProductSearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Product:
-        $ref: '#/definitions/ProductSearch'
-    required:
-      - RequestInfo
-      - Product
-
-  ProductResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Product:
-        type: array
-        items:
-          $ref: '#/definitions/Product'
-    required:
-      - ResponseInfo
-      - Product
-
-  ProductVariantRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      ProductVariant:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/ProductVariant'
-      apiOperation:
-        $ref: '#/definitions/apiOperation'
-    required:
-      - RequestInfo
-      - ProductVariant
-
-  ProductVariantSearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      ProductVariant:
-        $ref: '#/definitions/ProductVariantSearch'
-    required:
-      - RequestInfo
-      - ProductVariant
-
-  ProductVariantResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      ProductVariant:
-        type: array
-        items:
-          $ref: '#/definitions/ProductVariant'
-    required:
-      - ResponseInfo
-      - ProductVariant
