@@ -73,6 +73,7 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");
                 preparedStmtList.add('%' + project.getId() + '%');
+                preparedStmtList.add(project.getId());
             } else if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.id =? ");
