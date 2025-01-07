@@ -2243,8 +2243,9 @@ async function createProject(
       };
       boundaries = await reorderBoundaries(request, localizationMap);
       const codesTargetMapping = request?.body?.CampaignDetails?.codesTargetMapping;
-      let boundariesCampaignProjectsMapping: any = await getBoundariesCampaignProjectsMapping(request?.body?.CampaignDetails?.campaignNumber);
-      let boundaryCodesWhoseTargetsHasToBeUpdated = getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping, codesTargetMapping, request?.body?.CampaignDetails?.parentId);  
+      let boundariesCampaignProjectsMapping: any = await getBoundariesCampaignProjectsMapping("CMP-2025-01-06-004833");
+      let boundaryCodesWhoseTargetsHasToBeUpdated = getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping, codesTargetMapping, request?.body?.CampaignDetails?.parentId);
+      enrichBoundaryProjectMapping(boundariesCampaignProjectsMapping, request?.body?.boundaryProjectMapping);
       if (boundaryCodesWhoseTargetsHasToBeUpdated && boundaryCodesWhoseTargetsHasToBeUpdated?.length > 0) {
         for (const boundary of boundaryCodesWhoseTargetsHasToBeUpdated) {
           if ( boundariesCampaignProjectsMapping?.[boundary]) {
@@ -2325,6 +2326,17 @@ async function createProject(
     processTrackStatuses.completed
   );
 }
+
+function enrichBoundaryProjectMapping(boundariesCampaignProjectsMapping: any, boundaryProjectMapping: any){
+  if(boundariesCampaignProjectsMapping){
+    for (const boundaryCode in boundariesCampaignProjectsMapping) {
+      if (boundaryProjectMapping?.[boundaryCode]) {
+        boundaryProjectMapping[boundaryCode].projectId = boundariesCampaignProjectsMapping?.[boundaryCode]?.projectId;
+      }
+    }
+  }
+}
+
 
 function getBoundaryCodesWhoseTargetsHasToBeUpdated(boundariesCampaignProjectsMapping: any, codesTargetMapping: any, parentId: any){
    if(!parentId){
