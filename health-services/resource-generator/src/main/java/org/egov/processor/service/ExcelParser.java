@@ -18,9 +18,14 @@ import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
 import org.egov.processor.web.models.campaignManager.CampaignResources;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
+import org.egov.processor.web.models.planFacility.PlanFacility;
+import org.egov.processor.web.models.planFacility.PlanFacilityResponse;
+import org.egov.processor.web.models.planFacility.PlanFacilitySearchCriteria;
+import org.egov.processor.web.models.planFacility.PlanFacilitySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,6 +34,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Service
@@ -62,9 +69,11 @@ public class ExcelParser implements FileParser {
 
 	private OutputEstimationGenerationUtil outputEstimationGenerationUtil;
 
+	private PlanFacilityUtil planFacilityUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil, PlanFacilityUtil planFacilityUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -79,6 +88,7 @@ public class ExcelParser implements FileParser {
         this.enrichmentUtil = enrichmentUtil;
         this.planConfigurationUtil = planConfigurationUtil;
         this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
+        this.planFacilityUtil = planFacilityUtil;
     }
 
 	/**
@@ -230,10 +240,60 @@ public class ExcelParser implements FileParser {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+
+					// Create a Map of Boundary Code to Facility's fixed post detail.
+					Map<String, String> boundaryCodeToFixedPostMap = fetchFixedPostDetails(request, excelWorkbook, fileStoreId);
+
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
 		});
+	}
+
+	/**
+	 * This method makes plan facility search call and creates a map of boundary code to it's fixed post facility details.
+	 *
+	 * @param request       the plan configuration request.
+	 * @param excelWorkbook the Excel workbook to be processed.
+	 * @param fileStoreId   the fileStore id of the file.
+	 * @return returns a map of boundary code to it's fixed post facility details.
+	 */
+	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request, Workbook excelWorkbook, String fileStoreId) {
+		PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+		// Create the map of boundary code to the facility assigned to that boundary.
+		Map<String, String> boundaryCodeToFacilityNameMap = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(excelWorkbook, request, fileStoreId);
+
+		//Create plan facility search request
+		PlanFacilitySearchRequest searchRequest = PlanFacilitySearchRequest.builder()
+				.requestInfo(request.getRequestInfo())
+				.planFacilitySearchCriteria(PlanFacilitySearchCriteria.builder()
+						.tenantId(planConfiguration.getTenantId())
+						.planConfigurationId(planConfiguration.getId())
+						.build())
+				.build();
+
+		PlanFacilityResponse planFacilityResponse = planFacilityUtil.search(searchRequest);
+
+		if (CollectionUtils.isEmpty(planFacilityResponse.getPlanFacility())) {
+			throw new CustomException(NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
+		}
+
+		// Create a Boundary Code to Facility's fixed post detail map.
+		Map<String, String> boundaryCodeToFixedPostMap = new HashMap<>();
+
+		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
+			// Find the boundary code corresponding to the facility name.
+			String boundaryCode = findByValue(boundaryCodeToFacilityNameMap, planFacility.getFacilityName());
+
+			// Extract the 'FIXED_POST' field from additional details.
+			String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
+
+			// Populate the map.
+			boundaryCodeToFixedPostMap.put(boundaryCode, fixedPostValue);
+		}
+
+		return boundaryCodeToFixedPostMap;
 	}
 
 	/**

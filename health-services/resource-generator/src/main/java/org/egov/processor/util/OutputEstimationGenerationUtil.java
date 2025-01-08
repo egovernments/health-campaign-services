@@ -137,7 +137,7 @@ public class OutputEstimationGenerationUtil {
                         LinkedHashMap::new
                 ));
 
-        // Get the map of boundary code to the facility assigned to that boundary.
+        // Create the map of boundary code to the facility assigned to that boundary.
         Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
 
         // Iterate through all sheets in the workbook.
@@ -160,7 +160,7 @@ public class OutputEstimationGenerationUtil {
      * @param fileStoreId the associated file store ID for filtering.
      * @return a map of boundary codes to their assigned facility names.
      */
-    private Map<String, String> getBoundaryCodeToFacilityMap(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public Map<String, String> getBoundaryCodeToFacilityMap(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
         List<String> boundaryCodes = new ArrayList<>();
 
         // Iterate through all sheets in the workbook.
