@@ -39,6 +39,12 @@ public class ServiceConstants {
     public static final String FILE_NOT_FOUND_CODE = "FILE_NOT_FOUND";
     public static final String FILE_NOT_FOUND_MESSAGE = "No file with the specified templateIdentifier found - ";
 
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE = "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT";
+    public static final String PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE = "Key is not present in json object - ";
+
+    public static final String EMPTY_HEADER_ROW_CODE = "EMPTY_HEADER_ROW";
+    public static final String EMPTY_HEADER_ROW_MESSAGE = "The header row is empty for the given sheet";
+
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
@@ -57,6 +63,7 @@ public class ServiceConstants {
     public static final String ERROR_WHILE_DATA_CREATE_CALL = "Exception occurred while creating data for campaign - ";
     public static final String ERROR_WHILE_CALLING_MICROPLAN_API =
             "Unexpected error while calling fetch from Microplan API for plan config Id: ";
+    public static final String INVALID_HEX = "Invalid hex color specified: ";
 
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
@@ -74,6 +81,7 @@ public class ServiceConstants {
     public static final String BOUNDARY = "boundary";
     public static final String DOT_SEPARATOR = ".";
     public static final String MICROPLAN_PREFIX = "MP-";
+    public static final Double BRIGHTEN_FACTOR = 1.1;
 
     //MDMS field Constants
     public static final String DATA = "data";
@@ -116,8 +124,16 @@ public class ServiceConstants {
     public static final String SOURCE_KEY = "source";
     public static final String MICROPLAN_SOURCE_KEY = "microplan";
     public static final String MICROPLAN_ID_KEY = "microplanId";
+    public static final String FACILITY_NAME = "facilityName";
+    public static final String HCM_MICROPLAN_SERVING_FACILITY = "HCM_MICROPLAN_SERVING_FACILITY";
 
     //Census additional field constants
     public static final String UPLOADED_KEY = "UPLOADED_";
     public static final String CONFIRMED_KEY = "CONFIRMED_";
+
+    //Excel header row styling constants
+    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Constant background color
+    public static final boolean FREEZE_CELL = true; // Constant to lock cell
+    public static final int COLUMN_WIDTH = 40; // Column width in characters
+
 }

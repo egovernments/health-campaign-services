@@ -13,7 +13,6 @@ import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.util.*;
 import org.egov.processor.web.models.*;
-import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
@@ -30,9 +29,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static org.egov.processor.config.ServiceConstants.HCM_ADMIN_CONSOLE_BOUNDARY_DATA;
-import static org.egov.processor.config.ServiceConstants.READ_ME_SHEET_NAME;
 
 @Slf4j
 @Service
@@ -64,9 +60,11 @@ public class ExcelParser implements FileParser {
 
 	private PlanConfigurationUtil planConfigurationUtil;
 
+	private OutputEstimationGenerationUtil outputEstimationGenerationUtil;
+
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -80,6 +78,7 @@ public class ExcelParser implements FileParser {
         this.censusUtil = censusUtil;
         this.enrichmentUtil = enrichmentUtil;
         this.planConfigurationUtil = planConfigurationUtil;
+        this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
     }
 
 	/**
@@ -128,7 +127,7 @@ public class ExcelParser implements FileParser {
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-                    workbook, campaignBoundaryList, campaignResourcesList);
+                    workbook, campaignBoundaryList, campaignResourcesList, fileStoreId);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -153,7 +152,7 @@ public class ExcelParser implements FileParser {
 	 */
 	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
 			Object campaignResponse, Workbook workbook,
-			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList) {
+			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList, String filestoreId) {
 		File fileToUpload = null;
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
@@ -164,9 +163,19 @@ public class ExcelParser implements FileParser {
 				planUtil.update(planConfigurationRequest);
 			}
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
+				//Upload the processed output file into project factory
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
-							}
+
+				//process output file for localized header columns and addition of new columns
+				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest, filestoreId);
+
+				//upload the processed output file and update the same into plan configuration file object
+				fileToUpload = convertWorkbookToXls(workbook);
+				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
+				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.update(planConfigurationRequest);
+			}
 		} finally {
 			try {
 			if (fileToUpload != null && !fileToUpload.delete()) {
@@ -189,7 +198,6 @@ public class ExcelParser implements FileParser {
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
-
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
 							   Object campaignResponse, Workbook excelWorkbook,
 							   List<Boundary> campaignBoundaryList,
@@ -213,7 +221,7 @@ public class ExcelParser implements FileParser {
 						LinkedHashMap::new
 				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
+			if (parsingUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
@@ -312,8 +320,6 @@ public class ExcelParser implements FileParser {
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
 
-
-	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
@@ -718,28 +724,5 @@ public class ExcelParser implements FileParser {
 		return boundaryList;
 	}
 	
-	/**
-	 * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
-	 * 
-	 * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
-	 * @param sheetName The name of the sheet to be processed.
-	 * @return true if the sheet is allowed to be processed, false otherwise.
-	 * @throws JsonMappingException If there's an issue mapping JSON response to Java objects.
-	 * @throws JsonProcessingException If there's an issue processing JSON during conversion.
-	 */
-	private boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
-		Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
-				planConfigurationRequest.getRequestInfo(),
-				planConfigurationRequest.getPlanConfiguration().getTenantId());
 
-		for (Locale locale : localeResponse.getMessages()) {
-			if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
-					|| locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
-				if (sheetName.equals(locale.getMessage()))
-					return false;
-			}
-		}
-		return true;
-
-	}
 }
