@@ -25,6 +25,7 @@ import org.egov.processor.web.models.planFacility.PlanFacilitySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,7 +35,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.egov.processor.config.ServiceConstants.FIXED_POST;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Service
@@ -240,9 +241,8 @@ public class ExcelParser implements FileParser {
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
 
-					// Create the map of boundary code to the facility assigned to that boundary.
-					Map<String, String> boundaryCodeToFacility = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(excelWorkbook, request, fileStoreId);
-					Map<String, String> facilityToFixedPost = fetchFixedPostDetails(request, boundaryCodeToFacility);
+					// Create a Map of Boundary Code to Facility's fixed post detail.
+					Map<String, String> boundaryCodeToFixedPostMap = fetchFixedPostDetails(request, excelWorkbook, fileStoreId);
 
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
@@ -253,12 +253,16 @@ public class ExcelParser implements FileParser {
 	/**
 	 * This method makes plan facility search call and creates a map of boundary code to it's fixed post facility details.
 	 *
-	 * @param request                the plan configuration request.
-	 * @param boundaryCodeToFacility map of boundary code to facility assigned.
+	 * @param request       the plan configuration request.
+	 * @param excelWorkbook the Excel workbook to be processed.
+	 * @param fileStoreId   the fileStore id of the file.
 	 * @return returns a map of boundary code to it's fixed post facility details.
 	 */
-	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request, Map<String, String> boundaryCodeToFacility) {
+	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request, Workbook excelWorkbook, String fileStoreId) {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+		// Create the map of boundary code to the facility assigned to that boundary.
+		Map<String, String> boundaryCodeToFacilityNameMap = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(excelWorkbook, request, fileStoreId);
 
 		//Create plan facility search request
 		PlanFacilitySearchRequest searchRequest = PlanFacilitySearchRequest.builder()
@@ -271,12 +275,25 @@ public class ExcelParser implements FileParser {
 
 		PlanFacilityResponse planFacilityResponse = planFacilityUtil.search(searchRequest);
 
-		// Create and return a map of facility name to fixed post details
-		return planFacilityResponse.getPlanFacility().stream()
-				.collect(Collectors.toMap(
-						planFacility -> findByValue(boundaryCodeToFacility, planFacility.getFacilityName()),
-						planFacility -> (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST)
-				));
+		if (CollectionUtils.isEmpty(planFacilityResponse.getPlanFacility())) {
+			throw new CustomException(NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
+		}
+
+		// Create a Boundary Code to Facility's fixed post detail map.
+		Map<String, String> boundaryCodeToFixedPostMap = new HashMap<>();
+
+		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
+			// Find the boundary code corresponding to the facility name.
+			String boundaryCode = findByValue(boundaryCodeToFacilityNameMap, planFacility.getFacilityName());
+
+			// Extract the 'FIXED_POST' field from additional details.
+			String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
+
+			// Populate the map.
+			boundaryCodeToFixedPostMap.put(boundaryCode, fixedPostValue);
+		}
+
+		return boundaryCodeToFixedPostMap;
 	}
 
 	/**

@@ -28,6 +28,12 @@ public class PlanFacilityUtil {
         this.mapper = mapper;
     }
 
+    /**
+     * Searches for plan facilities based on the provided search request.
+     *
+     * @param planfacilitySearchRequest The search request containing the search criteria.
+     * @return A response with a list of plan facilities that matches the search criteria.
+     */
     public PlanFacilityResponse search(PlanFacilitySearchRequest planfacilitySearchRequest) {
 
         PlanFacilityResponse planFacilityResponse = null;
@@ -38,15 +44,11 @@ public class PlanFacilityUtil {
             log.error(ServiceConstants.ERROR_WHILE_SEARCHING_PLAN_FACILITY);
         }
 
-        if (CollectionUtils.isEmpty(planFacilityResponse.getPlanFacility())) {
-            throw new CustomException(NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
-        }
-
         return planFacilityResponse;
     }
 
     /**
-     * Creates a complete search uri for plan facility search.
+     * Creates a search uri for plan facility search.
      * @return
      */
     private StringBuilder getPlanFacilitySearchUri() {
