@@ -3730,7 +3730,7 @@ function createIdRequests(employees: any[]): any[] {
     return Array.from({ length: employees.length }, () => ({
       tenantId: tenantId,
       idName: config?.values?.idgen?.idNameForUserNameGeneration,
-      idFormat: config?.values?.idgen?.formatForUserName,
+      format: config?.values?.idgen?.formatForUserName,
     }));
   } else {
     return [];
