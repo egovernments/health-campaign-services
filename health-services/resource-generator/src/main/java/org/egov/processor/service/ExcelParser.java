@@ -176,9 +176,10 @@ public class ExcelParser implements FileParser {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 
-				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest);
+				//process output file for localized header columns and addition of new columns
+				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest, filestoreId);
 
-				//update processed output file into plan configuration file object
+				//upload the processed output file and update the same into plan configuration file object
 				fileToUpload = convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
@@ -206,7 +207,6 @@ public class ExcelParser implements FileParser {
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
-	//TODO: processsheetforestimate and processsheetforcensus
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
 							   Object campaignResponse, Workbook excelWorkbook,
 							   List<Boundary> campaignBoundaryList,
@@ -239,12 +239,11 @@ public class ExcelParser implements FileParser {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
-					Map<String, String> boundaryCodeToFacility = new HashMap<>();
 
-					// Adding facility information for each boundary code
-					outputEstimationGenerationUtil.addAssignedFacility(excelWorkbook, request, fileStoreId, boundaryCodeToFacility);
-
+					// Create the map of boundary code to the facility assigned to that boundary.
+					Map<String, String> boundaryCodeToFacility = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(excelWorkbook, request, fileStoreId);
 					Map<String, String> facilityToFixedPost = fetchFixedPostDetails(request, boundaryCodeToFacility);
+
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
@@ -364,7 +363,6 @@ public class ExcelParser implements FileParser {
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
 
-	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
