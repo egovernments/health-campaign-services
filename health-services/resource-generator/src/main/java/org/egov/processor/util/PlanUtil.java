@@ -83,6 +83,7 @@ public class PlanUtil {
 						.resources(resultMap.entrySet().stream().map(result -> {
 							Resource res = new Resource();
 							res.setResourceType(result.getKey());
+							//TODO: remove null check
 							res.setEstimatedNumber(result.getValue());
 							return res;
 						}).collect(Collectors.toList()))

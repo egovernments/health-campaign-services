@@ -18,6 +18,7 @@ import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
 import org.egov.processor.web.models.campaignManager.CampaignResources;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
+import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.egov.processor.web.models.planFacility.PlanFacility;
 import org.egov.processor.web.models.planFacility.PlanFacilityResponse;
 import org.egov.processor.web.models.planFacility.PlanFacilitySearchCriteria;
@@ -69,11 +70,13 @@ public class ExcelParser implements FileParser {
 
 	private OutputEstimationGenerationUtil outputEstimationGenerationUtil;
 
+	private MixedStartegyUtil mixedStartegyUtil;
+
 	private PlanFacilityUtil planFacilityUtil;
 
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
                        CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil, PlanFacilityUtil planFacilityUtil) {
+                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil, MixedStartegyUtil mixedStartegyUtil, PlanFacilityUtil planFacilityUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -88,6 +91,7 @@ public class ExcelParser implements FileParser {
         this.enrichmentUtil = enrichmentUtil;
         this.planConfigurationUtil = planConfigurationUtil;
         this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
+        this.mixedStartegyUtil = mixedStartegyUtil;
         this.planFacilityUtil = planFacilityUtil;
     }
 
@@ -240,10 +244,6 @@ public class ExcelParser implements FileParser {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
-
-					// Create a Map of Boundary Code to Facility's fixed post detail.
-					Map<String, String> boundaryCodeToFixedPostMap = fetchFixedPostDetails(request, excelWorkbook, fileStoreId);
-
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
@@ -280,6 +280,7 @@ public class ExcelParser implements FileParser {
 		}
 
 		// Create a Boundary Code to Facility's fixed post detail map.
+		//TODO: make it Map<String, Boolean>
 		Map<String, String> boundaryCodeToFixedPostMap = new HashMap<>();
 
 		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
@@ -315,8 +316,10 @@ public class ExcelParser implements FileParser {
 	 * @throws IOException If an I/O error occurs.
 	 */
 	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList) {
-		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, planConfig, attributeNameVsDataTypeMap, boundaryCodeList);
+		// TODO: pass sheet instead
+		// Create a Map of Boundary Code to Facility's fixed post detail.
+		Map<String, String> boundaryCodeToFixedPostMap = fetchFixedPostDetails(request, excelWorkbook, fileStoreId);
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap);
 	}
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
@@ -399,14 +402,15 @@ public class ExcelParser implements FileParser {
 	 * @param dataFormatter The data formatter for formatting cell values.
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaignBoundaryList List of boundary objects related to the campaign.
-	 * @param planConfig The configuration details specific to the plan.
 	 * @param attributeNameVsDataTypeMap Mapping of attribute names to their data types.
 	 * @param boundaryCodeList List of boundary codes.
 	 */
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
-			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList)  {
+			Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
+											 Map<String, String> boundaryCodeToFixedPostMap)  {
 		Row firstRow = null;
+		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
 				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
@@ -416,6 +420,9 @@ public class ExcelParser implements FileParser {
 
 		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
 				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStartegyUtil
+				.fetchMixedStrategyOperationLogicFromMDMS(planConfigurationRequest);
 
 		for (Row row : sheet) {
 			if(parsingUtil.isRowEmpty(row))
@@ -432,6 +439,8 @@ public class ExcelParser implements FileParser {
 			JsonNode feature = createFeatureNodeFromRow(row, mapOfColumnNameAndIndex);
 			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
 					assumptionValueMap, feature);
+
+			mixedStartegyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStartegyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get("")), planConfig, mixedStrategyOperationLogicList));
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);

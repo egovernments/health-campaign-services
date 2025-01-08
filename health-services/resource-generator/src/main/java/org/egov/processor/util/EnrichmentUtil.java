@@ -262,6 +262,17 @@ public class EnrichmentUtil {
                             }
                             cell.setCellValue(estimatedValue.doubleValue());
                         }
+                    } else {
+                        // If estimatedValue is null, set the cell to empty
+                        Integer columnIndex = mapOfColumnNameAndIndex.get(resourceType);
+                        if (columnIndex != null) {
+                            // Ensure the cell is empty
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(""); // Set as empty string
+                        }
                     }
                 }
             }
