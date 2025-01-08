@@ -320,7 +320,6 @@ public class ExcelParser implements FileParser {
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
 
-	//TODO: fetch from adminSchema master
 	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
