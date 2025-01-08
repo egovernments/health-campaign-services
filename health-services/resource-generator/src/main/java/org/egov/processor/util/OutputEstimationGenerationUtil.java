@@ -35,9 +35,19 @@ public class OutputEstimationGenerationUtil {
         this.enrichmentUtil = enrichmentUtil;
     }
 
-    public void processOutputFile(Workbook workbook, PlanConfigurationRequest request) {
+    /**
+     * Processes an output Excel workbook by removing unnecessary sheets, localizing header columns,
+     * and adding facility information for each boundary code. The configuration for processing
+     * is based on the provided PlanConfigurationRequest.
+     *
+     * @param workbook   the Excel workbook to process
+     * @param request    the PlanConfigurationRequest containing processing configuration
+     * @param filestoreId the identifier of the file store for additional processing requirements
+     */
+    public void processOutputFile(Workbook workbook, PlanConfigurationRequest request, String filestoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
-        //removing readme sheet
+
+        // 1. removing readme sheet
         for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
             Sheet sheet = workbook.getSheetAt(i);
             if (!parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
@@ -45,6 +55,25 @@ public class OutputEstimationGenerationUtil {
             }
         }
 
+        // 2. Stylize and localize output column headers
+        for(Sheet sheet: workbook) {
+            processSheetForHeaderLocalization(sheet, localeResponse);
+        }
+
+        // 3. Adding facility information for each boundary code
+        addAssignedFacility(workbook, request, filestoreId);
+
+    }
+
+    /**
+     * Localizes the header row in the given sheet using the provided localization map.
+     * Applies styling and adjusts column widths for each localized header cell.
+     *
+     * @param sheet                           the Excel sheet whose header row needs localization
+     * @param localeResponse                  localization search call response
+     */
+    public void processSheetForHeaderLocalization(Sheet sheet, LocaleResponse localeResponse) {
+        // create localization code and message map
         Map<String, String> localizationCodeAndMessageMap = localeResponse.getMessages().stream()
                 .collect(Collectors.toMap(
                         Locale::getCode,
@@ -52,12 +81,6 @@ public class OutputEstimationGenerationUtil {
                         (existingValue, newValue) -> existingValue // Keep the existing value in case of duplicates
                 ));
 
-        for(Sheet sheet: workbook) {
-            processSheetForHeaderLocalization(sheet, localizationCodeAndMessageMap);
-        }
-    }
-
-    public void processSheetForHeaderLocalization(Sheet sheet, Map<String, String> localizationCodeAndMessageMap) {
         // Fetch the header row from sheet
         Row row = sheet.getRow(0);
         if (parsingUtil.isRowEmpty(row))
@@ -208,7 +231,7 @@ public class OutputEstimationGenerationUtil {
         // Create a new cell for the column header.
         Cell facilityColHeader = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
 
-        // Apply styling to the header cell, adjust width and set column header for facility.
+        //stylize cell and set cell value as the localized value
         excelStylingUtil.styleCell(facilityColHeader);
         facilityColHeader.setCellValue(assignedFacilityColHeader);
         excelStylingUtil.adjustColumnWidthForCell(facilityColHeader);

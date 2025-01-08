@@ -167,12 +167,10 @@ public class ExcelParser implements FileParser {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				campaignIntegrationUtil.updateResourcesInProjectFactory(planConfigurationRequest, uploadedFileStoreId);
 
-				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest);
+				//process output file for localized header columns and addition of new columns
+				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest, filestoreId);
 
-				// Adding facility information for each boundary code
-				outputEstimationGenerationUtil.addAssignedFacility(workbook, planConfigurationRequest, filestoreId);
-
-				//update processed output file into plan configuration file object
+				//upload the processed output file and update the same into plan configuration file object
 				fileToUpload = convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
