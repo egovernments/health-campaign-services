@@ -121,7 +121,10 @@ public class OutputEstimationGenerationUtil {
     public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
+        // Get the localized column header name for assigned facilities.
         String assignedFacilityColHeader = localeUtil.localeSearch(localeResponse.getMessages(), HCM_MICROPLAN_SERVING_FACILITY);
+
+        // Default to a constant value if no localized value is found.
         assignedFacilityColHeader = assignedFacilityColHeader != null ? assignedFacilityColHeader : HCM_MICROPLAN_SERVING_FACILITY;
 
         // Creating a map of MappedTo and MappedFrom values from resource mapping
@@ -137,9 +140,12 @@ public class OutputEstimationGenerationUtil {
         // Get the map of boundary code to the facility assigned to that boundary.
         Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
 
+        // Iterate through all sheets in the workbook.
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
+
             if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+                // Add facility names to the sheet.
                 addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
             }
         }
@@ -157,13 +163,16 @@ public class OutputEstimationGenerationUtil {
     private Map<String, String> getBoundaryCodeToFacilityMap(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
         List<String> boundaryCodes = new ArrayList<>();
 
+        // Iterate through all sheets in the workbook.
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
+                // Extract boundary codes from the sheet.
                 boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
             }
         }
 
+        // Fetch census records for the extracted boundary codes.
         List<Census> censusList = enrichmentUtil.getCensusRecordsForEnrichment(request, boundaryCodes);
         return censusList.stream()
                 .collect(Collectors.toMap(
@@ -182,9 +191,14 @@ public class OutputEstimationGenerationUtil {
      */
     private void addFacilityNameToSheet(Sheet sheet, String assignedFacilityColHeader, Map<String, String> boundaryCodeToFacility, Map<String, String> mappedValues) {
         int indexOfFacility = createAssignedFacilityColumn(sheet, assignedFacilityColHeader);
+
+        // Get column index mappings from the sheet.
         Map<String, Integer> columnNameIndexMap = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+
+        // Get the index of the boundary code column based on the provided mappings.
         int indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0, parsingUtil.sortColumnByIndex(columnNameIndexMap), mappedValues);
 
+        // Iterate over each row in the sheet and set the facility name for each row.
         for (Row row : sheet) {
             if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
                 continue;
@@ -192,11 +206,13 @@ public class OutputEstimationGenerationUtil {
 
             String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
 
+            // Get or create the facility cell in the row.
             Cell facilityCell = row.getCell(indexOfFacility);
             if (facilityCell == null) {
                 facilityCell = row.createCell(indexOfFacility, CellType.STRING);
             }
 
+            // Assign the facility name based on the boundary code.
             facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, ""));
         }
     }
@@ -211,6 +227,8 @@ public class OutputEstimationGenerationUtil {
      */
     private int createAssignedFacilityColumn(Sheet sheet, String assignedFacilityColHeader) {
         int indexOfFacility = (int) sheet.getRow(0).getLastCellNum();
+
+        // Create a new cell for the column header.
         Cell facilityColHeader = sheet.getRow(0).createCell(indexOfFacility, CellType.STRING);
 
         //stylize cell and set cell value as the localized value
