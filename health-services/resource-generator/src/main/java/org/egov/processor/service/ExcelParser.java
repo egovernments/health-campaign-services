@@ -384,8 +384,7 @@ public class ExcelParser implements FileParser {
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
-        return mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
-                file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
+        return mdmsUtil.filterMasterData(mdmsData.toString(), campaign.getCampaign().get(0).getProjectType());
 	}
 
 
@@ -783,6 +782,6 @@ public class ExcelParser implements FileParser {
 		}
 		return boundaryList;
 	}
-	
+
 
 }
