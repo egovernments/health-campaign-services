@@ -358,7 +358,7 @@ public class ServiceConstants {
 
     public static final String FAILED_MESSAGE = "Failed to push message to topic";
 
-    public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "facilityName";
+    public static final String FACILITY_ID_SEARCH_PARAMETER_KEY = "facilityId";
 
     public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "facilityStatus";
 
