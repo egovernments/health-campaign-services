@@ -7,6 +7,7 @@ import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.mdmsV2.Mdms;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -55,20 +56,23 @@ public class MixedStartegyUtil {
 
     }
 
-    public void processResultMap(Map<String, BigDecimal> resultMap,
-                                 List<Operation> operations,
-                                 List<String> categoriesNotAllowed) {
+    public void processResultMap(Map<String, BigDecimal> resultMap, List<Operation> operations, List<String> categoriesNotAllowed) {
 
-        // Map each category to its corresponding list of output keys
-        Map<String, List<String>> categoryToOutputMap = operations.stream()
-                .filter(Operation::getActive)
+        // If all te categories are allowed, don't process further.
+        if(CollectionUtils.isEmpty(categoriesNotAllowed))
+            return;
+
+        // Map categories not allowed to its corresponding list of output keys
+        Map<String, List<String>> categoryNotAllowedToOutputMap = operations.stream()
+                .filter(op -> op.getActive() && categoriesNotAllowed.contains(op.getCategory()))
                 .collect(Collectors.groupingBy(
                         Operation::getCategory,
                         Collectors.mapping(Operation::getOutput, Collectors.toList())));
 
+
         // Iterate through categories in the categoriesNotAllowed list and set their result values to null
         for (String category : categoriesNotAllowed) {
-            List<String> outputKeys = categoryToOutputMap.getOrDefault(category, Collections.emptyList());
+            List<String> outputKeys = categoryNotAllowedToOutputMap.getOrDefault(category, Collections.emptyList());
             for (String outputKey : outputKeys) {
                 if (resultMap.containsKey(outputKey)) {
                     resultMap.put(outputKey, null);

@@ -155,21 +155,18 @@ public class OutputEstimationGenerationUtil {
      * Collects boundary codes from all eligible sheets in the workbook, fetches census records for these boundaries,
      * and maps each boundary code to its assigned facility name obtained from the census data.
      *
-     * @param workbook    the workbook containing the sheets.
+     * @param sheet       the sheet to be processed.
      * @param request     the plan configuration request with boundary code details.
      * @param fileStoreId the associated file store ID for filtering.
      * @return a map of boundary codes to their assigned facility names.
      */
-    public Map<String, String> getBoundaryCodeToFacilityMap(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public Map<String, String> getBoundaryCodeToFacilityMap(Sheet sheet, PlanConfigurationRequest request, String fileStoreId) {
         List<String> boundaryCodes = new ArrayList<>();
 
-        // Iterate through all sheets in the workbook.
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet sheet = workbook.getSheetAt(i);
-            if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
-                // Extract boundary codes from the sheet.
-                boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
-            }
+
+        if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
+            // Extract boundary codes from the sheet.
+            boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
         }
 
         // Fetch census records for the extracted boundary codes.

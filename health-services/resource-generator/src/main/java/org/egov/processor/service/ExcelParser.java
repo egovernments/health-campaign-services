@@ -253,16 +253,16 @@ public class ExcelParser implements FileParser {
 	/**
 	 * This method makes plan facility search call and creates a map of boundary code to it's fixed post facility details.
 	 *
-	 * @param request       the plan configuration request.
-	 * @param excelWorkbook the Excel workbook to be processed.
-	 * @param fileStoreId   the fileStore id of the file.
+	 * @param request     the plan configuration request.
+	 * @param sheet       the Excel sheet to be processed.
+	 * @param fileStoreId the fileStore id of the file.
 	 * @return returns a map of boundary code to it's fixed post facility details.
 	 */
-	private Map<String, String> fetchFixedPostDetails(PlanConfigurationRequest request, Workbook excelWorkbook, String fileStoreId) {
+	private Map<String, Boolean> fetchFixedPostDetails(PlanConfigurationRequest request, Sheet sheet, String fileStoreId) {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
 		// Create the map of boundary code to the facility assigned to that boundary.
-		Map<String, String> boundaryCodeToFacilityNameMap = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(excelWorkbook, request, fileStoreId);
+		Map<String, String> boundaryCodeToFacilityNameMap = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
 
 		//Create plan facility search request
 		PlanFacilitySearchRequest searchRequest = PlanFacilitySearchRequest.builder()
@@ -280,8 +280,7 @@ public class ExcelParser implements FileParser {
 		}
 
 		// Create a Boundary Code to Facility's fixed post detail map.
-		//TODO: make it Map<String, Boolean>
-		Map<String, String> boundaryCodeToFixedPostMap = new HashMap<>();
+		Map<String, Boolean> boundaryCodeToFixedPostMap = new HashMap<>();
 
 		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
 			// Find the boundary code corresponding to the facility name.
@@ -290,8 +289,11 @@ public class ExcelParser implements FileParser {
 			// Extract the 'FIXED_POST' field from additional details.
 			String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
 
+			// Normalize the value and determine boolean equivalent.
+			boolean isFixedPost = fixedPostValue != null && fixedPostValue.trim().equalsIgnoreCase("yes");
+
 			// Populate the map.
-			boundaryCodeToFixedPostMap.put(boundaryCode, fixedPostValue);
+			boundaryCodeToFixedPostMap.put(boundaryCode, isFixedPost);
 		}
 
 		return boundaryCodeToFixedPostMap;
@@ -316,9 +318,9 @@ public class ExcelParser implements FileParser {
 	 * @throws IOException If an I/O error occurs.
 	 */
 	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList) {
-		// TODO: pass sheet instead
+
 		// Create a Map of Boundary Code to Facility's fixed post detail.
-		Map<String, String> boundaryCodeToFixedPostMap = fetchFixedPostDetails(request, excelWorkbook, fileStoreId);
+		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
 		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap);
 	}
 
@@ -408,7 +410,7 @@ public class ExcelParser implements FileParser {
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
 			Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
-											 Map<String, String> boundaryCodeToFixedPostMap)  {
+											 Map<String, Boolean> boundaryCodeToFixedPostMap)  {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
@@ -440,7 +442,9 @@ public class ExcelParser implements FileParser {
 			performCalculationsOnOperations(sheet, planConfig, row, resultMap, mappedValues,
 					assumptionValueMap, feature);
 
-			mixedStartegyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStartegyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get("")), planConfig, mixedStrategyOperationLogicList));
+			// Get Boundary Code for the current row.
+			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
+			mixedStartegyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStartegyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
