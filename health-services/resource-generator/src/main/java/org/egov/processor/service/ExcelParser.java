@@ -235,7 +235,7 @@ public class ExcelParser implements FileParser {
 						LinkedHashMap::new
 				));
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (parsingUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
+			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
@@ -261,9 +261,6 @@ public class ExcelParser implements FileParser {
 	private Map<String, Boolean> fetchFixedPostDetails(PlanConfigurationRequest request, Sheet sheet, String fileStoreId) {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
-		// Create the map of boundary code to the facility assigned to that boundary.
-		Map<String, String> boundaryCodeToFacilityNameMap = outputEstimationGenerationUtil.getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
-
 		//Create plan facility search request
 		PlanFacilitySearchRequest searchRequest = PlanFacilitySearchRequest.builder()
 				.requestInfo(request.getRequestInfo())
@@ -283,19 +280,21 @@ public class ExcelParser implements FileParser {
 		Map<String, Boolean> boundaryCodeToFixedPostMap = new HashMap<>();
 
 		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
-			// Find the boundary code corresponding to the facility name.
-			String boundaryCode = findByValue(boundaryCodeToFacilityNameMap, planFacility.getFacilityName());
+			// Ensure serviceBoundaries is not empty
+			if (!CollectionUtils.isEmpty(planFacility.getServiceBoundaries())) {
 
-			// Extract the 'FIXED_POST' field from additional details.
-			String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
+				// Extract the 'FIXED_POST' field from additional details.
+				String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
 
-			// Normalize the value and determine boolean equivalent.
-			boolean isFixedPost = fixedPostValue != null && fixedPostValue.trim().equalsIgnoreCase("yes");
+				// Normalize the value and determine boolean equivalent.
+				boolean isFixedPost = fixedPostValue != null && fixedPostValue.trim().equalsIgnoreCase("yes");
 
-			// Populate the map.
-			boundaryCodeToFixedPostMap.put(boundaryCode, isFixedPost);
+				// Populate the map with boundary code and isFixedPost.
+				for (String boundary : planFacility.getServiceBoundaries()) {
+					boundaryCodeToFixedPostMap.put(boundary, isFixedPost);
+				}
+			}
 		}
-
 		return boundaryCodeToFixedPostMap;
 	}
 

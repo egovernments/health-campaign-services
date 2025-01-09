@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -31,21 +30,12 @@ import static org.egov.processor.config.ServiceConstants.*;
 @Component
 public class ParsingUtil {
 
-    private PlanConfigurationUtil planConfigurationUtil;
-
     private FilestoreUtil filestoreUtil;
-
-    private CalculationUtil calculationUtil;
-
-    private MdmsUtil mdmsUtil;
 
     private ObjectMapper objectMapper;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
-        this.planConfigurationUtil = planConfigurationUtil;
+    public ParsingUtil(FilestoreUtil filestoreUtil, ObjectMapper objectMapper) {
         this.filestoreUtil = filestoreUtil;
-        this.calculationUtil = calculationUtil;
-        this.mdmsUtil = mdmsUtil;
         this.objectMapper = objectMapper;
     }
 
@@ -397,29 +387,6 @@ public class ParsingUtil {
             }
         }
         System.out.println(); // Move to the next line after printing the row
-    }
-
-    /**
-     * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
-     *
-     * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
-     * @param sheetName The name of the sheet to be processed.
-     * @return true if the sheet is allowed to be processed, false otherwise.
-     */
-    public boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
-        Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
-                planConfigurationRequest.getRequestInfo(),
-                planConfigurationRequest.getPlanConfiguration().getTenantId());
-
-        for (Locale locale : localeResponse.getMessages()) {
-            if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
-                    || locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
-                if (sheetName.equals(locale.getMessage()))
-                    return false;
-            }
-        }
-        return true;
-
     }
 
     /**

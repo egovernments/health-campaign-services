@@ -28,11 +28,14 @@ public class OutputEstimationGenerationUtil {
 
     private EnrichmentUtil enrichmentUtil;
 
-    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil, ExcelStylingUtil excelStylingUtil) {
+    private MdmsUtil mdmsUtil;
+
+    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil, ExcelStylingUtil excelStylingUtil, MdmsUtil mdmsUtil) {
         this.localeUtil = localeUtil;
         this.parsingUtil = parsingUtil;
         this.excelStylingUtil = excelStylingUtil;
         this.enrichmentUtil = enrichmentUtil;
+        this.mdmsUtil = mdmsUtil;
     }
 
     /**
@@ -50,7 +53,7 @@ public class OutputEstimationGenerationUtil {
         // 1. removing readme sheet
         for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (!parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
                 workbook.removeSheetAt(i);
             }
         }
@@ -142,7 +145,7 @@ public class OutputEstimationGenerationUtil {
         // Create the map of boundary code to the facility assigned to that boundary.
         Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
 
-        if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
             // Add facility names to the sheet.
             addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
         }
@@ -161,7 +164,7 @@ public class OutputEstimationGenerationUtil {
         List<String> boundaryCodes = new ArrayList<>();
 
 
-        if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
+        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
             // Extract boundary codes from the sheet.
             boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
         }
@@ -232,6 +235,29 @@ public class OutputEstimationGenerationUtil {
         facilityColHeader.setCellValue(assignedFacilityColHeader);
         excelStylingUtil.adjustColumnWidthForCell(facilityColHeader);
         return indexOfFacility;
+    }
+
+    /**
+     * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
+     *
+     * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
+     * @param sheetName The name of the sheet to be processed.
+     * @return true if the sheet is allowed to be processed, false otherwise.
+     */
+    public boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
+        Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+                planConfigurationRequest.getRequestInfo(),
+                planConfigurationRequest.getPlanConfiguration().getTenantId());
+
+        for (Locale locale : localeResponse.getMessages()) {
+            if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
+                    || locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
+                if (sheetName.equals(locale.getMessage()))
+                    return false;
+            }
+        }
+        return true;
+
     }
 }
 

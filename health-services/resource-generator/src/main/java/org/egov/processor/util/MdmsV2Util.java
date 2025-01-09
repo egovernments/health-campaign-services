@@ -67,9 +67,10 @@ public class MdmsV2Util {
         MdmsCriteriaV2 mdmsCriteriaV2 = MdmsCriteriaV2.builder()
                 .tenantId(tenantId)
                 .schemaCode(schemaCode)
-                .uniqueIdentifiers(Collections.singletonList(uniqueIdentifier))
+                .uniqueIdentifiers(uniqueIdentifier != null ? Collections.singletonList(uniqueIdentifier) : null)
                 .limit(config.getDefaultLimit())
-                .offset(config.getDefaultOffset()).build();
+                .offset(config.getDefaultOffset())
+                .build();
 
         return MdmsCriteriaReqV2.builder()
                 .requestInfo(requestInfo)
