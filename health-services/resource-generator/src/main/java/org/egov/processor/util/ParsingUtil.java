@@ -35,15 +35,12 @@ public class ParsingUtil {
 
     private FilestoreUtil filestoreUtil;
 
-    private CalculationUtil calculationUtil;
-
     private MdmsUtil mdmsUtil;
 
     private ObjectMapper objectMapper;
 
-    public ParsingUtil(FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
+    public ParsingUtil(FilestoreUtil filestoreUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
         this.filestoreUtil = filestoreUtil;
-        this.calculationUtil = calculationUtil;
         this.mdmsUtil = mdmsUtil;
         this.objectMapper = objectMapper;
     }
