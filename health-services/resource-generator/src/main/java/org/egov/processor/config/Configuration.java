@@ -41,6 +41,9 @@ public class Configuration {
 	@Value("${egov.plan.search.endpoint}")
 	private String planSearchEndPoint;
 
+	@Value("${egov.plan.facility.search.endpoint}")
+	private String planFacilitySearchEndPoint;
+
 	// Filestore
 
 	@Value("${egov.filestore.service.host}")

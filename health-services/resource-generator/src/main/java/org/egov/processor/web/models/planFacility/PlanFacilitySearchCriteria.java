@@ -1,8 +1,7 @@
-package digit.web.models;
+package org.egov.processor.web.models.planFacility;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,15 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * PlanSearchCriteria
- */
 @Validated
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanSearchCriteria {
+public class PlanFacilitySearchCriteria {
 
     @JsonProperty("ids")
     private Set<String> ids = null;
@@ -31,39 +27,30 @@ public class PlanSearchCriteria {
     @NotNull
     private String tenantId = null;
 
-    @JsonProperty("locality")
-    private List<String> locality = null;
-
-    @JsonProperty("campaignId")
-    private String campaignId = null;
-
     @JsonProperty("planConfigurationId")
+    @NotNull
     private String planConfigurationId = null;
+
+    @JsonProperty("planConfigurationName")
+    private String planConfigurationName = null;
+
+    @JsonProperty("facilityName")
+    private String facilityName = null;
+
+    @JsonProperty("facilityStatus")
+    private String facilityStatus = null;
+
+    @JsonProperty("facilityType")
+    private String facilityType = null;
+
+    @JsonProperty("residingBoundaries")
+    private List<String> residingBoundaries = null;
+
+    @JsonProperty("jurisdiction")
+    private List<String> jurisdiction = null;
 
     @JsonProperty("facilityId")
     private String facilityId = null;
-
-    @JsonProperty("onRoadCondition")
-    private String onRoadCondition = null;
-
-    @JsonProperty("terrain")
-    private String terrain = null;
-
-    @JsonProperty("securityQ1")
-    private String securityQ1 = null;
-
-    @JsonProperty("securityQ2")
-    private String securityQ2 = null;
-
-    @JsonProperty("status")
-    private String status = null;
-
-    @JsonProperty("assignee")
-    private String assignee = null;
-
-    @JsonProperty("jurisdiction")
-    @Valid
-    private List<String> jurisdiction = null;
 
     @JsonProperty("offset")
     private Integer offset = null;

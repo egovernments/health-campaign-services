@@ -252,9 +252,9 @@ public class PlanEnricher {
         // Filter map for filtering plan metadata present in additional details
         Map<String, String> filtersMap = new LinkedHashMap<>();
 
-        // Add facility name as a filter if present in search criteria
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityName())) {
-            filtersMap.put(FACILITY_NAME_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityName());
+        // Add facility id as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityId())) {
+            filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityId());
         }
 
         // Add terrain as a filter if present in search criteria

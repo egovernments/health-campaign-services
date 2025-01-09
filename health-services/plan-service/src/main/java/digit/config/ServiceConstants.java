@@ -360,6 +360,8 @@ public class ServiceConstants {
 
     public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "facilityName";
 
+    public static final String FACILITY_ID_SEARCH_PARAMETER_KEY = "facilityId";
+
     public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "facilityStatus";
 
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
