@@ -465,10 +465,12 @@ public class ExcelParser implements FileParser {
 
 			Cell cell = row.createCell(columnIndex++);
 			cell.setCellValue(result.doubleValue());
+			cell.getCellStyle().setLocked(false); // Ensure the new cell is editable
 
 			if (row.getRowNum() == 1) {
 				Cell headerCell = sheet.getRow(0).createCell(row.getLastCellNum() - 1);
 				headerCell.setCellValue(output);
+				headerCell.getCellStyle().setLocked(true);
 			}
 		}
 		
