@@ -61,7 +61,9 @@ public class OutputEstimationGenerationUtil {
         }
 
         // 3. Adding facility information for each boundary code
-        addAssignedFacility(workbook, request, filestoreId);
+        for(Sheet sheet: workbook) {
+            addAssignedFacility(sheet, request, filestoreId);
+        }
 
     }
 
@@ -114,11 +116,11 @@ public class OutputEstimationGenerationUtil {
      * It iterates through all the sheets, verifies if they are eligible for processing, retrieves required mappings
      * and boundary codes, and populates the new column with facility names based on these mappings.
      *
-     * @param workbook    the workbook containing the sheets to be processed.
+     * @param sheet       the sheet to be processed.
      * @param request     the plan configuration request containing the resource mapping and other configurations.
      * @param fileStoreId the associated file store ID used to filter resource mappings.
      */
-    public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public void addAssignedFacility(Sheet sheet, PlanConfigurationRequest request, String fileStoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
         // Get the localized column header name for assigned facilities.
@@ -138,16 +140,11 @@ public class OutputEstimationGenerationUtil {
                 ));
 
         // Create the map of boundary code to the facility assigned to that boundary.
-        Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
+        Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
 
-        // Iterate through all sheets in the workbook.
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet sheet = workbook.getSheetAt(i);
-
-            if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
-                // Add facility names to the sheet.
-                addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
-            }
+        if (parsingUtil.isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            // Add facility names to the sheet.
+            addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
         }
     }
 
