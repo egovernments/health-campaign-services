@@ -89,7 +89,7 @@ public class EnrichmentUtil {
 
     }
 
-    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues, Map<String, Object> BCodeToCensusAdditionalDetails) {
+    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
         Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
@@ -144,7 +144,7 @@ public class EnrichmentUtil {
                     }
                 }
 
-                BCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
+                boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
             }
 
             log.info("Successfully update file with approved census data.");
@@ -222,10 +222,10 @@ public class EnrichmentUtil {
         Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
                 parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
-        //Getting census records for the list of boundaryCodes
+        //Getting plan records for the list of boundaryCodes
         List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
 
-        // Create a map from boundaryCode to Census for quick lookups
+        // Create a map from boundaryCode to Plan for quick lookups
         Map<String, Plan> planMap = planList.stream()
                 .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
 

@@ -51,8 +51,8 @@ public class PlanUtil {
 	 * @param mappedValues The mapped values.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, Object>> BCodeToCensusAdditionalDetails) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, BCodeToCensusAdditionalDetails.orElse(Collections.emptyMap()));
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, Object>> boundaryCodeToCensusAdditionalDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails.orElse(Collections.emptyMap()));
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -71,7 +71,7 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> BCodeToCensusAdditionalDetails) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
@@ -93,15 +93,15 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
-						.additionalDetails(enrichAdditionalDetials(BCodeToCensusAdditionalDetails, boundaryCodeValue))
+						.additionalDetails(enrichAdditionalDetials(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
 				.build();
 	}
 
-	private Object enrichAdditionalDetials(Map<String, Object> BCodeToCensusAdditionalDetails, String boundaryCodeValue) {
-		if(!CollectionUtils.isEmpty(BCodeToCensusAdditionalDetails)) {
+	private Object enrichAdditionalDetials(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
+		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
 
-			Object censusAdditionalDetails = BCodeToCensusAdditionalDetails.get(boundaryCodeValue);
+			Object censusAdditionalDetails = boundaryCodeToCensusAdditionalDetails.get(boundaryCodeValue);
 
 			// Extract required details from census additional details object.
 			String facilityName = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_NAME);

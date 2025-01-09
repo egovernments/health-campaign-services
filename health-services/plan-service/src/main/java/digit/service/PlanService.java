@@ -3,11 +3,9 @@ package digit.service;
 import digit.repository.PlanRepository;
 import digit.service.workflow.WorkflowService;
 import digit.web.models.*;
-import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;

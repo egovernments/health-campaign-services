@@ -9,8 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.ResourceMapping;
+import org.egov.processor.web.models.Locale;
+import org.egov.processor.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -35,10 +35,16 @@ public class ParsingUtil {
 
     private FilestoreUtil filestoreUtil;
 
+    private CalculationUtil calculationUtil;
+
+    private MdmsUtil mdmsUtil;
+
     private ObjectMapper objectMapper;
 
-    public ParsingUtil(FilestoreUtil filestoreUtil, ObjectMapper objectMapper) {
+    public ParsingUtil(FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
         this.filestoreUtil = filestoreUtil;
+        this.calculationUtil = calculationUtil;
+        this.mdmsUtil = mdmsUtil;
         this.objectMapper = objectMapper;
     }
 
@@ -314,7 +320,7 @@ public class ParsingUtil {
      * @param row the Row to check
      * @return true if the row is empty, false otherwise
      */
-    public static boolean isRowEmpty(Row row) {
+    public boolean isRowEmpty(Row row) {
         if (row == null) {
             return true;
         }
@@ -393,28 +399,26 @@ public class ParsingUtil {
     }
 
     /**
-     * Adds or updates the value of provided field in the additional details object.
-     * @param additionalDetails
-     * @param fieldsToBeUpdated
-     * @return
+     * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
+     *
+     * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
+     * @param sheetName The name of the sheet to be processed.
+     * @return true if the sheet is allowed to be processed, false otherwise.
      */
-    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
-        try {
+    public boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
+        Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+                planConfigurationRequest.getRequestInfo(),
+                planConfigurationRequest.getPlanConfiguration().getTenantId());
 
-            // Get or create the additionalDetails as an ObjectNode
-            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
-                    ? objectMapper.createObjectNode()
-                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
-
-            // Update or add the field in additional details object
-            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
-
-            // Convert updated ObjectNode back to a Map
-            return objectMapper.convertValue(objectNode, Map.class);
-
-        } catch (Exception e) {
-            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
+        for (Locale locale : localeResponse.getMessages()) {
+            if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))
+                    || locale.getCode().equalsIgnoreCase(HCM_ADMIN_CONSOLE_BOUNDARY_DATA)) {
+                if (sheetName.equals(locale.getMessage()))
+                    return false;
+            }
         }
+        return true;
+
     }
 
     /**
@@ -446,10 +450,36 @@ public class ParsingUtil {
                     return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
                 }
             }
+            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
-            throw new CustomException("PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE", "PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE " + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
+
+    /**
+     * Adds or updates the value of provided field in the additional details object.
+     * @param additionalDetails
+     * @param fieldsToBeUpdated
+     * @return
+     */
+    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+        try {
+
+            // Get or create the additionalDetails as an ObjectNode
+            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+
+            // Update or add the field in additional details object
+            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+
+            // Convert updated ObjectNode back to a Map
+            return objectMapper.convertValue(objectNode, Map.class);
+
+        } catch (Exception e) {
+            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
 }
