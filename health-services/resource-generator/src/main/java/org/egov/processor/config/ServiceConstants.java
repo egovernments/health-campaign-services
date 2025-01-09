@@ -134,6 +134,7 @@ public class ServiceConstants {
     public static final String MICROPLAN_SOURCE_KEY = "microplan";
     public static final String MICROPLAN_ID_KEY = "microplanId";
     public static final String FACILITY_NAME = "facilityName";
+    public static final String FACILITY_ID = "facilityId";
     public static final String HCM_MICROPLAN_SERVING_FACILITY = "HCM_MICROPLAN_SERVING_FACILITY";
     public static final String FIXED_POST = "fixedPost";
 
