@@ -220,10 +220,10 @@ public class EnrichmentUtil {
         Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
                 parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
-        //Getting census records for the list of boundaryCodes
+        //Getting plan records for the list of boundaryCodes
         List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
 
-        // Create a map from boundaryCode to Census for quick lookups
+        // Create a map from boundaryCode to Plan for quick lookups
         Map<String, Plan> planMap = planList.stream()
                 .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
 

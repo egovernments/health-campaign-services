@@ -138,7 +138,7 @@ public class MdmsUtil {
 		Map<String, Object> adminConsoleModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_ADMIN_CONSOLE_MODULE_NAME);
 		List<Map<String, Object>> adminSchema = (List<Map<String, Object>>) adminConsoleModule
 				.get(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA);
-		log.info("masterDataJson ==> " + adminSchema);
+		log.debug("masterDataJson ==> " + adminSchema);
 
 		for (Map<String, Object> schema : adminSchema) {
 			String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
