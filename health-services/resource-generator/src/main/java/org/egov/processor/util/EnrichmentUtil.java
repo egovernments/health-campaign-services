@@ -89,7 +89,7 @@ public class EnrichmentUtil {
 
     }
 
-    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
+    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
         Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
@@ -143,6 +143,8 @@ public class EnrichmentUtil {
 
                     }
                 }
+
+                boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
             }
 
             log.info("Successfully update file with approved census data.");

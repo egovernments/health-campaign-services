@@ -3,6 +3,8 @@ package org.egov.processor.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.DecimalNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -31,8 +33,6 @@ import static org.egov.processor.config.ServiceConstants.*;
 @Component
 public class ParsingUtil {
 
-    private PlanConfigurationUtil planConfigurationUtil;
-
     private FilestoreUtil filestoreUtil;
 
     private CalculationUtil calculationUtil;
@@ -41,8 +41,7 @@ public class ParsingUtil {
 
     private ObjectMapper objectMapper;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
-        this.planConfigurationUtil = planConfigurationUtil;
+    public ParsingUtil(FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
         this.filestoreUtil = filestoreUtil;
         this.calculationUtil = calculationUtil;
         this.mdmsUtil = mdmsUtil;
@@ -447,6 +446,8 @@ public class ParsingUtil {
                     return node.asBoolean();
                 } else if (node.isTextual()) {
                     return node.asText();
+                } else if (node.isObject()) {
+                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
                 }
             }
             log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
@@ -454,6 +455,31 @@ public class ParsingUtil {
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
+
+    /**
+     * Adds or updates the value of provided field in the additional details object.
+     * @param additionalDetails
+     * @param fieldsToBeUpdated
+     * @return
+     */
+    public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
+        try {
+
+            // Get or create the additionalDetails as an ObjectNode
+            ObjectNode objectNode = (additionalDetails == null || additionalDetails instanceof NullNode)
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.convertValue(additionalDetails, ObjectNode.class);
+
+            // Update or add the field in additional details object
+            fieldsToBeUpdated.forEach((key, value) -> objectNode.set(key, objectMapper.valueToTree(value)));
+
+            // Convert updated ObjectNode back to a Map
+            return objectMapper.convertValue(objectNode, Map.class);
+
+        } catch (Exception e) {
+            throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
 }

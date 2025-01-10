@@ -1,7 +1,6 @@
-package digit.service.enrichment;
+package digit.service;
 
-import digit.web.models.Plan;
-import digit.web.models.PlanRequest;
+import digit.web.models.*;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
 import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
 import digit.web.models.boundary.EnrichedBoundary;
@@ -13,6 +12,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+
+import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
 
 @Component
 public class PlanEnricher {
@@ -238,5 +239,26 @@ public class PlanEnricher {
             return Collections.emptyList();
         }
         return Arrays.asList(boundaryAncestralPath.split("\\|"));
+    }
+
+    /**
+     * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
+     * This filterMap is populated to search the fields in plan additional detail object.
+     *
+     * @param planSearchRequest the planSearchRequest object whose search criteria need enrichment.
+     */
+    public void enrichSearchRequest(PlanSearchRequest planSearchRequest) {
+        PlanSearchCriteria planSearchCriteria = planSearchRequest.getPlanSearchCriteria();
+
+        // Filter map for filtering plan metadata present in additional details
+        Map<String, String> filtersMap = new LinkedHashMap<>();
+
+        // Add facility id as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityId())) {
+            filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityId());
+        }
+
+        if(!CollectionUtils.isEmpty(filtersMap))
+            planSearchCriteria.setFiltersMap(filtersMap);
     }
 }
