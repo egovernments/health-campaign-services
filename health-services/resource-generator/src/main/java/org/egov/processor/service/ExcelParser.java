@@ -233,11 +233,11 @@ public class ExcelParser implements FileParser {
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (parsingUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
-					Map<String, String> BCodeToFacilityDetails = new HashMap<>();
+					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 
-					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, BCodeToFacilityDetails);
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, boundaryCodeToCensusAdditionalDetails);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
-							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, BCodeToFacilityDetails);
+							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
@@ -316,9 +316,9 @@ public class ExcelParser implements FileParser {
 	 * @param boundaryCodeList List of boundary codes.
 	 * @throws IOException If an I/O error occurs.
 	 */
-	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, String> BCodeToFacilityDetails) {
+	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, planConfig, attributeNameVsDataTypeMap, boundaryCodeList, BCodeToFacilityDetails);
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, planConfig, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
 	}
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
@@ -386,8 +386,7 @@ public class ExcelParser implements FileParser {
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
-        return mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
-                file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
+        return mdmsUtil.filterMasterData(mdmsData.toString(), campaign.getCampaign().get(0).getProjectType());
 	}
 
 
@@ -407,7 +406,7 @@ public class ExcelParser implements FileParser {
 	 */
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
-			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, String> BCodeToFacilityDetails)  {
+			PlanConfiguration planConfig, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails)  {
 		Row firstRow = null;
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
@@ -437,7 +436,7 @@ public class ExcelParser implements FileParser {
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
-			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, Optional.of(BCodeToFacilityDetails));
+			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
 		}
 	}
@@ -468,10 +467,12 @@ public class ExcelParser implements FileParser {
 
 			Cell cell = row.createCell(columnIndex++);
 			cell.setCellValue(result.doubleValue());
+			cell.getCellStyle().setLocked(false); // Ensure the new cell is editable
 
 			if (row.getRowNum() == 1) {
 				Cell headerCell = sheet.getRow(0).createCell(row.getLastCellNum() - 1);
 				headerCell.setCellValue(output);
+				headerCell.getCellStyle().setLocked(true);
 			}
 		}
 		
@@ -785,6 +786,6 @@ public class ExcelParser implements FileParser {
 		}
 		return boundaryList;
 	}
-	
+
 
 }

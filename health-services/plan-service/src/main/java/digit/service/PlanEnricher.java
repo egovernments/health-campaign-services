@@ -242,9 +242,10 @@ public class PlanEnricher {
     }
 
     /**
-     * Enriches plan search request
+     * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
+     * This filterMap is populated to search the fields in plan additional detail object.
      *
-     * @param planSearchRequest
+     * @param planSearchRequest the planSearchRequest object whose search criteria need enrichment.
      */
     public void enrichSearchRequest(PlanSearchRequest planSearchRequest) {
         PlanSearchCriteria planSearchCriteria = planSearchRequest.getPlanSearchCriteria();

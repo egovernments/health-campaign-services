@@ -446,6 +446,8 @@ public class ParsingUtil {
                     return node.asBoolean();
                 } else if (node.isTextual()) {
                     return node.asText();
+                } else if (node.isObject()) {
+                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
                 }
             }
             log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");

@@ -51,8 +51,8 @@ public class PlanUtil {
 	 * @param mappedValues The mapped values.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Optional<Map<String, String>> BCodeToFacilityDetails) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, BCodeToFacilityDetails.orElse(Collections.emptyMap()));
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -71,7 +71,7 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, String> BCodeToFacilityDetails) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
@@ -93,23 +93,42 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
-						.additionalDetails(enrichAdditionalDetials(BCodeToFacilityDetails, boundaryCodeValue))
+						.additionalDetails(enrichAdditionalDetials(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
 				.build();
 	}
 
-	private Object enrichAdditionalDetials(Map<String, String> BCodeToFacilityDetails, String boundaryCodeValue) {
-		if(!CollectionUtils.isEmpty(BCodeToFacilityDetails)) {
+	/**
+	 * Creates an additional details object. Extracts the required fields from census additional details for the given boundary.
+	 * The extracted fields are then used to update the additional details object.
+	 *
+	 * @param boundaryCodeToCensusAdditionalDetails A map containing boundary codes mapped to their respective census additional details.
+	 * @param boundaryCodeValue                     The boundary code for which additional details need to be enriched.
+	 * @return An updated object containing extracted and enriched additional details, or null if no details were found or added.
+	 */
+	private Object enrichAdditionalDetials(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
+		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
 
-			// Iterate over each boundary and add facility details in plan additional details
-			String facilityName = BCodeToFacilityDetails.get(boundaryCodeValue);
+			Object censusAdditionalDetails = boundaryCodeToCensusAdditionalDetails.get(boundaryCodeValue);
 
-			if(facilityName != null && !facilityName.isEmpty()) {
-				Map<String, Object> fieldsToBeUpdated = new HashMap<>();
-				fieldsToBeUpdated.put(FACILITY_NAME, facilityName);
+			// Extract required details from census additional details object.
+			String facilityId = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID);
+			Object accessibilityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS);
+			Object securityDetials = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS);
 
+			// Creating a map of fields to be added in plan additional details with their key.
+			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
+			if(facilityId != null && !facilityId.isEmpty())
+				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
+
+			if(accessibilityDetails != null)
+				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, accessibilityDetails);
+
+			if(securityDetials != null)
+				fieldsToBeUpdated.put(SECURITY_DETAILS, securityDetials);
+
+			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
 				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
-			}
 		}
 		return null;
 	}
