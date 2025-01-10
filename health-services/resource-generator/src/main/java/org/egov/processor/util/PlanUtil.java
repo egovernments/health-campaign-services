@@ -98,6 +98,14 @@ public class PlanUtil {
 				.build();
 	}
 
+	/**
+	 * Creates an additional details object. Extracts the required fields from census additional details for the given boundary.
+	 * The extracted fields are then used to update the additional details object.
+	 *
+	 * @param boundaryCodeToCensusAdditionalDetails A map containing boundary codes mapped to their respective census additional details.
+	 * @param boundaryCodeValue                     The boundary code for which additional details need to be enriched.
+	 * @return An updated object containing extracted and enriched additional details, or null if no details were found or added.
+	 */
 	private Object enrichAdditionalDetials(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
 		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
 
