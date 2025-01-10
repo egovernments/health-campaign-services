@@ -386,8 +386,7 @@ public class ExcelParser implements FileParser {
 			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
-        return mdmsUtil.filterMasterData(mdmsData.toString(), file.getInputFileType(),
-                file.getTemplateIdentifier(), campaign.getCampaign().get(0).getProjectType());
+        return mdmsUtil.filterMasterData(mdmsData.toString(), campaign.getCampaign().get(0).getProjectType());
 	}
 
 
@@ -468,10 +467,12 @@ public class ExcelParser implements FileParser {
 
 			Cell cell = row.createCell(columnIndex++);
 			cell.setCellValue(result.doubleValue());
+			cell.getCellStyle().setLocked(false); // Ensure the new cell is editable
 
 			if (row.getRowNum() == 1) {
 				Cell headerCell = sheet.getRow(0).createCell(row.getLastCellNum() - 1);
 				headerCell.setCellValue(output);
+				headerCell.getCellStyle().setLocked(true);
 			}
 		}
 		
@@ -785,6 +786,6 @@ public class ExcelParser implements FileParser {
 		}
 		return boundaryList;
 	}
-	
+
 
 }
