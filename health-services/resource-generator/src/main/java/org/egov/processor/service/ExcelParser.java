@@ -232,7 +232,7 @@ public class ExcelParser implements FileParser {
 				));
 
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (parsingUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
+			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 
