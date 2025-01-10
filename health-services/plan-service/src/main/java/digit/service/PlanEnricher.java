@@ -242,7 +242,7 @@ public class PlanEnricher {
     }
 
     /**
-     * Enriches the PlanSearchRequest by populating the filters map in the search criteria.
+     * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
      * This filterMap is populated to search the fields in plan additional detail object.
      *
      * @param planSearchRequest the planSearchRequest object whose search criteria need enrichment.
