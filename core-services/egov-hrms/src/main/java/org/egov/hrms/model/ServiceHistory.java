@@ -60,8 +60,6 @@ public class ServiceHistory {
 	@SafeHtml
 	private String id;
 
-	private String employeeId;
-
 	@SafeHtml
 	private String serviceStatus;
 
@@ -81,5 +79,7 @@ public class ServiceHistory {
 	private  Boolean isCurrentPosition;
 
 	private AuditDetails auditDetails;
+
+
 
 }

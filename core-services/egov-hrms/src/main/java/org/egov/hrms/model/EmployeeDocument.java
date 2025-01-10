@@ -65,8 +65,6 @@ public class EmployeeDocument {
 	@SafeHtml
 	private String id;
 
-	private String employeeId;
-
 	@SafeHtml
 	private String documentName;
 

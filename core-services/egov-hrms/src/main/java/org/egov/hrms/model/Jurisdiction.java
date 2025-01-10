@@ -61,8 +61,6 @@ public class Jurisdiction {
     @SafeHtml
     private String id;
 
-    private String employeeId;
-
     @SafeHtml
     @NotNull
     @Size(min=2, max=100)

@@ -29,7 +29,7 @@ public class EmployeeQueryBuilder {
 	 * @return
 	 */
 	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
-		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_EMPLOYEE_TABLE_QUREY);
+		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
 		addWhereClause(criteria, builder, preparedStmtList);
 		return paginationClause(criteria, builder);
 	}
@@ -94,7 +94,8 @@ public class EmployeeQueryBuilder {
 	}
 	
 	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder) {
-		String pagination = EmployeeQueries.HRMS_PAGINATION_ADDENDUM;
+		String pagination = EmployeeQueries.HRMS_PAGINATION_WRAPPER;
+		pagination = pagination.replace("{}", builder.toString());
 		if(null != criteria.getOffset())
 			pagination = pagination.replace("$offset", criteria.getOffset().toString());
 		else
@@ -106,8 +107,8 @@ public class EmployeeQueryBuilder {
 		}
 		else
 			pagination = pagination.replace("$limit", defaultLimit.toString());
-		builder.append(pagination);
-		return builder.toString();
+		
+		return pagination;
 	}
 
 	public String getAssignmentSearchQuery(EmployeeSearchCriteria criteria, List<Object> preparedStmtList) {

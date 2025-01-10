@@ -60,8 +60,6 @@ public class DepartmentalTest {
 	@SafeHtml
 	private String id;
 
-	private String employeeId;
-
 	@SafeHtml
 	@NotNull
 	private String test;

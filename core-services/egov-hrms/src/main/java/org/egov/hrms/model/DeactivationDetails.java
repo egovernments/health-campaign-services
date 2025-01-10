@@ -19,8 +19,6 @@ public class DeactivationDetails {
 	@SafeHtml
 	private String id;
 
-	private String employeeId;
-
 	@SafeHtml
 	@NotNull
 	private String reasonForDeactivation;
