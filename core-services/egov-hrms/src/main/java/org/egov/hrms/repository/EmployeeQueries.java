@@ -43,9 +43,67 @@ public class EmployeeQueries {
 			+ "ON employee.uuid = jurisdiction.employeeid LEFT JOIN eg_hrms_deactivationdetails deact ON employee.uuid = deact.employeeid LEFT JOIN eg_hrms_reactivationdetails react "
 			+ "ON employee.uuid = react.employeeid WHERE ";
 
+	public static final String HRMS_EMPLOYEE_TABLE_QUREY = "SELECT employee.id AS employee_id, employee.uuid AS employee_uuid, employee.code AS employee_code, " +
+			"       employee.dateOfAppointment AS employee_doa, employee.employeestatus AS employee_status, " +
+			"       employee.employeetype AS employee_type, employee.active AS employee_active, " +
+			"       employee.reactivateemployee AS employee_reactive, employee.tenantid AS employee_tenantid, " +
+			"       employee.createdby AS employee_createdby, employee.createddate AS employee_createddate, " +
+			"       employee.lastmodifiedby AS employee_lastmodifiedby, employee.lastmodifieddate AS employee_lastmodifieddate " +
+			" FROM eg_hrms_employee employee " +
+			" WHERE ";
+
+	public static final String SUBQUERY_EG_HRMS_ASSIGNMENT = "SELECT assignment.uuid AS assignment_uuid, assignment.employeeid, assignment.position, assignment.department, assignment.designation, " +
+			"       assignment.fromdate, assignment.todate, assignment.govtordernumber, assignment.reportingto, " +
+			"       assignment.ishod, assignment.iscurrentassignment, assignment.tenantid, assignment.createdby, " +
+			"       assignment.createddate, assignment.lastmodifiedby, assignment.lastmodifieddate " +
+			"FROM eg_hrms_assignment assignment " +
+			"WHERE assignment.employeeid IN (:employeeIds); ";
+
+	public static final String SUBQUERY_EG_HRMS_EDUCATIONALDETAILS = "SELECT education.uuid AS education_uuid, education.employeeid, education.qualification, education.stream, education.yearofpassing, " +
+			"       education.university, education.remarks, education.isactive, education.tenantid, education.createdby, " +
+			"       education.createddate, education.lastmodifiedby, education.lastmodifieddate " +
+			"FROM eg_hrms_educationaldetails education " +
+			"WHERE education.employeeid IN (:employeeIds); ";
+
+	public static final String SUBQUERY_EG_HRMS_DEPARTMENTALTESTS = "SELECT depttest.uuid AS depttest_uuid, depttest.employeeid,  depttest.test, depttest.yearofpassing, depttest.remarks, " +
+			"       depttest.isactive, depttest.tenantid, depttest.createdby, depttest.createddate, " +
+			"       depttest.lastmodifiedby, depttest.lastmodifieddate " +
+			"FROM eg_hrms_departmentaltests depttest " +
+			"WHERE depttest.employeeid IN (:employeeIds); ";
+
+	public static final String SUBQUERY_EG_HRMS_EMPDOCUMENTS = "SELECT docs.uuid AS docs_uuid, docs.employeeid, docs.documentid, docs.documentname, docs.referencetype, docs.referenceid, " +
+			"       docs.tenantid, docs.createdby, docs.createddate, docs.lastmodifiedby, docs.lastmodifieddate " +
+			"FROM eg_hrms_empdocuments docs " +
+			"WHERE docs.employeeid IN (:employeeIds); ";
+
+	public static final String SUBQUERY_EG_HRMS_SERVICEHISTORY = "SELECT history.uuid AS history_uuid, history.employeeid, history.servicestatus, history.servicefrom, history.serviceto, " +
+			"       history.ordernumber, history.iscurrentposition, history.location, history.tenantid, " +
+			"       history.createdby, history.createddate, history.lastmodifiedby, history.lastmodifieddate " +
+			"FROM eg_hrms_servicehistory history " +
+			"WHERE history.employeeid IN (:employeeIds); ";
+	public static final String SUBQUERY_EG_HRMS_JURISDICTION = "SELECT jurisdiction.uuid, jurisdiction.employeeid, jurisdiction.hierarchy, jurisdiction.boundarytype, " +
+			"       jurisdiction.boundary, jurisdiction.isactive, jurisdiction.tenantid, jurisdiction.createdby, " +
+			"       jurisdiction.createddate, jurisdiction.lastmodifiedby, jurisdiction.lastmodifieddate " +
+			"FROM eg_hrms_jurisdiction jurisdiction " +
+			"WHERE jurisdiction.employeeid IN (:employeeIds) ";
+
+	public static final String SUBQUERY_EG_HRMS_DEACTIVATIONDETAILS = "SELECT deact.uuid AS deact_uuid, deact.employeeid, deact.reasonfordeactivation, deact.effectivefrom, deact.ordernumber, " +
+			"       deact.remarks, deact.tenantid, deact.createdby, deact.createddate, deact.lastmodifiedby, " +
+			"       deact.lastmodifieddate " +
+			"FROM eg_hrms_deactivationdetails deact " +
+			"WHERE deact.employeeid IN (:employeeIds); ";
+
+	public static final String SUBQUERY_EG_HRMS_REACTIVATIONDETAILS = "SELECT react.uuid AS react_uuid, react.employeeid, react.reasonforreactivation, react.effectivefrom, react.ordernumber, " +
+			"       react.remarks, react.tenantid, react.createdby, react.createddate, react.lastmodifiedby, " +
+			"       react.lastmodifieddate " +
+			"FROM eg_hrms_reactivationdetails react " +
+			"WHERE react.employeeid IN (:employeeIds); ";
+
 	public static final String HRMS_PAGINATION_WRAPPER = "SELECT * FROM "
 			+ "(SELECT *, DENSE_RANK() OVER (ORDER BY employee_uuid) offset_ FROM " + "({})" + " result) result_offset "
 			+ "WHERE offset_ > $offset AND offset_ <= $limit";
+
+	public static final String HRMS_PAGINATION_ADDENDUM = " ORDER BY employee.lastmodifieddate DESC LIMIT $limit OFFSET $offset";
 	
 	public static final String HRMS_POSITION_SEQ = "SELECT NEXTVAL('EG_HRMS_POSITION')";
 
