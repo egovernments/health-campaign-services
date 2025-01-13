@@ -225,7 +225,7 @@ public class CampaignIntegrationUtil {
 		List<Map.Entry<String, Integer>> sortedColumnList = parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex);
 		indexValue = parsingUtil.getIndexOfBoundaryCode(indexValue, sortedColumnList, mappedValues);
 		prepareBoundary(indexOfType, indexValue, sortedColumnList, feature, boundary, mappedValues);
-		if (isValidToAdd(boundaryList, resultMap, validToAdd, boundary))
+		if (isValidToAdd(resultMap, validToAdd))
 			boundaryList.add(boundary);
 	}
 
@@ -263,22 +263,22 @@ public class CampaignIntegrationUtil {
 	/**
 	 * Checks if the provided boundary is valid to add to the boundary list based on the result map.
 	 *
-	 * @param boundaryList The list of existing boundaries.
 	 * @param resultMap The map containing result values.
 	 * @param validToAdd The flag indicating whether the boundary is valid to add.
-	 * @param boundary The boundary to be checked for validity.
 	 * @return True if the boundary is valid to add, false otherwise.
 	 */
-	private boolean isValidToAdd(List<Boundary> boundaryList, Map<String, BigDecimal> resultMap, boolean validToAdd,
-			Boundary boundary) {
+	private boolean isValidToAdd(Map<String, BigDecimal> resultMap, boolean validToAdd) {
 		for (Entry<String, BigDecimal> entry : resultMap.entrySet()) {
-			if (entry.getValue().compareTo(new BigDecimal(0)) > 0) {
-				validToAdd = true;
-			} else {
+			BigDecimal value = entry.getValue();
+
+			if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
 				validToAdd = false;
 				break;
+			} else {
+				validToAdd = true;
 			}
-		}		
+		}
+
 		return validToAdd;
 	}
 
