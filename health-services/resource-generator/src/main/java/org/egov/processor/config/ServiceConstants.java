@@ -33,6 +33,9 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE = "Exception occurred while fetching plan configuration from plan service ";
 
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE = "ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS";
+    public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while updating additional details  : ";
+
     public static final String NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE = "NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM";
     public static final String NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE = "Not able to fetch byte stream from a multipart file";
 
@@ -91,6 +94,8 @@ public class ServiceConstants {
     public static final String DOT_SEPARATOR = ".";
     public static final String MICROPLAN_PREFIX = "MP-";
     public static final Double BRIGHTEN_FACTOR = 1.1;
+    public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
+    public static final String SECURITY_DETAILS = "securityDetails";
 
     //MDMS field Constants
     public static final String DATA = "data";
@@ -135,6 +140,7 @@ public class ServiceConstants {
     public static final String MICROPLAN_SOURCE_KEY = "microplan";
     public static final String MICROPLAN_ID_KEY = "microplanId";
     public static final String FACILITY_NAME = "facilityName";
+    public static final String FACILITY_ID = "facilityId";
     public static final String HCM_MICROPLAN_SERVING_FACILITY = "HCM_MICROPLAN_SERVING_FACILITY";
     public static final String FIXED_POST = "fixedPost";
 

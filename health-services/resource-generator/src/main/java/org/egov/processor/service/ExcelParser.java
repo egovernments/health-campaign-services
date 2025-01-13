@@ -234,12 +234,15 @@ public class ExcelParser implements FileParser {
 						(existing, replacement) -> existing,
 						LinkedHashMap::new
 				));
+
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
-					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
+					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
+
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, boundaryCodeToCensusAdditionalDetails);
 					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
-							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList);
+							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
@@ -316,11 +319,11 @@ public class ExcelParser implements FileParser {
 	 * @param boundaryCodeList List of boundary codes.
 	 * @throws IOException If an I/O error occurs.
 	 */
-	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList) {
+	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		// Create a Map of Boundary Code to Facility's fixed post detail.
 		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap);
+		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails);
 	}
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
@@ -408,7 +411,7 @@ public class ExcelParser implements FileParser {
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
 			Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
-											 Map<String, Boolean> boundaryCodeToFixedPostMap)  {
+											 Map<String, Boolean> boundaryCodeToFixedPostMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails)  {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
@@ -446,7 +449,7 @@ public class ExcelParser implements FileParser {
 			if (config.isIntegrateWithAdminConsole())
 				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
 						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
-			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues);
+			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
 		}
 	}

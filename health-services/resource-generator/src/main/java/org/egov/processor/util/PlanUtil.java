@@ -16,8 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
@@ -33,11 +32,14 @@ public class PlanUtil {
 
 	private ObjectMapper mapper;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper) {
+	private ParsingUtil parsingUtil;
+
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, ParsingUtil parsingUtil) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.producer = producer;
         this.mapper = mapper;
+        this.parsingUtil = parsingUtil;
     }
 
 	/**
@@ -49,8 +51,8 @@ public class PlanUtil {
 	 * @param mappedValues The mapped values.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues);
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -69,17 +71,18 @@ public class PlanUtil {
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues) {
+			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
+
 		return PlanRequest.builder()
 				.requestInfo(planConfigurationRequest.getRequestInfo())
 				.plan(Plan.builder()
 						.tenantId(planConfig.getTenantId())
 						.planConfigurationId(planConfig.getId())
 						.campaignId(planConfig.getCampaignId())
-						.locality(getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE,
-								feature, mappedValues))
+						.locality(boundaryCodeValue)
 						.resources(resultMap.entrySet().stream().map(result -> {
 							Resource res = new Resource();
 							res.setResourceType(result.getKey());
@@ -90,9 +93,44 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
+						.additionalDetails(enrichAdditionalDetials(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
 				.build();
+	}
 
+	/**
+	 * Creates an additional details object. Extracts the required fields from census additional details for the given boundary.
+	 * The extracted fields are then used to update the additional details object.
+	 *
+	 * @param boundaryCodeToCensusAdditionalDetails A map containing boundary codes mapped to their respective census additional details.
+	 * @param boundaryCodeValue                     The boundary code for which additional details need to be enriched.
+	 * @return An updated object containing extracted and enriched additional details, or null if no details were found or added.
+	 */
+	private Object enrichAdditionalDetials(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
+		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
+
+			Object censusAdditionalDetails = boundaryCodeToCensusAdditionalDetails.get(boundaryCodeValue);
+
+			// Extract required details from census additional details object.
+			String facilityId = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID);
+			Object accessibilityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS);
+			Object securityDetials = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS);
+
+			// Creating a map of fields to be added in plan additional details with their key.
+			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
+			if(facilityId != null && !facilityId.isEmpty())
+				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
+
+			if(accessibilityDetails != null)
+				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, accessibilityDetails);
+
+			if(securityDetials != null)
+				fieldsToBeUpdated.put(SECURITY_DETAILS, securityDetials);
+
+			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
+				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
+		}
+		return null;
 	}
 	
 	/**

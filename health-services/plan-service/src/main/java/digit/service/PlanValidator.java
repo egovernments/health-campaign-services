@@ -1,11 +1,9 @@
-package digit.service.validator;
+package digit.service;
 
 import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
-import digit.service.PlanEmployeeService;
-import digit.service.enrichment.PlanEnricher;
 import digit.util.BoundaryUtil;
 import digit.util.CampaignUtil;
 import digit.util.CommonUtil;

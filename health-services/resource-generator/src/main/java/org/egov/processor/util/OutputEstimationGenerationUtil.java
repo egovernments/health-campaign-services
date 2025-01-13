@@ -53,7 +53,7 @@ public class OutputEstimationGenerationUtil {
         // 1. removing readme sheet
         for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            if (!isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
                 workbook.removeSheetAt(i);
             }
         }
