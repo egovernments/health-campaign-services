@@ -1,0 +1,348 @@
+openapi: 3.0.1
+info:
+  title: User Location System
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
+paths:
+  /project/user-location/v1/_create:
+    post:
+      tags:
+        - Location Capture
+      summary: Bulk create location capture tasks
+      description: Receives a bulk request to create location capture tasks and processes the data. Sends the request to a Kafka topic for asynchronous handling.
+      operationId: locationCaptureTaskV1BulkCreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserActionBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+  /project/user-location/v1/_search:
+    post:
+      tags:
+        - Location Capture
+      summary: Search location capture tasks
+      description: Searches for location capture tasks based on the provided search criteria. Returns matching results along with the total count.
+      operationId: locationCaptureTaskV2SearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                locationCaptureSearchRequest:
+                  $ref: '#/components/schemas/UserActionSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserActionBulkResponse'
+components:
+  schemas:
+    URLParams:
+      required:
+        - limit
+        - offset
+        - tenantId
+      type: object
+      properties:
+        urlparams:
+          $ref: '#/components/schemas/URLParams'
+        limit:
+          maximum: 1000
+          minimum: 0
+          type: integer
+          format: int32
+        offset:
+          minimum: 0
+          type: integer
+          format: int32
+        tenantId:
+          type: string
+        lastChangedSince:
+          type: integer
+          format: int64
+        includeDeleted:
+          type: boolean
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        tenantId:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+        uuid:
+          type: string
+    UserActionSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        createdBy:
+          type: string
+        projectId:
+          type: string
+        beneficiaryTag:
+          type: string
+        resourceTag:
+          type: string
+        boundaryCode:
+          type: string
+    UserActionSearchRequest:
+      required:
+        - RequestInfo
+        - UserAction
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        UserAction:
+          $ref: '#/components/schemas/UserActionSearch'
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          maxLength: 64
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 1
+          type: string
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    UserAction:
+      required:
+        - action
+        - boundaryCode
+        - latitude
+        - locationAccuracy
+        - longitude
+        - projectId
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        latitude:
+          maximum: 90
+          exclusiveMaximum: false
+          minimum: -90
+          exclusiveMinimum: false
+          type: number
+          format: double
+        longitude:
+          maximum: 180
+          exclusiveMaximum: false
+          minimum: -180
+          exclusiveMinimum: false
+          type: number
+          format: double
+        locationAccuracy:
+          minimum: 0
+          exclusiveMinimum: false
+          type: number
+          format: double
+        boundaryCode:
+          type: string
+        action:
+          type: string
+          enum:
+            - CLOSED_HOUSEHOLD
+            - LOCATION_CAPTURE
+            - OTHER
+        beneficiaryTag:
+          maxLength: 64
+          minLength: 2
+          type: string
+        resourceTag:
+          maxLength: 64
+          minLength: 2
+          type: string
+        isDeleted:
+          type: boolean
+    UserActionBulkResponse:
+      required:
+        - ResponseInfo
+        - UserActions
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        TotalCount:
+          type: integer
+          format: int64
+        UserActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAction'
+    UserActionBulkRequest:
+      required:
+        - RequestInfo
+        - UserActions
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        UserActions:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAction'

@@ -1,404 +1,644 @@
-swagger: '2.0'
+openapi: 3.0.1
 info:
-  version: 1.0.0
   title: Facility Registry
-  description: >
-    This module facilitates maintenance of a Facility registry.
-  contact:
-    name: Digit
-    email: info@egovernments.org
-schemes:
-  - https
-x-common-path: >-
-  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
 paths:
   /facility/v1/_create:
     post:
-      summary: >-
-        Create/Add a new facility
-      description: >-
-        Create a new facility
-      parameters:
-        - name: Facility
-          in: body
-          description: Capture details of Facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityRequest'
       tags:
         - Facility
-      responses:
-        '202':
-          description: Facility request has been accepted.
-          schema:
-            $ref: '#/definitions/FacilityResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/bulk/_create:
-    post:
-      summary: >-
-        Create/Add new facilities in bulk
-      description: >-
-        Create a new facilities in bulk
-      parameters:
-        - name: Facility
-          in: body
-          description: Capture details of Facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityBulkRequest'
-      tags:
-        - Facility
-      responses:
-        '202':
-          description: Facility request has been accepted.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/_update:
-    post:
-      summary: >-
-        Update the details of a existing facility
-      description: >-
-        Update the details of a existing facility
-      parameters:
-        - name: Facility
-          in: body
-          description: Details for existing facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityRequest'
-      tags:
-        - Facility
-      responses:
-        '202':
-          description: Facility request accepted.
-          schema:
-            $ref: '#/definitions/FacilityResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/bulk/_update:
-    post:
-      summary: >-
-        Update the details of  existing facilities in bulk
-      description: >-
-        Update the details of a existing facilities in bulk
-      parameters:
-        - name: Facility
-          in: body
-          description: Details for existing facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityBulkRequest'
-      tags:
-        - Facility
-      responses:
-        '202':
-          description: Facility request accepted.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/_delete:
-    post:
-      summary: >-
-        Soft delete details of an existing facility
-      description: >-
-        Soft delete details of an existing facility
-      parameters:
-        - name: Facility
-          in: body
-          description: Details for existing facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityRequest'
-      tags:
-        - Facility
-      responses:
-        '202':
-          description: Facility request accepted.
-          schema:
-            $ref: '#/definitions/FacilityResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/bulk/_delete:
-    post:
-      summary: >-
-        Soft delete details of existing facilities in bulk
-      description: >-
-        Soft delete details of an existing facilities in bulk
-      parameters:
-        - name: Facility
-          in: body
-          description: Details for existing facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilityBulkRequest'
-      tags:
-        - Facility
-      responses:
-        '202':
-          description: Facility request accepted.
-          schema:
-            $ref: '#/definitions/BulkAcceptedResponse'
-        '400':
-          description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-  /facility/v1/_search:
-    post:
-      summary: >-
-        Search existing facility
-      description: >-
-        Search existing facility
-      parameters:
-        - name: Facility
-          in: body
-          description: Details for existing facility.
-          required: true
-          schema:
-            $ref: '#/definitions/FacilitySearchRequest'
-        - $ref: '#/parameters/limit'
-        - $ref: '#/parameters/offset'
-        - $ref: '#/parameters/tenantId'
-        - $ref: '#/parameters/lastChangedSince'
-        - $ref: '#/parameters/includeDeleted'
-      tags:
-        - Facility
+      summary: Create/Add a new facility
+      description: Create a new facility
+      operationId: facilityV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityRequest'
+        required: true
       responses:
         '200':
-          description: Facilities.
-          schema:
-            $ref: '#/definitions/FacilityBulkResponse'
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FacilityResponse'
         '400':
           description: Invalid Input body.
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-
-parameters:
-  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
-  tenantId:
-    name: tenantId
-    in: query
-    description: Unique id for a tenant.
-    required: true
-    type: string
-    format: varchar
-
-  lastChangedSince:
-    name: lastChangedSince
-    description: |
-      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
-    in: query
-    required: false
-    type: integer
-    format: int64
-
-  echoResource:
-    name: echoResource
-    in: query
-    type: boolean
-    required: false
-    default: true
-    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
-
-  serverHandlesErrors:
-    name: serverHandlesErrors
-    in: query
-    type: boolean
-    required: false
-    default: false
-    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
-
-  limit:
-    name: limit
-    description: Pagination - limit records in response
-    in: query
-    type: integer
-    minimum: 0
-    maximum: 1000
-    required: true
-
-  offset:
-    name: offset
-    description: Pagination - offset from which records should be returned in response
-    in: query
-    type: integer
-    minimum: 0
-    required: true
-
-  includeDeleted:
-    name: includeDeleted
-    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
-    in: query
-    type: boolean
-    default: false
-    required: false
-
-definitions:
-  id:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
-  idForSearch:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
-  boundaryCode:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
-  tenantId:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
-  eventTimestamp:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
-  isDeleted:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
-  rowVersion:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
-  apiOperation:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
-  additionalFields:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
-  Address:
-    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
-
-  Facility:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/id'
-      tenantId:
-        $ref: '#/definitions/tenantId'
-      isPermanent:
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/bulk/_create:
+    post:
+      tags:
+        - Facility
+      summary: Create/Add new facilities in bulk
+      description: Create a new facilities in bulk
+      operationId: facilityV1BulkCreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/_update:
+    post:
+      tags:
+        - Facility
+      summary: Update the details of an existing facility
+      description: Update the details of an existing facility
+      operationId: facilityV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FacilityResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/bulk/_update:
+    post:
+      tags:
+        - Facility
+      summary: Update the details of existing facilities in bulk
+      description: Update the details of existing facilities in bulk
+      operationId: facilityV1BulkUpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/_delete:
+    post:
+      tags:
+        - Facility
+      summary: Soft delete details of an existing facility
+      description: Soft delete details of an existing facility
+      operationId: facilityV1DeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FacilityResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/bulk/_delete:
+    post:
+      tags:
+        - Facility
+      summary: Soft delete details of existing facilities in bulk
+      description: Soft delete details of existing facilities in bulk
+      operationId: facilityV1BulkDeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /facility/v1/_search:
+    post:
+      tags:
+        - Facility
+      summary: Search existing facility
+      description: Search existing facility
+      operationId: facilityV1SearchPost
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/lastChangedSince"
+        - $ref: "#/components/parameters/includeDeleted"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilitySearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FacilityBulkResponse'
+        '400':
+          description: Invalid Input body.
+          content:
+            '*/*':
+              schema:
+                $ref: >-
+                  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+components:
+  parameters:
+    tenantId:
+      name: tenantId
+      in: query
+      description: Unique id for a tenant.
+      required: true
+      schema:
+        type: string
+        format: varchar
+  
+    lastChangedSince:
+      name: lastChangedSince
+      in: query
+      description: |
+        Epoch of the time since when the changes on the object should be picked up. 
+        Search results from this parameter should include both newly created objects 
+        since this time as well as any modified objects since this time. 
+      required: false
+      schema:
+        type: integer
+        format: int64
+  
+    echoResource:
+      name: echoResource
+      in: query
+      description: |
+        Client can specify if the resource in request body needs to be sent back in the response.
+      required: false
+      schema:
         type: boolean
         default: true
-      name:
-        type: string
-        minLength: 2
-        maxLength: 2000
-        description: Name of the facility
-        example: 'Facility XYZ'
-      usage:
-        type: string
-        example: 'STORAGE_WAREHOUSE'
-      #        enum:
-      #          - STORAGE_WAREHOUSE
-      #          - MEDICAL_FACILITY
-      #          - SEWAGE_TREATMENT_PLANT
-      storageCapacity:
-        type: integer
-        description: Physical storage capacity of the facility in cubic meters
-      address:
-        $ref: '#/definitions/Address'
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
-      isDeleted:
-        $ref: '#/definitions/isDeleted'
-      rowVersion:
-        $ref: '#/definitions/rowVersion'
-      auditDetails:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
-
-  FacilitySearch:
-    type: object
-    properties:
-      id:
-        $ref: '#/definitions/idForSearch'
-      isPermanent:
+  
+    serverHandlesErrors:
+      name: serverHandlesErrors
+      in: query
+      description: |
+        Client can specify that it is incapable of handling any errors with the requests.
+      required: false
+      schema:
         type: boolean
-      usage:
-        type: string
-      storageCapacity:
+        default: false
+  
+    limit:
+      name: limit
+      in: query
+      description: Pagination - limit records in response
+      required: true
+      schema:
         type: integer
-      boundaryCode:
-        $ref: '#/definitions/boundaryCode'
+        minimum: 0
+        maximum: 1000  # TODO: review
+  
+    offset:
+      name: offset
+      in: query
+      description: Pagination - offset from which records should be returned in response
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  
+    includeDeleted:
+      name: includeDeleted
+      in: query
+      description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+      required: false
+      schema:
+        type: boolean
+        default: false
 
-  FacilityRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Facility:
-        type: object
-        $ref: '#/definitions/Facility'
-    required:
-      - RequestInfo
-      - Facility
-
-  FacilityBulkRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Facilities:
-        type: array
-        minItems: 1
-        items:
-          $ref: '#/definitions/Facility'
-    required:
-      - RequestInfo
-      - Facility
-
-  FacilitySearchRequest:
-    type: object
-    properties:
-      RequestInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Facility:
-        $ref: '#/definitions/FacilitySearch'
-    required:
-      - RequestInfo
-      - Facility
-
-  FacilityResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Facility:
-        type: object
-        $ref: '#/definitions/Facility'
-    required:
-      - ResponseInfo
-
-  FacilityBulkResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Facilities:
-        type: array
-        items:
-          $ref: '#/definitions/Facility'
-    required:
-      - ResponseInfo
-
-
-  BulkAcceptedResponse:
-    type: object
-    properties:
-      ResponseInfo:
-        $ref: >-
-          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-    required:
-      - ResponseInfo
-
+  schemas:
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          maxLength: 64
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    Address:
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          type: string
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        doorNo:
+          maxLength: 64
+          minLength: 2
+          type: string
+        latitude:
+          maximum: 90
+          exclusiveMaximum: false
+          minimum: -90
+          exclusiveMinimum: false
+          type: number
+          format: double
+        longitude:
+          maximum: 180
+          exclusiveMaximum: false
+          minimum: -180
+          exclusiveMinimum: false
+          type: number
+          format: double
+        locationAccuracy:
+          minimum: 0
+          exclusiveMinimum: false
+          type: number
+          format: double
+        type:
+          type: string
+          enum:
+            - PERMANENT
+            - CORRESPONDENCE
+            - OTHER
+        addressLine1:
+          maxLength: 256
+          minLength: 2
+          type: string
+        addressLine2:
+          maxLength: 256
+          minLength: 2
+          type: string
+        landmark:
+          maxLength: 256
+          minLength: 2
+          type: string
+        city:
+          maxLength: 256
+          minLength: 2
+          type: string
+        pincode:
+          maxLength: 64
+          minLength: 2
+          type: string
+        buildingName:
+          maxLength: 256
+          minLength: 2
+          type: string
+        street:
+          maxLength: 256
+          minLength: 2
+          type: string
+        locality:
+          $ref: '#/components/schemas/Boundary'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Boundary:
+      required:
+        - code
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        code:
+          type: string
+        geometry:
+          $ref: '#/components/schemas/JsonNode'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          $ref: '#/components/schemas/JsonNode'
+    Facility:
+      required:
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        clientReferenceId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        clientAuditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        isPermanent:
+          type: boolean
+        name:
+          maxLength: 2000
+          minLength: 2
+          type: string
+        usage:
+          type: string
+        storageCapacity:
+          type: integer
+          format: int32
+        address:
+          $ref: '#/components/schemas/Address'
+        isDeleted:
+          type: boolean
+    FacilityBulkRequest:
+      required:
+        - Facilities
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Facilities:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/Facility'
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 1
+          type: string
+    JsonNode:
+      type: object
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        tenantId:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+        uuid:
+          type: string
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    FacilityRequest:
+      required:
+        - Facility
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Facility:
+          $ref: '#/components/schemas/Facility'
+    FacilityResponse:
+      required:
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Facility:
+          $ref: '#/components/schemas/Facility'
+    URLParams:
+      required:
+        - limit
+        - offset
+        - tenantId
+      type: object
+      properties:
+        urlparams:
+          $ref: '#/components/schemas/URLParams'
+        limit:
+          maximum: 1000
+          minimum: 0
+          type: integer
+          format: int32
+        offset:
+          minimum: 0
+          type: integer
+          format: int32
+        tenantId:
+          type: string
+        lastChangedSince:
+          type: integer
+          format: int64
+        includeDeleted:
+          type: boolean
+    FacilitySearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        clientReferenceId:
+          type: array
+          items:
+            type: string
+        isPermanent:
+          type: boolean
+        usage:
+          type: string
+        storageCapacity:
+          type: integer
+          format: int32
+        boundaryCode:
+          type: string
+    FacilitySearchRequest:
+      required:
+        - Facility
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Facility:
+          $ref: '#/components/schemas/FacilitySearch'
+    FacilityBulkResponse:
+      required:
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Facilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Facility'
+        TotalCount:
+          type: integer
+          format: int64

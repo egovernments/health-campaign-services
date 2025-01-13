@@ -1,0 +1,433 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v1.6
+servers:
+  - url: https://unified-dev.digit.org
+    description: Development server url
+paths:
+
+  /project/resource/v1/_create:
+    post:
+      tags:
+        - Project Resource
+      summary: Create a project resource
+      description: Captures the linkage between a project and its resources. Creates a new project resource and returns the created resource details.
+      operationId: resourceV1CreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProjectResourceResponse'
+  /project/resource/v1/bulk/_create:
+    post:
+      tags:
+        - Project Resource
+      summary: Bulk create project resources
+      description: Captures the linkage between a project and multiple resources. Processes a bulk request to create project resources.
+      operationId: resourceV1BulkCreatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+  /project/resource/v1/_update:
+    post:
+      tags:
+        - Project Resource
+      summary: Update a project resource
+      description: Updates the linkage details between a project and a resource. Returns the updated resource details.
+      operationId: resourceV1UpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProjectResourceResponse'
+  /project/resource/v1/bulk/_update:
+    post:
+      tags:
+        - Project Resource
+      summary: Bulk update project resources
+      description: Updates the linkage details between a project and multiple resources. Processes a bulk update request.
+      operationId: resourceV1BulkUpdatePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+  /project/resource/v1/bulk/_delete:
+    post:
+      tags:
+        - Project Resource
+      summary: Bulk delete project resources
+      description: Deletes the linkage details between a project and multiple resources. Processes a bulk delete request.
+      operationId: resourceV1BulkDeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceBulkRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+  /project/resource/v1/_delete:
+    post:
+      tags:
+        - Project Resource
+      summary: Delete a project resource
+      description: Deletes the linkage between a project and a resource. Returns the details of the deleted resource.
+      operationId: resourceV1DeletePost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectResourceRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProjectResourceResponse'
+  /project/resource/v1/_search:
+    post:
+      tags:
+        - Project Resource
+      summary: Search project resources
+      description: Searches for resources linked to a project based on the provided search criteria. Returns matching resources and their total count.
+      operationId: resourceV1SearchPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urlParams:
+                  $ref: '#/components/schemas/URLParams'
+                projectResourceSearchRequest:
+                  $ref: '#/components/schemas/ProjectResourceSearchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProjectResourceBulkResponse'
+components:
+  schemas:
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          maxLength: 64
+          minLength: 2
+          type: string
+        version:
+          minimum: 1
+          type: integer
+          format: int32
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+        lastModifiedBy:
+          type: string
+        createdTime:
+          type: integer
+          format: int64
+        lastModifiedTime:
+          type: integer
+          format: int64
+    Field:
+      required:
+        - key
+        - value
+      type: object
+      properties:
+        key:
+          maxLength: 64
+          minLength: 2
+          type: string
+        value:
+          maxLength: 10000
+          minLength: 1
+          type: string
+    PlainAccessRequest:
+      type: object
+      properties:
+        recordId:
+          type: string
+        plainRequestFields:
+          type: array
+          items:
+            type: string
+    ProjectProductVariant:
+      required:
+        - productVariantId
+      type: object
+      properties:
+        productVariantId:
+          type: string
+        type:
+          type: string
+        isBaseUnitVariant:
+          type: boolean
+    ProjectResource:
+      required:
+        - projectId
+        - resource
+        - tenantId
+      type: object
+      properties:
+        id:
+          maxLength: 64
+          minLength: 2
+          type: string
+        tenantId:
+          maxLength: 1000
+          minLength: 2
+          type: string
+        source:
+          type: string
+        rowVersion:
+          type: integer
+          format: int32
+        applicationId:
+          type: string
+        hasErrors:
+          type: boolean
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        projectId:
+          maxLength: 64
+          minLength: 2
+          type: string
+        resource:
+          $ref: '#/components/schemas/ProjectProductVariant'
+        isDeleted:
+          type: boolean
+        startDate:
+          type: integer
+          format: int64
+        endDate:
+          type: integer
+          format: int64
+    ProjectResourceBulkRequest:
+      required:
+        - ProjectResources
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProjectResources:
+          maxItems: 2147483647
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResource'
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        action:
+          type: string
+        did:
+          type: string
+        key:
+          type: string
+        msgId:
+          type: string
+        authToken:
+          type: string
+        correlationId:
+          type: string
+        plainAccessRequest:
+          $ref: '#/components/schemas/PlainAccessRequest'
+        userInfo:
+          $ref: '#/components/schemas/User'
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        tenantId:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        mobileNumber:
+          type: string
+        emailId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId:
+          type: string
+        uuid:
+          type: string
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+        ver:
+          type: string
+        ts:
+          type: integer
+          format: int64
+        resMsgId:
+          type: string
+        msgId:
+          type: string
+        status:
+          type: string
+    ProjectResourceRequest:
+      required:
+        - ProjectResource
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProjectResource:
+          $ref: '#/components/schemas/ProjectResource'
+    ProjectResourceResponse:
+      required:
+        - ProjectResource
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ProjectResource:
+          $ref: '#/components/schemas/ProjectResource'
+    URLParams:
+      required:
+        - limit
+        - offset
+        - tenantId
+      type: object
+      properties:
+        urlparams:
+          $ref: '#/components/schemas/URLParams'
+        limit:
+          maximum: 1000
+          minimum: 0
+          type: integer
+          format: int32
+        offset:
+          minimum: 0
+          type: integer
+          format: int32
+        tenantId:
+          type: string
+        lastChangedSince:
+          type: integer
+          format: int64
+        includeDeleted:
+          type: boolean
+    ProjectResourceSearch:
+      type: object
+      properties:
+        id:
+          type: array
+          items:
+            type: string
+        projectId:
+          type: array
+          items:
+            type: string
+    ProjectResourceSearchRequest:
+      required:
+        - ProjectResource
+        - RequestInfo
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProjectResource:
+          $ref: '#/components/schemas/ProjectResourceSearch'
+    ProjectResourceBulkResponse:
+      required:
+        - ProjectResources
+        - ResponseInfo
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ProjectResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResource'
+        TotalCount:
+          type: integer
+          format: int64
