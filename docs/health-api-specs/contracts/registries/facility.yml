@@ -175,16 +175,17 @@ paths:
       summary: Search existing facility
       description: Search existing facility
       operationId: facilityV1SearchPost
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/lastChangedSince"
+        - $ref: "#/components/parameters/includeDeleted"
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                urlParams:
-                  $ref: '#/components/schemas/URLParams'
-                request:
-                  $ref: '#/components/schemas/FacilitySearchRequest'
+              $ref: '#/components/schemas/FacilitySearchRequest'
         required: true
       responses:
         '200':
@@ -201,6 +202,76 @@ paths:
                 $ref: >-
                   https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 components:
+  parameters:
+    tenantId:
+      name: tenantId
+      in: query
+      description: Unique id for a tenant.
+      required: true
+      schema:
+        type: string
+        format: varchar
+  
+    lastChangedSince:
+      name: lastChangedSince
+      in: query
+      description: |
+        Epoch of the time since when the changes on the object should be picked up. 
+        Search results from this parameter should include both newly created objects 
+        since this time as well as any modified objects since this time. 
+      required: false
+      schema:
+        type: integer
+        format: int64
+  
+    echoResource:
+      name: echoResource
+      in: query
+      description: |
+        Client can specify if the resource in request body needs to be sent back in the response.
+      required: false
+      schema:
+        type: boolean
+        default: true
+  
+    serverHandlesErrors:
+      name: serverHandlesErrors
+      in: query
+      description: |
+        Client can specify that it is incapable of handling any errors with the requests.
+      required: false
+      schema:
+        type: boolean
+        default: false
+  
+    limit:
+      name: limit
+      in: query
+      description: Pagination - limit records in response
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 1000  # TODO: review
+  
+    offset:
+      name: offset
+      in: query
+      description: Pagination - offset from which records should be returned in response
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+  
+    includeDeleted:
+      name: includeDeleted
+      in: query
+      description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+      required: false
+      schema:
+        type: boolean
+        default: false
+
   schemas:
     AdditionalFields:
       type: object
