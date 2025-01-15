@@ -509,7 +509,7 @@ async function processCampaignMapping(messageObject: any) {
             var completedResources: any = []
             var resources = [];
             for (const resourceDetailId of resourceDetailsIds) {
-                var retry = 75;
+                var retry: any = config?.retryUntilResourceCreationComplete;
                 while (retry--) {
                     const response = await searchResourceDetailsById(resourceDetailId, messageObject);
                     logger.info(`response for resourceDetailId: ${resourceDetailId}`);
