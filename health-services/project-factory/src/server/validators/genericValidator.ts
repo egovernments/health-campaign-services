@@ -2,7 +2,7 @@
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
-import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
+import { throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 import { persistTrack } from "../utils/processTrackUtils";
@@ -10,6 +10,7 @@ import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../co
 import { validateMappingId } from "../utils/campaignMappingUtils";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
+import { getBoundaryRelationshipData } from "../api/boundaryApis";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
@@ -241,7 +242,7 @@ export async function validateFiltersInRequestBody(request: any) {
         ...request?.query,
         includeChildren: true
     };
-    const boundaryData = await getBoundaryRelationshipData(request, params);
+    const boundaryData = await getBoundaryRelationshipData(params);
     if (boundaryData && request?.body?.Filters != null) {
         await validateFilters(request, boundaryData);
     }

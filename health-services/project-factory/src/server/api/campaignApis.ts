@@ -29,8 +29,7 @@ import {
   checkIfSourceIsMicroplan,
   createIdRequests,
   createUniqueUserNameViaIdGen,
-  boundaryGeometryManagement,
-  persistCampaignProject,
+  boundaryGeometryManagement
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -51,7 +50,8 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipDefinition } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { persistCampaignProject } from "../utils/projectCampaignUtils";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -1748,23 +1748,26 @@ async function createProjectCampaignResourcData(request: any) {
   );
 }
 
-async function confirmProjectParentCreation(request: any, projectId: any) {
+async function confirmProjectParentCreation(projectId: any, tenantId: string) {
+  if(!projectId) {
+    return;
+  }
   const searchBody = {
-    RequestInfo: request.body.RequestInfo,
+    RequestInfo: defaultRequestInfo?.RequestInfo,
     Projects: [
       {
         id: projectId,
-        tenantId: request.body.CampaignDetails.tenantId,
+        tenantId
       },
     ],
   };
   const params = {
-    tenantId: request.body.CampaignDetails.tenantId,
+    tenantId,
     offset: 0,
-    limit: 5,
+    limit: 1,
   };
   var projectFound = false;
-  var retry = 6;
+  var retry = 20;
   while (!projectFound && retry >= 0) {
     const response = await httpRequest(
       config.host.projectHost + config.paths.projectSearch,

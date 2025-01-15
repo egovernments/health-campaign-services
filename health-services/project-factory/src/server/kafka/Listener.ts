@@ -3,6 +3,7 @@ import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { handleCampaignMapping } from '../utils/campaignMappingUtils';
+import { handleCampaignProcessing } from '../utils/campaignUtils';
 
 // Kafka Configuration
 const kafkaConfig: ConsumerGroupOptions = {
@@ -16,7 +17,8 @@ const kafkaConfig: ConsumerGroupOptions = {
 // Topic Names
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
-    config.kafka.KAFKA_TEST_TOPIC
+    config.kafka.KAFKA_TEST_TOPIC,
+    config.kafka.KAFKA_PROCESS_HANDLER_TOPIC
 ];
 
 // Consumer Group Initialization
@@ -27,17 +29,19 @@ export function listener() {
     consumerGroup.on('message', async (message: Message) => {
         try {
             const messageObject = JSON.parse(message.value?.toString() || '{}');
+            logger.info(`KAFKA :: LISTENER :: Received a message from topic ${message.topic}`);
+            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
 
             switch (message.topic) {
                 case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                    await handleCampaignMapping(messageObject);
+                    handleCampaignMapping(messageObject);
+                    break;
+                case config.kafka.KAFKA_PROCESS_HANDLER_TOPIC:
+                    handleCampaignProcessing(messageObject);
                     break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);
             }
-
-            logger.info(`KAFKA :: LISTENER :: Received a message from topic ${message.topic}`);
-            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
         } catch (error) {
             logger.error(`KAFKA :: LISTENER :: Error processing message: ${error}`);
             console.error(error);

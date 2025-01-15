@@ -7,6 +7,7 @@ import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColu
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocaleFromRequestInfo } from "./localisationUtils";
+import { fetchFileFromFilestore } from "../api/coreApis";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -371,6 +372,34 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
     selectLockedCells: true,
     selectUnlockedCells: true,
   });
+}
+
+export async function getLocaleFromCampaignFiles(fileId:string, tenantId:string) {
+  const url = await fetchFileFromFilestore(fileId, tenantId);
+  const workbook = await getExcelWorkbookFromFileURL(url);
+  const keywords = workbook?.keywords;
+  if (!keywords || !keywords.includes("#")) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  const [templateLocale, templateCampaignId] = keywords.split("#");
+
+  // Ensure there are exactly two parts in the metadata
+  if (!templateLocale || !templateCampaignId) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have valid campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  return templateLocale;
 }
 
 

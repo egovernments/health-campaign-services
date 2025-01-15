@@ -3,12 +3,13 @@ import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
-import { correctParentValues, findMapValue, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { correctParentValues, findMapValue,getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { getBoundaryRelationshipData } from "./boundaryApis";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -189,10 +190,8 @@ const getTargetSheetData = async (
 };
 
 const getTargetSheetDataAfterCode = async (
-  request: any,
+  campaignDetails: any, 
   fileUrl: string,
-  getRow = false,
-  getSheetName = false,
   codeColumnName = "Boundary Code",
   localizationMap?: any
 ) => {
@@ -224,7 +223,7 @@ const getTargetSheetDataAfterCode = async (
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
-    const processedData = await processDataForTargetCalculation(request, jsonData, codeColumnName, localizationMap);
+    const processedData = await processDataForTargetCalculation(campaignDetails, jsonData, codeColumnName, localizationMap);
 
     workbookData[sheetName] = processedData;
   }
@@ -312,117 +311,6 @@ const getCampaignNumber: any = async (
 
   // Throw error if ID generation fails
   throwError("COMMON", 500, "IDGEN_ERROR");
-};
-
-// Function to generate a resource number
-const getResouceNumber: any = async (
-  RequestInfo: any,
-  idFormat: String,
-  idName: string
-) => {
-  // Construct request data
-  const data = {
-    RequestInfo,
-    idRequests: [
-      {
-        idName: idName,
-        tenantId: RequestInfo?.userInfo?.tenantId,
-        format: idFormat,
-      },
-    ],
-  };
-
-  // Construct URL for ID generation service
-  const idGenUrl = config.host.idGenHost + config.paths.idGen;
-
-  try {
-    // Make HTTP request to ID generation service
-    const result = await httpRequest(
-      idGenUrl,
-      data,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Return generated resource number
-    if (result?.idResponses?.[0]?.id) {
-      return result?.idResponses?.[0]?.id;
-    }
-
-    // Return null if ID generation fails
-    return result;
-  } catch (error: any) {
-    // Log error if ID generation fails
-    logger.error("Error: " + error);
-
-    // Return error
-    return error;
-  }
-};
-
-// Function to get schema definition based on code and request info
-const getSchema: any = async (code: string, RequestInfo: any) => {
-  const data = {
-    RequestInfo,
-    SchemaDefCriteria: {
-      tenantId: RequestInfo?.userInfo?.tenantId,
-      limit: 200,
-      codes: [code],
-    },
-  };
-  const mdmsSearchUrl = config.host.mdmsV2 + config.paths.mdmsSchema;
-
-  try {
-    const result = await httpRequest(
-      mdmsSearchUrl,
-      data,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-    return result?.SchemaDefinitions?.[0]?.definition;
-  } catch (error: any) {
-    logger.error("Error: " + error);
-    return error;
-  }
-};
-
-// Function to get count from response data
-const getCount: any = async (
-  responseData: any,
-  request: any,
-  response: any
-) => {
-  try {
-    // Extract host and URL from response data
-    const host = responseData?.host;
-    const url = responseData?.searchConfig?.countUrl;
-
-    // Extract request information
-    const requestInfo = { RequestInfo: request?.body?.RequestInfo };
-
-    // Make HTTP request to get count
-    const result = await httpRequest(
-      host + url,
-      requestInfo,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Extract count from result using lodash
-    const count = _.get(result, responseData?.searchConfig?.countPath);
-
-    return count; // Return the count
-  } catch (error: any) {
-    // Log and throw error if any
-    logger.error("Error: " + error);
-    throw error;
-  }
 };
 
 // Function to create Excel sheet and upload it
@@ -538,47 +426,6 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
     }
   }
   return result; // Return the hierarchy list
-}
-
-// Function to generate hierarchy from boundaries
-function generateHierarchy(boundaries: any[]) {
-  // Create an object to store boundary types and their parents
-  const parentMap: any = {};
-
-  // Populate the object with boundary types and their parents
-  for (const boundary of boundaries) {
-    parentMap[boundary.boundaryType] = boundary.parentBoundaryType;
-  }
-
-  // Traverse the hierarchy to generate the hierarchy list
-  const hierarchyList = [];
-  for (const boundaryType in parentMap) {
-    if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
-      const parentBoundaryType = parentMap[boundaryType];
-      if (parentBoundaryType === null) {
-        // This boundary type has no parent, add it to the hierarchy list
-        hierarchyList.push(boundaryType);
-        // Traverse its children recursively
-        traverseChildren(boundaryType, parentMap, hierarchyList);
-      }
-    }
-  }
-  return hierarchyList; // Return the hierarchy list
-}
-
-// Recursive function to traverse children and generate hierarchy
-function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
-  for (const boundaryType in parentMap) {
-    if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
-      const parentBoundaryType = parentMap[boundaryType];
-      if (parentBoundaryType === parent) {
-        // This boundary type has the current parent, add it to the hierarchy list
-        hierarchyList.push(boundaryType);
-        // Traverse its children recursively
-        traverseChildren(boundaryType, parentMap, hierarchyList);
-      }
-    }
-  }
 }
 
 // Function to create an Excel sheet
@@ -740,7 +587,7 @@ async function getBoundarySheetData(
   logger.info(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
-  const boundaryData = await getBoundaryRelationshipData(request, params);
+  const boundaryData = await getBoundaryRelationshipData(params);
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
@@ -1431,14 +1278,10 @@ export {
   getSheetData,
   searchMDMS,
   getCampaignNumber,
-  getSchema,
-  getResouceNumber,
-  getCount,
   getBoundarySheetData,
   createAndUploadFile,
   createRelatedResouce,
   createExcelSheet,
-  generateHierarchy,
   generateHierarchyList,
   getTargetWorkbook,
   getTargetSheetData,

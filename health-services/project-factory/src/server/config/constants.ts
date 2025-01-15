@@ -157,6 +157,16 @@ export const processTrackStatuses = {
     toBeCompleted: "toBeCompleted",
     failed: "failed",
 }
+
+export const processNamesConstants = {
+    projectCreation: "project-creation"
+}
+
+export const campaignProcessStatus = {
+    started : "started",
+    failed : "failed",
+    completed : "completed"
+}
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

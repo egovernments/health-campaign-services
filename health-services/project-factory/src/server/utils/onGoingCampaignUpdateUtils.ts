@@ -10,6 +10,7 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { defaultRequestInfo } from "../api/coreApis";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -356,37 +357,46 @@ async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId
 }
 
 
-async function fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode: any, tenantId: any, referenceId: any, RequestInfo?: any) {
+async function fetchProjectsWithBoundaryCodeAndReferenceId(
+  tenantId: string,
+  referenceId: string,
+  boundaryCode: string | null
+) {
   try {
-    const projectSearchBody = {
-      RequestInfo: RequestInfo,
+    const projectSearchBody: any = {
+      RequestInfo: defaultRequestInfo?.RequestInfo,
       Projects: [
         {
-          address: {
-            boundary: boundaryCode,
-          },
-          tenantId: tenantId,
-          referenceID: referenceId
+          tenantId,
+          referenceID: referenceId,
+          ...(boundaryCode ? { address: { boundary: boundaryCode } } : {})
         }
       ]
-    }
+    };
+
     const projectSearchParams = {
-      tenantId: tenantId,
+      tenantId,
       offset: 0,
       limit: 1
-    }
-    logger.info("Project search params " + JSON.stringify(projectSearchParams))
-    const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
-    if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
-      return projectSearchResponse;
-    }
-    else {
-      return null;
-    }
-  } catch (error: any) {
-    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+    };
+
+    logger.info("Project search params: " + JSON.stringify(projectSearchParams));
+
+    const projectSearchResponse = await httpRequest(
+      `${config?.host?.projectHost}${config?.paths?.projectSearch}`,
+      projectSearchBody,
+      projectSearchParams
+    );
+
+    return (projectSearchResponse?.Project?.length > 0)
+      ? projectSearchResponse
+      : null;
+
+  } catch (error) {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
   }
 }
+
 
 function getBoundaryProjectMappingFromParentCampaign(request: any, project: any) {
 
@@ -489,7 +499,7 @@ async function fetchProjectStaffWithProjectId(request: any, projectId: any, staf
 }
 
 async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource: any, messageObject: any, boundaryCode: any, uniqueIdentifier: any, isDelink: boolean) {
-  const projectResponse = await fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignNumber, messageObject?.RequestInfo);
+  const projectResponse = await fetchProjectsWithBoundaryCodeAndReferenceId(messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignNumber, boundaryCode);
   let matchingProjectObject: any;
   if (projectResponse) {
     matchingProjectObject = projectResponse?.Project[0];

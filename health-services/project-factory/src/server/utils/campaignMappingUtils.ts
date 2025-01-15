@@ -57,7 +57,7 @@ function trimBoundaryCodes(root: any) {
     }
 }
 
-async function getAllBoundaries(messageObject: any, tenantId: any, rootBoundary: any, hierarchyType: any) {
+export async function getAllBoundaries(messageObject: any, tenantId: any, rootBoundary: any, hierarchyType: any) {
     const BoundarySearchBody = {
         RequestInfo: messageObject?.RequestInfo,
     }

@@ -70,6 +70,9 @@ const config = {
     KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
     KAFKA_SAVE_CAMPAIGN_PROJECT : process.env.KAFKA_SAVE_CAMPAIGN_PROJECT || "save-campaign-project",
     KAFKA_UPDATE_CAMPAIGN_PROJECT : process.env.KAFKA_UPDATE_CAMPAIGN_PROJECT || "update-campaign-project",
+    KAFKA_PROCESS_HANDLER_TOPIC: process.env.KAFKA_PROCESS_HANDLER_TOPIC || "project-factory-process-handler",
+    KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC || "create-campaign-process",
+    KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC || "update-campaign-process",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -82,6 +85,7 @@ const config = {
     DB_PORT: process.env.DB_PORT || "5432",
     DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
     DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
+    DB_CAMPAIGN_CREATION_PROCESS_STATUS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_creation_process_status`,
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
     DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
     DB_CAMPAIGN_PROJECTS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_projects`
@@ -146,7 +150,6 @@ const config = {
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH || "health-project/resource/v1/_create",
     projectFacilityCreate: process.env.EGOV_PROJECT_RESOURCE_FACILITY_PATH || "health-project/facility/v1/_create",
-    userSearch: process.env.EGOV_USER_SEARCH_PATH || "user/_search",
     facilitySearch: process.env.EGOV_FACILITY_SEARCH_PATH || "facility/v1/_search",
     productVariantSearch: process.env.EGOV_PRODUCT_VARIANT_SEARCH_PATH || "product/variant/v1/_search",
     boundaryEntity: process.env.EGOV_BOUNDARY_ENTITY_SEARCHPATH || "boundary-service/boundary/_search",

@@ -1,8 +1,14 @@
 import config from '../config'
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
+import { checkIfSourceIsMicroplan, getCodesTarget, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName, mapTargets } from './campaignUtils';
 import _ from 'lodash';
-import { replicateRequest } from './genericUtils';
+import { getLocalizedMessagesHandlerViaLocale, replicateRequest } from './genericUtils';
 import { callGenerate } from './generateUtils';
+import { getBoundaryRelationshipDataFromCampaignDetails } from './boundaryUtils';
+import { getFormattedStringForDebug, logger } from './logger';
+import { getLocaleFromCampaignFiles } from './excelUtils';
+import { produceModifiedMessages } from '../kafka/Producer';
+import { processNamesConstants } from '../config/constants';
+
 
 
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
@@ -124,9 +130,75 @@ function isDynamicTargetTemplateForProjectType(projectType: string) {
     return projectTypesArray.includes(projectType);
 }
 
+export async function getTargetListForCampaign(campaignDetails: any) {
+    const tenantId = campaignDetails?.tenantId;
+    const targetFileId = getTargetFileIdFromCampaignDetails(campaignDetails);
+    const localeFromTargetFile = await getLocaleFromCampaignFiles(targetFileId,tenantId);
+    const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromTargetFile, tenantId);
+    const targetData = await getCodesTarget(campaignDetails, localizationMap);
+    const boundaryTree = await getBoundaryRelationshipDataFromCampaignDetails(campaignDetails);
+    if (targetData) {
+        mapTargets(
+            boundaryTree,
+            targetData
+        );
+        logger.debug(
+            "codesTargetMapping mapping :: " +
+            getFormattedStringForDebug(targetData)
+        );
+    }
+    const filteredTargetData = Object.fromEntries(
+        Object.entries(targetData).filter(([key, value]) => value && Object.keys(value).length > 0)
+    );
+    return filteredTargetData;
+}
 
+// export function getCampaignProjectsFromBoundariesAndTargets(allBoundaries : any, allTargetList : any, campaignNumber : string, RequestInfo : any) {
+//     const campaignProjects = [];
+//     for(const boundary of allBoundaries) {
+//         const targetForCurrentBoundary = allTargetList[boundary.code];
+//         const currentTime = new Date().getTime();
+//         const campaignProject = {
+//             id : uuidv4(),
+//             projectId : null,
+//             campaignNumber : campaignNumber,
+//             boundaryCode : boundary.code,
+//             additionalDetails : {
+//                 targets : targetForCurrentBoundary
+//             },
+//             isActive : true,
+//             createdBy : RequestInfo?.userInfo?.uuid,
+//             lastModifiedBy : RequestInfo?.userInfo?.uuid,
+//             createdTime : currentTime,
+//             lastModifiedTime : currentTime
+//         }
+//         campaignProjects.push(campaignProject);
+//     }
+//     return campaignProjects;
+// }
 
+export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
+    const fileId = campaignDetails?.resources?.find((resource: any) => resource?.type == "boundaryWithTarget")?.filestoreId;
+    if(!fileId) {
+        throw new Error("Target file not found in campaign details");
+    }
+    else{
+        return fileId;
+    }
+}
 
+export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, parentProjectId : string | null = null) {
+    const produceMessage: any = {
+        processName : processNamesConstants.projectCreation,
+        data : {
+            tenantId : tenantId,
+            parentProjectId : parentProjectId,
+            childrenBoundaryCodes : boudaryCodes
+        },
+        campaignNumber: campaignNumber
+    }
+    await produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_HANDLER_TOPIC);
+}
 
 export {
     modifyDeliveryConditions,

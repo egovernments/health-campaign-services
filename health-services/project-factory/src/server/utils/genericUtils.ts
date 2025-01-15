@@ -1227,18 +1227,6 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated");
-  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-  const header = {
-    ...defaultheader,
-    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-  }
-  const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received");
-  return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-}
-
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
@@ -1346,6 +1334,12 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
 async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequestInfo(RequestInfo);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
+}
+
+async function getLocalizedMessagesHandlerViaLocale(locale:string, tenantId: any, module = config.localisation.localizationModule) {
+  const localisationcontroller = Localisation.getInstance();
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;
 }
@@ -1508,7 +1502,6 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  getBoundaryRelationshipData,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
@@ -1529,6 +1522,7 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
+  getLocalizedMessagesHandlerViaLocale,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn
 };
