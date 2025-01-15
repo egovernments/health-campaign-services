@@ -220,7 +220,7 @@ const getTargetSheetDataAfterCode = async (
     }
 
     if (boundaryCodeColumnIndex === -1) {
-      console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
+      logger.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
     const processedData = await processDataForTargetCalculation(campaignDetails, jsonData, codeColumnName, localizationMap);
