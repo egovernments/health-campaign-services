@@ -3216,7 +3216,7 @@ const autoGenerateBoundaryCodes = async (
     latLongData = result.latLongData;
     boundaryData = result.updatedData;
   }
-  const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
+  const updatedBoundaryData = updateBoundaryData(boundaryData, localizedHeadersOfBoundarySheet);
   const modifiedBoundaryData = modifyBoundaryDataHeaders(
     updatedBoundaryData,
     hierarchy,
