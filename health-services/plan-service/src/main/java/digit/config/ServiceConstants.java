@@ -366,13 +366,13 @@ public class ServiceConstants {
 
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
 
-    public static final String TERRAIN_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails.terrain.code";
+    public static final String TERRAIN_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails|terrain|code";
 
-    public static final String ROAD_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails.roadCondition.code";
+    public static final String ROAD_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails|roadCondition|code";
 
-    public static final String SECURITY_Q1_SEARCH_PARAMETER_KEY = "securityDetails.1.code";
+    public static final String SECURITY_Q1_SEARCH_PARAMETER_KEY = "securityDetails|1|code";
 
-    public static final String SECURITY_Q2_SEARCH_PARAMETER_KEY = "securityDetails.2.code";
+    public static final String SECURITY_Q2_SEARCH_PARAMETER_KEY = "securityDetails|2|code";
 
     public static final String COMMA_DELIMITER = ",";
 
