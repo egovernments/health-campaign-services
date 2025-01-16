@@ -119,7 +119,7 @@ public class PlanUtil {
 
 			// Creating a map of fields to be added in plan additional details with their key.
 			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
-			if(ObjectUtils.isEmpty(fieldsToBeUpdated))
+			if(ObjectUtils.isEmpty(facilityId))
 				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
 
 			// Add fields from securityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
