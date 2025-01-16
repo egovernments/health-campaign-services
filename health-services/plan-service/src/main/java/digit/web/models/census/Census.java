@@ -49,8 +49,7 @@ public class Census {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    @Size(max = 64)
-    private String assignee = null;
+    private List<String> assignee = null;
 
     @JsonProperty("status")
     @Size(max = 64)

@@ -109,21 +109,9 @@ public class QueryUtil {
             if (key.contains(DOT_SEPARATOR)) {
                 String[] keyArray = key.split(DOT_REGEX);
                 Map<String, Object> nestedQueryMap = new HashMap<>();
-
-                // Recursively build the nested structure based on the key hierarchy.
                 prepareNestedQueryMap(0, keyArray, nestedQueryMap, filterMap.get(key));
-
-                // Merge the newly created nested structure into the main query map.
-                queryMap.merge(keyArray[0], nestedQueryMap.get(keyArray[0]), (existing, newValue) -> {
-                    // If both existing and new values are maps, merge them to prevent overwriting.
-                    if (existing instanceof Map && newValue instanceof Map) {
-                        mergeMaps((Map<String, Object>) existing, (Map<String, Object>) newValue);
-                        return existing;
-                    }
-                    return newValue;
-                });
+                queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
             } else {
-                // If no nesting, directly put the key-value pair into the query map.
                 queryMap.put(key, filterMap.get(key));
             }
         });
@@ -180,31 +168,6 @@ public class QueryUtil {
         preparedStmtList.add(config.getDefaultLimit());
 
         return paginatedQuery.toString();
-    }
-
-    /**
-     * Recursively merges two maps, combining their nested structures while preserving existing values.
-     *
-     * @param existing The final map that will contain the merged result.
-     * @param newMap   The source map whose contents will be merged into the existing map.
-     *
-     * Example:
-     * existing = {"a": {"b": "value1"}}
-     * newMap = {"a": {"c": "value2"}}
-     * Result: {"a": {"b": "value1", "c": "value2"}}
-     */
-    private void mergeMaps(Map<String, Object> existing, Map<String, Object> newMap) {
-        newMap.forEach((key, value) -> {
-            existing.merge(key, value, (oldValue, newValue) -> {
-                // If both values are maps, recursively merge them
-                if (oldValue instanceof Map && newValue instanceof Map) {
-                    mergeMaps((Map<String, Object>) oldValue, (Map<String, Object>) newValue);
-                    return oldValue;
-                }
-                // If either value is not a map, use the new value
-                return newValue;
-            });
-        });
     }
 
     /**
