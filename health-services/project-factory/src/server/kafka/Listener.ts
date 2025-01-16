@@ -3,7 +3,7 @@ import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { handleCampaignMapping } from '../utils/campaignMappingUtils';
-import { handleCampaignProcessing } from '../utils/campaignUtils';
+import { handleCampaignProcessing, handleCampaignSubProcessing } from '../utils/campaignUtils';
 
 // Kafka Configuration
 const kafkaConfig: ConsumerGroupOptions = {
@@ -17,8 +17,8 @@ const kafkaConfig: ConsumerGroupOptions = {
 // Topic Names
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
-    config.kafka.KAFKA_TEST_TOPIC,
-    config.kafka.KAFKA_PROCESS_HANDLER_TOPIC
+    config.kafka.KAFKA_PROCESS_HANDLER_TOPIC,
+    config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC
 ];
 
 // Consumer Group Initialization
@@ -38,6 +38,9 @@ export function listener() {
                     break;
                 case config.kafka.KAFKA_PROCESS_HANDLER_TOPIC:
                     handleCampaignProcessing(messageObject);
+                    break;
+                case config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC:
+                    handleCampaignSubProcessing(messageObject);
                     break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);

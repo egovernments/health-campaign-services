@@ -1046,7 +1046,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         }
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
-        await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
+        await validateProjectCampaignBoundaries(request?.body?.CampaignDetails?.boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
         await validateProductVariant(request);
     }
@@ -1138,7 +1138,7 @@ async function validateForRetry(request: any) {
             }
             request.body.CampaignDetails.status = campaignStatuses?.drafted;
             var updatedInnerCampaignDetails = {}
-            enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+            enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
             const producerMessage: any = {
                 CampaignDetails: request?.body?.CampaignDetails

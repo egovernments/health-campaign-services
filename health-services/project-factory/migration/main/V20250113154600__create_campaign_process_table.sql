@@ -7,7 +7,8 @@ CREATE TABLE eg_cm_campaign_creation_process_status (
     createdby VARCHAR(128) NOT NULL,
     lastmodifiedby VARCHAR(128) NOT NULL,
     createdtime BIGINT NOT NULL,
-    lastmodifiedtime BIGINT NOT NULL
+    lastmodifiedtime BIGINT NOT NULL,
+    CONSTRAINT unique_campaign_process UNIQUE (campaignnumber, processname)
 );
 
 -- Adding index on campaignnumber

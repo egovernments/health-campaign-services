@@ -7,7 +7,7 @@ import { getBoundaryRelationshipDataFromCampaignDetails } from './boundaryUtils'
 import { getFormattedStringForDebug, logger } from './logger';
 import { getLocaleFromCampaignFiles } from './excelUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { processNamesConstants } from '../config/constants';
+import { processNamesConstantsInOrder } from '../config/constants';
 
 
 
@@ -105,7 +105,7 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
             const newRequestBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Filters: {
-                    boundaries: request?.body?.boundariesCombined
+                    boundaries: request?.body?.CampaignDetails?.boundaries
                 }
             };
 
@@ -189,7 +189,7 @@ export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
 
 export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, parentProjectId : string | null = null) {
     const produceMessage: any = {
-        processName : processNamesConstants.projectCreation,
+        processName: processNamesConstantsInOrder.projectCreation,
         data : {
             tenantId : tenantId,
             parentProjectId : parentProjectId,
@@ -197,7 +197,7 @@ export async function persistForProjectProcess(boudaryCodes: string[], campaignN
         },
         campaignNumber: campaignNumber
     }
-    await produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_HANDLER_TOPIC);
+    await produceModifiedMessages(produceMessage, config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC);
 }
 
 export {

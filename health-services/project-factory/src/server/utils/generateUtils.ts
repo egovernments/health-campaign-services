@@ -29,7 +29,7 @@ function isCampaignTypeSame(request: any) {
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
-        const boundaries = request?.body?.boundariesCombined
+        const boundaries = request?.body?.CampaignDetails?.boundaries;
         if (ExistingCampaignDetails) {
             if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
                 logger.info("Boundaries or Campaign Type  differ, generating new resources");

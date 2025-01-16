@@ -158,11 +158,12 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
-export const processNamesConstants = {
+export const processNamesConstantsInOrder = {
     projectCreation: "project-creation"
 }
 
 export const campaignProcessStatus = {
+    inqueue : "inqueue",
     started : "started",
     failed : "failed",
     completed : "completed"

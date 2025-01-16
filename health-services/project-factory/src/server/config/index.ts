@@ -72,9 +72,9 @@ const config = {
     KAFKA_SAVE_CAMPAIGN_PROJECT : process.env.KAFKA_SAVE_CAMPAIGN_PROJECT || "save-campaign-project",
     KAFKA_UPDATE_CAMPAIGN_PROJECT : process.env.KAFKA_UPDATE_CAMPAIGN_PROJECT || "update-campaign-project",
     KAFKA_PROCESS_HANDLER_TOPIC: process.env.KAFKA_PROCESS_HANDLER_TOPIC || "project-factory-process-handler",
+    KAFKA_SUB_PROCESS_HANDLER_TOPIC: process.env.KAFKA_SUB_PROCESS_HANDLER_TOPIC || "project-factory-sub-process-handler",
     KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC || "create-campaign-process",
-    KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC || "update-campaign-process",
-    KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC || "update-campaign-process"
   },
 
   // Database configuration

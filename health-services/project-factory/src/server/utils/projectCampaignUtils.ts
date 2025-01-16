@@ -4,10 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
 import { persistForProjectProcess } from './targetUtils';
 import { createProjectsAndGetCreatedProjects, getProjectsCountsWithProjectIds, getProjectsWithProjectIds, updateProjects } from '../api/projectApis';
-import { checkIfProcessIsCompleted, markProcessStatus, searchProjectCampaignResourcData } from './campaignUtils';
+import { getRootBoundaryCode, searchProjectCampaignResourcData } from './campaignUtils';
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
-import { campaignProcessStatus, processNamesConstants } from '../config/constants';
+import { campaignProcessStatus, processNamesConstantsInOrder } from '../config/constants';
 import { logger } from './logger';
+import { checkIfProcessIsCompleted, markProcessStatus } from './processTrackUtils';
 
 
 export async function persistCampaignProject(project: any, campaignDetails: any, requestInfo: any, campaignProjectId?: string) {
@@ -149,8 +150,15 @@ export async function getCampaignProjectsCount(
     return fetchCampaignProjectsData(campaignNumber, searchActiveOnly, boundaryCodes, parentBoundaryCodes, true);
 }
 
-
-
+export async function enrichRootProjectId(campaignDetails : any){
+    if (!campaignDetails?.projectId) {
+        const rootBoundaryCode = getRootBoundaryCode(campaignDetails?.boundaries);
+        const campaignProjectWithRootBoundary = await getCampaignProjects(campaignDetails?.campaignNumber, true, [rootBoundaryCode]);
+        if (campaignProjectWithRootBoundary && campaignProjectWithRootBoundary.length > 0) {
+            campaignDetails.projectId = campaignProjectWithRootBoundary[0].projectId;
+        }
+    }
+}
 
 
 export async function updateTargetsInProjectCampaign(allTargetList: any, campaignProjects: any[]) {
@@ -209,7 +217,7 @@ export async function addBoundariesInProjectCampaign( allBoundaries: any, allTar
     }
 }
 
-export async function processProjectCreationFromConsumer(data: any, campaignNumber: string) {
+export async function processSubProjectCreationFromConsumer(data: any, campaignNumber: string) {
     const { parentProjectId, childrenBoundaryCodes, tenantId } = data;
 
     // Get campaign projects for the provided campaign number and children boundary codes
@@ -270,7 +278,7 @@ async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCo
 
         // Update project targets
         projectsToUpdate.forEach((project: any) => {
-            const newTargets = boundaryCodesForTargetUpdateMappings[project.boundaryCode]?.targets;
+            const newTargets = boundaryCodesForTargetUpdateMappings[project?.address?.boundary]?.targets;
             if (newTargets) {
                 project.targets?.forEach((target: any) => {
                     if (newTargets[target.beneficiaryType]) {
@@ -495,7 +503,7 @@ export async function checkAndPersistProjectCreationResult(
             // Check if the process is already completed before each retry
             const isProcessAlreadyCompleted = await checkIfProcessIsCompleted(
                 campaignNumber,
-                processNamesConstants.projectCreation
+                processNamesConstantsInOrder.projectCreation
             );
             if (isProcessAlreadyCompleted) {
                 logger.info("Process already completed.");
@@ -506,7 +514,7 @@ export async function checkAndPersistProjectCreationResult(
 
             // If counts match, mark as completed and exit
             if (isAllProjectCampaignWithProjectId) {
-                await markProcessStatus(campaignNumber, processNamesConstants.projectCreation, campaignProcessStatus.completed);
+                await markProcessStatus(campaignNumber, processNamesConstantsInOrder.projectCreation, campaignProcessStatus.completed);
                 logger.info("Project creation process marked as completed.");
                 return;
             } else {

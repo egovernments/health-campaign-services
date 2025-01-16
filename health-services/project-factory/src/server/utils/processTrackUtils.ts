@@ -2,7 +2,7 @@ import config from './../config';
 import { produceModifiedMessages } from "../kafka/Producer";;
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
-import { processTrackForUi, processTrackStatuses, processTrackTypes } from '../config/constants';
+import { campaignProcessStatus, processNamesConstantsInOrder, processTrackForUi, processTrackStatuses, processTrackTypes } from '../config/constants';
 import { logger } from './logger';
 
 async function getProcessDetails(id: string, type?: string): Promise<any[]> {
@@ -219,6 +219,155 @@ export function modifyProcessDetails(processDetailsArray: any[]) {
     const orderedToBeCompletedArray = getOrderedDetailsArray(toBeCompletedArray);
     const otherArray = processDetailsArray.filter((item: any) => item.status !== processTrackStatuses.toBeCompleted);
     return otherArray.concat(orderedToBeCompletedArray);
+}
+
+export async function persistProcessStatuses(requestBody: any) {
+    const { CampaignDetails, RequestInfo } = requestBody;
+    const useruuid = RequestInfo?.userInfo?.uuid;
+    const { campaignNumber } = CampaignDetails;
+    if (CampaignDetails?.parentId) {
+        const processesFromDb = await getProcessesFromDb(campaignNumber);
+        const updateInQuedProcesses = await getUpdatedStatusProcessesFromCampaignNumberAndUseruuid(processesFromDb, useruuid, campaignProcessStatus.inqueue);
+        const produceMessage : any = {
+            campaignProcesses: updateInQuedProcesses
+        }
+        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC);
+    }
+    else {
+        const processes = getNewProcessesFromCampaignNumberAndUseruuid(campaignNumber, useruuid);
+        const produceMessage : any = {
+            campaignProcesses: processes
+        }
+        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC);
+    }
+}
+
+export function getNewProcessesFromCampaignNumberAndUseruuid(campaignNumber: any, useruuid: any) {
+    const processes = Object.values(processNamesConstantsInOrder);
+    const currentTime = new Date().getTime();
+    const processArray = [];
+
+    for (const process of processes) {
+        processArray.push({
+            id: uuidv4(),
+            campaignNumber: campaignNumber,
+            processName: process,
+            status: campaignProcessStatus.inqueue,
+            additionalDetails: {},
+            createdBy: useruuid,
+            createdTime: currentTime,
+            lastModifiedBy: useruuid,
+            lastModifiedTime: currentTime
+        });
+    }
+    return processArray;
+}
+
+async function getUpdatedStatusProcessesFromCampaignNumberAndUseruuid(
+    processesFromDb: any[],
+    useruuid: string,
+    status: string
+) {
+    const currentTime = new Date().getTime();
+
+    return processesFromDb.map(process => ({
+        ...process,
+        status,
+        lastModifiedBy: useruuid,
+        lastModifiedTime: currentTime
+    }));
+}
+
+
+
+
+export async function getProcessesFromDb(
+    campaignNumber: string,
+    processName: string | null = null
+): Promise<any[]> {
+    let query = `
+        SELECT * 
+        FROM ${config.DB_CONFIG.DB_CAMPAIGN_CREATION_PROCESS_STATUS_TABLE_NAME}
+        WHERE campaignnumber = $1
+    `;
+
+    const values = [campaignNumber];
+
+    // If processName is provided, add it to the query
+    if (processName) {
+        query += ` AND processname = $2`;
+        values.push(processName);
+    }
+
+    try {
+        const result = await executeQuery(query, values);
+        const resultantArray = result?.rows?.map((row:any) => ({
+            id : row.id,
+            campaignNumber: row.campaignnumber,
+            processName: row.processname,
+            status: row.status,
+            additionalDetails: row.additionaldetails,
+            createdBy: row.createdby,
+            createdTime: parseInt(row.createdtime),
+            lastModifiedBy: row.lastmodifiedby,
+            lastModifiedTime: parseInt(row.lastmodifiedtime)
+        }));
+        return resultantArray;
+    } catch (error) {
+        console.error(`Error retrieving processes for campaign number ${campaignNumber}:`, error);
+        throw error;
+    }
+}
+
+
+export async function markProcessStatus(campaignNumber: string, processName: string, status: string, errorMessage?: string) {
+    const processDetails = await getProcessesFromDb(campaignNumber, processName);
+    if(processDetails.length > 0) {
+        const currentTime = new Date().getTime();
+        const produceMessage: any = {
+            campaignProcesses: processDetails?.map(process => ({ ...process, status, additionalDetails: errorMessage ? { ...process.additionalDetails, errorMessage } : {} , lastModifiedTime: currentTime}))
+        }
+        await produceModifiedMessages(produceMessage, config.kafka.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC);
+    }
+    else{
+        logger.error(`No process found for campaign number ${campaignNumber} and process name ${processName}`);
+    }
+}
+
+// Reusable helper function for checking process status
+async function checkProcessStatus(
+    campaignNumber: string,
+    processName: string,
+    status: string
+): Promise<boolean> {
+    const query = `
+        SELECT 1
+        FROM ${config.DB_CONFIG.DB_CAMPAIGN_CREATION_PROCESS_STATUS_TABLE_NAME}
+        WHERE campaignnumber = $1
+          AND processname = $2
+          AND status = $3
+        LIMIT 1;
+    `;
+
+    const values = [campaignNumber, processName, status];
+
+    try {
+        const result = await executeQuery(query, values);
+        // If result.rows is not empty, it means the process matches the given status
+        return result.rows.length > 0;
+    } catch (error) {
+        console.error(`Error checking process status (${status}):`, error);
+        throw error;
+    }
+}
+
+// Exported functions using the reusable helper
+export async function checkifProcessIsFailed(campaignNumber: string, processName: string): Promise<boolean> {
+    return checkProcessStatus(campaignNumber, processName, campaignProcessStatus.failed);
+}
+
+export async function checkIfProcessIsCompleted(campaignNumber: string, processName: string): Promise<boolean> {
+    return checkProcessStatus(campaignNumber, processName, campaignProcessStatus.completed);
 }
 
 export { persistTrack, getProcessDetails, createProcessTracks };

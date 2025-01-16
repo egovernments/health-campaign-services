@@ -32,9 +32,9 @@ export const getFormattedStringForDebug = (obj: any): string => {
       (convertedMessage.length > DEFAULT_LOG_MESSAGE_COUNT ? "\n ---more" : "");
   } catch (error : any ) {
     if (error instanceof RangeError && error.message.includes("Invalid string length")) {
-      logger.error("The object is too big to convert into a string.");
+      logger.warn("The object is too big to convert into a string.");
     } else {
-      logger.error(`An unexpected error occurred while formatting the object into a string : ${error?.message}`);
+      logger.warn(`An unexpected error occurred while formatting the object into a string : ${error?.message}`);
     }
     return "Error: Unable to format object for debug.";
   }

@@ -1,17 +1,18 @@
 import { addBoundariesInProjectCampaign, getCampaignProjects, updateTargetsInProjectCampaign } from "../utils/projectCampaignUtils";
 import { getAllBoundariesForCampaign } from "../utils/boundaryUtils";
 import {  getTargetListForCampaign, persistForProjectProcess } from "../utils/targetUtils";
-import { getRootBoundaryCode, markProcessStatus } from "../utils/campaignUtils";
-import { campaignProcessStatus, processNamesConstants } from "../config/constants";
+import { getRootBoundaryCode } from "../utils/campaignUtils";
+import { campaignProcessStatus, processNamesConstantsInOrder } from "../config/constants";
+import { markProcessStatus } from "../utils/processTrackUtils";
 
 
 
 
-const processProjectCreation = async (requestBody: any) => {
+const processProjectCreation = async (campaignDetailsAndRequestInfo: any) => {
     try {
-        const { CampaignDetails, RequestInfo } = requestBody;
+        const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
         const { campaignNumber, boundaries, tenantId } = CampaignDetails;
-        await markProcessStatus(campaignNumber, processNamesConstants.projectCreation, campaignProcessStatus.started);
+        await markProcessStatus(campaignNumber, processNamesConstantsInOrder.projectCreation, campaignProcessStatus.started);
         const allTargetList = await getTargetListForCampaign(CampaignDetails);
         const allBoundaries = await getAllBoundariesForCampaign(CampaignDetails);
         const campaignProjects: any[] = await getCampaignProjects(campaignNumber, true);
@@ -21,7 +22,7 @@ const processProjectCreation = async (requestBody: any) => {
         await persistForProjectProcess([rootBoundaryCode], campaignNumber, tenantId, null);
     } catch (error: any) {
         console.log(error);
-        throw error;
+        await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.projectCreation, campaignProcessStatus.failed, error?.message);
     }
 };
 

@@ -268,10 +268,7 @@ function validateBoundariesIfParentPresent(request: any) {
     if (errors.length > 0) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
     }
-    request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
-  }
-  else {
-    request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
+    request.body.CampaignDetails.boundaries = [...parentCampaign.boundaries, ...newBoundaries];
   }
 }
 
@@ -281,7 +278,7 @@ async function callGenerateWhenChildCampaigngetsCreated(request: any) {
     const newRequestBody = {
       RequestInfo: request?.body?.RequestInfo,
       Filters: {
-        boundaries: request?.body?.boundariesCombined
+        boundaries: request?.body?.CampaignDetails?.boundaries
       }
     };
 

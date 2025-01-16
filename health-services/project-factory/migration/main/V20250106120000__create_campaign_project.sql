@@ -10,7 +10,8 @@ CREATE TABLE eg_cm_campaign_projects (
     createdby CHARACTER VARYING(128) NOT NULL,
     lastmodifiedby CHARACTER VARYING(128) NOT NULL,
     createdtime BIGINT NOT NULL,
-    lastmodifiedtime BIGINT NOT NULL
+    lastmodifiedtime BIGINT NOT NULL,
+    CONSTRAINT unique_campaign_boundary_active UNIQUE (campaignnumber, boundarycode, isactive)
 );
 
 -- Adding index on campaignnumber
