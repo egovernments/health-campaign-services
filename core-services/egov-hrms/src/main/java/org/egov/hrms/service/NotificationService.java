@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import com.jayway.jsonpath.JsonPath;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 import static org.egov.hrms.utils.HRMSConstants.HEALTH_HRMS_EMAIL_LOCALIZATION_CODE;
@@ -203,14 +204,25 @@ public class NotificationService {
 	}
 
 	/**
-	 * Creates and sends email notification for the given employee request.
+	 * Creates and sends email notification to the employees whose details are provided in the employeeRequest.
 	 *
-	 * @param employeeRequest The employee request
+	 * @param employeeRequest The employee request with employee details.
 	 */
 	public void processEmailNotification(EmployeeRequest employeeRequest) {
-		String localizationMessages = notificationUtil.getLocalizationMessages(employeeRequest);
-		String messageTemplate = notificationUtil.getMessageTemplate(HEALTH_HRMS_EMAIL_LOCALIZATION_CODE, localizationMessages);
-		List<EmailRequest> emailRequests = notificationUtil.createEmailRequest(employeeRequest, messageTemplate);
-		notificationUtil.sendEmail(emailRequests);
+		if (employeeRequest == null || CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
+			log.error("Invalid employee request received for email notification");
+			return;
+		}
+		try {
+			// Fetch localization messages and get email message template for HEALTH_HRMS_EMAIL_LOCALIZATION_CODE template code.
+			String localizationMessages = notificationUtil.getLocalizationMessages(employeeRequest);
+			String messageTemplate = notificationUtil.getMessageTemplate(HEALTH_HRMS_EMAIL_LOCALIZATION_CODE, localizationMessages);
+
+			// Create email requests from the employee details provided in the employeeRequest.
+			List<EmailRequest> emailRequests = notificationUtil.createEmailRequest(employeeRequest, messageTemplate);
+			notificationUtil.sendEmail(emailRequests);
+		} catch (Exception e) {
+			log.error("Error processing email notification for given employees");
+		}
 	}
 }

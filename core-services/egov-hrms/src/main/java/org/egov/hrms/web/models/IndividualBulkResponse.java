@@ -17,7 +17,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 /**
- * IndividualResponse
+ * IndividualBulkResponse
  */
 @Validated
 

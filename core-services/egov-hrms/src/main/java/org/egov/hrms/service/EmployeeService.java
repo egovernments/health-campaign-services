@@ -123,6 +123,8 @@ public class EmployeeService {
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
 		});
 		hrmsProducer.push(propertiesManager.getHrmsEmailNotifTopic(), employeeRequest);
+
+		// Setting password as null after sending employeeRequest to email notification topic to send email.
 		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
 
 		hrmsProducer.push(propertiesManager.getSaveEmployeeTopic(), employeeRequest);

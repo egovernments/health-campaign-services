@@ -40,17 +40,19 @@ public class NotificationUtil {
     }
 
     /**
-     * Extracts message for the specific code.
+     * Extracts message for the specific code from the localization messages.
      *
-     * @param notificationCode    The code for which message is required
-     * @param localizationMessage The localization messages
-     * @return message for the specific code
+     * @param notificationCode    The code for which message is required.
+     * @param localizationMessage The localization messages.
+     * @return message for the specific code.
      */
     public String getMessageTemplate(String notificationCode, String localizationMessage) {
+        // Create the path to get the message for the provided notification code from localization messages.
         String path = "$..messages[?(@.code==\"{}\")].message";
         path = path.replace("{}", notificationCode);
         String message = null;
         try {
+            // Tries to get the message for the provided notificationCode.
             List data = JsonPath.parse(localizationMessage).read(path);
             if (!CollectionUtils.isEmpty(data))
                 message = data.get(0).toString();
@@ -63,7 +65,7 @@ public class NotificationUtil {
     }
 
     /**
-     * Fetches messages from localization service.
+     * Fetches all the localization messages from localization service.
      *
      * @param employeeRequest The employee request
      * @return Localization messages for the module
@@ -78,10 +80,10 @@ public class NotificationUtil {
     }
 
     /**
-     * Returns the uri for the localization call.
+     * Returns the search uri for the localization search to get localization messages from "rainmaker-hr" module.
      *
-     * @param employeeRequest The employee request
-     * @return The uri for localization search call
+     * @param employeeRequest The employee request with locale code.
+     * @return The uri for localization search call.
      */
     public StringBuilder getUri(EmployeeRequest employeeRequest) {
         String tenantId = employeeRequest.getEmployees().get(0).getTenantId().split("\\.")[0];
@@ -98,7 +100,8 @@ public class NotificationUtil {
     }
 
     /**
-     * Replaces the placeholders and creates an email request for the given employee request.
+     * Replaces the placeholders from the email template and creates an email request from the given employee request.
+     *
      *
      * @param employeeRequest The employee request
      * @param emailTemplate   the email template
@@ -108,6 +111,8 @@ public class NotificationUtil {
         RequestInfo requestInfo = employeeRequest.getRequestInfo();
 
         List<EmailRequest> emailRequest = new LinkedList<>();
+
+        // Iterate over each employee details and create email request for each employee.
         for (Employee employee : employeeRequest.getEmployees()) {
             String customizedMsg = emailTemplate.replace("{User's name}", employee.getUser().getName());
             customizedMsg = customizedMsg.replace("{Username}", employee.getCode());
@@ -115,9 +120,11 @@ public class NotificationUtil {
             customizedMsg = customizedMsg.replace("{website URL}", propertiesManager.getEmailNotificationWebsiteLink());
             customizedMsg = customizedMsg.replace("{Implementation partner}", propertiesManager.getEmailNotificationImplementationPartner());
 
+            // Get email subject and email body from the provided email template.
             String subject = customizedMsg.substring(customizedMsg.indexOf("<h2>")+4, customizedMsg.indexOf("</h2>"));
             String body = customizedMsg.substring(customizedMsg.indexOf("</h2>")+5);
 
+            // Create the email object with the employee's email id, subject and customized email body created.
             Email emailObj = Email.builder().emailTo(Collections.singleton(employee.getUser().getEmailId())).isHTML(true).body(body).subject(subject).build();
             EmailRequest email = new EmailRequest(requestInfo, emailObj);
             emailRequest.add(email);
@@ -126,15 +133,16 @@ public class NotificationUtil {
     }
 
     /**
-     * Pushes email into email notification topic.
+     * Pushes email request list into email notification topic if email notification is enabled.
      *
-     * @param emailRequestList The list of emailRequests
+     * @param emailRequestList The list of emailRequests.
      */
     public void sendEmail(List<EmailRequest> emailRequestList) {
         if (propertiesManager.getIsEmailNotificationEnabled()) {
             if (CollectionUtils.isEmpty(emailRequestList)) {
                 log.error("No Emails Found!");
             } else {
+                // Iterate over each email and push them into emailNotifTopic to send emails.
                 for (EmailRequest emailRequest : emailRequestList) {
                     producer.push(propertiesManager.getEmailNotifTopic(), emailRequest);
                     log.info("Email Request -> " + emailRequest.toString());
