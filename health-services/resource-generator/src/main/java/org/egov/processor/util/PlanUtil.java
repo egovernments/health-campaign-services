@@ -14,6 +14,7 @@ import org.egov.processor.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -114,25 +115,51 @@ public class PlanUtil {
 			// Extract required details from census additional details object.
 			String facilityId = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID);
 			Object accessibilityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS);
-			Object securityDetials = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS);
+			Object securityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS);
 
 			// Creating a map of fields to be added in plan additional details with their key.
 			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
-			if(facilityId != null && !facilityId.isEmpty())
+			if(ObjectUtils.isEmpty(fieldsToBeUpdated))
 				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
 
-			if(accessibilityDetails != null)
-				fieldsToBeUpdated.put(ACCESSIBILITY_DETAILS, accessibilityDetails);
+			// Add fields from securityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
+			if (securityDetails instanceof Map && securityDetails != null) {
+				extractNestedFields((Map<String, Object>) securityDetails, SECURITY_DETAILS, fieldsToBeUpdated);
+			}
 
-			if(securityDetials != null)
-				fieldsToBeUpdated.put(SECURITY_DETAILS, securityDetials);
+			// Add fields from accessibilityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
+			if (accessibilityDetails instanceof Map && accessibilityDetails != null) {
+				extractNestedFields((Map<String, Object>) accessibilityDetails, ACCESSIBILITY_DETAILS, fieldsToBeUpdated);
+			}
 
 			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
 				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
 		}
 		return null;
 	}
-	
+
+	/**
+	 * Extracts nested fields from the given map and adds them to fieldsToBeUpdated in a structured format.
+	 * If a nested map contains CODE, its value is stored with the key formatted as "prefix|key|CODE".
+	 *
+	 * @param details           The map containing nested key-value pairs to be processed.
+	 * @param prefix            The prefix to be used for constructing the final key in fieldsToBeUpdated.
+	 * @param fieldsToBeUpdated The map where extracted values will be stored with formatted keys.
+	 */
+	private void extractNestedFields(Map<String, Object> details, String prefix, Map<String, Object> fieldsToBeUpdated) {
+		for (Map.Entry<String, Object> entry : details.entrySet()) {
+			String key = entry.getKey();
+			Object value = entry.getValue();
+
+			if (value instanceof Map) {
+				Map<String, Object> nestedMap = (Map<String, Object>) value;
+				if (nestedMap.containsKey(CODE)) {
+					fieldsToBeUpdated.put(prefix + "|" + key + "|" + CODE, nestedMap.get(CODE));
+				}
+			}
+		}
+	}
+
 	/**
 	 * Retrieves the boundary code value from the feature JSON node using the mapped value for the given input.
 	 * 
