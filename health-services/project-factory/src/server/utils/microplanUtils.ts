@@ -289,7 +289,11 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
   if (type == 'facility') {
     const projectType = request?.body?.projectTypeCode;
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
-    if (rowData[facilityCapacityColumn] >= 0) {
+    if(!rowData[facilityCapacityColumn]){
+      rowData[facilityCapacityColumn] = 0
+      element.storageCapacity = 0
+    }
+    else if (rowData[facilityCapacityColumn] >= 0) {
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
     if (activeColumnName && rowData[activeColumnName] == "Active") {

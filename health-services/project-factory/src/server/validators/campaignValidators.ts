@@ -27,6 +27,8 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
+import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
+import { getLocaleFromRequest } from "../utils/localisationUtils";
 
 
 
@@ -543,6 +545,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
         const fileUrl = await validateFile(request);
+        await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
         const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
         if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
@@ -1380,7 +1383,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         const campaignBoundaries = request?.body?.campaignBoundaries;
         if (campaignBoundaries && campaignBoundaries?.length > 0) {
             const districtsLocalised = campaignBoundaries
-                .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type.toUpperCase()}`, localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
+                .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type}`.toUpperCase(), localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
             districtsLocalised?.forEach((tab: any) => {

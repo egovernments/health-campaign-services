@@ -19,6 +19,7 @@ const getDBSchemaName = (dbSchema = "") => {
 const config = {
   batchSize: 100,
   cacheTime: 300,
+  retryUntilResourceCreationComplete:process.env.RETRY_TILL_RESOURCE_CREATION_COMPLETES || 100,
   allTypesOfTemplate: ["user", "facility", "boundary"],
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
@@ -190,8 +191,10 @@ const config = {
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
     notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE || false,
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    skipResourceCheckValidationBeforeCreateForLocalTesting: false, // can be set to true for local development 
-    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" // can be retry if there is any error for which default retry can be set
+    skipResourceCheckValidationBeforeCreateForLocalTesting:false, // can be set to true for local development 
+    autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
+    latLongColumns: process.env.LAT_LONG_SUBSTRINGS || "HCM_ADMIN_CONSOLE_FACILITY_LATITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_FACILITY_LONGITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_TARGET_LAT_OPT,HCM_ADMIN_CONSOLE_TARGET_LONG_OPT",
+    validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   }
 };
 // Exporting getErrorCodes function and config object

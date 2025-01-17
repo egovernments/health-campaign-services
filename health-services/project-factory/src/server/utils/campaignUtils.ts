@@ -3256,7 +3256,7 @@ const autoGenerateBoundaryCodes = async (
     latLongData = result.latLongData;
     boundaryData = result.updatedData;
   }
-  const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
+  const updatedBoundaryData = updateBoundaryData(boundaryData, localizedHeadersOfBoundarySheet);
   const modifiedBoundaryData = modifyBoundaryDataHeaders(
     updatedBoundaryData,
     hierarchy,
@@ -3730,7 +3730,7 @@ function createIdRequests(employees: any[]): any[] {
     return Array.from({ length: employees.length }, () => ({
       tenantId: tenantId,
       idName: config?.values?.idgen?.idNameForUserNameGeneration,
-      idFormat: config?.values?.idgen?.formatForUserName,
+      format: config?.values?.idgen?.formatForUserName,
     }));
   } else {
     return [];
