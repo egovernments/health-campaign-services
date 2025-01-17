@@ -1,4 +1,4 @@
-import { resourceDataStatuses } from "../config/constants";
+import { resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
@@ -296,7 +296,7 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
     else if (rowData[facilityCapacityColumn] >= 0) {
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
-    if (activeColumnName && rowData[activeColumnName] == "Active") {
+    if (activeColumnName && rowData[activeColumnName] == usageColumnStatus.active) {
       if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
         request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
       }

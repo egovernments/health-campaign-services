@@ -157,6 +157,11 @@ export const processTrackStatuses = {
     toBeCompleted: "toBeCompleted",
     failed: "failed",
 }
+
+export const usageColumnStatus = {
+    active: "Active",
+    inactive: "Inactive"
+}
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

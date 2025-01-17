@@ -1,7 +1,7 @@
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { resourceDataStatuses } from "../config/constants";
+import { resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import config from "../config";
 import { isMicroplanRequest } from "../utils/microplanUtils";
 import { throwError } from "../utils/genericUtils";
@@ -245,12 +245,12 @@ export function validateMicroplanFacility(request: any, data: any, localizationM
             if (!item?.[activeColumnName]) {
                 errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column can’t be empty, please update the data and re-upload` });
             }
-            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are Active, Inactive` });
+            else if (item?.[activeColumnName] != usageColumnStatus.active && item?.[activeColumnName] != usageColumnStatus.inactive) {
+                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are ${usageColumnStatus.active}, ${usageColumnStatus.inactive}.` });
             }
         }
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+        const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active || !item?.[uniqueIdentifierColumnName]) {
             enrichErrorForFcailityMicroplan(request, item, errors, localizationMap);
             validateLatLongForFacility(item, errors, localizationMap);
         }
