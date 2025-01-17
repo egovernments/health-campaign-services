@@ -74,6 +74,7 @@ const config = {
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
     KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_CREATE_TEMPLATE_DETAILS_TOPIC : process.env.KAFKA_CREATE_TEMPLATE_DETAILS_TOPIC || "create-template-topic"
   },
 
   // Database configuration

@@ -76,6 +76,7 @@ function enrichCreateTemplateRequest(requestBody: any) {
         createdTime: Date.now(),
         lastModifiedTime: Date.now(),
     };
+    requestBody.template.id = `${requestBody.template.locale}_${requestBody.template.projectType}_${requestBody.template.type}`;
 }
 
 // Fetch project types from MDMS
@@ -117,9 +118,9 @@ export async function handleTemplateCreation(locale: string, projectType: string
                 template: {
                     id: null,
                     tenantId: config?.app?.defaultTenantId,
-                    locale,
+                    locale: locale,
                     campaignType: projectType,
-                    type,
+                    type: type,
                     isActive: true,
                     fileStoreId: null,
                 },
