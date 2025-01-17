@@ -50,6 +50,7 @@ public class PlanUtil {
 	 * @param feature The feature JSON node.
 	 * @param resultMap The result map.
 	 * @param mappedValues The mapped values.
+	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
 			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
@@ -64,11 +65,12 @@ public class PlanUtil {
 	/**
 	 * Builds a PlanRequest object using the provided plan configuration request, feature JSON node,
 	 * result map, mapped values, and assumption value map.
-	 * 
-	 * @param planConfigurationRequest The plan configuration request.
-	 * @param feature The feature JSON node.
-	 * @param resultMap The result map.
-	 * @param mappedValues The mapped values.
+	 *
+	 * @param planConfigurationRequest              The plan configuration request.
+	 * @param feature                               The feature JSON node.
+	 * @param resultMap                             The result map.
+	 * @param mappedValues                          The mapped values.
+	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
@@ -94,7 +96,7 @@ public class PlanUtil {
 						.targets(new ArrayList())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
-						.additionalDetails(enrichAdditionalDetials(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
+						.additionalDetails(enrichAdditionalDetails(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
 				.build();
 	}
@@ -107,10 +109,14 @@ public class PlanUtil {
 	 * @param boundaryCodeValue                     The boundary code for which additional details need to be enriched.
 	 * @return An updated object containing extracted and enriched additional details, or null if no details were found or added.
 	 */
-	private Object enrichAdditionalDetials(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
+	private Object enrichAdditionalDetails(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
 		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
 
 			Object censusAdditionalDetails = boundaryCodeToCensusAdditionalDetails.get(boundaryCodeValue);
+
+			// Return null value if censusAdditionalDetails is null
+			if(censusAdditionalDetails == null)
+				return null;
 
 			// Extract required details from census additional details object.
 			String facilityId = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID);
