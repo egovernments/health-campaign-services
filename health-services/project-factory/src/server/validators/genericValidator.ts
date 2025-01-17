@@ -180,27 +180,6 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
     }
 }
 
-// Function to validate project staff response
-// function validateStaffResponse(staffResponse: any) {
-//     if (!staffResponse?.ProjectStaff?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
-//     }
-// }
-
-// Function to validate project resource response
-// function validateProjectResourceResponse(projectResouceResponse: any) {
-//     if (!projectResouceResponse?.ProjectResource?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
-//     }
-// }
-
-// Function to validate project facility response
-// function validateProjectFacilityResponse(projectFacilityResponse: any) {
-//     if (!projectFacilityResponse?.ProjectFacility?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
-//     }
-// }
-
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
 
@@ -253,9 +232,6 @@ export {
     validateBodyViaSchema,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
-    // validateStaffResponse,
-    // validateProjectFacilityResponse,
-    // validateProjectResourceResponse,
     validateGenerateRequest,
     validateHierarchyType,
     validateCampaignBodyViaSchema

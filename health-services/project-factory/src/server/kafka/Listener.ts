@@ -34,13 +34,13 @@ export function listener() {
 
             switch (message.topic) {
                 case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                    handleCampaignMapping(messageObject);
+                    await handleCampaignMapping(messageObject);
                     break;
                 case config.kafka.KAFKA_PROCESS_HANDLER_TOPIC:
-                    handleCampaignProcessing(messageObject);
+                    await handleCampaignProcessing(messageObject);
                     break;
                 case config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC:
-                    handleCampaignSubProcessing(messageObject);
+                    await handleCampaignSubProcessing(messageObject);
                     break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);

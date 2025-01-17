@@ -153,30 +153,6 @@ export async function getTargetListForCampaign(campaignDetails: any) {
     return filteredTargetData;
 }
 
-// export function getCampaignProjectsFromBoundariesAndTargets(allBoundaries : any, allTargetList : any, campaignNumber : string, RequestInfo : any) {
-//     const campaignProjects = [];
-//     for(const boundary of allBoundaries) {
-//         const targetForCurrentBoundary = allTargetList[boundary.code];
-//         const currentTime = new Date().getTime();
-//         const campaignProject = {
-//             id : uuidv4(),
-//             projectId : null,
-//             campaignNumber : campaignNumber,
-//             boundaryCode : boundary.code,
-//             additionalDetails : {
-//                 targets : targetForCurrentBoundary
-//             },
-//             isActive : true,
-//             createdBy : RequestInfo?.userInfo?.uuid,
-//             lastModifiedBy : RequestInfo?.userInfo?.uuid,
-//             createdTime : currentTime,
-//             lastModifiedTime : currentTime
-//         }
-//         campaignProjects.push(campaignProject);
-//     }
-//     return campaignProjects;
-// }
-
 export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
     const fileId = campaignDetails?.resources?.find((resource: any) => resource?.type == "boundaryWithTarget")?.filestoreId;
     if(!fileId) {
