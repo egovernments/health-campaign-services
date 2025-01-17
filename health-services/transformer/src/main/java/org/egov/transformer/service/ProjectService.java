@@ -77,11 +77,21 @@ public class ProjectService {
     public Map<String, String> getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryCodeToNameMap(locationCode, tenantId);
+        String hierarchyType = transformerProperties.getBoundaryHierarchyName();
+        if (project.getAdditionalDetails() != null) {
+            Object additionalDetails = project.getAdditionalDetails();
+            if (additionalDetails instanceof Map) {
+                Map<String, Object> detailsMap = (Map<String, Object>) additionalDetails;
+                if (detailsMap.containsKey("hierarchyType")) {
+                    hierarchyType = detailsMap.get("hierarchyType").toString();
+                }
+            }
+        }
+        return getBoundaryCodeToNameMap(locationCode, tenantId, hierarchyType);
     }
 
 
-    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+    public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId, String hierarchyType ) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
@@ -91,7 +101,7 @@ public class ProjectService {
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
-                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&hierarchyType=" + hierarchyType
 //                + "&boundaryType=" + transformerProperties.getBoundaryType()
                 + "&codes=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
@@ -479,7 +489,8 @@ public class ProjectService {
         if (localityCode == null) {
             return null;
         }
-        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId);
+        String hierarchyType = transformerProperties.getBoundaryHierarchyName();
+        Map<String, String> boundaryLabelToNameMap = getBoundaryCodeToNameMap(localityCode, tenantId, hierarchyType);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {
