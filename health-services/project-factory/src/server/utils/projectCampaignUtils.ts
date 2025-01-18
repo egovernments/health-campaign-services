@@ -224,7 +224,7 @@ export async function processSubProjectCreationFromConsumer(data: any, campaignN
     const campaignProjects = await getCampaignProjects(campaignNumber, true, childrenBoundaryCodes);
 
     // Perform project updates and creation one after the other (sequential)
-    const boundaryAndProjectMappingFromUpdate = await updateTargetsAndGetProjectIdsMapping(campaignProjects, tenantId);
+    const boundaryAndProjectMappingFromUpdate = await updateTargetsAndGetProjectIdsMapping(campaignProjects, tenantId, userUuid);
     const boundaryAndProjectMappingFromCreation = await createProjectsAndGetProjectIdsMapping(campaignProjects, campaignNumber, tenantId, userUuid, parentProjectId);
 
     // Combine the mappings from updates and creations
@@ -271,10 +271,10 @@ async function prepareTargetMappings(campaignProjects: any[]) {
 /**
  * Process and update project targets in chunks, including campaign project updates.
  */
-async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCodesForTargetUpdateMappings: any, campaignProjects: any[], tenantId: string) {
+async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCodesForTargetUpdateMappings: any, campaignProjects: any[], tenantId: string, userUuid: string) {
     for (let i = 0; i < projectIdsToUpdate.length; i += 100) {
         const projectIds = projectIdsToUpdate.slice(i, i + 100);
-        const projectsToUpdate = await getProjectsWithProjectIds(projectIds, tenantId);
+        const projectsToUpdate = await getProjectsWithProjectIds(projectIds, tenantId, userUuid);
 
         // Update project targets
         projectsToUpdate.forEach((project: any) => {
@@ -297,7 +297,7 @@ async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCo
                 return campaignProject;
             });
 
-        await updateProjects(projectsToUpdate);
+        await updateProjects(projectsToUpdate, userUuid);
         await updateCampaignProjects(campaignProjectsToUpdate)
     }
 }
@@ -305,13 +305,13 @@ async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCo
 /**
  * Main function to update targets and return the mappings.
  */
-async function updateTargetsAndGetProjectIdsMapping(campaignProjects : any[], tenantId: string) {
+async function updateTargetsAndGetProjectIdsMapping(campaignProjects : any[], tenantId: string, userUuid: string) {
     // Prepare mappings and project IDs
     const { boundaryCodesForTargetUpdateMappings, projectIdsToUpdate } =
         await prepareTargetMappings(campaignProjects);
 
     // Process updates in chunks
-    await processAndUpdateProjects(projectIdsToUpdate, boundaryCodesForTargetUpdateMappings, campaignProjects, tenantId);
+    await processAndUpdateProjects(projectIdsToUpdate, boundaryCodesForTargetUpdateMappings, campaignProjects, tenantId, userUuid);
 
     // Clean up the mappings
     Object.keys(boundaryCodesForTargetUpdateMappings).forEach((boundaryCode) => {
@@ -390,7 +390,7 @@ async function createProjectsAndGetProjectIdsMapping(
             }
         });
         const projectIds = createdProjects.map((project: any) => project?.id);
-        await confirmBulkProjectConfirmation(projectIds, tenantId);
+        await confirmBulkProjectConfirmation(projectIds, tenantId, userUuid);
     }
 
     // Step 3: Update campaign projects only once after processing all chunks
@@ -404,7 +404,8 @@ async function createProjectsAndGetProjectIdsMapping(
 
 export async function confirmBulkProjectConfirmation(
     projectIds: string[],
-    tenantId: string
+    tenantId: string,
+    userUuid: string
 ) {
     const maxRetries = 20;
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -412,7 +413,7 @@ export async function confirmBulkProjectConfirmation(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const actualTotalCount = await getProjectsCountsWithProjectIds(projectIds, tenantId);
+            const actualTotalCount = await getProjectsCountsWithProjectIds(projectIds, tenantId, userUuid);
 
             if (actualTotalCount === expectedTotalCount) {
                 console.log("Bulk project confirmation successful.");

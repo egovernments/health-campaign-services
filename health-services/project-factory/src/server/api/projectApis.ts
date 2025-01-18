@@ -3,9 +3,15 @@ import { defaultRequestInfo } from "./coreApis";
 import { httpRequest } from "../utils/request";
 import { throwError } from "../utils/genericUtils";
 
-export async function getProjectsWithProjectIds(projectIds: string[], tenantId: string) {
+export async function getProjectsWithProjectIds(projectIds: string[], tenantId: string, userUuid: string) {
+    const RequestInfo = {
+        ...defaultRequestInfo?.RequestInfo,
+        userInfo: {
+            uuid : userUuid
+        }
+    }
     const requestBody = {
-        RequestInfo: defaultRequestInfo?.RequestInfo,
+        RequestInfo,
         Projects: projectIds.map((projectId) => ({
             id: projectId,
             tenantId
@@ -27,9 +33,15 @@ export async function getProjectsWithProjectIds(projectIds: string[], tenantId: 
     }
 }
 
-export async function getProjectsCountsWithProjectIds(projectIds: string[], tenantId: string) {
+export async function getProjectsCountsWithProjectIds(projectIds: string[], tenantId: string, userUuid: string) {
+    const RequestInfo = {
+        ...defaultRequestInfo?.RequestInfo,
+        userInfo: {
+            uuid : userUuid
+        }
+    }
     const requestBody = {
-        RequestInfo: defaultRequestInfo?.RequestInfo,
+        RequestInfo,
         Projects: projectIds.map((projectId) => ({
             id: projectId,
             tenantId
@@ -51,9 +63,15 @@ export async function getProjectsCountsWithProjectIds(projectIds: string[], tena
     }
 }
 
-export async function updateProjects(projects: any[]) {
+export async function updateProjects(projects: any[],userUuid: string) {
+    const RequestInfo = {
+        ...defaultRequestInfo?.RequestInfo,
+        userInfo: {
+            uuid : userUuid
+        }
+    }
     const requestBody = {
-        RequestInfo: defaultRequestInfo?.RequestInfo,
+        RequestInfo,
         Projects : projects
     }
 
