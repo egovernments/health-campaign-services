@@ -163,11 +163,12 @@ export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
     }
 }
 
-export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, parentProjectId : string | null = null) {
+export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, userUuid: string, parentProjectId : string | null = null) {
     const produceMessage: any = {
         processName: processNamesConstantsInOrder.projectCreation,
         data : {
             tenantId : tenantId,
+            userUuid : userUuid,
             parentProjectId : parentProjectId,
             childrenBoundaryCodes : boudaryCodes
         },

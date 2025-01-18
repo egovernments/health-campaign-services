@@ -218,14 +218,14 @@ export async function addBoundariesInProjectCampaign( allBoundaries: any, allTar
 }
 
 export async function processSubProjectCreationFromConsumer(data: any, campaignNumber: string) {
-    const { parentProjectId, childrenBoundaryCodes, tenantId } = data;
+    const { parentProjectId, childrenBoundaryCodes, tenantId , userUuid} = data;
 
     // Get campaign projects for the provided campaign number and children boundary codes
     const campaignProjects = await getCampaignProjects(campaignNumber, true, childrenBoundaryCodes);
 
     // Perform project updates and creation one after the other (sequential)
     const boundaryAndProjectMappingFromUpdate = await updateTargetsAndGetProjectIdsMapping(campaignProjects, tenantId);
-    const boundaryAndProjectMappingFromCreation = await createProjectsAndGetProjectIdsMapping(campaignProjects, campaignNumber, tenantId, parentProjectId);
+    const boundaryAndProjectMappingFromCreation = await createProjectsAndGetProjectIdsMapping(campaignProjects, campaignNumber, tenantId, userUuid, parentProjectId);
 
     // Combine the mappings from updates and creations
     const finalBoundaryAndProjectMapping = { ...boundaryAndProjectMappingFromUpdate, ...boundaryAndProjectMappingFromCreation };
@@ -243,7 +243,7 @@ export async function processSubProjectCreationFromConsumer(data: any, campaignN
     for (const boundaryCode in parentToBoundaryCodeMap) {
         const childBoundaryCodes = parentToBoundaryCodeMap[boundaryCode];
         const projectIdForCurrentBoundary = finalBoundaryAndProjectMapping[boundaryCode];
-        await persistForProjectProcess(childBoundaryCodes, campaignNumber, tenantId, projectIdForCurrentBoundary);
+        await persistForProjectProcess(childBoundaryCodes, campaignNumber, tenantId, userUuid, projectIdForCurrentBoundary);
     }
 }
 
@@ -325,6 +325,7 @@ async function createProjectsAndGetProjectIdsMapping(
     campaignProjects: any[],
     campaignNumber: string,
     tenantId: string,
+    userUuid: string,
     parentProjectId: string | null = null
 ) {
     const boundaryCodesForProjectCreationMappings: Record<string, string> = {};
@@ -374,7 +375,7 @@ async function createProjectsAndGetProjectIdsMapping(
         }));
 
         // Step 2.2: Create projects and map returned IDs to the respective boundary codes
-        const createdProjects = await createProjectsAndGetCreatedProjects(projectsToCreate);
+        const createdProjects = await createProjectsAndGetCreatedProjects(projectsToCreate, userUuid);
 
         // Step 2.3: Map the project IDs to the corresponding boundary codes and update only the relevant campaign projects
         createdProjects.forEach((project: any) => {

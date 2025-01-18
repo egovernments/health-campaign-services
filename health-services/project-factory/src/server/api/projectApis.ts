@@ -61,9 +61,15 @@ export async function updateProjects(projects: any[]) {
     await httpRequest(url, requestBody);
 }
 
-export async function createProjectsAndGetCreatedProjects(projects: any[]) {
+export async function createProjectsAndGetCreatedProjects(projects: any[], userUuid: string) {
+    const RequestInfo = {
+        ...defaultRequestInfo?.RequestInfo,
+        userInfo: {
+            uuid : userUuid
+        }
+    }
     const requestBody = {
-        RequestInfo: defaultRequestInfo?.RequestInfo,
+        RequestInfo,
         Projects : projects
     }
 
