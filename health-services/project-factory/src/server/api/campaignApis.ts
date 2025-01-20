@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from "../config/createAndSearch";
+import { userRoles } from "../config/constants";
+
 import {
   getDataFromSheet,
   generateActivityMessage,
@@ -1158,6 +1160,59 @@ async function enrichEmployees(employees: any[], request: any) {
       employee.user.dob = 0;
     }
     i++;
+  }
+  enrichEmployeeUserNames(employees);
+}
+
+function createUserNameForFieldRole(employee:any,monitorUserMap:Map<string,string>){
+  const names = employee.user.name.split(/-(?=[^-\n]*$)/);
+  if (names.length === 2){
+    if (monitorUserMap.has(names[0])){
+      employee.user.userName = monitorUserMap.get(names[0])+"-"+names[1];
+      employee.user.code = employee.user.userName;
+    } else {
+      console.log("using default userName for user: ",employee.user.name)
+    }
+      
+  }
+}
+function createUserNameFromFullName(employee:any){
+  const index = employee.user.userName.split("-")[1];
+  const names = employee.user.name.split(" ");
+  const firstName = names[0];
+  const lastName = names.length > 1 ? names[names.length - 1] : "unknown";
+  employee.user.userName = `${firstName.toLowerCase()}_${lastName.slice(0, 3).toLowerCase()}_${index}_ccu`;
+  employee.user.code = employee.user.userName;
+}
+
+function enrichEmployeeUserNames(employees: any[]){
+  
+  // Filter users with monitor roles
+  const monitorUsers = employees.filter(employee => employee.user.roles.includes(userRoles.monitorRole));
+  
+  const monitorUserMap =  new Map()
+  monitorUsers.map((u) => {
+    monitorUserMap.set(u.user.name,u.user.userName);
+  });
+
+  for (const employee of employees){
+    
+    if (userRoles.supervisorRoles.some((r:string) => employee.user.roles.includes(r))){ 
+      
+      try {
+        createUserNameFromFullName(employee);
+      } catch(error) {
+        console.log("Error in userName creation, using default userName for supervisor user: ",employee.user.name,error)
+      }
+
+    } else if (userRoles.fieldRoles.some((r:string) => employee.user.roles.includes(r))){ 
+      
+      try {
+        createUserNameForFieldRole(employee,monitorUserMap);
+      } catch (error) {
+        console.log("Error in userName creation, using default userName for field user: ",employee.user.name,error)
+      }
+    }
   }
 }
 

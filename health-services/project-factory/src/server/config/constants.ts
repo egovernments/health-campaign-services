@@ -172,3 +172,8 @@ export const getErrorCodes = (module: string, key: string): Error => {
         message: message
     }
 }
+export const userRoles:any = {
+    monitorRole: "LOCAL_MONITOR",
+    supervisorRoles: ["NATIONAL_SUPERVISOR","PROVINCIAL_SUPERVISOR","DISTRICT_SUPERVISOR", "WAREHOUSE_MANAGER"],
+    fieldRoles: ["REGISTRAR","DISTRIBUTOR"]    
+};
