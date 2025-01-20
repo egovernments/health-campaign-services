@@ -381,10 +381,12 @@ export function enrichUsageColumnForFacility(worksheet: any, localizationMap: an
     const usageColumnIndex = getColumnIndexByHeader(worksheet, usageColumn);
     if (usageColumnIndex !== -1) {
       worksheet?.eachRow((row: any, rowNumber: number) => {
-        if (rowNumber === 1) return;
-        // change cell value to inactive
+        if (rowNumber === 1) return; // Skip header row
         const cell = row.getCell(usageColumnIndex);
-        cell.value = usageColumnStatus.inactive;
+        // Only change the value if it is empty or null
+        if (!cell.value) {
+          cell.value = usageColumnStatus.inactive;
+        }
       });
     }
   }
