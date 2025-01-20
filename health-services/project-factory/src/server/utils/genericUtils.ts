@@ -10,11 +10,11 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
-import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
+import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
@@ -543,7 +543,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
       facility?.usage,
       facility?.isPermanent ? "Permanent" : "Temporary",
       facility?.storageCapacity,
-      usageColumnStatus.inactive
+      ""
     ]
   })
   logger.info("facilities generation done ");
@@ -723,6 +723,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  enrichUsageColumnForFacility(facilitySheet, localizationMap);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
