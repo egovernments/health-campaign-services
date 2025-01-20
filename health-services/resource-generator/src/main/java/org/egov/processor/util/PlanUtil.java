@@ -115,7 +115,7 @@ public class PlanUtil {
 			Object censusAdditionalDetails = boundaryCodeToCensusAdditionalDetails.get(boundaryCodeValue);
 
 			// Return null value if censusAdditionalDetails is null
-			if(censusAdditionalDetails == null)
+			if(ObjectUtils.isEmpty(censusAdditionalDetails))
 				return null;
 
 			// Extract required details from census additional details object.
@@ -129,12 +129,12 @@ public class PlanUtil {
 				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
 
 			// Add fields from accessibilityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
-			if(accessibilityDetails != null) {
+			if(!ObjectUtils.isEmpty(accessibilityDetails)) {
 				extractNestedFields((Map<String, Object>) accessibilityDetails, ACCESSIBILITY_DETAILS, fieldsToBeUpdated);
 			}
 
 			// Add fields from securityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
-			if(securityDetails != null) {
+			if(!ObjectUtils.isEmpty(securityDetails)) {
 				extractNestedFields((Map<String, Object>) securityDetails, SECURITY_DETAILS, fieldsToBeUpdated);
 			}
 
