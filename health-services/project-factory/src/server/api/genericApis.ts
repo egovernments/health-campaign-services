@@ -730,9 +730,20 @@ async function createStaff(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.info("Project Staff mapping created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if(staffResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Staff already exists");
+  }
+  else if(staffResponse?.Errors?.length > 0){
+    logger.error("Project Staff creation failed");
+    throw new Error(staffResponse?.Errors?.[0]?.message);
+  }
+  else{
+    logger.info("Project Staff created successfully");
+  }
   logger.debug(
     "Project Staff mapping response " +
     getFormattedStringForDebug(staffResponse)
@@ -758,9 +769,20 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.debug("Project Resource Created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if (projectResourceResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Resource already exists");
+  }
+  else if (projectResourceResponse?.Errors?.length > 0){
+    logger.error("Project Resource creation failed");
+    throw new Error(projectResourceResponse?.Errors?.[0]?.message);
+  }
+  else {
+    logger.info("Project Resource created successfully");
+  }
   logger.debug(
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
@@ -786,9 +808,20 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.info("Project Facility Created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if (projectFacilityResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Facility already exists");
+  }
+  else if(projectFacilityResponse?.Errors?.length > 0){
+    logger.error("Project Facility creation failed");
+    throw new Error(projectFacilityResponse?.Errors?.[0]?.message);
+  }
+  else {
+    logger.info("Project Facility created successfully");
+  }
   logger.debug(
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
