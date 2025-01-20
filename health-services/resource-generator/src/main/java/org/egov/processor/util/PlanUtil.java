@@ -66,10 +66,10 @@ public class PlanUtil {
 	 * Builds a PlanRequest object using the provided plan configuration request, feature JSON node,
 	 * result map, mapped values, and assumption value map.
 	 *
-	 * @param planConfigurationRequest              The plan configuration request.
-	 * @param feature                               The feature JSON node.
-	 * @param resultMap                             The result map.
-	 * @param mappedValues                          The mapped values.
+	 * @param planConfigurationRequest The plan configuration request.
+	 * @param feature The feature JSON node.
+	 * @param resultMap The result map.
+	 * @param mappedValues The mapped values.
 	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 * @return The constructed PlanRequest object.
 	 */
@@ -128,14 +128,14 @@ public class PlanUtil {
 			if(!ObjectUtils.isEmpty(facilityId))
 				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
 
-			// Add fields from securityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
-			if (securityDetails instanceof Map && securityDetails != null) {
-				extractNestedFields((Map<String, Object>) securityDetails, SECURITY_DETAILS, fieldsToBeUpdated);
+			// Add fields from accessibilityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
+			if(accessibilityDetails != null) {
+				extractNestedFields((Map<String, Object>) accessibilityDetails, ACCESSIBILITY_DETAILS, fieldsToBeUpdated);
 			}
 
-			// Add fields from accessibilityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
-			if (accessibilityDetails instanceof Map && accessibilityDetails != null) {
-				extractNestedFields((Map<String, Object>) accessibilityDetails, ACCESSIBILITY_DETAILS, fieldsToBeUpdated);
+			// Add fields from securityDetails to fieldsToBeUpdated map if it's present in censusAdditionalDetails.
+			if(securityDetails != null) {
+				extractNestedFields((Map<String, Object>) securityDetails, SECURITY_DETAILS, fieldsToBeUpdated);
 			}
 
 			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
@@ -145,7 +145,7 @@ public class PlanUtil {
 	}
 
 	/**
-	 * Extracts nested fields from the given map and adds them to fieldsToBeUpdated in a structured format.
+	 * Extracts nested fields from the given additionalDetails map and adds them to fieldsToBeUpdated in a structured format.
 	 * If a nested map contains CODE, its value is stored with the key formatted as "prefix|key|CODE".
 	 *
 	 * @param details           The map containing nested key-value pairs to be processed.
@@ -160,7 +160,7 @@ public class PlanUtil {
 			if (value instanceof Map) {
 				Map<String, Object> nestedMap = (Map<String, Object>) value;
 				if (nestedMap.containsKey(CODE)) {
-					fieldsToBeUpdated.put(prefix + "|" + key + "|" + CODE, nestedMap.get(CODE));
+					fieldsToBeUpdated.put(prefix + PIPE_REGEX + key + PIPE_REGEX + CODE, nestedMap.get(CODE));
 				}
 			}
 		}
