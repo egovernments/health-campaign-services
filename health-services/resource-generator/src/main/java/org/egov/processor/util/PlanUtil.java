@@ -160,7 +160,7 @@ public class PlanUtil {
 			if (value instanceof Map) {
 				Map<String, Object> nestedMap = (Map<String, Object>) value;
 				if (nestedMap.containsKey(CODE)) {
-					fieldsToBeUpdated.put(prefix + PIPE_REGEX + key + PIPE_REGEX + CODE, nestedMap.get(CODE));
+					fieldsToBeUpdated.put(prefix + "|" + key + "|" + CODE, nestedMap.get(CODE));
 				}
 			}
 		}

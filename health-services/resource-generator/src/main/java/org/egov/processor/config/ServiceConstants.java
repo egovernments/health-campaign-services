@@ -108,7 +108,6 @@ public class ServiceConstants {
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
     public static final String VALIDATE_BOOLEAN_REGX = "^(?i)(true|false)$";
-    public static final String PIPE_REGEX = "\\|";
     
     public static final String FILE_TEMPLATE = "Facilities";
     public static final String HIERARCHYTYPE_REPLACER = "{hierarchyType}";
