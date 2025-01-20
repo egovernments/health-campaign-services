@@ -283,7 +283,7 @@ public class ExcelParser implements FileParser {
 		Map<String, Boolean> boundaryCodeToFixedPostMap = new HashMap<>();
 
 		for (PlanFacility planFacility : planFacilityResponse.getPlanFacility()) {
-			// Ensure serviceBoundaries is not empty
+			// Ensure serviceBoundaries are not empty
 			if (!CollectionUtils.isEmpty(planFacility.getServiceBoundaries())) {
 
 				// Extract the 'FIXED_POST' field from additional details.
