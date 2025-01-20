@@ -116,6 +116,7 @@ export const enrichProjectDetailsFromCampaignDetails = (
       name: campaignName,
       additionalDetails: {
         projectType: defaultProject,
+        hierarchyType: CampaignDetails.hierarchyType
       },
     },
   ];
