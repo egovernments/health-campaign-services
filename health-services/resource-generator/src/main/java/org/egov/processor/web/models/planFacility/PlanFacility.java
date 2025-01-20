@@ -74,7 +74,7 @@ public class PlanFacility {
 
     @JsonProperty("active")
     @NotNull
-    private Boolean active = null;
+    private Boolean active = Boolean.TRUE;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
@@ -86,7 +86,4 @@ public class PlanFacility {
         this.serviceBoundaries.add(serviceBoundariesItem);
         return this;
     }
-
-
-
 }
