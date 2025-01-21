@@ -7,7 +7,6 @@ import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.springframework.stereotype.Component;
 import org.egov.processor.web.models.planFacility.*;
-import org.springframework.util.CollectionUtils;
 
 @Slf4j
 @Component

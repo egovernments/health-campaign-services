@@ -21,13 +21,13 @@ import java.util.List;
 public class PlanFacilityResponse {
 
     @JsonProperty("ResponseInfo")
-    private ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo;
 
     @JsonProperty("PlanFacility")
     @Valid
-    private List<PlanFacility> planFacility = null;
+    private List<PlanFacility> planFacility;
 
     @JsonProperty("TotalCount")
     @Valid
-    private Integer totalCount = null;
+    private Integer totalCount;
 }
