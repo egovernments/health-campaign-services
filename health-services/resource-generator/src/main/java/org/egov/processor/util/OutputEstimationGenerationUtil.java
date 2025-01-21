@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
+import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ServiceConstants.*;
 
@@ -254,6 +255,10 @@ public class OutputEstimationGenerationUtil {
         Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
                 planConfigurationRequest.getRequestInfo(),
                 planConfigurationRequest.getPlanConfiguration().getTenantId());
+
+        String readMeSheetName = (String) mdmsDataConstants.get(READ_ME_SHEET_NAME);
+        if(ObjectUtils.isEmpty(readMeSheetName))
+            throw new CustomException(README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE, README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE);
 
         for (Locale locale : localeResponse.getMessages()) {
             if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))

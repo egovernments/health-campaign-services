@@ -60,6 +60,9 @@ public class ServiceConstants {
     public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS";
     public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details: ";
 
+    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE = "README_SHEET_NAME_LOCALISATION_NOT_FOUND";
+    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "Constant defined for error message when the README sheet name localization is not found or plan facilities do not exist for the provided details.";
+
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
 
