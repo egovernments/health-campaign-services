@@ -1188,7 +1188,7 @@ function createUserNameFromFullName(employee:any){
 function enrichEmployeeUserNames(employees: any[]){
   
   // Filter users with monitor roles
-  const monitorUsers = employees.filter(employee => employee.user.roles.includes(userRoles.monitorRole));
+  const monitorUsers = employees.filter(employee => employee.user.roles.some((r:any) => userRoles.monitorRole.includes(r.code)));
   
   const monitorUserMap =  new Map()
   monitorUsers.map((u) => {
@@ -1197,7 +1197,15 @@ function enrichEmployeeUserNames(employees: any[]){
 
   for (const employee of employees){
     
-    if (userRoles.supervisorRoles.some((r:string) => employee.user.roles.includes(r))){ 
+    if (employee.user.roles.some((r:any) => userRoles.fieldRoles.includes(r.code))){ 
+      
+      try {
+        createUserNameForFieldRole(employee,monitorUserMap);
+      } catch (error) {
+        console.log("Error in userName creation, using default userName for field user: ",employee.user.name,error)
+      }
+    
+    } else  if(!employee.user.roles.some((r:any) => userRoles.monitorRole.includes(r.code))) {   
       
       try {
         createUserNameFromFullName(employee);
@@ -1205,14 +1213,7 @@ function enrichEmployeeUserNames(employees: any[]){
         console.log("Error in userName creation, using default userName for supervisor user: ",employee.user.name,error)
       }
 
-    } else if (userRoles.fieldRoles.some((r:string) => employee.user.roles.includes(r))){ 
-      
-      try {
-        createUserNameForFieldRole(employee,monitorUserMap);
-      } catch (error) {
-        console.log("Error in userName creation, using default userName for field user: ",employee.user.name,error)
-      }
-    }
+    }  
   }
 }
 
