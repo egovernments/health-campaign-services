@@ -1338,6 +1338,13 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
   return localizationResponse;
 }
 
+/**
+ * Get localized messages using a specific locale
+ * @param locale The locale string to use for localization
+ * @param tenantId The tenant ID
+ * @param module The module name, defaults to config.localisation.localizationModule
+ * @returns Promise<Record<string, string>> A promise that resolves to localized messages
+ */
 async function getLocalizedMessagesHandlerViaLocale(locale:string, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
