@@ -1169,20 +1169,21 @@ function createUserNameForFieldRole(employee:any,monitorUserMap:Map<string,strin
   if (names.length === 2){
     if (monitorUserMap.has(names[0])){
       employee.user.userName = monitorUserMap.get(names[0])+"-"+names[1];
-      employee.user.code = employee.user.userName;
+      employee.code = employee.user.userName;
     } else {
       console.log("using default userName for user: ",employee.user.name)
     }
       
   }
 }
+
 function createUserNameFromFullName(employee:any){
   const index = employee.user.userName.split("-")[1];
   const names = employee.user.name.split(" ");
   const firstName = names[0];
   const lastName = names.length > 1 ? names[names.length - 1] : "unknown";
   employee.user.userName = `${firstName.toLowerCase()}_${lastName.slice(0, 3).toLowerCase()}_${index}_ccu`;
-  employee.user.code = employee.user.userName;
+  employee.code = employee.user.userName;
 }
 
 function enrichEmployeeUserNames(employees: any[]){
