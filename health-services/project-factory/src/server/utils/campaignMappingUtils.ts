@@ -682,10 +682,10 @@ export async function processMapping(mappingObject: any) {
         mappingObject.CampaignDetails.status = campaignStatuses.inprogress
         if (mappingObject?.parentCampaign) {
             await processResources(mappingObject);
-            mappingObject.CampaignDetails.campaignDetails.boundaries = [
-                ...mappingObject.CampaignDetails.campaignDetails.boundaries,
-                ...mappingObject.parentCampaign.boundaries
-            ];
+            // mappingObject.CampaignDetails.campaignDetails.boundaries = [
+            //     ...mappingObject.CampaignDetails.campaignDetails.boundaries,
+            //     ...mappingObject.parentCampaign.boundaries
+            // ];
         }
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
