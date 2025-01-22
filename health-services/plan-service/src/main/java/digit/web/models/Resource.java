@@ -29,7 +29,6 @@ public class Resource {
     private String resourceType = null;
 
     @JsonProperty("estimatedNumber")
-    @NotNull
     private BigDecimal estimatedNumber = null;
 
     @JsonProperty("activityCode")

@@ -22,6 +22,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -246,8 +247,10 @@ public class EnrichmentUtil {
             Plan planEstimate = planMap.get(boundaryCode);
 
             if (planEstimate != null) {
-                Map<String, BigDecimal> resourceTypeToEstimatedNumberMap = planEstimate.getResources().stream()
-                        .collect(Collectors.toMap(Resource::getResourceType, Resource::getEstimatedNumber));
+                Map<String, BigDecimal> resourceTypeToEstimatedNumberMap = new HashMap<>();
+                planEstimate.getResources().forEach(resource ->
+                        resourceTypeToEstimatedNumberMap.put(resource.getResourceType(), resource.getEstimatedNumber()));
+
 
                 // Iterate over each output column to update the row cells with resource values
                 for (String resourceType : outputColumnList) {
@@ -263,6 +266,17 @@ public class EnrichmentUtil {
                                 cell = row.createCell(columnIndex);
                             }
                             cell.setCellValue(estimatedValue.doubleValue());
+                        }
+                    } else {
+                        // If estimatedValue is null, set the cell to empty
+                        Integer columnIndex = mapOfColumnNameAndIndex.get(resourceType);
+                        if (columnIndex != null) {
+                            // Ensure the cell is empty
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(EMPTY_STRING); // Set as empty string
                         }
                     }
                 }

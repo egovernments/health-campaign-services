@@ -64,7 +64,9 @@ public class OutputEstimationGenerationUtil {
         }
 
         // 3. Adding facility information for each boundary code
-        addAssignedFacility(workbook, request, filestoreId);
+        for(Sheet sheet: workbook) {
+            addAssignedFacility(sheet, request, filestoreId);
+        }
 
     }
 
@@ -117,11 +119,11 @@ public class OutputEstimationGenerationUtil {
      * It iterates through all the sheets, verifies if they are eligible for processing, retrieves required mappings
      * and boundary codes, and populates the new column with facility names based on these mappings.
      *
-     * @param workbook    the workbook containing the sheets to be processed.
+     * @param sheet       the sheet to be processed.
      * @param request     the plan configuration request containing the resource mapping and other configurations.
      * @param fileStoreId the associated file store ID used to filter resource mappings.
      */
-    public void addAssignedFacility(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public void addAssignedFacility(Sheet sheet, PlanConfigurationRequest request, String fileStoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
 
         // Get the localized column header name for assigned facilities.
@@ -141,16 +143,11 @@ public class OutputEstimationGenerationUtil {
                 ));
 
         // Create the map of boundary code to the facility assigned to that boundary.
-        Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(workbook, request, fileStoreId);
+        Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
 
-        // Iterate through all sheets in the workbook.
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet sheet = workbook.getSheetAt(i);
-
-            if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
-                // Add facility names to the sheet.
-                addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
-            }
+        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            // Add facility names to the sheet.
+            addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
         }
     }
 
@@ -158,21 +155,18 @@ public class OutputEstimationGenerationUtil {
      * Collects boundary codes from all eligible sheets in the workbook, fetches census records for these boundaries,
      * and maps each boundary code to its assigned facility name obtained from the census data.
      *
-     * @param workbook    the workbook containing the sheets.
+     * @param sheet       the sheet to be processed.
      * @param request     the plan configuration request with boundary code details.
      * @param fileStoreId the associated file store ID for filtering.
      * @return a map of boundary codes to their assigned facility names.
      */
-    public Map<String, String> getBoundaryCodeToFacilityMap(Workbook workbook, PlanConfigurationRequest request, String fileStoreId) {
+    public Map<String, String> getBoundaryCodeToFacilityMap(Sheet sheet, PlanConfigurationRequest request, String fileStoreId) {
         List<String> boundaryCodes = new ArrayList<>();
 
-        // Iterate through all sheets in the workbook.
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet sheet = workbook.getSheetAt(i);
-            if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
-                // Extract boundary codes from the sheet.
-                boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
-            }
+
+        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
+            // Extract boundary codes from the sheet.
+            boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
         }
 
         // Fetch census records for the extracted boundary codes.
