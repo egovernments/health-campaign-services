@@ -33,6 +33,12 @@ public class MixedStartegyUtil {
         this.mapper = mapper;
     }
 
+    /**
+     * Fetches a list of MixedStrategyOperationLogic objects from MDMS based on the provided planConfigurationRequest.
+     *
+     * @param request The PlanConfigurationRequest containing the plan configuration and request info.
+     * @return A list of MixedStrategyOperationLogic objects fetched from MDMS.
+     */
     public List<MixedStrategyOperationLogic> fetchMixedStrategyOperationLogicFromMDMS(PlanConfigurationRequest request) {
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_MIXED_STRATEGY, null);
@@ -43,8 +49,16 @@ public class MixedStartegyUtil {
 
     }
 
-    public List<String> getCategoriesNotAllowed(boolean isFixedPost,
-                                                PlanConfiguration planConfiguration, List<MixedStrategyOperationLogic> logicList) {
+    /**
+     * Retrieves a list of categories that are restricted based on the provided details.
+     * Returns an empty list if no match is found.
+     *
+     * @param isFixedPost       A boolean indicating whether the mapped facility is fixed post.
+     * @param planConfiguration The plan configuration containing additional details.
+     * @param logicList         A list of MixedStrategyOperationLogic objects to filter against.
+     * @return A list of categories not allowed to have output value or an empty list if no matching logic is found.
+     */
+    public List<String> getCategoriesNotAllowed(boolean isFixedPost, PlanConfiguration planConfiguration, List<MixedStrategyOperationLogic> logicList) {
 
         return logicList.stream()
                 .filter(logic -> logic.isFixedPost() == isFixedPost &&
@@ -56,6 +70,14 @@ public class MixedStartegyUtil {
 
     }
 
+    /**
+     * Nullifies result values in the map for outputs belonging to the categories not allowed.
+     * Exits early if no restrictions are specified.
+     *
+     * @param resultMap            A map containing output keys and their corresponding result values.
+     * @param operations           A list of operations.
+     * @param categoriesNotAllowed A list of categories that are restricted and should not have associated outputs.
+     */
     public void processResultMap(Map<String, BigDecimal> resultMap, List<Operation> operations, List<String> categoriesNotAllowed) {
 
         // If all te categories are allowed, don't process further.
@@ -80,6 +102,4 @@ public class MixedStartegyUtil {
             }
         }
     }
-
-
 }
