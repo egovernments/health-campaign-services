@@ -149,8 +149,8 @@ public class ServiceConstants {
     public static final String CONFIRMED_KEY = "CONFIRMED_";
 
     //Excel header row styling constants
-    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Constant background color
-    public static final boolean FREEZE_CELL = true; // Constant to lock cell
-    public static final int COLUMN_WIDTH = 40; // Column width in characters
+    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows
+    public static final boolean FREEZE_CELL = true; // Controls whether cells should be locked for editing
+    public static final int COLUMN_WIDTH = 40; //Default column width in characters (1-255)
 
 }
