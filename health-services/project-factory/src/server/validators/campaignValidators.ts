@@ -17,7 +17,7 @@ import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
@@ -254,12 +254,12 @@ function validateData(data: any[], validationErrors: any[], activeColumnName: an
             if (!item?.[activeColumnName]) {
                 validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
             }
-            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
+            else if (item?.[activeColumnName] != usageColumnStatus.active && item?.[activeColumnName] != usageColumnStatus.inactive) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are ${usageColumnStatus.active}, ${usageColumnStatus.inactive}` }] });
             }
         }
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+        const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active || !item?.[uniqueIdentifierColumnName]) {
             const validationResult = validate(item);
             if (!validationResult) {
                 validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
@@ -725,8 +725,8 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     }
     datas.forEach((data: any) => {
         const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-        var active = activeColumnName ? data?.[activeColumnName] : "Active";
-        if (active == "Active") {
+        var active = activeColumnName ? data?.[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active) {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
         }
     });
@@ -1493,8 +1493,8 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
     if(Array.isArray(data)){
         data.forEach((item: any) => {
-            const active = activeColumnName ? item[activeColumnName] : "Active";
-            if (active == "Active") {
+            const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+            if (active == usageColumnStatus.active) {
                 isActiveRowsZero = false;
                 return;
             }
