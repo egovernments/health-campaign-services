@@ -447,9 +447,6 @@ public class ExcelParser implements FileParser {
 			// Get Boundary Code for the current row.
 			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
 			mixedStartegyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStartegyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
-			if (config.isIntegrateWithAdminConsole())
-				campaignIntegrationUtil.updateCampaignBoundary(planConfig, feature, assumptionValueMap, mappedValues,
-						mapOfColumnNameAndIndex, campaignBoundaryList, resultMap);
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
 		}
