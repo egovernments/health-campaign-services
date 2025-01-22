@@ -16,10 +16,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
-import static org.egov.processor.config.ServiceConstants.MDMS_SCHEMA_ADMIN_SCHEMA;
 
 @Component
-public class MixedStartegyUtil {
+public class MixedStrategyUtil {
 
     private MdmsV2Util mdmsV2Util;
 
@@ -27,7 +26,7 @@ public class MixedStartegyUtil {
 
     private ObjectMapper mapper;
 
-    public MixedStartegyUtil(MdmsV2Util mdmsV2Util, ParsingUtil parsingUtil, ObjectMapper mapper) {
+    public MixedStrategyUtil(MdmsV2Util mdmsV2Util, ParsingUtil parsingUtil, ObjectMapper mapper) {
         this.mdmsV2Util = mdmsV2Util;
         this.parsingUtil = parsingUtil;
         this.mapper = mapper;

@@ -71,13 +71,13 @@ public class ExcelParser implements FileParser {
 
 	private OutputEstimationGenerationUtil outputEstimationGenerationUtil;
 
-	private MixedStartegyUtil mixedStartegyUtil;
+	private MixedStrategyUtil mixedStrategyUtil;
 
 	private PlanFacilityUtil planFacilityUtil;
 
 	public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil,
-                       CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
-                       Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil, MixedStartegyUtil mixedStartegyUtil, PlanFacilityUtil planFacilityUtil) {
+					   CalculationUtil calculationUtil, PlanUtil planUtil, CampaignIntegrationUtil campaignIntegrationUtil,
+					   Configuration config, MdmsUtil mdmsUtil, BoundaryUtil boundaryUtil, LocaleUtil localeUtil, CensusUtil censusUtil, EnrichmentUtil enrichmentUtil, PlanConfigurationUtil planConfigurationUtil, OutputEstimationGenerationUtil outputEstimationGenerationUtil, MixedStrategyUtil mixedStrategyUtil, PlanFacilityUtil planFacilityUtil) {
 		this.objectMapper = objectMapper;
 		this.parsingUtil = parsingUtil;
 		this.filestoreUtil = filestoreUtil;
@@ -92,7 +92,7 @@ public class ExcelParser implements FileParser {
         this.enrichmentUtil = enrichmentUtil;
         this.planConfigurationUtil = planConfigurationUtil;
         this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
-        this.mixedStartegyUtil = mixedStartegyUtil;
+        this.mixedStrategyUtil = mixedStrategyUtil;
         this.planFacilityUtil = planFacilityUtil;
     }
 
@@ -425,7 +425,7 @@ public class ExcelParser implements FileParser {
 		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
 				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
-		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStartegyUtil
+		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStrategyUtil
 				.fetchMixedStrategyOperationLogicFromMDMS(planConfigurationRequest);
 
 		for (Row row : sheet) {
@@ -446,7 +446,7 @@ public class ExcelParser implements FileParser {
 
 			// Get Boundary Code for the current row.
 			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
-			mixedStartegyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStartegyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
+			mixedStrategyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
 			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
 		}
