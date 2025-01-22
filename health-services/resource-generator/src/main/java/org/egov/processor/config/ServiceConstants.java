@@ -63,6 +63,9 @@ public class ServiceConstants {
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE = "README_SHEET_NAME_LOCALISATION_NOT_FOUND";
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "Constant defined for error message when the README sheet name localization is not found or plan facilities do not exist for the provided details.";
 
+    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE = "NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER";
+    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE = "Master data not found for Mixed Strategy master";
+
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
 
@@ -159,5 +162,6 @@ public class ServiceConstants {
     public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows
     public static final boolean FREEZE_CELL = true; // Controls whether cells should be locked for editing
     public static final int COLUMN_WIDTH = 40; //Default column width in characters (1-255)
+
 
 }

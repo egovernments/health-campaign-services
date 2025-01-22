@@ -6,6 +6,7 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.mdmsV2.Mdms;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -41,6 +42,10 @@ public class MixedStrategyUtil {
     public List<MixedStrategyOperationLogic> fetchMixedStrategyOperationLogicFromMDMS(PlanConfigurationRequest request) {
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_MIXED_STRATEGY, null);
+
+        if (CollectionUtils.isEmpty(mdmsV2Data)) {
+            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE, NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE);
+        }
 
         return mdmsV2Data.stream()
                 .map(mdms -> mapper.convertValue(mdms.getData(), MixedStrategyOperationLogic.class))
@@ -79,7 +84,7 @@ public class MixedStrategyUtil {
      */
     public void processResultMap(Map<String, BigDecimal> resultMap, List<Operation> operations, List<String> categoriesNotAllowed) {
 
-        // If all te categories are allowed, don't process further.
+        // If all the categories are allowed, don't process further.
         if(CollectionUtils.isEmpty(categoriesNotAllowed))
             return;
 
