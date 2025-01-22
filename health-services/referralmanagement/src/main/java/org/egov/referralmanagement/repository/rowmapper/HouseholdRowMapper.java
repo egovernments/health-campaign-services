@@ -10,6 +10,7 @@ import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.AddressType;
 import org.egov.common.models.core.Boundary;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,7 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
+                    .householdType(HouseHoldType.fromValue(resultSet.getString("householdType")))
                     .tenantId(resultSet.getString("tenantId"))
                     .memberCount(resultSet.getInt("numberOfMembers"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))

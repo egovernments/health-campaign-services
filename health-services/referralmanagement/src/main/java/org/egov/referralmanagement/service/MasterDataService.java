@@ -128,6 +128,10 @@ public class MasterDataService {
 				.build();
 
 		ProjectResponse res = restClient.fetchResult(url, projectRequest, ProjectResponse.class);
+
+		if (res == null || res.getProject() == null || res.getProject().isEmpty()) {
+			throw new CustomException("PROJECT_NOT_FOUND", "Project not found");
+		}
 		return res.getProject().get(0);
 	}
 }
