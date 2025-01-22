@@ -8,6 +8,7 @@ import org.egov.processor.web.models.mdmsV2.Mdms;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -59,10 +60,19 @@ public class MixedStrategyUtil {
      */
     public List<String> getCategoriesNotAllowed(boolean isFixedPost, PlanConfiguration planConfiguration, List<MixedStrategyOperationLogic> logicList) {
 
+        //Extract fields from additional details
+        String registrationProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS);
+        String distributionProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS);
+
+        // If any of the process detail value is null, return an empty list
+        if (ObjectUtils.isEmpty(registrationProcess) || ObjectUtils.isEmpty(distributionProcess)) {
+            return Collections.emptyList();
+        }
+
         return logicList.stream()
-                .filter(logic -> logic.isFixedPost() == isFixedPost &&
-                        logic.getRegistrationProcess().equalsIgnoreCase((String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS)) &&
-                        logic.getDistributionProcess().equalsIgnoreCase((String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS)))
+                .filter(logic -> logic.isFixedPost() == isFixedPost)
+                .filter(logic -> logic.getRegistrationProcess().equalsIgnoreCase(registrationProcess))
+                .filter(logic -> logic.getDistributionProcess().equalsIgnoreCase(distributionProcess))
                 .map(MixedStrategyOperationLogic::getCategoriesNotAllowed)
                 .findAny()  // Returns any matching element since there is only one match
                 .orElse(List.of());

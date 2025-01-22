@@ -28,6 +28,7 @@ public class ServiceConstants {
 
     public static final String MICROPLANNING_MODULE = "microplan";
 
+    //Custom Exceptions
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
@@ -77,6 +78,8 @@ public class ServiceConstants {
 
     public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
     public static final String REGISTRATION_PROCESS = "RegistrationProcess";
+
+    //File constants
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
@@ -84,6 +87,7 @@ public class ServiceConstants {
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";
     public static final String INPUT_IS_NOT_VALID = "File does not contain valid input for row ";
 
+    //Mdms constants and masters
     public static final String MDMS_SCHEMA_TYPE =  "type";
     public static final String MDMS_SCHEMA_SECTION =  "section";
     public static final String MDMS_SCHEMA_TITLE =  "title";
@@ -110,6 +114,7 @@ public class ServiceConstants {
     public static final String STRING_PROPERTIES = "stringProperties";
     public static final String NAME = "name";
 
+    //Error messages
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     public static final String ERROR_WHILE_SEARCHING_PLAN = "Exception occurred while searching plans.";
     public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility : ";
