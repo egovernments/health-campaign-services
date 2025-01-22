@@ -461,7 +461,7 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
-function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+function setDropdownFromSchema(requestBody: any, schema: any, localizationMap?: { [key: string]: string }) {
   const dropdowns = Object.entries(schema.properties)
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
@@ -471,7 +471,7 @@ function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [k
       return result;
     }, {});
   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-  request.body.dropdowns = dropdowns;
+  requestBody.dropdowns = dropdowns;
   return dropdowns;
 }
 
@@ -672,15 +672,19 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
 }
 
 async function getReadMeConfig(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId || request?.template?.tenantId);
+  let type = request?.query?.type || request?.template?.type;
+  if (type === 'user' || type === 'facility') {
+    type = `${type}WithBoundary`;
+  }
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
-      if (readMeConfig?.type == request?.query?.type) {
+      if (readMeConfig?.type == type) {
         return readMeConfig
       }
     }
-    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${type} not found.`);
     return {}
   }
   else {
@@ -765,8 +769,13 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
         // If dropdown column index is found, set multi-select dropdown for subsequent rows
         if (dropdownColumnIndex !== -1) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
-          sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
+          for (let i = 2; i <= 10000; i++) { // 100 is just an example, you can adjust it as needed
+            sheet.addRow([]);
+          }
+          sheet.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
             if (rowNumber > 1) {
+              const cell = row.getCell(dropdownColumnIndex);
+              logger.info(`Processing cell at ${cell.address}`);
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
@@ -1336,10 +1345,10 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false, locale?: any) {
   const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequest(request);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
+  const localePresent = locale ? locale : getLocaleFromRequest(request);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, localePresent, tenantId, overrideCache);
   return localizationResponse;
 }
 

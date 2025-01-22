@@ -4,6 +4,7 @@ import config from "../config/index";
 import { executeQuery } from "./db";
 import { TemplateTransformer } from "./transforms/searchResponseConstructor";
 import { logger } from "./logger";
+import { v4 as uuidv4 } from 'uuid';
 
 const searchTemplateUtil = async (templateSearchCriteria: any) => {
     const query = buildWhereClauseForTemplateSearch(templateSearchCriteria);
@@ -15,7 +16,7 @@ function buildWhereClauseForTemplateSearch(SearchCriteria: any): {
     query: string;
     values: any[];
 } {
-    const { id, locale, campaignType, type, tenantId, isActive } = SearchCriteria;
+    const { id, locale, type, tenantId, isActive } = SearchCriteria;
     let conditions = [];
     let values = [];
 
@@ -35,12 +36,6 @@ function buildWhereClauseForTemplateSearch(SearchCriteria: any): {
     if (locale) {
         conditions.push(`locale = $${values.length + 1}`);
         values.push(locale);
-    }
-
-    // Check for campaignType
-    if (campaignType) {
-        conditions.push(`campaign_type = $${values.length + 1}`);
-        values.push(campaignType);
     }
 
     // Check for type
@@ -76,7 +71,7 @@ function enrichCreateTemplateRequest(requestBody: any) {
         createdTime: Date.now(),
         lastModifiedTime: Date.now(),
     };
-    requestBody.template.id = `${requestBody.template.locale}_${requestBody.template.projectType}_${requestBody.template.type}`;
+    requestBody.template.id = uuidv4();
 }
 
 // Fetch project types from MDMS
@@ -100,26 +95,28 @@ export async function fetchLocalesFromMDMS() {
 }
 
 // Handle template creation
-export async function handleTemplateCreation(locale: string, projectType: string, type: string) {
+export async function handleTemplateCreation(locale: string, type: string) {
     try {
         const templateSearchCriteria = {
             locale,
-            campaignType: projectType,
             type,
             tenantId: config?.app?.defaultTenantId,
         };
-        const searchResponse = await searchTemplateService(templateSearchCriteria);
+        const data = {
+            templateSearchCriteria,
+            ...defaultRequestInfo,
+        };
+        const searchResponse = await searchTemplateService(data);
 
         if (!searchResponse?.data?.length) {
-            logger.info(`Locale: ${locale}, ProjectType: ${projectType}, Type: ${type} not found. Creating...`);
-            const requestInfo = defaultRequestInfo;
+            logger.info(`Locale: ${locale} ,Type: ${type} not found. Creating...`);
+            // const requestInfo = defaultRequestInfo;
             const requestBody = {
-                requestInfo,
+                ...defaultRequestInfo,
                 template: {
                     id: null,
                     tenantId: config?.app?.defaultTenantId,
                     locale: locale,
-                    campaignType: projectType,
                     type: type,
                     isActive: true,
                     fileStoreId: null,
@@ -127,10 +124,10 @@ export async function handleTemplateCreation(locale: string, projectType: string
             };
             await createTemplateService(requestBody);
         } else {
-            logger.info(`Locale: ${locale}, ProjectType: ${projectType}, Type: ${type} already exists.`);
+            logger.info(`Locale: ${locale}, Type: ${type} already exists.`);
         }
     } catch (error: any) {
-        logger.error(`Error processing Locale: ${locale}, ProjectType: ${projectType}, Type: ${type}. Error: ${error.message}`);
+        logger.error(`Error processing Locale: ${locale}, Type: ${type}. Error: ${error.message}`);
     }
 }
 

@@ -208,7 +208,7 @@ const getTargetSheetDataAfterCode = async (
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
     const sheetData = getSheetDataFromWorksheet(worksheet);
-    const jsonData = getJsonData(sheetData,true,true, sheetName);
+    const jsonData = getJsonData(sheetData, true, true, sheetName);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
@@ -1265,7 +1265,7 @@ async function callMdmsData(
   masterName: string,
   tenantId: string
 ) {
-  const { RequestInfo = {} } = request?.body || {};
+  const { RequestInfo = {} } = request?.body || request || {};
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {
@@ -1374,14 +1374,14 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
   for (const [key, field] of Object.entries(properties)) {
     // Cast field to `any` since it is of type `unknown`
     const typedField = field as any;
-  
+
     if (typedField.isRequired) {
       descriptionToFieldMap[typedField.description] = key;
     }
   }
   data.descriptionToFieldMap = descriptionToFieldMap;
-  
-  
+
+
   enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
   return data;
 }
@@ -1395,7 +1395,7 @@ async function callMdmsTypeSchema(
   type: any,
   campaignType = "all"
 ) {
-  const { RequestInfo = {} } = request?.body || {};
+  const { RequestInfo = {} } = request?.body || request || {};
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {

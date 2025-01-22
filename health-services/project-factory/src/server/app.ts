@@ -12,7 +12,7 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
-import { fetchLocalesFromMDMS, fetchProjectTypesFromMDMS, handleTemplateCreation } from "./utils/templateUtils";
+import { fetchLocalesFromMDMS, handleTemplateCreation } from "./utils/templateUtils";
 
 const printMemoryInMB = (memoryInBytes: number) => {
   const memoryInMB = memoryInBytes / (1024 * 1024); // Convert bytes to MB
@@ -112,18 +112,18 @@ class App {
 
   async postStartupLogic() {
     logger.info("Server started and post-startup tasks executed.");
-  
+
     // Fetch project types from MDMS
-    const projectTypes = await fetchProjectTypesFromMDMS();
-    if (!projectTypes?.length) {
-      throwError(
-        "MDMS",
-        500,
-        "MDMS_DATA_NOT_FOUND_ERROR",
-        `MDMS data not configured for ${config.moduleNameForProjectTypes}.${config.masterNameForProjectTypes}`
-      );
-    }
-  
+    // const projectTypes = await fetchProjectTypesFromMDMS();
+    // if (!projectTypes?.length) {
+    //   throwError(
+    //     "MDMS",
+    //     500,
+    //     "MDMS_DATA_NOT_FOUND_ERROR",
+    //     `MDMS data not configured for ${config.moduleNameForProjectTypes}.${config.masterNameForProjectTypes}`
+    //   );
+    // }
+
     // Fetch locales from MDMS
     const allLocales = await fetchLocalesFromMDMS();
     if (!allLocales?.length) {
@@ -134,19 +134,16 @@ class App {
         `MDMS locales not configured for ${config.commonMastersModule}.${config.stateInfoMasters}`
       );
     }
-  
+
     const allTypesOfTemplate = config?.allTypesOfTemplate;
-  
+
     // Check and create templates if not exist
     for (const locale of allLocales) {
-      for (const projectType of projectTypes) {
-        for (const type of allTypesOfTemplate) {
-          await handleTemplateCreation(locale, projectType, type);
-        }
+      for (const type of allTypesOfTemplate) {
+        await handleTemplateCreation(locale, type);
       }
     }
   }
-
 }
 
 export default App;

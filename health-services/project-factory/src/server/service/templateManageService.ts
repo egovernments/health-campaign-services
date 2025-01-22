@@ -22,36 +22,45 @@ export async function searchTemplateService(templateSearchCriteria: any
 
 export async function createTemplateService(requestBody: any) {
     enrichCreateTemplateRequest(requestBody);
-    // const hierachy = await getHierarchy(requestBody,requestBody?.template?.tenantId,)
-    const localizationMap = await getLocalizedMessagesHandler(requestBody, requestBody?.template?.tenantId);
-    const schema = await callMdmsTypeSchema(requestBody, requestBody?.template?.tenantId, false, requestBody?.template?.type, requestBody?.template?.campaignType);
+    const { template } = requestBody;
+    const { type, tenantId, locale } = template;
+
+    const localizationMap = await getLocalizedMessagesHandler(requestBody, tenantId, undefined, undefined, locale);
     const workbook = getNewExcelWorkbook();
-    const headingInSheet = headingMapping?.[requestBody?.template?.type];
-    const localisedHeading = getLocalizedName(headingInSheet, localizationMap);
-    await createReadMeSheet(requestBody, workbook, localisedHeading, localizationMap);
-    const localizedMainSheetTab = requestBody.template.type == config?.facility?.facilityType ? getLocalizedName(config?.facility?.facilityTab, localizationMap) : getLocalizedName(config?.user?.userTab, localizationMap);
-    const localizedMainSheet = workbook.addWorksheet(localizedMainSheetTab);
-    const headers = schema?.columns;
-    const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
-    localizedMainSheet.addRow(localizedHeaders);
-    const firstRow = localizedMainSheet.getRow(1);
-    formatFirstRow(firstRow, localizedMainSheet, '93C47D', 40, true);
-    hideUniqueIdentifierColumn(localizedMainSheet, createAndSearch?.[requestBody?.template?.type]?.uniqueIdentifierColumn);
-    setDropdownFromSchema(requestBody, schema, localizationMap);
-    let receivedDropdowns = requestBody?.dropdowns;
-    logger.info("started adding dropdowns in user", JSON.stringify(receivedDropdowns))
-    await handledropdownthings(localizedMainSheet, receivedDropdowns);
-    const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-    const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-    const firstRowOfBoundarySheet = boundarySheet.getRow(1);
-    formatFirstRow(firstRowOfBoundarySheet, boundarySheet, '93C47D', 40, true)
-    const templateFileDetails = await createAndUploadFile(workbook, requestBody, requestBody?.template?.tenantId);
-    requestBody.template.fileStoreId = templateFileDetails?.[0]?.fileStoreId;
-    const persistMessage: any = {
-        template: requestBody.template,
+
+    const localizedHeading = getLocalizedName(headingMapping?.[type], localizationMap);
+    await createReadMeSheet(requestBody, workbook, localizedHeading, localizationMap);
+
+    if (type !== config?.boundary?.boundaryType) {
+        const schema = await callMdmsTypeSchema(requestBody, tenantId, false, type);
+        const localizedMainSheetTab = type === config?.facility?.facilityType
+            ? getLocalizedName(config?.facility?.facilityTab, localizationMap)
+            : getLocalizedName(config?.user?.userTab, localizationMap);
+
+        const mainSheet = workbook.addWorksheet(localizedMainSheetTab);
+        const localizedHeaders = getLocalizedHeaders(schema?.columns, localizationMap);
+        mainSheet.addRow(localizedHeaders);
+
+        const firstRow = mainSheet.getRow(1);
+        formatFirstRow(firstRow, mainSheet, '93C47D', 40, true);
+        hideUniqueIdentifierColumn(mainSheet, createAndSearch?.[type]?.uniqueIdentifierColumn);
+        setDropdownFromSchema(requestBody, schema, localizationMap);
+
+        logger.info("Adding dropdowns", JSON.stringify(requestBody?.dropdowns));
+        await handledropdownthings(mainSheet, requestBody?.dropdowns);
+    }
+
+    const boundarySheet = workbook.addWorksheet(getLocalizedName(getBoundaryTabName(), localizationMap));
+    formatFirstRow(boundarySheet.getRow(1), boundarySheet, '93C47D', 40, true);
+
+    const fileDetails = await createAndUploadFile(workbook, requestBody, tenantId);
+    template.fileStoreId = fileDetails?.[0]?.fileStoreId;
+    const messagePayload: any = {
+        templateDetails: template,
     };
+
     await produceModifiedMessages(
-        persistMessage,
+        messagePayload,
         config?.kafka?.KAFKA_CREATE_TEMPLATE_DETAILS_TOPIC
     );
 }

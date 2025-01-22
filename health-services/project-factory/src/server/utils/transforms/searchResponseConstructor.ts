@@ -99,7 +99,6 @@ export const TemplateTransformer = (dbRows: any[] = []) => {
     id: row?.id,
     tenantId: row?.tenantid,
     fileStoreId: row?.filestoreid,
-    campaignType: row?.campaigntype,
     type: row?.type,
     auditDetails: {
       createdBy: row?.createdby,
