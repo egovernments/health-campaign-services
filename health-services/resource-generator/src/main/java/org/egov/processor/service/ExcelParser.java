@@ -27,6 +27,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -290,12 +291,12 @@ public class ExcelParser implements FileParser {
 				String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
 
 				// Normalize the value and determine boolean equivalent.
-				boolean isFixedPost = fixedPostValue != null && fixedPostValue.trim().equalsIgnoreCase("yes");
+				Boolean isFixedPost = !ObjectUtils.isEmpty(fixedPostValue) && fixedPostValue.trim().equalsIgnoreCase(FIXED_POST_YES);
 
 				// Populate the map with boundary code and isFixedPost.
-				for (String boundary : planFacility.getServiceBoundaries()) {
-					boundaryCodeToFixedPostMap.put(boundary, isFixedPost);
-				}
+				planFacility.getServiceBoundaries().forEach((String boundary) ->
+						boundaryCodeToFixedPostMap.put(boundary, isFixedPost)
+				);
 			}
 		}
 		return boundaryCodeToFixedPostMap;

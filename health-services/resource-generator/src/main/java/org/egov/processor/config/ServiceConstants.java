@@ -96,6 +96,8 @@ public class ServiceConstants {
     public static final Double BRIGHTEN_FACTOR = 1.1;
     public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
     public static final String SECURITY_DETAILS = "securityDetails";
+    public static final String EMPTY_STRING = "";
+    public static final String FIXED_POST_YES = "yes";
 
     //MDMS field Constants
     public static final String DATA = "data";
