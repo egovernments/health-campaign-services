@@ -112,11 +112,11 @@ public class Configuration {
 	private String resourceCensusCreateTopic;
 
 	//Default
-	@Value("${resource.default.offset}")
-	private Integer defaultOffset;
+	@Value("${default.offset.for.mdms.data}")
+	private Integer defaultOffsetForMdms;
 
-	@Value("${resource.default.limit}")
-	private Integer defaultLimit;
+	@Value("${default.limit.for.mdms.data}")
+	private Integer defaultLimitForMdms;
 
 	//census additonal field configs
 	@Value("${census.additional.field.override.keys}")

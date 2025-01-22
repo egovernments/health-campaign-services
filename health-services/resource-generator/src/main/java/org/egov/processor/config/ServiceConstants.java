@@ -75,6 +75,8 @@ public class ServiceConstants {
             "Unexpected error while calling fetch from Microplan API for plan config Id: ";
     public static final String INVALID_HEX = "Invalid hex color specified: ";
 
+    public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
+    public static final String REGISTRATION_PROCESS = "RegistrationProcess";
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
@@ -90,6 +92,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_ADMIN_SCHEMA = "adminSchema";
     public static final String MDMS_CAMPAIGN_TYPE = "campaignType";
     public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
+    public static final String MDMS_MASTER_MIXED_STRATEGY = "MixedStrategyOperationLogic";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
     public static final String BOUNDARY = "boundary";
     public static final String DOT_SEPARATOR = ".";
@@ -97,6 +100,8 @@ public class ServiceConstants {
     public static final Double BRIGHTEN_FACTOR = 1.1;
     public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
     public static final String SECURITY_DETAILS = "securityDetails";
+    public static final String EMPTY_STRING = "";
+    public static final String FIXED_POST_YES = "yes";
 
     //MDMS field Constants
     public static final String DATA = "data";
