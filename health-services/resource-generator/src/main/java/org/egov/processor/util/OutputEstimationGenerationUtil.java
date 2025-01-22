@@ -211,7 +211,7 @@ public class OutputEstimationGenerationUtil {
             }
 
             // Assign the facility name based on the boundary code.
-            facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, ""));
+            facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, EMPTY_STRING));
             facilityCell.getCellStyle().setLocked(false); // Ensure the new cell is editable
 
         }

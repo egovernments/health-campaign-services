@@ -18,6 +18,7 @@ import org.egov.processor.web.models.census.CensusSearchRequest;
 import org.egov.processor.web.models.mdmsV2.Mdms;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -44,12 +45,10 @@ public class EnrichmentUtil {
     private PlanUtil planUtil;
 
     private Configuration config;
-//    private MultiStateInstanceUtil centralInstanceUtil;
 
     public EnrichmentUtil(MdmsV2Util mdmsV2Util, LocaleUtil localeUtil, ParsingUtil parsingUtil, CensusUtil censusUtil, PlanUtil planUtil, Configuration config) {
         this.mdmsV2Util = mdmsV2Util;
         this.localeUtil = localeUtil;
-//        this.centralInstanceUtil = centralInstanceUtil;
         this.parsingUtil = parsingUtil;
         this.censusUtil = censusUtil;
         this.planUtil = planUtil;
@@ -66,7 +65,6 @@ public class EnrichmentUtil {
      */
     public void enrichResourceMapping(PlanConfigurationRequest request, LocaleResponse localeResponse, String campaignType, String fileStoreId)
     {
-//        String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanConfiguration().getTenantId());
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         String uniqueIndentifier = BOUNDARY + DOT_SEPARATOR  + MICROPLAN_PREFIX + campaignType;
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_ADMIN_SCHEMA, uniqueIndentifier);
@@ -248,8 +246,11 @@ public class EnrichmentUtil {
 
             if (planEstimate != null) {
                 Map<String, BigDecimal> resourceTypeToEstimatedNumberMap = new HashMap<>();
-                planEstimate.getResources().forEach(resource ->
-                        resourceTypeToEstimatedNumberMap.put(resource.getResourceType(), resource.getEstimatedNumber()));
+
+                // If resources are not empty, iterate over each resource and map resourceType with it's estimatedValue.
+                if(!CollectionUtils.isEmpty(planEstimate.getResources()))
+                    planEstimate.getResources().forEach(resource ->
+                            resourceTypeToEstimatedNumberMap.put(resource.getResourceType(), resource.getEstimatedNumber()));
 
 
                 // Iterate over each output column to update the row cells with resource values

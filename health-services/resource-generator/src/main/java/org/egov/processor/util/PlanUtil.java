@@ -138,6 +138,7 @@ public class PlanUtil {
 				extractNestedFields((Map<String, Object>) securityDetails, SECURITY_DETAILS, fieldsToBeUpdated);
 			}
 
+			// If the fieldsToBeUpdated map is not empty, pass a new empty object to serve as the additional details object.
 			if(!CollectionUtils.isEmpty(fieldsToBeUpdated))
 				return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeUpdated);
 		}

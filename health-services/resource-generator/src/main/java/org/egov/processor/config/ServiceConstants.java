@@ -121,6 +121,7 @@ public class ServiceConstants {
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     public static final String ERROR_WHILE_SEARCHING_PLAN = "Exception occurred while searching plans.";
     public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility : ";
+    public static final String ERROR_WHILE_CREATING_CELL_STYLE = "Failed to create cell style : ";
 
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
@@ -167,6 +168,5 @@ public class ServiceConstants {
     public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows
     public static final boolean FREEZE_CELL = true; // Controls whether cells should be locked for editing
     public static final int COLUMN_WIDTH = 40; //Default column width in characters (1-255)
-
-
+    public static final int COLUMN_PADDING = 512;
 }
