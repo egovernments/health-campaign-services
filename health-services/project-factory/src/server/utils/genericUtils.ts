@@ -14,7 +14,7 @@ import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from 
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
-import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
+import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
@@ -723,6 +723,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  enrichUsageColumnForFacility(facilitySheet, localizationMap);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 

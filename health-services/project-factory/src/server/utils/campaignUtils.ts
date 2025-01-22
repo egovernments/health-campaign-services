@@ -52,6 +52,7 @@ import {
   processTrackStatuses,
   processTrackTypes,
   resourceDataStatuses,
+  usageColumnStatus,
 } from "../config/constants";
 import { getBoundaryTabName } from "./boundaryUtils";
 import {
@@ -269,7 +270,7 @@ function enrichErrors(
           const activeCell = worksheet.getCell(
             `${createAndSearchConfig.activeColumn}${rowIndex}`
           );
-          activeCell.value = "Active";
+          activeCell.value = usageColumnStatus.active;
         }
       }
     });
@@ -296,7 +297,7 @@ function enrichActiveAndUUidColumn(
       const uniqueIdentifierCell = worksheet.getCell(
         `${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`
       );
-      activeCell.value = "Active";
+      activeCell.value = usageColumnStatus.active;
       uniqueIdentifierCell.value = data["userServiceUuid"];
     }
   }

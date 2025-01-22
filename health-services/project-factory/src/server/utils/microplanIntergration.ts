@@ -28,6 +28,7 @@ import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { replicateRequest, throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
+import { usageColumnStatus } from "../config/constants";
 /**
  * Adds data rows to the provided worksheet.
  * @param worksheet The worksheet to which the data should be added.
@@ -424,7 +425,7 @@ function findAndChangeUserData(worksheet: any, mappingData: any) {
     const roles = Object.keys(mappingData[key].consolidatedRoles);
     roles.map((role) => {
       for (let i = 0; i < mappingData[key].consolidatedRoles?.[role]; i++) {
-        dataRows.push(["", "", role, "Permanent", key, "Active"]);
+        dataRows.push(["", "", role, "Permanent", key, usageColumnStatus.active]);
       }
     });
   });
@@ -483,11 +484,11 @@ function findAndChangeFacilityData(
       const facilityDetails = mappingData[facilityCode];
       row.getCell(boundaryCodeIndex).value =
         facilityDetails.serviceBoundaries.join(",") || "";
-      row.getCell(facilityUsageIndex).value = "Active";
+      row.getCell(facilityUsageIndex).value = usageColumnStatus.active;
       mappedData[facilityCode] = true;
     } else {
       row.getCell(boundaryCodeIndex).value = "";
-      row.getCell(facilityUsageIndex).value = "Inactive";
+      row.getCell(facilityUsageIndex).value = usageColumnStatus.inactive;
     }
   });
 
@@ -521,7 +522,7 @@ function findAndChangeFacilityData(
         facilityDetails?.additionalDetails?.capacity;
       newRow.getCell(boundaryCodeIndex).value =
         facilityDetails.serviceBoundaries.join(",") || "";
-      newRow.getCell(facilityUsageIndex).value = "Active";
+      newRow.getCell(facilityUsageIndex).value = usageColumnStatus.active;
   
       newRow.commit(); // Save the changes to the row
     }
@@ -605,9 +606,6 @@ function findAndChangeTargetData(
       mappedData[column1Value] = rowIndex;
     } else {
       logger.info(`not doing anything if taregt cel not found`);
-      // Default values for other rows
-      // row.getCell(6).value = "";
-      // row.getCell(7).value = "Inactive";
     }
   });
   logger.info(

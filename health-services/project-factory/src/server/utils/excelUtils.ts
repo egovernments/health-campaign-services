@@ -8,6 +8,7 @@ import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocaleFromRequestInfo } from "./localisationUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
+import { usageColumnStatus } from "../config/constants";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -400,6 +401,24 @@ export async function getLocaleFromCampaignFiles(fileId:string, tenantId:string)
   }
 
   return templateLocale;
+}
+
+export function enrichUsageColumnForFacility(worksheet: any, localizationMap: any) {
+  const configType = "facility";
+  const usageColumn = getLocalizedName(createAndSearch[configType]?.activeColumnName, localizationMap);
+  if (usageColumn) {
+    const usageColumnIndex = getColumnIndexByHeader(worksheet, usageColumn);
+    if (usageColumnIndex !== -1) {
+      worksheet?.eachRow((row: any, rowNumber: number) => {
+        if (rowNumber === 1) return; // Skip header row
+        const cell = row.getCell(usageColumnIndex);
+        // Only change the value if it is empty or null
+        if (!cell.value) {
+          cell.value = usageColumnStatus.inactive;
+        }
+      });
+    }
+  }
 }
 
 
