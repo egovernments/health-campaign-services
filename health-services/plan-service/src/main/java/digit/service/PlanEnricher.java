@@ -13,7 +13,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
-import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanEnricher {
@@ -256,6 +256,26 @@ public class PlanEnricher {
         // Add facility id as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityId())) {
             filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityId());
+        }
+
+        // Add terrain as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getTerrain())) {
+            filtersMap.put(TERRAIN_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getTerrain());
+        }
+
+        // Add onRoadCondition as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getOnRoadCondition())) {
+            filtersMap.put(ROAD_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getOnRoadCondition());
+        }
+
+        // Add securityQ1 as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ1())) {
+            filtersMap.put(SECURITY_Q1_SEARCH_PARAMETER_KEY, planSearchCriteria.getSecurityQ1());
+        }
+
+        // Add securityQ2 as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ2())) {
+            filtersMap.put(SECURITY_Q2_SEARCH_PARAMETER_KEY, planSearchCriteria.getSecurityQ2());
         }
 
         if(!CollectionUtils.isEmpty(filtersMap))

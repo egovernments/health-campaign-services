@@ -1,10 +1,6 @@
 package org.egov.processor.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.mdms.model.MasterDetail;
@@ -18,6 +14,7 @@ import org.egov.processor.web.models.File;
 import org.egov.tracer.model.CustomException;
 import org.flywaydb.core.internal.util.JsonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -134,29 +131,44 @@ public class MdmsUtil {
 	 */
 	public Map<String, Object> filterMasterData(String masterDataJson, String campaignType) {
 		Map<String, Object> properties = new HashMap<>();
-		Map<String, Object> masterData = JsonUtils.parseJson(masterDataJson, Map.class);
-		Map<String, Object> adminConsoleModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_ADMIN_CONSOLE_MODULE_NAME);
-		List<Map<String, Object>> adminSchema = (List<Map<String, Object>>) adminConsoleModule
-				.get(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA);
-		log.debug("masterDataJson ==> " + adminSchema);
+		try {
+			Map<String, Object> masterData = JsonUtils.parseJson(masterDataJson, Map.class);
+			Map<String, Object> adminConsoleModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_ADMIN_CONSOLE_MODULE_NAME);
 
-		for (Map<String, Object> schema : adminSchema) {
-			String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
+			//Extracting adminSchema master from the HCM-ADMIN-CONSOLE module
+			List<Map<String, Object>> adminSchema = (List<Map<String, Object>>) adminConsoleModule.get(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA);
 
-			// Check if the schema's title matches the required template identifier
-			// and the campaign matches the specified campaign type.
-			if (schema.get(ServiceConstants.MDMS_SCHEMA_TITLE).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_BOUNDARY)
-					&& campaign.equals(MICROPLAN_PREFIX + campaignType)) {
-				Map<String, List<Object>> schemaProperties = (Map<String, List<Object>>) schema.get("properties");
+			log.debug("masterDataJson ==> " + adminSchema);
 
-				schemaProperties.forEach((propertyType, propertyList) ->
-						// For each property in the property list, extract its name and add it to the map with the property.
-						propertyList.forEach(property -> {
-							String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
-							properties.put(propertyName, property);
-						})
-				);
+			//Iterating through each schema in adminSchema master
+			for (Map<String, Object> schema : adminSchema) {
+				String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
+
+				// Skipping schema for which the required fields are missing to avoid null pointer exception
+				if (ObjectUtils.isEmpty(campaign) || ObjectUtils.isEmpty(schema.get(ServiceConstants.MDMS_SCHEMA_TITLE)))
+					continue;
+
+				// Check if the schema's title matches the required template identifier
+				// and the campaign matches the specified campaign type.
+				if (schema.get(ServiceConstants.MDMS_SCHEMA_TITLE).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_BOUNDARY)
+						&& campaign.equals(MICROPLAN_PREFIX + campaignType)) {
+					Map<String, List<Object>> schemaProperties = (Map<String, List<Object>>) schema.get("properties");
+
+					// Skipping if schema properties are not present for the given campaign type.
+					if (CollectionUtils.isEmpty(schemaProperties))
+						continue;
+
+					schemaProperties.forEach((propertyType, propertyList) ->
+							// For each property in the property list, extract its name and add it to the map with the property.
+							propertyList.forEach(property -> {
+								String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
+								properties.put(propertyName, property);
+							})
+					);
+				}
 			}
+		} catch (Exception e) {
+			log.error(ERROR_PROCESSING_DATA_FROM_MDMS, e);
 		}
 
 		return properties;

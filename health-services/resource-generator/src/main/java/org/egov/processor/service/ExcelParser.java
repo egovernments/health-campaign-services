@@ -26,6 +26,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -278,7 +279,7 @@ public class ExcelParser implements FileParser {
 
 		PlanFacilityResponse planFacilityResponse = planFacilityUtil.search(searchRequest);
 
-		if (CollectionUtils.isEmpty(planFacilityResponse.getPlanFacility())) {
+		if (ObjectUtils.isEmpty(planFacilityResponse) || CollectionUtils.isEmpty(planFacilityResponse.getPlanFacility())) {
 			throw new CustomException(NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE, NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
 		}
 

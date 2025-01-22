@@ -58,7 +58,7 @@ public class ServiceConstants {
     public static final String NO_PLAN_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan records do not exists for the given details: ";
 
     public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS";
-    public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details: ";
+    public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details. ";
 
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE = "README_SHEET_NAME_LOCALISATION_NOT_FOUND";
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "Constant defined for error message when the README sheet name localization is not found or plan facilities do not exist for the provided details.";
@@ -66,6 +66,7 @@ public class ServiceConstants {
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
 
+    public static final String ERROR_PROCESSING_DATA_FROM_MDMS = "Exception occurred while processing data from mdms ";
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_SEARCHING_CAMPAIGN = "Exception occurred while searching/updating campaign.";
@@ -106,7 +107,7 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     public static final String ERROR_WHILE_SEARCHING_PLAN = "Exception occurred while searching plans.";
-    public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility.";
+    public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility : ";
 
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
@@ -135,18 +136,19 @@ public class ServiceConstants {
 
     //Facility Create constants
     public static final String TYPE_FACILITY = "facility";
-    public static final String ACTION_CREATE = "create";
-    public static final String SOURCE_KEY = "source";
-    public static final String MICROPLAN_SOURCE_KEY = "microplan";
-    public static final String MICROPLAN_ID_KEY = "microplanId";
     public static final String FACILITY_NAME = "facilityName";
     public static final String FACILITY_ID = "facilityId";
     public static final String HCM_MICROPLAN_SERVING_FACILITY = "HCM_MICROPLAN_SERVING_FACILITY";
     public static final String FIXED_POST = "fixedPost";
+    public static final String ACTION_CREATE = "create";
+    public static final String SOURCE_KEY = "source";
+    public static final String MICROPLAN_SOURCE_KEY = "microplan";
+    public static final String MICROPLAN_ID_KEY = "microplanId";
 
     //Census additional field constants
     public static final String UPLOADED_KEY = "UPLOADED_";
     public static final String CONFIRMED_KEY = "CONFIRMED_";
+    public static final String CODE = "code";
 
     //Excel header row styling constants
     public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows

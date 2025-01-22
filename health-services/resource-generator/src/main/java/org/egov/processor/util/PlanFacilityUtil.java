@@ -5,13 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.web.models.planFacility.PlanFacilityResponse;
-import org.egov.processor.web.models.planFacility.PlanFacilitySearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-
-import static org.egov.processor.config.ServiceConstants.*;
+import org.egov.processor.web.models.planFacility.*;
 
 @Slf4j
 @Component
@@ -40,8 +35,9 @@ public class PlanFacilityUtil {
         try {
             Object response = serviceRequestRepository.fetchResult(getPlanFacilitySearchUri(), planfacilitySearchRequest);
             planFacilityResponse = mapper.convertValue(response, PlanFacilityResponse.class);
+
         } catch (Exception e) {
-            log.error(ServiceConstants.ERROR_WHILE_SEARCHING_PLAN_FACILITY);
+            log.error(ServiceConstants.ERROR_WHILE_SEARCHING_PLAN_FACILITY, e);
         }
 
         return planFacilityResponse;
