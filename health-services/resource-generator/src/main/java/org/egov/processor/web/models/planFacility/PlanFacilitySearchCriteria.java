@@ -2,6 +2,7 @@ package org.egov.processor.web.models.planFacility;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,6 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
+/**
+ * PlanFacilitySearchCriteria
+ */
 @Validated
 @Data
 @AllArgsConstructor
@@ -53,9 +58,11 @@ public class PlanFacilitySearchCriteria {
     private String facilityId = null;
 
     @JsonProperty("offset")
+    @Min(0)
     private Integer offset = null;
 
     @JsonProperty("limit")
+    @Min(1)
     private Integer limit = null;
 
     @JsonIgnore

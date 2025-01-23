@@ -6,8 +6,10 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.mdmsV2.Mdms;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -16,10 +18,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
-import static org.egov.processor.config.ServiceConstants.MDMS_SCHEMA_ADMIN_SCHEMA;
 
 @Component
-public class MixedStartegyUtil {
+public class MixedStrategyUtil {
 
     private MdmsV2Util mdmsV2Util;
 
@@ -27,7 +28,7 @@ public class MixedStartegyUtil {
 
     private ObjectMapper mapper;
 
-    public MixedStartegyUtil(MdmsV2Util mdmsV2Util, ParsingUtil parsingUtil, ObjectMapper mapper) {
+    public MixedStrategyUtil(MdmsV2Util mdmsV2Util, ParsingUtil parsingUtil, ObjectMapper mapper) {
         this.mdmsV2Util = mdmsV2Util;
         this.parsingUtil = parsingUtil;
         this.mapper = mapper;
@@ -42,6 +43,10 @@ public class MixedStartegyUtil {
     public List<MixedStrategyOperationLogic> fetchMixedStrategyOperationLogicFromMDMS(PlanConfigurationRequest request) {
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_MIXED_STRATEGY, null);
+
+        if (CollectionUtils.isEmpty(mdmsV2Data)) {
+            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE, NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE);
+        }
 
         return mdmsV2Data.stream()
                 .map(mdms -> mapper.convertValue(mdms.getData(), MixedStrategyOperationLogic.class))
@@ -60,10 +65,19 @@ public class MixedStartegyUtil {
      */
     public List<String> getCategoriesNotAllowed(boolean isFixedPost, PlanConfiguration planConfiguration, List<MixedStrategyOperationLogic> logicList) {
 
+        //Extract fields from additional details
+        String registrationProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS);
+        String distributionProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS);
+
+        // If any of the process detail value is null, return an empty list
+        if (ObjectUtils.isEmpty(registrationProcess) || ObjectUtils.isEmpty(distributionProcess)) {
+            return Collections.emptyList();
+        }
+
         return logicList.stream()
-                .filter(logic -> logic.isFixedPost() == isFixedPost &&
-                        logic.getRegistrationProcess().equalsIgnoreCase((String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS)) &&
-                        logic.getDistributionProcess().equalsIgnoreCase((String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS)))
+                .filter(logic -> logic.isFixedPost() == isFixedPost)
+                .filter(logic -> logic.getRegistrationProcess().equalsIgnoreCase(registrationProcess))
+                .filter(logic -> logic.getDistributionProcess().equalsIgnoreCase(distributionProcess))
                 .map(MixedStrategyOperationLogic::getCategoriesNotAllowed)
                 .findAny()  // Returns any matching element since there is only one match
                 .orElse(List.of());
@@ -80,7 +94,7 @@ public class MixedStartegyUtil {
      */
     public void processResultMap(Map<String, BigDecimal> resultMap, List<Operation> operations, List<String> categoriesNotAllowed) {
 
-        // If all te categories are allowed, don't process further.
+        // If all the categories are allowed, don't process further.
         if(CollectionUtils.isEmpty(categoriesNotAllowed))
             return;
 

@@ -113,11 +113,13 @@ public class PlanEnricher {
         });
 
         // Generate uuid for new additionalFields
-        body.getPlan().getAdditionalFields().forEach(additionalFields -> {
-            if(ObjectUtils.isEmpty(additionalFields.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
-            }
-        });
+        if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields())) {
+            body.getPlan().getAdditionalFields().forEach(additionalFields -> {
+                if(ObjectUtils.isEmpty(additionalFields.getId())) {
+                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
+                }
+            });
+        }
 
         // Enriching last modified time for update
         body.getPlan().getAuditDetails().setLastModifiedTime(System.currentTimeMillis());

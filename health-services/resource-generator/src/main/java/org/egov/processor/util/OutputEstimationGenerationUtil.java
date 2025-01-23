@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
+import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ServiceConstants.*;
 
@@ -49,11 +50,14 @@ public class OutputEstimationGenerationUtil {
      */
     public void processOutputFile(Workbook workbook, PlanConfigurationRequest request, String filestoreId) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
+        Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+                request.getRequestInfo(),
+                request.getPlanConfiguration().getTenantId());
 
         // 1. removing readme sheet
         for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (!isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
+            if (!isSheetAllowedToProcess(sheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
                 workbook.removeSheetAt(i);
             }
         }
@@ -145,10 +149,8 @@ public class OutputEstimationGenerationUtil {
         // Create the map of boundary code to the facility assigned to that boundary.
         Map<String, String> boundaryCodeToFacility = getBoundaryCodeToFacilityMap(sheet, request, fileStoreId);
 
-        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeResponse)) {
-            // Add facility names to the sheet.
-            addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
-        }
+        // Add facility names to the sheet.
+        addFacilityNameToSheet(sheet, assignedFacilityColHeader, boundaryCodeToFacility, mappedValues);
     }
 
     /**
@@ -163,11 +165,8 @@ public class OutputEstimationGenerationUtil {
     public Map<String, String> getBoundaryCodeToFacilityMap(Sheet sheet, PlanConfigurationRequest request, String fileStoreId) {
         List<String> boundaryCodes = new ArrayList<>();
 
-
-        if (isSheetAllowedToProcess(request, sheet.getSheetName(), localeUtil.searchLocale(request))) {
-            // Extract boundary codes from the sheet.
-            boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
-        }
+        // Extract boundary codes from the sheet.
+        boundaryCodes.addAll(enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, request, fileStoreId));
 
         // Fetch census records for the extracted boundary codes.
         List<Census> censusList = enrichmentUtil.getCensusRecordsForEnrichment(request, boundaryCodes);
@@ -210,7 +209,7 @@ public class OutputEstimationGenerationUtil {
             }
 
             // Assign the facility name based on the boundary code.
-            facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, ""));
+            facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, EMPTY_STRING));
             facilityCell.getCellStyle().setLocked(false); // Ensure the new cell is editable
 
         }
@@ -240,14 +239,16 @@ public class OutputEstimationGenerationUtil {
     /**
      * Checks if a sheet is allowed to be processed based on MDMS constants and locale-specific configuration.
      *
-     * @param planConfigurationRequest The request containing configuration details including request info and tenant ID.
-     * @param sheetName The name of the sheet to be processed.
+     * @param sheetName         The name of the sheet to be processed.
+     * @param localeResponse    Localisation response for the given tenant id.
+     * @param mdmsDataConstants Mdms data for common constants.
      * @return true if the sheet is allowed to be processed, false otherwise.
      */
-    public boolean isSheetAllowedToProcess(PlanConfigurationRequest planConfigurationRequest, String sheetName, LocaleResponse localeResponse) {
-        Map<String, Object> mdmsDataConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
-                planConfigurationRequest.getRequestInfo(),
-                planConfigurationRequest.getPlanConfiguration().getTenantId());
+    public boolean isSheetAllowedToProcess(String sheetName, LocaleResponse localeResponse, Map<String, Object> mdmsDataConstants) {
+
+        String readMeSheetName = (String) mdmsDataConstants.get(READ_ME_SHEET_NAME);
+        if(ObjectUtils.isEmpty(readMeSheetName))
+            throw new CustomException(README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE, README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE);
 
         for (Locale locale : localeResponse.getMessages()) {
             if ((locale.getCode().equalsIgnoreCase((String) mdmsDataConstants.get(READ_ME_SHEET_NAME)))

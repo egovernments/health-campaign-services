@@ -9,6 +9,10 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
+/**
+ * MixedStrategyOperationLogic:
+ * Represents the configuration logic for mixed strategy operations in microplanning
+ */
 @Validated
 @Data
 @AllArgsConstructor

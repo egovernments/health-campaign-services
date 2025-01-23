@@ -12,12 +12,20 @@ import static org.egov.processor.config.ServiceConstants.*;
 public class ExcelStylingUtil {
 
     public void styleCell(Cell cell) {
+        if(cell == null)
+            return;
+
         Sheet sheet = cell.getSheet();
         Workbook workbook = sheet.getWorkbook();
         XSSFWorkbook xssfWorkbook = (XSSFWorkbook) workbook;
 
         // Create a cell style
-        XSSFCellStyle cellStyle = (XSSFCellStyle) workbook.createCellStyle();
+        XSSFCellStyle cellStyle;
+        try {
+            cellStyle = (XSSFCellStyle) workbook.createCellStyle();
+        } catch (Exception e) {
+            throw new IllegalStateException(ERROR_WHILE_CREATING_CELL_STYLE, e);
+        }
 
         // Set background color
         XSSFColor backgroundColor = hexToXSSFColor(HEX_BACKGROUND_COLOR, xssfWorkbook);
@@ -63,7 +71,7 @@ public class ExcelStylingUtil {
         int cellWidth = cellValue.length() * 256; // Approximate width (1/256th of character width)
 
         // Use the maximum width seen so far, including padding for readability
-        int padding = 512; // Adjust padding as needed
+        int padding = COLUMN_PADDING; // Adjust padding as needed
         int newWidth = Math.max(maxWidth, cellWidth + padding);
 
         sheet.setColumnWidth(columnIndex, newWidth);
@@ -75,6 +83,7 @@ public class ExcelStylingUtil {
      * @param hexColor The HEX color string (e.g., "93C47D").
      * @param xssfWorkbook The XSSFWorkbook context for styles.
      * @return XSSFColor The corresponding XSSFColor object.
+     * @throws IllegalArgumentException if the hex color is null, empty, or in invalid format
      */
     public static XSSFColor hexToXSSFColor(String hexColor, XSSFWorkbook xssfWorkbook) {
 

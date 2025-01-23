@@ -28,6 +28,7 @@ public class ServiceConstants {
 
     public static final String MICROPLANNING_MODULE = "microplan";
 
+    //Custom Exceptions
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
@@ -58,11 +59,18 @@ public class ServiceConstants {
     public static final String NO_PLAN_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan records do not exists for the given details: ";
 
     public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS";
-    public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details: ";
+    public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details. ";
+
+    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE = "README_SHEET_NAME_LOCALISATION_NOT_FOUND";
+    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "Constant defined for error message when the README sheet name localization is not found or plan facilities do not exist for the provided details.";
+
+    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE = "NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER";
+    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE = "Master data not found for Mixed Strategy master";
 
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
 
+    public static final String ERROR_PROCESSING_DATA_FROM_MDMS = "Exception occurred while processing data from mdms ";
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_SEARCHING_CAMPAIGN = "Exception occurred while searching/updating campaign.";
@@ -73,6 +81,8 @@ public class ServiceConstants {
 
     public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
     public static final String REGISTRATION_PROCESS = "RegistrationProcess";
+
+    //File constants
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
@@ -80,6 +90,7 @@ public class ServiceConstants {
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";
     public static final String INPUT_IS_NOT_VALID = "File does not contain valid input for row ";
 
+    //Mdms constants and masters
     public static final String MDMS_SCHEMA_TYPE =  "type";
     public static final String MDMS_SCHEMA_SECTION =  "section";
     public static final String MDMS_SCHEMA_TITLE =  "title";
@@ -97,6 +108,7 @@ public class ServiceConstants {
     public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
     public static final String SECURITY_DETAILS = "securityDetails";
     public static final String EMPTY_STRING = "";
+    public static final String NOT_APPLICABLE = "N/A";
     public static final String FIXED_POST_YES = "yes";
 
     //MDMS field Constants
@@ -106,9 +118,11 @@ public class ServiceConstants {
     public static final String STRING_PROPERTIES = "stringProperties";
     public static final String NAME = "name";
 
+    //Error messages
     public static final String ERROR_WHILE_UPDATING_PLAN_CONFIG = "Exception occurred while updating plan configuration.";
     public static final String ERROR_WHILE_SEARCHING_PLAN = "Exception occurred while searching plans.";
-    public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility.";
+    public static final String ERROR_WHILE_SEARCHING_PLAN_FACILITY = "Exception occurred while searching plan facility : ";
+    public static final String ERROR_WHILE_CREATING_CELL_STYLE = "Failed to create cell style : ";
 
     public static final String VALIDATE_STRING_REGX = "^(?!\\d+$).+$";
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
@@ -137,14 +151,14 @@ public class ServiceConstants {
 
     //Facility Create constants
     public static final String TYPE_FACILITY = "facility";
-    public static final String ACTION_CREATE = "create";
-    public static final String SOURCE_KEY = "source";
-    public static final String MICROPLAN_SOURCE_KEY = "microplan";
-    public static final String MICROPLAN_ID_KEY = "microplanId";
     public static final String FACILITY_NAME = "facilityName";
     public static final String FACILITY_ID = "facilityId";
     public static final String HCM_MICROPLAN_SERVING_FACILITY = "HCM_MICROPLAN_SERVING_FACILITY";
     public static final String FIXED_POST = "fixedPost";
+    public static final String ACTION_CREATE = "create";
+    public static final String SOURCE_KEY = "source";
+    public static final String MICROPLAN_SOURCE_KEY = "microplan";
+    public static final String MICROPLAN_ID_KEY = "microplanId";
 
     //Census additional field constants
     public static final String UPLOADED_KEY = "UPLOADED_";
@@ -152,8 +166,8 @@ public class ServiceConstants {
     public static final String CODE = "code";
 
     //Excel header row styling constants
-    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Constant background color
-    public static final boolean FREEZE_CELL = true; // Constant to lock cell
-    public static final int COLUMN_WIDTH = 40; // Column width in characters
-
+    public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows
+    public static final boolean FREEZE_CELL = true; // Controls whether cells should be locked for editing
+    public static final int COLUMN_WIDTH = 40; //Default column width in characters (1-255)
+    public static final int COLUMN_PADDING = 512;
 }
