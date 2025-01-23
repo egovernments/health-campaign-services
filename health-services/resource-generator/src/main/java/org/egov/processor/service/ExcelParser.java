@@ -236,8 +236,13 @@ public class ExcelParser implements FileParser {
 						LinkedHashMap::new
 				));
 
+		// Fetch mdms data for common constants
+		Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+				request.getRequestInfo(),
+				request.getPlanConfiguration().getTenantId());
+
 		excelWorkbook.forEach(excelWorkbookSheet -> {
-			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(request, excelWorkbookSheet.getSheetName(), localeResponse)) {
+			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 
@@ -320,7 +325,9 @@ public class ExcelParser implements FileParser {
 	 * @param boundaryCodeList List of boundary codes.
 	 * @throws IOException If an I/O error occurs.
 	 */
-	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter,
+							 String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap,
+							 List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		// Create a Map of Boundary Code to Facility's fixed post detail.
 		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
