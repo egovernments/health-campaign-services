@@ -137,12 +137,10 @@ public class ExcelParser implements FileParser {
 			Object campaignResponse) {
 		try (Workbook workbook = new XSSFWorkbook(file)) {
 			List<Boundary> campaignBoundaryList = new ArrayList<>();
-			List<CampaignResources> campaignResourcesList = new ArrayList<>();
 			DataFormatter dataFormatter = new DataFormatter();
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
 					campaignBoundaryList, dataFormatter);
-            uploadFileAndIntegrateCampaign(planConfigurationRequest, campaignResponse,
-                    workbook, campaignBoundaryList, campaignResourcesList, fileStoreId);
+            uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
 		} catch (FileNotFoundException e) {
 			log.error("File not found: {}", e.getMessage());
 			throw new CustomException("FileNotFound", "The specified file was not found.");
@@ -158,16 +156,12 @@ public class ExcelParser implements FileParser {
 
 	/**
 	 * Uploads a converted file and integrates campaign details if configured to do so.
-	 * 
+	 *
 	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
-	 * @param campaignResponse The response object containing campaign details.
-	 * @param workbook The workbook containing data to be uploaded and integrated.
-	 * @param campaignBoundaryList List of boundary objects related to the campaign.
-	 * @param campaignResourcesList List of campaign resources to be integrated.
+	 * @param workbook                 The workbook containing data to be uploaded and integrated.
+	 * @param filestoreId              The ID of the file in the file store.
 	 */
-	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest,
-			Object campaignResponse, Workbook workbook,
-			List<Boundary> campaignBoundaryList, List<CampaignResources> campaignResourcesList, String filestoreId) {
+	private void uploadFileAndIntegrateCampaign(PlanConfigurationRequest planConfigurationRequest, Workbook workbook, String filestoreId) {
 		File fileToUpload = null;
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
