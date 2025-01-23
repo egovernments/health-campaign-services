@@ -277,7 +277,7 @@ public class EnrichmentUtil {
                             if (cell == null) {
                                 cell = row.createCell(columnIndex);
                             }
-                            cell.setCellValue(EMPTY_STRING); // Set as empty string
+                            cell.setCellValue(NOT_APPLICABLE); // Set as not applicable
                         }
                     }
                 }

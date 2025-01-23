@@ -108,6 +108,7 @@ public class ServiceConstants {
     public static final String ACCESSIBILITY_DETAILS = "accessibilityDetails";
     public static final String SECURITY_DETAILS = "securityDetails";
     public static final String EMPTY_STRING = "";
+    public static final String NOT_APPLICABLE = "N/A";
     public static final String FIXED_POST_YES = "yes";
 
     //MDMS field Constants
