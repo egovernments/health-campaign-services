@@ -773,6 +773,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 }
 
 async function handledropdownthings(sheet: any, dropdowns: any) {
+  logger.info(sheet.rowCount,"countttttttttttttttt")
   if (dropdowns) {
     logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
@@ -792,6 +793,8 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
+              if (cell.protection?.locked) { // Check if the cell is locked
+                cell.protection = { locked: false }; 
               // Set dropdown list with no typing allowed
               cell.dataValidation = {
                 type: 'list',
@@ -802,7 +805,20 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
                 showErrorMessage: true,
                 errorTitle: 'Invalid Entry'
               };
+              cell.protection = { locked: true }; // Lock the cell again after adding dropdown
             }
+            else{
+              cell.dataValidation = {
+                type: 'list',
+                formulae: [`"${dropdowns[key].join(',')}"`],
+                showDropDown: true,
+                error: 'Please select a value from the dropdown list.',
+                errorStyle: 'stop',
+                showErrorMessage: true,
+                errorTitle: 'Invalid Entry'
+              };
+            }
+          }
           });
         } else {
           logger.info(`Dropdown column index not found for key: ${key}`);
