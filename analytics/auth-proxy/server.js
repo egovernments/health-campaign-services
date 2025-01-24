@@ -22,9 +22,12 @@ async function authenticateToken(token) {
     logger.info("Making API call to - " + url);
 
     return axios.post(url, null, { params: queryParams })
-        .then(response => response.status === 200)
+        .then(response => {
+            logger.info("User call response: {}", response);
+            return response.status === 200
+        })
         .catch(error => {
-            console.error('Error during authentication:', error?.response?.data || error?.response || error);
+            logger.error('Error during authentication: {}', error?.response?.data || error?.response || error);
             return false;
         });
 }
@@ -97,6 +100,7 @@ app.use(async (req, res, next) => {
 
     //first check for calls where authentication is not required
     if (bypassAuthBasedOnUrl(req.originalUrl)) {
+        logger.info("Bypassing auth based on url: {}", req.originalUrl);
         next();
         return;
     }
@@ -120,12 +124,14 @@ app.use(async (req, res, next) => {
             return;
         }
         const isAuthenticated = await authenticateToken(authToken);
+        logger.info("Is authenticated: {}", isAuthenticated);
         if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
             return
         }
     }
 
+    logger.info("Continuing with request for kibana proxy");
     next();
 });
 
@@ -157,6 +163,10 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
             }
         }
         return bodyContent;
+    },
+    proxyErrorHandler: function (err, res, next) {
+        logger.error("Error in proxy: {}", err);
+        next(err);
     }
 }));
 
