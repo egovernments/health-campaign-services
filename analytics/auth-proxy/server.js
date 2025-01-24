@@ -2,6 +2,7 @@ const envVariables = require('./EnvironmentVariables');
 const logger = require('./logger');
 const express = require('express');
 const proxy = require('express-http-proxy');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const axios = require('axios');
 const deasync = require('deasync');
 const querystring = require('querystring');
@@ -125,7 +126,7 @@ app.use(async (req, res, next) => {
             res.status(401).send('Unauthorized: No auth token provided');
             return;
         }
-        const isAuthenticated = await authenticateToken(authToken);
+        const isAuthenticated = await  authenticateToken(authToken);
         logger.info("Is authenticated: ", isAuthenticated);
         if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
@@ -137,31 +138,45 @@ app.use(async (req, res, next) => {
     next();
 });
 
-// Proxy request to Kibana if authentication is successful
-app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
-    proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
-        proxyReqOpts.headers['kbn-xsrf'] = 'true';
+const kibanaProxy = createProxyMiddleware({
+    target: kibanaHost + kibanaServerBasePath,
+    changeOrigin: true,
+    onProxyReq: (proxyReq, req) => {
+        logger.info(`[PROXY] ${req?.method} -> ${req?.url}`);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+        logger.info(`[PROXY RESPONSE] Status: ${proxyRes?.statusCode}`);
+        // The proxy automatically pipes the response to the client unless modified
+    },
+});
 
-        // Conditionally include API version header if required by your Kibana version
-        if (srcReq.headers['elastic-api-version']) {
-            proxyReqOpts.headers['elastic-api-version'] = 1;
-        }
-        return proxyReqOpts;
-    },
-    proxyReqBodyDecorator: function (bodyContent, srcReq) {
-        // Transform form-encoded body to JSON if content type matches
-        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
-            const parsedBody = querystring.parse(bodyContent.toString());
-            return JSON.stringify(parsedBody);
-        }
-        return bodyContent;
-    },
-    proxyErrorHandler: function (err, res, next) {
-        // Log the error and propagate it to Express error-handling middleware
-        logger.error('Proxy error:', err);
-        next(err); // Allow Express to handle the error
-    }
-}));
+app.use('/', kibanaProxy);
+
+// Proxy request to Kibana if authentication is successful
+// app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
+//     proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
+//         proxyReqOpts.headers['kbn-xsrf'] = 'true';
+
+//         // Conditionally include API version header if required by your Kibana version
+//         if (srcReq.headers['elastic-api-version']) {
+//             proxyReqOpts.headers['elastic-api-version'] = 1;
+//         }
+//         return proxyReqOpts;
+//     },
+//     proxyReqBodyDecorator: function (bodyContent, srcReq) {
+//         // Transform form-encoded body to JSON if content type matches
+//         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
+//             const parsedBody = querystring.parse(bodyContent.toString());
+//             return JSON.stringify(parsedBody);
+//         }
+//         return bodyContent;
+//     },
+//     proxyErrorHandler: function (err, res, next) {
+//         // Log the error and propagate it to Express error-handling middleware
+//         logger.error('Proxy error:', err);
+//         next(err); // Allow Express to handle the error
+//     }
+// }));
 
 // Listen on configured port
 app.listen(serverPort, () => {
