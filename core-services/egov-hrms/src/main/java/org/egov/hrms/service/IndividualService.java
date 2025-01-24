@@ -11,11 +11,11 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import digit.models.coremodels.AuditDetails;
-import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.user.enums.UserType;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
