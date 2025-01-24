@@ -15,26 +15,18 @@ let acceptedDomain = envVariables.KIBANA_ACCEPTED_DOMAIN_NAME;
 let excludeUrls = envVariables.KIBANA_EXCLUDE_URL_PATTERNS;
 
 // Authenticate token
-function authenticateToken(token) {
+async function authenticateToken(token) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
     const queryParams = { access_token: token };
-    let result;
 
     logger.info("Making API call to - " + url);
 
-    axios.post(url, null, { params: queryParams })
-        .then(response => {
-            result = response.status === 200;
-        })
+    return axios.post(url, null, { params: queryParams })
+        .then(response => response.status === 200)
         .catch(error => {
-            console.error('Error during authentication:', error.response.data);
-            result = false;
+            console.error('Error during authentication:', error?.response?.data || error?.response || error);
+            return false;
         });
-
-    // Synchronously wait until the API call completes
-    deasync.loopWhile(() => result === undefined);
-
-    return result;
 }
 
 function bypassAuthBasedOnUrl(url) {
@@ -127,13 +119,10 @@ app.use(async (req, res, next) => {
             res.status(401).send('Unauthorized: No auth token provided');
             return;
         }
-
-        if (authenticateToken(authToken)) {
-            next(); // Proceed to the proxy if authenticated
-            return;
-        } else {
+        const isAuthenticated = await authenticateToken(authToken);
+        if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
-            return;
+            return
         }
     }
 
@@ -174,4 +163,5 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
 // Listen on configured port
 app.listen(serverPort, () => {
     logger.info(`Server running at http:${serverPort}/`);
+    logger.info("Debug enabled: " + envVariables.DEBUG_ENABLED);
 });

@@ -1,6 +1,8 @@
 const envVariables = {
     SERVER_PORT: 
       process.env.SERVER_PORT || 8085,
+    DEBUG_ENABLED: 
+      process.env.DEBUG_ENABLED || false,
     EGOV_USER_HOST:
       process.env.EGOV_USER_HOST || "http://localhost:8081/",
     EGOV_USER_SEARCH:
