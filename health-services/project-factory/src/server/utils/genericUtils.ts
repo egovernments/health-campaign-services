@@ -19,6 +19,7 @@ import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
 import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import _ from "lodash";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -74,12 +75,11 @@ const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", des
   throw error;
 };
 
-
 const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
   const newRequest = {
     ...originalRequest,
-    body: requestBody,
-    query: requestQuery || originalRequest.query
+    body: _.cloneDeep(requestBody), // Deep clone using lodash
+    query: requestQuery ? _.cloneDeep(requestQuery) : _.cloneDeep(originalRequest.query)
   };
   return newRequest;
 };
@@ -484,19 +484,19 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
-function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
-  const dropdowns = Object.entries(schema.properties)
-    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
-    .reduce((result: any, [key, value]: any) => {
-      // Transform the key using localisedValue function
-      const newKey: any = getLocalizedName(key, localizationMap);
-      result[newKey] = value.enum;
-      return result;
-    }, {});
-  logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-  request.body.dropdowns = dropdowns;
-  return dropdowns;
-}
+// function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+//   const dropdowns = Object.entries(schema.properties)
+//     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+//     .reduce((result: any, [key, value]: any) => {
+//       // Transform the key using localisedValue function
+//       const newKey: any = getLocalizedName(key, localizationMap);
+//       result[newKey] = value.enum;
+//       return result;
+//     }, {});
+//   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
+//   request.body.dropdowns = dropdowns;
+//   return dropdowns;
+// }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
@@ -548,7 +548,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   setHiddenColumns(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   let localizedHeaders;
@@ -749,15 +749,14 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  let receivedDropdowns = request.body?.dropdowns;
-  logger.info("started adding dropdowns in facility", JSON.stringify(receivedDropdowns))
+  // let receivedDropdowns = request.body?.dropdowns;
 
-  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-    logger.info("No dropdowns found");
-    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  }
-  await handledropdownthings(facilitySheet, receivedDropdowns);
+  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
+  //   logger.info("No dropdowns found");
+  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
+  // }
+  await handledropdownthings(facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
@@ -772,8 +771,16 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(sheet: any, dropdowns: any) {
-  logger.info(sheet.rowCount,"countttttttttttttttt")
+async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+  logger.info(sheet.rowCount)
+  const dropdowns = Object.entries(schema.properties)
+    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+    .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
+      const newKey: any = getLocalizedName(key, localizationMap);
+      result[newKey] = value.enum;
+      return result;
+    }, {});
   if (dropdowns) {
     logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
@@ -794,31 +801,32 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
               if (cell.protection?.locked) { // Check if the cell is locked
-                cell.protection = { locked: false }; 
-              // Set dropdown list with no typing allowed
-              cell.dataValidation = {
-                type: 'list',
-                formulae: [`"${dropdowns[key].join(',')}"`],
-                showDropDown: true,
-                error: 'Please select a value from the dropdown list.',
-                errorStyle: 'stop',
-                showErrorMessage: true,
-                errorTitle: 'Invalid Entry'
-              };
-              cell.protection = { locked: true }; // Lock the cell again after adding dropdown
+                cell.protection = { locked: false };
+                // Set dropdown list with no typing allowed
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry'
+                };
+                cell.protection = { locked: true }; // Lock the cell again after adding dropdown
+              }
+              else {
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry',
+                  allowBlank: true  // Allow blank entries
+                };
+              }
             }
-            else{
-              cell.dataValidation = {
-                type: 'list',
-                formulae: [`"${dropdowns[key].join(',')}"`],
-                showDropDown: true,
-                error: 'Please select a value from the dropdown list.',
-                errorStyle: 'stop',
-                showErrorMessage: true,
-                errorTitle: 'Invalid Entry'
-              };
-            }
-          }
           });
         } else {
           logger.info(`Dropdown column index not found for key: ${key}`);
@@ -869,12 +877,12 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   let receivedDropdowns = request.body?.dropdowns;
   logger.info("started adding dropdowns in user", JSON.stringify(receivedDropdowns))
 
-  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-    logger.info("No dropdowns found");
-    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  }
-  await handledropdownthings(userSheet, receivedDropdowns);
+  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
+  //   logger.info("No dropdowns found");
+  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
+  // }
+  await handledropdownthings(userSheet, schema, localizationMap);
   protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
@@ -905,7 +913,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
     const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schema, localizationMap);
     facilitySheetData = modifiedProcessedFacilitySheetData;
-    setDropdownFromSchema(request, schema, localizationMap);
+    // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
     facilitySheetData = await createFacilitySheet(request, allFacilities, localizationMap);
@@ -928,7 +936,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   let schema: any;
   const isUpdate = fileUrl ? true : false;
   schema = await callMdmsTypeSchema(request, tenantId, isUpdate, typeWithoutWith);
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
@@ -1024,7 +1032,7 @@ async function generateUserSheetForMicroPlan(
 ) {
   const { tenantId, type } = request?.query;
   const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -1046,7 +1054,7 @@ async function generateUserSheetForMicroPlan(
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-    await handledropdownthings(userSheet, request.body?.dropdowns);
+    await handledropdownthings(userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
