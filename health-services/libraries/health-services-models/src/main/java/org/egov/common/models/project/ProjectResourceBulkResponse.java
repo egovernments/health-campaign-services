@@ -37,6 +37,11 @@ public class ProjectResourceBulkResponse {
     @Valid
     private List<ProjectResource> projectResource = new ArrayList<>();
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+
     public ProjectResourceBulkResponse addProjectResourceItem(ProjectResource projectResourceItem) {
         this.projectResource.add(projectResourceItem);
         return this;

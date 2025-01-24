@@ -3,10 +3,11 @@ package org.egov.project.validator.beneficiary;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
+import org.egov.common.models.project.*;
+import org.egov.mdms.model.MasterDetail;
+import org.egov.mdms.model.MdmsCriteria;
+import org.egov.mdms.model.MdmsCriteriaReq;
+import org.egov.mdms.model.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -20,10 +21,6 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.project.BeneficiaryBulkRequest;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.ProjectType;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
@@ -103,11 +100,11 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
             Map<String, Project> projectMap = getIdToObjMap(existingProjects);
 
             log.info("creating beneficiaryType map");
-            Map<String, List<ProjectBeneficiary>> beneficiaryTypeMap = validProjectBeneficiaries.stream()
+            Map<BeneficiaryType, List<ProjectBeneficiary>> beneficiaryTypeMap = validProjectBeneficiaries.stream()
                     .collect(Collectors.groupingBy(b -> projectTypeMap.get(projectMap.get(b
                             .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
 
-            for (Map.Entry<String, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
+            for (Map.Entry<BeneficiaryType, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
                 log.info("fetch the beneficiaries for type {}", entry.getKey());
                 searchBeneficiary(entry.getKey(), entry.getValue(), beneficiaryBulkRequest.getRequestInfo(),
                         tenantId, errorDetailsMap);
@@ -116,18 +113,18 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         return errorDetailsMap;
     }
 
-    private void searchBeneficiary(String beneficiaryType, List<ProjectBeneficiary> beneficiaryList,
+    private void searchBeneficiary(BeneficiaryType beneficiaryType, List<ProjectBeneficiary> beneficiaryList,
                                    RequestInfo requestInfo, String tenantId,
                                    Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
         switch (beneficiaryType) {
-            case "HOUSEHOLD":
+            case HOUSEHOLD:
                 searchHouseholdBeneficiary(beneficiaryList, requestInfo, tenantId, errorDetailsMap);
                 break;
-            case "INDIVIDUAL":
+            case INDIVIDUAL:
                 searchIndividualBeneficiary(beneficiaryList, requestInfo, tenantId, errorDetailsMap);
                 break;
             default:
-                throw new CustomException("INVALID_BENEFICIARY_TYPE", beneficiaryType);
+                throw new CustomException("INVALID_BENEFICIARY_TYPE", beneficiaryType.name());
         }
     }
 

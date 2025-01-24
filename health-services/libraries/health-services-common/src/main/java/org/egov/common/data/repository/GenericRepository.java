@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.producer.Producer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -23,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -234,6 +236,52 @@ public abstract class GenericRepository<T> {
         }
 
         cacheByKey(objects, key);
+    }
+
+    /**
+     * Finds entities based on search criteria, also returns the count of entities found.
+     *
+     * @param searchObject     The object containing search criteria.
+     * @param limit            The maximum number of entities to return.
+     * @param offset           The offset for pagination.
+     * @param tenantId         The tenant ID to filter entities.
+     * @param lastChangedSince The timestamp for last modified entities.
+     * @param includeDeleted   Flag to include deleted entities in the search result.
+     * @return A list of entities found based on the search criteria with total count.
+     * @throws QueryBuilderException If an error occurs while building the query.
+     */
+    public SearchResponse<T> findWithCount(Object searchObject,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) throws QueryBuilderException {
+        String query = selectQueryBuilder.build(searchObject, tableName);
+        query += " AND tenantId=:tenantId ";
+        if (query.contains(tableName + " AND")) {
+            query = query.replace(tableName + " AND", tableName + " WHERE");
+        }
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += "AND isDeleted=:isDeleted ";
+        }
+        if (lastChangedSince != null) {
+            query += "AND lastModifiedTime>=:lastModifiedTime ";
+        }
+        query += "ORDER BY id ASC";
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, namedParameterJdbcTemplate);
+
+        query += " LIMIT :limit OFFSET :offset";
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        List<T> resultantList = namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
+
+        return SearchResponse.<T>builder().response(resultantList).totalCount(totalCount).build();
     }
 
     /**

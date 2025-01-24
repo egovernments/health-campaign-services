@@ -6,10 +6,9 @@ import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import 
 import { correctParentValues, findMapValue, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
-import { validateMappingId } from '../utils/campaignMappingUtils';
-import { campaignStatuses } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
+import { processMapping } from "../utils/campaignMappingUtils";
 
 
 //Function to get Workbook with different tabs (for type target)
@@ -38,9 +37,9 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
 
 function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
-  const headers = sheetData[1]; // Extract the headers from the first row
+  const headers = sheetData[0]; // Extract the headers from the first row
 
-  for (let i = 2; i < sheetData.length; i++) {
+  for (let i = 1; i < sheetData.length; i++) {
     const rowData: any = {};
     const row = sheetData[i];
     if (row) {
@@ -52,7 +51,7 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
         }
       }
       if (Object.keys(rowData).length > 0) {
-        if (getRow) rowData["!row#number!"] = i;
+        if (getRow) rowData["!row#number!"] = i + 1;
         if (getSheetName) rowData["!sheet#name!"] = sheetName;
         jsonData.push(rowData);
       }
@@ -61,34 +60,49 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
   return jsonData;
 }
 
-function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-  if (
-    createAndSearchConfig &&
-    createAndSearchConfig.parseArrayConfig &&
-    createAndSearchConfig.parseArrayConfig.parseLogic
-  ) {
-    const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
-    // Iterate over each column configuration
-    for (const columnConfig of parseLogic) {
-      const { sheetColumn, sheetColumnName } = columnConfig;
-      const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+// function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
+//   if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
+//     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
+//     // Iterate over each column configuration
+//     for (const columnConfig of parseLogic) {
+//       const { sheetColumn, sheetColumnName } = columnConfig;
+//       const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
 
-      // Get the value of the first row in the current column
-      if (sheetColumn && localizedColumnName) {
-        const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
+//       // Get the value of the first row in the current column
+//       if (sheetColumn && localizedColumnName) {
+//         const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
 
-        // Validate the first row of the current column
-        if (firstRowValue !== localizedColumnName) {
-          throwError(
-            "FILE",
-            400,
-            "INVALID_COLUMNS",
-            `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
-          );
-        }
-      }
+//         // Validate the first row of the current column
+//         if (firstRowValue !== localizedColumnName) {
+//           throwError(
+//             "FILE",
+//             400,
+//             "INVALID_COLUMNS",
+//             `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
+//           );
+//         }
+//       }
+//     }
+//   }
+// }
+
+function getSheetDataFromWorksheet(worksheet: any) {
+  var sheetData: any[][] = [];
+
+  worksheet?.eachRow({ includeEmpty: true }, (row: any, rowNumber: any) => {
+    const rowData: any[] = [];
+
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+      const cellValue = getRawCellValue(cell);
+      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+    });
+
+    // Push non-empty row only
+    if (rowData.some(value => value !== null && value !== undefined)) {
+      sheetData[rowNumber - 1] = rowData; // Store row data (0-based index)
     }
-  }
+  });
+  return sheetData;
 }
 
 // Function to retrieve data from a specific sheet in an Excel file
@@ -99,19 +113,57 @@ const getSheetData = async (
   createAndSearchConfig?: any,
   localizationMap?: { [key: string]: string }
 ) => {
-  // Retrieve workbook using the getTargetWorkbook function
+  // Retrieve workbook using the getExcelWorkbookFromFileURL function
   const localizedSheetName = getLocalizedName(sheetName, localizationMap);
   const workbook: any = await getExcelWorkbookFromFileURL(fileUrl, localizedSheetName);
 
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
 
-
   // If parsing array configuration is provided, validate first row of each column
-  validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
+  // validateFirstRowColumn(createAndSearchConfig, worksheet, localizationMap);
 
-  const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+  // Collect sheet data by iterating through rows and cells
+  const sheetData = getSheetDataFromWorksheet(worksheet);
   const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
+};
+
+// Helper function to extract raw cell value
+function getRawCellValue(cell: any) {
+  if (cell.value && typeof cell.value === 'object') {
+    if ('richText' in cell.value) {
+      // Handle rich text
+      return cell.value.richText.map((rt: any) => rt.text).join('');
+    }
+    else if ('hyperlink' in cell.value) {
+      if (cell?.value?.text?.richText?.length > 0) {
+        return cell.value.text.richText.map((t: any) => t.text).join('');
+      }
+      else {
+        return cell.value.text;
+      }
+    }
+    else if ('formula' in cell.value) {
+      // Get the result of the formula
+      return cell.value.result;
+    }
+    else if ('sharedFormula' in cell.value) {
+      // Get the result of the shared formula
+      return cell.value.result;
+    }
+    else if ('error' in cell.value) {
+      // Get the error value
+      return cell.value.error;
+    } else if (cell.value instanceof Date) {
+      // Handle date values
+      return cell.value.toISOString();
+    }
+    else {
+      // Return as-is for other object types
+      return cell.value;
+    }
+  }
+  return cell.value; // Return raw value for plain strings, numbers, etc.
 }
 
 const getTargetSheetData = async (
@@ -131,13 +183,14 @@ const getTargetSheetData = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
     workbookData[sheetName] = getJsonData(sheetData, getRow, getSheetName, sheetName);
   }
   return workbookData;
 };
 
 const getTargetSheetDataAfterCode = async (
+  request: any,
   fileUrl: string,
   getRow = false,
   getSheetName = false,
@@ -155,40 +208,58 @@ const getTargetSheetDataAfterCode = async (
 
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
-    const sheetData = worksheet.getSheetValues({ includeEmpty: true });
+    const sheetData = getSheetDataFromWorksheet(worksheet);
 
     // Find the target column index where the first row value matches codeColumnName
-    const firstRow = sheetData[1];
-    let targetColumnIndex = -1;
+    const firstRow = sheetData[0];
+    let boundaryCodeColumnIndex = -1;
     for (let colIndex = 1; colIndex < firstRow.length; colIndex++) {
       if (firstRow[colIndex] === codeColumnName) {
-        targetColumnIndex = colIndex;
+        boundaryCodeColumnIndex = colIndex;
         break;
       }
     }
 
-    if (targetColumnIndex === -1) {
+    if (boundaryCodeColumnIndex === -1) {
       console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
 
     // Process data from sheet
     const processedData = sheetData.map((row: any, rowIndex: any) => {
-      if (rowIndex <= 1) return null; // Skip header row
+      if (rowIndex <= 0) return null; // Skip header row
 
-      let rowData: any = { [codeColumnName]: row[targetColumnIndex] };
+      let rowData: any = { [codeColumnName]: row[boundaryCodeColumnIndex] };
 
       // Add integer values in the target column for the current row
-      let sum = 0;
-      for (let colIndex = targetColumnIndex + 1; colIndex < row.length; colIndex++) {
+      let sumOfCurrentTargets = 0;
+      let sumOfParentTargets = 0;
+      const remainingColumns = row.length - boundaryCodeColumnIndex - 1;
+      const halfPoint = Math.floor(remainingColumns / 2);
+      let startColIndex = boundaryCodeColumnIndex + 1;
+
+      if (request?.body?.parentCampaign) {
+        for (let colIndex = startColIndex; colIndex < startColIndex + halfPoint; colIndex++) {
+          const value = row[colIndex];
+          if (typeof value === 'number' && Number.isInteger(value)) {
+            sumOfParentTargets += value;
+          }
+        }
+        // Add the sum to the row data
+        rowData['Parent Target at the Selected Boundary level'] = sumOfParentTargets;
+
+        // Calculate middle point of remaining columns
+        startColIndex = boundaryCodeColumnIndex + 1 + halfPoint;
+      }
+      for (let colIndex = startColIndex; colIndex < row.length; colIndex++) {
         const value = row[colIndex];
         if (typeof value === 'number' && Number.isInteger(value)) {
-          sum += value;
+          sumOfCurrentTargets += value;
         }
       }
 
       // Add the sum to the row data
-      rowData['Target at the Selected Boundary level'] = sum;
+      rowData['Target at the Selected Boundary level'] = sumOfCurrentTargets;
       return rowData;
     }).filter(Boolean); // Remove null entries
 
@@ -211,7 +282,7 @@ const searchMDMS: any = async (
   }
 
   // Construct API URL for MDMS search
-  const apiUrl = config.host.mdms + config.paths.mdms_search;
+  const apiUrl = config.host.mdmsV2 + config.paths.mdms_v2_search;
 
   // Construct request data for MDMS search
   const data = {
@@ -338,7 +409,7 @@ const getSchema: any = async (code: string, RequestInfo: any) => {
       codes: [code],
     },
   };
-  const mdmsSearchUrl = config.host.mdms + config.paths.mdmsSchema;
+  const mdmsSearchUrl = config.host.mdmsV2 + config.paths.mdmsSchema;
 
   try {
     const result = await httpRequest(
@@ -397,12 +468,62 @@ async function createAndUploadFile(
   request: any,
   tenantId?: any
 ) {
-  // Write the updated workbook to a buffer
-  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+  let retries: any = 3;
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data",
+          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
+async function createAndUploadJsonFile(
+  jsonData: any, // Expecting JSON data as an argument
+  request: any,
+  tenantId?: any
+) {
+  // Convert JSON data to a string
+  const jsonString = JSON.stringify(jsonData);
+  const buffer = Buffer.from(jsonString);
 
   // Create form data for file upload
   const formData = new FormData();
-  formData.append("file", buffer, "filename.xlsx");
+  formData.append("file", buffer, { filename: "filename.json", contentType: "application/json" });
   formData.append(
     "tenantId",
     tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
@@ -426,12 +547,13 @@ async function createAndUploadFile(
   const responseData = fileCreationResult?.files;
   if (!responseData) {
     throw new Error(
-      "Error while uploading excel file: INTERNAL_SERVER_ERROR"
+      "Error while uploading JSON file: INTERNAL_SERVER_ERROR"
     );
   }
 
   return responseData; // Return the response data
 }
+
 
 // Function to generate a list of hierarchy codes
 function generateHierarchyList(data: any[], parentChain: any = []) {
@@ -544,51 +666,95 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
   for (let i = 0; i < columnsData.length; i++) {
     const column = columnsData[i];
     for (const element of column) {
-      if (!findMapValue(elementCodesMap, element)) {
-        const parentCode = findMapValue(childParentMap, element)
-        if (parentCode !== undefined && parentCode !== null) {
-          countMap.set(parentCode, (findMapValue(countMap, parentCode) || 0) + 1);
-          let code;
-          const grandParentCode = findMapValue(childParentMap, parentCode);
-          if (grandParentCode != null && grandParentCode != undefined) {
-            const parentBoundaryCode = findMapValue(elementCodesMap, parentCode)
-            const lastUnderscoreIndex = parentBoundaryCode.lastIndexOf('_');
-            const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
-            code = generateElementCode(countMap.get(parentCode), parentBoundaryCodeTrimmed, element.value);
-          } else {
-            code = generateElementCode(countMap.get(parentCode), findMapValue(elementCodesMap, parentCode), element.value);
-          }
+      if (!findMapValue(elementCodesMap, element) && element.value !== '') {
+        const parentElement = findMapValue(childParentMap, element);
+        if (parentElement !== undefined && parentElement !== null) {
+          const parentBoundaryCode = findMapValue(elementCodesMap, parentElement);
+          const currentCount = (findMapValue(countMap, parentElement) || 0) + 1;
+          countMap.set(parentElement, currentCount);
+
+          const code = generateElementCode(
+            currentCount,
+            parentElement,
+            parentBoundaryCode,
+            element.value,
+            config.excludeBoundaryNameAtLastFromBoundaryCodes,
+            childParentMap,
+            elementCodesMap
+          );
+
           elementCodesMap.set(element, code); // Store the code of the element in the map
         } else {
           // Generate default code if parent code is not found
-          elementCodesMap.set(element, (request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase() + element.value.toString().substring(0, 2).toUpperCase());
+          const prefix = config?.excludeHierarchyTypeFromBoundaryCodes
+            ? element.value.toString().substring(0, 2).toUpperCase()
+            : `${(request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase()}${element.value.toString().substring(0, 2).toUpperCase()}`;
+
+          elementCodesMap.set(element, prefix);
         }
-      } else {
-        continue;
       }
     }
   }
+  modifyElementCodesMap(elementCodesMap); // Modify the element codes map
   return elementCodesMap; // Return the updated element codes map
+}
+
+function modifyElementCodesMap(elementCodesMap: any) {
+  const set = new Set<string>();
+  const specialCharsRegex = /[^\w]/g; // Regular expression to match any character that is not a word character
+
+  // Iterate over each [key, value] pair in elementCodesMap using forEach
+  elementCodesMap.forEach((value: any, key: any) => {
+    let modifiedValue = value.replace(specialCharsRegex, '_').trim(); // Replace special characters and spaces with underscore
+    let modifiedTempValue = modifiedValue; // Store the initial modified value
+    let count = 1;
+
+    // Generate a unique modified value
+    while (set.has(modifiedValue)) {
+      // If it exists, append _<count> to modifiedValue
+      modifiedValue = `${modifiedTempValue}_${count}`;
+      count++;
+    }
+
+    // Add the modified (or original) value to the set
+    set.add(modifiedValue);
+
+    // Update the map with the modified value
+    elementCodesMap.set(key, modifiedValue);
+  });
+
 }
 
 /**
  * Function to generate an element code based on sequence, parent code, and element.
  * @param sequence Sequence number
- * @param parentCode Parent code
+ * @param parentElement Parent element
+ * @param parentBoundaryCode Parent boundary code
  * @param element Element
+ * @param excludeBoundaryNameAtLastFromBoundaryCodes Whether to exclude boundary name at last
+ * @param childParentMap Map of child to parent elements
+ * @param elementCodesMap Map of elements to their codes
  * @returns Generated element code
  */
-function generateElementCode(sequence: any, parentCode: any, element: any) {
+function generateElementCode(sequence: any, parentElement: any, parentBoundaryCode: any, element: any, excludeBoundaryNameAtLastFromBoundaryCodes?: any, childParentMap?: any, elementCodesMap?: any) {
   // Pad single-digit numbers with leading zero
-  let paddedSequence = sequence.toString().padStart(2, "0");
-  const code = parentCode.toUpperCase() +
-    "_" +
-    paddedSequence +
-    "_" +
-    element.toUpperCase();
-  return (
-    code.trim()
-  );
+  const paddedSequence = sequence.toString().padStart(2, "0");
+  let code;
+
+  if (excludeBoundaryNameAtLastFromBoundaryCodes) {
+    code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}`;
+  } else {
+    const grandParentElement = findMapValue(childParentMap, parentElement);
+    if (grandParentElement != null && grandParentElement != undefined) {
+      const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+      const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      code = `${parentBoundaryCodeTrimmed.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    } else {
+      code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    }
+  }
+
+  return code.trim();
 }
 
 /**
@@ -624,7 +790,14 @@ async function getBoundarySheetData(
       modifiedHierarchy,
       localizationMap
     );
-    const headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    var headerColumnsAfterHierarchy;
+    if (request?.query?.type != "boundaryManagement" && request?.query?.type !== 'boundaryGeometryManagement') {
+      headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
+    }
+
+    if (request?.query?.type === "boundaryManagement" || request?.query?.type === 'boundaryGeometryManagement') {
+      headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
+    }
     const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
     // create empty sheet if no boundary present in system
     // const localizedBoundaryTab = getLocalizedName(
@@ -637,26 +810,100 @@ async function getBoundarySheetData(
       headers
     );
   } else {
-    // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    const responseFromCampaignSearch =
-      await getCampaignSearchResponse(request);
-    const FiltersFromCampaignId = getFiltersFromCampaignSearchResponse(responseFromCampaignSearch)
-    if (FiltersFromCampaignId?.Filters != null) {
+    let Filters: any = {};
+    if (request?.body?.Filters && request?.body?.Filters.boundaries && Array.isArray(request?.body?.Filters.boundaries) && request?.body?.Filters.boundaries.length > 0) {
+      Filters = {
+        Filters: {
+          boundaries: request.body.Filters.boundaries.map((boundary: any) => ({
+            ...boundary,
+            boundaryType: boundary.type // Adding boundaryType field
+          }))
+        }
+      };
+    }
+    else if (request?.query?.type !== "boundaryManagement") {
+      // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+      const responseFromCampaignSearch =
+        await getCampaignSearchResponse(request);
+      Filters = await getFiltersFromCampaignSearchResponse(request, responseFromCampaignSearch)
+    }
+    if (Filters?.Filters && Filters.Filters.boundaries && Array.isArray(Filters.Filters.boundaries) && Filters.Filters.boundaries.length > 0) {
       const filteredBoundaryData = await generateFilteredBoundaryData(
         request,
-        FiltersFromCampaignId
+        Filters
       );
       return await getDataSheetReady(
         filteredBoundaryData,
         request,
         localizationMap
       );
-    } else {
+    }
+    else {
       return await getDataSheetReady(boundaryData, request, localizationMap);
     }
   }
 }
 
+async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request: any, localizationMap?: { [key: string]: string }) {
+  try {
+    const mdmsResponse = await callMdmsTypeSchema(
+      request,
+      request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+      false,
+      request?.query?.type || request?.body?.ResourceDetails?.type,
+      "all"
+    );
+    if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
+      logger.error(
+        `Campaign Type all has not any columns configured in schema`
+      );
+      throwError(
+        "COMMON",
+        400,
+        "SCHEMA_ERROR",
+        `Campaign Type all has not any columns configured in schema`
+      );
+    }
+    // Extract columns from the response
+    const columnsForGivenCampaignId = mdmsResponse?.columns;
+
+    // Get localized headers based on the column names
+    const headerColumnsAfterHierarchy = getLocalizedHeaders(
+      columnsForGivenCampaignId,
+      localizationMap
+    );
+    if (
+      !headerColumnsAfterHierarchy.includes(
+        getLocalizedName(config.boundary.boundaryCode, localizationMap)
+      )
+    ) {
+      logger.error(
+        `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+          config.boundary.boundaryCode,
+          localizationMap
+        )} column`
+      );
+      throwError(
+        "COMMON",
+        400,
+        "VALIDATION_ERROR",
+        `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+          config.boundary.boundaryCode,
+          localizationMap
+        )} column`
+      );
+    }
+    return headerColumnsAfterHierarchy;
+  } catch (error: any) {
+    console.log(error);
+    throwError(
+      "FILE",
+      400,
+      "FETCHING_COLUMN_ERROR",
+      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+    );
+  }
+}
 async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
@@ -671,8 +918,7 @@ async function createStaff(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Staff mapping created");
   logger.debug(
@@ -700,8 +946,7 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.debug("Project Resource Created");
   logger.debug(
@@ -729,8 +974,7 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false,
-    true
+    false
   );
   logger.info("Project Facility Created");
   logger.debug(
@@ -741,44 +985,63 @@ async function createProjectFacility(resouceBody: any) {
 }
 
 // Helper function to create staff
-const createStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
-  const ProjectStaff = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    userId: resourceId,
-    startDate,
-    endDate,
-  };
-  const newResourceBody = { ...resouceBody, ProjectStaff };
-  return createStaff(newResourceBody);
+const createProjectStaffHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  try {
+    const ProjectStaff = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      userId: resourceId,
+      startDate,
+      endDate,
+    };
+    const newResourceBody = { ...resouceBody, ProjectStaff };
+    return createStaff(newResourceBody);
+  } catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create project staff for staffId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 // Helper function to create project resource
 const createProjectResourceHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
-  const ProjectResource = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    resource: {
-      productVariantId: resourceId,
-      type: "DRUG",
-      isBaseUnitVariant: false,
-    },
-    startDate,
-    endDate,
-  };
-  const newResourceBody = { ...resouceBody, ProjectResource };
-  return createProjectResource(newResourceBody);
+  try {
+    const ProjectResource = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      resource: {
+        productVariantId: resourceId,
+        type: "DRUG",
+        isBaseUnitVariant: false,
+      },
+      startDate,
+      endDate,
+    };
+    const newResourceBody = { ...resouceBody, ProjectResource };
+    return createProjectResource(newResourceBody);
+  }
+  catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create project resource for resourceId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 // Helper function to create project facility
-const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any) => {
-  const ProjectFacility = {
-    tenantId: tenantId.split(".")?.[0],
-    projectId,
-    facilityId: resourceId,
-  };
-  const newResourceBody = { ...resouceBody, ProjectFacility };
-  return createProjectFacility(newResourceBody);
+const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBody: any, tenantId: any, startDate: any, endDate: any) => {
+  try {
+    const ProjectFacility = {
+      tenantId: tenantId.split(".")?.[0],
+      projectId,
+      facilityId: resourceId,
+    };
+    const newResourceBody = { ...resouceBody, ProjectFacility };
+    return createProjectFacility(newResourceBody);
+  } catch (error) {
+    // Log the error if the API call fails
+    logger.error(`Failed to create facility for facilityId ${resourceId}:`, error);
+    throw error; // Rethrow the error to propagate it
+  }
 };
 
 
@@ -792,32 +1055,31 @@ const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBod
  * @param resouceBody The resource body.
  */
 async function createRelatedEntity(
-  resources: any,
-  tenantId: any,
-  projectId: any,
-  startDate: any,
-  endDate: any,
-  resouceBody: any
+  createRelatedEntityArray: any[],
+  CampaignDetails: any,
+  requestBody: any
 ) {
-  // Array to hold all promises
-  const promises = [];
-
-  // Create related entities
-  for (const resource of resources) {
-    const type = resource?.type;
-    for (const resourceId of resource?.resourceIds) {
-      logger.info(`creating project ${type} mapping for project : ${projectId} and resourceId ${resourceId}`);
-      if (type === "staff") {
-        promises.push(createStaffHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
-      } else if (type === "resource") {
-        promises.push(createProjectResourceHelper(resourceId, projectId, resouceBody, tenantId, startDate, endDate));
-      } else if (type === "facility") {
-        promises.push(createProjectFacilityHelper(resourceId, projectId, resouceBody, tenantId));
+  const mappingArray = []
+  for (const entity of createRelatedEntityArray) {
+    const { tenantId, projectId, startDate, endDate, resouceBody, campaignId, resources } = entity
+    for (const resource of resources) {
+      const type = resource?.type;
+      const mappingObject: any = {
+        type,
+        tenantId,
+        resource,
+        projectId,
+        startDate,
+        endDate,
+        resouceBody,
+        campaignId,
+        CampaignDetails
       }
+      mappingArray.push(mappingObject)
     }
   }
-  // Wait for all promises to complete
-  await Promise.all(promises);
+  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo, parentCampaign: requestBody?.parentCampaign }
+  await processMapping(mappingObject)
 }
 
 
@@ -827,32 +1089,34 @@ async function createRelatedEntity(
  */
 async function createRelatedResouce(requestBody: any) {
   const id = requestBody?.Campaign?.id;
-  const campaignDetails = await validateMappingId(requestBody, id);
-  if (campaignDetails?.status == campaignStatuses.inprogress) {
-    logger.info("Campaign Already In Progress and Mapped");
-  } else {
-    sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
-    correctParentValues(requestBody?.Campaign?.CampaignDetails);
-    // Create related resources
-    const { tenantId } = requestBody?.Campaign;
-
-    for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-      const resouceBody: any = {
-        RequestInfo: requestBody.RequestInfo,
-      };
-      var { projectId, startDate, endDate, resources } = campaignDetails;
-      startDate = parseInt(startDate);
-      endDate = parseInt(endDate);
-      await createRelatedEntity(
-        resources,
-        tenantId,
-        projectId,
-        startDate,
-        endDate,
-        resouceBody
-      );
-    }
+  sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
+  correctParentValues(requestBody?.Campaign?.CampaignDetails);
+  // Create related resources
+  const { tenantId } = requestBody?.Campaign;
+  const createRelatedEntityArray = [];
+  for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
+    const resouceBody: any = {
+      RequestInfo: requestBody.RequestInfo,
+    };
+    var { projectId, startDate, endDate, resources } = campaignDetails;
+    campaignDetails.id = id;
+    startDate = parseInt(startDate);
+    endDate = parseInt(endDate);
+    createRelatedEntityArray.push({
+      resources,
+      tenantId,
+      projectId,
+      startDate,
+      endDate,
+      resouceBody,
+      campaignId: id,
+    });
   }
+  await createRelatedEntity(
+    createRelatedEntityArray,
+    requestBody?.CampaignDetails,
+    requestBody
+  );
 }
 
 /**
@@ -932,7 +1196,7 @@ async function confirmBoundaryParentCreation(request: any, code: any) {
     var boundaryFound = false;
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes.replace(/’/g, '') || ''}${params?.includeChildren || ''}`,
     }
     while (!boundaryFound && retry >= 0) {
       const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
@@ -975,7 +1239,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
     };
     const header = {
       ...defaultheader,
-      cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
     }
 
     const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
@@ -1006,7 +1270,7 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
           logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
 
           const newRequestBody = JSON.parse(JSON.stringify(request.body));
-          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
+          activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, `${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, response?.statusCode));
         } catch (error) {
           // Log the error and rethrow to be caught by the outer try...catch block
           logger.error(`Error creating boundary relationship for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} :: `, error);
@@ -1056,12 +1320,12 @@ async function callMdmsData(
       ],
     },
   };
-  const url = config.host.mdms + config.paths.mdms_v1_search;
+  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
   return response;
 }
 
-function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, errorMessage: any) {
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
 
   // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
   columns.sort((a: any, b: any) => {
@@ -1090,15 +1354,19 @@ function enrichSchema(data: any, properties: any, required: any, columns: any, u
   data.unique = unique;
   data.errorMessage = errorMessage;
   data.columnsNotToBeFreezed = columnsNotToBeFreezed;
+  data.columnsToBeFreezed = columnsToBeFreezed;
+  data.columnsToHide = columnsToHide;
 }
 
-function convertIntoSchema(data: any) {
+function convertIntoSchema(data: any, isUpdate: boolean) {
   const properties: any = {};
   const errorMessage: any = {};
   const required: any[] = [];
-  const columns: any[] = [];
+  let columns: any[] = [];
   const unique: any[] = [];
   const columnsNotToBeFreezed: any[] = [];
+  const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
 
   for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
     if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
@@ -1119,13 +1387,40 @@ function convertIntoSchema(data: any) {
         if (!property?.freezeColumn || property?.freezeColumn == false) {
           columnsNotToBeFreezed.push(property?.name);
         }
+        if (property?.freezeColumn) {
+          columnsToBeFreezed.push(property?.name);
+        }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
 
         // If orderNumber is missing, default to a very high number
-        columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        if (isUpdate) {
+          columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        }
+        else {
+          if (!property?.isUpdate) {
+            columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+          }
+        }
       }
     }
   }
-  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, errorMessage);
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+  
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+  
+  
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
   return data;
 }
 
@@ -1134,6 +1429,7 @@ function convertIntoSchema(data: any) {
 async function callMdmsTypeSchema(
   request: any,
   tenantId: string,
+  isUpdate: boolean,
   type: any,
   campaignType = "all"
 ) {
@@ -1157,7 +1453,7 @@ async function callMdmsTypeSchema(
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
-  return convertIntoSchema(response?.mdms?.[0]?.data);
+  return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
 }
 
 async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
@@ -1187,5 +1483,10 @@ export {
   getTargetSheetDataAfterCode,
   callMdmsData,
   getMDMSV1Data,
-  callMdmsTypeSchema
-}
+  callMdmsTypeSchema,
+  getSheetDataFromWorksheet,
+  createProjectStaffHelper,
+  createProjectFacilityHelper, createProjectResourceHelper,
+  createAndUploadJsonFile,
+  getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement
+};
