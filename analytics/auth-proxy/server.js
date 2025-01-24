@@ -169,14 +169,6 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
     proxyErrorHandler: function (err, res, next) {
         logger.error("Error in proxy: {}", err);
         next(err);
-    },
-    userResDecorator: async function (proxyRes, proxyResData, userReq, userRes) {
-        logger.info('Kibana: Response Status:', proxyRes?.statusCode, proxyRes?.statusMessage);
-        logger.info('Kibana: Response Headers:', proxyRes?.headers);
-        logger.info('Kibana: Response Data:', proxyResData);
-        logger.info('Kibana: UserResponse Data:', userRes);
-        logger.info('Kibana: UserRequest Data:', userReq);
-        return proxyResData;
     }
 }));
 
