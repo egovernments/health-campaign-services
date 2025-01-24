@@ -141,34 +141,25 @@ app.use(async (req, res, next) => {
 app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
     proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
         proxyReqOpts.headers['kbn-xsrf'] = 'true';
-        proxyReqOpts.headers['elastic-api-version'] = 1;
-        if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
-            const formBody = querystring.parse(srcReq.body);
-            proxyReqOpts.headers['content-type'] = 'application/json';
-            proxyReqOpts.bodyContent = JSON.stringify(formBody);
+
+        // Conditionally include API version header if required by your Kibana version
+        if (srcReq.headers['elastic-api-version']) {
+            proxyReqOpts.headers['elastic-api-version'] = 1;
         }
         return proxyReqOpts;
     },
     proxyReqBodyDecorator: function (bodyContent, srcReq) {
+        // Transform form-encoded body to JSON if content type matches
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const parsedBody = querystring.parse(bodyContent.toString());
-
-            // Convert the parsed object to a JSON string
-            const jsonBody = JSON.stringify(parsedBody, null, 2);
-
-            const jsonObject = JSON.parse(jsonBody);
-
-            for (let key in jsonObject) {
-                if (jsonObject.hasOwnProperty(key)) {
-                    return JSON.stringify(key);
-                }
-            }
+            return JSON.stringify(parsedBody);
         }
         return bodyContent;
     },
     proxyErrorHandler: function (err, res, next) {
-        logger.error("Error in proxy: {}", err);
-        next(err);
+        // Log the error and propagate it to Express error-handling middleware
+        logger.error('Proxy error:', err);
+        next(err); // Allow Express to handle the error
     }
 }));
 
