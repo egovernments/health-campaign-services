@@ -18,7 +18,7 @@ import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewEx
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest } from "./microplanUtils";
 import _ from "lodash";
 const NodeCache = require("node-cache");
 
@@ -549,7 +549,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   logger.info("facilities generation done ");
   logger.debug(`facility response ${JSON.stringify(facilities)}`)
   const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders);
-  return facilitySheetData;
+  return { schema, facilitySheetData };
 }
 
 
@@ -880,29 +880,31 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const allFacilities = await getAllFacilities(tenantId, request.body);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
-  let facilitySheetData: any;
+  let facilitySheetDataFinal: any;
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
-  let schema: any;
+  let schemaFinal: any;
   if (fileUrl) {
     /* fetch facility from processed file 
     and generate facility sheet data */
-    schema = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
+    schemaFinal = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
-    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schema, localizationMap);
-    facilitySheetData = modifiedProcessedFacilitySheetData;
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schemaFinal, localizationMap);
+    facilitySheetDataFinal = modifiedProcessedFacilitySheetData;
     // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
-    facilitySheetData = await createFacilitySheet(request, allFacilities, localizationMap);
+    const { schema, facilitySheetData }: any = await createFacilitySheet(request, allFacilities, localizationMap);
+    facilitySheetDataFinal = facilitySheetData;
+    schemaFinal = schema;
   }
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
     logger.info("proceed with the filtered boundary data")
-    await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
+    await createFacilityAndBoundaryFile(facilitySheetDataFinal, filteredBoundary, request, localizationMap, fileUrl, schemaFinal);
   }
   else {
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-    await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap, fileUrl, schema);
+    await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
 }
 
