@@ -21,15 +21,17 @@ async function authenticateToken(token) {
 
     logger.info("Making API call to - " + url);
 
-    return axios.post(url, null, { params: queryParams })
+    const isAuthenticated = await axios.post(url, null, { params: queryParams })
         .then(response => {
-            logger.info("User call response: {}", response);
+            logger.info("User call response: ", response?.status, response?.data);
             return response.status === 200
         })
         .catch(error => {
             logger.error('Error during authentication: {}', error?.response?.data || error?.response || error);
             return false;
         });
+    logger.info("Is authenticated: ", isAuthenticated);
+    return isAuthenticated;
 }
 
 function bypassAuthBasedOnUrl(url) {
@@ -124,7 +126,7 @@ app.use(async (req, res, next) => {
             return;
         }
         const isAuthenticated = await authenticateToken(authToken);
-        logger.info("Is authenticated: {}", isAuthenticated);
+        logger.info("Is authenticated: ", isAuthenticated);
         if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
             return
@@ -167,6 +169,13 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
     proxyErrorHandler: function (err, res, next) {
         logger.error("Error in proxy: {}", err);
         next(err);
+    },
+    userResDecorator: async function (proxyRes, proxyResData, userReq, userRes) {
+        logger.info('Kibana: Response Status:', proxyRes.statusCode. proxyRes.statusMessage);
+        logger.info('Kibana: Response Headers:', proxyRes.headers);
+        logger.info('Kibana: Response Data:', proxyResData.toString('utf8'));
+        logger.info('Kibana: UserResponse Data:', userRes);
+        return proxyResData;
     }
 }));
 
