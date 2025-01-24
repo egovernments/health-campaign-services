@@ -2,7 +2,7 @@ package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import org.egov.mdms.model.MdmsCriteriaReq;
 import org.apache.commons.io.IOUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;

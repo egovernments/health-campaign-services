@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;

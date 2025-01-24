@@ -1,9 +1,9 @@
 package org.egov.common.service;
 
-import digit.models.coremodels.IdGenerationRequest;
-import digit.models.coremodels.IdGenerationResponse;
-import digit.models.coremodels.IdRequest;
-import digit.models.coremodels.IdResponse;
+import org.egov.common.contract.idgen.IdGenerationRequest;
+import org.egov.common.contract.idgen.IdGenerationResponse;
+import org.egov.common.contract.idgen.IdRequest;
+import org.egov.common.contract.idgen.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.tracer.model.CustomException;
