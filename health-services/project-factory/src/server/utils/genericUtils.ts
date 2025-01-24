@@ -14,7 +14,7 @@ import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from 
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
-import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
+import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
@@ -758,6 +758,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
     logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(facilitySheet, receivedDropdowns);
+  protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
@@ -772,10 +773,10 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 }
 
 async function handledropdownthings(sheet: any, dropdowns: any) {
-  let dropdownColumnIndex = -1;
   if (dropdowns) {
     logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
+      let dropdownColumnIndex = -1;
       if (dropdowns[key]) {
         logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);
         const firstRow = sheet.getRow(1);
@@ -858,6 +859,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
     logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
   }
   await handledropdownthings(userSheet, receivedDropdowns);
+  protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -1029,6 +1031,7 @@ async function generateUserSheetForMicroPlan(
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(userSheet, request.body?.dropdowns);
+    protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
 
