@@ -3,7 +3,6 @@ package digit.web.controllers;
 
 import digit.service.PlanConfigurationService;
 import digit.util.ResponseInfoFactory;
-import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;

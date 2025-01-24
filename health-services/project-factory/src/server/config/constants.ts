@@ -10,7 +10,8 @@ export const CONSTANTS: any = {
             INVALID_PAGINATION: "Invalid pagination",
             KAFKA_ERROR: "Some error occured in kafka",
             SCHEMA_ERROR: " Schema related error",
-            RESPONSE_NOT_FOUND_ERROR: "Response not found"
+            RESPONSE_NOT_FOUND_ERROR: "Response not found",
+            GENERATE_ERROR: "Error while generating user/facility/boundary"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
@@ -32,7 +33,12 @@ export const CONSTANTS: any = {
             CAMPAIGN_NOT_FOUND: "Campaign not found",
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
-            CAMPAIGN_NAME_ERROR: "Campaign name already exists"
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists",
+            CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR: "Campaign name different from parent Campaign",
+            CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
+            PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
+            INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
+            RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow "
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -43,7 +49,9 @@ export const CONSTANTS: any = {
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
             BOUNDARY_TARGET_ERROR: "Target either not present or invalid value",
-            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence"
+            BOUNDARY_CONFIRMATION_FAILED: "Error in boundary creation and persistence",
+            BOUNDARY_SHEET_UPLOADED_INVALID_ERROR: "Error in the boundary data uploaded",
+            BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR: "First Column Of Boundary Sheet uploaded should be unique as it is the root of hierarchy"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",
@@ -51,10 +59,17 @@ export const CONSTANTS: any = {
             PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
             PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
+            PROJECT_STAFF_SEARCH_ERROR: "Error occured during project search , check projectId and staffId",
+            PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId",
+            PROJECT_FACILITY_DELETE_ERROR: "Error occured while deleting project facility mapping",
+            PROJECT_STAFF_DELETE_ERROR: "Error occured while deleting project staff mapping"
         },
         MDMS: {
             INVALID_README_CONFIG: "Invalid readme config",
             MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
+        },
+        DATA:{
+            DATA_CREATE_ERROR : "Error while creating resource data"
         }
     }
 }
@@ -108,7 +123,40 @@ export const generatedResourceStatuses: any = {
     expired: "expired"
 }
 
+export const processTrackTypes = {
+    validation: "validation",
+    triggerResourceCreation: "trigger-resource-creation",
+    facilityCreation: "facility-creation",
+    staffCreation: "staff-creation",
+    targetAndDeliveryRulesCreation: "target-and-delivery-rules-creation",
+    confirmingResourceCreation: "confirming-resource-creation",
+    prepareResourceForMapping: "prepare-resource-for-mapping",
+    validateMappingResource: "validate-mapping-resource",
+    staffMapping: "staff-mapping",
+    resourceMapping: "resource-mapping",
+    facilityMapping: "facility-mapping",
+    campaignCreation: "campaign-creation",
+    error: "error"
+}
 
+export const processTrackForUi = [
+    processTrackTypes.facilityCreation,
+    processTrackTypes.staffCreation,
+    processTrackTypes.targetAndDeliveryRulesCreation,
+    processTrackTypes.staffMapping,
+    processTrackTypes.resourceMapping,
+    processTrackTypes.facilityMapping,
+    processTrackTypes.campaignCreation,
+    processTrackTypes.error
+];
+
+
+export const processTrackStatuses = {
+    inprogress: "inprogress",
+    completed: "completed",
+    toBeCompleted: "toBeCompleted",
+    failed: "failed",
+}
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object
