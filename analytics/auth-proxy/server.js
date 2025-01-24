@@ -139,7 +139,7 @@ app.use(async (req, res, next) => {
 });
 
 const kibanaProxy = createProxyMiddleware({
-    target: kibanaHost + kibanaServerBasePath,
+    target: kibanaHost,
     changeOrigin: true,
     onProxyReq: (proxyReq, req) => {
         logger.info(`[PROXY] ${req?.method} -> ${req?.url}`);
