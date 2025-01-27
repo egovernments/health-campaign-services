@@ -102,7 +102,7 @@ public class QueryUtil {
      * @param filterMap
      * @return
      */
-    public String preparePartialJsonStringFromFilterMap(Map<String, String> filterMap) {
+    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap) {
         Map<String, Object> queryMap = new HashMap<>();
 
         filterMap.keySet().forEach(key -> {
@@ -129,16 +129,16 @@ public class QueryUtil {
      * @param index
      * @param nestedKeyArray
      * @param currentQueryMap
-     * @param value
+     * @param values
      */
-    private void prepareNestedQueryMap(int index, String[] nestedKeyArray, Map<String, Object> currentQueryMap, String value) {
+    private void prepareNestedQueryMap(int index, String[] nestedKeyArray, Map<String, Object> currentQueryMap, Set<String> values) {
         // Return when all levels have been reached.
         if (index == nestedKeyArray.length)
             return;
 
             // For the final level simply put the value in the map.
         else if (index == nestedKeyArray.length - 1) {
-            currentQueryMap.put(nestedKeyArray[index], value);
+            currentQueryMap.put(nestedKeyArray[index], values);
             return;
         }
 
@@ -146,7 +146,7 @@ public class QueryUtil {
         currentQueryMap.put(nestedKeyArray[index], new HashMap<>());
 
         // Make a recursive call to enrich data in next level.
-        prepareNestedQueryMap(index + 1, nestedKeyArray, (Map<String, Object>) currentQueryMap.get(nestedKeyArray[index]), value);
+        prepareNestedQueryMap(index + 1, nestedKeyArray, (Map<String, Object>) currentQueryMap.get(nestedKeyArray[index]), values);
     }
 
     /**
