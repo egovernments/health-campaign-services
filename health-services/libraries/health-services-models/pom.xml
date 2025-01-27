@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.egov.common</groupId>
     <artifactId>health-services-models</artifactId>
-    <version>1.0.21-SNAPSHOT</version>
+    <version>1.0.21-stock-impel-SNAPSHOT</version>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
