@@ -285,7 +285,7 @@ public class IndividualService implements UserService {
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
-                                .locality(Boundary.builder().code(localityCode).build())
+                                .locality((localityCode!=null) ? Boundary.builder().code(localityCode).build() : null)
                                 .isDeleted(Boolean.FALSE)
                         .build()))
                 /*
