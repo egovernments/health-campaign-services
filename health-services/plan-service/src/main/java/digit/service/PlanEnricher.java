@@ -253,31 +253,31 @@ public class PlanEnricher {
         PlanSearchCriteria planSearchCriteria = planSearchRequest.getPlanSearchCriteria();
 
         // Filter map for filtering plan metadata present in additional details
-        Map<String, String> filtersMap = new LinkedHashMap<>();
+        Map<String, Set<String>> filtersMap = new LinkedHashMap<>();
 
         // Add facility id as a filter if present in search criteria
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityId())) {
-            filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityId());
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
+            filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityIds());
         }
 
         // Add terrain as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTerrain())) {
-            filtersMap.put(TERRAIN_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getTerrain());
+            filtersMap.put(TERRAIN_CONDITION_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getTerrain()));
         }
 
         // Add onRoadCondition as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getOnRoadCondition())) {
-            filtersMap.put(ROAD_CONDITION_SEARCH_PARAMETER_KEY, planSearchCriteria.getOnRoadCondition());
+            filtersMap.put(ROAD_CONDITION_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getOnRoadCondition()));
         }
 
         // Add securityQ1 as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ1())) {
-            filtersMap.put(SECURITY_Q1_SEARCH_PARAMETER_KEY, planSearchCriteria.getSecurityQ1());
+            filtersMap.put(SECURITY_Q1_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getSecurityQ1()));
         }
 
         // Add securityQ2 as a filter if present in search criteria
         if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ2())) {
-            filtersMap.put(SECURITY_Q2_SEARCH_PARAMETER_KEY, planSearchCriteria.getSecurityQ2());
+            filtersMap.put(SECURITY_Q2_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getSecurityQ2()));
         }
 
         if(!CollectionUtils.isEmpty(filtersMap))

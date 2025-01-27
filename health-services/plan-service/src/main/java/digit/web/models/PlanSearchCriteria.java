@@ -40,8 +40,8 @@ public class PlanSearchCriteria {
     @JsonProperty("planConfigurationId")
     private String planConfigurationId = null;
 
-    @JsonProperty("facilityId")
-    private String facilityId = null;
+    @JsonProperty("facilityIds")
+    private Set<String> facilityIds = null;
 
     @JsonProperty("onRoadCondition")
     private String onRoadCondition = null;
@@ -72,6 +72,6 @@ public class PlanSearchCriteria {
     private Integer limit = null;
 
     @JsonIgnore
-    private Map<String, String> filtersMap = null;
+    private Map<String, Set<String>> filtersMap = null;
 
 }
