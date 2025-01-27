@@ -69,6 +69,9 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
 
+    /**
+    * @param isAncestorProjectId When true, treats the project IDs in the ProjectRequest as ancestor project IDs
+    */
     public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
 
         //Fetch Projects based on search criteria

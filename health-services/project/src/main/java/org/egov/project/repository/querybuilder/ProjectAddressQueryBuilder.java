@@ -46,7 +46,10 @@ public class ProjectAddressQueryBuilder {
             "left join project_address addr " +
             "on prj.id = addr.projectId ";;
 
-    /* Constructs project search query based on conditions */
+    /**
+     * Constructs project search query based on conditions
+     * @param isAncestorProjectId if set to true, project id in the projects would be considered as ancestor project id.
+     */
     public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStmtList, boolean isCountQuery) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
@@ -69,6 +72,10 @@ public class ProjectAddressQueryBuilder {
                 }
             }
 
+            /*
+            * If isAncestorProjectId is set to true, Then either id equals to project id or projectHierarchy
+            *  should have id of the project
+             */
             if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");

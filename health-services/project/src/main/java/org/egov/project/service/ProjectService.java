@@ -79,6 +79,11 @@ public class ProjectService {
         return projectRequest;
     }
 
+    /**
+     * Search for projects based on various criteria
+     * @param isAncestorProjectId When true, treats the project IDs in the search criteria as ancestor project IDs
+     * and returns all projects (including children) under these ancestors
+     */
     public List<Project> searchProject(
             ProjectRequest project,
             Integer limit,
