@@ -150,7 +150,8 @@ const kibanaProxy = createProxyMiddleware({
     changeOrigin: true,
     headers: {
         'kbn-xsrf': 'true'
-    }
+    },
+    followRedirects: true
 });
 
 app.use('/', kibanaProxy);
