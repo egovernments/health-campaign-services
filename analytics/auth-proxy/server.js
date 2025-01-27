@@ -151,7 +151,22 @@ const kibanaProxy = createProxyMiddleware({
     headers: {
         'kbn-xsrf': 'true'
     },
-    followRedirects: true
+    selfHandleResponse: true,
+    onProxyRes: (proxyRes, req, res) => {
+        // Check if the response is a redirect
+        if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+            logger.info(`Redirect detected: ${proxyRes.statusCode} -> ${proxyRes.headers.location}`);
+
+            // Forward the redirect response to the client
+            res.writeHead(proxyRes.statusCode, {
+                Location: proxyRes.headers.location,
+            });
+            res.end();
+        } else {
+            // Handle non-redirect responses
+            proxyRes.pipe(res);
+        }
+    },
 });
 
 app.use('/', kibanaProxy);
