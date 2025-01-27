@@ -12,9 +12,9 @@ const envVariables = {
     KIBANA_BASE_PATH:
       process.env.KIBANA_BASE_PATH || "kibana",
     KIBANA_ACCEPTED_CONTEXT_UI_PATHS:
-      process.env.KIBANA_ACCEPTED_CONTEXT_UI_PATHS || "workbench-ui,sanitation-ui,works-ui,digit-ui",
+      process.env.KIBANA_ACCEPTED_CONTEXT_UI_PATHS || "workbench-ui,sanitation-ui,works-ui,digit-ui,health-ui,/kibana/app/dashboards,/kibana/login",
     KIBANA_ACCEPTED_DOMAIN_NAME:
-      process.env.KIBANA_ACCEPTED_DOMAIN_NAME || "unified-qa.digit.org",
+      process.env.KIBANA_ACCEPTED_DOMAIN_NAME || "localhost",
     KIBANA_EXCLUDE_URL_PATTERNS:
     process.env.KIBANA_EXCLUDE_URL_PATTERNS || ".js,.css,.html,fonts,favicons,telemetry,.json"
 

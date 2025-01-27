@@ -42,6 +42,10 @@ function bypassAuthBasedOnUrl(url) {
 
 function validateReferer(url) {
     try {
+        if(!url) {
+            logger.error("Error: Referer is null");
+            return false;
+        }
         // Create a URL object from the input string
         const urlObj = new URL(url);
 
@@ -53,9 +57,12 @@ function validateReferer(url) {
 
         // Extract the path just ahead of the domain, which is the first part of the path
         const contextPath = pathParts.length > 0 ? pathParts[0] : '';
+        logger.info("pathname" + urlObj?.pathname);
+        logger.info("current domain: " + domain);
+        logger.info("context path: " + contextPath);
 
         //based on domain and contextPath return true or false
-        if (domain === acceptedDomain && allowedContextPaths.split(",").some(path => path === contextPath)) {
+        if (domain === acceptedDomain && allowedContextPaths?.split(",")?.some(path => ((path === contextPath) || urlObj?.pathname?.startsWith(path)))) {
             return true;
         } else {
             return false;
@@ -140,43 +147,10 @@ app.use(async (req, res, next) => {
 
 const kibanaProxy = createProxyMiddleware({
     target: kibanaHost,
-    changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
-        logger.info(`[PROXY] ${req?.method} -> ${req?.url}`);
-    },
-    onProxyRes: (proxyRes, req, res) => {
-        logger.info(`[PROXY RESPONSE] Status: ${proxyRes?.statusCode}`);
-        // The proxy automatically pipes the response to the client unless modified
-    },
+    changeOrigin: true
 });
 
 app.use('/', kibanaProxy);
-
-// Proxy request to Kibana if authentication is successful
-// app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
-//     proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
-//         proxyReqOpts.headers['kbn-xsrf'] = 'true';
-
-//         // Conditionally include API version header if required by your Kibana version
-//         if (srcReq.headers['elastic-api-version']) {
-//             proxyReqOpts.headers['elastic-api-version'] = 1;
-//         }
-//         return proxyReqOpts;
-//     },
-//     proxyReqBodyDecorator: function (bodyContent, srcReq) {
-//         // Transform form-encoded body to JSON if content type matches
-//         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
-//             const parsedBody = querystring.parse(bodyContent.toString());
-//             return JSON.stringify(parsedBody);
-//         }
-//         return bodyContent;
-//     },
-//     proxyErrorHandler: function (err, res, next) {
-//         // Log the error and propagate it to Express error-handling middleware
-//         logger.error('Proxy error:', err);
-//         next(err); // Allow Express to handle the error
-//     }
-// }));
 
 // Listen on configured port
 app.listen(serverPort, () => {
