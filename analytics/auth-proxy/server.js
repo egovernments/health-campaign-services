@@ -147,7 +147,10 @@ app.use(async (req, res, next) => {
 
 const kibanaProxy = createProxyMiddleware({
     target: kibanaHost,
-    changeOrigin: true
+    changeOrigin: true,
+    headers: {
+        'kbn-xsrf': 'true'
+    }
 });
 
 app.use('/', kibanaProxy);
