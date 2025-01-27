@@ -59,6 +59,6 @@ public class PlanFacilitySearchCriteria {
     private Integer limit = null;
 
     @JsonIgnore
-    private Map<String, String> filtersMap = null;
+    private Map<String, Set<String>> filtersMap = null;
 
 }
