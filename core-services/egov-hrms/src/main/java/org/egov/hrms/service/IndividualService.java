@@ -17,15 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.UserDetails;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -57,12 +49,27 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse createUser(UserRequest userRequest) {
-        IndividualRequest request = mapToIndividualRequest(userRequest);
+        IndividualRequest request = mapToIndividualRequest(userRequest, null);
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
         IndividualResponse response = restCallRepository
                 .fetchResult(uri, request, IndividualResponse.class);
+        UserResponse userResponse = null;
+        if (response != null && response.getIndividual() != null) {
+            log.info("response received from individual service");
+            userResponse = mapToUserResponse(response);
+        }
+        return userResponse;
+    }
+
+    public UserResponse createUserByLocality(UserRequest userRequest, String localityCode) {
+        IndividualRequest request = mapToIndividualRequest(userRequest,localityCode);
+        StringBuilder uri = new StringBuilder();
+        uri.append(propertiesManager.getIndividualHost());
+        uri.append(propertiesManager.getIndividualCreateEndpoint());
+        IndividualResponse response = restCallRepository
+          .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
@@ -258,7 +265,7 @@ public class IndividualService implements UserService {
         }
     }
 
-    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest) {
+    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
                 .userId(userRequest.getUser().getId() != null ?
@@ -278,6 +285,7 @@ public class IndividualService implements UserService {
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                                .locality((localityCode!=null) ? Boundary.builder().code(localityCode).build() : null)
                                 .isDeleted(Boolean.FALSE)
                         .build()))
                 /*
@@ -308,6 +316,9 @@ public class IndividualService implements UserService {
                                 .build()).collect(Collectors.toList()))
                         .userType(UserType.fromValue(userRequest.getUser().getType()))
                         .build())
+                .skills(userRequest.getUser().getRoles().stream().map(role -> Skill.builder()
+                        .type(role.getCode()).level(role.getCode())
+                        .build()).collect(Collectors.toList()))
                 .isDeleted(Boolean.FALSE)
                 .clientAuditDetails(AuditDetails.builder().createdBy(userRequest.getRequestInfo().getUserInfo().getUuid()).lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
                 .rowVersion(userRequest.getUser().getRowVersion())
