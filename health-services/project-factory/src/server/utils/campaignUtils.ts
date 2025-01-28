@@ -1696,15 +1696,15 @@ function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
 function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   if (!boundaryResponses || !codesTargetMapping) return;
 
- // Helper function to map individual boundaries
- const mapBoundary = (boundary: any) => {
-  if (!boundary.children || boundary.children.length === 0) {
-    // If no children, simply return the target value object or default to empty object
-    const targetValue = codesTargetMapping[boundary.code];
-    return targetValue || {};
-  }
+  // Helper function to map individual boundaries
+  const mapBoundary = (boundary: any) => {
+    if (!boundary.children || boundary.children.length === 0) {
+      // If no children, simply return the target value object or default to empty object
+      const targetValue = codesTargetMapping[boundary.code];
+      return targetValue || {};
+    }
 
-      // Initialize a new object to accumulate total target values from children
+    // Initialize a new object to accumulate total target values from children
     let totalTargetValue: any = {};
 
     // Iterate through each child and accumulate their target values
@@ -1718,18 +1718,19 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
           totalTargetValue[key] = (totalTargetValue[key] || 0) + childTargetValue[key];
         }
       }
-
-      // Store the accumulated total target value for the current boundary
-      codesTargetMapping[boundary.code] = totalTargetValue;
-      return totalTargetValue;
-    };
-  
-    // Map each boundary response
-    for (const boundaryResponse of boundaryResponses) {
-    mapBoundary(boundaryResponse);
     }
+
+    // Store the accumulated total target value for the current boundary
+    codesTargetMapping[boundary.code] = totalTargetValue;
+    return totalTargetValue;
+  };
+
+  // Map each boundary response
+  for (const boundaryResponse of boundaryResponses) {
+    mapBoundary(boundaryResponse);
   }
 }
+
 
 async function processBoundary(
   boundaryResponse: any,
