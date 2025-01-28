@@ -10,10 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.IntStream;
 
 import static digit.config.ServiceConstants.DOT_REGEX;
@@ -102,7 +99,7 @@ public class QueryUtil {
      * @param filterMap
      * @return
      */
-    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap) {
+    public String preparePartialJsonStringFromFilterMap(Map<String, String> filterMap) {
         Map<String, Object> queryMap = new HashMap<>();
 
         filterMap.keySet().forEach(key -> {
@@ -121,6 +118,48 @@ public class QueryUtil {
         return partialJsonQueryString;
     }
 
+    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap, List<Object> preparedStmtList) {
+        Map<String, Object> queryMap = new HashMap<>();
+        StringBuilder finalJsonQuery = new StringBuilder();
+
+        for (String key : filterMap.keySet()) {
+            // Handle nested keys (dot separator)
+            if (key.contains(DOT_SEPARATOR)) {
+                String[] keyArray = key.split(DOT_REGEX);
+                Map<String, Object> nestedQueryMap = new HashMap<>();
+                prepareNestedQueryMap(0, keyArray, nestedQueryMap, String.valueOf(filterMap.get(key)));
+                queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
+                return gson.toJson(queryMap);
+            } else if ("facilityId".equals(key)) {
+                Set<String> values = filterMap.get(key);
+                if (values != null && !values.isEmpty()) {
+                    StringBuilder orClauseBuilder = new StringBuilder();
+
+                    // For each value, add an OR condition with a placeholder for the value
+                    for (String value : values) {
+                        if (orClauseBuilder.length() > 0) {
+                            orClauseBuilder.append(" OR ");
+                        }
+                        // Add the condition for the key-value pair
+                        orClauseBuilder.append("additional_details @> ?::jsonb");
+                        // Add the actual value in the format { "facilityId": "value" }
+                        preparedStmtList.add("{\"" + key + "\": \"" + value + "\"}");
+                    }
+
+                    // Append the OR clause as part of the AND conditions
+                    finalJsonQuery.append(" AND (").append(orClauseBuilder.toString()).append(") ");
+                    return finalJsonQuery.toString();  // Return the query with OR conditions for facilityId
+                }
+            }  else {
+                queryMap.put(key, filterMap.get(key).toString());
+            }
+        }
+
+        return gson.toJson(queryMap);
+        // Return the dynamically constructed query string
+    }
+
+
     /**
      * Tail recursive method to prepare n-level nested partial json for queries on nested data in
      * master data. For e.g. , if the key is in the format a.b.c, it will construct a nested json
@@ -129,16 +168,16 @@ public class QueryUtil {
      * @param index
      * @param nestedKeyArray
      * @param currentQueryMap
-     * @param values
+     * @param value
      */
-    private void prepareNestedQueryMap(int index, String[] nestedKeyArray, Map<String, Object> currentQueryMap, Set<String> values) {
+    private void prepareNestedQueryMap(int index, String[] nestedKeyArray, Map<String, Object> currentQueryMap, String value) {
         // Return when all levels have been reached.
         if (index == nestedKeyArray.length)
             return;
 
             // For the final level simply put the value in the map.
         else if (index == nestedKeyArray.length - 1) {
-            currentQueryMap.put(nestedKeyArray[index], values);
+            currentQueryMap.put(nestedKeyArray[index], value);
             return;
         }
 
@@ -146,7 +185,7 @@ public class QueryUtil {
         currentQueryMap.put(nestedKeyArray[index], new HashMap<>());
 
         // Make a recursive call to enrich data in next level.
-        prepareNestedQueryMap(index + 1, nestedKeyArray, (Map<String, Object>) currentQueryMap.get(nestedKeyArray[index]), values);
+        prepareNestedQueryMap(index + 1, nestedKeyArray, (Map<String, Object>) currentQueryMap.get(nestedKeyArray[index]), value);
     }
 
     /**

@@ -7,10 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
+import java.util.*;
 
 @Component
 public class PlanQueryBuilder {
@@ -172,12 +169,21 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getJurisdiction());
         }
 
-        if(!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" additional_details @> CAST( ? AS jsonb )");
-            String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap());
-            preparedStmtList.add(partialQueryJsonString);
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
+            Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
+            for (String key : filtersMap.keySet()) {
+                if ("facilityId".equals(key)) {
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList);
+                    builder.append(partialQueryJsonString);
+                } else {
+                    queryUtil.addClauseIfRequired(builder, preparedStmtList);
+                    builder.append(" additional_details @> CAST( ? AS jsonb )");
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList);
+                    preparedStmtList.add(partialQueryJsonString);
+                }
+            }
         }
+
 
         StringBuilder countQuery = new StringBuilder();
         if (isCount) {
@@ -191,7 +197,7 @@ public class PlanQueryBuilder {
         if (isStatusCount) {
             return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
-
+        System.out.println(preparedStmtList);
         return builder.toString();
     }
 
@@ -205,7 +211,7 @@ public class PlanQueryBuilder {
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
         preparedStmtList.add(ObjectUtils.isEmpty(planSearchCriteria.getLimit()) ? config.getDefaultLimit() : planSearchCriteria.getLimit());
-
+        System.out.println(preparedStmtList);
         return paginatedQuery.toString();
     }
 

@@ -192,16 +192,16 @@ public class PlanFacilityEnricher {
         PlanFacilitySearchCriteria planFacilitySearchCriteria = planFacilitySearchRequest.getPlanFacilitySearchCriteria();
 
         // Filter map for filtering facility meta data present in additional details
-        Map<String, Set<String>> filtersMap = new LinkedHashMap<>();
+        Map<String, String> filtersMap = new LinkedHashMap<>();
 
         // Add facility status as a filter if present in search criteria
         if(!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityStatus())) {
-            filtersMap.put(FACILITY_STATUS_SEARCH_PARAMETER_KEY, Collections.singleton(planFacilitySearchCriteria.getFacilityStatus()));
+            filtersMap.put(FACILITY_STATUS_SEARCH_PARAMETER_KEY, planFacilitySearchCriteria.getFacilityStatus());
         }
 
         // Add facility type as a filter if present in search criteria
         if(!ObjectUtils.isEmpty(planFacilitySearchCriteria.getFacilityType())) {
-            filtersMap.put(FACILITY_TYPE_SEARCH_PARAMETER_KEY, Collections.singleton(planFacilitySearchCriteria.getFacilityType()));
+            filtersMap.put(FACILITY_TYPE_SEARCH_PARAMETER_KEY, planFacilitySearchCriteria.getFacilityType());
         }
 
         if(!CollectionUtils.isEmpty(filtersMap))
