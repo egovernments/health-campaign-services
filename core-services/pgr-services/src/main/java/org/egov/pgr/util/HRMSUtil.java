@@ -32,13 +32,15 @@ public class HRMSUtil {
 
     /**
      * Gets the list of department for the given list of uuids of employees
-     * @param uuids
+     *
+     * @param uuids user uuids
+     * @param employeeUuids employee uuids
      * @param requestInfo
      * @return
      */
-    public List<String> getDepartment(List<String> uuids, RequestInfo requestInfo){
+    public List<String> getDepartment(List<String> uuids, List<String> employeeUuids, RequestInfo requestInfo){
 
-        StringBuilder url = getHRMSURI(uuids);
+        StringBuilder url = getHRMSURI(employeeUuids);
 
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
 
