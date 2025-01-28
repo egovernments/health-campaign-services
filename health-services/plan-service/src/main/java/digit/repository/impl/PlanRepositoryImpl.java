@@ -152,7 +152,6 @@ public class PlanRepositoryImpl implements PlanRepository {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planQueryBuilder.getPlanSearchQuery(planSearchCriteria, preparedStmtList);
         log.info("Plan search query: " + query);
-        log.info("PreparedStatment List " + preparedStmtList);
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 

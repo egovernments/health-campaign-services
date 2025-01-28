@@ -176,9 +176,11 @@ public class PlanQueryBuilder {
             Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
             for (String key : filtersMap.keySet()) {
                 if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
+                    // its for facility multi select then no need to add to preparedStmtList
                     String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
                     builder.append(partialQueryJsonString);
                 } else {
+                    // handle all other keys normally.
                     queryUtil.addClauseIfRequired(builder, preparedStmtList);
                     builder.append(ADDITIONAL_DETAILS_QUERY);
                     String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);

@@ -95,6 +95,8 @@ public class QueryUtil {
     /**
      * This method prepares partial json string from the filter map to query on jsonb column
      *
+     * - For nested keys (keys containing dot separators), a nested JSON structure is constructed.
+     * - For other keys, a simple key-value JSON structure is returned.
      * @param filterMap
      * @return
      */
@@ -117,6 +119,23 @@ public class QueryUtil {
         return partialJsonQueryString;
     }
 
+    /**
+     * This is an overloaded function, to handle facility multi select for plan search specifically.
+     * Prepares a partial JSON query string based on the provided filter map, key, and prepared statement list.
+     *
+     * @param filterMap         A map containing filter keys and their corresponding set of values.
+     * @param preparedStmtList  A list to which placeholder values for prepared statements are added.
+     * @param key               The key used to construct the partial query.
+     * @return                  A partial JSON query string or a query fragment with OR conditions.
+     *
+     * This method dynamically constructs a JSON query or query fragment based on the structure of the `key`:
+     * - For nested keys (keys containing dot separators), a nested JSON structure is constructed.
+     * - For the "facilityId" key, an OR condition is generated for all values in the set.
+     * - For other keys, a simple key-value JSON structure is returned.
+     *
+     * Notes:
+     * - When constructing the query for "facilityId", placeholders for each value are added to the `preparedStmtList`.
+     */
     public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap, List<Object> preparedStmtList, String key) {
         Map<String, Object> queryMap = new HashMap<>();
         StringBuilder finalJsonQuery = new StringBuilder();
