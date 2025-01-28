@@ -198,7 +198,7 @@ function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) 
       }
     }
   }
-  sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
+  // sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
 }
 
 
@@ -392,5 +392,12 @@ export function enrichUsageColumnForFacility(worksheet: any, localizationMap: an
   }
 }
 
+function protectSheet(sheet: any) {
+  sheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+  });
+}
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet };
+
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };
