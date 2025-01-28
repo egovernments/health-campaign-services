@@ -36,7 +36,6 @@ public class SrReferenceIdValidator implements Validator<StockReconciliationBulk
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
 
         List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
-                .filter(notHavingErrors())
                 .filter(entity -> PROJECT.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
         return validateProjectFacilityMappings(request, errorDetailsMap, validEntities,

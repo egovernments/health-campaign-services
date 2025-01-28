@@ -31,7 +31,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.stock.Constants.GET_PRODUCT_VARIANT_ID;
+import static org.egov.stock.Constants.*;
 
 @Component
 @Slf4j
@@ -52,8 +52,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating stock reconciliation product variant id");
-        List<StockReconciliation> entities = request.getStockReconciliation().stream().filter(notHavingErrors())
-                .collect(Collectors.toList());
+        List<StockReconciliation> entities = request.getStockReconciliation();
         if (!entities.isEmpty()) {
             Set<String> productVariantIds = entities.stream().map(StockReconciliation::getProductVariantId).collect(Collectors.toSet());
             Map<String, StockReconciliation> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
@@ -93,7 +92,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
         try {
             response = serviceRequestClient.fetchResult(url, request, ProductVariantResponse.class);
         } catch (Exception e) {
-            throw new CustomException("PRODUCT_VARIANT",
+            throw new CustomException(SR_PRODUCT_VARIANT_ID_VALIDATION_ERROR,
                     String.format("Something went wrong: %s", e.getMessage()));
         }
         log.info("stock reconciliation product variant exist validation completed successfully");
