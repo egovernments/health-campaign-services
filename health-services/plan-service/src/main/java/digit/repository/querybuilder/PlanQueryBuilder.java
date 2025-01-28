@@ -184,7 +184,6 @@ public class PlanQueryBuilder {
             }
         }
 
-
         StringBuilder countQuery = new StringBuilder();
         if (isCount) {
 
@@ -197,7 +196,7 @@ public class PlanQueryBuilder {
         if (isStatusCount) {
             return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
-        System.out.println(preparedStmtList);
+
         return builder.toString();
     }
 
@@ -211,7 +210,7 @@ public class PlanQueryBuilder {
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
         preparedStmtList.add(ObjectUtils.isEmpty(planSearchCriteria.getLimit()) ? config.getDefaultLimit() : planSearchCriteria.getLimit());
-        System.out.println(preparedStmtList);
+
         return paginatedQuery.toString();
     }
 
