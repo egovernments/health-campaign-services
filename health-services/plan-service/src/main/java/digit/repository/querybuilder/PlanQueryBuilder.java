@@ -9,6 +9,9 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
+import static digit.config.ServiceConstants.ADDITIONAL_DETAILS_QUERY;
+import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
+
 @Component
 public class PlanQueryBuilder {
 
@@ -172,13 +175,13 @@ public class PlanQueryBuilder {
         if (!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
             Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
             for (String key : filtersMap.keySet()) {
-                if ("facilityId".equals(key)) {
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList);
+                if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
                     builder.append(partialQueryJsonString);
                 } else {
                     queryUtil.addClauseIfRequired(builder, preparedStmtList);
-                    builder.append(" additional_details @> CAST( ? AS jsonb )");
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList);
+                    builder.append(ADDITIONAL_DETAILS_QUERY);
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
                     preparedStmtList.add(partialQueryJsonString);
                 }
             }

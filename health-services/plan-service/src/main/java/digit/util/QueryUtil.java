@@ -13,8 +13,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.IntStream;
 
-import static digit.config.ServiceConstants.DOT_REGEX;
-import static digit.config.ServiceConstants.DOT_SEPARATOR;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class QueryUtil {
@@ -118,45 +117,43 @@ public class QueryUtil {
         return partialJsonQueryString;
     }
 
-    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap, List<Object> preparedStmtList) {
+    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap, List<Object> preparedStmtList, String key) {
         Map<String, Object> queryMap = new HashMap<>();
         StringBuilder finalJsonQuery = new StringBuilder();
+        // Handle nested keys (dot separator)
+        if (key.contains(DOT_SEPARATOR)) {
+            String[] keyArray = key.split(DOT_REGEX);
+            Map<String, Object> nestedQueryMap = new HashMap<>();
+            prepareNestedQueryMap(0, keyArray, nestedQueryMap, (String) filterMap.get(key).toArray()[0]);
+            queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
+            return gson.toJson(queryMap);
+        } else if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
+            Set<String> values = filterMap.get(key);
+            if (values != null && !values.isEmpty()) {
+                StringBuilder orClauseBuilder = new StringBuilder();
 
-        for (String key : filterMap.keySet()) {
-            // Handle nested keys (dot separator)
-            if (key.contains(DOT_SEPARATOR)) {
-                String[] keyArray = key.split(DOT_REGEX);
-                Map<String, Object> nestedQueryMap = new HashMap<>();
-                prepareNestedQueryMap(0, keyArray, nestedQueryMap, String.valueOf(filterMap.get(key)));
-                queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
-                return gson.toJson(queryMap);
-            } else if ("facilityId".equals(key)) {
-                Set<String> values = filterMap.get(key);
-                if (values != null && !values.isEmpty()) {
-                    StringBuilder orClauseBuilder = new StringBuilder();
-
-                    // For each value, add an OR condition with a placeholder for the value
-                    for (String value : values) {
-                        if (orClauseBuilder.length() > 0) {
-                            orClauseBuilder.append(" OR ");
-                        }
-                        // Add the condition for the key-value pair
-                        orClauseBuilder.append("additional_details @> ?::jsonb");
-                        // Add the actual value in the format { "facilityId": "value" }
-                        preparedStmtList.add("{\"" + key + "\": \"" + value + "\"}");
+                // For each value, add an OR condition with a placeholder for the value
+                for (String value : values) {
+                    if (orClauseBuilder.length() > 0) {
+                        orClauseBuilder.append(OR_CONDITION);
                     }
-
-                    // Append the OR clause as part of the AND conditions
-                    finalJsonQuery.append(" AND (").append(orClauseBuilder.toString()).append(") ");
-                    return finalJsonQuery.toString();  // Return the query with OR conditions for facilityId
+                    // Add the condition for the key-value pair
+                    orClauseBuilder.append(JSONB_QUERY_FORMAT);
+                    // Add the actual value in the format { "facilityId": "value" }
+                    preparedStmtList.add("{\"" + key + "\": \"" + value + "\"}");
                 }
-            }  else {
-                queryMap.put(key, filterMap.get(key).toString());
+
+                // Append the OR clause as part of the AND conditions
+                finalJsonQuery.append(AND_CONDITION).append("(").append(orClauseBuilder.toString()).append(") ");
+                return finalJsonQuery.toString();  // Return the query with OR conditions for facilityId
             }
+        } else {
+            queryMap.put(key, (String) filterMap.get(key).toArray()[0]);
         }
 
-        return gson.toJson(queryMap);
+
         // Return the dynamically constructed query string
+        return gson.toJson(queryMap);
     }
 
 
