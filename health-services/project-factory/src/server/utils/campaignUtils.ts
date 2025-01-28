@@ -2205,7 +2205,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
             entry["Target at the Selected Boundary level"];
           if (
             Object.keys(entry["Parent Target at the Selected Boundary level"]).length > 0 &&
-            _.isEqual(entry["Parent Target at the Selected Boundary level"],entry["Target at the Selected Boundary level"])
+            !_.isEqual(entry["Parent Target at the Selected Boundary level"],entry["Target at the Selected Boundary level"])
           ) {
             boundaryCodesWhoseTargetsHasToBeUpdated.push(entry[codeColumnName]);
           }
