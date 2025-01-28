@@ -384,4 +384,11 @@ public class ServiceConstants {
 
     public static final String CONFIRMED_TARGET_POPULATION = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION";
 
+    public static final String ADDITIONAL_DETAILS_QUERY = " additional_details @> CAST( ? AS jsonb )";
+
+    public static final String JSONB_QUERY_FORMAT = "additional_details @> ?::jsonb";
+
+    public static final String AND_CONDITION = " AND ";
+
+    public static final String OR_CONDITION = " OR ";
 }

@@ -10,14 +10,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.IntStream;
 
-import static digit.config.ServiceConstants.DOT_REGEX;
-import static digit.config.ServiceConstants.DOT_SEPARATOR;
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class QueryUtil {
@@ -99,6 +95,8 @@ public class QueryUtil {
     /**
      * This method prepares partial json string from the filter map to query on jsonb column
      *
+     * - For nested keys (keys containing dot separators), a nested JSON structure is constructed.
+     * - For other keys, a simple key-value JSON structure is returned.
      * @param filterMap
      * @return
      */
@@ -120,6 +118,63 @@ public class QueryUtil {
 
         return partialJsonQueryString;
     }
+
+    /**
+     * This is an overloaded function, to handle facility multi select for plan search specifically.
+     * Prepares a partial JSON query string based on the provided filter map, key, and prepared statement list.
+     *
+     * @param filterMap         A map containing filter keys and their corresponding set of values.
+     * @param preparedStmtList  A list to which placeholder values for prepared statements are added.
+     * @param key               The key used to construct the partial query.
+     * @return                  A partial JSON query string or a query fragment with OR conditions.
+     *
+     * This method dynamically constructs a JSON query or query fragment based on the structure of the `key`:
+     * - For nested keys (keys containing dot separators), a nested JSON structure is constructed.
+     * - For the "facilityId" key, an OR condition is generated for all values in the set.
+     * - For other keys, a simple key-value JSON structure is returned.
+     *
+     * Notes:
+     * - When constructing the query for "facilityId", placeholders for each value are added to the `preparedStmtList`.
+     */
+    public String preparePartialJsonStringFromFilterMap(Map<String, Set<String>> filterMap, List<Object> preparedStmtList, String key) {
+        Map<String, Object> queryMap = new HashMap<>();
+        StringBuilder finalJsonQuery = new StringBuilder();
+        // Handle nested keys (dot separator)
+        if (key.contains(DOT_SEPARATOR)) {
+            String[] keyArray = key.split(DOT_REGEX);
+            Map<String, Object> nestedQueryMap = new HashMap<>();
+            prepareNestedQueryMap(0, keyArray, nestedQueryMap, (String) filterMap.get(key).toArray()[0]);
+            queryMap.put(keyArray[0], nestedQueryMap.get(keyArray[0]));
+            return gson.toJson(queryMap);
+        } else if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
+            Set<String> values = filterMap.get(key);
+            if (values != null && !values.isEmpty()) {
+                StringBuilder orClauseBuilder = new StringBuilder();
+
+                // For each value, add an OR condition with a placeholder for the value
+                for (String value : values) {
+                    if (orClauseBuilder.length() > 0) {
+                        orClauseBuilder.append(OR_CONDITION);
+                    }
+                    // Add the condition for the key-value pair
+                    orClauseBuilder.append(JSONB_QUERY_FORMAT);
+                    // Add the actual value in the format { "facilityId": "value" }
+                    preparedStmtList.add("{\"" + key + "\": \"" + value + "\"}");
+                }
+
+                // Append the OR clause as part of the AND conditions
+                finalJsonQuery.append(AND_CONDITION).append("(").append(orClauseBuilder.toString()).append(") ");
+                return finalJsonQuery.toString();  // Return the query with OR conditions for facilityId
+            }
+        } else {
+            queryMap.put(key, (String) filterMap.get(key).toArray()[0]);
+        }
+
+
+        // Return the dynamically constructed query string
+        return gson.toJson(queryMap);
+    }
+
 
     /**
      * Tail recursive method to prepare n-level nested partial json for queries on nested data in

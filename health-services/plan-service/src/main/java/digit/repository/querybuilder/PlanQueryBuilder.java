@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
+import java.util.*;
+
+import static digit.config.ServiceConstants.ADDITIONAL_DETAILS_QUERY;
+import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
 
 @Component
 public class PlanQueryBuilder {
@@ -172,11 +172,21 @@ public class PlanQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getJurisdiction());
         }
 
-        if(!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" additional_details @> CAST( ? AS jsonb )");
-            String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap());
-            preparedStmtList.add(partialQueryJsonString);
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
+            Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
+            for (String key : filtersMap.keySet()) {
+                if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
+                    // its for facility multi select then no need to add to preparedStmtList
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
+                    builder.append(partialQueryJsonString);
+                } else {
+                    // handle all other keys normally.
+                    queryUtil.addClauseIfRequired(builder, preparedStmtList);
+                    builder.append(ADDITIONAL_DETAILS_QUERY);
+                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
+                    preparedStmtList.add(partialQueryJsonString);
+                }
+            }
         }
 
         StringBuilder countQuery = new StringBuilder();
