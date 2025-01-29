@@ -9,7 +9,7 @@
   </parent>
   <groupId>org.egov</groupId>
   <artifactId>egov-hrms</artifactId>
-  <version>1.2.7-SNAPSHOT</version>
+  <version>1.3.0</version>
   <name>egov-hrms</name>
   <description>HR Management System</description>
   <properties>
@@ -39,11 +39,11 @@
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
-      <version>9.22.3</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <version>42.7.1</version>
     </dependency>
     <dependency>
       <groupId>org.egov.services</groupId>
