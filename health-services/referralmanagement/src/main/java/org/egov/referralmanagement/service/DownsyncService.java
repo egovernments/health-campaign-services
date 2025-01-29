@@ -1,40 +1,16 @@
 package org.egov.referralmanagement.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.common.models.household.Household;
-import org.egov.common.models.household.HouseholdBulkResponse;
-import org.egov.common.models.household.HouseholdMember;
-import org.egov.common.models.household.HouseholdMemberBulkResponse;
-import org.egov.common.models.household.HouseholdMemberSearch;
-import org.egov.common.models.household.HouseholdMemberSearchRequest;
-import org.egov.common.models.household.HouseholdSearch;
-import org.egov.common.models.household.HouseholdSearchRequest;
+import org.egov.common.models.household.*;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.project.BeneficiaryBulkResponse;
-import org.egov.common.models.project.BeneficiarySearchRequest;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.ProjectBeneficiarySearch;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskBulkResponse;
-import org.egov.common.models.project.TaskSearch;
-import org.egov.common.models.project.TaskSearchRequest;
+import org.egov.common.models.project.*;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralSearch;
 import org.egov.common.models.referralmanagement.ReferralSearchRequest;
@@ -51,6 +27,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -118,6 +98,10 @@ public class DownsyncService {
 
 
         downsync.setDownsyncCriteria(downsyncCriteria);
+        // removing incremental downsync for matview flow
+        if (configs.isEnableMatviewSearch()) {
+            downsyncCriteria.setLastSyncedTime(null);
+        }
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
 
         //Project project = getProjectType(downsyncRequest);
