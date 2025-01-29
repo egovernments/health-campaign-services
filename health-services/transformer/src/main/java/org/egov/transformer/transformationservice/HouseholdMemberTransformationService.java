@@ -18,8 +18,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -36,6 +35,7 @@ public class HouseholdMemberTransformationService {
     private final HouseholdService householdService;
     private final ObjectMapper objectMapper;
     private final ProjectService projectService;
+    private static final List<String> INDIVIDUAL_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(HEIGHT, WEIGHT, DISABILITY_TYPE));
 
     public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
@@ -64,7 +64,7 @@ public class HouseholdMemberTransformationService {
 
     private HouseholdMemberIndexV1 transform(HouseholdMember householdMember) {
         Map<String, String> boundaryHierarchy = null;
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        Map<String, Object> additionalDetails = new HashMap<>();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
         Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
@@ -93,10 +93,14 @@ public class HouseholdMemberTransformationService {
 
         Map<String, String> userInfoMap = userService.
                 getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
-        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
-        }
+
+        Map<String, Object> finalAdditionalDetails = additionalDetails;
+        INDIVIDUAL_ADDITIONAL_FIELDS.forEach(field ->{
+            if (individualDetails.containsKey(field)){
+                finalAdditionalDetails.put(field, individualDetails.get(field));
+            }
+        });
+
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
@@ -113,19 +117,19 @@ public class HouseholdMemberTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(householdMember.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
-                .additionalDetails(additionalDetails)
+                .additionalDetails(finalAdditionalDetails)
                 .build();
         return householdMemberIndexV1;
     }
 
-    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
+    private Map<String,Object> additionalFieldsToDetails(List<Field> fields) {
+        Map<String,Object> additionalDetails = new HashMap<>();
         fields.forEach(
                 f -> additionalDetails.put(f.getKey(), f.getValue())
         );
         return additionalDetails;
     }
-    private void addToAdditionalDetails(List<Field> fields, ObjectNode additionalDetails) {
+    private void addToAdditionalDetails(List<Field> fields, Map<String,Object> additionalDetails) {
         fields.forEach(
                 f -> additionalDetails.put(f.getKey(), f.getValue())
         );

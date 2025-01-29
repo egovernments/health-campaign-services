@@ -99,7 +99,7 @@ public class ProjectTaskIndexV1 {
     @JsonProperty("gender")
     private String gender;
     @JsonProperty("additionalDetails")
-    private ObjectNode additionalDetails;
+    private Map<String, Object> additionalDetails;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
     @JsonProperty("taskDates")

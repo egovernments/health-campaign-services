@@ -49,5 +49,5 @@ public class HouseholdMemberIndexV1  {
     @JsonProperty("localityCode")
     private String localityCode;
     @JsonProperty("additionalDetails")
-    private ObjectNode additionalDetails;
+    private Map<String,Object> additionalDetails;
 }

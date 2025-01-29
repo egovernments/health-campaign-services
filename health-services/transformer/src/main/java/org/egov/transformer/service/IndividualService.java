@@ -23,6 +23,7 @@ public class IndividualService {
     private final ServiceRequestClient serviceRequestClient;
     private final CommonUtils commonUtils;
     private static final List<String> INDIVIDUAL_INTEGER_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(HEIGHT));
+    private static final List<String> INDIVIDUAL_DOUBLE_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(WEIGHT));
 
     public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils) {
         this.properties = stockConfiguration;
@@ -139,7 +140,16 @@ public class IndividualService {
                             log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
                             individualDetails.put(key, null);
                         }
-                    } else {
+                    }
+                    else if (INDIVIDUAL_DOUBLE_ADDITIONAL_FIELDS.contains(key)) {
+                        try {
+                            individualDetails.put(key, Double.valueOf(value));
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                            individualDetails.put(key, null);
+                        }
+                    }
+                    else {
                         individualDetails.put(key, value);
                     }
                 }

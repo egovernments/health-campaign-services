@@ -34,6 +34,7 @@ public class ProjectTaskTransformationService {
     private final UserService userService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED, QUANTITY_UTILISED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(RE_DOSE_QUANTITY_KEY));
+    private static final List<String> INDIVIDUAL_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(HEIGHT, WEIGHT, DISABILITY_TYPE));
 
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService) {
@@ -143,7 +144,7 @@ public class ProjectTaskTransformationService {
                 .build();
 
         //adding to additional details  from additionalFields in task and task resource
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        Map<String, Object> additionalDetails = new HashMap<>();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
@@ -152,16 +153,17 @@ public class ProjectTaskTransformationService {
             addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
         }
-        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
-        }
+        INDIVIDUAL_ADDITIONAL_FIELDS.forEach(field ->{
+            if (beneficiaryInfo.containsKey(field)){
+                additionalDetails.put(field, beneficiaryInfo.get(field));
+            }
+        });
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;
     }
 
-    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+    private void addAdditionalDetails(AdditionalFields additionalFields, Map<String, Object> additionalDetails) {
         additionalFields.getFields().forEach(field -> {
             String key = field.getKey();
             String value = field.getValue();
@@ -186,8 +188,8 @@ public class ProjectTaskTransformationService {
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
-    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
-        if (!additionalDetails.has(CYCLE_INDEX)) {
+    private void addCycleIndex(Map<String, Object> additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+        if (!additionalDetails.containsKey(CYCLE_INDEX)) {
             String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
