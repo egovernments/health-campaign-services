@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { produceModifiedMessages } from "../kafka/Producer";
 import {
   createProjectCampaignResourcData,
+  // createProjectCampaignResourcData,
   getCampaignSearchResponse,
   getHierarchy,
   handleResouceDetailsError
@@ -100,7 +101,8 @@ import {
 } from "./microplanIntergration";
 import { getBoundaryRelationshipData } from "../api/boundaryApis";
 import { enrichRootProjectId, processSubProjectCreationFromConsumer } from "./projectCampaignUtils";
-import { processProjectCreation } from "../service/mainProcessService";
+import { processEmployeeCreation, processProjectCreation } from "../service/mainProcessService";
+import { createCampaignEmployees, processSubEmployeeCreationFromConsumer } from "./campaignEmployeesUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -656,7 +658,7 @@ async function updateStatusFileForEachSheets(
   }
 }
 
-function convertToType(dataToSet: any, type: any) {
+export function convertToType(dataToSet: any, type: any) {
   switch (type) {
     case "string":
       return String(dataToSet);
@@ -691,7 +693,7 @@ function setTenantId(
 }
 
 async function processData(
-  request: any,
+  requestBody: any,
   dataFromSheet: any[],
   createAndSearchConfig: any,
   localizationMap?: { [key: string]: string }
@@ -700,7 +702,7 @@ async function processData(
   const requiresToSearchFromSheet =
     createAndSearchConfig?.requiresToSearchFromSheet;
   const isSourceMicroplan =
-    request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
+    requestBody?.ResourceDetails?.additionalDetails?.source == "microplan";
   var createData = [],
     searchData = [];
   for (const data of dataFromSheet) {
@@ -732,7 +734,7 @@ async function processData(
         if (data[localizedSheetColumnName]) {
           if (isSourceMicroplan) {
             changeCreateDataForMicroplan(
-              request,
+              requestBody,
               resultantElement,
               data,
               localizationMap
@@ -747,7 +749,7 @@ async function processData(
     if (addToCreate) {
       if (isSourceMicroplan) {
         changeCreateDataForMicroplan(
-          request,
+          requestBody,
           resultantElement,
           data,
           localizationMap
@@ -775,14 +777,13 @@ function setTenantIdAndSegregate(
 
 // Original function divided into two parts
 async function convertToTypeData(
-  request: any,
   dataFromSheet: any[],
   createAndSearchConfig: any,
   requestBody: any,
   localizationMap?: { [key: string]: string }
 ) {
   const processedData = await processData(
-    request,
+    requestBody,
     dataFromSheet,
     createAndSearchConfig,
     localizationMap
@@ -918,6 +919,15 @@ function getRootBoundaryCode(boundaries: any[] = []) {
   for (const boundary of boundaries) {
     if (boundary.isRoot) {
       return boundary.code;
+    }
+  }
+  return "";
+}
+
+export function getRootBoundaryType(boundaries: any[] = []) {
+  for (const boundary of boundaries) {
+    if (boundary.isRoot) {
+      return boundary.type;
     }
   }
   return "";
@@ -1919,7 +1929,7 @@ async function updateProjectDates(request: any, actionInUrl: any) {
 }
 
 export async function getCodesTarget(CampaignDetails: any, localizationMap?: any) {
-  const {resources, tenantId } = CampaignDetails;
+  const { resources, tenantId } = CampaignDetails;
   const boundaryWithTargetResource = resources?.filter(
     (resource: any) => resource?.type == "boundaryWithTarget"
   );
@@ -1948,7 +1958,7 @@ export async function getCodesTarget(CampaignDetails: any, localizationMap?: any
     // Iterate through each key in targetData
     for (const key in targetData) {
       // Iterate through each entry in the array under the current key
-      targetData[key].forEach((entry : any) => {
+      targetData[key].forEach((entry: any) => {
         // Check if the entry has both "Boundary Code" and "currentBoundaryTarget"
         if (
           entry[codeColumnName] !== undefined &&
@@ -1977,6 +1987,14 @@ async function createProject(
     processTrackStatuses.inprogress
   );
   try {
+    const isProcessAlreadyCompleted = await checkIfProcessIsCompleted(
+      requestBody?.CampaignDetails?.campaignNumber,
+      processNamesConstantsInOrder.projectCreation
+    )
+    if (isProcessAlreadyCompleted) {
+      logger.info("Project Creation process already completed");
+      return;
+    }
     const campaignDetailsAndRequestInfo = {
       RequestInfo: requestBody?.RequestInfo,
       CampaignDetails: requestBody?.CampaignDetails,
@@ -1991,9 +2009,10 @@ async function createProject(
     let projectStatusConfirmed = false;
     let status = "";
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const processConfirmationAttempts = parseInt(config?.values?.processConfirmationAttempts || "75") || 75;
 
     // Check process completion with retries
-    for (let attempt = 0; attempt < 75; attempt++) {
+    for (let attempt = 0; attempt < processConfirmationAttempts; attempt++) {
       const isCompleted = await checkIfProcessIsCompleted(
         requestBody?.CampaignDetails?.campaignNumber,
         processNamesConstantsInOrder.projectCreation
@@ -2004,22 +2023,22 @@ async function createProject(
       )
 
       if (isCompleted || isFailed) {
-        logger.info(`Project Creation process completed successfully. Attempt ${attempt + 1} out of 75.`);
+        logger.info(`Project Creation confirmed successfully. Attempt ${attempt + 1} out of ${processConfirmationAttempts}`);
         projectStatusConfirmed = true;
         status = isCompleted ? campaignProcessStatus.completed : campaignProcessStatus.failed;
         break;  // Exit successfully if process is completed
       }
-      else{
-        logger.warn(`Project Creation process not completed yet. Attempt ${attempt + 1} out of 75.`);
+      else {
+        logger.warn(`Project Creation process not completed yet. Attempt ${attempt + 1} out of ${processConfirmationAttempts}.`);
       }
       await delay(20000);  // Wait for 2 seconds before retrying
     }
-    if(!projectStatusConfirmed){
-      logger.error(`Project Creation process did not complete after 75 attempts.`);
-      throw new Error(`Project Creation process did not complete after 75 attempts.`);
+    if (!projectStatusConfirmed) {
+      logger.error(`Project Creation process did not complete after ${processConfirmationAttempts} attempts.`);
+      throw new Error(`Project Creation process did not complete after ${processConfirmationAttempts} attempts.`);
     }
-    else{
-      if(status == campaignProcessStatus.failed){
+    else {
+      if (status == campaignProcessStatus.failed) {
         logger.error(`Project Creation process failed.`);
         throw new Error(`Project Creation process failed.`);
       }
@@ -2054,8 +2073,9 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         processTrackTypes.validation,
         processTrackStatuses.completed
       );
-      await createProjectCampaignResourcData(request);
       await createProject(request?.body);
+      await createCampaignEmployees(request?.body);
+      await createProjectCampaignResourcData(request);
       await enrichAndPersistProjectCampaignRequest(
         request,
         actionInUrl,
@@ -3338,10 +3358,9 @@ function checkIfSourceIsMicroplan(objectWithAdditionalDetails: any): boolean {
   return objectWithAdditionalDetails?.additionalDetails?.source === "microplan";
 }
 
-function createIdRequests(employees: any[]): any[] {
-  if (employees && Array.isArray(employees) && employees.length > 0) {
-    const { tenantId } = employees[0]; // Assuming all employees have the same tenantId
-    return Array.from({ length: employees.length }, () => ({
+function createIdRequestsForEmployees(numberOfEmployess: number, tenantId: string): any[] {
+  if (numberOfEmployess > 0) {
+    return Array.from({ length: numberOfEmployess }, () => ({
       tenantId: tenantId,
       idName: config?.values?.idgen?.idNameForUserNameGeneration,
       format: config?.values?.idgen?.formatForUserName,
@@ -3351,13 +3370,17 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(request: any) {
+async function createUniqueUserNameViaIdGen(idRequests: any) {
+  const requestBody = {
+    RequestInfo: defaultRequestInfo?.RequestInfo,
+    idRequests: idRequests
+  }
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      request?.body,
+      requestBody,
       undefined,
       undefined,
       undefined,
@@ -3458,12 +3481,15 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   }
 }
 
-export async function handleCampaignProcessing(messageObject: any){
+export async function handleCampaignProcessing(messageObject: any) {
   try {
-    const { processName , campaignDetailsAndRequestInfo } = messageObject;
+    const { processName, campaignDetailsAndRequestInfo } = messageObject;
     switch (processName) {
       case processNamesConstantsInOrder.projectCreation:
         await processProjectCreation(campaignDetailsAndRequestInfo);
+        break;
+      case processNamesConstantsInOrder.employeeCreation:
+        await processEmployeeCreation(campaignDetailsAndRequestInfo);
         break;
       default:
         logger.info(`No process found for ${processName}`);
@@ -3477,7 +3503,7 @@ export async function handleCampaignProcessing(messageObject: any){
   }
 }
 
-export async function handleCampaignSubProcessing(messageObject: any){
+export async function handleCampaignSubProcessing(messageObject: any) {
   try {
     const { processName, campaignNumber, data } = messageObject;
     const isProcessFailed = await checkifProcessIsFailed(processName, campaignNumber);
@@ -3485,6 +3511,9 @@ export async function handleCampaignSubProcessing(messageObject: any){
     switch (processName) {
       case processNamesConstantsInOrder.projectCreation:
         await processSubProjectCreationFromConsumer(data, campaignNumber);
+        break;
+      case processNamesConstantsInOrder.employeeCreation:
+        await processSubEmployeeCreationFromConsumer(data, campaignNumber);
         break;
       default:
         logger.info(`No sub process found for ${processName}`);
@@ -3527,7 +3556,7 @@ export {
   getDifferentTabGeneratedBasedOnConfig,
   checkIfSourceIsMicroplan,
   getBoundaryOnWhichWeSplit,
-  createIdRequests,
+  createIdRequestsForEmployees,
   createUniqueUserNameViaIdGen,
   getRootBoundaryCode,
   boundaryGeometryManagement,

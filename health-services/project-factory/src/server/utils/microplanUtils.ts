@@ -28,7 +28,7 @@ export const filterData = (data: any) => {
 
 
 
-export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
+export async function getUserDataFromMicroplanSheet(requestBody: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(`${config.host.filestore}${config.paths.filestore}/url`, {}, { tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
@@ -55,15 +55,15 @@ export async function getUserDataFromMicroplanSheet(request: any, fileStoreId: a
       }
     }
   }
-  const allUserData = getAllUserData(request, userMapping, localizationMap);
+  const allUserData = getAllUserData(requestBody, userMapping, localizationMap);
   return allUserData;
 }
 
-export function getAllUserData(request: any, userMapping: any, localizationMap: any) {
+export function getAllUserData(requestBody: any, userMapping: any, localizationMap: any) {
   const emailKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_EMAIL_MICROPLAN", localizationMap);
   const nameKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_NAME_MICROPLAN", localizationMap);
-  validateInConsistency(request, userMapping, emailKey, nameKey);
-  validateNationalDuplicacy(request, userMapping, localizationMap);
+  validateInConsistency(requestBody, userMapping, emailKey, nameKey);
+  validateNationalDuplicacy(requestBody, userMapping, localizationMap);
   const dataToCreate: any = [];
   for (const phoneNumber of Object.keys(userMapping)) {
     const roles = userMapping[phoneNumber].map((user: any) => user.role).join(',');
@@ -71,29 +71,29 @@ export function getAllUserData(request: any, userMapping: any, localizationMap: 
     const name = userMapping[phoneNumber]?.[0]?.[nameKey];
     const rowNumbers = userMapping[phoneNumber].map((user: any) => user["!row#number!"]);
     const sheetNames = userMapping[phoneNumber].map((user: any) => user["!sheet#name!"]);
-    const tenantId = request?.body?.ResourceDetails?.tenantId;
+    const tenantId = requestBody?.ResourceDetails?.tenantId;
     const rowXSheet = rowNumbers.map((row: any, index: number) => ({
       row: row,
       sheetName: sheetNames[index]
     }));
     dataToCreate.push({ ["!row#number!"]: rowXSheet, tenantId: tenantId, employeeType: "TEMPORARY", user: { emailId: email, name: name, mobileNumber: phoneNumber, roles: roles } });
   }
-  request.body.dataToCreate = dataToCreate;
+  requestBody.dataToCreate = dataToCreate;
   return convertDataSheetWise(userMapping);
 }
 
-function validateInConsistency(request: any, userMapping: any, emailKey: any, nameKey: any) {
+function validateInConsistency(requestBody: any, userMapping: any, emailKey: any, nameKey: any) {
   const overallInconsistencies: string[] = []; // Collect all inconsistencies here
 
   enrichInconsistencies(overallInconsistencies, userMapping, nameKey, emailKey);
   if (overallInconsistencies.length > 0) {
-    request.body.ResourceDetails.status = resourceDataStatuses.invalid
+    requestBody.ResourceDetails.status = resourceDataStatuses.invalid
   }
 
-  request.body.sheetErrorDetails = Array.isArray(request.body.sheetErrorDetails) ? [...request.body.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
+  requestBody.sheetErrorDetails = Array.isArray(requestBody.sheetErrorDetails) ? [...requestBody.sheetErrorDetails, ...overallInconsistencies] : overallInconsistencies;
 }
 
-function validateNationalDuplicacy(request: any, userMapping: any, localizationMap: any) {
+function validateNationalDuplicacy(requestBody: any, userMapping: any, localizationMap: any) {
   const duplicates: any[] = [];
 
   for (const phoneNumber in userMapping) {
@@ -126,9 +126,9 @@ function validateNationalDuplicacy(request: any, userMapping: any, localizationM
     }
   }
   if (duplicates.length > 0) {
-    request.body.ResourceDetails.status = resourceDataStatuses.invalid
+    requestBody.ResourceDetails.status = resourceDataStatuses.invalid
   }
-  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...duplicates] : duplicates;
+  requestBody.sheetErrorDetails = requestBody?.sheetErrorDetails ? [...requestBody?.sheetErrorDetails, ...duplicates] : duplicates;
 }
 
 function convertDataSheetWise(userMapping: any) {
@@ -283,11 +283,11 @@ function findStatusColumn(sheet: any) {
   return statusCell;
 }
 
-export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, localizationMap?: any) {
-  const type = request?.body?.ResourceDetails?.type;
-  const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
+export function changeCreateDataForMicroplan(requestBody: any, element: any, rowData: any, localizationMap?: any) {
+  const type = requestBody?.ResourceDetails?.type;
+  const activeColumnName = createAndSearch?.[requestBody?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[requestBody?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
   if (type == 'facility') {
-    const projectType = request?.body?.projectTypeCode;
+    const projectType = requestBody?.projectTypeCode;
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
     if(!rowData[facilityCapacityColumn]){
       rowData[facilityCapacityColumn] = 0
@@ -297,11 +297,11 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
     if (activeColumnName && rowData[activeColumnName] == usageColumnStatus.active) {
-      if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
-        request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
+      if (Array(requestBody?.facilityDataForMicroplan) && requestBody?.facilityDataForMicroplan?.length > 0) {
+        requestBody.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
       }
       else {
-        request.body.facilityDataForMicroplan = [{ ...rowData, facilityDetails: element }]
+        requestBody.facilityDataForMicroplan = [{ ...rowData, facilityDetails: element }]
       }
     }
   }

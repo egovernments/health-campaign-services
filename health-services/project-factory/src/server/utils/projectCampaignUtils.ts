@@ -8,7 +8,7 @@ import { getRootBoundaryCode, searchProjectCampaignResourcData } from './campaig
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
 import { campaignProcessStatus, processNamesConstantsInOrder } from '../config/constants';
 import { logger } from './logger';
-import { checkIfProcessIsCompleted, markProcessStatus } from './processTrackUtils';
+import { checkIfProcessIsCompleted, checkifProcessIsFailed, markProcessStatus } from './processTrackUtils';
 
 
 export async function persistCampaignProject(project: any, campaignDetails: any, requestInfo: any, campaignProjectId?: string) {
@@ -150,7 +150,7 @@ export async function getCampaignProjectsCount(
     return fetchCampaignProjectsData(campaignNumber, searchActiveOnly, boundaryCodes, parentBoundaryCodes, true);
 }
 
-export async function enrichRootProjectId(campaignDetails : any){
+export async function enrichRootProjectId(campaignDetails: any) {
     if (!campaignDetails?.projectId) {
         const rootBoundaryCode = getRootBoundaryCode(campaignDetails?.boundaries);
         const campaignProjectWithRootBoundary = await getCampaignProjects(campaignDetails?.campaignNumber, true, [rootBoundaryCode]);
@@ -176,18 +176,18 @@ export async function updateTargetsInProjectCampaign(allTargetList: any, campaig
                 break;
             }
         }
-        if(!isMatching){
+        if (!isMatching) {
             campaignProject.additionalDetails.newTargets = newTargets;
             campaignProjectsToUpdate.push(campaignProject);
         }
     }
-    if(campaignProjectsToUpdate?.length > 0){
+    if (campaignProjectsToUpdate?.length > 0) {
         await updateCampaignProjects(campaignProjects);
     }
 }
 
 
-export async function addBoundariesInProjectCampaign( allBoundaries: any, allTargetList: any, campaignNumber: string, currentUserUuid: string, campaignProjects: any[]) {
+export async function addBoundariesInProjectCampaign(allBoundaries: any, allTargetList: any, campaignNumber: string, currentUserUuid: string, campaignProjects: any[]) {
     const campaignProjectsToAdd: any[] = [];
     const alreadyPresentBoundarySet = new Set(campaignProjects.map((project: any) => project.boundaryCode));
     for (const boundary of allBoundaries) {
@@ -212,13 +212,13 @@ export async function addBoundariesInProjectCampaign( allBoundaries: any, allTar
             campaignProjectsToAdd.push(campaignProject);
         }
     }
-    if(campaignProjectsToAdd?.length > 0){
+    if (campaignProjectsToAdd?.length > 0) {
         await addCampaignProjects(campaignProjectsToAdd);
     }
 }
 
 export async function processSubProjectCreationFromConsumer(data: any, campaignNumber: string) {
-    const { parentProjectId, childrenBoundaryCodes, tenantId , userUuid} = data;
+    const { parentProjectId, childrenBoundaryCodes, tenantId, userUuid } = data;
 
     // Get campaign projects for the provided campaign number and children boundary codes
     const campaignProjects = await getCampaignProjects(campaignNumber, true, childrenBoundaryCodes);
@@ -231,11 +231,11 @@ export async function processSubProjectCreationFromConsumer(data: any, campaignN
     const finalBoundaryAndProjectMapping = { ...boundaryAndProjectMappingFromUpdate, ...boundaryAndProjectMappingFromCreation };
 
     // Get the mappings for child boundaries for the current boundary codes
-    const parentToBoundaryCodeMap =await getParentToBoundaryCodeMapping(campaignNumber, childrenBoundaryCodes);
+    const parentToBoundaryCodeMap = await getParentToBoundaryCodeMapping(campaignNumber, childrenBoundaryCodes);
 
     // If no children mappings exist, persist project creation result and return early
     if (Object.keys(parentToBoundaryCodeMap).length === 0) {
-        await checkAndPersistProjectCreationResult(campaignNumber, tenantId);
+        await checkAndPersistProjectCreationResult(campaignNumber);
         return;
     }
 
@@ -305,7 +305,7 @@ async function processAndUpdateProjects(projectIdsToUpdate: string[], boundaryCo
 /**
  * Main function to update targets and return the mappings.
  */
-async function updateTargetsAndGetProjectIdsMapping(campaignProjects : any[], tenantId: string, userUuid: string) {
+async function updateTargetsAndGetProjectIdsMapping(campaignProjects: any[], tenantId: string, userUuid: string) {
     // Prepare mappings and project IDs
     const { boundaryCodesForTargetUpdateMappings, projectIdsToUpdate } =
         await prepareTargetMappings(campaignProjects);
@@ -441,11 +441,11 @@ async function getDefaultProject(campaignNumber: string, tenantId: string) {
         campaignNumber: campaignNumber,
     }
     const { responseData } = await searchProjectCampaignResourcData(campaignDetails);
-    if(responseData.length > 0) {
+    if (responseData.length > 0) {
         const defaultProject = enrichProjectDetailsFromCampaignDetails(responseData[0]);
         return defaultProject;
     }
-    else{
+    else {
         throw new Error(`No campaign found for campaign number ${campaignNumber}`);
     }
 }
@@ -494,8 +494,7 @@ export async function getParentToBoundaryCodeMapping(
 }
 
 export async function checkAndPersistProjectCreationResult(
-    campaignNumber: string,
-    tenantId: string
+    campaignNumber: string
 ) {
     const maxRetries = 10;
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -507,8 +506,13 @@ export async function checkAndPersistProjectCreationResult(
                 campaignNumber,
                 processNamesConstantsInOrder.projectCreation
             );
+            const isProcessFailed = await checkifProcessIsFailed(campaignNumber, processNamesConstantsInOrder.projectCreation)
             if (isProcessAlreadyCompleted) {
                 logger.info("Process already completed.");
+                return;
+            }
+            else if (isProcessFailed) {
+                logger.warn("Process is already failed.");
                 return;
             }
 

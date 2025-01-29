@@ -27,9 +27,9 @@ import {
   getLocalizedName,
   reorderBoundariesOfDataAndValidate,
   checkIfSourceIsMicroplan,
-  createIdRequests,
   createUniqueUserNameViaIdGen,
-  boundaryGeometryManagement
+  boundaryGeometryManagement,
+  createIdRequestsForEmployees
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -685,7 +685,7 @@ async function processSearchAndValidation(request: any) {
   //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
   // }
   if (request?.body?.ResourceDetails?.type == "user") {
-    await enrichEmployees(request?.body?.dataToCreate, request);
+    await enrichEmployees(request?.body?.dataToCreate, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     await matchUserValidation(request.body.dataToCreate, request);
   }
 }
@@ -800,7 +800,6 @@ async function processValidateAfterSchema(
       validateMicroplanFacility(request, dataFromSheet, localizationMap);
     }
     const typeData = await convertToTypeData(
-      request,
       dataFromSheet,
       createAndSearchConfig,
       request.body,
@@ -903,7 +902,7 @@ async function processValidate(
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type];
   const dataFromSheet: any = await getDataFromSheet(
-    request,
+    request?.body,
     request?.body?.ResourceDetails?.fileStoreId,
     request?.body?.ResourceDetails?.tenantId,
     createAndSearchConfig,
@@ -1004,7 +1003,7 @@ async function processValidate(
   }
 }
 
-function convertUserRoles(employees: any[], request: any) {
+function convertUserRoles(employees: any[], tenantId: any) {
   for (const employee of employees) {
     if (employee?.user?.roles) {
       var newRoles: any[] = [];
@@ -1017,7 +1016,7 @@ function convertUserRoles(employees: any[], request: any) {
           newRoles.push({
             name: role,
             code: code,
-            tenantId: request?.body?.ResourceDetails?.tenantId,
+            tenantId: tenantId,
           });
         }
         employee.user.roles = newRoles;
@@ -1026,7 +1025,7 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateUserPassword() {
+export function generateUserPassword() {
   // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -1060,39 +1059,40 @@ function generateUserPassword() {
   return `${firstSequence}@${randomNumber}`;
 }
 
-async function enrichJurisdictions(employee: any, request: any) {
+async function enrichJurisdictions(employee: any, tenantId: string, hierarchyType: string) {
   employee.jurisdictions = [
     {
-      tenantId: request?.body?.ResourceDetails?.tenantId,
+      tenantId: tenantId,
       boundaryType: config.values.userMainBoundaryType,
       boundary: config.values.userMainBoundary,
-      hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+      hierarchy: hierarchyType,
       roles: employee?.user?.roles,
     },
   ];
 }
 
-async function enrichEmployees(employees: any[], request: any) {
-  convertUserRoles(employees, request);
-  const idRequests = createIdRequests(employees);
-  request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
-  var i = 0;
-  for (const employee of employees) {
-    const { user } = employee;
-    const generatedPassword =
-      config?.user?.userPasswordAutoGenerate == "true"
-        ? generateUserPassword()
-        : config?.user?.userDefaultPassword;
-    user.userName = result?.idResponses?.[i]?.id;
-    user.password = generatedPassword;
-    employee.code = result?.idResponses?.[i]?.id;
-    await enrichJurisdictions(employee, request);
-    if (employee?.user) {
-      employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
-      employee.user.dob = 0;
+export async function enrichEmployees(employees: any[], tenantId: string, hierarchyType: string) {
+  convertUserRoles(employees, tenantId);
+  if (employees?.length > 0) {
+    const idRequests = createIdRequestsForEmployees(employees?.length, tenantId);
+    let result = await createUniqueUserNameViaIdGen(idRequests);
+    var i = 0;
+    for (const employee of employees) {
+      const { user } = employee;
+      const generatedPassword =
+        config?.user?.userPasswordAutoGenerate == "true"
+          ? generateUserPassword()
+          : config?.user?.userDefaultPassword;
+      user.userName = result?.idResponses?.[i]?.id;
+      user.password = generatedPassword;
+      employee.code = result?.idResponses?.[i]?.id;
+      await enrichJurisdictions(employee, tenantId, hierarchyType);
+      if (employee?.user) {
+        employee.user.tenantId = tenantId;
+        employee.user.dob = 0;
+      }
+      i++;
     }
-    i++;
   }
 }
 
@@ -1471,7 +1471,6 @@ async function processAfterValidation(
       await processSearchAndValidation(request);
     } else {
       const typeData = await convertToTypeData(
-        request,
         dataFromSheet,
         createAndSearchConfig,
         request.body,
@@ -1487,10 +1486,10 @@ async function processAfterValidation(
       request.body.ResourceDetails.status != "invalid"
     ) {
       await performAndSaveResourceActivityByChangingBody(
-       request,
-       createAndSearchConfig,
-       localizationMap
-     )
+        request,
+        createAndSearchConfig,
+        localizationMap
+      )
     }
     else if (createAndSearchConfig?.createDetails &&
       request.body.ResourceDetails.status != "invalid") {
@@ -1515,9 +1514,9 @@ async function processAfterValidation(
 
 async function performAndSaveResourceActivityByChangingBody(
   request: any,
-  createAndSearchConfig: any, 
+  createAndSearchConfig: any,
   localizationMap?: { [key: string]: string }
-){
+) {
   _.set(
     request.body,
     createAndSearchConfig?.createBulkDetails?.createPath,
@@ -1573,7 +1572,7 @@ async function processCreate(request: any, localizationMap?: any) {
     }
 
     const dataFromSheet = await getDataFromSheet(
-      request,
+      request?.body,
       request?.body?.ResourceDetails?.fileStoreId,
       request?.body?.ResourceDetails?.tenantId,
       createAndSearchConfig,
@@ -1699,30 +1698,32 @@ async function createProjectCampaignResourcData(request: any) {
       request?.body?.CampaignDetails?.resources
     ) {
       for (const resource of request?.body?.CampaignDetails?.resources) {
-        const action =
-          resource?.type === "boundaryWithTarget" ? "validate" : "create";
-        // if (resource.type != "boundaryWithTarget") {
-        const resourceDetails = {
-          type: resource.type,
-          fileStoreId: resource.filestoreId,
-          tenantId: request?.body?.CampaignDetails?.tenantId,
-          action: action,
-          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-          additionalDetails: {},
-          campaignId: request?.body?.CampaignDetails?.id,
-        };
-        logger.info(`Creating the resources for type ${resource.type}`);
-        logger.debug(
-          "resourceDetails " + getFormattedStringForDebug(resourceDetails)
-        );
-        const createRequestBody = {
-          RequestInfo: request.body.RequestInfo,
-          ResourceDetails: resourceDetails,
-        };
-        const req = replicateRequest(request, createRequestBody);
-        const res: any = await createDataService(req);
-        if (res?.id) {
-          resource.createResourceId = res?.id;
+        if (resource?.type != "user") {
+          const action =
+            resource?.type === "boundaryWithTarget" ? "validate" : "create";
+          // if (resource.type != "boundaryWithTarget") {
+          const resourceDetails = {
+            type: resource.type,
+            fileStoreId: resource.filestoreId,
+            tenantId: request?.body?.CampaignDetails?.tenantId,
+            action: action,
+            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+            additionalDetails: {},
+            campaignId: request?.body?.CampaignDetails?.id,
+          };
+          logger.info(`Creating the resources for type ${resource.type}`);
+          logger.debug(
+            "resourceDetails " + getFormattedStringForDebug(resourceDetails)
+          );
+          const createRequestBody = {
+            RequestInfo: request.body.RequestInfo,
+            ResourceDetails: resourceDetails,
+          };
+          const req = replicateRequest(request, createRequestBody);
+          const res: any = await createDataService(req);
+          if (res?.id) {
+            resource.createResourceId = res?.id;
+          }
         }
       }
     }
@@ -1749,7 +1750,7 @@ async function createProjectCampaignResourcData(request: any) {
 }
 
 async function confirmProjectParentCreation(projectId: any, tenantId: string) {
-  if(!projectId) {
+  if (!projectId) {
     return;
   }
   const searchBody = {
@@ -1838,7 +1839,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
   }
 }
 
-async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any, campaignProjectId : string) {
+async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any, campaignProjectId: string) {
   logger.info("Project Update For Targets started");
 
   logger.debug("Project update request body: " + getFormattedStringForDebug(projectUpdateBody));

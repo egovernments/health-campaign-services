@@ -14,6 +14,7 @@ import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGi
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
+import { executeQuery } from "./db";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -604,11 +605,11 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
         const { resource, projectId, resouceBody, tenantId, startDate, endDate } = mapping;
 
         for (const resourceId of resource?.resourceIds || []) {
-                promises.push(
-                    createHelperFn(resourceId, projectId, resouceBody, tenantId, startDate, endDate).then(() => {
-                        totalCreated++;
-                    })
-                );
+            promises.push(
+                createHelperFn(resourceId, projectId, resouceBody, tenantId, startDate, endDate).then(() => {
+                    totalCreated++;
+                })
+            );
 
             if (promises.length >= batchSize) {
                 batchCount++;
@@ -695,6 +696,48 @@ export async function processMapping(mappingObject: any) {
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);
+    }
+}
+
+export async function getCampaignMappings(campaignNumber: string, type: string) {
+    return await fetchCampaignMappingsData(campaignNumber, type);
+}
+
+async function fetchCampaignMappingsData(
+    campaignNumber: string,
+    mappingType: string,
+    fetchCountOnly: boolean = false
+) {
+    // Determine whether to fetch count or full data
+    const selectClause = fetchCountOnly ? `SELECT COUNT(*)` : `SELECT *`;
+    let query = `${selectClause} FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPINGS_TABLE_NAME} WHERE campaignnumber = $1 AND mappingtype = $2`;
+    const values: any[] = [campaignNumber, mappingType]; // Initialize an array to hold query parameters
+
+    try {
+        const queryResponse = await executeQuery(query, values);
+
+        if (fetchCountOnly) {
+            // Return the count as an integer if fetchCountOnly is true
+            return parseInt(queryResponse.rows[0].count, 10);
+        } else {
+            // Map and return the employee objects if fetching full data
+            return queryResponse.rows.map((row: any) => ({
+                id: row.id,
+                campaignNumber: row.campaignnumber,
+                mappingIdentifier: row.mappingidentifier,
+                mappingType: row.mappingtype,
+                mappingCode: row.mappingcode,
+                status: row.status,
+                boundaryCode: row.boundarycode,
+                createdBy: row.createdby,
+                lastModifiedBy: row.lastmodifiedby,
+                createdTime: parseInt(row.createdtime),
+                lastModifiedTime: parseInt(row.lastmodifiedtime)
+            }));
+        }
+    } catch (error) {
+        console.error("Error fetching campaign employees data:", error);
+        throw error;
     }
 }
 

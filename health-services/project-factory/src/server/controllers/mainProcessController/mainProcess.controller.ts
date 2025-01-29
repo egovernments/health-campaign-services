@@ -1,7 +1,7 @@
 import * as express from "express";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { processProjectCreation } from "../../service/mainProcessService";
+import { processEmployeeCreation, processProjectCreation } from "../../service/mainProcessService";
 
 
 
@@ -20,6 +20,7 @@ class mainProcessController {
     // Initialize routes for MeasurementController
     public intializeRoutes() {
         this.router.post(`${this.path}/project-create`, this.startProjectCreation);
+        this.router.post(`${this.path}/employee-create`, this.startEmployeeCreation);
     }
 
 
@@ -32,6 +33,21 @@ class mainProcessController {
             logger.info("RECEIVED A REQUEST TO CREATE PROJECTS FOR CAMPAIGN");
             const projectCreationResponse = await processProjectCreation(request?.body);
             return sendResponse(response, { projectCreationResponse }, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    };
+
+    startEmployeeCreation = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED A REQUEST TO CREATE EMPLOYEE FOR CAMPAIGN");
+            const employeeCreationResponse = await processEmployeeCreation(request?.body);
+            return sendResponse(response, { employeeCreationResponse }, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))

@@ -501,10 +501,10 @@ async function validateCampaignId(request: any) {
     }
     else {
         // const searchBody = {
-            const CampaignDetails= {
-                ids: [campaignId],
-                tenantId: tenantId
-            }
+        const CampaignDetails = {
+            ids: [campaignId],
+            tenantId: tenantId
+        }
         // const req: any = replicateRequest(request, searchBody);
         const response = await searchProjectTypeCampaignService(CampaignDetails);
         if (response?.CampaignDetails?.[0]) {
@@ -827,7 +827,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     }
 
     if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-        logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
+        logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting}`);
         !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
     }
 }
@@ -886,11 +886,11 @@ async function validateCampaignName(request: any, actionInUrl: any) {
     if (campaignName.length >= 2) {
         // const searchBody = {
         //     RequestInfo: request.body.RequestInfo,
-            const CampaignDetails = {
-                tenantId: tenantId,
-                campaignName: campaignName,
-                status: [campaignStatuses.drafted, campaignStatuses.started, campaignStatuses.inprogress],
-            }
+        const CampaignDetails = {
+            tenantId: tenantId,
+            campaignName: campaignName,
+            status: [campaignStatuses.drafted, campaignStatuses.started, campaignStatuses.inprogress],
+        }
         // }
         if (request.body?.parentCampaign) {
             if (request?.body?.CampaignDetails?.campaignName != request?.body?.parentCampaign?.campaignName) {
@@ -932,10 +932,10 @@ async function validateById(request: any) {
     }
     // const searchBody = {
     //     RequestInfo: request.body.RequestInfo,
-        const CampaignDetails ={
-            tenantId: tenantId,
-            ids: [id]
-        }
+    const CampaignDetails = {
+        tenantId: tenantId,
+        ids: [id]
+    }
     // }
     // const req: any = replicateRequest(request, searchBody)
     const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
@@ -1122,10 +1122,10 @@ async function validateForRetry(request: any) {
     }
     // const searchBody = {
     //     RequestInfo: request.body.RequestInfo,
-        const CampaignDetails= {
-            tenantId: tenantId,
-            ids: [id]
-        }
+    const CampaignDetails = {
+        tenantId: tenantId,
+        ids: [id]
+    }
     // }
     // const req: any = replicateRequest(request, searchBody)
     const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
@@ -1179,14 +1179,14 @@ async function validateProductVariant(request: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", `deliveryRules[${index}].resources must be a non-empty array`);
         }
     });
-    const pvarIds= getPvarIds(request?.body);
+    const pvarIds = getPvarIds(request?.body);
     await validatePvarIds(pvarIds as string[]);
     logger.info("Validated product variants successfully");
 }
 
 async function validatePvarIds(pvarIds: string[]) {
     // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
-    if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
+    if (!pvarIds?.length || pvarIds.some((id: any) => !id)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
     }
 
@@ -1491,7 +1491,7 @@ function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localized
 export function validateEmptyActive(data: any, type: string, localizationMap?: { [key: string]: string }) {
     let isActiveRowsZero = true;
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
-    if(Array.isArray(data)){
+    if (Array.isArray(data)) {
         data.forEach((item: any) => {
             const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
             if (active == usageColumnStatus.active) {
@@ -1500,11 +1500,11 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
             }
         });
     }
-    else{
+    else {
         // Data is not coming from a single sheet so no require for this active check
         isActiveRowsZero = false;
     }
-    if(isActiveRowsZero){
+    if (isActiveRowsZero) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "At least one active row is required");
     }
 }

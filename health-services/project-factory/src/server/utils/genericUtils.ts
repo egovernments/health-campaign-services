@@ -1199,7 +1199,7 @@ function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
   return [withBoundaryCode, withoutBoundaryCode];
 }
 
-async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
+export async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
@@ -1208,16 +1208,15 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
     return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true, localizationMap);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName || optionalSheetName, true, createAndSearchConfig, localizationMap)
-
 }
 
 
-async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
-  const type = request?.body?.ResourceDetails?.type;
+async function getDataFromSheet(requestBody: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
+  const isSourceMicroplan = requestBody?.ResourceDetails?.additionalDetails?.source == "microplan";
+  const type = requestBody?.ResourceDetails?.type;
   if (isSourceMicroplan) {
     if (type == 'user') {
-      return await getUserDataFromMicroplanSheet(request, fileStoreId, tenantId, createAndSearchConfig, localizationMap);
+      return await getUserDataFromMicroplanSheet(requestBody, fileStoreId, tenantId, createAndSearchConfig, localizationMap);
     }
     else {
       return await getDataFromSheetFromNormalCampaign(type, fileStoreId, tenantId, createAndSearchConfig, optionalSheetName, localizationMap);
