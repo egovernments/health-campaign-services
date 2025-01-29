@@ -98,7 +98,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return findByRadius(query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
-            String queryWithoutLimit = query.replace("ORDER BY id ASC LIMIT :limit OFFSET :offset", "");
+            String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
@@ -226,7 +226,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
         if (searchObject.getIndividualName() != null) {
-            query = query + "AND givenname LIKE :individualName ";
+            query = query + "AND givenname ILIKE :individualName ";
             paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
         }
         if (searchObject.getGender() != null) {
@@ -264,14 +264,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
-            query = query + "AND roles @> '[";
+            query = query + "AND (";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}";
+                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
                 if (i != searchObject.getRoleCodes().size() - 1) {
-                    query = query + ",";
+                    query = query + " OR ";  // Add OR between conditions
                 }
             }
-            query = query + "]' ";
+            query = query + ") ";
         }
 
         if (searchObject.getUsername() != null) {
