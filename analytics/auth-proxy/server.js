@@ -23,7 +23,7 @@ async function authenticateToken(token) {
     const authenticationResponse = await axios.post(url, null, { params: queryParams })
         .then(response => {
             console.log("User call response: ", typeof response?.status, response?.status, response?.data);
-            return 200 == response.status;
+            return 200 == response?.status;
         })
         .catch(error => {
             console.error('Error during authentication: ', error?.response?.data || error?.response || error);
@@ -176,12 +176,12 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
         return bodyContent;
     },
     proxyReqPathResolver: (req) => {
-        console.log(`Proxying request: ${req.originalUrl}`);
-        return req.originalUrl; // Rewrite path
+        console.log(`Proxying request: ${req?.originalUrl}`);
+        return req?.originalUrl; // Rewrite path
       },
       userResDecorator: async (proxyRes, proxyResData, userReq, userRes) => {
-        if (proxyRes.statusCode === 302) {
-          const redirectLocation = proxyRes.headers.location;
+        if (proxyRes?.statusCode === 302) {
+          const redirectLocation = proxyRes?.headers?.location;
           console.log(`Redirect detected: ${redirectLocation}`);
   
           // Modify the redirect location to ensure it goes through the proxy
