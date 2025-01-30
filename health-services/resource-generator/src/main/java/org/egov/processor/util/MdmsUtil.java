@@ -1,14 +1,6 @@
 package org.egov.processor.util;
 
-import static org.egov.processor.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_MDMS;
-import static org.egov.processor.config.ServiceConstants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE;
-import static org.egov.processor.config.ServiceConstants.NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.mdms.model.MasterDetail;
@@ -22,6 +14,7 @@ import org.egov.processor.web.models.File;
 import org.egov.tracer.model.CustomException;
 import org.flywaydb.core.internal.util.JsonUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,6 +23,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
 @Component
@@ -41,11 +36,14 @@ public class MdmsUtil {
 
 	private Configuration configs;
 
-	public MdmsUtil(RestTemplate restTemplate, ObjectMapper mapper, Configuration configs) {
+	private ParsingUtil parsingUtil;
+
+	public MdmsUtil(RestTemplate restTemplate, ObjectMapper mapper, Configuration configs, ParsingUtil parsingUtil) {
 		this.restTemplate = restTemplate;
 		this.mapper = mapper;
 		this.configs = configs;
-	}
+        this.parsingUtil = parsingUtil;
+    }
 
 	/**
 	 * Fetches MDMS (Municipal Data Management System) data using the provided
@@ -74,7 +72,7 @@ public class MdmsUtil {
 		if (result == null || ObjectUtils.isEmpty(result)) {
 			log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
 			throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE,
-					"no data found for the given tenantid "+tenantId + " for master name "+ServiceConstants.MDMS_MASTER_SCHEMAS);
+					"no data found for the given tenantid "+tenantId + " for master name "+ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA);
 		}
 		return result;
 	}
@@ -87,10 +85,9 @@ public class MdmsUtil {
 	 * @return The MDMS criteria request object.
 	 */
 	public MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId) {
-
-		ModuleDetail moduleDetail = getPlanModuleDetail();
+		ModuleDetail adminConsoleModuleDetail = getAdminConsoleModuleDetail();
 		List<ModuleDetail> moduleDetails = new LinkedList<>();
-		moduleDetails.add(moduleDetail);
+		moduleDetails.add(adminConsoleModuleDetail);
 		MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId).build();
 		return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
 	}
@@ -110,33 +107,68 @@ public class MdmsUtil {
 	}
 
 	/**
+	 * Retrieves the module details for the HCM-ADMIN-CONSOLE module.
+	 *
+	 * @return ModuleDetail object containing master details for the HCM-ADMIN-CONSOLE module.
+	 */
+	private ModuleDetail getAdminConsoleModuleDetail() {
+		List<MasterDetail> adminSchemaMasterDetails = new ArrayList<>();
+		MasterDetail schemaDetails = MasterDetail.builder().name(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA).build();
+		adminSchemaMasterDetails.add(schemaDetails);
+
+		return ModuleDetail.builder().masterDetails(adminSchemaMasterDetails)
+				.moduleName(ServiceConstants.MDMS_ADMIN_CONSOLE_MODULE_NAME).build();
+	}
+
+	/**
 	 * Filters master data based on the provided parameters.
 	 * 
 	 * @param masterDataJson The JSON string representing the master data.
-	 * @param fileType The type of input file.
-	 * @param templateIdentifier The template identifier.
 	 * @param campaignType The campaign type.
 	 * @return A map containing filtered properties from the master data.
 	 * @throws JsonMappingException if there's an issue mapping JSON.
 	 * @throws JsonProcessingException if there's an issue processing JSON.
 	 */
-	public Map<String, Object> filterMasterData(String masterDataJson, File.InputFileTypeEnum fileType,
-			String templateIdentifier, String campaignType) {
+	public Map<String, Object> filterMasterData(String masterDataJson, String campaignType) {
 		Map<String, Object> properties = new HashMap<>();
-		Map<String, Object> masterData = JsonUtils.parseJson(masterDataJson, Map.class);
-		Map<String, Object> planModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_PLAN_MODULE_NAME);
-		List<Map<String, Object>> schemas = (List<Map<String, Object>>) planModule
-				.get(ServiceConstants.MDMS_MASTER_SCHEMAS);
-		log.info("masterDataJson ==>" + schemas);
-		for (Map<String, Object> schema : schemas) {
-			String type = (String) schema.get(ServiceConstants.MDMS_SCHEMA_TYPE);
-			String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
-			// String fileT = InputFileTypeEnum.valueOf(type);
-			if (schema.get(ServiceConstants.MDMS_SCHEMA_SECTION).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_POPULATION)
-					&& campaign.equals(campaignType) && type.equals(fileType.toString())) {
-				Map<String, Object> schemaProperties = (Map<String, Object>) schema.get("schema");
-				properties = (Map<String, Object>) schemaProperties.get("Properties");
+		try {
+			Map<String, Object> masterData = JsonUtils.parseJson(masterDataJson, Map.class);
+			Map<String, Object> adminConsoleModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_ADMIN_CONSOLE_MODULE_NAME);
+
+			//Extracting adminSchema master from the HCM-ADMIN-CONSOLE module
+			List<Map<String, Object>> adminSchema = (List<Map<String, Object>>) adminConsoleModule.get(ServiceConstants.MDMS_MASTER_ADMIN_SCHEMA);
+
+			log.debug("masterDataJson ==> " + adminSchema);
+
+			//Iterating through each schema in adminSchema master
+			for (Map<String, Object> schema : adminSchema) {
+				String campaign = (String) schema.get(ServiceConstants.MDMS_CAMPAIGN_TYPE);
+
+				// Skipping schema for which the required fields are missing to avoid null pointer exception
+				if (ObjectUtils.isEmpty(campaign) || ObjectUtils.isEmpty(schema.get(ServiceConstants.MDMS_SCHEMA_TITLE)))
+					continue;
+
+				// Check if the schema's title matches the required template identifier
+				// and the campaign matches the specified campaign type.
+				if (schema.get(ServiceConstants.MDMS_SCHEMA_TITLE).equals(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_BOUNDARY)
+						&& campaign.equals(MICROPLAN_PREFIX + campaignType)) {
+					Map<String, List<Object>> schemaProperties = (Map<String, List<Object>>) schema.get("properties");
+
+					// Skipping if schema properties are not present for the given campaign type.
+					if (CollectionUtils.isEmpty(schemaProperties))
+						continue;
+
+					schemaProperties.forEach((propertyType, propertyList) ->
+							// For each property in the property list, extract its name and add it to the map with the property.
+							propertyList.forEach(property -> {
+								String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
+								properties.put(propertyName, property);
+							})
+					);
+				}
 			}
+		} catch (Exception e) {
+			log.error(ERROR_PROCESSING_DATA_FROM_MDMS, e);
 		}
 
 		return properties;
