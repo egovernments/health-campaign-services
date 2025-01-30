@@ -154,6 +154,7 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
         proxyReqOpts.headers['elastic-api-version'] = 1;
         console.log("Proxy request: opt decoder src: " + srcReq?.headers['authorization']);
         console.log("Proxy request: opt decoder prx: " + proxyReqOpts?.headers['authorization']);
+        proxyReqOpts.headers['authorization'] = '';
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const formBody = querystring.parse(srcReq.body);
             proxyReqOpts.headers['content-type'] = 'application/json';
@@ -164,6 +165,7 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
     proxyReqBodyDecorator: function (bodyContent, srcReq) {
         console.log("Proxy request: body decoder: " + srcReq?.headers['content-type']);
         console.log("Proxy request: body decoder: " + srcReq?.headers['authorization']);
+        srcReq.headers['authorization'] = '';
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const parsedBody = querystring.parse(bodyContent.toString());
 
@@ -186,7 +188,10 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
       },
       userResDecorator: async (proxyRes, proxyResData, userReq, userRes) => {
         console.log("Proxy request: response decoder: " + proxyRes?.statusCode);
-        if (proxyRes?.statusCode === 302) {
+        if(proxyRes?.statusCode === 401 || proxyRes?.statusCode === 400) {
+            console.log("Proxy request: response decoder: headers: " + proxyRes?.headers);
+        }
+        if (proxyRes?.statusCode >= 300 && proxyRes?.statusCode < 400) {
           const redirectLocation = proxyRes?.headers?.location;
           console.log(`Redirect detected: ${redirectLocation}`);
   
