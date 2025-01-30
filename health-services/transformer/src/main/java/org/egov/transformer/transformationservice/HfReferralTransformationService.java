@@ -69,6 +69,7 @@ public class HfReferralTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         AdditionalFields additionalFields = hfReferral.getAdditionalFields();
         getAgeFromAdditionalFields(additionalDetails, additionalFields);
 

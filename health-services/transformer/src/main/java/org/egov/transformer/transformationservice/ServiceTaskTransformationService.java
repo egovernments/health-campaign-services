@@ -81,6 +81,7 @@ public class ServiceTaskTransformationService {
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         List<Double> geoPoint = !service.getAttributes().isEmpty() ? getGeoPoint(service.getAttributes().get(0).getAdditionalFields()) : null;
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()

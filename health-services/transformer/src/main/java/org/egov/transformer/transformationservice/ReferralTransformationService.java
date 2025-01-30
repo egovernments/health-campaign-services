@@ -99,6 +99,7 @@ public class ReferralTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));

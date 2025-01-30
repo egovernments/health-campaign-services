@@ -114,6 +114,7 @@ public class StockTransformationService {
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         appendIntegerAdditionalFieldsInDetails(stock.getAdditionalFields(), additionalDetails);
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
