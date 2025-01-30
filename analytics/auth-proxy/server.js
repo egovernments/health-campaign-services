@@ -20,17 +20,18 @@ async function authenticateToken(token) {
 
     logger.info("Making API call to - " + url);
 
-    const isAuthenticated = await axios.post(url, null, { params: queryParams })
+    const authenticationResponse = await axios.post(url, null, { params: queryParams })
         .then(response => {
-            console.log("User call response: ", response?.status, response?.data);
-            return response.status === 200
+            console.log("User call response: ", typeof response?.status, response?.status, response?.data);
+            return 200 == response.status;
         })
         .catch(error => {
             console.error('Error during authentication: ', error?.response?.data || error?.response || error);
             return false;
         });
-    logger.info("Is authenticated: ", isAuthenticated);
-    return isAuthenticated;
+    console.log("Authentication response: ", authenticationResponse);
+    console.log("Is authenticated: " + (authenticationResponse ? "true" : "false"));
+    return authenticationResponse;
 }
 
 function bypassAuthBasedOnUrl(url) {
@@ -117,9 +118,11 @@ app.use(async (req, res, next) => {
     if (acceptHeader && acceptHeader.includes('text/html')) {
         //if referer is digit ui then bypass
         if (validateReferer(referer)) {
+            logger.info("Referer validation successful");
             next();
             return;
         } else {
+            logger.error("Access denied - 403: Referer validation failed");
             res.status(403).send('Access denied');
             return;
         }
@@ -128,11 +131,13 @@ app.use(async (req, res, next) => {
     //this means either fetch or xhr -> proceed to authenticate this request
     if (typeReq) {
         if (!authToken || authToken.trim() === '') {
+            logger.error("Unauthorized - 401: No auth token provided");
             res.status(401).send('Unauthorized: No auth token provided');
             return;
         }
         const isAuthenticated = await  authenticateToken(authToken);
         if (!isAuthenticated) {
+            logger.error("Access denied - 403: User authentication failed");
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
             return
         }
@@ -169,7 +174,32 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
             }
         }
         return bodyContent;
-    }
+    },
+    proxyReqPathResolver: (req) => {
+        console.log(`Proxying request: ${req.originalUrl}`);
+        return req.originalUrl; // Rewrite path
+      },
+      userResDecorator: async (proxyRes, proxyResData, userReq, userRes) => {
+        if (proxyRes.statusCode === 302) {
+          const redirectLocation = proxyRes.headers.location;
+          console.log(`Redirect detected: ${redirectLocation}`);
+  
+          // Modify the redirect location to ensure it goes through the proxy
+        //   if (redirectLocation.startsWith(KIBANA_URL)) {
+        //     const newLocation = redirectLocation.replace(KIBANA_, "/kibana");
+        //     userRes.setHeader("Location", newLocation);
+        //     userRes.status(302);
+        //     return "";
+        //   }
+        }
+  
+        return proxyResData;
+      },
+  
+      // Handle redirect responses by modifying the headers
+    //   skipToNextHandlerFilter: (proxyRes) => {
+    //     return proxyRes.statusCode === 302;
+    //   },
 }));
 
 // Listen on configured port
