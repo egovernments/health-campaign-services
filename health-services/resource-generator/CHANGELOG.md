@@ -1,9 +1,9 @@
 # Changelog
 
 ## 1.0.1 - 2025-01-30
-1. Microplan Estimation Downloadable Excel Report Enhancements
-2. Mixed Distribution Strategy for Registration and Service Delivery
-3. Changes for filters in Estimation Dashboard
+1. Enhancements for Microplan Estimation Downloadable Excel Report
+2. Enabled support Mixed Distribution Strategy for Registration and Service Delivery
+3. Changes for supporting filters in Estimation Dashboard
 
 ## 1.0.0 - 2024-12-03
 #### Resource Generator Service
