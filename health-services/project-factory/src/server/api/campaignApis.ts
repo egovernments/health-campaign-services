@@ -350,16 +350,6 @@ async function getUuidsError(
         errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username`,
       });
       count++;
-    } else if (!user?.userDetails?.password) {
-      logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have password`
-      );
-      errors.push({
-        status: "INVALID",
-        rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have password`,
-      });
-      count++;
     } else if (!user?.userUuid) {
       logger.info(
         `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`
@@ -463,7 +453,7 @@ async function getUserWithMobileNumbers(
   }
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
-  logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
+  logger.info(`Already Existing mobile numbers : ${Array.from(resultSet).join(",")}`);
   return resultSet;
 }
 
