@@ -3,7 +3,6 @@ const logger = require('./logger');
 const express = require('express');
 const proxy = require('express-http-proxy');
 const axios = require('axios');
-const deasync = require('deasync');
 const querystring = require('querystring');
 const app = express();
 
@@ -15,26 +14,23 @@ let acceptedDomain = envVariables.KIBANA_ACCEPTED_DOMAIN_NAME;
 let excludeUrls = envVariables.KIBANA_EXCLUDE_URL_PATTERNS;
 
 // Authenticate token
-function authenticateToken(token) {
+async function authenticateToken(token) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
     const queryParams = { access_token: token };
-    let result;
 
     logger.info("Making API call to - " + url);
 
-    axios.post(url, null, { params: queryParams })
+    const isAuthenticated = await axios.post(url, null, { params: queryParams })
         .then(response => {
-            result = response.status === 200;
+            console.log("User call response: ", response?.status, response?.data);
+            return response.status === 200
         })
         .catch(error => {
-            console.error('Error during authentication:', error.response.data);
-            result = false;
+            console.error('Error during authentication: ', error?.response?.data || error?.response || error);
+            return false;
         });
-
-    // Synchronously wait until the API call completes
-    deasync.loopWhile(() => result === undefined);
-
-    return result;
+    logger.info("Is authenticated: ", isAuthenticated);
+    return isAuthenticated;
 }
 
 function bypassAuthBasedOnUrl(url) {
@@ -44,6 +40,10 @@ function bypassAuthBasedOnUrl(url) {
 
 function validateReferer(url) {
     try {
+        if(!url) {
+            logger.error("Error: Referer is null");
+            return false;
+        }
         // Create a URL object from the input string
         const urlObj = new URL(url);
 
@@ -55,9 +55,12 @@ function validateReferer(url) {
 
         // Extract the path just ahead of the domain, which is the first part of the path
         const contextPath = pathParts.length > 0 ? pathParts[0] : '';
+        logger.info("pathname: " + urlObj?.pathname);
+        logger.info("current domain: " + domain);
+        logger.info("context path: " + contextPath);
 
         //based on domain and contextPath return true or false
-        if (domain === acceptedDomain && allowedContextPaths.split(",").some(path => path === contextPath)) {
+        if (domain === acceptedDomain && allowedContextPaths?.split(",")?.some(path => ((path === contextPath) || urlObj?.pathname?.startsWith(path)))) {
             return true;
         } else {
             return false;
@@ -105,6 +108,7 @@ app.use(async (req, res, next) => {
 
     //first check for calls where authentication is not required
     if (bypassAuthBasedOnUrl(req.originalUrl)) {
+        logger.info("Bypassing auth based on url: " + req.originalUrl);
         next();
         return;
     }
@@ -127,13 +131,10 @@ app.use(async (req, res, next) => {
             res.status(401).send('Unauthorized: No auth token provided');
             return;
         }
-
-        if (authenticateToken(authToken)) {
-            next(); // Proceed to the proxy if authenticated
-            return;
-        } else {
+        const isAuthenticated = await  authenticateToken(authToken);
+        if (!isAuthenticated) {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
-            return;
+            return
         }
     }
 
