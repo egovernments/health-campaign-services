@@ -13,6 +13,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -78,7 +79,7 @@ public class CalculationUtil {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
-            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, null);
+            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, new HashMap<>());
             
         }
     }
