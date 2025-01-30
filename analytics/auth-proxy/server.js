@@ -18,19 +18,19 @@ async function authenticateToken(token) {
     const url = envVariables.EGOV_USER_HOST + envVariables.EGOV_USER_SEARCH;
     const queryParams = { access_token: token };
 
-    logger.info("Making API call to - " + url);
+    logger.info("Making User API call to - " + url);
 
     const authenticationResponse = await axios.post(url, null, { params: queryParams })
         .then(response => {
-            console.log("User call response: ", typeof response?.status, response?.status, response?.data);
+            // console.log("User call response: ", typeof response?.status, response?.status, response?.data);
             return 200 == response?.status;
         })
         .catch(error => {
             console.error('Error during authentication: ', error?.response?.data || error?.response || error);
             return false;
         });
-    console.log("Authentication response: ", authenticationResponse);
-    console.log("Is authenticated: " + (authenticationResponse ? "true" : "false"));
+    // console.log("Authentication response: ", authenticationResponse);
+    console.log("authenticated: " + (authenticationResponse ? "true" : "false"));
     return authenticationResponse;
 }
 
@@ -56,14 +56,14 @@ function validateReferer(url) {
 
         // Extract the path just ahead of the domain, which is the first part of the path
         const contextPath = pathParts.length > 0 ? pathParts[0] : '';
-        logger.info("pathname: " + urlObj?.pathname);
-        logger.info("current domain: " + domain);
-        logger.info("context path: " + contextPath);
 
         //based on domain and contextPath return true or false
         if (domain === acceptedDomain && allowedContextPaths?.split(",")?.some(path => ((path === contextPath) || urlObj?.pathname?.startsWith(path)))) {
             return true;
         } else {
+            logger.info("pathname: " + urlObj?.pathname);
+            logger.info("current domain: " + domain);
+            logger.info("context path: " + contextPath);
             return false;
         }
 
@@ -119,6 +119,7 @@ app.use(async (req, res, next) => {
         //if referer is digit ui then bypass
         if (validateReferer(referer)) {
             logger.info("Referer validation successful");
+            req.headers['authorization'] = '';
             next();
             return;
         } else {
@@ -151,6 +152,8 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
     proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
         proxyReqOpts.headers['kbn-xsrf'] = 'true';
         proxyReqOpts.headers['elastic-api-version'] = 1;
+        console.log("Proxy request: opt decoder src: " + srcReq?.headers['authorization']);
+        console.log("Proxy request: opt decoder prx: " + proxyReqOpts?.headers['authorization']);
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const formBody = querystring.parse(srcReq.body);
             proxyReqOpts.headers['content-type'] = 'application/json';
@@ -159,6 +162,8 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
         return proxyReqOpts;
     },
     proxyReqBodyDecorator: function (bodyContent, srcReq) {
+        console.log("Proxy request: body decoder: " + srcReq?.headers['content-type']);
+        console.log("Proxy request: body decoder: " + srcReq?.headers['authorization']);
         if (srcReq.headers['content-type'] === 'application/x-www-form-urlencoded') {
             const parsedBody = querystring.parse(bodyContent.toString());
 
@@ -180,6 +185,7 @@ app.use('/', proxy(kibanaHost + kibanaServerBasePath, {
         return req?.originalUrl; // Rewrite path
       },
       userResDecorator: async (proxyRes, proxyResData, userReq, userRes) => {
+        console.log("Proxy request: response decoder: " + proxyRes?.statusCode);
         if (proxyRes?.statusCode === 302) {
           const redirectLocation = proxyRes?.headers?.location;
           console.log(`Redirect detected: ${redirectLocation}`);
