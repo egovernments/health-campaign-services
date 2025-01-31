@@ -299,7 +299,7 @@ function enrichActiveAndUUidColumn(
         `${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`
       );
       activeCell.value = usageColumnStatus.active;
-      uniqueIdentifierCell.value = data["userServiceUuid"];
+      uniqueIdentifierCell.value = data["userServiceUuid"] || data?.user?.["userServiceUuid"];
     }
   }
 }
