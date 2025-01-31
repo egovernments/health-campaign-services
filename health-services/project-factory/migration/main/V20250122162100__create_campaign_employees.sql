@@ -7,6 +7,7 @@ CREATE TABLE eg_cm_campaign_employees (
     mobilenumber CHARACTER VARYING(64) NOT NULL,
     userserviceuuid CHARACTER VARYING(128),
     employeeType CHARACTER VARYING(128) NOT NULL,
+    username CHARACTER VARYING(128),
     tokenString TEXT,
     additionaldetails JSONB,  -- Nullable JSONB column
     isactive BOOLEAN NOT NULL,

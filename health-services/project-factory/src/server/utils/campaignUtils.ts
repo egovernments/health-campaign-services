@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from "uuid";
 import { produceModifiedMessages } from "../kafka/Producer";
 import {
   createProjectCampaignResourcData,
-  // createProjectCampaignResourcData,
   getCampaignSearchResponse,
   getHierarchy,
   handleResouceDetailsError
@@ -2073,8 +2072,8 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         processTrackTypes.validation,
         processTrackStatuses.completed
       );
-      await createProject(request?.body);
       await createCampaignEmployees(request?.body);
+      await createProject(request?.body);
       await createProjectCampaignResourcData(request);
       await enrichAndPersistProjectCampaignRequest(
         request,
@@ -2170,7 +2169,7 @@ async function appendSheetsToWorkbook(
     mainSheet.columns = columnWidths.map((width) => ({ width }));
     // mainSheetData.forEach(row => mainSheet.addRow(row));
     addDataToSheet(
-      request,
+      type,
       mainSheet,
       mainSheetData,
       "F3842D",
@@ -2325,7 +2324,8 @@ async function createNewSheet(
       localizationMap
     );
   }
-  addDataToSheet(request, newSheet, modifiedNewSheetData, "F3842D", 40);
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
+  addDataToSheet(type, newSheet, modifiedNewSheetData, "F3842D", 40);
   if (oldTargetColumnsToHide && oldTargetColumnsToHide.length > 0) {
     const columnIndexesToBeHidden: any[] = [];
     oldTargetColumnsToHide.forEach((column: any) => {
@@ -2962,7 +2962,7 @@ const autoGenerateBoundaryCodes = async (
   const boundarySheetData: any = await createExcelSheet(data, localizedHeaders);
   const workbook = getNewExcelWorkbook();
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(request, boundarySheet, boundarySheetData, "93C47D", 40, true);
+  addDataToSheet(type, boundarySheet, boundarySheetData, "93C47D", 40, true);
   const boundaryFileDetails: any = await createAndUploadFile(workbook, request);
   request.body.ResourceDetails.processedFileStoreId =
     boundaryFileDetails?.[0]?.fileStoreId;

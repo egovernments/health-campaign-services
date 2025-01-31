@@ -722,7 +722,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
-  addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  addDataToSheet(type, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   enrichUsageColumnForFacility(facilitySheet, localizationMap);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
@@ -741,7 +741,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(type, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
   const fileDetails = await createAndUploadFile(workbook, request);
@@ -842,13 +842,13 @@ async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, schema: any, localizationMap?: { [key: string]: string }, fileUrl?: any) {
   const workbook = getNewExcelWorkbook();
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
-  const type = request?.query?.type;
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
   const headingInSheet = headingMapping?.[type]
   const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
   await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
-  addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  addDataToSheet(type, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
 
   let receivedDropdowns = request.body?.dropdowns;
@@ -865,7 +865,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(type, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -995,7 +995,7 @@ async function makeCustomSheetData(request: any, type: any, sheetName: any, work
     allRows.push(rowData);
   }
   const sheetData = getConvertedSheetData(allRows);
-  addDataToSheet(request, customSheet, sheetData, undefined, undefined);
+  addDataToSheet(type, customSheet, sheetData, undefined, undefined);
   customSheet.protect('passwordhere', {
     selectLockedCells: true,
     selectUnlockedCells: true
@@ -1032,7 +1032,7 @@ async function generateUserSheetForMicroPlan(
   for (const role of rolesForMicroplan) {
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
-    addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+    addDataToSheet(type, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);

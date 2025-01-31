@@ -215,7 +215,7 @@ function performFreezeWholeSheet(sheet: any) {
 
 // Function to add data to the sheet
 function addDataToSheet(
-  request: any,
+  type: string,
   sheet: any,
   sheetData: any,
   firstRowColor: string = '93C47D',
@@ -227,7 +227,6 @@ function addDataToSheet(
   schema?: any
 ) {
   sheetData?.forEach((row: any, index: number) => {
-
     const worksheetRow = sheet.addRow(row);
     if (index === 0) {
       formatFirstRow(worksheetRow, sheet, firstRowColor, columnWidth, frozeCells);
@@ -235,7 +234,7 @@ function addDataToSheet(
       formatOtherRows(worksheetRow, frozeCells);
     }
   });
-  finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
+  finalizeSheet(type, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
 }
 
 
@@ -287,8 +286,7 @@ function formatOtherRows(row: any, frozeCells: boolean) {
 }
 
 // Function to finalize the sheet settings
-function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
-  const type = (request?.query?.type || request?.body?.ResourceDetails?.type);
+function finalizeSheet(type: string, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   const createAndSearchConfig = createAndSearch[typeWithoutWith];
   const columnIndexesToBeFreezed: any = [];
