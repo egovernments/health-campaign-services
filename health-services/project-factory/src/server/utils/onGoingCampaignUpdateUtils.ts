@@ -694,6 +694,7 @@ async function processResources(mappingObject: any) {
     try {
       await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
     } catch (error: any) {
+      console.log(error);
       throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
         `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
     }
