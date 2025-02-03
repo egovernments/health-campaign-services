@@ -480,7 +480,7 @@ export function fillDataInProcessedUserSheet(
       const row = userWorkSheet.getRow(rowIndex);
       row.values = [
         employee?.name,
-        employee?.mobileNumber,
+        parseInt(employee?.mobileNumber),
         employee?.role,
         employee?.employeeType,
         mobieNumberAndBoundaryCodesMapping[employee?.mobileNumber]?.join(","),
