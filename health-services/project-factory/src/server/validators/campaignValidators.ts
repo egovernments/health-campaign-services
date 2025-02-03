@@ -780,8 +780,8 @@ async function validateResources(resources: any, request: any) {
                 }
             }
             else {
-                // logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
-                // throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
+                logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
             }
         }
     }
@@ -821,8 +821,8 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     }
     if ((!request?.body?.parentCampaign) || (request?.body?.parentCampaign && request?.body?.CampaignDetails?.boundaries && request.body.CampaignDetails.boundaries.length > 0)) {
         if (missingTypes.length > 0) {
-            // const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
-            // throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+            const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
+            throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
         }
     }
 

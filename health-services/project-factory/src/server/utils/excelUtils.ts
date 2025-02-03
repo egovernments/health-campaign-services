@@ -6,9 +6,9 @@ import config from "../config";
 import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
-import { getLocaleFromRequestInfo } from "./localisationUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { usageColumnStatus } from "../config/constants";
+import { decryptPassword } from "./encryptionUtils";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -125,9 +125,9 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook : any, request : any ){
-  if(request?.body?.RequestInfo && request?.query?.campaignId){
-    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
+export function enrichTemplateMetaData(updatedWorkbook : any, locale: string, campaignId: string) {
+  if(locale && campaignId){
+    updatedWorkbook.keywords = `${locale}#${campaignId}`
   }
 }
 
@@ -425,6 +425,118 @@ function protectSheet(sheet: any) {
     selectUnlockedCells: true,
   });
 }
+
+export function fillDataInProcessedUserSheet(
+  userWorkSheet: any,
+  campaignEmployees: any[],
+  campaignMappings: any[]
+) {
+  logger.info(`Filling data in processed user sheet`);
+  const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
+    if (!acc[mapping?.mappingIdentifier]) {
+      acc[mapping?.mappingIdentifier] = [];
+    }
+    acc[mapping?.mappingIdentifier].push(mapping?.boundaryCode);
+    return acc;
+  }, {});
+
+  // Get the first row (header) values
+  const headerRow = userWorkSheet.getRow(1);
+  const headerOfsheetValues = headerRow?.values || [];
+
+  // Find the first empty column in the header
+  let emptyColumnIndex = -1;
+  for (let i = 1; i < headerOfsheetValues.length; i++) {
+    if (!headerOfsheetValues[i]) {
+      emptyColumnIndex = i;
+      break;
+    }
+  }
+
+  // Define new header values
+  const newHeaderValues = [
+    "#status#",
+    "#errorDetails#",
+    createAndSearch?.["user"]?.uniqueIdentifierColumnName,
+    "UserName",
+    "Password",
+  ];
+
+  // Add new headers and format columns
+  emptyColumnIndex = addHeadersAndFormatForCampaignEmployees(userWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+
+  // Clear existing data rows while preserving formatting
+  const rowCount = userWorkSheet.rowCount;
+  for (let rowIndex = 2; rowIndex <= rowCount; rowIndex++) {
+    const row = userWorkSheet.getRow(rowIndex);
+    row.values = []; // Clear row data while preserving formatting
+  }
+
+  // Populate new data rows
+  campaignEmployees
+    .filter((employee: any) => employee?.userServiceUuid) // Only include employees with a userServiceUuid
+    .forEach((employee: any, index: number) => {
+      const rowIndex = index + 2; // Start from the second row
+      const row = userWorkSheet.getRow(rowIndex);
+      row.values = [
+        employee?.name,
+        employee?.mobileNumber,
+        employee?.role,
+        employee?.employeeType,
+        mobieNumberAndBoundaryCodesMapping[employee?.mobileNumber]?.join(","),
+        employee?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
+        "CREATED",
+        "",
+        employee?.userServiceUuid,
+        employee?.userName,
+        decryptPassword(employee?.tokenString),
+      ];
+    });
+
+  logger.info("Worksheet values updated successfully.");
+}
+
+function addHeadersAndFormatForCampaignEmployees(
+  userWorkSheet: any,
+  headerRow: any,
+  emptyColumnIndex: number,
+  newHeaderValues: string[]
+) {
+  if (emptyColumnIndex === -1) {
+    emptyColumnIndex = headerRow.values.length;
+  }
+
+  // Add new headers
+  for (let i = 0; i < newHeaderValues.length; i++) {
+    const headerCell = headerRow.getCell(emptyColumnIndex + i);
+    headerCell.value = newHeaderValues[i];
+  }
+
+  // Format columns
+  const columnsToFormat = [
+    { columnIndex: emptyColumnIndex, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 1, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 2, width: 40, color: "FF9248" },
+    { columnIndex: emptyColumnIndex + 3, width: 40, color: "FF9248" },
+    { columnIndex: emptyColumnIndex + 4, width: 40, color: "FF9248" },
+  ];
+
+  columnsToFormat.forEach(({ columnIndex, width, color }) => {
+    const column = userWorkSheet.getColumn(columnIndex);
+    column.width = width;
+
+    const headerCell = headerRow.getCell(columnIndex);
+    headerCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: color },
+    };
+    headerCell.font = { bold: true };
+  });
+
+  return emptyColumnIndex;
+}
+
 
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

@@ -2072,8 +2072,8 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         processTrackTypes.validation,
         processTrackStatuses.completed
       );
-      await createCampaignEmployees(request?.body);
       await createProject(request?.body);
+      await createCampaignEmployees(request?.body);
       await createProjectCampaignResourcData(request);
       await enrichAndPersistProjectCampaignRequest(
         request,
@@ -3525,6 +3525,44 @@ export async function handleCampaignSubProcessing(messageObject: any) {
     logger.error(`Error during campaign processing: ${error.message}`);
     await markProcessStatus(messageObject?.campaignNumber, messageObject?.processName, processTrackStatuses.failed, error?.message);
   }
+}
+
+export async function updateCreateResourceId(CampaignDetails: any, resourceType: any, processedFileStoreId: any, userUuid: string) {
+  const currentTime = new Date().getTime();
+  const resourceFileStoreId = CampaignDetails?.resources?.find((resource: any) => resource?.type === resourceType)?.filestoreId;
+  const ResourceDetails = {
+    id : uuidv4(),
+    status: resourceDataStatuses.completed,
+    tenantId : CampaignDetails?.tenantId,
+    fileStoreId : resourceFileStoreId,
+    processedFileStoreId: processedFileStoreId,
+    action : "create",
+    campaignId : CampaignDetails?.id,
+    type : resourceType,
+    auditDetails : {
+      createdBy : userUuid,
+      lastModifiedBy : userUuid,
+      createdTime : currentTime,
+      lastModifiedTime : currentTime
+    },
+    additionalDetails : {},
+    hierarchyType : CampaignDetails?.hierarchyType
+  }
+  const produceMessageForResource = {
+    ResourceDetails : ResourceDetails
+  }
+  await produceModifiedMessages(produceMessageForResource, config.kafka.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
+  CampaignDetails.resources.find((resource: any) => resource?.type === resourceType).createResourceId = ResourceDetails?.id;
+  const campaignDetails = {
+    resources: CampaignDetails?.resources || CampaignDetails?.camapignDetails?.resources,
+    boundaries : CampaignDetails?.boundaries || CampaignDetails?.camapignDetails?.boundaries,
+    deliveryRules : CampaignDetails?.deliveryRules || CampaignDetails?.camapignDetails?.deliveryRules
+  }
+  CampaignDetails.campaignDetails = campaignDetails
+  const produceModifiedMessageForCampaign = {
+    CampaignDetails : CampaignDetails
+  }
+  await produceModifiedMessages(produceModifiedMessageForCampaign, config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
 }
 
 export {

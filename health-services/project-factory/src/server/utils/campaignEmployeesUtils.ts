@@ -4,17 +4,18 @@ import { logger } from "./logger";
 import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { addDataToSheet, getExcelWorkbookFromFileURL, getLocaleFromCampaignFiles } from "./excelUtils";
+import { fillDataInProcessedUserSheet, getExcelWorkbookFromFileURL, getLocaleFromCampaignFiles } from "./excelUtils";
 import { getDataFromSheetFromNormalCampaign, getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import createAndSearch from "../config/createAndSearch";
-import { convertToType, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, getLocalizedName } from "./campaignUtils";
+import { convertToType, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, getLocalizedName, updateCreateResourceId } from "./campaignUtils";
 import { executeQuery } from "./db";
 import { generateUserPassword } from "../api/campaignApis";
-import { decryptPassword, encryptPassword } from "./encryptionUtils";
+import { encryptPassword } from "./encryptionUtils";
 import { createEmployeesAndGetMobileNumbersAndUserServiceUuidMapping } from "../api/campaignEmployeeApi";
 import { httpRequest } from "./request";
 import { getCampaignMappings } from "./campaignMappingUtils";
 import _ from "lodash";
+import {  createAndUploadFileWithLocaleAndCampaign } from "../api/genericApis";
 
 export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any) {
     try {
@@ -265,7 +266,8 @@ async function persistNewActiveEmployees(
         campaignNumber: campaignNumber,
         isActive: true,
         userServiceUuid: null,
-        employeeType: employee?.employeeType,
+        userName: null,
+        employeeType: employee?.employeeType == "PERMANENT" ? "Permanent" : "Temporary",
         tokenString: null,
         additionalDetails: {},
         createdBy: userUuid,
@@ -598,7 +600,7 @@ export async function processSubEmployeeCreationFromConsumer(data: any, campaign
             const mobileNumber = employeesCreateBody[index]?.user?.mobileNumber;
             const encryptedPassword = encryptPassword(employeesCreateBody[index]?.user?.password);
             mobileNumberAndEncryptedPasswordMappings[mobileNumber] = encryptedPassword;
-            employee.username = employeesCreateBody[index]?.code;
+            employee.userName = employeesCreateBody[index]?.code;
             employee.userServiceUuid = mobileNumbersAndUserServiceUuidMapping[mobileNumber];
             employee.tokenString = encryptedPassword;
             employee.lastModifiedTime = currentTime;
@@ -634,7 +636,7 @@ export async function getEmployeeCreateBody(employees: any[], tenantId: string, 
 
         return {
             code: result?.idResponses?.[index]?.id,
-            employeeType: employee?.employeeType,
+            employeeType: employee?.employeeType == "Permanent" ? "PERMANENT" : "TEMPORARY",
             tenantId,
             jurisdictions: [{
                 hierarchy: hierarchyType,
@@ -651,7 +653,7 @@ export async function getEmployeeCreateBody(employees: any[], tenantId: string, 
                 type: "EMPLOYEE",
                 roles: [{
                     name: employee?.role,
-                    code: employee?.role?.toUpperCase().split(" ").join("_"),
+                    code: employee?.role?.toUpperCase()?.split(" ").join("_"),
                     tenantId
                 }]
             }
@@ -716,8 +718,8 @@ async function checkIfAllActiveCampaignEmployeesHaveUserServiceUuid(campaignNumb
     return result.rows.length === 0;
 }
 
-async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo: any, resourceType: string) {
-    const { CampaignDetails } = campaignDetailsAndRequestInfo;
+export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo: any, resourceType: string) {
+    const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
     const tenantId = CampaignDetails?.tenantId;
     const resourceFileId = CampaignDetails?.resources?.find((resource: any) => resource?.type == resourceType)?.filestoreId;
     if (!resourceFileId) {
@@ -735,44 +737,19 @@ async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo: any,
         if (!userWorkSheet) {
             throw new Error("User sheet not found");
         }
-        const campaignEmployees = await getCampaignEmployees(CampaignDetails?.campaignNumber, false);
+        const campaignEmployees = await getCampaignEmployeesWithTokenString(CampaignDetails?.campaignNumber, false);
         const campaignMappings = await getCampaignMappings(CampaignDetails?.campaignNumber, mappingTypes.staff);
-        fillDataInProcessedUserSheet(userWorkSheet, campaignEmployees, campaignMappings, localizationMap);
+        fillDataInProcessedUserSheet(userWorkSheet, campaignEmployees, campaignMappings);
+        const responseData =await createAndUploadFileWithLocaleAndCampaign(workbook, locale, CampaignDetails?.id, tenantId);
+        await updateCreateResourceId(CampaignDetails, resourceType, responseData?.[0]?.fileStoreId, RequestInfo?.userInfo?.uuid);
+        logger.info(`Resource file updated for resource type: ${resourceType}`);
     }
 }
 
-function fillDataInProcessedUserSheet(userWorkSheet: any, campaignEmployees: any[], campaignMappings: any[], localizationMap: any) {
-    console.log(userWorkSheet, campaignEmployees, campaignMappings, localizationMap, " uuuuuuuuuuuuuuuuuuuuuuuuuuuuuu")
-    const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
-        // Initialize the array if it doesn't exist for the mappingIdentifier
-        if (!acc[mapping?.mappingIdentifier]) {
-            acc[mapping?.mappingIdentifier] = [];
-        }
-        // Push the boundaryCode into the array
-        acc[mapping?.mappingIdentifier].push(mapping?.boundaryCode);
-        return acc;
-    }, {});
-    const headerOfsheet = userWorkSheet.getRow(1);
-    const usersToFillInSheet = campaignEmployees
-        .filter((employee: any) => employee?.userServiceUuid) // Only include employees with a userServiceUuid
-        .map((employee: any) => {
-            return [
-                employee?.name,
-                employee?.mobileNumber,
-                employee?.role,
-                employee?.employeeType,
-                mobieNumberAndBoundaryCodesMapping[employee?.mobileNumber]?.join(","),
-                employee?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
-                "CREATED",
-                "",
-                employee?.userServiceUuid,
-                employee?.userName,
-                decryptPassword(employee?.tokenString)
-            ];
-        });
-    console.log(headerOfsheet," hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
-    addDataToSheet("user", userWorkSheet, usersToFillInSheet, undefined, undefined, true, false, localizationMap);
-}
+
+
+
+
 
 
 

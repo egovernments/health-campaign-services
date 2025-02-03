@@ -10,6 +10,7 @@ const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
 import { getBoundaryRelationshipData } from "./boundaryApis";
+import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -321,7 +322,10 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  enrichTemplateMetaData(updatedWorkbook, request);
+  const RequestInfo = request?.body?.RequestInfo;
+  const locale = getLocaleFromRequestInfo(RequestInfo);
+  const campaignId = request?.query?.campaignId;
+  enrichTemplateMetaData(updatedWorkbook, locale, campaignId);
   while (retries--) {
     try {
       // Write the updated workbook to a buffer
@@ -345,7 +349,7 @@ async function createAndUploadFile(
         undefined,
         {
           "Content-Type": "multipart/form-data",
-          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          "auth-token": config.token,
         }
       );
 
@@ -364,6 +368,59 @@ async function createAndUploadFile(
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
 }
+
+export async function createAndUploadFileWithLocaleAndCampaign(
+  updatedWorkbook: any,
+  locale: string,
+  campaignId: any,
+  tenantId: any
+) {
+  let retries: any = 3;
+  // Enrich metadatas
+  enrichTemplateMetaData(updatedWorkbook, locale, campaignId);
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data",
+          "auth-token": config.token,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
 
 async function createAndUploadJsonFile(
   jsonData: any, // Expecting JSON data as an argument

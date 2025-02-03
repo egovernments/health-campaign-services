@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 // Define constants for encryption
 const ALGORITHM = 'aes-256-cbc'; // Symmetric encryption algorithm
-const KEY = crypto.randomBytes(32); // 256-bit key (32 bytes)
+const KEY = crypto.createHash('sha256').update('egov').digest();
 
 // Function to encrypt a password
 export function encryptPassword(password: string): string {
