@@ -200,7 +200,7 @@ export async function fetchCampaignEmployeesData(
                 const employee : any = {
                     id: row.id,
                     campaignNumber: row.campaignnumber,
-                    mobileNumber: row.mobilenumber,
+                    mobileNumber: parseInt(row.mobilenumber),
                     name: row.name,
                     role: row.role,
                     userServiceUuid: row.userserviceuuid,
