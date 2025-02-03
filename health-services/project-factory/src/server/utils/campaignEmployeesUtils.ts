@@ -245,7 +245,7 @@ async function persistNewActiveEmployees(
     campaignNumber: string,
     userUuid: string
 ) {
-    const setOfCampaignEmployeesMobileNumbers = new Set(campaignEmployees.map((employee: any) => employee?.mobileNumber));
+    const setOfCampaignEmployeesMobileNumbers = new Set(campaignEmployees.map((employee: any) => employee?.mobileNumber?.toString()));
 
     const activeEmployeesFromSheet = employeesFromSheet.filter(
         (employee: any) => employee?.["!isActive!"] == usageColumnStatus.active
