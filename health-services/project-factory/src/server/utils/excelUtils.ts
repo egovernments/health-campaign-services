@@ -433,10 +433,11 @@ export function fillDataInProcessedUserSheet(
 ) {
   logger.info(`Filling data in processed user sheet`);
   const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
-    if (!acc[mapping?.mappingIdentifier]) {
-      acc[mapping?.mappingIdentifier] = [];
+    const key = String(mapping?.mappingIdentifier); // Ensure the key is a string
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    acc[mapping?.mappingIdentifier].push(mapping?.boundaryCode);
+    acc[key].push(mapping?.boundaryCode);
     return acc;
   }, {});
 
