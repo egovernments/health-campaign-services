@@ -7,7 +7,6 @@ import digit.repository.querybuilder.PlanFacilityQueryBuilder;
 import digit.repository.rowmapper.PlanFacilityRowMapper;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.tracer.model.CustomException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
@@ -108,13 +107,8 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
      */
     @Override
     public void update(PlanFacilityRequest planFacilityRequest) {
-        try {
-            PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
-            producer.push(config.getPlanFacilityUpdateTopic(), requestDTO);
-            log.info("Successfully pushed update for plan facility: {}", planFacilityRequest.getPlanFacility().getId());
-        } catch (Exception e) {
-            throw new CustomException(FAILED_MESSAGE,config.getPlanFacilityUpdateTopic());
-        }
+        PlanFacilityRequestDTO requestDTO = convertToDTO(planFacilityRequest);
+        producer.push(config.getPlanFacilityUpdateTopic(), requestDTO);
     }
 
     /**
@@ -127,22 +121,20 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
     public Integer count(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planFacilityQueryBuilder.getPlanFacilityCountQuery(planFacilitySearchCriteria, preparedStmtList);
-        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
 
-        return count;
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
     }
 
     /**
      * Helper method to query database for plan facilities based on the provided search criteria.
      *
-     * @param planFacilitySearchCriteria
-     * @return List<PlanFacility>
+     * @param planFacilitySearchCriteria Search criteria for plan facility search.
+     * @return List of plan facilities for the given search criteria.
      */
     private List<PlanFacility> queryDatabaseForPlanFacilities(PlanFacilitySearchCriteria planFacilitySearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planFacilityQueryBuilder.getPlanFacilitySearchQuery(planFacilitySearchCriteria, preparedStmtList);
-        log.info("Plan facility search {}", query);
-        log.info(preparedStmtList.toString());
+
         return jdbcTemplate.query(query, planFacilityRowMapper, preparedStmtList.toArray());
     }
 

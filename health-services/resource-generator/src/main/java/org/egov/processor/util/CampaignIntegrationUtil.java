@@ -44,7 +44,7 @@ public class CampaignIntegrationUtil {
 			serviceRequestRepository.fetchResult(
 					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationFetchFromMicroplanEndPoint()),
 					buildMicroplanDetailsForUpdate(planConfigurationRequest, fileStoreId));
-			log.info("Updated resources file into project factory - " + fileStoreId);
+			log.debug("Updated resources file into project factory - " + fileStoreId);
 		} catch (Exception e) {
 			log.error(ERROR_WHILE_CALLING_MICROPLAN_API + planConfigurationRequest.getPlanConfiguration().getId(), e);
 			throw new CustomException(ERROR_WHILE_CALLING_MICROPLAN_API, e.toString());

@@ -7,7 +7,6 @@ import digit.web.models.*;
 import digit.web.models.boundary.BoundarySearchResponse;
 import digit.web.models.boundary.EnrichedBoundary;
 import digit.web.models.census.*;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
@@ -39,13 +38,13 @@ public class PlanFacilityEnricher {
     }
 
     /**
-     * Enriches the plan facility create request
+     * Enriches the plan facility create request with id, plan config name and sets active as true.
      *
-     * @param planFacilityRequest
+     * @param planFacilityRequest the plan facility request to be enriched.
      */
-    public void enrichPlanFacilityCreate(@Valid PlanFacilityRequest planFacilityRequest) {
+    public void enrichPlanFacilityCreate(PlanFacilityRequest planFacilityRequest) {
         // Generate id for plan facility
-        UUIDEnrichmentUtil.enrichRandomUuid(planFacilityRequest.getPlanFacility(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planFacilityRequest.getPlanFacility(), ID);
 
         // Enrich audit details
         planFacilityRequest.getPlanFacility().setAuditDetails(AuditDetailsEnrichmentUtil
@@ -84,7 +83,7 @@ public class PlanFacilityEnricher {
     }
 
     /**
-     * Enriches the plan facility update request
+     * Enriches the plan facility update request with serving population and audit details.
      *
      * @param planFacilityRequest The PlanFacilityRequest object contains the plan facility to be enriched.
      */

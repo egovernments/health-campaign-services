@@ -200,7 +200,6 @@ public class WorkflowService {
         // Enrich user for process instance
         enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
 
-        log.info("Process Instance assignes - " + processInstance.getAssignes());
         return ProcessInstanceRequest.builder()
                 .requestInfo(censusRequest.getRequestInfo())
                 .processInstances(Collections.singletonList(processInstance))

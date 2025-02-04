@@ -2,7 +2,6 @@ package digit.service;
 
 import com.jayway.jsonpath.JsonPath;
 import digit.config.Configuration;
-import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.util.BoundaryUtil;
 import digit.util.CampaignUtil;
@@ -29,8 +28,6 @@ public class PlanValidator {
 
     private PlanRepository planRepository;
 
-    private PlanConfigurationRepository planConfigurationRepository;
-
     private MdmsUtil mdmsUtil;
 
     private MultiStateInstanceUtil centralInstanceUtil;
@@ -47,9 +44,8 @@ public class PlanValidator {
 
     private BoundaryUtil boundaryUtil;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config, PlanEnricher planEnricher, BoundaryUtil boundaryUtil) {
+    public PlanValidator(PlanRepository planRepository, MdmsUtil mdmsUtil, MultiStateInstanceUtil centralInstanceUtil, CommonUtil commonUtil, CampaignUtil campaignUtil, PlanEmployeeService planEmployeeService, Configuration config, PlanEnricher planEnricher, BoundaryUtil boundaryUtil) {
         this.planRepository = planRepository;
-        this.planConfigurationRepository = planConfigurationRepository;
         this.mdmsUtil = mdmsUtil;
         this.centralInstanceUtil = centralInstanceUtil;
         this.commonUtil = commonUtil;
@@ -433,14 +429,13 @@ public class PlanValidator {
         final String jsonPathForMetric = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_METRIC + ".*.code";
 
         List<Object> metricListFromMDMS = null;
-        System.out.println("Jsonpath -> " + jsonPathForMetric);
         try {
             metricListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetric);
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
         HashSet<Object> metricSetFromMDMS = new HashSet<>(metricListFromMDMS);
-        plan.getTargets().stream().forEach(target -> {
+        plan.getTargets().forEach(target -> {
             if (!metricSetFromMDMS.contains(target.getMetric())) {
                 throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
             }
@@ -475,7 +470,7 @@ public class PlanValidator {
         }
 
         HashSet<Object> metricUnitSetFromMDMS = new HashSet<>(metricUnitListFromMDMS);
-        metricDetails.stream().forEach(metricDetail -> {
+        metricDetails.forEach(metricDetail -> {
             if (!metricUnitSetFromMDMS.contains(metricDetail.getMetricUnit())) {
                 throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
             }

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static digit.config.ServiceConstants.COMMA_DELIMITER;
 import static digit.config.ServiceConstants.PLAN_ESTIMATION_BUSINESS_SERVICE;
 
 @Slf4j
@@ -72,7 +73,7 @@ public class PlanRepositoryImpl implements PlanRepository {
 
         // Return empty list back as response if no plan ids are found
         if(CollectionUtils.isEmpty(planIds)) {
-            log.info("No plan ids found for provided plan search criteria.");
+            log.debug("No plan ids found for provided plan search criteria.");
         	return new ArrayList<>();
         }
 
@@ -120,7 +121,7 @@ public class PlanRepositoryImpl implements PlanRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = body.getPlans().stream().map(plan -> new Object[] {
                 plan.getStatus(),
-                !CollectionUtils.isEmpty(plan.getAssignee()) ? String.join(",", plan.getAssignee()) : plan.getAssignee(),
+                !CollectionUtils.isEmpty(plan.getAssignee()) ? String.join(COMMA_DELIMITER, plan.getAssignee()) : plan.getAssignee(),
                 plan.getAuditDetails().getLastModifiedBy(),
                 plan.getAuditDetails().getLastModifiedTime(),
                 plan.getId()
@@ -151,7 +152,7 @@ public class PlanRepositoryImpl implements PlanRepository {
     private List<String> queryDatabaseForPlanIds(PlanSearchCriteria planSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planQueryBuilder.getPlanSearchQuery(planSearchCriteria, preparedStmtList);
-        log.info("Plan search query: " + query);
+
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
@@ -163,7 +164,7 @@ public class PlanRepositoryImpl implements PlanRepository {
     private List<Plan> searchPlanByIds(List<String> planIds) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planQueryBuilder.getPlanQuery(planIds, preparedStmtList);
-        log.info("Plan query: " + query);
+        
         return jdbcTemplate.query(query, planRowMapper, preparedStmtList.toArray());
     }
 

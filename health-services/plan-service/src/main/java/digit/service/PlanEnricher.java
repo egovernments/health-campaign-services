@@ -27,15 +27,15 @@ public class PlanEnricher {
              throw new IllegalArgumentException("Plan details are missing in the request.");
          }
         // Generate id for plan
-        UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), ID);
 
         // Generate id for activities
-        body.getPlan().getActivities().forEach(activity -> UUIDEnrichmentUtil.enrichRandomUuid(activity, "id"));
+        body.getPlan().getActivities().forEach(activity -> UUIDEnrichmentUtil.enrichRandomUuid(activity, ID));
 
         // Generate id for activity conditions
         body.getPlan().getActivities().forEach(activity -> {
             if(!CollectionUtils.isEmpty(activity.getConditions())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(activity.getConditions(), "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(activity.getConditions(), ID);
             }
         });
 
@@ -49,14 +49,14 @@ public class PlanEnricher {
         });
 
         // Generate id for resources
-        body.getPlan().getResources().forEach(resource -> UUIDEnrichmentUtil.enrichRandomUuid(resource, "id"));
+        body.getPlan().getResources().forEach(resource -> UUIDEnrichmentUtil.enrichRandomUuid(resource, ID));
 
         // Generate id for targets
-        body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, "id"));
+        body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, ID));
 
         // Generate id for additional fields
         if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields()))
-            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID));
 
         // Enrich audit details
         body.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
@@ -73,7 +73,7 @@ public class PlanEnricher {
         Set<String> newActivityUuids = new HashSet<>();
         body.getPlan().getActivities().forEach(activity -> {
             if(ObjectUtils.isEmpty(activity.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(activity, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(activity, ID);
                 newActivityUuids.add(activity.getId());
             }
         });
@@ -83,7 +83,7 @@ public class PlanEnricher {
             if(!CollectionUtils.isEmpty(activity.getConditions()) && newActivityUuids.contains(activity.getId())) {
                 activity.getConditions().forEach(condition -> {
                     if(ObjectUtils.isEmpty(condition.getId())) {
-                        UUIDEnrichmentUtil.enrichRandomUuid(condition, "id");
+                        UUIDEnrichmentUtil.enrichRandomUuid(condition, ID);
                     }
                 });
             }
@@ -101,14 +101,14 @@ public class PlanEnricher {
         // Generate uuid for new resources
         body.getPlan().getResources().forEach(resource -> {
             if(ObjectUtils.isEmpty(resource.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(resource, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(resource, ID);
             }
         });
 
         // Generate uuid for new targets
         body.getPlan().getTargets().forEach(target -> {
             if(ObjectUtils.isEmpty(target.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(target, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(target, ID);
             }
         });
 
@@ -116,7 +116,7 @@ public class PlanEnricher {
         if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields())) {
             body.getPlan().getAdditionalFields().forEach(additionalFields -> {
                 if(ObjectUtils.isEmpty(additionalFields.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, ID);
                 }
             });
         }

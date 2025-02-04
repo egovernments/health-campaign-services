@@ -198,7 +198,7 @@ public class CommonUtil {
         List<Map<String, Object>> hierarchyForMicroplan;
 
         try {
-            log.info(jsonPathForMicroplanHierarchy);
+            log.debug(jsonPathForMicroplanHierarchy);
             hierarchyForMicroplan = JsonPath.read(mdmsData, jsonPathForMicroplanHierarchy);
         } catch (Exception e) {
             log.error(e.getMessage());

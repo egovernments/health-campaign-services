@@ -23,8 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static digit.config.ServiceConstants.FACILITY_ID_FIELD;
-import static digit.config.ServiceConstants.FACILITY_NAME_FIELD;
+import static digit.config.ServiceConstants.*;
 
 @Component
 @Slf4j
@@ -64,7 +63,7 @@ public class FacilityCatchmentConsumer {
             String facilityId = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityId();
             String facilityName = planFacilityRequestDTO.getPlanFacilityDTO().getFacilityName();
 
-            Set<String> boundariesWithFacility = new HashSet<>(List.of(planFacilityDTO.getServiceBoundaries().split(",")));
+            Set<String> boundariesWithFacility = new HashSet<>(List.of(planFacilityDTO.getServiceBoundaries().split(COMMA_DELIMITER)));
             Set<String> boundariesWithNoFacility = new HashSet<>(planFacilityDTO.getInitiallySetServiceBoundaries());
 
             censusFromSearch.forEach(census -> {

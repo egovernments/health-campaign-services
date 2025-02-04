@@ -8,7 +8,6 @@ import digit.web.models.facility.FacilitySearchCriteria;
 import digit.web.models.facility.FacilitySearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -18,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_FACILITY;
+import static digit.config.ServiceConstants.URI_TENANT_ID_PARAM;
 
 @Slf4j
 @Component
@@ -45,7 +45,7 @@ public class FacilityUtil {
 
         // Use UriComponentsBuilder to construct the URI with query parameters
         String uri = UriComponentsBuilder.fromHttpUrl(baseUri)
-                .queryParam("tenantId", tenantId)
+                .queryParam(URI_TENANT_ID_PARAM, tenantId)
                 .queryParam("limit", limit)
                 .queryParam("offset", offset)
                 .toUriString();
@@ -60,7 +60,6 @@ public class FacilityUtil {
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_FACILITY, e);
         }
-        log.info(facilityResponse.toString());
         return facilityResponse;
     }
 

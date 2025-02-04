@@ -10,7 +10,6 @@ import digit.web.models.facility.Facility;
 import digit.web.models.facility.FacilityResponse;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
@@ -56,7 +55,7 @@ public class PlanFacilityValidator {
      *
      * @param planFacilityRequest
      */
-    public void validatePlanFacilityCreate(@Valid PlanFacilityRequest planFacilityRequest) {
+    public void validatePlanFacilityCreate(PlanFacilityRequest planFacilityRequest) {
         // Retrieve the root-level tenant ID (state-level) based on the facility's tenant ID
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
 
@@ -78,7 +77,7 @@ public class PlanFacilityValidator {
      *
      * @param planFacilityRequest The plan facility linkage create request
      */
-    private void validateDuplicateRecords(@Valid PlanFacilityRequest planFacilityRequest) {
+    private void validateDuplicateRecords(PlanFacilityRequest planFacilityRequest) {
         PlanFacility planFacility = planFacilityRequest.getPlanFacility();
 
         PlanFacilitySearchCriteria searchCriteria = PlanFacilitySearchCriteria.builder().planConfigurationId(planFacility.getPlanConfigurationId()).facilityId(planFacility.getFacilityId()).build();
@@ -273,7 +272,6 @@ public class PlanFacilityValidator {
                 .id(planConfigurationId)
                 .tenantId(tenantId)
                 .build());
-        log.info("planConfigurations: " + planConfigurations);
 
         // Validate planConfiguration exists
         if (CollectionUtils.isEmpty(planConfigurations)) {
