@@ -8,7 +8,6 @@ import digit.web.models.projectFactory.Boundary;
 import digit.web.models.projectFactory.CampaignDetail;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.Role;
 import org.egov.common.contract.user.UserDetailResponse;
 import org.egov.common.utils.MultiStateInstanceUtil;
@@ -281,26 +280,6 @@ public class PlanEmployeeAssignmentValidator {
     private void validatePlanConfigId(List<PlanConfiguration> planConfigurations) {
         if (CollectionUtils.isEmpty(planConfigurations)) {
             throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
-        }
-    }
-
-    /**
-     * Validates the search request for plan employee assignment
-     *
-     * @param request the request to search plan employee assignment
-     */
-    public void validateSearch(PlanEmployeeAssignmentSearchRequest request) {
-        PlanEmployeeAssignmentSearchCriteria searchCriteria = request.getPlanEmployeeAssignmentSearchCriteria();
-        if (Objects.isNull(searchCriteria)) {
-            throw new CustomException(SEARCH_CRITERIA_EMPTY_CODE, SEARCH_CRITERIA_EMPTY_MESSAGE);
-        }
-
-        if (StringUtils.isEmpty(searchCriteria.getTenantId())) {
-            throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
-        }
-
-        if (StringUtils.isEmpty(searchCriteria.getPlanConfigurationId())) {
-            throw new CustomException(PLAN_CONFIG_ID_EMPTY_CODE, PLAN_CONFIG_ID_EMPTY_MESSAGE);
         }
     }
 
