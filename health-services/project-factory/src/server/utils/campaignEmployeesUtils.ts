@@ -200,7 +200,7 @@ export async function fetchCampaignEmployeesData(
                 const employee : any = {
                     id: row.id,
                     campaignNumber: row.campaignnumber,
-                    mobileNumber: parseInt(row.mobilenumber),
+                    mobileNumber: row.mobilenumber,
                     name: row.name,
                     role: row.role,
                     userServiceUuid: row.userserviceuuid,
@@ -745,14 +745,3 @@ export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInf
         logger.info(`Resource file updated for resource type: ${resourceType}`);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
