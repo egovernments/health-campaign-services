@@ -3337,6 +3337,14 @@ const autoGenerateBoundaryCodes = async (
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   const map: Map<string, string> = new Map();
   const count: Map<string, number> = new Map();
+  
+  boundaryData = boundaryData.map(row =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) =>
+        [key, typeof value === "string" ? value.trim() : value]
+      )
+    )
+  );
 
   boundaryData.forEach((row) => {
     const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
