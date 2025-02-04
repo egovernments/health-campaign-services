@@ -58,12 +58,22 @@ public class PlanFacilityEnricher {
         planFacilityRequest.getPlanFacility().setPlanConfigurationName(commonUtil.getPlanConfigName(planFacilityRequest.getPlanFacility().getTenantId(), planFacilityRequest.getPlanFacility().getPlanConfigurationId()));
     }
 
+    /**
+     * Enriches the jurisdiction mapping of a plan facility by determining its boundary hierarchy.
+     * Retrieves boundary details, constructs an ancestral path, and maps boundary types to boundary codes.
+     *
+     * @param request       The plan facility request containing boundary details.
+     * @param hierarchyType The type of hierarchy to be used for boundary resolution.
+     */
     public void enrichJurisdictionMapping(PlanFacilityRequest request, String hierarchyType) {
+        // Fetch boundary data for the plan facility's residing boundary.
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlanFacility().getResidingBoundary(), request.getPlanFacility().getTenantId(), hierarchyType, Boolean.TRUE, Boolean.FALSE);
 
+        // Get the top-level boundary.
         EnrichedBoundary boundary = boundarySearchResponse.getTenantBoundary().get(0).getBoundary().get(0);
         Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
 
+        // Map the top-level boundary type to its code.
         jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
 
@@ -71,7 +81,7 @@ public class PlanFacilityEnricher {
         while (!CollectionUtils.isEmpty(boundary.getChildren())) {
             boundary = boundary.getChildren().get(0);
 
-            boundaryAncestralPath.append("|").append(boundary.getCode());
+            boundaryAncestralPath.append(PIPE_SEPARATOR).append(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         }
 
@@ -163,19 +173,35 @@ public class PlanFacilityEnricher {
         return boundaryToPopMap;
     }
 
+    /**
+     * Updates the serving population of a plan facility based on changes in service boundaries.
+     * Subtracts population for removed boundaries and adds population for newly added ones.
+     *
+     * @param boundariesToBeSearched Set of boundary codes to evaluate.
+     * @param planFacility           Plan facility whose serving population is updated.
+     * @param boundaryToPopMap       Map of boundary codes to population values.
+     * @param servingPopulation      Current serving population to be adjusted.
+     */
     private void updateServingPopulation(Set<String> boundariesToBeSearched, PlanFacility planFacility, Map<String, Long> boundaryToPopMap, BigDecimal servingPopulation) {
+
+        // Retrieve the plan facility's current and initial service boundaries.
         Set<String> currentServiceBoundaries = new HashSet<>(planFacility.getServiceBoundaries());
         Set<String> initialServiceBoundaries = new HashSet<>(planFacility.getInitiallySetServiceBoundaries());
 
+        // Adjust the serving population based on boundary changes.
         for(String boundary : boundariesToBeSearched) {
             Long totalPopulation = boundaryToPopMap.get(boundary);
 
             if (!currentServiceBoundaries.contains(boundary)) {
+                // If the boundary was removed from service, subtract its population.
                 servingPopulation = servingPopulation.subtract(BigDecimal.valueOf(totalPopulation));
             } else if (!initialServiceBoundaries.contains(boundary)) {
+                // If the boundary is newly added, add its population.
                 servingPopulation = servingPopulation.add(BigDecimal.valueOf(totalPopulation));
             }
         }
+
+        // Update the plan facility's additional details with the new serving population.
         Map<String, Object> fieldToUpdate = new HashMap<>();
         fieldToUpdate.put(SERVING_POPULATION_CODE, servingPopulation);
 
@@ -183,9 +209,10 @@ public class PlanFacilityEnricher {
     }
 
     /**
-     * Enriches plan facility search request
+     * Enriches the planFacilitySearchRequest by populating the filters map from the fields in search criteria.
+     * This filterMap is populated to search the fields in plan facility additional details object.
      *
-     * @param planFacilitySearchRequest
+     * @param planFacilitySearchRequest the planFacilitySearchRequest object whose search criteria need enrichment.
      */
     public void enrichSearchRequest(PlanFacilitySearchRequest planFacilitySearchRequest) {
         PlanFacilitySearchCriteria planFacilitySearchCriteria = planFacilitySearchRequest.getPlanFacilitySearchCriteria();

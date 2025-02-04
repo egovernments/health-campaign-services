@@ -272,4 +272,27 @@ public class CommonUtil {
         }
     }
 
+    /**
+     * This is a helper function to convert an array of string to comma separated string
+     *
+     * @param stringList Array of string to be converted
+     * @return a string
+     */
+    public String convertArrayToString(List<String> stringList) {
+        return String.join(COMMA_DELIMITER, stringList);
+    }
+
+    /**
+     * Converts the boundaryAncestral path from a pipe separated string to an array of boundary codes.
+     *
+     * @param boundaryAncestralPath pipe separated boundaryAncestralPath.
+     * @return a list of boundary codes.
+     */
+    public List<String> getBoundaryCodeFromAncestralPath(String boundaryAncestralPath) {
+        if (ObjectUtils.isEmpty(boundaryAncestralPath)) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList(boundaryAncestralPath.split(PIPE_REGEX));
+    }
+
 }

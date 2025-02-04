@@ -5,13 +5,13 @@ import digit.kafka.Producer;
 import digit.repository.PlanFacilityRepository;
 import digit.repository.querybuilder.PlanFacilityQueryBuilder;
 import digit.repository.rowmapper.PlanFacilityRowMapper;
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
-import static digit.config.ServiceConstants.*;
 
 @Repository
 @Slf4j
@@ -27,12 +27,15 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
 
     private Configuration config;
 
-    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config) {
+    private CommonUtil commonUtil;
+
+    public PlanFacilityRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate, PlanFacilityQueryBuilder planFacilityQueryBuilder, PlanFacilityRowMapper planFacilityRowMapper, Configuration config, CommonUtil commonUtil) {
         this.producer = producer;
         this.jdbcTemplate = jdbcTemplate;
         this.planFacilityQueryBuilder = planFacilityQueryBuilder;
         this.planFacilityRowMapper = planFacilityRowMapper;
         this.config = config;
+        this.commonUtil = commonUtil;
     }
 
     /**
@@ -62,7 +65,7 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .jurisdictionMapping(planFacility.getJurisdictionMapping())
                 .boundaryAncestralPath(planFacility.getBoundaryAncestralPath())
                 .residingBoundary(planFacility.getResidingBoundary())
-                .serviceBoundaries(convertArrayToString(planFacility.getServiceBoundaries()))
+                .serviceBoundaries(commonUtil.convertArrayToString(planFacility.getServiceBoundaries()))
                 .initiallySetServiceBoundaries(planFacility.getInitiallySetServiceBoundaries())
                 .additionalDetails(planFacility.getAdditionalDetails())
                 .active(planFacility.getActive())
@@ -75,18 +78,6 @@ public class PlanFacilityRepositoryImpl implements PlanFacilityRepository {
                 .planFacilityDTO(planFacilityDTO)
                 .build();
     }
-
-    /**
-     * This is a helper function to convert an array of string to comma separated string
-     *
-     * @param stringList Array of string to be converted
-     * @return a string
-     */
-    private String convertArrayToString(List<String> stringList) {
-        return String.join(COMMA_DELIMITER, stringList);
-    }
-
-
 
     /**
      * This method searches for plans based on the search criteria.

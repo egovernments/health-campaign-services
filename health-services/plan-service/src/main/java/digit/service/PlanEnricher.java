@@ -1,5 +1,6 @@
 package digit.service;
 
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
 import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
@@ -18,14 +19,17 @@ import static digit.config.ServiceConstants.*;
 @Component
 public class PlanEnricher {
 
+    private CommonUtil commonUtil;
+
+    public PlanEnricher(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
+    }
+
     /**
      * Enriches the plan create request
      * @param body
      */
     public void enrichPlanCreate(PlanRequest body) {
-    	 if (body.getPlan() == null) {
-             throw new IllegalArgumentException("Plan details are missing in the request.");
-         }
         // Generate id for plan
         UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), ID);
 
@@ -141,7 +145,7 @@ public class PlanEnricher {
         // Iterate through the child boundary until there are no more
         while (!CollectionUtils.isEmpty(boundary.getChildren())) {
             boundary = boundary.getChildren().get(0);
-            boundaryAncestralPath.append("|").append(boundary.getCode());
+            boundaryAncestralPath.append(PIPE_SEPARATOR).append(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         }
 
@@ -189,7 +193,7 @@ public class PlanEnricher {
         String boundaryHierarchy = highestBoundaryHierarchy;
 
         // Get the list of boundary codes from pipe separated boundaryAncestralPath.
-        List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+        List<String> boundaryCode = commonUtil.getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
 
         // Creates the mapping of boundary hierarchy with the corresponding boundary code.
         for (String boundary : boundaryCode) {
@@ -218,7 +222,7 @@ public class PlanEnricher {
             String boundaryHierarchy = highestBoundaryHierarchy;
 
             // Get the list of boundary codes from pipe separated boundaryAncestralPath.
-            List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+            List<String> boundaryCode = commonUtil.getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
 
             // Creates the mapping of boundary hierarchy with the corresponding boundary code.
             for (String boundary : boundaryCode) {
@@ -230,18 +234,6 @@ public class PlanEnricher {
         }
     }
 
-    /**
-     * Converts the boundaryAncestral path from a pipe separated string to an array of boundary codes.
-     *
-     * @param boundaryAncestralPath pipe separated boundaryAncestralPath.
-     * @return a list of boundary codes.
-     */
-    private List<String> getBoundaryCodeFromAncestralPath(String boundaryAncestralPath) {
-        if (ObjectUtils.isEmpty(boundaryAncestralPath)) {
-            return Collections.emptyList();
-        }
-        return Arrays.asList(boundaryAncestralPath.split("\\|"));
-    }
 
     /**
      * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
@@ -256,7 +248,7 @@ public class PlanEnricher {
         Map<String, Set<String>> filtersMap = new LinkedHashMap<>();
 
         // Add facility id as a filter if present in search criteria
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
             filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityIds());
         }
 
