@@ -566,10 +566,12 @@ async function deleteProjectStaffMapping(messageObject: any, projectStaffRespons
 
 async function getParentAndCurrentFileUrl(mappingObject: any, resource: any, parentResource: any) {
   const parentCreateResourceId = parentResource?.createResourceId ? [parentResource.createResourceId] : [];
+  logger.info(`parentCreateResourceId ${JSON.stringify(parentCreateResourceId)}`)
   const parentResourceSearchResponse = await getResourceFromResourceId(mappingObject, parentCreateResourceId, parentResource);
   const parentProcessedFileStoreId = parentResourceSearchResponse?.[0]?.processedFilestoreId;
 
   const currentCreateResourceId = resource?.createResourceId ? [resource.createResourceId] : [];
+  logger.info(`currentCreateResourceId ${JSON.stringify(currentCreateResourceId)}`)
   const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, currentCreateResourceId, resource);
   const currentProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
 

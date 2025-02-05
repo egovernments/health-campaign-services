@@ -2066,6 +2066,8 @@ async function createProject(
 
 async function processAfterPersist(request: any, actionInUrl: any) {
   try {
+    // wait for 5 seconds before persisting the process track
+    await new Promise((resolve) => setTimeout(resolve, 5000)); 
     if (request?.body?.CampaignDetails?.action == "create") {
       await persistTrack(
         request.body.CampaignDetails.id,
@@ -3558,6 +3560,7 @@ export async function updateCreateResourceId(CampaignDetails: any, resourceType:
     boundaries : CampaignDetails?.boundaries || CampaignDetails?.camapignDetails?.boundaries,
     deliveryRules : CampaignDetails?.deliveryRules || CampaignDetails?.camapignDetails?.deliveryRules
   }
+  logger.info(`Updated resource details for resource type: ${resourceType}`);
   CampaignDetails.campaignDetails = campaignDetails
   const produceModifiedMessageForCampaign = {
     CampaignDetails : CampaignDetails

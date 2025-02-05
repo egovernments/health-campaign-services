@@ -433,7 +433,7 @@ export function fillDataInProcessedUserSheet(
 ) {
   logger.info(`Filling data in processed user sheet`);
   const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
-    const key = String(mapping?.mappingIdentifier); // Ensure the key is a string
+    const key = mapping?.mappingIdentifier?.toString(); // Ensure the key is a string
     if (!acc[key]) {
       acc[key] = [];
     }
