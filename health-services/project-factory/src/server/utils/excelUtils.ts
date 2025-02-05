@@ -433,7 +433,7 @@ export function fillDataInProcessedUserSheet(
 ) {
   logger.info(`Filling data in processed user sheet`);
   const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
-    const key = mapping?.mappingIdentifier?.toString(); // Ensure the key is a string
+    const key = `N${mapping?.mappingIdentifier?.toString()}N`; // Ensure the key is a string
     if (!acc[key]) {
       acc[key] = [];
     }
@@ -479,12 +479,14 @@ export function fillDataInProcessedUserSheet(
     .forEach((employee: any, index: number) => {
       const rowIndex = index + 2; // Start from the second row
       const row = userWorkSheet.getRow(rowIndex);
+      const currentMobileNumberKey = `N${employee?.mobileNumber?.toString()}N`;
+      const currentBoundaryValues = mobieNumberAndBoundaryCodesMapping[currentMobileNumberKey]?.join(",");
       row.values = [
         employee?.name,
         parseInt(employee?.mobileNumber),
         employee?.role,
         employee?.employeeType,
-        mobieNumberAndBoundaryCodesMapping[employee?.mobileNumber]?.join(","),
+        currentBoundaryValues,
         employee?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
         "CREATED",
         "",
