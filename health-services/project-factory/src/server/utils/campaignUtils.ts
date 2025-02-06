@@ -64,6 +64,7 @@ import {
   validateBoundarySheetDataInCreateFlow,
 } from "../validators/campaignValidators";
 import {
+  getColumnIndexByHeader,
   getExcelWorkbookFromFileURL,
   getNewExcelWorkbook,
   lockTargetFields,
@@ -83,7 +84,6 @@ import {
 import {
   callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
-  getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
   modifyNewSheetData,
   unhideColumnsOfProcessedFile,
@@ -2333,7 +2333,7 @@ async function createNewSheet(
     oldTargetColumnsToHide.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(newSheet, localizedColumn);
-      columnIndexesToBeHidden.push(columnIndex);
+      if(columnIndex != -1) columnIndexesToBeHidden.push(columnIndex);
     });
     hideColumnsOfProcessedFile(newSheet, columnIndexesToBeHidden);
   }

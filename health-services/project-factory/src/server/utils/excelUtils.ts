@@ -3,7 +3,7 @@ import { changeFirstRowColumnColour, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import config from "../config";
-import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { freezeUnfreezeColumnsForProcessedFile, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -304,21 +304,28 @@ function finalizeSheet(type: string, sheet: any, frozeCells: boolean, frozeWhole
     columnsToHide.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-      columnIndexesToBeHidden.push(columnIndex);
+      if(columnIndex != -1) {
+        columnIndexesToBeHidden.push(columnIndex);
+      }
     });
 
     columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToBeFreezed]
     columnsToBeFreezed.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-      columnIndexesToBeFreezed.push(columnIndex);
+      if(columnIndex != -1) {
+        columnIndexesToBeFreezed.push(columnIndex);
+      }
     });
     const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
     const boundaryCodeMandatoryColumnWhichIsNotToBeFreezed = getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap);
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
     const columnIndexOfBoundaryCodeMandatory = getColumnIndexByHeader(sheet, boundaryCodeMandatoryColumnWhichIsNotToBeFreezed);
-    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]); // Example columns to freeze and unfreeze
+    const columnsTobeUnfreezed = []
+    if(columnIndexOfActiveColumn != -1) columnsTobeUnfreezed.push(columnIndexOfActiveColumn);
+    if(columnIndexOfBoundaryCodeMandatory != -1) columnsTobeUnfreezed.push(columnIndexOfBoundaryCodeMandatory);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, columnsTobeUnfreezed); // Example columns to freeze and unfreeze
     hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);
@@ -326,7 +333,19 @@ function finalizeSheet(type: string, sheet: any, frozeCells: boolean, frozeWhole
 }
 
 
+export function getColumnIndexByHeader(sheet: any, headerName: string): number {
+  // Get the first row (assumed to be the header row)
+  const firstRow = sheet.getRow(1);
 
+  // Find the column index where the header matches the provided name
+  for (let col = 1; col <= firstRow.cellCount; col++) {
+    const cell = firstRow.getCell(col);
+    if (cell.value === headerName) {
+      return col; // Return the column index (1-based)
+    }
+  }
+  return -1;
+}
 
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {

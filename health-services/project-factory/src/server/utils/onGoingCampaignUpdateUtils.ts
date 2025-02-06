@@ -108,35 +108,24 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
 
 function freezeUnfreezeColumnsForProcessedFile(sheet: any, columnsToFreeze: number[], columnsToUnfreeze: number[]) {
   // First, unfreeze specified columns
-  columnsToUnfreeze.forEach(colNumber => {
-    for (let row = 1; row <= sheet.rowCount; row++) {
-      const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: false }; // Unfreeze the cell
-    }
-  });
+  if(columnsToUnfreeze?.length > 0 ){
+    columnsToUnfreeze.forEach(colNumber => {
+      for (let row = 1; row <= sheet.rowCount; row++) {
+        const cell = sheet.getCell(row, colNumber);
+        cell.protection = { locked: false }; // Unfreeze the cell
+      }
+    });
+  } 
 
   // Then, freeze specified columns
-  columnsToFreeze.forEach(colNumber => {
-    for (let row = 1; row <= sheet.rowCount; row++) {
-      const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: true }; // Freeze the cell
-    }
-  });
-}
-
-
-function getColumnIndexByHeader(sheet: any, headerName: string): number {
-  // Get the first row (assumed to be the header row)
-  const firstRow = sheet.getRow(1);
-
-  // Find the column index where the header matches the provided name
-  for (let col = 1; col <= firstRow.cellCount; col++) {
-    const cell = firstRow.getCell(col);
-    if (cell.value === headerName) {
-      return col; // Return the column index (1-based)
-    }
+  if(columnsToFreeze?.length > 0 ){
+    columnsToFreeze.forEach(colNumber => {
+      for (let row = 1; row <= sheet.rowCount; row++) {
+        const cell = sheet.getCell(row, colNumber);
+        cell.protection = { locked: true }; // Freeze the cell
+      }
+    });
   }
-  return 1;
 }
 
 // function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
@@ -175,6 +164,7 @@ async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObjec
 }
 
 function hideColumnsOfProcessedFile(sheet: any, columnsToHide: any[]) {
+  if(!columnsToHide || columnsToHide.length === 0) return;
   columnsToHide.forEach((column) => {
     if (column > 0) {
       sheet.getColumn(column).hidden = true;
@@ -758,7 +748,6 @@ export {
   fetchFileUrls,
   modifyProcessedSheetData,
   freezeUnfreezeColumnsForProcessedFile,
-  getColumnIndexByHeader,
   checkAndGiveIfParentCampaignAvailable,
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile,
