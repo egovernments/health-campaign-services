@@ -3852,6 +3852,16 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   }
 }
 
+export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentMapping : any = {}) {
+   for(const boundary of boundaries) {
+     currentMapping[boundary.code] = boundary.boundaryType;
+     if(boundary.children?.length > 0) {
+       getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
+     }
+   }
+   return currentMapping;
+}
+
 export {
   generateProcessedFileAndPersist,
   convertToTypeData,
