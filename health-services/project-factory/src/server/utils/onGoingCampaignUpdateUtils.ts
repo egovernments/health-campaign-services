@@ -88,16 +88,16 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
   let dataRows = sheetData.map((row: any) => {
     return localizedHeaders.map((header: any) => row[header] || '');
   });
-
+  
   const updatedHeaders = localizedHeaders.map((header: any) => header === getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap) ?
     getLocalizedName(config?.boundary?.boundaryCodeOld, localizationMap) : header)
 
-  const updatedWithAdditionalHeaders = [...updatedHeaders, config?.boundary?.boundaryCodeMandatory]
+  const updatedWithAdditionalHeaders = type != "user" ? [...updatedHeaders, config?.boundary?.boundaryCodeMandatory] : localizedHeaders
   localizedHeaders = getLocalizedHeaders(updatedWithAdditionalHeaders, localizationMap);
 
   dataRows = dataRows.map((row: any, index: number) => {
     const boundaryCodeValue = sheetData[index][getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap)] || '';
-    return [...row, boundaryCodeValue];
+    return type != "user" ? [...row, boundaryCodeValue] : row;
   });
 
   // Combine headers and dataRows
@@ -750,9 +750,6 @@ async function getFileUrl(fileStoreId: any, tenantId: any) {
     return fileResponse.fileStoreIds[0].url;
   }
 }
-
-
-
 
 export {
   getParentCampaignObject,
