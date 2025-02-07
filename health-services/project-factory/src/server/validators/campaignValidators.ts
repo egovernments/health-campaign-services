@@ -834,6 +834,9 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 }
 
 function getIfBothBoundariesEqual(boundaries: any, parentBoundaries: any) {
+    if(!boundaries || !parentBoundaries) {
+        return false;
+    }
     const setOfBoundariesOfChild = new Set(boundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
     const setOfBoundariesOfParent = new Set(parentBoundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
     for(const boundary of boundaries) {
