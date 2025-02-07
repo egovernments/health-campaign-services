@@ -819,7 +819,8 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             missingTypes.push(type);
         }
     }
-    if ((!request?.body?.parentCampaign) || (request?.body?.parentCampaign && request?.body?.CampaignDetails?.boundaries && request.body.CampaignDetails.boundaries.length > 0)) {
+    const isBothBoundariesEqual = getIfBothBoundariesEqual(request?.body?.CampaignDetails?.boundaries, request?.body?.parentCampaign?.boundaries);
+    if ((!request?.body?.parentCampaign) || !isBothBoundariesEqual) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
             throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
@@ -832,6 +833,23 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     }
 }
 
+function getIfBothBoundariesEqual(boundaries: any, parentBoundaries: any) {
+    const setOfBoundariesOfChild = new Set(boundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
+    const setOfBoundariesOfParent = new Set(parentBoundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
+    for(const boundary of boundaries) {
+        const currentBoundaryString = `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`;
+        if(!setOfBoundariesOfParent.has(currentBoundaryString)) {
+            return false;
+        }
+    }
+    for(const boundary of parentBoundaries) {
+        const currentBoundaryString = `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`;
+        if(!setOfBoundariesOfChild.has(currentBoundaryString)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 
 
