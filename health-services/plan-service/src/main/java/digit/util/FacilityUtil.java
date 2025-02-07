@@ -16,8 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_FACILITY;
-import static digit.config.ServiceConstants.URI_TENANT_ID_PARAM;
+import static digit.config.ServiceConstants.*;
 
 @Slf4j
 @Component
@@ -46,8 +45,8 @@ public class FacilityUtil {
         // Use UriComponentsBuilder to construct the URI with query parameters
         String uri = UriComponentsBuilder.fromHttpUrl(baseUri)
                 .queryParam(URI_TENANT_ID_PARAM, tenantId)
-                .queryParam("limit", limit)
-                .queryParam("offset", offset)
+                .queryParam(PAGINATION_LIMIT_PARAM, limit)
+                .queryParam(PAGINATION_OFFSET_PARAM, offset)
                 .toUriString();
 
         FacilitySearchRequest facilitySearchRequest = getFacilitySearchRequest(planFacilityRequest);

@@ -397,4 +397,9 @@ public class ServiceConstants {
     public static final String AND_CONDITION = " AND ";
 
     public static final String OR_CONDITION = " OR ";
+
+    public static final String PAGINATION_LIMIT_PARAM = "limit";
+
+    public static final String PAGINATION_OFFSET_PARAM = "offset";
+
 }

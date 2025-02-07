@@ -56,7 +56,6 @@ public class CensusUtil {
     public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
         CensusRequest censusRequest = buildCensusRequest(planConfigurationRequest, feature, mappedValues, heirarchyType);
         try {
-            log.debug("Census request - " + censusRequest.getCensus());
             producer.push(config.getResourceCensusCreateTopic(), censusRequest);
         } catch (Exception e) {
             log.error(ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY + censusRequest.getCensus().getBoundaryCode(), e);
