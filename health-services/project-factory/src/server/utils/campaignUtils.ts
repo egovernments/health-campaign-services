@@ -978,6 +978,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
       error
     ),
   };
+  requestBody.CampaignDetails.parentId = requestBody?.CampaignDetails?.parentId || null
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
   logger.info(`Waiting for 2 seconds to persist errors`);
@@ -1053,6 +1054,7 @@ async function enrichAndPersistCampaignForCreate(
   } else {
     requestBody.CampaignDetails.projectId = null;
   }
+  requestBody.CampaignDetails.parentId = requestBody?.CampaignDetails?.parentId || null
   const topic = firstPersist
     ? config?.kafka?.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
@@ -1138,6 +1140,7 @@ async function enrichAndPersistCampaignForUpdate(
       ExistingCampaignDetails?.projectId ||
       null;
   }
+  request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null
   delete request.body.CampaignDetails.codesTargetMapping;
   const producerMessage: any = {
     CampaignDetails: request?.body?.CampaignDetails,

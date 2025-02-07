@@ -1140,6 +1140,7 @@ async function validateForRetry(request: any) {
             var updatedInnerCampaignDetails = {}
             enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
+            request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
             const producerMessage: any = {
                 CampaignDetails: request?.body?.CampaignDetails
             }

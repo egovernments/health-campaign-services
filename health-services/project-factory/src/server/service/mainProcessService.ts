@@ -4,8 +4,9 @@ import { getTargetListForCampaign, persistForProjectProcess } from "../utils/tar
 import { getRootBoundaryCode, getRootBoundaryType } from "../utils/campaignUtils";
 import { campaignProcessStatus, mappingTypes, processNamesConstantsInOrder } from "../config/constants";
 import { markProcessStatus } from "../utils/processTrackUtils";
-import { getCampaignEmployees, getEmployeeListForCampaignDetails, persistForActiveBoundariesFromEmployeeList, persistForActiveEmployees, persistForEmployeeCreationProcess, persistForInActiveBoundariesFromEmployeeList, persistForInactiveEmployees } from "../utils/campaignEmployeesUtils";
+import { getAllCampaignEmployeesWithJustMobileNumbers, getCampaignEmployees, getEmployeeListForCampaignDetails, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees, persistForActiveBoundariesFromEmployeeList, persistForActiveEmployees, persistForEmployeeCreationProcess, persistForInActiveBoundariesFromEmployeeList, persistForInactiveEmployees } from "../utils/campaignEmployeesUtils";
 import { getCampaignMappings } from "../utils/campaignMappingUtils";
+import { logger } from "../utils/logger";
 
 
 
@@ -23,6 +24,9 @@ const processProjectCreation = async (campaignDetailsAndRequestInfo: any) => {
         await addBoundariesInProjectCampaign(allBoundaries, allTargetList, campaignNumber, userUuid, campaignProjects);
         const rootBoundaryCode = getRootBoundaryCode(boundaries);
         await persistForProjectProcess([rootBoundaryCode], campaignNumber, tenantId, userUuid, null);
+        // wait for 5 seconds for confirmed persistence
+        logger.info("Waiting for 5 seconds for confirmed persistence to start project creation...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error: any) {
         console.log(error);
         await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.projectCreation, campaignProcessStatus.failed, error?.message);
@@ -37,7 +41,9 @@ const processEmployeeCreation = async (campaignDetailsAndRequestInfo: any) => {
         await markProcessStatus(campaignNumber, processNamesConstantsInOrder.employeeCreation, campaignProcessStatus.started);
         const allEmployeeList = await getEmployeeListForCampaignDetails(CampaignDetails);
         const campaignEmployees = await getCampaignEmployees(campaignNumber, false);
-        await persistForActiveEmployees(allEmployeeList, campaignEmployees, campaignNumber, userUuid);
+        const campaignEmployeesWithJustMobileNumbers = await getAllCampaignEmployeesWithJustMobileNumbers(allEmployeeList?.map((employee: any) => employee?.user?.mobileNumber));
+        const mobileNumbersAndCampaignEmployeeMapping = getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(campaignEmployeesWithJustMobileNumbers);
+        await persistForActiveEmployees(allEmployeeList, campaignEmployees, campaignNumber, userUuid, mobileNumbersAndCampaignEmployeeMapping);
         await persistForInactiveEmployees(allEmployeeList, campaignEmployees, campaignNumber, userUuid);
         const campaignMappings = await getCampaignMappings(campaignNumber, mappingTypes.staff);
         await persistForActiveBoundariesFromEmployeeList(allEmployeeList, campaignMappings, campaignNumber, userUuid);
@@ -45,6 +51,9 @@ const processEmployeeCreation = async (campaignDetailsAndRequestInfo: any) => {
         const rootBoundaryCode = getRootBoundaryCode(boundaries);
         const rootBoundaryType = getRootBoundaryType(boundaries);
         await persistForEmployeeCreationProcess(allEmployeeList, campaignNumber, tenantId, userUuid, hierarchyType, rootBoundaryCode, rootBoundaryType);
+        // wait for 5 seconds for confirmed persistence
+        logger.info("Waiting for 5 seconds for confirmed persistence to start employee creation...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error: any) {
         console.log(error);
         await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.employeeCreation, campaignProcessStatus.failed, error?.message);

@@ -232,9 +232,10 @@ export async function persistForActiveEmployees(
     employeesFromSheet: any[],
     campaignEmployees: any[],
     campaignNumber: string,
-    userUuid: string
+    userUuid: string,
+    mobileNumbersAndCampaignEmployeeMapping: any
 ) {
-    await persistNewActiveEmployees(employeesFromSheet, campaignEmployees, campaignNumber, userUuid);
+    await persistNewActiveEmployees(employeesFromSheet, campaignEmployees, campaignNumber, userUuid, mobileNumbersAndCampaignEmployeeMapping);
     await updateInactiveEmployeesToActive(employeesFromSheet, campaignEmployees, userUuid);
 }
 
@@ -243,7 +244,8 @@ async function persistNewActiveEmployees(
     employeesFromSheet: any[],
     campaignEmployees: any[],
     campaignNumber: string,
-    userUuid: string
+    userUuid: string,
+    mobileNumbersAndCampaignEmployeeMapping: any
 ) {
     const setOfCampaignEmployeesMobileNumbers = new Set(campaignEmployees.map((employee: any) => employee?.mobileNumber));
 
@@ -265,10 +267,10 @@ async function persistNewActiveEmployees(
         role: employee?.user?.roles,
         campaignNumber: campaignNumber,
         isActive: true,
-        userServiceUuid: null,
-        userName: null,
+        userServiceUuid: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.userServiceUuid || null,
+        userName: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.userName || null,
         employeeType: employee?.employeeType == "PERMANENT" ? "Permanent" : "Temporary",
-        tokenString: null,
+        tokenString: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.tokenString || null,
         additionalDetails: {},
         createdBy: userUuid,
         lastModifiedBy: userUuid,
@@ -745,3 +747,50 @@ export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInf
         logger.info(`Resource file updated for resource type: ${resourceType}`);
     }
 }
+
+export async function getAllCampaignEmployeesWithJustMobileNumbers(mobileNumbers: any[]) {
+    const query = `
+        SELECT DISTINCT ON (mobilenumber) * 
+        FROM ${config?.DB_CONFIG.DB_CAMPAIGN_EMPLOYEES_TABLE_NAME} 
+        WHERE mobilenumber = ANY($1)
+          AND userserviceuuid IS NOT NULL  -- Only include rows with a valid userServiceUuid
+        ORDER BY mobilenumber, lastmodifiedtime DESC
+    `;
+    const values = [mobileNumbers]; // Use mobileNumbers as the parameter
+
+    try {
+        const queryResponse = await executeQuery(query, values);
+
+        // Map and return the employee objects
+        return queryResponse.rows.map((row: any) => ({
+            id: row.id,
+            campaignNumber: row.campaignnumber,
+            mobileNumber: row.mobilenumber,
+            name: row.name,
+            role: row.role,
+            userServiceUuid: row.userserviceuuid,  // Only included if it exists
+            employeeType: row.employeetype,
+            userName: row.username,
+            additionalDetails: row.additionaldetails,
+            tokenString: row.tokenstring,
+            isActive: row.isactive,
+            createdBy: row.createdby,
+            lastModifiedBy: row.lastmodifiedby,
+            createdTime: parseInt(row.createdtime, 10),
+            lastModifiedTime: parseInt(row.lastmodifiedtime, 10)
+        }));
+    } catch (error) {
+        console.error("Error fetching employees by mobile numbers:", error);
+        throw error;
+    }
+}
+
+export function getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(campaignEmployees: any[]) {
+    const mobileNumbersAndCampaignEmployeeMapping: any = {};
+    for (const employee of campaignEmployees) {
+        if(!employee?.userServiceUuid) continue;
+        mobileNumbersAndCampaignEmployeeMapping[employee?.mobileNumber] = employee;
+    }
+    return mobileNumbersAndCampaignEmployeeMapping;
+}
+

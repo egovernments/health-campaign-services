@@ -52,6 +52,7 @@ import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
 import { defaultRequestInfo, searchBoundaryRelationshipDefinition } from "./coreApis";
 import { persistCampaignProject } from "../utils/projectCampaignUtils";
+import { getAllCampaignEmployeesWithJustMobileNumbers, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees } from "../utils/campaignEmployeesUtils";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -325,20 +326,34 @@ async function getUuidsError(
   response: any,
   mobileNumberRowNumberMapping: any
 ) {
+  const campaignEmployessJustWithMobileNumber = await getAllCampaignEmployeesWithJustMobileNumbers(response?.Individual?.map((user: any) => user?.mobileNumber));
+  const mobileNumberAndCampaignEmployeesMapping = getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(campaignEmployessJustWithMobileNumber);
   var errors: any[] = [];
   var count = 0;
   request.body.mobileNumberUuidsMapping = request.body.mobileNumberUuidsMapping
     ? request.body.mobileNumberUuidsMapping
     : {};
   for (const user of response.Individual) {
-    if (!user?.userUuid) {
+    const currentCampaignEmployee = mobileNumberAndCampaignEmployeesMapping[user?.mobileNumber];
+    if(!currentCampaignEmployee){
+      logger.info(
+        `User with mobileNumber ${user?.mobileNumber} is already created and is not found in campaign employee.`
+      );
+      errors.push({
+        status: "INVALID",
+        rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
+      });
+      count++;
+    }
+    else if (!user?.userUuid) {
       logger.info(
         `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`
       );
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else if (!user?.userDetails?.username) {
@@ -348,7 +363,7 @@ async function getUuidsError(
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else if (!user?.userUuid) {
@@ -358,7 +373,7 @@ async function getUuidsError(
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else {
@@ -415,9 +430,7 @@ const createBatchRequest = async (
       "Error occurred during user search while validating mobile number."
     );
   }
-  if (config.values.notCreateUserIfAlreadyThere) {
-    await getUuidsError(request, response, mobileNumberRowNumberMapping);
-  }
+  await getUuidsError(request, response, mobileNumberRowNumberMapping);
 
   if (response?.Individual?.length > 0) {
     return response.Individual.map((item: any) => item?.mobileNumber);
@@ -459,8 +472,8 @@ async function getUserWithMobileNumbers(
 }
 
 async function matchUserValidation(createdData: any[], request: any) {
-  var count = 0;
-  const errors = [];
+  // var count = 0;
+  // const errors = [];
   const mobileNumbers = createdData
     .filter((item) => item?.user?.mobileNumber)
     .map((item) => item?.user?.mobileNumber);
@@ -472,42 +485,42 @@ async function matchUserValidation(createdData: any[], request: any) {
     "mobileNumberRowNumberMapping : " +
     getFormattedStringForDebug(mobileNumberRowNumberMapping)
   );
-  const mobileNumberResponse = await getUserWithMobileNumbers(
+  await getUserWithMobileNumbers(
     request,
     mobileNumbers,
     mobileNumberRowNumberMapping
   );
-  for (const key in mobileNumberRowNumberMapping) {
-    if (
-      mobileNumberResponse.has(key) &&
-      !config.values.notCreateUserIfAlreadyThere
-    ) {
-      if (Array.isArray(mobileNumberRowNumberMapping[key])) {
-        for (const row of mobileNumberRowNumberMapping[key]) {
-          errors.push({
-            status: "INVALID",
-            rowNumber: row.row,
-            sheetName: row.sheetName,
-            errorDetails: `User with contact number ${key} already exists`,
-          });
-        }
-      } else {
-        errors.push({
-          status: "INVALID",
-          rowNumber: mobileNumberRowNumberMapping[key],
-          errorDetails: `User with contact number ${key} already exists`,
-        });
-      }
-      count++;
-    }
-  }
-  if (count) {
-    request.body.ResourceDetails.status = "invalid";
-  }
-  logger.info("Invalid resources count : " + count);
-  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
-    ? [...request?.body?.sheetErrorDetails, ...errors]
-    : errors;
+  // for (const key in mobileNumberRowNumberMapping) {
+  //   if (
+  //     mobileNumberResponse.has(key) &&
+  //     !config.values.notCreateUserIfAlreadyThere
+  //   ) {
+  //     if (Array.isArray(mobileNumberRowNumberMapping[key])) {
+  //       for (const row of mobileNumberRowNumberMapping[key]) {
+  //         errors.push({
+  //           status: "INVALID",
+  //           rowNumber: row.row,
+  //           sheetName: row.sheetName,
+  //           errorDetails: `User with contact number ${key} already exists`,
+  //         });
+  //       }
+  //     } else {
+  //       errors.push({
+  //         status: "INVALID",
+  //         rowNumber: mobileNumberRowNumberMapping[key],
+  //         errorDetails: `User with contact number ${key} already exists`,
+  //       });
+  //     }
+  //     count++;
+  //   }
+  // }
+  // if (count) {
+  //   request.body.ResourceDetails.status = "invalid";
+  // }
+  // logger.info("Invalid resources count : " + count);
+  // request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
+  //   ? [...request?.body?.sheetErrorDetails, ...errors]
+  //   : errors;
 }
 function matchViaUserIdAndCreationTime(
   createdData: any[],
@@ -1138,23 +1151,21 @@ async function handleUserProcess(
   dataToCreate: any[],
   newRequestBody: any
 ) {
-  if (config.values.notCreateUserIfAlreadyThere) {
-    var Employees: any[] = [];
-    if (request.body?.mobileNumberUuidsMapping) {
-      for (const employee of newRequestBody.Employees) {
-        if (
-          request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]
-        ) {
-          logger.info(
-            `User with mobile number ${employee?.user?.mobileNumber} already exist`
-          );
-        } else {
-          Employees.push(employee);
-        }
+  var Employees: any[] = [];
+  if (request.body?.mobileNumberUuidsMapping) {
+    for (const employee of newRequestBody.Employees) {
+      if (
+        request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]
+      ) {
+        logger.info(
+          `User with mobile number ${employee?.user?.mobileNumber} already exist`
+        );
+      } else {
+        Employees.push(employee);
       }
     }
-    newRequestBody.Employees = Employees;
   }
+  newRequestBody.Employees = Employees;
   if (newRequestBody.Employees.length > 0) {
     var responsePayload = await httpRequest(
       createAndSearchConfig?.createBulkDetails?.url,
