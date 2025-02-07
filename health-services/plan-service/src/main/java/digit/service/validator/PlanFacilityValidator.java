@@ -1,6 +1,5 @@
 package digit.service.validator;
 
-import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
 import digit.service.enrichment.PlanFacilityEnricher;
