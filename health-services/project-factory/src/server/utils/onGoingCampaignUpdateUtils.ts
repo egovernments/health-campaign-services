@@ -230,7 +230,7 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   return newData;
 }
 
-function validateBoundariesIfParentPresent(request: any) {
+function validateBoundariesIfParentPresent(request: any, action : string) {
   const { parentCampaign, CampaignDetails } = request?.body || {};
 
   if (parentCampaign) {
@@ -258,7 +258,9 @@ function validateBoundariesIfParentPresent(request: any) {
     if (errors.length > 0) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
     }
-    request.body.CampaignDetails.boundaries = [...parentCampaign.boundaries, ...newBoundaries];
+    if(action == "create") {
+      request.body.CampaignDetails.boundaries = [...parentCampaign.boundaries, ...newBoundaries];
+    }
   }
 }
 
