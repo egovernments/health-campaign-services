@@ -826,10 +826,22 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
         }
     }
+    else if (missingTypes.length > 0) {
+        setMissingResourcesFromParent(missingTypes, request?.body?.parentCampaign?.resources, request?.body?.CampaignDetails);
+    }
 
     if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
         logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting}`);
         !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
+    }
+}
+
+function setMissingResourcesFromParent(missingTypes: any, parentResources: any, CampaignDetails: any) {
+    for (const missingType of missingTypes) {
+        const resource = parentResources.find((resource: any) => resource.type === missingType);
+        if (resource) {
+            CampaignDetails?.resources.push(resource);
+        }
     }
 }
 
