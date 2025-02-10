@@ -579,6 +579,10 @@ export async function persistForEmployeeCreationProcess(employeeList: any[], cam
 }
 
 export async function processSubEmployeeCreationFromConsumer(data: any, campaignNumber: string) {
+    // wait for 5 second before processing the employee creation process for each chunk
+    logger.info("Waiting for 5 seconds before starting the employee creation process for each chunk");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    logger.info(`Processing employee creation process for campaign number: ${campaignNumber}`);
     const { mobileNumbers, tenantId, hierarchyType, rootBoundaryCode, rootBoundaryType, userUuid } = data;
 
     // Fetch campaign employees for the provided campaign number and mobile numbers
@@ -586,8 +590,10 @@ export async function processSubEmployeeCreationFromConsumer(data: any, campaign
 
     // Filter employees without userServiceUuid
     const employeesToCreate = campaignEmployees?.filter((employee: any) => !employee?.userServiceUuid);
+    const employeesToCreateLength = employeesToCreate?.length;
 
-    if (employeesToCreate?.length > 0) {
+    if (employeesToCreateLength > 0) {
+        logger.info(`Creating ${employeesToCreateLength} employees for campaign number: ${campaignNumber}`);
         // Generate employee creation body
         const employeesCreateBody = await getEmployeeCreateBody(
             employeesToCreate,
@@ -620,6 +626,9 @@ export async function processSubEmployeeCreationFromConsumer(data: any, campaign
             produceMessage,
             config?.kafka?.KAFKA_UPDATE_CAMPAIGN_EMPLOYEES_TOPIC
         );
+    }
+    else{
+        logger.info(`No employees to create for campaign number: ${campaignNumber}`);
     }
 
     // wait for 5 seconds
@@ -669,7 +678,7 @@ export async function getEmployeeCreateBody(employees: any[], tenantId: string, 
 }
 
 async function checkAndPersistEmployeeCreationResult(campaignNumber: string) {
-    const maxRetries = 10;
+    const maxRetries = 15;
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {

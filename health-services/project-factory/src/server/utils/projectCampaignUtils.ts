@@ -218,6 +218,9 @@ export async function addBoundariesInProjectCampaign(allBoundaries: any, allTarg
 }
 
 export async function processSubProjectCreationFromConsumer(data: any, campaignNumber: string) {
+    // wait for 5 second before starting the process for each chunk
+    logger.info("Waiting for 5 seconds before starting the project-creation for each chunk");
+    await new Promise(resolve => setTimeout(resolve, 5000));
     const { parentProjectId, childrenBoundaryCodes, tenantId, userUuid } = data;
 
     // Get campaign projects for the provided campaign number and children boundary codes
@@ -496,7 +499,7 @@ export async function getParentToBoundaryCodeMapping(
 export async function checkAndPersistProjectCreationResult(
     campaignNumber: string
 ) {
-    const maxRetries = 10;
+    const maxRetries = 15;
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
