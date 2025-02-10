@@ -819,12 +819,16 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             missingTypes.push(type);
         }
     }
-    if ((!request?.body?.parentCampaign) || (request?.body?.parentCampaign && request?.body?.CampaignDetails?.boundaries && request.body.CampaignDetails.boundaries.length > 0)) {
+    const isBothBoundariesEqual = getIfBothBoundariesEqual(request?.body?.CampaignDetails?.boundaries, request?.body?.parentCampaign?.boundaries);
+    if ((!request?.body?.parentCampaign) || !isBothBoundariesEqual) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
             throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
         }
     }
+    // else if (missingTypes.length > 0) {
+    //     setMissingResourcesFromParent(missingTypes, request?.body?.parentCampaign?.resources, request?.body?.CampaignDetails);
+    // }
 
     if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
         logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting}`);
@@ -832,6 +836,35 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     }
 }
 
+// function setMissingResourcesFromParent(missingTypes: any, parentResources: any, CampaignDetails: any) {
+//     for (const missingType of missingTypes) {
+//         const resource = parentResources.find((resource: any) => resource.type === missingType);
+//         if (resource) {
+//             CampaignDetails?.resources.push(resource);
+//         }
+//     }
+// }
+
+function getIfBothBoundariesEqual(boundaries: any, parentBoundaries: any) {
+    if(!boundaries || !parentBoundaries) {
+        return false;
+    }
+    const setOfBoundariesOfChild = new Set(boundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
+    const setOfBoundariesOfParent = new Set(parentBoundaries.map((boundary: any) => `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`));
+    for(const boundary of boundaries) {
+        const currentBoundaryString = `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`;
+        if(!setOfBoundariesOfParent.has(currentBoundaryString)) {
+            return false;
+        }
+    }
+    for(const boundary of parentBoundaries) {
+        const currentBoundaryString = `${boundary.code}#${boundary.includeAllChildren}#${boundary.isRoot}`;
+        if(!setOfBoundariesOfChild.has(currentBoundaryString)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 
 

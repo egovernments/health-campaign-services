@@ -7,7 +7,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { fillDataInProcessedUserSheet, getExcelWorkbookFromFileURL, getLocaleFromCampaignFiles } from "./excelUtils";
 import { getDataFromSheetFromNormalCampaign, getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import createAndSearch from "../config/createAndSearch";
-import { convertToType, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, getLocalizedName, updateCreateResourceId } from "./campaignUtils";
+import { checkIfNoNeedToProceedForResource, convertToType, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, getLocalizedName, updateCreateResourceId } from "./campaignUtils";
 import { executeQuery } from "./db";
 import { generateUserPassword } from "../api/campaignApis";
 import { encryptPassword } from "./encryptionUtils";
@@ -19,7 +19,7 @@ import {  createAndUploadFileWithLocaleAndCampaign } from "../api/genericApis";
 
 export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any) {
     try {
-        const { CampaignDetails } = campaignDetailsAndRequestInfo;
+        const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
         const isProcessAlreadyCompleted = await checkIfProcessIsCompleted(
             CampaignDetails?.campaignNumber,
             processNamesConstantsInOrder.employeeCreation
@@ -28,11 +28,16 @@ export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any
             logger.info("Employee Creation process already completed");
             return;
         }
-        const produceMessage: any = {
-            processName: processNamesConstantsInOrder.employeeCreation,
-            campaignDetailsAndRequestInfo: campaignDetailsAndRequestInfo
+        const isNoNeedToProceed = await checkIfNoNeedToProceedForResource(
+              "user",
+              processNamesConstantsInOrder.employeeCreation,
+              CampaignDetails,
+              RequestInfo
+            )
+        if(isNoNeedToProceed){
+            logger.info("Employee Creation process no need to proceed");
+            return;
         }
-        await produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_HANDLER_TOPIC);
         // TODO : Remove confirmation from here
         // Function to delay execution for a specified time
         let employeeCreationStatusConfirmed = false;

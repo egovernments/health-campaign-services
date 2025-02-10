@@ -1997,15 +1997,16 @@ async function createProject(
       logger.info("Project Creation process already completed");
       return;
     }
-    const campaignDetailsAndRequestInfo = {
-      RequestInfo: requestBody?.RequestInfo,
-      CampaignDetails: requestBody?.CampaignDetails,
+    const isNoNeedToProceed = await checkIfNoNeedToProceedForResource(
+      "boundaryWithTarget",
+      processNamesConstantsInOrder.projectCreation,
+      requestBody?.CampaignDetails,
+      requestBody?.RequestInfo
+    )
+    if(isNoNeedToProceed){
+      logger.info("Project Creation process no need to proceed");
+      return;
     }
-    const produceMessage: any = {
-      processName: processNamesConstantsInOrder.projectCreation,
-      campaignDetailsAndRequestInfo: campaignDetailsAndRequestInfo
-    }
-    await produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_HANDLER_TOPIC);
     // TODO : Remove confirmation from here
     // Function to delay execution for a specified time
     let projectStatusConfirmed = false;
@@ -2065,6 +2066,24 @@ async function createProject(
     processTrackTypes.targetAndDeliveryRulesCreation,
     processTrackStatuses.completed
   );
+}
+
+export async function checkIfNoNeedToProceedForResource(resourceType : string, processName : string, CampaignDetails: any, RequestInfo: any) {
+  const resourceFileId = CampaignDetails?.resources?.find((resource: any) => resource?.type == resourceType)?.filestoreId;
+  if (!resourceFileId) {
+    await markProcessStatus(CampaignDetails?.campaignNumber, processName, campaignProcessStatus.completed);
+    return true;
+  }
+  const campaignDetailsAndRequestInfo = {
+    RequestInfo: RequestInfo,
+    CampaignDetails: CampaignDetails,
+  }
+  const produceMessage: any = {
+    processName: processName,
+    campaignDetailsAndRequestInfo: campaignDetailsAndRequestInfo
+  }
+  await produceModifiedMessages(produceMessage, config.kafka.KAFKA_PROCESS_HANDLER_TOPIC);
+  return false;
 }
 
 async function processAfterPersist(request: any, actionInUrl: any) {
