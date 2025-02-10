@@ -29,7 +29,8 @@ import {
   checkIfSourceIsMicroplan,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
-  createIdRequestsForEmployees
+  createIdRequestsForEmployees,
+  getBoundaryCodeAndBoundaryTypeMapping
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -50,9 +51,9 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { defaultRequestInfo, searchBoundaryRelationshipDefinition } from "./coreApis";
 import { persistCampaignProject } from "../utils/projectCampaignUtils";
 import { getAllCampaignEmployeesWithJustMobileNumbers, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees } from "../utils/campaignEmployeesUtils";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, defaultRequestInfo } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -688,7 +689,7 @@ async function processSearchAndValidation(request: any) {
   //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
   // }
   if (request?.body?.ResourceDetails?.type == "user") {
-    await enrichEmployees(request?.body?.dataToCreate, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    await enrichEmployees(request?.body?.dataToCreate, request);
     await matchUserValidation(request.body.dataToCreate, request);
   }
 }
@@ -1062,39 +1063,60 @@ export function generateUserPassword() {
   return `${firstSequence}@${randomNumber}`;
 }
 
-async function enrichJurisdictions(employee: any, tenantId: string, hierarchyType: string) {
-  employee.jurisdictions = [
-    {
-      tenantId: tenantId,
-      boundaryType: config.values.userMainBoundaryType,
-      boundary: config.values.userMainBoundary,
-      hierarchy: hierarchyType,
-      roles: employee?.user?.roles,
-    },
-  ];
+async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
+  const jurisdictionsArray = employee?.jurisdictions
+    ?.split(",")
+    ?.map((jurisdiction : any ) => jurisdiction.trim());
+
+  if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
+    const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
+      return {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: boundaryCodeAndBoundaryTypeMapping[jurisdiction],
+        boundary: jurisdiction,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      };
+    })
+    employee.jurisdictions = jurisdictions
+  }
+  else{
+    employee.jurisdictions = [
+      {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: config.values.userMainBoundaryType,
+        boundary: config.values.userMainBoundary,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      },
+    ];
+  }
 }
 
-export async function enrichEmployees(employees: any[], tenantId: string, hierarchyType: string) {
-  convertUserRoles(employees, tenantId);
-  if (employees?.length > 0) {
-    const idRequests = createIdRequestsForEmployees(employees?.length, tenantId);
-    let result = await createUniqueUserNameViaIdGen(idRequests);
-    var i = 0;
-    for (const employee of employees) {
-      const { user } = employee;
-      const generatedPassword =
-        config?.user?.userPasswordAutoGenerate == "true"
-          ? generateUserPassword()
-          : config?.user?.userDefaultPassword;
-      user.userName = result?.idResponses?.[i]?.id;
-      user.password = generatedPassword;
-      employee.code = result?.idResponses?.[i]?.id;
-      await enrichJurisdictions(employee, tenantId, hierarchyType);
-      if (employee?.user) {
-        employee.user.tenantId = tenantId;
-        employee.user.dob = 0;
-      }
-      i++;
+async function enrichEmployees(employees: any[], request: any) {
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
+  if(!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
+    throw new Error("Boundary relationship search failed");
+  }
+  const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
+  convertUserRoles(employees, request);
+  const idRequests = createIdRequestsForEmployees(employees?.length, request?.body?.ResourceDetails?.tenantId);
+  request.body.idRequests = idRequests;
+  let result = await createUniqueUserNameViaIdGen(request);
+  var i = 0;
+  for (const employee of employees) {
+    const { user } = employee;
+    const generatedPassword =
+      config?.user?.userPasswordAutoGenerate == "true"
+        ? generateUserPassword()
+        : config?.user?.userDefaultPassword;
+    user.userName = result?.idResponses?.[i]?.id;
+    user.password = generatedPassword;
+    employee.code = result?.idResponses?.[i]?.id;
+    await enrichJurisdictions(employee, request, boundaryCodeAndBoundaryTypeMapping);
+    if (employee?.user) {
+      employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
+      employee.user.dob = 0;
     }
   }
 }

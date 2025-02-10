@@ -547,7 +547,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const fileUrl = await validateFile(request);
         await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
         const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-        if (request.body.ResourceDetails.type == 'boundary') {
+        if (request.body.ResourceDetails.type == 'boundary' || request.body.ResourceDetails.type == 'boundaryManagement') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
     }
@@ -589,6 +589,13 @@ function validateForRootElementExists(boundaryData: any[], hierachy: any[], shee
     }
 }
 function validateForDupicateRows(boundaryData: any[]) {
+    boundaryData = boundaryData.map(row =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) =>
+            [key, typeof value === "string" ? value.trim() : value]
+          )
+        )
+      );
     const uniqueRows = _.uniqWith(boundaryData, (obj1: any, obj2: any) => {
         // Exclude '!row#number!' property when comparing objects
         const filteredObj1 = _.omit(obj1, ['!row#number!']);

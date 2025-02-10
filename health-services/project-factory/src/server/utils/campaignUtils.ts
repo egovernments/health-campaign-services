@@ -2995,6 +2995,14 @@ const autoGenerateBoundaryCodes = async (
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   const map: Map<string, string> = new Map();
   const count: Map<string, number> = new Map();
+  
+  boundaryData = boundaryData.map(row =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) =>
+        [key, typeof value === "string" ? value.trim() : value]
+      )
+    )
+  );
 
   boundaryData.forEach((row) => {
     const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
@@ -3588,6 +3596,16 @@ export async function updateCreateResourceId(CampaignDetails: any, resourceType:
     CampaignDetails : CampaignDetails
   }
   await produceModifiedMessages(produceModifiedMessageForCampaign, config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+}
+
+export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentMapping : any = {}) {
+   for(const boundary of boundaries) {
+     currentMapping[boundary.code] = boundary.boundaryType;
+     if(boundary.children?.length > 0) {
+       getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
+     }
+   }
+   return currentMapping;
 }
 
 export {

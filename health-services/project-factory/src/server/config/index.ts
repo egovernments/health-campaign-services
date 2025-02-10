@@ -180,8 +180,8 @@ const config = {
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
-    userMainBoundary: "mz",
-    userMainBoundaryType: "Country",
+    userMainBoundary: process.env.USER_MAIN_BOUNDARY || "mz",
+    userMainBoundaryType: process.env.USER_MAIN_BOUNDARY_TYPE || "Country",
     idgen: {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
       idName: process.env.CMP_IDGEN_IDNAME || "campaign.number",
