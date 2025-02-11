@@ -187,7 +187,6 @@ public class MdmsUtil {
 		Map<String, Object> planModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_PLAN_MODULE_NAME);
 		List<Map<String, Object>> commonConstantsMap = (List<Map<String, Object>>) planModule
 				.get(ServiceConstants.MDMS_MASTER_COMMON_CONSTANTS);
-		log.debug("masterDataJson ==>" + commonConstantsMap);
 		for (Map<String, Object> commonConstantMap : commonConstantsMap) {
 			properties.put((String) commonConstantMap.get("name"), (String) commonConstantMap.get("value"));
 	
