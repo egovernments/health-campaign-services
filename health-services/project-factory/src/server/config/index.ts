@@ -49,6 +49,7 @@ const config = {
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
+    userRoleKey: "HCM_ADMIN_CONSOLE_USER_ROLE",
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
@@ -101,6 +102,7 @@ const config = {
     localizationModule: process.env.LOCALIZATION_MODULE || "hcm-admin-schemas",
     localizationWaitTimeInBoundaryCreation: parseInt(process.env.LOCALIZATION_WAIT_TIME_IN_BOUNDARY_CREATION || "30000"),
     localizationChunkSizeForBoundaryCreation: parseInt(process.env.LOCALIZATION_CHUNK_SIZE_FOR_BOUNDARY_CREATION || "2000"),
+    localizationModuleForUserRoles: "rainmaker-hr",
   },
   // targetColumnsForSpecificCampaigns: {
   //   bedNetCampaignColumns: ["HCM_ADMIN_CONSOLE_TARGET"],

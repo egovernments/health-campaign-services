@@ -666,7 +666,7 @@ function updateOffset(
   }
 }
 
-async function processSearchAndValidation(request: any) {
+async function processSearchAndValidation(request: any,localizationMap?:any) {
   // if (request?.body?.dataToSearch?.length > 0) {
   //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
@@ -675,7 +675,7 @@ async function processSearchAndValidation(request: any) {
   //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
   // }
   if (request?.body?.ResourceDetails?.type == "user") {
-    await enrichEmployees(request?.body?.dataToCreate, request);
+    await enrichEmployees(request?.body?.dataToCreate, request,localizationMap);
     await matchUserValidation(request.body.dataToCreate, request);
   }
 }
@@ -798,7 +798,7 @@ async function processValidateAfterSchema(
     );
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
-    await processSearchAndValidation(request);
+    await processSearchAndValidation(request,localizationMap);
     await reorderBoundariesOfDataAndValidate(request, localizationMap);
     await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
@@ -836,7 +836,7 @@ async function processSheetWise(
       localizationMap
     );
     enrichErrorIfSheetInvalid(request, errorMap);
-    await processSearchAndValidation(request);
+    await processSearchAndValidation(request,localizationMap);
     if (request?.body?.sheetErrorDetails?.length > 0) {
       request.body.ResourceDetails.status = resourceDataStatuses.invalid;
       await generateProcessedFileAndPersist(request, localizationMap);
@@ -994,7 +994,7 @@ async function processValidate(
   }
 }
 
-function convertUserRoles(employees: any[], request: any) {
+function convertUserRoles(employees: any[], request: any,localizationMap?:any) {
   for (const employee of employees) {
     if (employee?.user?.roles) {
       var newRoles: any[] = [];
@@ -1002,8 +1002,12 @@ function convertUserRoles(employees: any[], request: any) {
         const rolesArray = employee.user.roles
           .split(",")
           .map((role: any) => role.trim());
-        for (const role of rolesArray) {
-          const code = role.toUpperCase().split(" ").join("_");
+          for (const role of rolesArray) {
+            // Find the key (actual code) for the role name in localizationMap
+            let code = Object.keys(localizationMap || {}).find((key) => localizationMap?.[key] === role) || role;
+  
+            // Remove prefix if present
+            code = code.replace(/^ACCESSCONTROL_ROLES_ROLES_/, "");
           newRoles.push({
             name: role,
             code: code,
@@ -1080,13 +1084,13 @@ async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndB
   }
 }
 
-async function enrichEmployees(employees: any[], request: any) {
+async function enrichEmployees(employees: any[], request: any,localizatioMap?:any) {
   const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
   if(!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
     throw new Error("Boundary relationship search failed");
   }
   const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
-  convertUserRoles(employees, request);
+  convertUserRoles(employees, request,localizatioMap);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
   let result = await createUniqueUserNameViaIdGen(request);
@@ -1481,7 +1485,7 @@ async function processAfterValidation(
       "microplan" &&
       request.body.ResourceDetails.type == "user"
     ) {
-      await processSearchAndValidation(request);
+      await processSearchAndValidation(request,localizationMap);
     } else {
       const typeData = await convertToTypeData(
         request,
@@ -1492,7 +1496,7 @@ async function processAfterValidation(
       );
       request.body.dataToCreate = typeData.createData;
       request.body.dataToSearch = typeData.searchData;
-      await processSearchAndValidation(request);
+      await processSearchAndValidation(request,localizationMap);
       await reorderBoundariesOfDataAndValidate(request, localizationMap);
     }
     if (
