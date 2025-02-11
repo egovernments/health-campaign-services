@@ -687,7 +687,7 @@ public class ExcelParser implements FileParser {
 						if (cellValue != null && !cellValue.isEmpty()
 								&& cellValue.matches(ServiceConstants.VALIDATE_STRING_REGX)) {
 							continue;
-						} else {
+						} else if (isRequired){
 							log.info(ServiceConstants.INPUT_IS_NOT_VALID + (row.getRowNum() + 1) + " and cell/column "
 									+ columnName);
 							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
