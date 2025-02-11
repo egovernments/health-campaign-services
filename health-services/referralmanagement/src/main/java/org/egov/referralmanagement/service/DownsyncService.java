@@ -187,11 +187,11 @@ public class DownsyncService {
      *
      * @param downsyncRequest
      * @param downsync
-     * @param individualIds
+     * @param individualClientRefIds
      * @return individual ClientReferenceIds
      */
     private List<String> searchIndividuals(DownsyncRequest downsyncRequest, Downsync downsync,
-                                           Set<String> individualIds) {
+                                           Set<String> individualClientRefIds) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -199,13 +199,13 @@ public class DownsyncService {
         StringBuilder url = new StringBuilder(configs.getIndividualHost())
                 .append(configs.getIndividualSearchUrl());
 
-        url = appendUrlParams(url, criteria, 0, individualIds.size(),true);
+        url = appendUrlParams(url, criteria, 0, individualClientRefIds.size(),true);
 
         IndividualSearch individualSearch = IndividualSearch.builder()
                 .build();
 
-        if(!CollectionUtils.isEmpty(individualIds))
-            individualSearch.setId(new ArrayList<>(individualIds));
+        if(!CollectionUtils.isEmpty(individualClientRefIds))
+            individualSearch.setClientReferenceId(new ArrayList<>(individualClientRefIds));
 
         IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
                 .individual(individualSearch)
@@ -251,7 +251,7 @@ public class DownsyncService {
         List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
         downsync.setHouseholdMembers(members);
 
-        return members.stream().map(HouseholdMember::getIndividualId).collect(Collectors.toSet());
+        return members.stream().map(HouseholdMember::getIndividualClientReferenceId).collect(Collectors.toSet());
     }
 
     /**
