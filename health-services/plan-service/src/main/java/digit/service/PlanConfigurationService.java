@@ -78,9 +78,6 @@ public class PlanConfigurationService {
      * @return A list of plan configurations that match the search criteria.
      */
     public PlanConfigurationResponse search(PlanConfigurationSearchRequest request) {
-        // Validates plan configuration search request
-        validator.validateSearchRequest(request);
-
         // Delegate search request to repository
         List<PlanConfiguration> planConfigurations = repository.search(request.getPlanConfigurationSearchCriteria());
 

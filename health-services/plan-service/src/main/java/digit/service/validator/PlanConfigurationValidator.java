@@ -299,26 +299,6 @@ public class PlanConfigurationValidator {
     }
 
     /**
-     * Validates the search request for plan configurations.
-     *
-     * @param planConfigurationSearchRequest The search request for plan configurations.
-     */
-    public void validateSearchRequest(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
-        validateSearchCriteria(planConfigurationSearchRequest);
-    }
-
-    private void validateSearchCriteria(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
-        if (Objects.isNull(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria())) {
-            throw new CustomException(SEARCH_CRITERIA_EMPTY_CODE, SEARCH_CRITERIA_EMPTY_MESSAGE);
-        }
-
-        if (StringUtils.isEmpty(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getTenantId())) {
-            throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
-        }
-    }
-
-
-    /**
      * Validates the update request for plan configuration, including assumptions against MDMS data.
      *
      * @param request The update request for plan configuration.
@@ -377,32 +357,6 @@ public class PlanConfigurationValidator {
         }
 
     }
-
-    /**
-     * Validates that if an operation is inactive, its output is not used as input in any other active operation.
-     * If the condition is violated, it logs an error and throws a CustomException.
-     *
-     * @param planConfiguration The plan configuration to validate.
-     * @throws CustomException If an inactive operation's output is used as input in any other active operation.
-     */
-    public static void validateOperationDependencies(PlanConfiguration planConfiguration) {
-        if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            // Collect all active operations' inputs
-            Set<String> activeInputs = planConfiguration.getOperations().stream()
-                    .filter(Operation::getActive)
-                    .map(Operation::getInput)
-                    .collect(Collectors.toSet());
-
-            // Check for each inactive operation
-            planConfiguration.getOperations().forEach(operation -> {
-                if (!operation.getActive() && activeInputs.contains(operation.getOutput())) {
-                    log.error(INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
-                    throw new CustomException(INACTIVE_OPERATION_USED_AS_INPUT_CODE, INACTIVE_OPERATION_USED_AS_INPUT_MESSAGE + operation.getOutput());
-                }
-            });
-        }
-    }
-
 
     /**
      * Validates Vehicle ids from additional details against MDMS V2
