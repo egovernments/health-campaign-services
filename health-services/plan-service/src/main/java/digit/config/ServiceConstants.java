@@ -27,6 +27,7 @@ public class ServiceConstants {
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
+    public static final String ID = "id";
 
     public static final String ROOT_PREFIX = "ROOT";
 
@@ -136,6 +137,9 @@ public class ServiceConstants {
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
+    public static final String PARSING_ERROR_CODE = "PARSING_ERROR";
+    public static final String PARSING_ERROR_MESSAGE = "Failed to parse additionalDetails object" ;
+
     public static final String NAME_VALIDATION_LIST_EMPTY_CODE = "NAME_VALIDATION_LIST_EMPTY";
     public static final String NAME_VALIDATION_LIST_EMPTY_MESSAGE = "Name Validation list from MDMS is empty";
 
@@ -238,6 +242,8 @@ public class ServiceConstants {
     public static final String JSON_ROOT_PATH = "$.";
 
     public static final String DOT_SEPARATOR = ".";
+
+    public static final String PIPE_SEPARATOR = "|";
 
     public static final String DOT_REGEX = "\\.";
 
@@ -391,4 +397,9 @@ public class ServiceConstants {
     public static final String AND_CONDITION = " AND ";
 
     public static final String OR_CONDITION = " OR ";
+
+    public static final String PAGINATION_LIMIT_PARAM = "limit";
+
+    public static final String PAGINATION_OFFSET_PARAM = "offset";
+
 }

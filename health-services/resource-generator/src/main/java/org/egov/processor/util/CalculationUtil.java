@@ -24,8 +24,6 @@ import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 public class CalculationUtil {
 	
 	private PlanUtil planUtil;
-	
-	
 
     public CalculationUtil(PlanUtil planUtil) {
 		this.planUtil = planUtil;

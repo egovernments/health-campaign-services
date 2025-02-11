@@ -96,12 +96,6 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         }
 
         String dependencies = rs.getString("plan_activity_dependencies");
-        AuditDetails auditDetails = AuditDetails.builder()
-                .createdBy(rs.getString("plan_activity_created_by"))
-                .createdTime(rs.getLong("plan_activity_created_time"))
-                .lastModifiedBy(rs.getString("plan_activity_last_modified_by"))
-                .lastModifiedTime(rs.getLong("plan_activity_last_modified_time"))
-                .build();
 
         Activity activity = Activity.builder()
                 .id(activityId)
@@ -135,13 +129,6 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             return;
         }
 
-        AuditDetails auditDetails = AuditDetails.builder()
-                .createdBy(rs.getString("plan_activity_condition_created_by"))
-                .createdTime(rs.getLong("plan_activity_condition_created_time"))
-                .lastModifiedBy(rs.getString("plan_activity_condition_last_modified_by"))
-                .lastModifiedTime(rs.getLong("plan_activity_condition_last_modified_time"))
-                .build();
-
         Condition condition = Condition.builder()
                 .id(conditionId)
                 .entity(rs.getString("plan_activity_condition_entity"))
@@ -171,13 +158,6 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             return;
         }
 
-        AuditDetails auditDetails = AuditDetails.builder()
-                .createdBy(rs.getString("plan_resource_created_by"))
-                .createdTime(rs.getLong("plan_resource_created_time"))
-                .lastModifiedBy(rs.getString("plan_resource_last_modified_by"))
-                .lastModifiedTime(rs.getLong("plan_resource_last_modified_time"))
-                .build();
-
         Resource resource = Resource.builder()
                 .id(rs.getString("plan_resource_id"))
                 .resourceType(rs.getString("plan_resource_resource_type"))
@@ -205,13 +185,6 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.setTargets(targetList);
             return;
         }
-
-        AuditDetails auditDetails = AuditDetails.builder()
-                .createdBy(rs.getString("plan_target_created_by"))
-                .createdTime(rs.getLong("plan_target_created_time"))
-                .lastModifiedBy(rs.getString("plan_target_last_modified_by"))
-                .lastModifiedTime(rs.getLong("plan_target_last_modified_time"))
-                .build();
 
         MetricDetail metricDetail = MetricDetail.builder()
                 .metricValue(rs.getBigDecimal("plan_target_metric_value"))

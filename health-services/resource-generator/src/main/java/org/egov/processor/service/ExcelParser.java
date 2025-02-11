@@ -16,7 +16,6 @@ import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
-import org.egov.processor.web.models.campaignManager.CampaignResources;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.egov.processor.web.models.planFacility.PlanFacility;

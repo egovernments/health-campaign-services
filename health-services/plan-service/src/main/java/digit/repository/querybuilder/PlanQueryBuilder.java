@@ -78,8 +78,7 @@ public class PlanQueryBuilder {
      * @return
      */
     public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
-        return query;
+        return buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
     }
 
     /**
@@ -174,18 +173,14 @@ public class PlanQueryBuilder {
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
             Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
-            for (String key : filtersMap.keySet()) {
-                if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
-                    // its for facility multi select then no need to add to preparedStmtList
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
-                    builder.append(partialQueryJsonString);
-                } else {
-                    // handle all other keys normally.
-                    queryUtil.addClauseIfRequired(builder, preparedStmtList);
-                    builder.append(ADDITIONAL_DETAILS_QUERY);
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
-                    preparedStmtList.add(partialQueryJsonString);
-                }
+
+            for (Map.Entry<String,Set<String>> entry : filtersMap.entrySet()) {
+                queryUtil.addClauseIfRequired(builder, preparedStmtList);
+                builder.append("additional_details->'")
+                        .append(entry.getKey()).append("' ??| ARRAY [")
+                        .append(queryUtil.createQuery(entry.getValue().size()))
+                        .append("]");
+                preparedStmtList.addAll(entry.getValue());
             }
         }
 

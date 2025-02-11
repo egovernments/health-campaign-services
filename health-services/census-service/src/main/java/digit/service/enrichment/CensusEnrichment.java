@@ -17,6 +17,8 @@ import org.springframework.util.ObjectUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static digit.config.ServiceConstants.ID;
+import static digit.config.ServiceConstants.PIPE_REGEX;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
@@ -40,15 +42,15 @@ public class CensusEnrichment {
         Census census = request.getCensus();
 
         // Generate id for census record
-        UUIDEnrichmentUtil.enrichRandomUuid(census, "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(census, ID);
 
         // Generate id for PopulationByDemographics
         if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
-            census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
+            census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, ID));
         }
 
         // Generate id for additionalFields
-        census.getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+        census.getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID));
 
         // Set audit details for census record
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
@@ -107,7 +109,7 @@ public class CensusEnrichment {
         if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
             census.getPopulationByDemographics().forEach(populationByDemographics -> {
                 if (ObjectUtils.isEmpty(populationByDemographics.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, ID);
                 }
             });
         }
@@ -115,7 +117,7 @@ public class CensusEnrichment {
         //Generate id for additionalFields
         census.getAdditionalFields().forEach(additionalField -> {
             if (ObjectUtils.isEmpty(additionalField.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID);
             }
         });
 
@@ -213,6 +215,6 @@ public class CensusEnrichment {
         if (CollectionUtils.isEmpty(boundaryAncestralPath)) {
             return Collections.emptyList();
         }
-        return Arrays.asList(boundaryAncestralPath.get(0).split("\\|"));
+        return Arrays.asList(boundaryAncestralPath.get(0).split(PIPE_REGEX));
     }
 }

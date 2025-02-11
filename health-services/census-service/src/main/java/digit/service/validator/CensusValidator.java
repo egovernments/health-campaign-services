@@ -119,7 +119,7 @@ public class CensusValidator {
 
         if (census.getPartnerAssignmentValidationEnabled()) {
             User userInfo = request.getRequestInfo().getUserInfo();
-            List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split("\\|"));
+            List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split(PIPE_REGEX));
 
             Set<String> roles = new HashSet<>(configs.getAllowedCensusRoles());
             validateWorkflowAccess(userInfo, census, roles);
@@ -238,7 +238,7 @@ public class CensusValidator {
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
         }
 
-        List<String> jurisdiction = Arrays.asList(request.getCensus().get(0).getBoundaryAncestralPath().get(0).split("\\|"));
+        List<String> jurisdiction = Arrays.asList(request.getCensus().get(0).getBoundaryAncestralPath().get(0).split(PIPE_REGEX));
 
         PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
                 .employeeId(Collections.singletonList(request.getRequestInfo().getUserInfo().getUuid()))

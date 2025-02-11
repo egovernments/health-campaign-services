@@ -177,7 +177,7 @@ public class PlanConfigurationValidator {
                     (String) commonUtil.extractFieldsFromJsonObject(additionalDetails, JSON_FIELD_IS_REGISTRATION_AND_DISTRIBUTION_TOGETHER));
             List<Object> assumptionListFromMDMS = null;
             try {
-                log.info(jsonPathForAssumption);
+                log.debug(jsonPathForAssumption);
                 assumptionListFromMDMS = JsonPath.read(mdmsData, jsonPathForAssumption);
             } catch (Exception e) {
                 log.error(e.getMessage());
@@ -232,7 +232,7 @@ public class PlanConfigurationValidator {
             Set<String> activeRequiredTemplates = new HashSet<>();
 
             try {
-                log.info(jsonPathForTemplateIdentifier);
+                log.debug(jsonPathForTemplateIdentifier);
                 templateIdentifierListFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifier);
                 requiredTemplateIdentifierFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifierIsRequired);
             } catch (Exception e) {

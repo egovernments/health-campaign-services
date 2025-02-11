@@ -170,7 +170,6 @@ public class WorkflowService {
 
         enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
 
-        log.info("Process Instance assignes - " + processInstance.getAssignes());
         return ProcessInstanceRequest.builder()
                 .requestInfo(planRequest.getRequestInfo())
                 .processInstances(Collections.singletonList(processInstance))
