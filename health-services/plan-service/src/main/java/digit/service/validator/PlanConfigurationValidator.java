@@ -208,14 +208,13 @@ public class PlanConfigurationValidator {
     public void validateAssumptionUniqueness(PlanConfiguration planConfig) {
         Set<String> assumptionKeys = new HashSet<>();
 
-        for (Assumption assumption : planConfig.getAssumptions()) {
-            if (assumption.getActive() != Boolean.FALSE) {
-                if (assumptionKeys.contains(assumption.getKey())) {
-                    throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
-                }
-                assumptionKeys.add(assumption.getKey());
-            }
-        }
+        planConfig.getAssumptions().stream()
+                .filter(assumption -> Boolean.TRUE.equals(assumption.getActive())) // Filter active assumptions
+                .forEach(assumption -> {
+                    if (!assumptionKeys.add(assumption.getKey())) { // Returns false if key already exists
+                        throw new CustomException(DUPLICATE_ASSUMPTION_KEY_CODE, DUPLICATE_ASSUMPTION_KEY_MESSAGE + assumption.getKey());
+                    }
+                });
     }
 
     /**
@@ -227,54 +226,76 @@ public class PlanConfigurationValidator {
      */
     public void validateTemplateIdentifierAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
-            final String jsonPathForTemplateIdentifier = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
-            final String jsonPathForTemplateIdentifierIsRequired = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
 
-            List<Object> templateIdentifierListFromMDMS = null;
-            List<Object> requiredTemplateIdentifierFromMDMS = null;
-            Set<String> activeRequiredTemplates = new HashSet<>();
-
-            try {
-                log.info(jsonPathForTemplateIdentifier);
-                templateIdentifierListFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifier);
-                requiredTemplateIdentifierFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifierIsRequired);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-                throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-            }
-
-            HashSet<Object> templateIdentifierSetFromMDMS = new HashSet<>(templateIdentifierListFromMDMS);
-            HashSet<Object> requiredTemplateIdentifierSetFromMDMS = new HashSet<>(requiredTemplateIdentifierFromMDMS);
-
-            for (File file : planConfiguration.getFiles()) {
-                if (!templateIdentifierSetFromMDMS.contains(file.getTemplateIdentifier())) {
-                    log.error(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE + file.getTemplateIdentifier());
-                    throw new CustomException(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE);
-                }
-
-                if (file.getActive()) { // Check if the file is active
-                    String templateIdentifier = file.getTemplateIdentifier();
-                    if (requiredTemplateIdentifierSetFromMDMS.contains(templateIdentifier)) { // Check if the template identifier is required
-                        if (!activeRequiredTemplates.add(templateIdentifier)) { // Ensure only one active file per required template identifier
-                            log.error(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE + file.getTemplateIdentifier());
-                            throw new CustomException(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE, ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE);
-                        }
-                    }
-                }
-            }
-
-            // Ensure at least one active file for each required template identifier
-            if(commonUtil.isSetupCompleted(planConfiguration)){
-                requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
-                    if (!activeRequiredTemplates.contains(requiredTemplate)) {
-                        log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
-                        throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
-                    }
-                });
-            }
-
+        if (CollectionUtils.isEmpty(planConfiguration.getFiles())) {
+            return;
         }
+
+        Set<String> activeRequiredTemplates = new HashSet<>();
+        Set<Object> templateIdentifierSetFromMDMS = fetchTemplateIdentifiers(mdmsData, JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id");
+        Set<Object> requiredTemplateIdentifierSetFromMDMS = fetchTemplateIdentifiers(mdmsData, JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id");
+
+        validateFilesAgainstMDMS(planConfiguration, templateIdentifierSetFromMDMS, requiredTemplateIdentifierSetFromMDMS, activeRequiredTemplates);
+
+        if (commonUtil.isSetupCompleted(planConfiguration)) {
+            validateRequiredTemplates(requiredTemplateIdentifierSetFromMDMS, activeRequiredTemplates);
+        }
+    }
+
+    /**
+     * Fetches template identifiers from MDMS data using a JSONPath expression.
+     */
+    private Set<Object> fetchTemplateIdentifiers(Object mdmsData, String jsonPath) {
+        try {
+            log.info(jsonPath);
+            return new HashSet<>(JsonPath.read(mdmsData, jsonPath));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Validates each file in PlanConfiguration against the template identifiers from MDMS.
+     */
+    private void validateFilesAgainstMDMS(PlanConfiguration planConfiguration, Set<Object> templateIdentifierSetFromMDMS, Set<Object> requiredTemplateIdentifierSetFromMDMS, Set<String> activeRequiredTemplates) {
+        for (File file : planConfiguration.getFiles()) {
+            validateTemplateIdentifierExists(file, templateIdentifierSetFromMDMS);
+            validateActiveFilePerRequiredTemplate(file, requiredTemplateIdentifierSetFromMDMS, activeRequiredTemplates);
+        }
+    }
+
+    /**
+     * Ensures the file's template identifier exists in MDMS.
+     */
+    private void validateTemplateIdentifierExists(File file, Set<Object> templateIdentifierSetFromMDMS) {
+        if (!templateIdentifierSetFromMDMS.contains(file.getTemplateIdentifier())) {
+            log.error(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE + file.getTemplateIdentifier());
+            throw new CustomException(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE);
+        }
+    }
+
+    /**
+     * Ensures only one active file exists for each required template identifier.
+     */
+    private void validateActiveFilePerRequiredTemplate(File file, Set<Object> requiredTemplateIdentifierSetFromMDMS, Set<String> activeRequiredTemplates) {
+        if (file.getActive() && requiredTemplateIdentifierSetFromMDMS.contains(file.getTemplateIdentifier()) &&
+                !activeRequiredTemplates.add(file.getTemplateIdentifier())) {
+            log.error(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE + file.getTemplateIdentifier());
+            throw new CustomException(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE, ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE);
+        }
+    }
+
+    /**
+     * Ensures that at least one active file exists for each required template identifier.
+     */
+    private void validateRequiredTemplates(Set<Object> requiredTemplateIdentifierSetFromMDMS, Set<String> activeRequiredTemplates) {
+        requiredTemplateIdentifierSetFromMDMS.forEach(requiredTemplate -> {
+            if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+            }
+        });
     }
 
     /**

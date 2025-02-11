@@ -251,4 +251,12 @@ public class CommonUtil {
         }
     }
 
+    public Set<Object> fetchTemplateIdentifiers(Object mdmsData, String jsonPath) {
+        try {
+            return new HashSet<>(JsonPath.read(mdmsData, jsonPath));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+    }
 }
