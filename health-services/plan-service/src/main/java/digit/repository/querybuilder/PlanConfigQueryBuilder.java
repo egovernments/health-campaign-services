@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 
 import static digit.config.ServiceConstants.PERCENTAGE_WILDCARD;
@@ -68,7 +67,7 @@ public class PlanConfigQueryBuilder {
      * @return A complete SQL query string for searching PlanConfiguration objects.
      */
     public String getPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
+        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList);
         query = queryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, criteria, preparedStmtList);
 
@@ -76,8 +75,8 @@ public class PlanConfigQueryBuilder {
     }
 
     public String getPlanConfigCountQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.TRUE);
-        return query;
+        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList);
+        return PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
     /**
@@ -87,7 +86,7 @@ public class PlanConfigQueryBuilder {
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return
      */
-    private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
+    private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_SEARCH_BASE_QUERY);
 
         if (criteria.getTenantId() != null) {
@@ -130,16 +129,6 @@ public class PlanConfigQueryBuilder {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.created_by = ?");
             preparedStmtList.add(criteria.getUserUuid());
-        }
-
-        StringBuilder countQuery = new StringBuilder();
-        if (isCount) {
-
-            countQuery.append(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
-
-            countQuery.append(") AS subquery");
-
-            return countQuery.toString();
         }
 
         return builder.toString();

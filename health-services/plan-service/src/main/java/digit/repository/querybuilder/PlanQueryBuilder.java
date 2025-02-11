@@ -9,9 +9,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
-import static digit.config.ServiceConstants.ADDITIONAL_DETAILS_QUERY;
-import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
-
 @Component
 public class PlanQueryBuilder {
 
@@ -64,7 +61,7 @@ public class PlanQueryBuilder {
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
+        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
         return query;
@@ -78,7 +75,8 @@ public class PlanQueryBuilder {
      * @return
      */
     public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
-        return buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
+        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
+        return PLAN_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
     /**
@@ -95,7 +93,7 @@ public class PlanQueryBuilder {
                 .campaignId(searchCriteria.getCampaignId())
                 .jurisdiction(searchCriteria.getJurisdiction())
                 .build();
-        return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
+        return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.TRUE);
     }
 
     /**
@@ -105,7 +103,7 @@ public class PlanQueryBuilder {
      * @param preparedStmtList
      * @return
      */
-    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount, boolean isStatusCount) {
+    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
         if(isStatusCount) {
@@ -182,15 +180,6 @@ public class PlanQueryBuilder {
                         .append("]");
                 preparedStmtList.addAll(entry.getValue());
             }
-        }
-
-        StringBuilder countQuery = new StringBuilder();
-        if (isCount) {
-
-            countQuery.append(PLAN_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
-            countQuery.append(") AS subquery");
-
-            return countQuery.toString();
         }
 
         if (isStatusCount) {

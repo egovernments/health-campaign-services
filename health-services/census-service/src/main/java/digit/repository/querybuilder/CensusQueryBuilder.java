@@ -8,8 +8,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 @Component
@@ -68,7 +66,7 @@ public class CensusQueryBuilder {
     }
 
     public String getCensusSearchQuery(CensusSearchCriteria censusSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
+        String query = buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.FALSE);
         query = queryUtil.addOrderByClause(query, CENSUS_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, preparedStmtList, censusSearchCriteria);
         return query;
@@ -82,7 +80,8 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the total count of Census records for a given search criteria.
      */
     public String getCensusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        return buildCensusSearchQuery(searchCriteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
+        String query = buildCensusSearchQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
+        return CENSUS_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
     /**
@@ -94,7 +93,7 @@ public class CensusQueryBuilder {
      */
     public String getCensusStatusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder().tenantId(searchCriteria.getTenantId()).source(searchCriteria.getSource()).jurisdiction(searchCriteria.getJurisdiction()).build();
-        return buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
+        return buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.TRUE);
     }
 
     /**
@@ -104,7 +103,7 @@ public class CensusQueryBuilder {
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return SQL query string for searching Census ids based on search criteria
      */
-    private String buildCensusSearchQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount, Boolean isStatusCount) {
+    private String buildCensusSearchQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isStatusCount) {
         StringBuilder builder = new StringBuilder(CENSUS_SEARCH_BASE_QUERY);
 
         if(isStatusCount) {
@@ -177,14 +176,6 @@ public class CensusQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getJurisdiction());
         }
 
-        StringBuilder countQuery = new StringBuilder();
-        if (isCount) {
-            countQuery.append(CENSUS_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
-            countQuery.append(") AS subquery");
-
-            return countQuery.toString();
-        }
-
         if (isStatusCount) {
             return CENSUS_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
@@ -212,7 +203,7 @@ public class CensusQueryBuilder {
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(!ObjectUtils.isEmpty(searchCriteria.getLimit()) ? searchCriteria.getLimit() : config.getDefaultLimit());
+        preparedStmtList.add(ObjectUtils.isEmpty(searchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(searchCriteria.getLimit(), config.getDefaultMaxLimit()));
 
         return paginatedQuery.toString();
     }
