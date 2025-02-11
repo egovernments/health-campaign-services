@@ -136,7 +136,7 @@ public class PlanFacilityEnricher {
             Map<String, Long> boundaryToPopMap = getPopulationMap(censusResponse.getCensus());
 
             // Get existing servingPopulation or default to 0
-            BigDecimal servingPopulation = (BigDecimal) commonUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), SERVING_POPULATION_CODE);
+            BigDecimal servingPopulation = commonUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), SERVING_POPULATION_CODE, BigDecimal.class);
 
             updateServingPopulation(boundariesToBeSearched, planFacility, boundaryToPopMap, servingPopulation);
         }
