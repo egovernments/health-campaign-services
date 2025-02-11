@@ -53,9 +53,16 @@ public class PlanConfigurationService {
      * @return The created plan configuration request.
      */
     public PlanConfigurationResponse create(PlanConfigurationRequest request) {
+        // Sets active status to true for Files, Operations, Assumptions, and Resource Mappings without an ID before validation.
         enrichmentService.enrichPlanConfigurationBeforeValidation(request);
+
+        // Validates plan configuration create request
         validator.validateCreate(request);
+
+        // Enriches plan configuration create request
         enrichmentService.enrichCreate(request);
+
+        // Delegate creation request to repository
         repository.create(request);
 
         return PlanConfigurationResponse.builder()
@@ -71,11 +78,18 @@ public class PlanConfigurationService {
      * @return A list of plan configurations that match the search criteria.
      */
     public PlanConfigurationResponse search(PlanConfigurationSearchRequest request) {
+        // Validates plan configuration search request
         validator.validateSearchRequest(request);
+
+        // Delegate search request to repository
         List<PlanConfiguration> planConfigurations = repository.search(request.getPlanConfigurationSearchCriteria());
+
+        // Sort the list of operations in plan configuration object by execution order.
         commonUtil.sortOperationsByExecutionOrder(planConfigurations);
-        return PlanConfigurationResponse.builder().
-                responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+
+        // Build and return response back to controller
+        return PlanConfigurationResponse.builder()
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .planConfiguration(planConfigurations)
                 .totalCount(repository.count(request.getPlanConfigurationSearchCriteria()))
                 .build();
@@ -88,12 +102,22 @@ public class PlanConfigurationService {
      * @return The response containing the updated plan configuration.
      */
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
+        // Validates plan configuration update request
         validator.validateUpdateRequest(request);
+
+        // Enriches plan configuration update request
         enrichmentService.enrichUpdate(request);
+
+        // Validates census/plan/facility catchment data on the basis of workflow action
         workflowValidator.validateWorkflow(request);
+
+        // Call workflow transition API for status update
         workflowService.invokeWorkflowForStatusUpdate(request);
+
+        // Delegate updation request to repository
         repository.update(request);
 
+        // Build and return response back to controller
         return PlanConfigurationResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
                 .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))

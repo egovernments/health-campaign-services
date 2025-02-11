@@ -31,10 +31,9 @@ public class MdmsV2Util {
         this.configs = configs;
     }
 
-    public List<Mdms> fetchMdmsV2Data(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
+    public List<Mdms> fetchMdmsV2Data(MdmsCriteriaReqV2 mdmsCriteriaReqV2)
     {
         StringBuilder uri = getMdmsV2Uri();
-        MdmsCriteriaReqV2 mdmsCriteriaReqV2 = getMdmsV2Request(requestInfo, tenantId, schemaCode, uniqueIdentifier);
         MdmsResponseV2 mdmsResponseV2 = null;
         try {
             mdmsResponseV2 = restTemplate.postForObject(uri.toString(), mdmsCriteriaReqV2, MdmsResponseV2.class);
@@ -44,33 +43,24 @@ public class MdmsV2Util {
 
         if(ObjectUtils.isEmpty(mdmsResponseV2.getMdms()))
         {
-            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + tenantId);
+            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE + " - " + mdmsCriteriaReqV2.getMdmsCriteriaV2().getTenantId());
             throw new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE);
         }
 
         return mdmsResponseV2.getMdms();
     }
 
-    private StringBuilder getMdmsV2Uri()
-    {
+    private StringBuilder getMdmsV2Uri() {
         StringBuilder uri = new StringBuilder();
         return uri.append(configs.getMdmsHost()).append(configs.getMdmsV2EndPoint());
     }
 
-    private MdmsCriteriaReqV2 getMdmsV2Request(RequestInfo requestInfo, String tenantId, String schemaCode, String uniqueIdentifier)
-    {
-        MdmsCriteriaV2 mdmsCriteriaV2 = MdmsCriteriaV2.builder()
+    public MdmsCriteriaV2 getMdmsCriteriaV2(String tenantId, String schemaCode) {
+        return MdmsCriteriaV2.builder()
                 .tenantId(tenantId)
                 .schemaCode(schemaCode)
                 .limit(configs.getDefaultLimit())
                 .offset(configs.getDefaultOffset()).build();
-
-        if(!ObjectUtils.isEmpty(uniqueIdentifier))
-            mdmsCriteriaV2.setUniqueIdentifiers(Collections.singletonList(uniqueIdentifier));
-
-        return MdmsCriteriaReqV2.builder()
-                .requestInfo(requestInfo)
-                .mdmsCriteriaV2(mdmsCriteriaV2).build();
     }
 
 }
