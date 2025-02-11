@@ -91,7 +91,7 @@ public class DownsyncService {
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
         List<String> householdIds = null;
-        Set<String> individualIds = null;
+        Set<String> individualClientReferenceIds = null;
         List<String> individualClientRefIds = null;
         List<String> beneficiaryClientRefIds = null;
         List<String> taskClientRefIds = null;
@@ -108,12 +108,12 @@ public class DownsyncService {
 
         /* search household member using household ids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(householdIds)) {
-            individualIds = searchMembers(downsyncRequest, downsync, householdIds);
+            individualClientReferenceIds = searchMembers(downsyncRequest, downsync, householdIds);
         }
 
         /* search individuals using individual ids */
-        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(individualIds) ) {
-            individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualIds);
+        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(individualClientReferenceIds) ) {
+            individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientReferenceIds);
         }
 
         /* search beneficiary using individual ids OR household ids */
