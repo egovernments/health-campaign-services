@@ -404,6 +404,10 @@ public class ServiceConstants {
 
     public static final String OR_CONDITION = " OR ";
 
+    public static final String PAGINATION_LIMIT_PARAM = "limit";
+
+    public static final String PAGINATION_OFFSET_PARAM = "offset";
+
     public static final String FACILITY_USAGE_KEY = "facilityUsage";
     public static final String CAPACITY_KEY = "capacity";
     public static final String FACILITY_STATUS_KEY = "facilityStatus";

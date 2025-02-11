@@ -47,7 +47,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
      * @return A complete SQL query string for searching PlanEmployeeAssignment objects.
      */
     public String getPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
         query = queryUtil.addOrderByClause(query, Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ?
                 UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE : PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, searchCriteria, preparedStmtList);
@@ -62,8 +62,8 @@ public class PlanEmployeeAssignmentQueryBuilder {
      * @return A SQL query string to get the total count of plan employee assignments
      */
     public String getPlanEmployeeAssignmentCountQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList, Boolean.TRUE);
-        return query;
+        String query = buildPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
+        return PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
     /**
@@ -71,10 +71,9 @@ public class PlanEmployeeAssignmentQueryBuilder {
      *
      * @param searchCriteria   The criteria used for filtering PlanEmployeeAssignment objects.
      * @param preparedStmtList A list to store prepared statement parameters.
-     * @param isCount          is true if count query is required for the provided search criteria
      * @return A SQL query string for searching planEmployeeAssignment
      */
-    private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList, Boolean isCount) {
+    private String buildPlanEmployeeAssignmentQuery(PlanEmployeeAssignmentSearchCriteria searchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = Boolean.TRUE.equals(searchCriteria.getFilterUniqueByPlanConfig()) ?
                 new StringBuilder(UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_RANKED_QUERY) : new StringBuilder(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_BASE_QUERY);
 
@@ -143,14 +142,6 @@ public class PlanEmployeeAssignmentQueryBuilder {
             builder.append(" )").append(UNIQUE_PLAN_EMPLOYEE_ASSIGNMENT_MAIN_SEARCH_QUERY);
         }
 
-        StringBuilder countQuery = new StringBuilder();
-        if (isCount) {
-            countQuery.append(PLAN_EMPLOYEE_ASSIGNMENT_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
-            countQuery.append(") AS subquery");
-
-            return countQuery.toString();
-        }
-
         return builder.toString();
     }
 
@@ -163,7 +154,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(searchCriteria.getLimit()) ? config.getDefaultLimit() : searchCriteria.getLimit());
+        preparedStmtList.add(ObjectUtils.isEmpty(searchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(searchCriteria.getLimit(), config.getDefaultMaxLimit()));
 
         return paginatedQuery.toString();
     }

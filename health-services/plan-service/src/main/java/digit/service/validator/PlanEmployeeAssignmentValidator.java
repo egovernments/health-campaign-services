@@ -57,7 +57,7 @@ public class PlanEmployeeAssignmentValidator {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanEmployeeAssignment().getTenantId());
         List<PlanConfiguration> planConfigurations = commonUtil.searchPlanConfigId(planEmployeeAssignment.getPlanConfigurationId(), rootTenantId);
-        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(userUtil.getUserSearchReq(request.getRequestInfo(), planEmployeeAssignment.getEmployeeId(), planEmployeeAssignment.getTenantId()));
+        UserDetailResponse userDetailResponse = userUtil.fetchUserDetail(userUtil.getUserSearchReq(request));
 
         // Validate if a same assignment already exists
         validateDuplicateRecord(request);

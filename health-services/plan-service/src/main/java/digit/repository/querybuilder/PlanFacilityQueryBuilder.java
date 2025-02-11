@@ -138,7 +138,7 @@ public class PlanFacilityQueryBuilder {
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getLimit()) ? config.getDefaultLimit() : planFacilitySearchCriteria.getLimit());
+        preparedStmtList.add(ObjectUtils.isEmpty(planFacilitySearchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(planFacilitySearchCriteria.getLimit(), config.getDefaultMaxLimit()));
 
         return paginatedQuery.toString();
     }
