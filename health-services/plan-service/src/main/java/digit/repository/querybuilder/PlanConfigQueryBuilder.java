@@ -90,13 +90,13 @@ public class PlanConfigQueryBuilder {
     private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_SEARCH_BASE_QUERY);
 
-        if (criteria.getTenantId() != null) {
+        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.tenant_id = ?");
             preparedStmtList.add(criteria.getTenantId());
         }
 
-        if (criteria.getId() != null) {
+        if (!ObjectUtils.isEmpty(criteria.getId())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.id = ?");
             preparedStmtList.add(criteria.getId());
@@ -108,13 +108,13 @@ public class PlanConfigQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getIds());
         }
 
-        if (criteria.getCampaignId() != null) {
+        if (!ObjectUtils.isEmpty(criteria.getCampaignId())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.campaign_id = ?");
             preparedStmtList.add(criteria.getCampaignId());
         }
 
-        if (criteria.getName() != null) {
+        if (!ObjectUtils.isEmpty(criteria.getName())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.name ILIKE ?");
             preparedStmtList.add(PERCENTAGE_WILDCARD + criteria.getName() + PERCENTAGE_WILDCARD);
@@ -126,7 +126,7 @@ public class PlanConfigQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getStatus());
         }
 
-        if (criteria.getUserUuid() != null) {
+        if (!ObjectUtils.isEmpty(criteria.getUserUuid())) {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.created_by = ?");
             preparedStmtList.add(criteria.getUserUuid());

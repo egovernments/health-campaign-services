@@ -11,29 +11,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestMapping;
-import java.util.*;
 
 @Controller
 public class PlanConfigController {
 
-    private ObjectMapper objectMapper;
-
     private PlanConfigurationService planConfigurationService;
 
-    private ResponseInfoFactory responseInfoFactory;
-
-    @Autowired
-    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService, ResponseInfoFactory responseInfoFactory) {
-        this.objectMapper = objectMapper;
+    public PlanConfigController(PlanConfigurationService planConfigurationService) {
         this.planConfigurationService = planConfigurationService;
-        this.responseInfoFactory = responseInfoFactory;
     }
 
     /**
@@ -42,7 +33,7 @@ public class PlanConfigController {
      * @return
      */
     @RequestMapping(value = "/config/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanConfigurationResponse> configCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
+    public ResponseEntity<PlanConfigurationResponse> create(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
 
         PlanConfigurationResponse response = planConfigurationService.create(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -55,7 +46,7 @@ public class PlanConfigController {
      * @return
      */
     @RequestMapping(value = "/config/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanConfigurationResponse> configSearchPost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationSearchRequest body) {
+    public ResponseEntity<PlanConfigurationResponse> search(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationSearchRequest body) {
         PlanConfigurationResponse response = planConfigurationService.search(body);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -66,7 +57,7 @@ public class PlanConfigController {
      * @return
      */
     @RequestMapping(value = "/config/_update", method = RequestMethod.POST)
-    public ResponseEntity<PlanConfigurationResponse> configUpdatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
+    public ResponseEntity<PlanConfigurationResponse> update(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
         PlanConfigurationResponse response = planConfigurationService.update(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }

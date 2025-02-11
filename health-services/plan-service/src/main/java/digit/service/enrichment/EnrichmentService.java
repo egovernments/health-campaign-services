@@ -13,6 +13,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.List;
 
 import static digit.config.ServiceConstants.DRAFT_STATUS;
+import static digit.config.ServiceConstants.ID;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
@@ -43,30 +44,30 @@ public class EnrichmentService {
         planConfiguration.setStatus(DRAFT_STATUS);
 
         // Generate id for plan configuration
-        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, ID);
 
         // Generate id for files
         if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             planConfiguration.getFiles().forEach(file -> {
-                UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(file, ID);
                 enrichActiveForResourceMapping(file, planConfiguration.getResourceMapping());
             });
         }
 
         // Generate id for assumptions
         if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
-            planConfiguration.getAssumptions().forEach(assumption -> UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id"));
+            planConfiguration.getAssumptions().forEach(assumption -> UUIDEnrichmentUtil.enrichRandomUuid(assumption, ID));
         }
 
 
         // Generate id for operations
         if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
-            planConfiguration.getOperations().forEach(operation -> UUIDEnrichmentUtil.enrichRandomUuid(operation, "id"));
+            planConfiguration.getOperations().forEach(operation -> UUIDEnrichmentUtil.enrichRandomUuid(operation, ID));
         }
 
         // Generate id for resource mappings
         if (!CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
-            planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id"));
+            planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, ID));
         }
 
         planConfiguration.setAuditDetails(prepareAuditDetails(planConfiguration.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
@@ -86,7 +87,7 @@ public class EnrichmentService {
         if (!CollectionUtils.isEmpty(planConfiguration.getFiles())) {
             planConfiguration.getFiles().forEach(file -> {
                 if (ObjectUtils.isEmpty(file.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(file, ID);
                 }
                 enrichActiveForResourceMapping(file, request.getPlanConfiguration().getResourceMapping());
             });
@@ -96,7 +97,7 @@ public class EnrichmentService {
         if (!CollectionUtils.isEmpty(planConfiguration.getAssumptions())) {
             planConfiguration.getAssumptions().forEach(assumption -> {
                 if (ObjectUtils.isEmpty(assumption.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(assumption, ID);
                 }
             });
         }
@@ -105,7 +106,7 @@ public class EnrichmentService {
         if (!CollectionUtils.isEmpty(planConfiguration.getOperations())) {
             planConfiguration.getOperations().forEach(operation -> {
                 if (ObjectUtils.isEmpty(operation.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(operation, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(operation, ID);
                 }
             });
         }
@@ -114,7 +115,7 @@ public class EnrichmentService {
         if (!CollectionUtils.isEmpty(planConfiguration.getResourceMapping())) {
             planConfiguration.getResourceMapping().forEach(resourceMapping -> {
                 if (ObjectUtils.isEmpty(resourceMapping.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, ID);
                 }
             });
         }
@@ -195,8 +196,9 @@ public class EnrichmentService {
         int executionOrderCounter = 1;
 
         for (Operation operation : planConfiguration.getOperations()) {
-            if(operation.getActive())
+            if (operation.getActive()) {
                 operation.setExecutionOrder(executionOrderCounter++);
+            }
         }
     }
 

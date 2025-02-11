@@ -391,4 +391,6 @@ public class ServiceConstants {
     public static final String AND_CONDITION = " AND ";
 
     public static final String OR_CONDITION = " OR ";
+
+    public static final String ID = "id";
 }

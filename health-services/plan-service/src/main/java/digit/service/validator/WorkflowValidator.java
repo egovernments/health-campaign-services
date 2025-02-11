@@ -28,6 +28,12 @@ public class WorkflowValidator {
         this.planService = planService;
     }
 
+    /**
+     * Validates the workflow action in the plan configuration request and
+     * triggers the corresponding validation method if applicable.
+     *
+     * @param planConfigurationRequest the request containing workflow details.
+     */
     public void validateWorkflow(PlanConfigurationRequest planConfigurationRequest) {
         if (ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()))
             return;
