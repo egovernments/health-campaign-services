@@ -1415,11 +1415,13 @@ async function translateSchema(
         // Handle enum translation
         if (Array.isArray(value.enum)) {
           newValue.enum = value.enum.map((item: string) => {
-            if (key === config?.user?.userRoleKey) {
-              const prefixedCode = `ACCESSCONTROL_ROLES_ROLES_${item}`;
-              return getLocalizedName(prefixedCode, localizationMap) || prefixedCode;
+            let localizedItem = item;
+
+            if (value?.prefix) {
+              localizedItem = `${value.prefix}${item}`;
             }
-            return getLocalizedName(item, localizationMap) || item;
+
+            return getLocalizedName(localizedItem, localizationMap);
           });
         }
 
