@@ -419,10 +419,10 @@ export async function confirmBulkProjectConfirmation(
             const actualTotalCount = await getProjectsCountsWithProjectIds(projectIds, tenantId, userUuid);
 
             if (actualTotalCount === expectedTotalCount) {
-                console.log("Bulk project confirmation successful.");
+                logger.info("Bulk project confirmation successful.");
                 return;
             } else {
-                console.warn(`Attempt ${attempt + 1}/${maxRetries}: Project count mismatch. Retrying in 1 second...`);
+                logger.warn(`Attempt ${attempt + 1}/${maxRetries}: Project count mismatch. Retrying in 1 second...`);
                 await delay(1000); // Delay before retrying
             }
         } catch (error) {
@@ -511,11 +511,11 @@ export async function checkAndPersistProjectCreationResult(
             );
             const isProcessFailed = await checkifProcessIsFailed(campaignNumber, processNamesConstantsInOrder.projectCreation)
             if (isProcessAlreadyCompleted) {
-                logger.info("Process already completed.");
+                logger.info("Project creation process already completed.");
                 return;
             }
             else if (isProcessFailed) {
-                logger.warn("Process is already failed.");
+                logger.warn("Project creation process is already failed.");
                 return;
             }
 

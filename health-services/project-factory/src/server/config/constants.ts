@@ -3,7 +3,7 @@ import Error from "./error.interface"
 export const CONSTANTS: any = {
     ERROR_CODES: {
         COMMON: {
-            UNKNOWN_ERROR: "Unknown error. Check logs",
+            UNKNOWN_ERROR: "Unknown error",
             IDGEN_ERROR: "Error during generating campaign number",
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",
@@ -25,7 +25,7 @@ export const CONSTANTS: any = {
             FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema"
         },
         FACILITY: {
-            FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
+            FACILITY_SEARCH_FAILED: "Search failed for facility.",
         },
         CAMPAIGN: {
             CAMPAIGN_SEARCH_ERROR: "Error in campaign search",
@@ -80,7 +80,7 @@ export const headingMapping: any = {
     "boundary": "BOUNDARY_README_MAINHEADER"
 }
 
-const unknownError = "Unknown Error. Check Logs";
+const unknownError = "Unknown Error.";
 
 
 //  Retrieves the error message associated with the given error key.
@@ -160,7 +160,8 @@ export const processTrackStatuses = {
 
 export const processNamesConstantsInOrder = {
     projectCreation: "project-creation",
-    employeeCreation: "employee-creation"
+    employeeCreation: "employee-creation",
+    facilityCreation: "facility-creation",
 }
 
 export const campaignProcessStatus = {

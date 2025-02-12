@@ -515,7 +515,7 @@ export function fillDataInProcessedUserSheet(
       ];
     });
 
-  logger.info("Worksheet values updated successfully.");
+  logger.info("Worksheet values updated successfully for employees.");
 }
 
 function addHeadersAndFormatForCampaignEmployees(
@@ -545,6 +545,113 @@ function addHeadersAndFormatForCampaignEmployees(
 
   columnsToFormat.forEach(({ columnIndex, width, color }) => {
     const column = userWorkSheet.getColumn(columnIndex);
+    column.width = width;
+
+    const headerCell = headerRow.getCell(columnIndex);
+    headerCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: color },
+    };
+    headerCell.font = { bold: true };
+  });
+
+  return emptyColumnIndex;
+}
+
+export function fillDataInProcessedFacilitySheet(
+  facilityWorkSheet: any,
+  campaignFacilities: any[],
+  campaignMappings: any[],
+  camaignNumber: string
+) {
+  logger.info(`Filling data in processed facility sheet`);
+  const facilityIdentifierAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
+    const key = `N${mapping?.mappingIdentifier?.toString()}N`; // Ensure the key is a string
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(mapping?.boundaryCode);
+    return acc;
+  }, {});
+
+  // Get the first row (header) values
+  const headerRow = facilityWorkSheet.getRow(1);
+  const headerOfsheetValues = headerRow?.values || [];
+
+  // Find the first empty column in the header
+  let emptyColumnIndex = -1;
+  for (let i = 1; i < headerOfsheetValues.length; i++) {
+    if (!headerOfsheetValues[i]) {
+      emptyColumnIndex = i;
+      break;
+    }
+  }
+
+  // Define new header values
+  const newHeaderValues = [
+    "#status#",
+    "#errorDetails#"
+  ];
+
+  // Add new headers and format columns
+  emptyColumnIndex = addHeadersAndFormatForCampaignFacilities(facilityWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+
+  // Clear existing data rows while preserving formatting
+  const rowCount = facilityWorkSheet.rowCount;
+  for (let rowIndex = 2; rowIndex <= rowCount; rowIndex++) {
+    const row = facilityWorkSheet.getRow(rowIndex);
+    row.values = []; // Clear row data while preserving formatting
+  }
+
+  // Populate new data rows
+  campaignFacilities
+    .filter((facility: any) => facility?.facilityId) // Only include facilities with a facilityId
+    .forEach((facility: any, index: number) => {
+      const rowIndex = index + 2; // Start from the second row
+      const row = facilityWorkSheet.getRow(rowIndex);
+      const currentFacilityIdentifierKey = `N${camaignNumber}!#!${facility?.name}N`;
+      const currentBoundaryValues = facilityIdentifierAndBoundaryCodesMapping[currentFacilityIdentifierKey]?.join(",");
+      row.values = [
+        facility?.facilityId,
+        facility?.name,
+        facility?.facilityUsage,
+        facility?.isPermanent ? "Permanent" : "Temporary",
+        facility?.storageCapacity,
+        facility?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
+        currentBoundaryValues,
+        "CREATED",
+        ""
+      ];
+    });
+
+  logger.info("Worksheet values updated successfully. for facility");
+}
+
+function addHeadersAndFormatForCampaignFacilities(
+  facilityWorkSheet: any,
+  headerRow: any,
+  emptyColumnIndex: number,
+  newHeaderValues: string[]
+) {
+  if (emptyColumnIndex === -1) {
+    emptyColumnIndex = headerRow.values.length;
+  }
+
+  // Add new headers
+  for (let i = 0; i < newHeaderValues.length; i++) {
+    const headerCell = headerRow.getCell(emptyColumnIndex + i);
+    headerCell.value = newHeaderValues[i];
+  }
+
+  // Format columns
+  const columnsToFormat = [
+    { columnIndex: emptyColumnIndex, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 1, width: 40, color: "CCCC00" }
+  ];
+
+  columnsToFormat.forEach(({ columnIndex, width, color }) => {
+    const column = facilityWorkSheet.getColumn(columnIndex);
     column.width = width;
 
     const headerCell = headerRow.getCell(columnIndex);

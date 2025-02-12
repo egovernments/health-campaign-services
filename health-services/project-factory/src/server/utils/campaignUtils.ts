@@ -3,7 +3,6 @@ import config from "../config/index";
 import { v4 as uuidv4 } from "uuid";
 import { produceModifiedMessages } from "../kafka/Producer";
 import {
-  createProjectCampaignResourcData,
   getCampaignSearchResponse,
   getHierarchy,
   handleResouceDetailsError
@@ -100,8 +99,9 @@ import {
 } from "./microplanIntergration";
 import { getBoundaryRelationshipData } from "../api/boundaryApis";
 import { enrichRootProjectId, processSubProjectCreationFromConsumer } from "./projectCampaignUtils";
-import { processEmployeeCreation, processProjectCreation } from "../service/mainProcessService";
-import { createCampaignEmployees, processSubEmployeeCreationFromConsumer } from "./campaignEmployeesUtils";
+import { processEmployeeCreation, processFacilityCreation, processProjectCreation } from "../service/mainProcessService";
+import {  createCampaignEmployees, persistCreateResourceIdForUser, processSubEmployeeCreationFromConsumer } from "./campaignEmployeesUtils";
+import { createCampaignFacilities, persistCreateResourceIdForFacility, processSubFacilityCreationFromConsumer } from "./campaignFacilitiesUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1765,6 +1765,9 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
       hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
       includeChildren: true,
     };
+    const requestBody = {
+      RequestInfo : request?.body?.RequestInfo,
+    }
     const header = {
       ...defaultheader,
       cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId
@@ -1772,7 +1775,7 @@ async function addBoundariesForData(request: any, CampaignDetails: any) {
     };
     const boundaryResponse = await httpRequest(
       config.host.boundaryHost + config.paths.boundaryRelationship,
-      request.body,
+      requestBody,
       params,
       undefined,
       undefined,
@@ -1831,10 +1834,10 @@ async function reorderBoundariesOfDataAndValidate(
     if (response?.CampaignDetails?.[0]) {
       const CampaignDetails = response?.CampaignDetails?.[0];
       await addBoundariesForData(request, CampaignDetails);
-      logger.debug(
-        "Boundaries after addition " +
-        getFormattedStringForDebug(CampaignDetails?.boundaries)
-      );
+      // logger.debug(
+      //   "Boundaries after addition " +
+      //   getFormattedStringForDebug(CampaignDetails?.boundaries)
+      // );
       await validateBoundaryOfResouces(
         CampaignDetails,
         request,
@@ -2098,7 +2101,8 @@ async function processAfterPersist(request: any, actionInUrl: any) {
       );
       await createProject(request?.body);
       await createCampaignEmployees(request?.body);
-      await createProjectCampaignResourcData(request);
+      await createCampaignFacilities(request?.body);
+      // await createProjectCampaignResourcData(request);
       await enrichAndPersistProjectCampaignRequest(
         request,
         actionInUrl,
@@ -3256,7 +3260,7 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (
       "FILE",
       400,
       "FETCHING_COLUMN_ERROR",
-      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema)."
     );
   }
 };
@@ -3523,6 +3527,8 @@ export async function handleCampaignProcessing(messageObject: any) {
       case processNamesConstantsInOrder.employeeCreation:
         await processEmployeeCreation(campaignDetailsAndRequestInfo);
         break;
+      case processNamesConstantsInOrder.facilityCreation:
+        await processFacilityCreation(campaignDetailsAndRequestInfo);
       default:
         logger.info(`No process found for ${processName}`);
         break;
@@ -3546,6 +3552,9 @@ export async function handleCampaignSubProcessing(messageObject: any) {
         break;
       case processNamesConstantsInOrder.employeeCreation:
         await processSubEmployeeCreationFromConsumer(data, campaignNumber);
+        break;
+      case processNamesConstantsInOrder.facilityCreation:
+        await processSubFacilityCreationFromConsumer(data, campaignNumber);
         break;
       default:
         logger.info(`No sub process found for ${processName}`);
@@ -3606,6 +3615,68 @@ export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentM
      }
    }
    return currentMapping;
+}
+
+export function getResourceFileIdFromCampaignDetails(campaignDetails: any, resourceType: string) {
+  const fileId = campaignDetails?.resources?.find((resource: any) => resource?.type == resourceType)?.filestoreId;
+  if (!fileId) {
+    throw new Error(`${resourceType} file not found in campaign details`);
+  }
+  else {
+    return fileId;
+  }
+}
+
+export async function getAllFormatedDataFromDataSheet(type: any, dataFromSheet: any, localizationMap: any) {
+  const parseLogic = createAndSearch[type]?.parseArrayConfig?.parseLogic;
+  const allData = [];
+  for (const data of dataFromSheet) {
+    const resultantElement: any = {};
+    for (const element of parseLogic) {
+      if (element?.resultantPath) {
+        const localizedSheetColumnName = getLocalizedName(
+          element.sheetColumnName,
+          localizationMap
+        );
+        let dataToSet = _.get(data, localizedSheetColumnName);
+        if (dataToSet !== undefined) {
+          if (element.conversionCondition) {
+            dataToSet = element.conversionCondition[dataToSet];
+          }
+          if (element.type) {
+            dataToSet = convertToType(dataToSet, element.type);
+          }
+          _.set(resultantElement, element.resultantPath, dataToSet);
+        }
+      }
+    }
+    resultantElement["!row#number!"] = data["!row#number!"];
+    const usageColumnName = getLocalizedName(createAndSearch[type]?.activeColumnName, localizationMap);
+    resultantElement["!isActive!"] = _.get(data, usageColumnName);
+    allData.push(resultantElement);
+  }
+  return allData;
+}
+
+export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo: any, resourceType: string) {
+  const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
+  const tenantId = CampaignDetails?.tenantId;
+  const resourceFileId = CampaignDetails?.resources?.find((resource: any) => resource?.type == resourceType)?.filestoreId;
+  if (!resourceFileId) {
+    throw new Error(`Resource file not found for resource type: ${resourceType}`);
+  }
+  else {
+    const fileResponse = await httpRequest(`${config.host.filestore}${config.paths.filestore}/url`, {}, { tenantId, fileStoreIds: resourceFileId }, "get");
+    if (!fileResponse?.fileStoreIds?.[0]?.url) {
+      throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
+    }
+    if (resourceType == "user") {
+      await persistCreateResourceIdForUser(CampaignDetails, RequestInfo, fileResponse, resourceFileId, tenantId);
+    }
+    else if (resourceType == "facility") {
+      await persistCreateResourceIdForFacility(CampaignDetails, RequestInfo, fileResponse, resourceFileId, tenantId);
+    }
+  }
 }
 
 export {

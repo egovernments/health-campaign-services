@@ -769,7 +769,7 @@ async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagem
       "FILE",
       400,
       "FETCHING_COLUMN_ERROR",
-      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema)."
     );
   }
 }

@@ -884,9 +884,10 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId, request.body);
-  request.body.generatedResourceCount = allFacilities?.length;
-  logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
+  const allSearchedFacilities = await getAllFacilities(tenantId, request.body);
+  const facilitiesWithUniqueNames = getAllFacilitiesUniqueOnName(allSearchedFacilities);
+  request.body.generatedResourceCount = facilitiesWithUniqueNames?.length;
+  logger.info(`Facilities generation completed and found ${facilitiesWithUniqueNames?.length} facilities`);
   let facilitySheetDataFinal: any;
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   let schemaFinal: any;
@@ -900,7 +901,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
-    const { schema, facilitySheetData }: any = await createFacilitySheet(request, allFacilities, localizationMap);
+    const { schema, facilitySheetData }: any = await createFacilitySheet(request, facilitiesWithUniqueNames, localizationMap);
     facilitySheetDataFinal = facilitySheetData;
     schemaFinal = schema;
   }
@@ -913,6 +914,18 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
+}
+
+function getAllFacilitiesUniqueOnName(allFacilities: any[]) {
+  const setOfFacilityNames = new Set();
+  const uniqueNameFacilities: any[] = [];
+  allFacilities?.forEach((facility: any) => {
+    if(!setOfFacilityNames.has(facility?.name)) {
+      setOfFacilityNames.add(facility?.name);
+      uniqueNameFacilities.push(facility);
+    }
+  })
+  return uniqueNameFacilities;
 }
 
 async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any, fileUrl?: any) {

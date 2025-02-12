@@ -73,6 +73,8 @@ const config = {
     KAFKA_UPDATE_CAMPAIGN_PROJECT: process.env.KAFKA_UPDATE_CAMPAIGN_PROJECT || "update-campaign-project",
     KAFKA_SAVE_CAMPAIGN_EMPLOYEES_TOPIC: process.env.KAFKA_SAVE_CAMPAIGN_EMPLOYEES_TOPIC || "save-campaign-employees",
     KAFKA_UPDATE_CAMPAIGN_EMPLOYEES_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_EMPLOYEES_TOPIC || "update-campaign-employees",
+    KAFKA_SAVE_CAMPAIGN_FACILITIES_TOPIC: process.env.KAFKA_SAVE_CAMPAIGN_FACILITIES_TOPIC || "save-campaign-facilities",
+    KAFKA_UPDATE_CAMPAIGN_FACILITIES_TOPIC: process.env.KAFKA_UPDATE_CAMPAIGN_FACILITIES_TOPIC || "update-campaign-facilities",
     KAFKA_PROCESS_HANDLER_TOPIC: process.env.KAFKA_PROCESS_HANDLER_TOPIC || "project-factory-process-handler",
     KAFKA_SUB_PROCESS_HANDLER_TOPIC: process.env.KAFKA_SUB_PROCESS_HANDLER_TOPIC || "project-factory-sub-process-handler",
     KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC: process.env.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC || "create-campaign-process",
@@ -95,6 +97,7 @@ const config = {
     DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
     DB_CAMPAIGN_PROJECTS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_projects`,
     DB_CAMPAIGN_EMPLOYEES_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_employees`,
+    DB_CAMPAIGN_FACILITIES_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_facilities`,
     DB_CAMPAIGN_MAPPINGS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_mappings`,
   },
   // Application configuration

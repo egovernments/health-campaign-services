@@ -7,6 +7,7 @@ import { markProcessStatus } from "../utils/processTrackUtils";
 import { getAllCampaignEmployeesWithJustMobileNumbers, getCampaignEmployees, getEmployeeListForCampaignDetails, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees, persistForActiveBoundariesFromEmployeeList, persistForActiveEmployees, persistForEmployeeCreationProcess, persistForInActiveBoundariesFromEmployeeList, persistForInactiveEmployees } from "../utils/campaignEmployeesUtils";
 import { getCampaignMappings } from "../utils/campaignMappingUtils";
 import { logger } from "../utils/logger";
+import { getCampaignFacilities, getFacilityListFromCampaignDetails, persistForActiveBoundariesFromFacilityList, persistForActiveFacilities, persistForFacilityCreationProcess, persistForInActiveBoundariesFromFacilityList, persistForInactiveFacilities } from "../utils/campaignFacilitiesUtils";
 
 
 
@@ -44,7 +45,7 @@ const processEmployeeCreation = async (campaignDetailsAndRequestInfo: any) => {
         const campaignEmployeesWithJustMobileNumbers = await getAllCampaignEmployeesWithJustMobileNumbers(allEmployeeList?.map((employee: any) => employee?.user?.mobileNumber));
         const mobileNumbersAndCampaignEmployeeMapping = getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(campaignEmployeesWithJustMobileNumbers);
         await persistForActiveEmployees(allEmployeeList, campaignEmployees, campaignNumber, userUuid, mobileNumbersAndCampaignEmployeeMapping);
-        await persistForInactiveEmployees(allEmployeeList, campaignEmployees, campaignNumber, userUuid);
+        await persistForInactiveEmployees(allEmployeeList, campaignEmployees, mobileNumbersAndCampaignEmployeeMapping, campaignNumber, userUuid);
         const campaignMappings = await getCampaignMappings(campaignNumber, mappingTypes.staff);
         await persistForActiveBoundariesFromEmployeeList(allEmployeeList, campaignMappings, campaignNumber, userUuid);
         await persistForInActiveBoundariesFromEmployeeList(allEmployeeList, campaignMappings, campaignNumber, userUuid);
@@ -59,7 +60,33 @@ const processEmployeeCreation = async (campaignDetailsAndRequestInfo: any) => {
         await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.employeeCreation, campaignProcessStatus.failed, error?.message);
     }
 }
+
+const processFacilityCreation = async (campaignDetailsAndRequestInfo: any) => {
+    try {
+        const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
+        const { tenantId } = CampaignDetails;
+        const userUuid = RequestInfo?.userInfo?.uuid;
+        const { campaignNumber } = CampaignDetails;
+        await markProcessStatus(campaignNumber, processNamesConstantsInOrder.facilityCreation, campaignProcessStatus.started);
+        const allFacilityList = await getFacilityListFromCampaignDetails(CampaignDetails);
+        const campaignFacilities = await getCampaignFacilities(campaignNumber, false);
+        await persistForActiveFacilities(allFacilityList, campaignFacilities, campaignNumber, userUuid);
+        await persistForInactiveFacilities(allFacilityList, campaignFacilities, campaignNumber, userUuid);
+        const campaignMappings = await getCampaignMappings(campaignNumber, mappingTypes.facility);
+        await persistForActiveBoundariesFromFacilityList(allFacilityList, campaignMappings, campaignNumber, userUuid);
+        await persistForInActiveBoundariesFromFacilityList(allFacilityList, campaignMappings, campaignNumber, userUuid);
+        await persistForFacilityCreationProcess(allFacilityList, campaignNumber, tenantId, userUuid);
+        // // wait for 5 seconds for confirmed persistence
+        logger.info("Waiting for 5 seconds for confirmed persistence to start facility creation...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+    } catch (error: any) {
+        console.log(error);
+        await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.employeeCreation, campaignProcessStatus.failed, error?.message);
+    }
+}
+
 export {
     processProjectCreation,
-    processEmployeeCreation
+    processEmployeeCreation,
+    processFacilityCreation
 }

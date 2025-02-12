@@ -5,14 +5,13 @@ import { v4 as uuidv4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { fillDataInProcessedUserSheet, getExcelWorkbookFromFileURL, getLocaleFromCampaignFiles } from "./excelUtils";
-import { getDataFromSheetFromNormalCampaign, getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
+import { getDataFromSheetFromNormalCampaign, getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import createAndSearch from "../config/createAndSearch";
-import { checkIfNoNeedToProceedForResource, convertToType, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, getLocalizedName, updateCreateResourceId } from "./campaignUtils";
+import { checkIfNoNeedToProceedForResource, createIdRequestsForEmployees, createUniqueUserNameViaIdGen, enrichProcessedFileAndPersist, getAllFormatedDataFromDataSheet, getLocalizedName, getResourceFileIdFromCampaignDetails, updateCreateResourceId } from "./campaignUtils";
 import { executeQuery } from "./db";
 import { generateUserPassword } from "../api/campaignApis";
 import { encryptPassword } from "./encryptionUtils";
 import { createEmployeesAndGetMobileNumbersAndUserServiceUuidMapping } from "../api/campaignEmployeeApi";
-import { httpRequest } from "./request";
 import { getCampaignMappings } from "./campaignMappingUtils";
 import _ from "lodash";
 import {  createAndUploadFileWithLocaleAndCampaign } from "../api/genericApis";
@@ -82,7 +81,7 @@ export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any
         console.log(error);
         await persistTrack(
             campaignDetailsAndRequestInfo?.CampaignDetails?.id,
-            processTrackTypes.targetAndDeliveryRulesCreation,
+            processTrackTypes.staffCreation,
             processTrackStatuses.failed,
             {
                 error: String(
@@ -98,51 +97,12 @@ export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any
 export async function getEmployeeListForCampaignDetails(campaignDetails: any) {
     const tenantId = campaignDetails?.tenantId;
     const type = "user";
-    const employeeFileId = getEmployeeFileIdFromCampaignDetails(campaignDetails);
+    const employeeFileId = getResourceFileIdFromCampaignDetails(campaignDetails, type);
     const localeFromEmployeeFile = await getLocaleFromCampaignFiles(employeeFileId, tenantId);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromEmployeeFile, tenantId);
     const dataFromSheet: any = await getDataFromSheetFromNormalCampaign(type, employeeFileId, tenantId, createAndSearch[type], createAndSearch[type]?.parseArrayConfig?.sheetName, localizationMap);
-    const allEmployessFromDataSheet = await getAllEmployeesFromDataSheet(type, dataFromSheet, localizationMap);
+    const allEmployessFromDataSheet = await getAllFormatedDataFromDataSheet(type, dataFromSheet, localizationMap);
     return allEmployessFromDataSheet;
-}
-
-export function getEmployeeFileIdFromCampaignDetails(campaignDetails: any) {
-    const fileId = campaignDetails?.resources?.find((resource: any) => resource?.type == "user")?.filestoreId;
-    if (!fileId) {
-        throw new Error("User file not found in campaign details");
-    }
-    else {
-        return fileId;
-    }
-}
-
-async function getAllEmployeesFromDataSheet(type: any, dataFromSheet: any, localizationMap: any) {
-    const parseLogic = createAndSearch[type]?.parseArrayConfig?.parseLogic;
-    const allData = [];
-    for (const data of dataFromSheet) {
-        const resultantElement: any = {};
-        for (const element of parseLogic) {
-            if (element?.resultantPath) {
-                const localizedSheetColumnName = getLocalizedName(
-                    element.sheetColumnName,
-                    localizationMap
-                );
-                let dataToSet = _.get(data, localizedSheetColumnName);
-                if (element.conversionCondition) {
-                    dataToSet = element.conversionCondition[dataToSet];
-                }
-                if (element.type) {
-                    dataToSet = convertToType(dataToSet, element.type);
-                }
-                _.set(resultantElement, element.resultantPath, dataToSet);
-            }
-        }
-        resultantElement["!row#number!"] = data["!row#number!"];
-        const usageColumnName = getLocalizedName(createAndSearch[type]?.activeColumnName, localizationMap);
-        resultantElement["!isActive!"] = _.get(data, usageColumnName);
-        allData.push(resultantElement);
-    }
-    return allData;
 }
 
 export async function getCampaignEmployees(
@@ -339,7 +299,13 @@ async function updateInactiveEmployeesToActive(
 
 
 
-export async function persistForInactiveEmployees(employeesFromSheet: any[], campaignEmployees: any[], campaignNumber: string, userUuid: string) {
+export async function persistForInactiveEmployees(employeesFromSheet: any[], campaignEmployees: any[], mobileNumbersAndCampaignEmployeeMapping: any, campaignNumber: string, userUuid: string) {
+    await updateActiveEmployeesToInactive(employeesFromSheet, campaignEmployees, userUuid);
+    await persistNewInactiveEmployees(employeesFromSheet, campaignEmployees, mobileNumbersAndCampaignEmployeeMapping, campaignNumber, userUuid);
+}
+
+async function updateActiveEmployeesToInactive(employeesFromSheet: any[], campaignEmployees: any[], userUuid: string){
+    logger.info(`Updating active employees to inactive as per sheet...`);
     const setOfSheetInactiveEmployeesMobileNumbers = new Set(employeesFromSheet.filter((employee: any) => employee?.["!isActive!"] == usageColumnStatus.inactive).map((sheetEmployee: any) => sheetEmployee?.user?.mobileNumber));
     const campaignEmployeesToBeUpdatedAsInactive = [];
     for (const employee of campaignEmployees) {
@@ -364,6 +330,51 @@ export async function persistForInactiveEmployees(employeesFromSheet: any[], cam
             config?.kafka?.KAFKA_UPDATE_CAMPAIGN_EMPLOYEES_TOPIC
         );
     }
+    logger.info(`Finished updating active employees to inactive as per sheet...`);
+}
+
+async function persistNewInactiveEmployees(employeesFromSheet: any[], campaignEmployees: any[], mobileNumbersAndCampaignEmployeeMapping: any, campaignNumber: string, userUuid: string) {
+    logger.info(`Persisting new inactive employees for campaign number: ${campaignNumber}`);
+    const setOfCampaignEmployeesMobileNumbers = new Set(campaignEmployees.map((employee: any) => employee?.mobileNumber));
+    const campaignEmployeesToBePersistedAsInactive = [];
+    for(const employee of employeesFromSheet){
+        if(!setOfCampaignEmployeesMobileNumbers.has(employee?.user?.mobileNumber) && employee?.["!isActive!"] == usageColumnStatus.inactive){
+            campaignEmployeesToBePersistedAsInactive.push(employee);
+        }
+    }
+
+    const currentTime = new Date().getTime();
+    const formattedcampaignEmployeesToBePersistedAsInactive = campaignEmployeesToBePersistedAsInactive.map((employee: any) => {
+        return {
+            id: uuidv4(),
+            mobileNumber: employee?.user?.mobileNumber,
+            name: employee?.user?.name,
+            role: employee?.user?.roles,
+            campaignNumber: campaignNumber,
+            isActive: false,
+            userServiceUuid: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.userServiceUuid || null,
+            userName: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.userName || null,
+            employeeType: employee?.employeeType == "PERMANENT" ? "Permanent" : "Temporary",
+            tokenString: mobileNumbersAndCampaignEmployeeMapping?.[employee?.user?.mobileNumber]?.tokenString || null,
+            additionalDetails: {},
+            createdBy: userUuid,
+            lastModifiedBy: userUuid,
+            createdTime: currentTime,
+            lastModifiedTime: currentTime,
+        }
+    })
+
+    for (let i = 0; i < formattedcampaignEmployeesToBePersistedAsInactive.length; i += 100){
+        const chunk = formattedcampaignEmployeesToBePersistedAsInactive.slice(i, i + 100);
+        const produceMessage: any = {
+            campaignEmployees: chunk,
+        };
+        await produceModifiedMessages(
+            produceMessage,
+            config?.kafka?.KAFKA_SAVE_CAMPAIGN_EMPLOYEES_TOPIC
+        );
+    }
+    logger.info(`Persisted new inactive employees for campaign number: ${campaignNumber}`);
 }
 
 export async function persistForActiveBoundariesFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
@@ -466,7 +477,7 @@ export async function updateMappingsFromEmployeeList(employeeList: any[], campai
 
 export async function persistForInActiveBoundariesFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
     await inactivateMappingsForInactiveEmployees(employeeList, campaignMappings, userUuid);
-    await removeMappingsForInactiveBoundaries(employeeList, campaignMappings, userUuid);
+    await removeMappingsForInactiveBoundariesForEmployeeList(employeeList, campaignMappings, userUuid);
 }
 
 export async function inactivateMappingsForInactiveEmployees(employeeList: any[], campaignMappings: any[], userUuid: string) {
@@ -512,7 +523,7 @@ export async function inactivateMappingsForInactiveEmployees(employeeList: any[]
     }
 }
 
-export async function removeMappingsForInactiveBoundaries(employeeList: any[], campaignMappings: any[], userUuid: string) {
+export async function removeMappingsForInactiveBoundariesForEmployeeList(employeeList: any[], campaignMappings: any[], userUuid: string) {
     const setOfAllActiveMobileNumbersAndJurisdictionsFromSheet = new Set(
         employeeList
             .filter((employee: any) => employee?.["!isActive!"] == usageColumnStatus.active)
@@ -556,7 +567,10 @@ export async function removeMappingsForInactiveBoundaries(employeeList: any[], c
 }
 
 export async function persistForEmployeeCreationProcess(employeeList: any[], campaignNumber: string, tenantId: string, userUuid: string, hierarchyType: string, rootBoundaryCode: string, rootBoundaryType: string) {
-    const mobileNumbers = employeeList.map((employee: any) => employee?.user?.mobileNumber);
+    const mobileNumbers = employeeList
+        .filter((employee: any) => employee["!isActive!"] == usageColumnStatus.active)
+        .map((employee: any) => employee?.user?.mobileNumber);
+
     for (let i = 0; i < mobileNumbers.length; i += 100) {
         const chunk = mobileNumbers.slice(i, i + 100);
         const produceMessage: any = {
@@ -586,7 +600,7 @@ export async function processSubEmployeeCreationFromConsumer(data: any, campaign
     const { mobileNumbers, tenantId, hierarchyType, rootBoundaryCode, rootBoundaryType, userUuid } = data;
 
     // Fetch campaign employees for the provided campaign number and mobile numbers
-    const campaignEmployees = await getCampaignEmployees(campaignNumber, true, mobileNumbers);
+    const campaignEmployees =   await getCampaignEmployees(campaignNumber, true, mobileNumbers);
 
     // Filter employees without userServiceUuid
     const employeesToCreate = campaignEmployees?.filter((employee: any) => !employee?.userServiceUuid);
@@ -690,11 +704,11 @@ async function checkAndPersistEmployeeCreationResult(campaignNumber: string) {
             );
             const isProcessFailed = await checkifProcessIsFailed(campaignNumber, processNamesConstantsInOrder.employeeCreation)
             if (isProcessAlreadyCompleted) {
-                logger.info("Process already completed.");
+                logger.info("Employee creation Process already completed.");
                 return;
             }
             else if (isProcessFailed) {
-                logger.warn("Process is already failed.");
+                logger.warn("Employee creation Process is already failed.");
                 return;
             }
 
@@ -732,34 +746,6 @@ async function checkIfAllActiveCampaignEmployeesHaveUserServiceUuid(campaignNumb
 
     // If no rows are returned, it means all active employees have userServiceUuid
     return result.rows.length === 0;
-}
-
-export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo: any, resourceType: string) {
-    const { CampaignDetails, RequestInfo } = campaignDetailsAndRequestInfo;
-    const tenantId = CampaignDetails?.tenantId;
-    const resourceFileId = CampaignDetails?.resources?.find((resource: any) => resource?.type == resourceType)?.filestoreId;
-    if (!resourceFileId) {
-        throw new Error(`Resource file not found for resource type: ${resourceType}`);
-    }
-    else {
-        const fileResponse = await httpRequest(`${config.host.filestore}${config.paths.filestore}/url`, {}, { tenantId, fileStoreIds: resourceFileId }, "get");
-        if (!fileResponse?.fileStoreIds?.[0]?.url) {
-            throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
-        }
-        const workbook = await getExcelWorkbookFromFileURL(fileResponse?.fileStoreIds?.[0]?.url);
-        const locale = await getLocaleFromCampaignFiles(resourceFileId, tenantId);
-        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
-        const userWorkSheet = workbook.getWorksheet(getLocalizedName(config.user.userTab, localizationMap));
-        if (!userWorkSheet) {
-            throw new Error("User sheet not found");
-        }
-        const campaignEmployees = await getCampaignEmployeesWithTokenString(CampaignDetails?.campaignNumber, false);
-        const campaignMappings = await getCampaignMappings(CampaignDetails?.campaignNumber, mappingTypes.staff);
-        fillDataInProcessedUserSheet(userWorkSheet, campaignEmployees, campaignMappings);
-        const responseData =await createAndUploadFileWithLocaleAndCampaign(workbook, locale, CampaignDetails?.id, tenantId);
-        await updateCreateResourceId(CampaignDetails, resourceType, responseData?.[0]?.fileStoreId, RequestInfo?.userInfo?.uuid);
-        logger.info(`Resource file updated for resource type: ${resourceType}`);
-    }
 }
 
 export async function getAllCampaignEmployeesWithJustMobileNumbers(mobileNumbers: any[]) {
@@ -806,5 +792,22 @@ export function getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(
         mobileNumbersAndCampaignEmployeeMapping[employee?.mobileNumber] = employee;
     }
     return mobileNumbersAndCampaignEmployeeMapping;
+}
+
+export async function persistCreateResourceIdForUser(CampaignDetails: any, RequestInfo: any, fileResponse: any, resourceFileId: any, tenantId: any) {
+    const resourceType = "user";
+    const workbook = await getExcelWorkbookFromFileURL(fileResponse?.fileStoreIds?.[0]?.url);
+    const locale = await getLocaleFromCampaignFiles(resourceFileId, tenantId);
+    const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+    const userWorkSheet = workbook.getWorksheet(getLocalizedName(config.user.userTab, localizationMap));
+    if (!userWorkSheet) {
+        throw new Error("User sheet not found");
+    }
+    const campaignEmployees = await getCampaignEmployeesWithTokenString(CampaignDetails?.campaignNumber, false);
+    const campaignMappings = await getCampaignMappings(CampaignDetails?.campaignNumber, mappingTypes.staff);
+    fillDataInProcessedUserSheet(userWorkSheet, campaignEmployees, campaignMappings);
+    const responseData = await createAndUploadFileWithLocaleAndCampaign(workbook, locale, CampaignDetails?.id, tenantId);
+    await updateCreateResourceId(CampaignDetails, resourceType, responseData?.[0]?.fileStoreId, RequestInfo?.userInfo?.uuid);
+    logger.info(`Resource file updated for resource type: ${resourceType}`);
 }
 

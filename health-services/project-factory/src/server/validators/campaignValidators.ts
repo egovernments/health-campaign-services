@@ -171,34 +171,67 @@ async function validateTargets(request: any, data: any[], errors: any[], localiz
 }
 
 function validateUnique(schema: any, data: any[], request: any, localizationMap: any) {
+    const type = request?.body?.ResourceDetails?.type;
     if (schema?.unique) {
-        const uniqueElements = schema.unique;
-        const errors = [];
+        validateUniqueFromSchemas(schema, data, type, localizationMap);
+    }
+    if(type == "user" || type == "facility") {
+        validateUniqueForEntityTable(data, type, localizationMap)
+    }
+}
 
-        for (const element of uniqueElements) {
-            const uniqueMap = new Map();
+function validateUniqueFromSchemas(schema: any, data: any[], type: string, localizationMap: any) {
+    const uniqueElements = schema.unique;
+    const errors = [];
 
-            // Iterate over each data object and check uniqueness
-            for (const item of data) {
-                const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
-                const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
-                const value = item[element];
-                const rowNum = item['!row#number!'];
-                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
-                    // Check if the value is already in the map
-                    if (uniqueMap.has(value)) {
-                        errors.push(`Duplicate value '${value}' found for '${element}' at row number ${rowNum}.`);
-                    }
-                    // Add the value to the map
-                    uniqueMap.set(value, rowNum);
+    for (const element of uniqueElements) {
+        const uniqueMap = new Map();
+
+        // Iterate over each data object and check uniqueness
+        for (const item of data) {
+            const uniqueIdentifierColumnName = createAndSearch?.[type]?.uniqueIdentifierColumnName;
+            const localizedUniqueIdentifierColumnName = getLocalizedName(uniqueIdentifierColumnName, localizationMap);
+            const value = item[element];
+            const rowNum = item['!row#number!'];
+            if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
+                // Check if the value is already in the map
+                if (uniqueMap.has(value)) {
+                    errors.push(`Duplicate value '${value}' found for '${element}' at row number ${rowNum}.`);
                 }
+                // Add the value to the map
+                uniqueMap.set(value, rowNum);
             }
         }
+    }
 
-        if (errors.length > 0) {
-            // Throw an error or return the errors based on your requirement
-            throwError("FILE", 400, "INVALID_FILE_ERROR", errors.join(" ; "));
+    if (errors.length > 0) {
+        // Throw an error or return the errors based on your requirement
+        throwError("FILE", 400, "INVALID_FILE_ERROR", errors.join(" ; "));
+    }
+}
+
+function validateUniqueForEntityTable(data: any[], type: string, localizationMap: any) {
+    const errors = [];
+    const uniqueColumnKey = type == "user" ? createAndSearch?.[type]?.uniquePhoneNumberColumnName : createAndSearch?.[type]?.uniqueNameColumnName;
+    const localizedUniqueColumnKey = getLocalizedName(uniqueColumnKey, localizationMap);
+    const uniqueMap = new Map();
+    for (const item of data) {
+        if (!item[localizedUniqueColumnKey]) {
+            errors.push(`Please provide ${localizedUniqueColumnKey} for row number ${item['!row#number!']}.`);
         }
+        else {
+            const value = item[localizedUniqueColumnKey];
+            const rowNum = item['!row#number!'];
+            if (uniqueMap.has(value)) {
+                errors.push(`Duplicate value '${value}' found for '${localizedUniqueColumnKey}' at row number ${rowNum}.`);
+            }
+            // Add the value to the map
+            uniqueMap.set(value, rowNum);
+        }
+    }
+    if (errors.length > 0) {
+        // Throw an error or return the errors based on your requirement
+        throwError("FILE", 400, "INVALID_FILE_ERROR", errors.join(" ; "));
     }
 }
 

@@ -1101,8 +1101,7 @@ async function enrichEmployees(employees: any[], request: any) {
   const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
   convertUserRoles(employees, request);
   const idRequests = createIdRequestsForEmployees(employees?.length, request?.body?.ResourceDetails?.tenantId);
-  request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
+  let result = await createUniqueUserNameViaIdGen(idRequests);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
@@ -1575,7 +1574,6 @@ async function processCreate(request: any, localizationMap?: any) {
   } else if (type == "boundaryGeometryManagement") {
     await boundaryGeometryManagement(request, localizationMap);
   } else {
-    // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);

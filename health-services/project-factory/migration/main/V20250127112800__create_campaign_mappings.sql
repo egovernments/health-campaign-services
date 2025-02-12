@@ -1,7 +1,7 @@
 CREATE TABLE eg_cm_campaign_mappings (
     id CHARACTER VARYING(128) PRIMARY KEY, -- Unique identifier for each mapping
     campaignnumber CHARACTER VARYING(128) NOT NULL, -- Campaign number
-    mappingidentifier CHARACTER VARYING(64) NOT NULL, -- Mobile number or unique identifier
+    mappingidentifier CHARACTER VARYING(2500) NOT NULL, -- Mobile number or unique identifier
     mappingtype CHARACTER VARYING(64) NOT NULL, -- Type of mapping (e.g., staff, etc.)
     mappingcode CHARACTER VARYING(128), -- Optional mapping code
     "status" CHARACTER VARYING(64) NOT NULL, -- Status of the mapping (e.g., TO_BE_MAPPED)
