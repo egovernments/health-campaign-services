@@ -1007,8 +1007,8 @@ function convertUserRoles(employees: any[], request: any,localizationMap?:any) {
             let code = Object.keys(localizationMap || {}).find((key) => localizationMap?.[key] === role) || role;
   
             // Remove prefix if present
-            code = code.replace(/^ACCESSCONTROL_ROLES_ROLES_/, "");
-          newRoles.push({
+            code = code.replace(new RegExp(`^${config?.user?.userRolePrefix}`), "");
+            newRoles.push({
             name: role,
             code: code,
             tenantId: request?.body?.ResourceDetails?.tenantId,

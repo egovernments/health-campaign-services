@@ -761,17 +761,15 @@ async function handledropdownthings(sheet: any, schema: any, localizationMap: an
   const dropdowns = Object.entries(schema.properties)
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
-      let enumValues = value.enum;
-
-      if (key === config?.user?.userRoleKey) {
-        enumValues = value.enum.map((code: string) => {
-          const prefixedCode = `ACCESSCONTROL_ROLES_ROLES_${code}`;
-          return getLocalizedName(prefixedCode, localizationMap) || prefixedCode;
-        });
-      }
-      else {
-        enumValues = getLocalizedHeaders(enumValues, localizationMap);
-      }
+      let enumValues = value.enum.map((code: string) => {
+        let prefixedCode = code;
+      
+        if (value.prefix) {
+          prefixedCode = `${value.prefix}${code}`;
+        }
+      
+        return getLocalizedName(prefixedCode, localizationMap) || prefixedCode;
+      });
       // Transform the key using localisedValue function
       const newKey: any = getLocalizedName(key, localizationMap);
       result[newKey] = enumValues;

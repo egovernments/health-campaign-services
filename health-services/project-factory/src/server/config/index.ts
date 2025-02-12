@@ -50,6 +50,7 @@ const config = {
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
     userRoleKey: "HCM_ADMIN_CONSOLE_USER_ROLE",
+    userRolePrefix: "ACCESSCONTROL_ROLES_ROLES_",
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
