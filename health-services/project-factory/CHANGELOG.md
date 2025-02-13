@@ -20,3 +20,9 @@ All notable changes to this module will be documented in this file.
   2.  Update Ongoing Campaign (can add new boundaries , edit facilities , user and target sheet).
   3.  Boundary Management Apis added.
   4.  Microplan Integration api (fetch-from-microplan api) added.
+
+
+## 0.3.1 - 2025-02-13
+  1. Facility creation changed from bulk to individual api for better error handling.
+  2. Fixed the template generation cache to support multiple language template at same time.  
+  3. Introduced the template validation based on meta data like locale & camapign id

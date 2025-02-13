@@ -1,6 +1,6 @@
 {
   "name": "project-factory",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "src/server/index.ts",
   "author": "Jagankumar <jagan.kumar@egov.org.in>",
   "description": "Backend For Frontend service",
