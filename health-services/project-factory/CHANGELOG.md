@@ -26,3 +26,4 @@ All notable changes to this module will be documented in this file.
   1. Facility creation changed from bulk to individual api for better error handling.
   2. Fixed the template generation cache to support multiple language template at same time.  
   3. Introduced the template validation based on meta data like locale & camapign id
+  4. Target to dashboard mapping was introduced for additional configurations
