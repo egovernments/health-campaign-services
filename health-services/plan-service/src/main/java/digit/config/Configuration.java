@@ -93,8 +93,8 @@ public class Configuration {
     @Value("${plan.default.limit}")
     private Integer defaultLimit;
 
-    @Value("${plan.default.max.limit}")
-    private Integer defaultMaxLimit;
+    @Value("${plan.max.limit}")
+    private Integer maxLimit;
 
     //Census
     @Value("${egov.census.host}")
