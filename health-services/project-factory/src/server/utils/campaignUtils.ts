@@ -302,7 +302,7 @@ function enrichActiveAndUUidColumn(
         `${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`
       );
       activeCell.value = usageColumnStatus.active;
-      uniqueIdentifierCell.value = data["userServiceUuid"];
+      uniqueIdentifierCell.value = data["userServiceUuid"] || data?.user?.["userServiceUuid"];
     }
   }
 }
@@ -3337,6 +3337,14 @@ const autoGenerateBoundaryCodes = async (
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   const map: Map<string, string> = new Map();
   const count: Map<string, number> = new Map();
+  
+  boundaryData = boundaryData.map(row =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) =>
+        [key, typeof value === "string" ? value.trim() : value]
+      )
+    )
+  );
 
   boundaryData.forEach((row) => {
     const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
@@ -3842,6 +3850,16 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   } else {
     throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", "Error in campaign search");
   }
+}
+
+export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentMapping : any = {}) {
+   for(const boundary of boundaries) {
+     currentMapping[boundary.code] = boundary.boundaryType;
+     if(boundary.children?.length > 0) {
+       getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
+     }
+   }
+   return currentMapping;
 }
 
 export {

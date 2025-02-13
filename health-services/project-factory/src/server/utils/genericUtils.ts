@@ -227,6 +227,8 @@ const trimError = (e: any) => {
 async function searchGeneratedResources(request: any) {
   try {
     const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
+    const msgIdRaw = request.body.RequestInfo?.msgId;
+    const locale = msgIdRaw?.split('|')[1] || null;
     let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
@@ -256,6 +258,10 @@ async function searchGeneratedResources(request: any) {
       const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
       queryConditions.push(`(${statusConditions.join(' OR ')})`);
       queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
     }
 
     queryString += queryConditions.join(" AND ");
@@ -307,7 +313,8 @@ async function generateNewRequestObject(request: any) {
     },
     additionalDetails: additionalDetails,
     count: null,
-    campaignId: request?.query?.campaignId
+    campaignId: request?.query?.campaignId,
+    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || null
   };
   return [newEntry];
 }

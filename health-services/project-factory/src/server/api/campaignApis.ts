@@ -30,6 +30,7 @@ import {
   createIdRequests,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
+  getBoundaryCodeAndBoundaryTypeMapping,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -50,7 +51,7 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipDefinition } from "./coreApis";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -350,16 +351,6 @@ async function getUuidsError(
         errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username`,
       });
       count++;
-    } else if (!user?.userDetails?.password) {
-      logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have password`
-      );
-      errors.push({
-        status: "INVALID",
-        rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have password`,
-      });
-      count++;
     } else if (!user?.userUuid) {
       logger.info(
         `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`
@@ -463,7 +454,7 @@ async function getUserWithMobileNumbers(
   }
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
-  logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
+  logger.info(`Already Existing mobile numbers : ${Array.from(resultSet).join(",")}`);
   return resultSet;
 }
 
@@ -1059,19 +1050,42 @@ function generateUserPassword() {
   return `${firstSequence}@${randomNumber}`;
 }
 
-async function enrichJurisdictions(employee: any, request: any) {
-  employee.jurisdictions = [
-    {
-      tenantId: request?.body?.ResourceDetails?.tenantId,
-      boundaryType: config.values.userMainBoundaryType,
-      boundary: config.values.userMainBoundary,
-      hierarchy: request?.body?.ResourceDetails?.hierarchyType,
-      roles: employee?.user?.roles,
-    },
-  ];
+async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
+  const jurisdictionsArray = employee?.jurisdictions
+    ?.split(",")
+    ?.map((jurisdiction : any ) => jurisdiction.trim());
+
+  if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
+    const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
+      return {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: boundaryCodeAndBoundaryTypeMapping[jurisdiction],
+        boundary: jurisdiction,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      };
+    })
+    employee.jurisdictions = jurisdictions
+  }
+  else{
+    employee.jurisdictions = [
+      {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: config.values.userMainBoundaryType,
+        boundary: config.values.userMainBoundary,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      },
+    ];
+  }
 }
 
 async function enrichEmployees(employees: any[], request: any) {
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
+  if(!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
+    throw new Error("Boundary relationship search failed");
+  }
+  const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
@@ -1086,7 +1100,7 @@ async function enrichEmployees(employees: any[], request: any) {
     user.userName = result?.idResponses?.[i]?.id;
     user.password = generatedPassword;
     employee.code = result?.idResponses?.[i]?.id;
-    await enrichJurisdictions(employee, request);
+    await enrichJurisdictions(employee, request, boundaryCodeAndBoundaryTypeMapping);
     if (employee?.user) {
       employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
       employee.user.dob = 0;
