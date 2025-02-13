@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.querybuilder.PlanConfigQueryBuilder;
 import digit.repository.rowmapper.PlanConfigRowMapper;
+import digit.util.CommonUtil;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
@@ -65,8 +66,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
             return new ArrayList<>();
         }
 
-        List<PlanConfiguration> planConfigurations = searchPlanConfigsByIds(planConfigIds);
-        return planConfigurations;
+        return searchPlanConfigsByIds(planConfigIds);
     }
 
     /**
@@ -78,14 +78,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     public Integer count(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planConfigQueryBuilder.getPlanConfigCountQuery(planConfigurationSearchCriteria, preparedStmtList);
-
-        log.info("Plan Config count query: " + query);
-        log.info("preparedStmtList: " + preparedStmtList);
-
-        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
-        log.info("Total plan config count is : " + count);
-
-        return count;
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
     }
 
     /**
@@ -105,7 +98,6 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     private List<String> queryDatabaseForPlanConfigIds(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planConfigQueryBuilder.getPlanConfigSearchQuery(planConfigurationSearchCriteria, preparedStmtList);
-        log.info("Plan Config search query: " + query);
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 

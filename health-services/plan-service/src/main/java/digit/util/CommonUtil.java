@@ -6,9 +6,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.web.models.Operation;
-import digit.web.models.PlanConfiguration;
-import digit.web.models.PlanConfigurationSearchCriteria;
+import digit.web.models.*;
+import digit.web.models.census.CensusSearchCriteria;
+import digit.web.models.census.CensusSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -222,7 +222,6 @@ public class CommonUtil {
      * @param fieldsToBeUpdated map of field to be updated and it's updated value.
      * @return returns the updated additional details object.
      */
-
     public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
         try {
 
@@ -242,21 +241,44 @@ public class CommonUtil {
         }
     }
 
-    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
-        for (PlanConfiguration planConfiguration : planConfigurations) {
-            List<Operation> operations = planConfiguration.getOperations();
-            if (!ObjectUtils.isEmpty(operations)) {
-                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
-            }
-        }
+    /**
+     * Prepares a CensusSearchRequest for the given plan configuration ID.
+     *
+     * @param tenantId      The tenant ID.
+     * @param planConfigId  The plan configuration ID.
+     * @param requestInfo   The request information.
+     * @return A CensusSearchRequest object with the specified criteria.
+     */
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
+                .tenantId(tenantId)
+                .source(planConfigId)
+                .build();
+
+        return CensusSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .censusSearchCriteria(searchCriteria)
+                .build();
     }
 
-    public Set<Object> fetchTemplateIdentifiers(Object mdmsData, String jsonPath) {
-        try {
-            return new HashSet<>(JsonPath.read(mdmsData, jsonPath));
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-        }
+    /**
+     * Prepares a PlanSearchRequest for the given plan configuration ID.
+     *
+     * @param tenantId      The tenant ID.
+     * @param planConfigId  The plan configuration ID.
+     * @param requestInfo   The request information.
+     * @return A PlanSearchRequest object with the specified criteria.
+     */
+    public PlanSearchRequest getPlanSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        PlanSearchCriteria searchCriteria = PlanSearchCriteria.builder()
+                .tenantId(tenantId)
+                .planConfigurationId(planConfigId)
+                .build();
+
+        return PlanSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .planSearchCriteria(searchCriteria)
+                .build();
     }
+
 }

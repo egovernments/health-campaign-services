@@ -81,9 +81,6 @@ public class PlanConfigurationService {
         // Delegate search request to repository
         List<PlanConfiguration> planConfigurations = repository.search(request.getPlanConfigurationSearchCriteria());
 
-        // Sort the list of operations in plan configuration object by execution order.
-        commonUtil.sortOperationsByExecutionOrder(planConfigurations);
-
         // Build and return response back to controller
         return PlanConfigurationResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
