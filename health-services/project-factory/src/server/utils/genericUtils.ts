@@ -356,7 +356,8 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     await produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
+    const localizationMapUserRoles = await getLocalizedMessagesHandler(request, request?.query?.tenantId, config?.localisation?.localizationModuleForUserRoles);
+    const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule, ...localizationMapUserRoles };
     let fileUrlResponse: any;
     if (type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement') {
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
@@ -760,9 +761,18 @@ async function handledropdownthings(sheet: any, schema: any, localizationMap: an
   const dropdowns = Object.entries(schema.properties)
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
+      let enumValues = value.enum.map((code: string) => {
+        let prefixedCode = code;
+      
+        if (value.prefix) {
+          prefixedCode = `${value.prefix}${code}`;
+        }
+      
+        return getLocalizedName(prefixedCode, localizationMap) || prefixedCode;
+      });
       // Transform the key using localisedValue function
       const newKey: any = getLocalizedName(key, localizationMap);
-      result[newKey] = value.enum;
+      result[newKey] = enumValues;
       return result;
     }, {});
   if (dropdowns) {
@@ -1394,12 +1404,30 @@ async function translateSchema(
   localizationMap?: { [key: string]: string }) {
   const translatedSchema = {
     ...schema,
-    properties: Object.entries(schema?.properties || {}).reduce((acc, [key, value]) => {
-      const localizedMessage = getLocalizedName(key, localizationMap);
-      acc[localizedMessage] = value;
-      return acc;
-    }, {} as { [key: string]: any }),
+    properties: Object.entries(schema?.properties || {}).reduce(
+      (acc, [key, value]: [string, any]) => {
+        const localizedKey = getLocalizedName(key, localizationMap) || key;
 
+        let newValue = { ...value };
+
+        // Handle enum translation
+        if (Array.isArray(value.enum)) {
+          newValue.enum = value.enum.map((item: string) => {
+            let localizedItem = item;
+
+            if (value?.prefix) {
+              localizedItem = `${value.prefix}${item}`;
+            }
+
+            return getLocalizedName(localizedItem, localizationMap);
+          });
+        }
+
+        acc[localizedKey] = newValue;
+        return acc;
+      },
+      {} as { [key: string]: any }
+    ),
     required: (schema?.required || [])
       .map((key: string) => getLocalizedName(key, localizationMap)),
 
