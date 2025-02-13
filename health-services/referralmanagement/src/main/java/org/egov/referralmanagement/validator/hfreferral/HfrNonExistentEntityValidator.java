@@ -82,7 +82,8 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
             try {
                 // Query the repository to find existing entities
                 existingReferrals = hfReferralRepository.find(hfReferralSearch, hfReferrals.size(), 0,
-                        hfReferrals.get(0).getTenantId(), null, false);
+                        hfReferrals.get(0).getTenantId(), null, false).getResponse()
+                ;
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for HFReferral with error: {}", e.getMessage(), e);

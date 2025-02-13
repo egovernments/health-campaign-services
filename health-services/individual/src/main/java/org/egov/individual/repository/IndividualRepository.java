@@ -264,14 +264,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
-            query = query + "AND roles @> '[";
+            query = query + "AND (";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}";
+                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
                 if (i != searchObject.getRoleCodes().size() - 1) {
-                    query = query + ",";
+                    query = query + " OR ";  // Add OR between conditions
                 }
             }
-            query = query + "]' ";
+            query = query + ") ";
         }
 
         if (searchObject.getUsername() != null) {

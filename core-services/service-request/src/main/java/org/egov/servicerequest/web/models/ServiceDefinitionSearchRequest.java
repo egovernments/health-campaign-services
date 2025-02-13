@@ -33,5 +33,6 @@ public class ServiceDefinitionSearchRequest {
     @Valid
     private Pagination pagination = null;
 
-
+    @JsonProperty("includeDeleted")
+    private boolean includeDeleted = false;
 }

@@ -47,7 +47,7 @@ public class FRowVersionValidator implements Validator<FacilityBulkRequest, Faci
             Map<String, Facility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<Facility> existingEntities = facilityRepository.findById(entityIds, getIdFieldName(idMethod), false);
+                List<Facility> existingEntities = facilityRepository.findById(entityIds, getIdFieldName(idMethod), false).getResponse();
                 List<Facility> entitiesWithMismatchedRowVersion =
                         getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
                 entitiesWithMismatchedRowVersion.forEach(facility -> {

@@ -21,25 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.egov.servicerequest.error.ErrorCode.INVALID_SIZE_OF_INPUT_CODE;
-import static org.egov.servicerequest.error.ErrorCode.INVALID_SIZE_OF_TEXT_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_DATETIME_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_NUMBER_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_SINGLE_VALUE_LIST_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_STRING_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_TEXT_VALUE_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_MULTIVALUELIST_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_SINGLEVALUELIST_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_VALUES_UNIQUENESS_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_ATTRIBUTE_VALUES_UNIQUENESS_ERR_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_MSG;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_CODE;
-import static org.egov.servicerequest.error.ErrorCode.SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_MSG;
+import static org.egov.servicerequest.error.ErrorCode.*;
 
 @Slf4j
 @Component
@@ -132,6 +114,10 @@ public class ServiceRequestValidator {
             }else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
                 if(!(attributeValue.getValue() instanceof List)){
                     throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG);
+                }
+            }else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.BOOLEAN)){
+                if(!(attributeValue.getValue() instanceof Boolean)){
+                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG);
                 }
             }
         });

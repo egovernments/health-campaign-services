@@ -7,6 +7,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
@@ -77,7 +78,7 @@ public class StockReconciliationApiController {
             @ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest stockReconciliationSearchRequest
     ) throws Exception {
 
-        List<StockReconciliation> stock = stockReconciliationService.search(
+        SearchResponse<StockReconciliation> searchResponse = stockReconciliationService.search(
                 stockReconciliationSearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -86,7 +87,10 @@ public class StockReconciliationApiController {
                 urlParams.getIncludeDeleted()
         );
         StockReconciliationBulkResponse response = StockReconciliationBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(stockReconciliationSearchRequest.getRequestInfo(), true)).stockReconciliation(stock).build();
+                .createResponseInfo(stockReconciliationSearchRequest.getRequestInfo(), true))
+                .stockReconciliation(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
+                .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
