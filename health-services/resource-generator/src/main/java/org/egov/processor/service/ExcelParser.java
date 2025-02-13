@@ -673,6 +673,7 @@ public class ExcelParser implements FileParser {
 						? (boolean) mapOfAttributes.get(ServiceConstants.ATTRIBUTE_IS_REQUIRED)
 						: false);
 				if (cell != null) {
+					log.info("CELL TYPE - " + String.valueOf(cell.getCellType()));
 					switch (cell.getCellType()) {
 					case STRING:
 						String cellValue = cell.getStringCellValue();
