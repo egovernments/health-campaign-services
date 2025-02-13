@@ -618,8 +618,8 @@ export function fillDataInProcessedFacilitySheet(
         facility?.facilityUsage,
         facility?.isPermanent ? "Permanent" : "Temporary",
         facility?.storageCapacity,
-        facility?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
         currentBoundaryValues,
+        facility?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
         "CREATED",
         ""
       ];
