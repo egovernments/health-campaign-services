@@ -80,6 +80,7 @@ export const generatedResourceTransformer = (dbRows: any[] = []) => {
     item.additionalDetails = item.additionaldetails;
     item.additionalDetails.Filters = item?.additionaldetails?.filters ? {} : item?.additionaldetails?.filters;
     item.fileStoreid = item.filestoreid;
+    item.locale = item.locale;
 
     // Remove unnecessary properties
     delete item.additionaldetails;

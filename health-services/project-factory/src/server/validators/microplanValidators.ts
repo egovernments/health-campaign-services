@@ -1,10 +1,11 @@
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import createAndSearch from "../config/createAndSearch";
 import { getLocalizedName } from "../utils/campaignUtils";
-import { resourceDataStatuses } from "../config/constants";
+import { resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import config from "../config";
 import { isMicroplanRequest } from "../utils/microplanUtils";
 import { throwError } from "../utils/genericUtils";
+import { logger } from "../utils/logger";
 
 export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any, rowMapping: any) {
     for (const data of datas) {
@@ -128,7 +129,7 @@ export function validateUniqueSheetWise(schema: any, data: any[], request: any, 
     }
 }
 
-export function validateTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
+export function validateRequiredTargetsForMicroplanCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
@@ -191,11 +192,14 @@ export function validateTargetsForMicroplanCampaigns(data: any, errors: any, loc
 export function validateLatLongForMicroplanCampaigns(data: any, errors: any, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
+            const latLongUnlocalisedColumns = config.values.latLongColumns?.split(',') || [];
+            const latLongColumns = latLongUnlocalisedColumns?.map((column: string) => getLocalizedName(column, localizationMap));
+            const latLongColumnsSet = new Set(latLongColumns);
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
                     for (const column of Object.keys(obj)) {
-                        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+                        if (latLongColumnsSet.has(column)) {
                             const value = obj[column];
                             if (typeof value !== 'number') {
                                 errors.push({
@@ -214,9 +218,12 @@ export function validateLatLongForMicroplanCampaigns(data: any, errors: any, loc
 }
 
 
-function validateLatLongForFacility(data: any, errors: any) {
+function validateLatLongForFacility(data: any, errors: any, localizationMap?: { [key: string]: string }) {
+    const latLongUnlocalisedColumns = config.values.latLongColumns?.split(',') || [];
+    const latLongColumns = latLongUnlocalisedColumns?.map((column: string) => getLocalizedName(column, localizationMap));
+    const latLongColumnsSet = new Set(latLongColumns);
     for (const column of Object.keys(data)) {
-        if (column.toLowerCase().includes('latitude') || column.toLowerCase().includes('longitude')) {
+        if (latLongColumnsSet.has(column)) {
             const value = data[column];
             if (typeof value !== 'number') {
                 errors.push({
@@ -238,14 +245,14 @@ export function validateMicroplanFacility(request: any, data: any, localizationM
             if (!item?.[activeColumnName]) {
                 errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column can’t be empty, please update the data and re-upload` });
             }
-            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are Active, Inactive` });
+            else if (item?.[activeColumnName] != usageColumnStatus.active && item?.[activeColumnName] != usageColumnStatus.inactive) {
+                errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${activeColumnName} column must be equal to one of the allowed values. Allowed values are ${usageColumnStatus.active}, ${usageColumnStatus.inactive}.` });
             }
         }
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+        const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active || !item?.[uniqueIdentifierColumnName]) {
             enrichErrorForFcailityMicroplan(request, item, errors, localizationMap);
-            validateLatLongForFacility(item, errors);
+            validateLatLongForFacility(item, errors, localizationMap);
         }
     });
     request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
@@ -270,13 +277,13 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
     }
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
     if (!item?.[facilityCapacityColumn]) {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column can’t be empty or zero, please update the data and re-upload` })
+        logger.info(`Data in ${facilityCapacityColumn} column is empty, it will be ignored for microplan validation.`)
     }
     else if (typeof (item?.[facilityCapacityColumn]) != "number") {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 1 and 100000000` })
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number from 0 to 100000000` })
     }
-    else if (item?.[facilityCapacityColumn] < 1 || item?.[facilityCapacityColumn] > 100000000) {
-        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number in between 1 and 100000000` })
+    else if (item?.[facilityCapacityColumn] < 0 || item?.[facilityCapacityColumn] > 100000000) {
+        errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${facilityCapacityColumn} column must be a number from 0 to 100000000` })
     }
     const fixedPostColumn = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_FIXED_POST_MICROPLAN", localizationMap);
     if (request?.body?.showFixedPost && !item?.[fixedPostColumn]) {
@@ -287,20 +294,6 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
         errors.push({ status: "INVALID", rowNumber: item?.["!row#number!"], errorDetails: `Data in ${boundaryColumn} column can’t be empty, please update the data and re-upload` })
     }
 }
-
-export function validateFacilityBoundaryForLowestLevel(request: any, boundaries: any, rowData: any, errors: any = [], localizationMap?: { [key: string]: string }) {
-    if (request?.body?.ResourceDetails?.type == "facility" && request?.body?.ResourceDetails?.additionalDetails?.source == "microplan") {
-        const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy
-        const lastLevel = hierarchy?.[hierarchy.length - 1]?.boundaryType
-        for (const data of rowData?.boundaryCodes) {
-            const boundaryFromBoundariesType = boundaries.find((boundary: any) => boundary.code == data)?.type
-            if (boundaryFromBoundariesType != lastLevel) {
-                errors.push({ status: "INVALID", rowNumber: rowData?.rowNumber, errorDetails: `${data} is not a ${lastLevel} level boundary` })
-            }
-        }
-    }
-}
-
 
 
 export async function validateExtraBoundariesForMicroplan(request: any, dataFromSheet: any, localizationMap: any) {
