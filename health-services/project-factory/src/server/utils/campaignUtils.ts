@@ -98,7 +98,7 @@ import {
   fetchUserData,
 } from "./microplanIntergration";
 import { getBoundaryRelationshipData } from "../api/boundaryApis";
-import { enrichRootProjectId, processSubProjectCreationFromConsumer } from "./projectCampaignUtils";
+import { enrichRootProjectId, persistCreateResourceIdForBoundaryWithTarget, processSubProjectCreationFromConsumer } from "./projectCampaignUtils";
 import { processEmployeeCreation, processFacilityCreation, processProjectCreation } from "../service/mainProcessService";
 import {  createCampaignEmployees, persistCreateResourceIdForUser, processSubEmployeeCreationFromConsumer } from "./campaignEmployeesUtils";
 import { createCampaignFacilities, persistCreateResourceIdForFacility, processSubFacilityCreationFromConsumer } from "./campaignFacilitiesUtils";
@@ -2048,6 +2048,13 @@ async function createProject(
         logger.error(`Project Creation process failed.`);
         throw new Error(`Project Creation process failed.`);
       }
+      else{
+        const campaignDetailsAndRequestInfo = {
+          RequestInfo: requestBody?.RequestInfo,
+          CampaignDetails: requestBody?.CampaignDetails,
+        }
+        await enrichProcessedFileAndPersist(campaignDetailsAndRequestInfo, "boundaryWithTarget");
+      }
     }
   } catch (error: any) {
     console.log(error);
@@ -3675,6 +3682,9 @@ export async function enrichProcessedFileAndPersist(campaignDetailsAndRequestInf
     }
     else if (resourceType == "facility") {
       await persistCreateResourceIdForFacility(CampaignDetails, RequestInfo, fileResponse, resourceFileId, tenantId);
+    }
+    else if (resourceType == "boundaryWithTarget") {
+      await persistCreateResourceIdForBoundaryWithTarget(CampaignDetails, RequestInfo, fileResponse, resourceFileId, tenantId);
     }
   }
 }

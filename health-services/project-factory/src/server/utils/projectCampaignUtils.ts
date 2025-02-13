@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from './db';
 import { persistForProjectProcess } from './targetUtils';
 import { createProjectsAndGetCreatedProjects, getProjectsCountsWithProjectIds, getProjectsWithProjectIds, updateProjects } from '../api/projectApis';
-import { getRootBoundaryCode, searchProjectCampaignResourcData } from './campaignUtils';
+import { getRootBoundaryCode, searchProjectCampaignResourcData, updateCreateResourceId } from './campaignUtils';
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
 import { campaignProcessStatus, processNamesConstantsInOrder } from '../config/constants';
 import { logger } from './logger';
@@ -565,6 +565,11 @@ export async function checkIfAllProjectCampaignWithProjectId(campaignNumber: str
     }
 }
 
+export async function persistCreateResourceIdForBoundaryWithTarget(CampaignDetails: any, RequestInfo: any, fileResponse: any, resourceFileId: any, tenantId: any) {
+    const resourceType = "boundaryWithTarget";
+    await updateCreateResourceId(CampaignDetails, resourceType, resourceFileId, RequestInfo?.userInfo?.uuid);
+    logger.info(`Resource file updated for resource type: ${resourceType}`);
+}
 
 
 

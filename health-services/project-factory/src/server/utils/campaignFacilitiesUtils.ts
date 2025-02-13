@@ -166,7 +166,7 @@ export async function fetchCampaignFacilitiesData(
                     facilityId: row.facilityid,
                     facilityUsage: row.facilityusage,
                     isPermanent: row.ispermanent,
-                    storageCapacity: row.storagecapacity,
+                    storageCapacity: parseInt(row.storagecapacity),
                     additionalDetails: row.additionaldetails,
                     isActive: row.isactive,
                     createdBy: row.createdby,
