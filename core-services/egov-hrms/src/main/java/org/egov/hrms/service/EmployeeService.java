@@ -121,8 +121,10 @@ public class EmployeeService {
 			enrichCreateRequest(employee, requestInfo);
 			createUser(employee, requestInfo);
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
-			employee.getUser().setPassword(null);
 		});
+		hrmsProducer.push(propertiesManager.getHrmsEmailNotifTopic(), employeeRequest);
+		// Setting password as null after sending employeeRequest to email notification topic to send email.
+		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
 		hrmsProducer.push(propertiesManager.getSaveEmployeeTopic(), employeeRequest);
 		notificationService.sendNotification(employeeRequest, pwdMap);
 		return generateResponse(employeeRequest);
@@ -137,6 +139,7 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse search(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
 		boolean  userChecked = false;
+		Long totalCount = 0L;
 		/*if(null == criteria.getIsActive() || criteria.getIsActive())
 			criteria.setIsActive(true);
 		else
@@ -156,6 +159,7 @@ public class EmployeeService {
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME, criteria.getCodes().get(0));
 			}
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			userChecked =true;
             if(!CollectionUtils.isEmpty(userResponse.getUser())) {
                  mapOfUsers.putAll(userResponse.getUser().stream()

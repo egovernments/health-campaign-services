@@ -52,7 +52,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 @AllArgsConstructor
 @EqualsAndHashCode
 @Getter
@@ -65,5 +65,9 @@ public class UserResponse {
 	private ResponseInfo responseInfo;
 
 	private List<User> user = new ArrayList<User>();
+
+	@JsonIgnore
+	@Builder.Default
+	private Long totalCount = 0L;
 
 }
