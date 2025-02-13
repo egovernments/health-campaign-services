@@ -694,7 +694,7 @@ public class ExcelParser implements FileParser {
 							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 									ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
 						}
-						break;
+						continue;
 					case NUMERIC:
 						String numricValue = Double.toString(cell.getNumericCellValue());
 						// "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$"
