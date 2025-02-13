@@ -3,7 +3,7 @@ import { defaultRequestInfo } from "./coreApis";
 import { httpRequest } from "../utils/request";
 import { produceModifiedMessages } from "../kafka/Producer";
 
-export async function createFacilitiesAndPersistFacilityId(facilitiesToCreate: any[], tenantId : string, campaignNumber : string, userUuid : string) {
+export async function createFacilitiesAndPersistFacilityId(facilitiesToCreate: any[], tenantId : string, userUuid : string) {
     const facilityCreateRequestBody : any = {
         RequestInfo: defaultRequestInfo.RequestInfo
     }
@@ -13,8 +13,7 @@ export async function createFacilitiesAndPersistFacilityId(facilitiesToCreate: a
            storageCapacity : facility.storageCapacity,
            isPermanent : facility.isPermanent,
            usage : facility.facilityUsage,
-           tenantId,
-           clientReferenceId : campaignNumber
+           tenantId
         }
         const response = await httpRequest(config.host.facilityHost + config.paths.facilityCreate, facilityCreateRequestBody);
         if (response?.Facility?.id) {

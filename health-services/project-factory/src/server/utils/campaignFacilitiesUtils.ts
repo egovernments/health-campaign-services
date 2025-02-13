@@ -583,7 +583,7 @@ export async function processSubFacilityCreationFromConsumer(data: any, campaign
         logger.info(`Creating ${facilitiesToCreateLength} facilities for campaign number: ${campaignNumber}`);
 
         // Create facilities and fetch name to facilityId mapping
-        await createFacilitiesAndPersistFacilityId(facilitiesToCreate, tenantId , campaignNumber, userUuid);
+        await createFacilitiesAndPersistFacilityId(facilitiesToCreate, tenantId, userUuid);
     }
     else {
         logger.info(`No Facilities to create for campaign number: ${campaignNumber}`);
