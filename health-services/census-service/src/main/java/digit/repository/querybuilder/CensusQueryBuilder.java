@@ -66,7 +66,7 @@ public class CensusQueryBuilder {
     }
 
     public String getCensusSearchQuery(CensusSearchCriteria censusSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildCensusSearchQuery(censusSearchCriteria, preparedStmtList);
         query = queryUtil.addOrderByClause(query, CENSUS_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, preparedStmtList, censusSearchCriteria);
         return query;
@@ -80,7 +80,7 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the total count of Census records for a given search criteria.
      */
     public String getCensusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        String query = buildCensusSearchQuery(searchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildCensusSearchQuery(searchCriteria, preparedStmtList);
         return CENSUS_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
@@ -92,8 +92,27 @@ public class CensusQueryBuilder {
      * @return A SQL query string to get the status count of Census records for a given search criteria.
      */
     public String getCensusStatusCountQuery(CensusSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder().tenantId(searchCriteria.getTenantId()).source(searchCriteria.getSource()).jurisdiction(searchCriteria.getJurisdiction()).build();
-        return buildCensusSearchQuery(censusSearchCriteria, preparedStmtList, Boolean.TRUE);
+        StringBuilder builder = new StringBuilder();
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" tenant_id = ?");
+            preparedStmtList.add(searchCriteria.getTenantId());
+        }
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getSource())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" source = ?");
+            preparedStmtList.add(searchCriteria.getSource());
+        }
+
+        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ").append(queryUtil.createQuery(searchCriteria.getJurisdiction().size())).append(" ]").append("::text[] ");
+            builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getJurisdiction());
+        }
+        return CENSUS_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
     }
 
     /**
@@ -103,12 +122,8 @@ public class CensusQueryBuilder {
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return SQL query string for searching Census ids based on search criteria
      */
-    private String buildCensusSearchQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList, Boolean isStatusCount) {
+    private String buildCensusSearchQuery(CensusSearchCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(CENSUS_SEARCH_BASE_QUERY);
-
-        if(isStatusCount) {
-            builder = new StringBuilder();
-        }
 
         if (!ObjectUtils.isEmpty(criteria.getId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
@@ -174,10 +189,6 @@ public class CensusQueryBuilder {
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(criteria.getJurisdiction().size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getJurisdiction());
-        }
-
-        if (isStatusCount) {
-            return CENSUS_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
 
         return builder.toString();

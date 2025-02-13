@@ -61,7 +61,7 @@ public class PlanQueryBuilder {
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE);
+        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList);
         query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
         return query;
@@ -75,7 +75,7 @@ public class PlanQueryBuilder {
      * @return
      */
     public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
+        String query = buildPlanSearchQuery(criteria, preparedStmtList);
         return PLAN_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
@@ -87,13 +87,38 @@ public class PlanQueryBuilder {
      * @return A SQL query string to get the status count of Plans for a given search criteria.
      */
     public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
-                .tenantId(searchCriteria.getTenantId())
-                .planConfigurationId(searchCriteria.getPlanConfigurationId())
-                .campaignId(searchCriteria.getCampaignId())
-                .jurisdiction(searchCriteria.getJurisdiction())
-                .build();
-        return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.TRUE);
+
+        StringBuilder builder = new StringBuilder();
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" tenant_id = ? ");
+            preparedStmtList.add(searchCriteria.getTenantId());
+        }
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getCampaignId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" campaign_id = ? ");
+            preparedStmtList.add(searchCriteria.getCampaignId());
+        }
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getPlanConfigurationId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_id = ? ");
+            preparedStmtList.add(searchCriteria.getPlanConfigurationId());
+        }
+
+        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ")
+                    .append(queryUtil.createQuery(searchCriteria.getJurisdiction().size()))
+                    .append(" ]::text[] ");
+
+            builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getJurisdiction());
+        }
+
+        return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
     }
 
     /**
@@ -103,12 +128,8 @@ public class PlanQueryBuilder {
      * @param preparedStmtList
      * @return
      */
-    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isStatusCount) {
+    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
-
-        if(isStatusCount) {
-            builder = new StringBuilder();
-        }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
@@ -180,10 +201,6 @@ public class PlanQueryBuilder {
                         .append("]");
                 preparedStmtList.addAll(entry.getValue());
             }
-        }
-
-        if (isStatusCount) {
-            return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
 
         return builder.toString();
