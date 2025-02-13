@@ -108,7 +108,7 @@ const config = {
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
     defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
-    incomingRequestPayloadLimit: "2mb"
+    incomingRequestPayloadLimit : process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb"
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
