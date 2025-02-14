@@ -181,7 +181,7 @@ public class ExcelParser implements FileParser {
 				//upload the processed output file and update the same into plan configuration file object
 				fileToUpload = convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.addFileStoreIdForEstimationTemplate(planConfigurationRequest, uploadedFileStoreId, org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL);
 				planUtil.update(planConfigurationRequest);
 			}
 		} finally {

@@ -232,5 +232,15 @@ public class PlanUtil {
 		planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
 	}
 
+	public void addFileStoreIdForEstimationTemplate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId, File.InputFileTypeEnum inputFileType) {
+		File estimationFile = File.builder()
+				.filestoreId(fileStoreId)
+				.inputFileType(inputFileType)
+				.templateIdentifier(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS)
+				.active(true)
+				.build();
 
+		planConfigurationRequest.getPlanConfiguration().getFiles().add(estimationFile);
+		planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
+	}
 }
