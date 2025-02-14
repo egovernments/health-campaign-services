@@ -50,4 +50,8 @@ public class EgovModel {
     @Valid
     protected AuditDetails auditDetails;
 
+    // TODO: Require `isDeleted` to be moved in egov model as it's used in common utils
+    //   and should be removed from children classes
+    // protected Boolean isDeleted = Boolean.FALSE;
+
 }

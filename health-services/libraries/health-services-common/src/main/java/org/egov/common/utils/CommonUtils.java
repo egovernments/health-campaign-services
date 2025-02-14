@@ -58,6 +58,8 @@ public class CommonUtils {
     }
 
 
+    // TODO: not required as deprecated already, it can be
+    //  simplified by using directly in product controller
     //TODO To be removed as it is only used by Product service which is now depricated
     @Deprecated
     public static boolean isForUpdate(Object obj) {
@@ -70,6 +72,8 @@ public class CommonUtils {
         return "UPDATE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation));
     }
 
+    // TODO: not required as deprecated already, it can be
+    //  simplified by using directly in product controller
     //TODO To be removed as it is only used by Product service which is now depricated
     @Deprecated
     public static boolean isForDelete(Object obj) {
@@ -82,6 +86,8 @@ public class CommonUtils {
         return "DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation));
     }
 
+    // TODO: not required as deprecated already, it can be
+    //  simplified by using directly in product controller
     //TODO To be removed as it is only used by Product service which is now depricated
     @Deprecated
     public static boolean isForCreate(Object obj) {
@@ -95,6 +101,7 @@ public class CommonUtils {
         return "CREATE".equals(value);
     }
 
+    // TODO: functions can be used to remove reflections from here
     public static <T, R> Set<T> getSet(List<R> objects, String methodName) {
         return objects.stream().map(o -> (T) ReflectionUtils
                 .invokeMethod(getMethod(methodName, o.getClass()), o))
@@ -169,6 +176,7 @@ public class CommonUtils {
         return isSearchByIdOnly(obj, "id");
     }
 
+    // TODO: handle with function and consumer in java
     /**
      * Checks if the search is performed only by the specified field.
      *
@@ -263,6 +271,8 @@ public class CommonUtils {
         checkRowVersion(idToObjMap, objList, getMethod("getId", objClass));
     }
 
+    // TODO: make sure T type extends EgovModel and compare row version accordingly
+    //  replace other places accordingly
     //TODO To be removed as it is only used by Product service which is now depricated
     @Deprecated
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList, Method idMethod) {
@@ -279,6 +289,8 @@ public class CommonUtils {
         }
     }
 
+    // TODO: make sure T type extends EgovModel and compare row version accordingly
+    //  replace other places accordingly
     /**
      * Retrieves entities from a list with mismatched row versions compared to a map of IDs to objects.
      * @param idToObjMap A map of IDs to objects.
@@ -302,6 +314,7 @@ public class CommonUtils {
                 .collect(Collectors.toList());
     }
 
+    // TODO: require T to be extended from EgovModel to remove reflection
     /**
      * Retrieves the tenant ID from a list of objects.
      * @param objList The list of objects from which to retrieve the tenant ID.
@@ -334,6 +347,7 @@ public class CommonUtils {
         enrichForCreate(objList, idList, requestInfo, true);
     }
 
+    // TODO: require T to be extended from EgovModel to remove reflection
     /**
      * Enriches objList with requestInfo, auditDetails, rowVersion and sets idDeleted to FALSE.
      *
@@ -368,6 +382,7 @@ public class CommonUtils {
                 });
     }
 
+    // TODO: need to convert this to return Function of getting id
     /**
      * Retrieves the ID method from a list of objects, prioritizing "id" and "clientReferenceId" fields.
      * @param objList The list of objects from which to retrieve the ID method.
@@ -378,6 +393,7 @@ public class CommonUtils {
         return getIdMethod(objList, "id", "clientReferenceId");
     }
 
+    // TODO: need to convert this to return Function of getting id
     /**
      * Retrieves the ID method from a list of objects based on a specified ID field name.
      * @param objList The list of objects from which to retrieve the ID method.
@@ -392,6 +408,7 @@ public class CommonUtils {
         return getMethod(idMethodName, getObjClass(objList));
     }
 
+    // TODO: need to convert this to return Function of getting id
     /**
      * Retrieves the ID method from a list of objects based on specified ID and client reference ID field names.
      * @param objList The list of objects from which to retrieve the ID method.
@@ -422,6 +439,7 @@ public class CommonUtils {
     }
 
 
+    // TODO: ensure T extends EgovModel and use setId
     /**
      * Enriches the objects in a list with IDs from a corresponding list of IDs.
      * @param objList The list of objects to enrich with IDs.
@@ -443,6 +461,7 @@ public class CommonUtils {
                 });
     }
 
+    // TODO: ensure T extends EgovModel and use methods to set
     /**
      * Enriches objects for update based on a map of IDs to objects and a request object.
      * @param idToObjMap A map of IDs to objects.
@@ -476,6 +495,8 @@ public class CommonUtils {
         });
     }
 
+    // TODO: ensure T extends EgovModel and use methods to set, isDeleted should be moved to egov model
+    //   for id param should be function to get id
     /**
      * Enriches objects for update based on a map of IDs to objects, a list of existing objects, a request object, and an ID method.
      * @param idToObjMap A map of IDs to objects.
@@ -524,6 +545,7 @@ public class CommonUtils {
         });
     }
 
+    // TODO: ensure T extends EgovModel and use methods to set, isDeleted should be moved to egov model
     /**
      * Enriches objects for update based on a map of IDs to objects, a list of existing objects, and a request object.
      *
@@ -539,7 +561,7 @@ public class CommonUtils {
         enrichForUpdate(idToObjMap, existingObjList, request, getIdMethod);
     }
 
-
+    // TODO: ensure T extends EgovModel and use methods to set, isDeleted should be moved to egov model
     /**
      * Creates a map of IDs to objects using the default ID method.
      * @param objList The list of objects from which to create the map.
@@ -555,6 +577,7 @@ public class CommonUtils {
         return getIdToObjMap(objList, idMethod);
     }
 
+    // TODO: ensure T extends EgovModel and change method to Function of getting id
     /**
      * Creates a map of IDs to objects using the specified ID method.
      * @param objList The list of objects from which to create the map.
@@ -641,6 +664,7 @@ public class CommonUtils {
     }
 
 
+    // TODO: ensure T extends EgovModel and change method to Function of getting id
     public static <T> List<String> getIdList(List<T> objList) {
         if (objList == null || objList.isEmpty()) {
             return Collections.emptyList();
@@ -649,6 +673,7 @@ public class CommonUtils {
         return getIdList(objList, getMethod("getId", objClass));
     }
 
+    // TODO: ensure T extends EgovModel and change method to Function of getting id
     public static <T> List<String> getIdList(List<T> objList, Method idMethod) {
         if (objList == null || objList.isEmpty()) {
             return Collections.emptyList();
@@ -658,6 +683,7 @@ public class CommonUtils {
                 .collect(Collectors.toList());
     }
 
+    // TODO: ensure T extends EgovModel and use it's methods
     public static <T> Predicate<T> lastChangedSince(Long lastChangedSince) {
         if (lastChangedSince == null)
             return obj -> true;
@@ -672,6 +698,7 @@ public class CommonUtils {
         };
     }
 
+    // TODO: ensure T extends EgovModel and ensure isDeleted is moved to EgovModel
     public static <T> Predicate<T> includeDeleted(Boolean includeDeleted) {
         if (includeDeleted == null || !includeDeleted) {
             return obj -> {
@@ -684,6 +711,7 @@ public class CommonUtils {
         return obj -> true;
     }
 
+    // TODO: ensure T extends EgovModel and use it's methods
     public static <T> Predicate<T> havingTenantId(String tenantId) {
         if (tenantId == null)
             return obj -> true;
@@ -699,11 +727,13 @@ public class CommonUtils {
         return objList.stream().findAny().get().getClass();
     }
 
+    // TODO: ensure T extends EgovModel and use it's methods
     public static <T> void identifyNullIds(List<T> objList) {
         Class<?> objClass = getObjClass(objList);
         identifyNullIds(objList, getMethod("getId", objClass));
     }
 
+    // TODO: ensure passing function of getting id
     public static <T> void identifyNullIds(List<T> objList, Method idMethod) {
         Long nullCount = objList.stream().filter(obj -> null == ReflectionUtils.invokeMethod(
                 idMethod, obj)).count();
@@ -713,6 +743,7 @@ public class CommonUtils {
         }
     }
 
+    // TODO: ensure passing function of getting id
     public static <T> List<T> identifyObjectsWithNullIds(List<T> objList, Method idMethod) {
         return objList.stream().filter(obj -> null == ReflectionUtils.invokeMethod(
                 idMethod, obj)).collect(Collectors.toList());
@@ -784,11 +815,13 @@ public class CommonUtils {
         return "id";
     }
 
+    // TODO: ensure T extends EgovModel and use it's methods
     public static <T> Predicate<T> notHavingErrors() {
         return obj -> !((Boolean) ReflectionUtils.invokeMethod(getMethod("getHasErrors",
                 obj.getClass()), obj));
     }
 
+    // TODO: ensure T extends EgovModel, use it's methods
     public static <T> void enrichIdsFromExistingEntities(Map<String, T> idToObjMap, List<T> existingEntities,
                                                          Method idMethod) {
         IntStream.range(0, existingEntities.size()).forEach(i -> {
@@ -836,6 +869,7 @@ public class CommonUtils {
         }
     }
 
+    // TODO: ensure T extends EgovModel and use it's methods, ensure isDeleted in EgovModel
     /**
      * Enriches objList with requestInfo, auditDetails, rowVersion and sets idDeleted to FALSE.
      *
@@ -866,6 +900,7 @@ public class CommonUtils {
         });
     }
 
+    // TODO: ensure passing function of getting entities
     /**
      * Validate and return the consolidated errorDetailsMap based on all the validations.
      *
@@ -918,6 +953,7 @@ public class CommonUtils {
         return errorDetailsMap;
     }
 
+    // TODO: replace request info usage with Functional interface
     /**
      * Populate error details for error handler.
      *
@@ -1072,6 +1108,7 @@ public class CommonUtils {
                 .collect(Collectors.toMap(ErrorEntity::getErrorCode, ErrorEntity::getErrorMessage));
     }
 
+    // TODO: ensure T extends EgovModel and pass Function required
     /**
      * Validate for null ids
      *
@@ -1099,6 +1136,7 @@ public class CommonUtils {
         return errorDetailsMap;
     }
 
+    // TODO: ensure T extends EgovModel to have method setHasErrors or pass function
     /**
      * Populate error details for validators.
      *
@@ -1120,6 +1158,7 @@ public class CommonUtils {
         }
     }
 
+    // TODO: remove reflection and use clazz.getDeclaredMethods()
     private static Method findMethod(String methodName, Class<?> clazz) {
         return Arrays.stream(ReflectionUtils.getAllDeclaredMethods(clazz))
                 .filter(m -> m.getName().equals(methodName))
