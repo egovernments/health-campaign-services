@@ -35,14 +35,13 @@ public class AttributeValue {
     private String attributeCode = null;
 
     @JsonProperty("value")
-    @NotNull
     private Object value = null;
 
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalDetails")
+    @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
 

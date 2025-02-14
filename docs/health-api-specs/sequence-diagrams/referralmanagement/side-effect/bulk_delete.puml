@@ -1,0 +1,125 @@
+@startuml
+title Side Effect - Bulk Delete
+!theme vibrant
+participant Client as c
+participant ReferralManagement as rm
+participant FacilityService as fs
+participant HouseholdService as hs
+participant IndividualService as inds
+participant ProjectService as ps
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+
+c -> rm : /referralmanagement/side-effect/v1/bulk/_delete
+activate rm
+rm -> rm : Validate request body
+
+alt request validation fails
+    rm -> rm: Request validation failed
+    rm -> k: Side Effect Data /error_topic
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume Side Effect Data
+        activate es
+        deactivate k
+        es -> db: Persist Side Effect Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+rm -> rm: Request validation successful
+loop for each side-effect
+    alt id is null
+        rm -> rm: Check if Side Effect object id is null
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+           Error Code: NULL_ID
+        end note
+    end
+    rm -> rm: Check if Side Effect id is not null
+    alt record doesn't exist
+        rm -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> rm: 0 row
+        deactivate db
+        note left
+            This will be marked as unrecoverable right away
+            and require manual intervention
+        end note
+        rm -> k: Side Effect Data /error_topic
+        activate k
+        group async
+            es -> k: Consume Side Effect Data
+            activate es
+            deactivate k
+            es -> db: Persist Side Effect Data /error_table
+            activate db
+            deactivate db
+            deactivate es
+        end
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: RECORD_NOT_FOUND
+        end note
+    end
+    alt record doesn't exists in cache
+        rm -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> rm: 1 row
+        deactivate db
+        rm -> rc: 1 record
+        activate rc
+        deactivate rc
+    end
+    rm -> rc: Fetch the existing record
+    activate rc
+    rc -> rm: 1 row
+    deactivate rc
+    rm -> k: Side Effect Data /persist_topic
+    activate k
+    rm -> rc: Put Side Effect Data against clientReferenceId/serverGeneratedId in cache
+    activate rc
+    deactivate rc
+    group async
+        prs -> k: Consume Side Effect Data
+        activate prs
+        idx -> k: Consume Side Effect Data
+        activate idx
+        idx -> el: Store Side Effect Data
+        activate el
+        deactivate el
+        deactivate idx
+        prs -> db: Persist Side Effect Data
+        activate db
+        deactivate db
+        deactivate prs
+    end
+    deactivate k
+end
+
+rm -> c : HttpStatus: 202 ACCEPTED
+deactivate rm
+
+@enduml
