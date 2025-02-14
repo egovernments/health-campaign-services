@@ -1,4 +1,4 @@
-import { resourceDataStatuses } from "../config/constants";
+import { resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
@@ -289,28 +289,19 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
   if (type == 'facility') {
     const projectType = request?.body?.projectTypeCode;
     const facilityCapacityColumn = getLocalizedName(`HCM_ADMIN_CONSOLE_FACILITY_CAPACITY_MICROPLAN_${projectType}`, localizationMap);
-    if (rowData[facilityCapacityColumn] >= 0) {
+    if(!rowData[facilityCapacityColumn]){
+      rowData[facilityCapacityColumn] = 0
+      element.storageCapacity = 0
+    }
+    else if (rowData[facilityCapacityColumn] >= 0) {
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
-    if (activeColumnName && rowData[activeColumnName] == "Active") {
+    if (activeColumnName && rowData[activeColumnName] == usageColumnStatus.active) {
       if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
         request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
       }
       else {
         request.body.facilityDataForMicroplan = [{ ...rowData, facilityDetails: element }]
-      }
-    }
-  }
-}
-
-export function updateFacilityDetailsForMicroplan(request: any, createdData: any) {
-  const facilityDataForMicroplan = request?.body?.facilityDataForMicroplan;
-  if (Array.isArray(facilityDataForMicroplan) && facilityDataForMicroplan.length > 0) {
-    for (const element of facilityDataForMicroplan) {
-      const rowNumber = element['!row#number!'];
-      const createdDataWithMatchingRowNumber = createdData.find((data: any) => data['!row#number!'] == rowNumber) || null;
-      if (createdDataWithMatchingRowNumber) {
-        element.facilityDetails.id = createdDataWithMatchingRowNumber.id
       }
     }
   }
@@ -393,7 +384,7 @@ export async function planFacilitySearch(request: any) {
   return searchResponse;
 }
 
-export function planConfigSearch(request: any) {
+export async function planConfigSearch(request: any) {
   const { tenantId, planConfigurationId } = request.body.MicroplanDetails;
   const searchBody = {
     RequestInfo: request.body.RequestInfo,
@@ -403,40 +394,8 @@ export function planConfigSearch(request: any) {
     }
   }
 
-  const searchResponse = httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
+  const searchResponse = await httpRequest(config.host.planServiceHost + config.paths.planConfigSearch, searchBody);
   return searchResponse;
-}
-
-export function modifyBoundaryIfSourceMicroplan(boundaryData: any[], request: any) {
-  // Check if the request is for a source microplan and the type is 'facilityWithBoundary'
-  if (request?.body?.isSourceMicroplan && request?.query?.type == 'facilityWithBoundary') {
-    // Extract the boundary hierarchy from the request body
-    const hierarchy = request?.body?.hierarchyType?.boundaryHierarchy;
-    let villageIndex: any;
-    // Determine the `villageIndex` based on the hierarchy length if present
-    if (hierarchy) {
-      // Set `villageIndex` to the last element in the hierarchy (boundary hierarchy depth)
-      villageIndex = hierarchy?.length - 1;
-    } else {
-      // If no hierarchy is provided, calculate the `villageIndex` dynamically
-      let maxBoundaryDataLength = 0;
-
-      // Iterate through `boundaryData` to find the maximum length of any boundary array
-      for (const boundary of boundaryData) {
-        if (boundary?.length > maxBoundaryDataLength) {
-          maxBoundaryDataLength = boundary?.length;
-        }
-      }
-
-      // If boundary data has sufficient depth, set `villageIndex` to the second-to-last level
-      if (maxBoundaryDataLength >= 2) {
-        villageIndex = maxBoundaryDataLength - 2;
-      }
-    }
-    // Filter out boundaries that don't have the `villageIndex`
-    boundaryData = boundaryData.filter((boundary: any) => boundary?.[villageIndex]);
-  }
-  return boundaryData;
 }
 
 export async function getRolesForMicroplan(tenantId: string, localizationMap: any, fetchWithRoleCodes: boolean = false) {
