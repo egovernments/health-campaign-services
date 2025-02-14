@@ -14,12 +14,13 @@ export function validatePhoneNumberSheetWise(datas: any[], localizationMap: any,
 
             // Check if the phone number is numeric and has exactly 10 digits
             const isNumeric = /^\d+$/.test(phoneNumber);
-            if (phoneNumber.length !== 10 || !isNumeric) {
+            const userPhoneNumberAllowedLength = config.user.userPhoneNumberAllowedLength;
+            if (phoneNumber.length !== userPhoneNumberAllowedLength || !isNumeric) {
                 const row = data["!row#number!"];
                 if (!rowMapping[row]) {
                     rowMapping[row] = [];
                 }
-                rowMapping[row].push("The ‘Contact number’ entered is invalid, it should be a 10-digit number and contain only digits. Please update and re-upload.");
+                rowMapping[row].push(`The ‘Contact number’ entered is invalid, it should be a ${userPhoneNumberAllowedLength}-digit number and contain only digits. Please update and re-upload.`);
             }
         } else {
             const row = data["!row#number!"];
