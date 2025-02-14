@@ -199,7 +199,7 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
         if (data[phoneColumn]) {
             var phoneNumber = data[phoneColumn];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
-            if (phoneNumber.length != 10) {
+            if (phoneNumber.length !== config.user.userPhoneNumberAllowedLength ) {
                 digitErrorRows.push(data["!row#number!"]);
             }
         }
