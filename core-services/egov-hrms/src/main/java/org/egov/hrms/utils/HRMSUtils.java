@@ -17,6 +17,12 @@ public class HRMSUtils {
 
 	@Value("${egov.pwd.allowed.special.characters}")
 	private String allowedPasswordSpecialCharacters;
+
+	@Value("${egov.hrms.min.mobile.number}")
+	private String minMobileNumber;
+
+	@Value("${egov.hrms.max.mobile.number}")
+	private String maxMobileNumber;
 	
 	/**
 	 * Generates random password for the user to login. Process:
@@ -64,8 +70,8 @@ public class HRMSUtils {
 
 	public String generateMobileNumber() {
 		Random random = new Random();
-		int min = 100000000;
-		int max = 999999999;
+		int min = Integer.parseInt(minMobileNumber);
+		int max = Integer.parseInt(maxMobileNumber);
 		int mobileNumber = random.nextInt(max - min + 1) + min;
 		return Integer.toString(mobileNumber);
 	}
