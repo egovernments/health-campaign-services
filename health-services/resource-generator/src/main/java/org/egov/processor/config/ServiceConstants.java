@@ -85,6 +85,7 @@ public class ServiceConstants {
     //File constants
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
+    public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS = "Estimations";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
     public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";
