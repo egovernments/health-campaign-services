@@ -413,9 +413,9 @@ public class IndividualService {
                         log.info("successfully updated user for {} ",
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                        List<UserRequest> userRequests = userIntegrationService.createUser(Collections.singletonList(individual),
-                                request.getRequestInfo());
                         if (Boolean.TRUE.equals(individual.getIsSystemUser())) {
+                        List<UserRequest> userRequests = userIntegrationService.createUser(individual,
+                                request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
                         }
