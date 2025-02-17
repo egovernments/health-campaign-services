@@ -6,9 +6,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
-import digit.web.models.Operation;
-import digit.web.models.PlanConfiguration;
-import digit.web.models.PlanConfigurationSearchCriteria;
+import digit.web.models.*;
+import digit.web.models.census.CensusSearchCriteria;
+import digit.web.models.census.CensusSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -58,53 +58,32 @@ public class CommonUtil {
      * @return the value of the specified field as a string
      * @throws CustomException if the field does not exist
      */
-    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> returnType) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
-
             JsonNode node = rootNode.get(fieldToExtract);
+
             if (node != null && !node.isNull()) {
+                // Handle List<String> case separately
+                if (returnType == List.class && node.isArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonNode idNode : node) {
+                        list.add(idNode.asText());
+                    }
+                    return returnType.cast(list);
+                }
 
                 // Check for different types of JSON nodes
-                if (node.isDouble() || node.isFloat()) {
-                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
-                } else if (node.isLong() || node.isInt()) {
-                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
-                } else if (node.isBoolean()) {
-                    return node.asBoolean();
-                } else if (node.isTextual()) {
-                    return node.asText();
+                if (returnType == BigDecimal.class && (node.isDouble() || node.isFloat() || node.isLong() || node.isInt())) {
+                    return returnType.cast(BigDecimal.valueOf(node.asDouble()));
+                } else if (returnType == Boolean.class && node.isBoolean()) {
+                    return returnType.cast(node.asBoolean());
+                } else if (returnType == String.class && node.isTextual()) {
+                    return returnType.cast(node.asText());
                 }
             }
             return null;
-        } catch (Exception e) {
-            log.error(e.getMessage() + fieldToExtract);
-            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
-        }
-    }
-
-    /**
-     * Extracts provided field from the additional details object
-     *
-     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @param fieldToExtract the name of the field to be extracted from the additional details
-     * @return the value of the specified field as a list of string
-     * @throws CustomException if the field does not exist
-     */
-    public List<String> extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<List> valueType) {
-        try {
-            String jsonString = objectMapper.writeValueAsString(additionalDetails);
-            JsonNode rootNode = objectMapper.readTree(jsonString);
-
-            JsonNode node = rootNode.get(fieldToExtract);
-            List<String> list = new ArrayList<>();
-            if (node != null && node.isArray()) {
-                for (JsonNode idNode : node) {
-                    list.add(idNode.asText());
-                }
-            }
-            return list;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
             throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
@@ -243,7 +222,6 @@ public class CommonUtil {
      * @param fieldsToBeUpdated map of field to be updated and it's updated value.
      * @return returns the updated additional details object.
      */
-
     public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, Map<String, Object> fieldsToBeUpdated) {
         try {
 
@@ -263,13 +241,44 @@ public class CommonUtil {
         }
     }
 
-    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
-        for (PlanConfiguration planConfiguration : planConfigurations) {
-            List<Operation> operations = planConfiguration.getOperations();
-            if (!ObjectUtils.isEmpty(operations)) {
-                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
-            }
-        }
+    /**
+     * Prepares a CensusSearchRequest for the given plan configuration ID.
+     *
+     * @param tenantId      The tenant ID.
+     * @param planConfigId  The plan configuration ID.
+     * @param requestInfo   The request information.
+     * @return A CensusSearchRequest object with the specified criteria.
+     */
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
+                .tenantId(tenantId)
+                .source(planConfigId)
+                .build();
+
+        return CensusSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .censusSearchCriteria(searchCriteria)
+                .build();
+    }
+
+    /**
+     * Prepares a PlanSearchRequest for the given plan configuration ID.
+     *
+     * @param tenantId      The tenant ID.
+     * @param planConfigId  The plan configuration ID.
+     * @param requestInfo   The request information.
+     * @return A PlanSearchRequest object with the specified criteria.
+     */
+    public PlanSearchRequest getPlanSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
+        PlanSearchCriteria searchCriteria = PlanSearchCriteria.builder()
+                .tenantId(tenantId)
+                .planConfigurationId(planConfigId)
+                .build();
+
+        return PlanSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .planSearchCriteria(searchCriteria)
+                .build();
     }
 
     /**

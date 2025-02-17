@@ -2,6 +2,7 @@ package digit.service.validator;
 
 import digit.service.PlanService;
 import digit.util.CensusUtil;
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import digit.web.models.census.CensusResponse;
 import digit.web.models.census.CensusSearchCriteria;
@@ -23,23 +24,36 @@ public class WorkflowValidator {
 
     private PlanService planService;
 
-    public WorkflowValidator(CensusUtil censusUtil, PlanService planService) {
+    private CommonUtil commonUtil;
+
+    public WorkflowValidator(CensusUtil censusUtil, PlanService planService, CommonUtil commonUtil) {
         this.censusUtil = censusUtil;
         this.planService = planService;
+        this.commonUtil = commonUtil;
     }
 
+    /**
+     * Validates the workflow action in the plan configuration request and
+     * triggers the corresponding validation method if applicable.
+     *
+     * @param planConfigurationRequest the request containing workflow details.
+     */
     public void validateWorkflow(PlanConfigurationRequest planConfigurationRequest) {
         if (ObjectUtils.isEmpty(planConfigurationRequest.getPlanConfiguration().getWorkflow()))
             return;
 
         String workflowAction = planConfigurationRequest.getPlanConfiguration().getWorkflow().getAction();
 
-        if(workflowAction.equals(APPROVE_CENSUS_DATA_ACTION)) {
-            validateCensusData(planConfigurationRequest);
-        } else if(workflowAction.equals(FINALIZE_CATCHMENT_MAPPING_ACTION)) {
-            validateCatchmentMapping(planConfigurationRequest);
-        } else if(workflowAction.equals(APPROVE_ESTIMATIONS_ACTION)) {
-            validateResourceEstimations(planConfigurationRequest);
+        switch (workflowAction) {
+            case APPROVE_CENSUS_DATA_ACTION:
+                validateCensusData(planConfigurationRequest);
+                break;
+            case FINALIZE_CATCHMENT_MAPPING_ACTION:
+                validateCatchmentMapping(planConfigurationRequest);
+                break;
+            case APPROVE_ESTIMATIONS_ACTION:
+                validateResourceEstimations(planConfigurationRequest);
+                break;
         }
     }
 
@@ -51,7 +65,7 @@ public class WorkflowValidator {
     private void validateCensusData(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
-        CensusSearchRequest censusSearchRequest = getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+        CensusSearchRequest censusSearchRequest = commonUtil.getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
 
         // Fetches census records for given planConfigId
         CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
@@ -73,7 +87,7 @@ public class WorkflowValidator {
     private void validateCatchmentMapping(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
-        CensusSearchRequest censusSearchRequest = getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+        CensusSearchRequest censusSearchRequest = commonUtil.getCensusSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
 
         // Fetches all census records for given planConfigId
         CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
@@ -98,7 +112,7 @@ public class WorkflowValidator {
     private void validateResourceEstimations(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
-        PlanSearchRequest searchRequest = getPlanSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
+        PlanSearchRequest searchRequest = commonUtil.getPlanSearchRequest(planConfiguration.getTenantId(), planConfiguration.getId(), planConfigurationRequest.getRequestInfo());
 
         // Fetches plans for given planConfigId
         PlanResponse planResponse = planService.searchPlan(searchRequest);
@@ -110,32 +124,6 @@ public class WorkflowValidator {
         if (!statusCount.get(VALIDATED_STATUS).equals(totalCount)) {
             throw new CustomException(CANNOT_APPROVE_ESTIMATIONS_CODE, CANNOT_APPROVE_ESTIMATIONS_MESSAGE);
         }
-    }
-
-    // Prepares Census search request for given planConfigId
-    private CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
-        CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
-                .tenantId(tenantId)
-                .source(planConfigId)
-                .build();
-
-        return CensusSearchRequest.builder()
-                .requestInfo(requestInfo)
-                .censusSearchCriteria(searchCriteria)
-                .build();
-    }
-
-    // Prepares Plan search request for given planConfigId
-    private PlanSearchRequest getPlanSearchRequest(String tenantId, String planConfigId, RequestInfo requestInfo) {
-        PlanSearchCriteria searchCriteria = PlanSearchCriteria.builder()
-                .tenantId(tenantId)
-                .planConfigurationId(planConfigId)
-                .build();
-
-        return PlanSearchRequest.builder()
-                .requestInfo(requestInfo)
-                .planSearchCriteria(searchCriteria)
-                .build();
     }
 
 }

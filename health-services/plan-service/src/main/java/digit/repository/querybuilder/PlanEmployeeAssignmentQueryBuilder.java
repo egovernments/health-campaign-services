@@ -154,7 +154,7 @@ public class PlanEmployeeAssignmentQueryBuilder {
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(searchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(searchCriteria.getLimit(), config.getDefaultMaxLimit()));
+        preparedStmtList.add(ObjectUtils.isEmpty(searchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(searchCriteria.getLimit(), config.getMaxLimit()));
 
         return paginatedQuery.toString();
     }

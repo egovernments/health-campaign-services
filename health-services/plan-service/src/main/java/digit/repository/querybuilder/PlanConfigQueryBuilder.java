@@ -53,7 +53,7 @@ public class PlanConfigQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, ids);
         }
 
-        addActiveWhereClause(builder, preparedStmtList);
+        appendActiveRecordsFilter(builder, preparedStmtList);
 
         return queryUtil.addOrderByClause(builder.toString(), PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
     }
@@ -89,57 +89,49 @@ public class PlanConfigQueryBuilder {
     private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_SEARCH_BASE_QUERY);
 
-        if (criteria.getTenantId() != null) {
-            addClauseIfRequired(preparedStmtList, builder);
+        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.tenant_id = ?");
             preparedStmtList.add(criteria.getTenantId());
         }
 
-        if (criteria.getId() != null) {
-            addClauseIfRequired(preparedStmtList, builder);
+        if (!ObjectUtils.isEmpty(criteria.getId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.id = ?");
             preparedStmtList.add(criteria.getId());
         }
 
         if (!CollectionUtils.isEmpty(criteria.getIds())) {
-            addClauseIfRequired(preparedStmtList, builder);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.id IN ( ").append(queryUtil.createQuery(criteria.getIds().size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getIds());
         }
 
-        if (criteria.getCampaignId() != null) {
-            addClauseIfRequired(preparedStmtList, builder);
+        if (!ObjectUtils.isEmpty(criteria.getCampaignId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.campaign_id = ?");
             preparedStmtList.add(criteria.getCampaignId());
         }
 
-        if (criteria.getName() != null) {
-            addClauseIfRequired(preparedStmtList, builder);
+        if (!ObjectUtils.isEmpty(criteria.getName())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.name ILIKE ?");
             preparedStmtList.add(PERCENTAGE_WILDCARD + criteria.getName() + PERCENTAGE_WILDCARD);
         }
 
         if (!CollectionUtils.isEmpty(criteria.getStatus())) {
-            addClauseIfRequired(preparedStmtList, builder);
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.status IN ( ").append(queryUtil.createQuery(criteria.getStatus().size())).append(" )");
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getStatus());
         }
 
-        if (criteria.getUserUuid() != null) {
-            addClauseIfRequired(preparedStmtList, builder);
+        if (!ObjectUtils.isEmpty(criteria.getUserUuid())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.created_by = ?");
             preparedStmtList.add(criteria.getUserUuid());
         }
 
         return builder.toString();
-    }
-
-    private void addClauseIfRequired(List<Object> preparedStmtList, StringBuilder queryString) {
-        if (preparedStmtList.isEmpty()) {
-            queryString.append(" WHERE ");
-        } else {
-            queryString.append(" AND");
-        }
     }
 
     /**
@@ -155,27 +147,35 @@ public class PlanConfigQueryBuilder {
         paginatedQuery.append(" OFFSET ? ");
         preparedStmtList.add(ObjectUtils.isEmpty(planConfigurationSearchCriteria.getOffset()) ? config.getDefaultOffset() : planConfigurationSearchCriteria.getOffset());
 
-        // Append limit
+        // Append limit to query builder
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(planConfigurationSearchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(planConfigurationSearchCriteria.getLimit(), config.getDefaultMaxLimit()));
+        preparedStmtList.add(ObjectUtils.isEmpty(planConfigurationSearchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(planConfigurationSearchCriteria.getLimit(), config.getMaxLimit()));
 
         return paginatedQuery.toString();
     }
 
-    public void addActiveWhereClause(StringBuilder builder, List<Object> preparedStmtList) {
-        addClauseIfRequired(preparedStmtList, builder);
+    /**
+     * Adds a WHERE clause to filter only active records (or records where `active` is NULL)
+     * for multiple database tables.
+     * This ensures that only relevant active records are included in the query.
+     *
+     * @param builder The StringBuilder to append the WHERE clause.
+     * @param preparedStmtList The list of prepared statement parameters.
+     */
+    public void appendActiveRecordsFilter(StringBuilder builder, List<Object> preparedStmtList) {
+        queryUtil.addClauseIfRequired(builder, preparedStmtList);
         builder.append(" ( pcf.active = ? OR pcf.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
-        addClauseIfRequired(preparedStmtList, builder);
+        queryUtil.addClauseIfRequired(builder, preparedStmtList);
         builder.append(" ( pca.active = ? OR pca.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
-        addClauseIfRequired(preparedStmtList, builder);
+        queryUtil.addClauseIfRequired(builder, preparedStmtList);
         builder.append(" ( pco.active = ? OR pco.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
 
-        addClauseIfRequired(preparedStmtList, builder);
+        queryUtil.addClauseIfRequired(builder, preparedStmtList);
         builder.append(" ( pcm.active = ? OR pcm.active IS NULL )");
         preparedStmtList.add(Boolean.TRUE);
     }
