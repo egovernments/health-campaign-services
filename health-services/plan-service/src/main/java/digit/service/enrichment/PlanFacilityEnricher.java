@@ -108,16 +108,20 @@ public class PlanFacilityEnricher {
     }
 
     /**
-     * Enriches serving population based on the serving boundaries provided.
+     * Enriches the serving population of a PlanFacility by fetching census data
+     * for newly added or removed service boundaries.
      *
      * @param planFacilityRequest plan facility request whose serving population is to be enriched.
      */
     private void enrichServingPopulation(PlanFacilityRequest planFacilityRequest) {
         PlanFacility planFacility = planFacilityRequest.getPlanFacility();
+        List<String> initialServingBoundaries = planFacility.getInitiallySetServiceBoundaries();
+        List<String> currentServingBoundaries = planFacility.getServiceBoundaries();
 
-        // Prepare list of boundaries whose census records are to be fetched
-        Set<String> boundariesToBeSearched = new HashSet<>(planFacility.getServiceBoundaries());
-        boundariesToBeSearched.addAll(planFacility.getInitiallySetServiceBoundaries());
+        // Determine which boundaries have been added or removed
+        Set<String> boundariesToBeSearched = initialServingBoundaries.size() > currentServingBoundaries.size()
+                ? commonUtil.getUniqueElements(initialServingBoundaries, currentServingBoundaries)
+                : commonUtil.getUniqueElements(currentServingBoundaries, initialServingBoundaries);
 
         if(!CollectionUtils.isEmpty(boundariesToBeSearched)) {
             CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
@@ -132,13 +136,14 @@ public class PlanFacilityEnricher {
                     .censusSearchCriteria(censusSearchCriteria)
                     .build());
 
-            // Creates a population map based on the confirmed target population of the boundary
-            Map<String, Long> boundaryToPopMap = getPopulationMap(censusResponse.getCensus());
+            // Create a map of serving boundaries with its confirmed total population.
+            Map<String, Long> boundaryToPopulationMap = getPopulationMap(censusResponse.getCensus());
 
             // Get existing servingPopulation or default to 0
             BigDecimal servingPopulation = (BigDecimal) commonUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), SERVING_POPULATION_CODE);
 
-            updateServingPopulation(boundariesToBeSearched, planFacility, boundaryToPopMap, servingPopulation);
+            // Update the serving population in the PlanFacility
+            updateServingPopulation(planFacility, boundaryToPopulationMap, servingPopulation);
         }
     }
 
@@ -174,32 +179,25 @@ public class PlanFacilityEnricher {
     }
 
     /**
-     * Updates the serving population of a plan facility based on changes in service boundaries.
+     * Updates the serving population for a given PlanFacility based on changes in service boundaries.
      * Subtracts population for removed boundaries and adds population for newly added ones.
      *
-     * @param boundariesToBeSearched Set of boundary codes to evaluate.
      * @param planFacility           Plan facility whose serving population is updated.
      * @param boundaryToPopMap       Map of boundary codes to population values.
      * @param servingPopulation      Current serving population to be adjusted.
      */
-    private void updateServingPopulation(Set<String> boundariesToBeSearched, PlanFacility planFacility, Map<String, Long> boundaryToPopMap, BigDecimal servingPopulation) {
+    private void updateServingPopulation(PlanFacility planFacility, Map<String, Long> boundaryToPopMap, BigDecimal servingPopulation) {
 
-        // Retrieve the plan facility's current and initial service boundaries.
-        Set<String> currentServiceBoundaries = new HashSet<>(planFacility.getServiceBoundaries());
-        Set<String> initialServiceBoundaries = new HashSet<>(planFacility.getInitiallySetServiceBoundaries());
-
-        // Adjust the serving population based on boundary changes.
-        for(String boundary : boundariesToBeSearched) {
-            Long totalPopulation = boundaryToPopMap.get(boundary);
-
-            if (!currentServiceBoundaries.contains(boundary)) {
-                // If the boundary was removed from service, subtract its population.
-                servingPopulation = servingPopulation.subtract(BigDecimal.valueOf(totalPopulation));
-            } else if (!initialServiceBoundaries.contains(boundary)) {
-                // If the boundary is newly added, add its population.
-                servingPopulation = servingPopulation.add(BigDecimal.valueOf(totalPopulation));
-            }
+        // Get sum of confirmed target populations corresponding to the newly added/removed serving boundaries.
+        Long totalPopulation = 0L;
+        for(Long population : boundaryToPopMap.values()) {
+            totalPopulation = totalPopulation + population;
         }
+
+        // Adjust the serving population based on whether boundaries are added or removed.
+        servingPopulation = planFacility.getInitiallySetServiceBoundaries().size() > planFacility.getServiceBoundaries().size()
+                ? servingPopulation.subtract(BigDecimal.valueOf(totalPopulation)) // Subtract if boundaries are removed.
+                : servingPopulation.add(BigDecimal.valueOf(totalPopulation)); // Add if boundaries are added.
 
         // Update the plan facility's additional details with the new serving population.
         Map<String, Object> fieldToUpdate = new HashMap<>();
