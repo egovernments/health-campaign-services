@@ -37,6 +37,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL;
 
 @Slf4j
 @Service
@@ -181,7 +182,7 @@ public class ExcelParser implements FileParser {
 				//upload the processed output file and update the same into plan configuration file object
 				fileToUpload = convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.addFileStoreIdForEstimationTemplate(planConfigurationRequest, uploadedFileStoreId, org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL);
+				planUtil.addFileStoreIdForEstimationTemplate(planConfigurationRequest, uploadedFileStoreId, EXCEL);
 				planUtil.update(planConfigurationRequest);
 			}
 		} finally {
