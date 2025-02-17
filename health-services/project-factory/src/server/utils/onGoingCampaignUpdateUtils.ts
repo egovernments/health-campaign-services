@@ -92,12 +92,12 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
   const updatedHeaders = localizedHeaders.map((header: any) => header === getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap) ?
     getLocalizedName(config?.boundary?.boundaryCodeOld, localizationMap) : header)
 
-  const updatedWithAdditionalHeaders = type != "user" ? [...updatedHeaders, config?.boundary?.boundaryCodeMandatory] : localizedHeaders
+  const updatedWithAdditionalHeaders = type == "boundaryWithTarget" ? [...updatedHeaders, config?.boundary?.boundaryCodeMandatory] : localizedHeaders
   localizedHeaders = getLocalizedHeaders(updatedWithAdditionalHeaders, localizationMap);
 
   dataRows = dataRows.map((row: any, index: number) => {
     const boundaryCodeValue = sheetData[index][getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap)] || '';
-    return type != "user" ? [...row, boundaryCodeValue] : row;
+    return type == "boundaryWithTarget" ? [...row, boundaryCodeValue] : row;
   });
 
   // Combine headers and dataRows
