@@ -2,7 +2,7 @@
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
-import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
+import { throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 import { persistTrack } from "../utils/processTrackUtils";
@@ -10,6 +10,7 @@ import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../co
 import { validateMappingId } from "../utils/campaignMappingUtils";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
+import { getBoundaryRelationshipData } from "../api/boundaryApis";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
@@ -179,27 +180,6 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
     }
 }
 
-// Function to validate project staff response
-// function validateStaffResponse(staffResponse: any) {
-//     if (!staffResponse?.ProjectStaff?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
-//     }
-// }
-
-// Function to validate project resource response
-// function validateProjectResourceResponse(projectResouceResponse: any) {
-//     if (!projectResouceResponse?.ProjectResource?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
-//     }
-// }
-
-// Function to validate project facility response
-// function validateProjectFacilityResponse(projectFacilityResponse: any) {
-//     if (!projectFacilityResponse?.ProjectFacility?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
-//     }
-// }
-
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
 
@@ -241,7 +221,7 @@ export async function validateFiltersInRequestBody(request: any) {
         ...request?.query,
         includeChildren: true
     };
-    const boundaryData = await getBoundaryRelationshipData(request, params);
+    const boundaryData = await getBoundaryRelationshipData(params);
     if (boundaryData && request?.body?.Filters != null) {
         await validateFilters(request, boundaryData);
     }
@@ -252,9 +232,6 @@ export {
     validateBodyViaSchema,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
-    // validateStaffResponse,
-    // validateProjectFacilityResponse,
-    // validateProjectResourceResponse,
     validateGenerateRequest,
     validateHierarchyType,
     validateCampaignBodyViaSchema

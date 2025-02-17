@@ -299,6 +299,7 @@ function enrichErrorForFcailityMicroplan(request: any, item: any, errors: any = 
 export async function validateExtraBoundariesForMicroplan(request: any, dataFromSheet: any, localizationMap: any) {
     if (await isMicroplanRequest(request)) {
         const campaignBoundariesSet = new Set(request?.body?.campaignBoundaries?.map((boundary: any) => boundary.code));
+        logger.info(`Campaign boundaries are : ${JSON.stringify(campaignBoundariesSet)}`);
         for (const key in dataFromSheet) {
             if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config?.values?.readMeTab, localizationMap)) {
                 if (Object.prototype.hasOwnProperty.call(dataFromSheet, key)) {
@@ -306,6 +307,7 @@ export async function validateExtraBoundariesForMicroplan(request: any, dataFrom
                     for (const boundaryRow of dataArray) {
                         const boundaryCode = boundaryRow[getLocalizedName(getBoundaryColumnName(), localizationMap)];
                         if (!campaignBoundariesSet.has(boundaryCode)) {
+                            logger.info(`Boundary code ${boundaryCode} is not present in campaign boundaries.`);
                             throwError("COMMON", 400, "VALIDATION_ERROR", `Some boundaries in uploaded sheet are not present in campaign boundaries. Please upload from downloaded template only.`);
                         }
                     }

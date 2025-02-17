@@ -15,7 +15,7 @@ async function consolidateBoundaries(messageObject: any, hierarchyType: any, ten
   };
   const boundaryResponse = await httpRequest(
     config.host.boundaryHost + config.paths.boundaryRelationship,
-    messageObject?.RequestInfo,
+    { RequestInfo: messageObject?.RequestInfo },
     params,
     undefined,
     undefined,

@@ -3,7 +3,7 @@ import Error from "./error.interface"
 export const CONSTANTS: any = {
     ERROR_CODES: {
         COMMON: {
-            UNKNOWN_ERROR: "Unknown error. Check logs",
+            UNKNOWN_ERROR: "Unknown error",
             IDGEN_ERROR: "Error during generating campaign number",
             VALIDATION_ERROR: "Validation error",
             INTERNAL_SERVER_ERROR: "Internal server error",
@@ -25,7 +25,7 @@ export const CONSTANTS: any = {
             FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema"
         },
         FACILITY: {
-            FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
+            FACILITY_SEARCH_FAILED: "Search failed for facility.",
         },
         CAMPAIGN: {
             CAMPAIGN_SEARCH_ERROR: "Error in campaign search",
@@ -38,7 +38,7 @@ export const CONSTANTS: any = {
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
             PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
-            RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow "
+            RESOURCES_CONSOLIDATION_ERROR: "Error while consolidating resources in Campaign Update Flow "
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -68,8 +68,8 @@ export const CONSTANTS: any = {
             INVALID_README_CONFIG: "Invalid readme config",
             MDMS_DATA_NOT_FOUND_ERROR: "Mdms Data not present"
         },
-        DATA:{
-            DATA_CREATE_ERROR : "Error while creating resource data"
+        DATA: {
+            DATA_CREATE_ERROR: "Error while creating resource data"
         }
     }
 }
@@ -80,7 +80,7 @@ export const headingMapping: any = {
     "boundary": "BOUNDARY_README_MAINHEADER"
 }
 
-const unknownError = "Unknown Error. Check Logs";
+const unknownError = "Unknown Error.";
 
 
 //  Retrieves the error message associated with the given error key.
@@ -158,10 +158,35 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
+export const processNamesConstantsInOrder = {
+    projectCreation: "project-creation",
+    employeeCreation: "employee-creation",
+    facilityCreation: "facility-creation",
+}
+
+export const campaignProcessStatus = {
+    inqueue: "inqueue",
+    started: "started",
+    failed: "failed",
+    completed: "completed"
+}
+
 export const usageColumnStatus = {
     active: "Active",
     inactive: "Inactive"
 }
+
+export const mappingTypes = {
+    staff: "staff",
+    facility: "facility"
+}
+export const mappingStatus = {
+    toBeMapped: "TO_BE_MAPPED",
+    mapped: "MAPPED",
+    toBeDetached: "TO_BE_DETACHED",
+    detached: "DETACHED"
+};
+
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object
