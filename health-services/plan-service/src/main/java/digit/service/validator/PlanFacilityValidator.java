@@ -1,6 +1,5 @@
 package digit.service.validator;
 
-import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanFacilityRepository;
 import digit.service.enrichment.PlanFacilityEnricher;
@@ -53,7 +52,7 @@ public class PlanFacilityValidator {
      * It performs multiple validations such as plan configuration, facility existence,
      * and campaign-related validations.
      *
-     * @param planFacilityRequest
+     * @param planFacilityRequest The plan facility request to be validated.
      */
     public void validatePlanFacilityCreate(PlanFacilityRequest planFacilityRequest) {
         // Retrieve the root-level tenant ID (state-level) based on the facility's tenant ID
@@ -94,7 +93,7 @@ public class PlanFacilityValidator {
      * It performs multiple validations such as plan facility existence
      * and campaign-related validations.
      *
-     * @param planFacilityRequest
+     * @param planFacilityRequest the plan facility request to be validated.
      */
     public void validatePlanFacilityUpdate(PlanFacilityRequest planFacilityRequest) {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planFacilityRequest.getPlanFacility().getTenantId());
@@ -126,7 +125,7 @@ public class PlanFacilityValidator {
 
         // Collect all boundary code for the campaign
         Set<String> lowestHierarchyBCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), lowestHierarchy);
-        Set<String> allBoundaryCodes = fetchAllBoundaryCodes(campaignResponse.getCampaignDetails().get(0));
+        Set<String> allBoundaryCodes = fetchBoundaryCodes(campaignResponse.getCampaignDetails().get(0), null);
 
         // Validate residing boundaries against boundary codes across all hierarchy levels,
         // as a facility's residing boundary may correspond to any jurisdiction level.
@@ -141,40 +140,25 @@ public class PlanFacilityValidator {
     }
 
     /**
-     * This method returns a set of all boundary codes for the given campaign.
-     *
-     * @param campaignDetail the campaign details whose BCodes are required.
-     * @return returns a set of boundaries for the given campaign.
-     */
-    private Set<String> fetchAllBoundaryCodes(CampaignDetail campaignDetail) {
-        Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
-                .map(Boundary::getCode)
-                .collect(Collectors.toSet());
-
-        return boundaryCodes;
-    }
-
-    /**
-     * This method filters the boundaries based on given hierarchy type for the campaign and returns a set of those boundaries.
+     * Fetches boundary codes from a campaign detail, optionally filtered by hierarchy type.
      *
      * @param campaignDetail the campaign details whose BCodes are required.
      * @param hierarchyType  hierarchy type of the required boundaries.
-     * @return returns a set of boundaries of the given hierarchy type.
+     * @return A Set of boundary codes matching the given hierarchy type, or all codes if no type specified.
      */
     private Set<String> fetchBoundaryCodes(CampaignDetail campaignDetail, String hierarchyType) {
-        Set<String> boundaryCodes = campaignDetail.getBoundaries().stream()
-                .filter(boundary -> hierarchyType.equals(boundary.getType().toLowerCase()))
+        return campaignDetail.getBoundaries().stream()
+                // Filter boundaries by hierarchyType if hierarchyType is provided, otherwise include all
+                .filter(boundary -> hierarchyType == null || hierarchyType.equals(boundary.getType().toLowerCase()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
-
-        return boundaryCodes;
     }
 
     /**
-     * This method validates if residing boundaries exist in campaign details
+     * This method validates if residing boundaries exist in campaign details.
      *
-     * @param boundaryCodes
-     * @param planFacility
+     * @param boundaryCodes The boundary codes present in the campaign.
+     * @param planFacility The plan facility with residing boundaries.
      */
     private void validateResidingBoundaries(Set<String> boundaryCodes, PlanFacility planFacility) {
         String residingBoundary = planFacility.getResidingBoundary();
@@ -186,8 +170,8 @@ public class PlanFacilityValidator {
     /**
      * This method validates if service boundaries exist in campaign details
      *
-     * @param boundaryCodes
-     * @param planFacility
+     * @param boundaryCodes The boundary codes present in the campaign.
+     * @param planFacility The plan facility with service boundaries.
      */
     private void validateServiceBoundaries(Set<String> boundaryCodes, PlanFacility planFacility) {
         List<String> serviceBoundaries = planFacility.getServiceBoundaries();
@@ -195,7 +179,7 @@ public class PlanFacilityValidator {
         // Check for duplicate service boundaries
         Set<String> uniqueBoundaries = new HashSet<>(serviceBoundaries);
         if (uniqueBoundaries.size() != serviceBoundaries.size()) {
-            throw new CustomException(INVALID_SERVICE_BOUNDARY_CODE, "Duplicate service boundaries are not allowed");
+            throw new CustomException(DUPLICATE_SERVICE_BOUNDARY_CODE, DUPLICATE_SERVICE_BOUNDARY_MESSAGE);
         }
 
         planFacility.getServiceBoundaries().forEach(serviceBoundary -> {
@@ -206,40 +190,9 @@ public class PlanFacilityValidator {
     }
 
     /**
-     * This method validates if the hierarchy type provided in the request exists
-     *
-     * @param campaignResponse
-     * @param mdmsData
-     */
-    private String validateHierarchyType(CampaignResponse campaignResponse, Object mdmsData) {
-        // Get the hierarchy type from the campaign response
-        String hierarchyType = campaignResponse.getCampaignDetails().get(0).getHierarchyType();
-
-        // Define the JSON path to fetch hierarchy configurations from MDMS data
-        final String jsonPathForHierarchy = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_HIERARCHY_CONFIG + "[*]";
-
-        List<Map<String, Object>> hierarchyConfigList = null;
-        try {
-            hierarchyConfigList = JsonPath.read(mdmsData, jsonPathForHierarchy);
-        } catch (Exception e) {
-            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
-        }
-
-        // Iterate through the hierarchy configuration list
-        for (Map<String, Object> hierarchyConfig : hierarchyConfigList) {
-            if (hierarchyType.equals(hierarchyConfig.get(MDMS_MASTER_HIERARCHY))) {
-                // Return the lowest hierarchy value from the configuration
-                return (String) hierarchyConfig.get(LOWEST_HIERARCHY_FIELD_FOR_MICROPLAN);
-            }
-        }
-        // Throw exception if no matching hierarchy is found
-        throw new CustomException(HIERARCHY_NOT_FOUND_IN_MDMS_CODE, HIERARCHY_NOT_FOUND_IN_MDMS_MESSAGE);
-    }
-
-    /**
      * This method validates if the plan facility id provided in the update request exists
      *
-     * @param planFacilityRequest
+     * @param planFacilityRequest The plan facility request to be validated.
      */
     private void validatePlanFacilityExistence(PlanFacilityRequest planFacilityRequest) {
         List<PlanFacility> planFacilityListFromSearch = planFacilityRepository.search(PlanFacilitySearchCriteria.builder()
@@ -254,6 +207,14 @@ public class PlanFacilityValidator {
         enrichInitialServiceBoundaries(planFacilityListFromSearch, planFacilityRequest);
     }
 
+    /**
+     * This method enriches the plan facility request with the initial service boundaries
+     * from the existing plan facility record.
+     *
+     * @param planFacilityListFromSearch A list of plan facility records retrieved from the search.
+     * @param planFacilityRequest        The plan facility request that needs to be enriched with
+     *                                   initially set service boundaries.
+     */
     private void enrichInitialServiceBoundaries(List<PlanFacility> planFacilityListFromSearch, PlanFacilityRequest planFacilityRequest) {
 
         List<String> initiallySetServiceBoundaries = planFacilityListFromSearch.get(0).getServiceBoundaries();
@@ -263,9 +224,9 @@ public class PlanFacilityValidator {
     /**
      * Searches the plan config based on the plan config id provided
      *
-     * @param planConfigurationId
-     * @param tenantId
-     * @return
+     * @param planConfigurationId The plan configuration id to be searched.
+     * @param tenantId tenant id of plan configuration.
+     * @return Returns a list of plan configurations.
      */
     public List<PlanConfiguration> fetchPlanConfigurationById(String planConfigurationId, String tenantId) {
         List<PlanConfiguration> planConfigurations = planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
@@ -284,31 +245,38 @@ public class PlanFacilityValidator {
     /**
      * Validates if the facility with the provided ID exists in the system.
      *
-     * @param planFacilityRequest
+     * @param planFacilityRequest The plan facility request with facility id.
      */
     private void validateFacilityExistence(PlanFacilityRequest planFacilityRequest) {
         FacilityResponse facilityResponse = facilityUtil.fetchFacilityData(planFacilityRequest);
 
         // Use ObjectUtils and CollectionUtils to handle null or empty checks
         if (ObjectUtils.isEmpty(facilityResponse) || CollectionUtils.isEmpty(facilityResponse.getFacilities())) {
-            throw new CustomException("FACILITY_NOT_FOUND", "Facility with ID " + planFacilityRequest.getPlanFacility().getFacilityId() + " not found in the system.");
+            throw new CustomException(FACILITY_NOT_FOUND_CODE, FACILITY_NOT_FOUND_MESSAGE + planFacilityRequest.getPlanFacility().getFacilityId());
         }
 
         enrichFacilityDetails(facilityResponse.getFacilities().get(0), planFacilityRequest);
     }
 
+    /**
+     * This method enriches the plan facility request with details from the given facility,
+     * including its name, usage, capacity, status, type, permanence, and initial serving population.
+     *
+     * @param facility           The facility from which details are extracted.
+     * @param planFacilityRequest The plan facility request that needs to be enriched with details.
+     */
     private void enrichFacilityDetails(Facility facility, PlanFacilityRequest planFacilityRequest) {
         String facilityName = facility.getName();
         planFacilityRequest.getPlanFacility().setFacilityName(facilityName);
         BigDecimal initialServingPop = BigDecimal.ZERO;
 
         Map<String, Object> fieldsToBeAdded = new HashMap<>();
-        fieldsToBeAdded.put("facilityUsage", facility.getUsage());
-        fieldsToBeAdded.put("capacity", facility.getStorageCapacity());
-        fieldsToBeAdded.put("facilityStatus", facility.getAddress().getType());
-        fieldsToBeAdded.put("facilityType", facility.getUsage());
-        fieldsToBeAdded.put("isPermanent", facility.isPermanent());
-        fieldsToBeAdded.put("servingPopulation", initialServingPop);
+        fieldsToBeAdded.put(FACILITY_USAGE_KEY, facility.getUsage());
+        fieldsToBeAdded.put(CAPACITY_KEY, facility.getStorageCapacity());
+        fieldsToBeAdded.put(FACILITY_STATUS_KEY, facility.getAddress().getType());
+        fieldsToBeAdded.put(FACILITY_TYPE_KEY, facility.getUsage());
+        fieldsToBeAdded.put(IS_PERMANENT_KEY, facility.isPermanent());
+        fieldsToBeAdded.put(SERVING_POPULATION_KEY, initialServingPop);
 
         planFacilityRequest.getPlanFacility().setAdditionalDetails(
                 commonUtil.updateFieldInAdditionalDetails(planFacilityRequest.getPlanFacility().getAdditionalDetails(), fieldsToBeAdded));
