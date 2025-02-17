@@ -347,6 +347,12 @@ public class ServiceConstants {
     public static final String INVALID_SERVICE_BOUNDARY_CODE = "INVALID_SERVICE_BOUNDARY";
     public static final String INVALID_SERVICE_BOUNDARY_MESSAGE = "The provided service boundary is invalid";
 
+    public static final String FACILITY_NOT_FOUND_CODE = "FACILITY_NOT_FOUND";
+    public static final String FACILITY_NOT_FOUND_MESSAGE = "Facility not found for the facilityId: ";
+
+    public static final String DUPLICATE_SERVICE_BOUNDARY_CODE = "DUPLICATE_SERVICE_BOUNDARY";
+    public static final String DUPLICATE_SERVICE_BOUNDARY_MESSAGE = "Duplicate service boundaries are not allowed";
+
     public static final String INVALID_RESIDING_BOUNDARY_CODE = "INVALID_RESIDING_BOUNDARY";
     public static final String INVALID_RESIDING_BOUNDARY_MESSAGE = "The provided residing boundary is invalid";
 
@@ -401,5 +407,12 @@ public class ServiceConstants {
     public static final String PAGINATION_LIMIT_PARAM = "limit";
 
     public static final String PAGINATION_OFFSET_PARAM = "offset";
+
+    public static final String FACILITY_USAGE_KEY = "facilityUsage";
+    public static final String CAPACITY_KEY = "capacity";
+    public static final String FACILITY_STATUS_KEY = "facilityStatus";
+    public static final String FACILITY_TYPE_KEY = "facilityType";
+    public static final String IS_PERMANENT_KEY = "isPermanent";
+    public static final String SERVING_POPULATION_KEY = "servingPopulation";
 
 }
