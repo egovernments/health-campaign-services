@@ -108,4 +108,7 @@ public interface Constants {
     String LNG = "lng";
     String STAFF = "STAFF";
     String BOUNDARY_CODE_KEY = "boundaryCode";
+    String ADDITIONAL_FIELDS_FIELDS_KEY = "fields";
+    String ADDITIONAL_FIELDS_FIELDS_KEY_KEY = "key";
+    String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";
 }

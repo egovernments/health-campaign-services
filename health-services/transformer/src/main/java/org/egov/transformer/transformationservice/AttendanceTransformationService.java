@@ -150,7 +150,7 @@ public class AttendanceTransformationService {
 
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
-        String boundaryCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
+        String boundaryCode = commonUtils.getLocalityCodeFromAdditionalFields(null,additionalDetails);
         if (StringUtils.isNotEmpty(boundaryCode)) {
             boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
         }
