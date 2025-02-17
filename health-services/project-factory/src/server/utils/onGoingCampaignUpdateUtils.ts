@@ -264,13 +264,29 @@ function validateBoundariesIfParentPresent(request: any, action : string) {
   }
 }
 
+function getCombinedBoundaries(parentBoundaries: any[] = [], childBoundaries: any[] = []) {
+  const setOfBoundaryCodes = new Set();
+  const combinedBoundaries = [];
+  childBoundaries.forEach((boundary: any) => {
+    setOfBoundaryCodes.add(boundary.code);
+    combinedBoundaries.push(boundary);
+  });
+  for(const boundary of parentBoundaries) {
+    if(!setOfBoundaryCodes.has(boundary.code)) {
+      combinedBoundaries.push(boundary);
+    }
+  }
+  return combinedBoundaries;
+}
+
 
 async function callGenerateWhenChildCampaigngetsCreated(request: any) {
+  const combinedBoundaries = getCombinedBoundaries(request?.body?.parentCampaign?.boundaries, request?.body?.CampaignDetails?.boundaries);
   try {
     const newRequestBody = {
       RequestInfo: request?.body?.RequestInfo,
       Filters: {
-        boundaries: request?.body?.CampaignDetails?.boundaries
+        boundaries: combinedBoundaries
       }
     };
 
