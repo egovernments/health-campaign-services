@@ -464,6 +464,17 @@ export function fillDataInProcessedUserSheet(
   const headerRow = userWorkSheet.getRow(1);
   const headerOfsheetValues = headerRow?.values || [];
 
+  // Find the index of "#status#" column
+  const statusColumnIndex = headerOfsheetValues.indexOf("#status#");
+
+  if (statusColumnIndex !== -1) {
+    // Keep only columns before "#status#" and remove everything after (including "#status#")
+    headerRow.values = headerOfsheetValues.slice(0, statusColumnIndex);
+  }
+
+  // Commit changes to the worksheet
+  headerRow.commit();
+
   // Find the first empty column in the header
   let emptyColumnIndex = -1;
   for (let i = 1; i < headerOfsheetValues.length; i++) {
@@ -578,6 +589,17 @@ export function fillDataInProcessedFacilitySheet(
   // Get the first row (header) values
   const headerRow = facilityWorkSheet.getRow(1);
   const headerOfsheetValues = headerRow?.values || [];
+
+  // Find the index of "#status#" column
+  const statusColumnIndex = headerOfsheetValues.indexOf("#status#");
+
+  if (statusColumnIndex !== -1) {
+    // Keep only columns before "#status#" and remove everything after (including "#status#")
+    headerRow.values = headerOfsheetValues.slice(0, statusColumnIndex);
+  }
+
+  // Commit changes to the worksheet
+  headerRow.commit();
 
   // Find the first empty column in the header
   let emptyColumnIndex = -1;
