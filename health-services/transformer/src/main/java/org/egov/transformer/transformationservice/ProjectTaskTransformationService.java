@@ -36,7 +36,7 @@ public class ProjectTaskTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
-    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY, QUANTITY_WASTED));
 
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
@@ -162,10 +162,10 @@ public class ProjectTaskTransformationService {
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
         }
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
-//        if (taskResource.getAdditionalFields() != null) {
-//            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+        if (taskResource.g != null) {
+            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
 //            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
-//        }
+        }
         if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
