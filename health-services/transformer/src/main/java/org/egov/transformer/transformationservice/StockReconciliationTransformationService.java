@@ -99,7 +99,9 @@ public class StockReconciliationTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());

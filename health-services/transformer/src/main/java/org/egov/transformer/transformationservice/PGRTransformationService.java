@@ -89,6 +89,8 @@ public class PGRTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         PGRIndex pgrIndex = PGRIndex.builder()

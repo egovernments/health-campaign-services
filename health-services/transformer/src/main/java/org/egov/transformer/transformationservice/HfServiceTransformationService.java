@@ -88,7 +88,7 @@ public class HfServiceTransformationService {
         Map<String, String > boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 

@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -101,9 +102,10 @@ public class ReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
 
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));

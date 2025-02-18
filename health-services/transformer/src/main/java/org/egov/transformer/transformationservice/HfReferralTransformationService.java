@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
@@ -68,10 +69,10 @@ public class HfReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
-
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
                 .userName(userInfoMap.get(USERNAME))
