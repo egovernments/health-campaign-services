@@ -5,9 +5,10 @@ import { getRootBoundaryCode, getRootBoundaryType } from "../utils/campaignUtils
 import { campaignProcessStatus, mappingTypes, processNamesConstantsInOrder } from "../config/constants";
 import { markProcessStatus } from "../utils/processTrackUtils";
 import { getAllCampaignEmployeesWithJustMobileNumbers, getCampaignEmployees, getEmployeeListForCampaignDetails, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees, persistForActiveBoundariesFromEmployeeList, persistForActiveEmployees, persistForEmployeeCreationProcess, persistForInActiveBoundariesFromEmployeeList, persistForInactiveEmployees } from "../utils/campaignEmployeesUtils";
-import { getCampaignMappings } from "../utils/campaignMappingUtils";
+import { getCampaignMappings, getPvarIds } from "../utils/campaignMappingUtils";
 import { logger } from "../utils/logger";
 import { getCampaignFacilities, getFacilityListFromCampaignDetails, persistForActiveBoundariesFromFacilityList, persistForActiveFacilities, persistForFacilityCreationProcess, persistForInActiveBoundariesFromFacilityList, persistForInactiveFacilities } from "../utils/campaignFacilitiesUtils";
+import { modifyAndPushInKafkaForFacilityMapping, modifyAndPushInKafkaForResourceMapping, modifyAndPushInKafkaForStaffMapping, persistNewActiveCampaignMappingForResources } from "../utils/campaignMappingProcessUtils";
 
 
 
@@ -23,6 +24,9 @@ const processProjectCreation = async (campaignDetailsAndRequestInfo: any) => {
         const campaignProjects: any[] = await getCampaignProjects(campaignNumber, true);
         await updateTargetsInProjectCampaign(allTargetList, campaignProjects);
         await addBoundariesInProjectCampaign(allBoundaries, allTargetList, campaignNumber, userUuid, campaignProjects);
+        const campaignMappingsForResources = await getCampaignMappings(campaignNumber, mappingTypes.resource);
+        const pvarIds = getPvarIds(campaignDetailsAndRequestInfo);
+        await persistNewActiveCampaignMappingForResources(campaignMappingsForResources, allBoundaries, campaignNumber, userUuid, pvarIds);
         const rootBoundaryCode = getRootBoundaryCode(boundaries);
         await persistForProjectProcess([rootBoundaryCode], campaignNumber, tenantId, userUuid, null);
         // wait for 5 seconds for confirmed persistence
@@ -81,6 +85,42 @@ const processFacilityCreation = async (campaignDetailsAndRequestInfo: any) => {
         await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error: any) {
         console.log(error);
+        await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.facilityCreation, campaignProcessStatus.failed, error?.message);
+    }
+}
+
+const processCampaignMappings = async (campaignDetailsAndRequestInfo: any) => {
+    try {
+        // wait for 5 seconds before processing the mappings
+        logger.info("Waiting for 5 seconds before processing the mappings...");
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        const { CampaignDetails , RequestInfo} = campaignDetailsAndRequestInfo;
+        const userUuid = RequestInfo?.userInfo?.uuid;
+        const { campaignNumber, tenantId } = CampaignDetails;
+        const campaignProjects = await getCampaignProjects(campaignNumber, false);
+        const boundaryCodeAndProjectIdMapping = campaignProjects?.reduce((acc: any, curr: any) => {
+            acc[curr?.boundaryCode] = curr?.projectId;
+            return acc;
+        }, {})
+
+        // resource mapping
+        logger.info("Processing resource mapping...");
+        const campaignMappingsForResources = await getCampaignMappings(campaignNumber, mappingTypes.resource);
+        await modifyAndPushInKafkaForResourceMapping(campaignMappingsForResources, boundaryCodeAndProjectIdMapping, campaignNumber, tenantId, userUuid);
+
+        // staff mapping
+        logger.info("Processing staff mapping...");
+        const campaignMappingsForStaff = await getCampaignMappings(campaignNumber, mappingTypes.staff);
+        const campaignEmployees = await getCampaignEmployees(campaignNumber, false);
+        await modifyAndPushInKafkaForStaffMapping(campaignMappingsForStaff, campaignEmployees, boundaryCodeAndProjectIdMapping, campaignNumber, tenantId, userUuid);
+
+        // facility mapping
+        logger.info("Processing facility mapping...");
+        const campaignMappingsForFacility = await getCampaignMappings(campaignNumber, mappingTypes.facility);
+        const campaignFacilities = await getCampaignFacilities(campaignNumber, false);
+        await modifyAndPushInKafkaForFacilityMapping(campaignMappingsForFacility, campaignFacilities, boundaryCodeAndProjectIdMapping, campaignNumber, tenantId, userUuid);
+    } catch (error: any) {
+        console.log(error);
         await markProcessStatus(campaignDetailsAndRequestInfo?.CampaignDetails?.campaignNumber, processNamesConstantsInOrder.employeeCreation, campaignProcessStatus.failed, error?.message);
     }
 }
@@ -88,5 +128,6 @@ const processFacilityCreation = async (campaignDetailsAndRequestInfo: any) => {
 export {
     processProjectCreation,
     processEmployeeCreation,
-    processFacilityCreation
+    processFacilityCreation,
+    processCampaignMappings
 }

@@ -1,7 +1,7 @@
 import * as express from "express";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { processEmployeeCreation, processFacilityCreation, processProjectCreation } from "../../service/mainProcessService";
+import { processCampaignMappings, processEmployeeCreation, processFacilityCreation, processProjectCreation } from "../../service/mainProcessService";
 
 
 
@@ -22,6 +22,7 @@ class mainProcessController {
         this.router.post(`${this.path}/project-create`, this.startProjectCreation);
         this.router.post(`${this.path}/employee-create`, this.startEmployeeCreation);
         this.router.post(`${this.path}/facility-create`, this.startFacilityCreation);
+        this.router.post(`${this.path}/mapping-create`, this.projectMappingsCreation);
     }
 
 
@@ -70,6 +71,21 @@ class mainProcessController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
+
+    projectMappingsCreation = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED A REQUEST TO CREATE PROJECT MAPPINGS FOR CAMPAIGN");
+            const mappingResponse = await processCampaignMappings(request?.body);
+            return sendResponse(response, { mappingResponse }, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
 };
 
 export default mainProcessController;

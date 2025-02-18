@@ -617,7 +617,7 @@ export function fillDataInProcessedFacilitySheet(
         facility?.name,
         facility?.facilityUsage,
         facility?.isPermanent ? "Permanent" : "Temporary",
-        facility?.storageCapacity,
+        facility?.storageCapacity || 0,
         currentBoundaryValues,
         facility?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
         "CREATED",

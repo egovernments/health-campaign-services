@@ -162,6 +162,7 @@ export const processNamesConstantsInOrder = {
     projectCreation: "project-creation",
     employeeCreation: "employee-creation",
     facilityCreation: "facility-creation",
+    mapping: "mapping",
 }
 
 export const campaignProcessStatus = {
@@ -178,7 +179,8 @@ export const usageColumnStatus = {
 
 export const mappingTypes = {
     staff: "staff",
-    facility: "facility"
+    facility: "facility",
+    resource: "resource"
 }
 export const mappingStatus = {
     toBeMapped: "TO_BE_MAPPED",
