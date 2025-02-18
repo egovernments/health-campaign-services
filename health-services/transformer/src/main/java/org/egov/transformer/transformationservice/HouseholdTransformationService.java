@@ -76,7 +76,7 @@ public class HouseholdTransformationService {
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
 
-        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getLastModifiedTime());
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
@@ -94,6 +94,8 @@ public class HouseholdTransformationService {
         if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
             commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
         }
+        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), household.getClientAuditDetails());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         return HouseholdIndexV1.builder()
                 .household(household)

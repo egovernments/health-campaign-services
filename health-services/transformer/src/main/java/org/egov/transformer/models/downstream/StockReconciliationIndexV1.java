@@ -68,5 +68,8 @@ public class StockReconciliationIndexV1 {
     @JsonProperty("userAddress")
     private String userAddress;
 
+    @JsonProperty("facilityType")
+    private String facilityType;
+
 
 }

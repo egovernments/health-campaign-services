@@ -78,8 +78,10 @@ public class PGRTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
         service.setAddress(null); //explicitly setting it to null as it is not needed
-        service.setApplicationStatus(mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
-        service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
+//      commenting below code as it is not needed now
+
+//        service.setApplicationStatus(mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
+//        service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
@@ -87,6 +89,8 @@ public class PGRTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         PGRIndex pgrIndex = PGRIndex.builder()

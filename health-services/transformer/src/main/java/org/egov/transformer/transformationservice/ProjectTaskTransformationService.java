@@ -102,9 +102,13 @@ public class ProjectTaskTransformationService {
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
                                                                Map<String, String> userInfoMap, String localityCode) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-        List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
-        String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
-
+        List<String> variantList = Optional.ofNullable(taskResource.getProductVariantId())
+                .map(Collections::singletonList)
+                .orElse(new ArrayList<>());
+        String productName = null;
+        if (!variantList.isEmpty()) {
+            productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+        }
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
                 .taskId(task.getId())
@@ -216,7 +220,7 @@ public class ProjectTaskTransformationService {
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
     private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }
@@ -272,9 +276,9 @@ public class ProjectTaskTransformationService {
         String beneficiaryClientRefId = projectBeneficiary.getBeneficiaryClientReferenceId();
 
         if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
-            log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
+            log.info("fetching household details for HOUSEHOLD projectBeneficiaryType, clientReferenceId: {}", beneficiaryClientRefId);
             List<Household> households = householdService.searchHousehold(beneficiaryClientRefId, tenantId);
-            Integer memberCount = households.get(0).getMemberCount();
+
 //Commenting below code as it is not needed
 
 //            int deliveryCount = (int) Math.round((Double) (memberCount / transformerProperties.getProgramMandateDividingFactor()));
@@ -282,11 +286,14 @@ public class ProjectTaskTransformationService {
 //            projectTaskIndexV1.setDeliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? transformerProperties.getProgramMandateComment() : null);
 
             if (!CollectionUtils.isEmpty(households)) {
+                Integer memberCount = households.get(0).getMemberCount();
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
                 projectBenfInfoMap.put(HOUSEHOLD_ID, households.get(0).getClientReferenceId());
                 if (ObjectUtils.isNotEmpty(households.get(0).getAdditionalFields()) && !CollectionUtils.isEmpty(households.get(0).getAdditionalFields().getFields())) {
                     projectBenfInfoMap.put("additionalFields", households.get(0).getAdditionalFields().getFields());
                 }
+            } else {
+                log.info("COULD NOT FIND HOUSEHOLD for clientReferenceId: {}", beneficiaryClientRefId);
             }
         } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");

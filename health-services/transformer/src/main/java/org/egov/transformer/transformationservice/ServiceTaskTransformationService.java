@@ -2,7 +2,6 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
@@ -37,6 +36,16 @@ public class ServiceTaskTransformationService {
     private final CommonUtils commonUtils;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final Map<String, String> specialSprayingStringValueKeys = new HashMap<String, String>() {{
+        put("SPECIAL_SPRAYING_1", "specialSpraying");
+        put("SPECIAL_SPRAYING_1.SS_1_OP7.ADT1", "otherSpecialSprayingComment");
+        put("SPECIAL_SPRAYING_4", "insecticideUsed");
+        put("SPECIAL_SPRAYING_5", "additionalComments");
+    }};
+    private final Map<String, String> specialSprayingNumberValueKeys = new HashMap<String, String>() {{
+        put("SPECIAL_SPRAYING_2", "quantityUsed");
+        put("SPECIAL_SPRAYING_3", "roomsSprayed");
+    }};
 
     public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
         this.producer = producer;
@@ -61,6 +70,7 @@ public class ServiceTaskTransformationService {
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
         filterFinanceChecklists(serviceIndexV1List);
+        filterSpecialSpraying(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -93,7 +103,7 @@ public class ServiceTaskTransformationService {
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
@@ -125,7 +135,11 @@ public class ServiceTaskTransformationService {
         return serviceIndexV1;
     }
 
-    public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List){
+    public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List) {
+        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
+            log.info("No finance service index data to process.");
+            return;
+        }
         List<String> checklistNames = Arrays.asList(transformerProperties.getFinanceChecklistNameList().split(","));
         List<ServiceIndexV1> financeChecklistList = serviceIndexV1List.stream()
                 .filter(service -> checklistNames.contains(service.getChecklistName()))
@@ -140,18 +154,15 @@ public class ServiceTaskTransformationService {
                                     Object valueObj = valueMap.get("value");
 
                                     if (valueObj instanceof String) {
-                                        Double value = 0.0;
+                                        double value = 0.0;
                                         try {
                                             value = Double.parseDouble((String) valueObj);
-
-                                            valueMap.put("value", value);
                                         } catch (NumberFormatException e) {
                                             log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
-                                            valueMap.put("value", value);
                                         }
+                                        valueMap.put("value", value);
                                     }
                                 }
-                                att.getValue();
                             }
                     );
                 }
@@ -159,6 +170,56 @@ public class ServiceTaskTransformationService {
         String topic = transformerProperties.getTransformerProducerFinanceChecklistIndexV1Topic();
         if (!CollectionUtils.isEmpty(financeChecklistList)) {
             producer.push(topic, financeChecklistList);
+        }
+    }
+
+    public void filterSpecialSpraying(List<ServiceIndexV1> serviceIndexV1List) {
+        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
+            log.info("No special spraying service index data to process.");
+            return;
+        }
+
+        String checklistName = transformerProperties.getSpecialSprayingChecklistName();
+        List<ServiceIndexV1> specialSprayingChecklists = serviceIndexV1List.stream()
+                .filter(service -> checklistName.equals(service.getChecklistName()))
+                .collect(Collectors.toList());
+        specialSprayingChecklists.forEach(
+                ss -> {
+                    List<AttributeValue> attributeValues = ss.getAttributes();
+                    attributeValues.forEach(
+                            att -> {
+                                String attCode = att.getAttributeCode();
+                                Map<String, Object> valueMap;
+                                Object valueObj = null;
+                                if (att.getValue() instanceof Map<?, ?>) {
+                                    valueMap = (Map<String, Object>) att.getValue();
+                                    valueObj = valueMap.getOrDefault("value", null);
+                                }
+                                if (specialSprayingNumberValueKeys.containsKey(attCode)) {
+                                    double value = 0.0;
+                                    if (valueObj instanceof Number) {
+                                        value = ((Number) valueObj).doubleValue();
+                                    } else if (valueObj instanceof String) {
+                                        try {
+                                            value = Double.parseDouble((String) valueObj);
+                                        } catch (NumberFormatException e) {
+                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
+                                        }
+                                    }
+                                    ss.getAdditionalDetails().put(specialSprayingNumberValueKeys.get(attCode), value);
+                                } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
+                                    ss.getAdditionalDetails()
+                                            .put(specialSprayingStringValueKeys.get(attCode),
+                                                    valueObj != null ? valueObj.toString() : "");
+                                }
+                            }
+                    );
+                    ss.setAttributes(null);
+                }
+        );
+        String topic = transformerProperties.getTransformerProducerSpecialSprayingChecklistIndexV1Topic();
+        if (!CollectionUtils.isEmpty(specialSprayingChecklists)) {
+            producer.push(topic, specialSprayingChecklists);
         }
     }
 }

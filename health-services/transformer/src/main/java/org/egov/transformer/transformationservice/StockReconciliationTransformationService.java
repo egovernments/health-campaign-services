@@ -71,6 +71,7 @@ public class StockReconciliationTransformationService {
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
         String tenantId = stockReconciliation.getTenantId();
         Facility facility = facilityService.findFacilityById(stockReconciliation.getFacilityId(), tenantId);
+        String facilityType = facility != null ? facilityService.getType(WAREHOUSE, facility) : WAREHOUSE;
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
@@ -98,7 +99,9 @@ public class StockReconciliationTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
@@ -111,6 +114,7 @@ public class StockReconciliationTransformationService {
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
+                .facilityType(facilityType)
                 .facilityTarget(facilityTarget)
                 .facilityLevel(facilityLevel)
                 .syncedTimeStamp(syncedTimeStamp)
