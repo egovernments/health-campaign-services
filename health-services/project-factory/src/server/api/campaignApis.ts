@@ -914,10 +914,15 @@ async function processValidate(
       ...localizationMapForHierarchy,
     };
     let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.body?.ResourceDetails?.tenantId);
-    differentTabsBasedOnLevel = getLocalizedName(
-      `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(),
-      localizationMap
-    );
+    if (differentTabsBasedOnLevel) {
+      const localizedKey = `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase();
+      console.log("Localized Key:", localizedKey);
+
+      differentTabsBasedOnLevel = getLocalizedName(localizedKey, localizationMap);
+      logger.info("Localized Value of different tabs based on :", differentTabsBasedOnLevel);
+    } else {
+      logger.error("getBoundaryOnWhichWeSplit did not return a valid result.");
+    }
     logger.info("target sheet format validation started");
     await immediateValidationForTargetSheet(
       request,
