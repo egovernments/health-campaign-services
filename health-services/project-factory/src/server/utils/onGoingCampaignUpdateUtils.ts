@@ -685,21 +685,21 @@ function mergeParentResources(mappingObject: any, resources: any[], resourcesArr
 }
 
 async function processResources(mappingObject: any) {
+  if(mappingObject?.parentCampaign){
+    const resources = mappingObject?.CampaignDetails?.resources;
+    const resourcesArrayFromParentCampaign = mappingObject?.parentCampaign?.resources;
 
-  const resources = mappingObject?.CampaignDetails?.resources;
-  const resourcesArrayFromParentCampaign = mappingObject?.parentCampaign?.resources;
-
-  for (const resource of resources) {
-    try {
-      await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
-    } catch (error: any) {
-      console.log(error);
-      throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
-        `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
+    for (const resource of resources) {
+      try {
+        await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
+      } catch (error: any) {
+        console.log(error);
+        throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
+          `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
+      }
     }
+    mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
   }
-
-  mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
 async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {

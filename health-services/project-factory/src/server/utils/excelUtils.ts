@@ -460,27 +460,35 @@ export function fillDataInProcessedUserSheet(
     return acc;
   }, {});
 
-  // Get the first row (header) values
+  /// Get the first row (header) values
   const headerRow = userWorkSheet.getRow(1);
-  const headerOfsheetValues = headerRow?.values || [];
+  const headerOfSheetValues = headerRow?.values || [];
+  let emptyColumnIndex = -1;
 
   // Find the index of "#status#" column
-  const statusColumnIndex = headerOfsheetValues.indexOf("#status#");
+  const statusColumnIndex = headerOfSheetValues.indexOf("#status#");
 
   if (statusColumnIndex !== -1) {
-    // Keep only columns before "#status#" and remove everything after (including "#status#")
-    headerRow.values = headerOfsheetValues.slice(0, statusColumnIndex);
+    // Remove everything after and including `#status#` column
+    emptyColumnIndex = statusColumnIndex;
+
+    // Get total columns before deletion
+    const totalColumns = headerRow.cellCount;
+
+    // Loop backward to prevent index shifting while deleting
+    for (let col = totalColumns; col >= statusColumnIndex; col--) {
+      userWorkSheet.spliceColumns(col, 1); // Remove column completely
+    }
   }
 
-  // Commit changes to the worksheet
-  headerRow.commit();
 
   // Find the first empty column in the header
-  let emptyColumnIndex = -1;
-  for (let i = 1; i < headerOfsheetValues.length; i++) {
-    if (!headerOfsheetValues[i]) {
-      emptyColumnIndex = i;
-      break;
+  if (emptyColumnIndex == -1) {
+    for (let i = 1; i < headerOfSheetValues.length; i++) {
+      if (!headerOfSheetValues[i]) {
+        emptyColumnIndex = i;
+        break;
+      }
     }
   }
 
@@ -494,7 +502,7 @@ export function fillDataInProcessedUserSheet(
   ];
 
   // Add new headers and format columns
-  emptyColumnIndex = addHeadersAndFormatForCampaignEmployees(userWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+  addHeadersAndFormatForCampaignEmployees(userWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
 
   // Clear existing data rows while preserving formatting
   const rowCount = userWorkSheet.rowCount;
@@ -549,14 +557,18 @@ function addHeadersAndFormatForCampaignEmployees(
   const columnsToFormat = [
     { columnIndex: emptyColumnIndex, width: 40, color: "CCCC00" },
     { columnIndex: emptyColumnIndex + 1, width: 40, color: "CCCC00" },
-    { columnIndex: emptyColumnIndex + 2, width: 40, color: "FF9248" },
+    { columnIndex: emptyColumnIndex + 2, width: 40, color: "FF9248", hidden: true }, // Hide this column
     { columnIndex: emptyColumnIndex + 3, width: 40, color: "FF9248" },
     { columnIndex: emptyColumnIndex + 4, width: 40, color: "FF9248" },
   ];
 
-  columnsToFormat.forEach(({ columnIndex, width, color }) => {
+  columnsToFormat.forEach(({ columnIndex, width, color, hidden }) => {
     const column = userWorkSheet.getColumn(columnIndex);
     column.width = width;
+
+    if (hidden) {
+      column.hidden = true; // Hide the 3rd column
+    }
 
     const headerCell = headerRow.getCell(columnIndex);
     headerCell.fill = {
@@ -566,8 +578,6 @@ function addHeadersAndFormatForCampaignEmployees(
     };
     headerCell.font = { bold: true };
   });
-
-  return emptyColumnIndex;
 }
 
 export function fillDataInProcessedFacilitySheet(
@@ -586,27 +596,35 @@ export function fillDataInProcessedFacilitySheet(
     return acc;
   }, {});
 
-  // Get the first row (header) values
+  /// Get the first row (header) values
   const headerRow = facilityWorkSheet.getRow(1);
-  const headerOfsheetValues = headerRow?.values || [];
+  const headerOfSheetValues = headerRow?.values || [];
+  let emptyColumnIndex = -1;
 
   // Find the index of "#status#" column
-  const statusColumnIndex = headerOfsheetValues.indexOf("#status#");
+  const statusColumnIndex = headerOfSheetValues.indexOf("#status#");
 
   if (statusColumnIndex !== -1) {
-    // Keep only columns before "#status#" and remove everything after (including "#status#")
-    headerRow.values = headerOfsheetValues.slice(0, statusColumnIndex);
+    // Remove everything after and including `#status#` column
+    emptyColumnIndex = statusColumnIndex;
+
+    // Get total columns before deletion
+    const totalColumns = headerRow.cellCount;
+
+    // Loop backward to prevent index shifting while deleting
+    for (let col = totalColumns; col >= statusColumnIndex; col--) {
+      facilityWorkSheet.spliceColumns(col, 1); // Remove column completely
+    }
   }
 
-  // Commit changes to the worksheet
-  headerRow.commit();
 
   // Find the first empty column in the header
-  let emptyColumnIndex = -1;
-  for (let i = 1; i < headerOfsheetValues.length; i++) {
-    if (!headerOfsheetValues[i]) {
-      emptyColumnIndex = i;
-      break;
+  if (emptyColumnIndex == -1) {
+    for (let i = 1; i < headerOfSheetValues.length; i++) {
+      if (!headerOfSheetValues[i]) {
+        emptyColumnIndex = i;
+        break;
+      }
     }
   }
 
@@ -617,7 +635,7 @@ export function fillDataInProcessedFacilitySheet(
   ];
 
   // Add new headers and format columns
-  emptyColumnIndex = addHeadersAndFormatForCampaignFacilities(facilityWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+  addHeadersAndFormatForCampaignFacilities(facilityWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
 
   // Clear existing data rows while preserving formatting
   const rowCount = facilityWorkSheet.rowCount;
@@ -684,8 +702,6 @@ function addHeadersAndFormatForCampaignFacilities(
     };
     headerCell.font = { bold: true };
   });
-
-  return emptyColumnIndex;
 }
 
 

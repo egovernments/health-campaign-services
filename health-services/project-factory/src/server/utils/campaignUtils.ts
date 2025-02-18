@@ -85,6 +85,7 @@ import {
   getBoundariesFromCampaignSearchResponse,
   hideColumnsOfProcessedFile,
   modifyNewSheetData,
+  processResources,
   unhideColumnsOfProcessedFile,
 } from "./onGoingCampaignUpdateUtils";
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
@@ -2117,6 +2118,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
       await createCampaignFacilities(request?.body);
       await createCampaignMappings(request?.body);
       request.body.CampaignDetails.status = campaignStatuses.inprogress;
+      await processResources(request?.body);
       // await createProjectCampaignResourcData(request);
       await enrichAndPersistProjectCampaignRequest(
         request,
