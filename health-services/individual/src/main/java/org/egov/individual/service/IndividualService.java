@@ -408,8 +408,7 @@ public class IndividualService {
             for (Individual individual : individualList) {
                 try {
                     if (apiOperation.equals(ApiOperation.UPDATE)) {
-                        userIntegrationService.updateUser(Collections.singletonList(individual),
-                                request.getRequestInfo());
+                        userIntegrationService.updateUser(individual, request.getRequestInfo());
                         log.info("successfully updated user for {} ",
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
