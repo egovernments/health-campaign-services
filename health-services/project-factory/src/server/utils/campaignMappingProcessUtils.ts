@@ -199,7 +199,7 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
 
     await Promise.all(
         staffMappingToBeDetached.map(async (staffMap) => {
-            const { projectId, userServiceUuid, campaignMappingId } = staffMap;
+            const { projectId, userServiceUuid, campaignMappingId, mappingCode } = staffMap;
             const projectStaffSearchBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo,
                 ProjectStaff: {
@@ -235,7 +235,7 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
                     campaignMappings: [
                         {
                             id: campaignMappingId,
-                            mappingCode: projectStaffId,
+                            mappingCode: projectStaffId || mappingCode,
                             status: mappingStatus.detached,
                             additionalDetails: {},
                             lastModifiedBy: userUuid,
@@ -423,7 +423,7 @@ async function doFacilityDetaching(
 
     await Promise.all(
         facilitiesMappingToBeDetached.map(async (facilityMap) => {
-            const { projectId, facilityId, campaignMappingId } = facilityMap;
+            const { projectId, facilityId, campaignMappingId, mappingCode } = facilityMap;
             const projectFacilitySearchBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo,
                 ProjectFacility: {
@@ -479,7 +479,7 @@ async function doFacilityDetaching(
                     campaignMappings: [
                         {
                             id: campaignMappingId,
-                            mappingCode: projectFacilityId,
+                            mappingCode: projectFacilityId || mappingCode,
                             status: mappingStatus.detached,
                             additionalDetails: {},
                             lastModifiedBy: userUuid,
