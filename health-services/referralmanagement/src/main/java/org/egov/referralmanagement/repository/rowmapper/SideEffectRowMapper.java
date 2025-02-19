@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.springframework.beans.factory.annotation.Autowired;

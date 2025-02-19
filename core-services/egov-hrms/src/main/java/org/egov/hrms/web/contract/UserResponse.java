@@ -43,6 +43,7 @@ package org.egov.hrms.web.contract;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
 import org.egov.common.contract.response.ResponseInfo;
 
@@ -65,5 +66,9 @@ public class UserResponse {
 	private ResponseInfo responseInfo;
 
 	private List<User> user = new ArrayList<User>();
+
+	@JsonIgnore
+	@Builder.Default
+	private Long totalCount = 0L;
 
 }

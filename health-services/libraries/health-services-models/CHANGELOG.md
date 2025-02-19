@@ -1,5 +1,11 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.25 - 2025-01-03
+- Added BeneficiaryType Enum and update in ProjectType, Target models
+- Added HouseHoldType Enum and added in Household, HouseholdSearch models
+- Added DownsyncCLFHousehold, DownsyncCLFHouseholdResponse, HouseholdMemberMap
+- Updated DownsyncCriteria to include householdId
+
 ## 1.0.21 - 2024-08-07
 - Added UserActionEnum, UserAction Entities, TaskStatus enum
 - Added isCascadingProjectDateUpdate in ProjectRequest model

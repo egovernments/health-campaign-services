@@ -1,16 +1,19 @@
 package digit.service;
 
-import digit.web.models.PlanRequest;
+import digit.web.models.*;
+import digit.web.models.boundary.BoundaryTypeHierarchy;
+import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
+import digit.web.models.boundary.EnrichedBoundary;
+import digit.web.models.boundary.HierarchyRelation;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
+import static digit.config.ServiceConstants.*;
 
 @Component
 public class PlanEnricher {
@@ -50,6 +53,10 @@ public class PlanEnricher {
 
         // Generate id for targets
         body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, "id"));
+
+        // Generate id for additional fields
+        if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields()))
+            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
 
         // Enrich audit details
         body.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
@@ -105,5 +112,175 @@ public class PlanEnricher {
             }
         });
 
+        // Generate uuid for new additionalFields
+        if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields())) {
+            body.getPlan().getAdditionalFields().forEach(additionalFields -> {
+                if(ObjectUtils.isEmpty(additionalFields.getId())) {
+                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
+                }
+            });
+        }
+
+        // Enriching last modified time for update
+        body.getPlan().getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+    }
+
+    /**
+     * Enriches the boundary ancestral path and jurisdiction mapping for the provided boundary code in the plan request.
+     *
+     * @param plan         The plan record whose boundary ancestral path has to be enriched.
+     * @param tenantBoundary boundary relationship from the boundary service for the given boundary code.
+     */
+    public void enrichBoundaryAncestralPath(Plan plan, HierarchyRelation tenantBoundary) {
+        EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
+        Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+
+        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
+        jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+
+        // Iterate through the child boundary until there are no more
+        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+            boundary = boundary.getChildren().get(0);
+            boundaryAncestralPath.append("|").append(boundary.getCode());
+            jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+        }
+
+        // Setting the boundary ancestral path for the provided boundary
+        plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
+
+        // Setting jurisdiction mapping for the provided boundary
+        plan.setJurisdictionMapping(jurisdictionMapping);
+    }
+
+    /**
+     * Helper method to enrich boundary hierarchy mapping.
+     * Creates a mapping of parentBoundaryType to childBoundaryType from the boundaryTypeHierarchy search response.
+     *
+     * @param boundaryTypeHierarchyDef Search response from boundary hierarchy search.
+     * @param boundaryHierarchyMapping boundary hierarchy map to be enriched.
+     * @return returns the highest boundary hierarchy for the given hierarchy type.
+     */
+    private String getBoundaryHierarchyMapping(BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDef, Map<String, String> boundaryHierarchyMapping) {
+        String highestBoundaryHierarchy = null;
+
+        for (BoundaryTypeHierarchy boundaryTypeHierarchy : boundaryTypeHierarchyDef.getBoundaryHierarchy()) {
+            if (ObjectUtils.isEmpty(boundaryTypeHierarchy.getParentBoundaryType()))
+                highestBoundaryHierarchy = boundaryTypeHierarchy.getBoundaryType();
+            else
+                boundaryHierarchyMapping.put(boundaryTypeHierarchy.getParentBoundaryType(), boundaryTypeHierarchy.getBoundaryType());
+        }
+
+        return highestBoundaryHierarchy;
+    }
+
+    /**
+     * Enriches jurisdiction mapping in plan for the given boundary ancestral path.
+     *
+     * @param plan                     plan with boundary ancestral path.
+     * @param boundaryTypeHierarchyDef boundary hierarchy for the given hierarchy type.
+     */
+    public void enrichJurisdictionMapping(Plan plan, BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDef) {
+        Map<String, String> boundaryHierarchyMapping = new HashMap<>();
+
+        // Enriches the boundaryHierarchyMapping and returns the highest boundary hierarchy for the given hierarchy type.
+        String highestBoundaryHierarchy = getBoundaryHierarchyMapping(boundaryTypeHierarchyDef, boundaryHierarchyMapping);
+
+        Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+        String boundaryHierarchy = highestBoundaryHierarchy;
+
+        // Get the list of boundary codes from pipe separated boundaryAncestralPath.
+        List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+
+        // Creates the mapping of boundary hierarchy with the corresponding boundary code.
+        for (String boundary : boundaryCode) {
+            jurisdictionMapping.put(boundaryHierarchy, boundary);
+            boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
+        }
+
+        plan.setJurisdictionMapping(jurisdictionMapping);
+    }
+
+    /**
+     * Enriches jurisdiction mapping for the list of plans for the given boundary ancestral path.
+     *
+     * @param planList                 list of plans with boundary ancestral paths.
+     * @param boundaryTypeHierarchyDef boundary hierarchy for the given hierarchy type.
+     */
+    public void enrichJurisdictionMapping(List<Plan> planList, BoundaryTypeHierarchyDefinition boundaryTypeHierarchyDef) {
+        Map<String, String> boundaryHierarchyMapping = new HashMap<>();
+
+        // Enriches the boundaryHierarchyMapping and returns the highest boundary hierarchy for the given hierarchy type.
+        String highestBoundaryHierarchy = getBoundaryHierarchyMapping(boundaryTypeHierarchyDef, boundaryHierarchyMapping);
+
+        for (Plan plan : planList) {
+
+            Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+            String boundaryHierarchy = highestBoundaryHierarchy;
+
+            // Get the list of boundary codes from pipe separated boundaryAncestralPath.
+            List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+
+            // Creates the mapping of boundary hierarchy with the corresponding boundary code.
+            for (String boundary : boundaryCode) {
+                jurisdictionMapping.put(boundaryHierarchy, boundary);
+                boundaryHierarchy = boundaryHierarchyMapping.get(boundaryHierarchy);
+            }
+
+            plan.setJurisdictionMapping(jurisdictionMapping);
+        }
+    }
+
+    /**
+     * Converts the boundaryAncestral path from a pipe separated string to an array of boundary codes.
+     *
+     * @param boundaryAncestralPath pipe separated boundaryAncestralPath.
+     * @return a list of boundary codes.
+     */
+    private List<String> getBoundaryCodeFromAncestralPath(String boundaryAncestralPath) {
+        if (ObjectUtils.isEmpty(boundaryAncestralPath)) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList(boundaryAncestralPath.split("\\|"));
+    }
+
+    /**
+     * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
+     * This filterMap is populated to search the fields in plan additional detail object.
+     *
+     * @param planSearchRequest the planSearchRequest object whose search criteria need enrichment.
+     */
+    public void enrichSearchRequest(PlanSearchRequest planSearchRequest) {
+        PlanSearchCriteria planSearchCriteria = planSearchRequest.getPlanSearchCriteria();
+
+        // Filter map for filtering plan metadata present in additional details
+        Map<String, Set<String>> filtersMap = new LinkedHashMap<>();
+
+        // Add facility id as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
+            filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityIds());
+        }
+
+        // Add terrain as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getTerrain())) {
+            filtersMap.put(TERRAIN_CONDITION_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getTerrain()));
+        }
+
+        // Add onRoadCondition as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getOnRoadCondition())) {
+            filtersMap.put(ROAD_CONDITION_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getOnRoadCondition()));
+        }
+
+        // Add securityQ1 as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ1())) {
+            filtersMap.put(SECURITY_Q1_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getSecurityQ1()));
+        }
+
+        // Add securityQ2 as a filter if present in search criteria
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getSecurityQ2())) {
+            filtersMap.put(SECURITY_Q2_SEARCH_PARAMETER_KEY, Collections.singleton(planSearchCriteria.getSecurityQ2()));
+        }
+
+        if(!CollectionUtils.isEmpty(filtersMap))
+            planSearchCriteria.setFiltersMap(filtersMap);
     }
 }
