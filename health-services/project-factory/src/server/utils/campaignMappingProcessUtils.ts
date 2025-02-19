@@ -37,7 +37,8 @@ export async function modifyAndPushInKafkaForStaffMapping(campaignMappingsForSta
         projectId: boundaryCodeAndProjectIdMapping?.[mapping?.boundaryCode],
         status: mapping?.status,
         userServiceUuid: mobileNumberAndUserUuidMapping[mapping?.mappingIdentifier],
-        campaignMappingId: mapping?.id
+        campaignMappingId: mapping?.id,
+        mappingCode : mapping?.mappingCode || null
     }))
     await persistForStaffMapping(formatedCampaignMappingsForStaff, campaignNumber, tenantId, userUuid);
 }
@@ -72,7 +73,8 @@ export async function modifyAndPushInKafkaForFacilityMapping(campaignMappingsFor
         projectId: boundaryCodeAndProjectIdMapping?.[mapping?.boundaryCode],
         status: mapping?.status,
         facilityId: facilityNameAndFacilityIdMapping[`N${mapping?.mappingIdentifier}N`],
-        campaignMappingId: mapping?.id
+        campaignMappingId: mapping?.id,
+        mappingCode : mapping?.mappingCode || null
     }))
     await persistForFacilityMapping(formatedCampaignMappingsForFacility, campaignNumber, tenantId, userUuid);
 }
@@ -104,7 +106,8 @@ export async function modifyAndPushInKafkaForResourceMapping(campaignMappingsFor
             formatedArrayForResourceMapping.push({
                 pvarId: mapping?.mappingIdentifier,
                 projectId: boundaryCodeAndProjectIdMapping?.[mapping?.boundaryCode],
-                campaignMappingId : mapping?.id
+                campaignMappingId : mapping?.id,
+                mappingCode : mapping?.mappingCode || null
             })
     }
     await persistForResourceMapping(formatedArrayForResourceMapping, campaignNumber, tenantId, userUuid);
@@ -133,7 +136,7 @@ async function doStaffMapping(
 
     await Promise.all(
         staffMappingToBeMapped.map(async (mapping) => {
-            const { projectId, userServiceUuid, campaignMappingId } = mapping;
+            const { projectId, userServiceUuid, campaignMappingId, mappingCode } = mapping;
             const projectStaffCreateUrl = `${config.host.projectHost}${config.paths.staffCreate}`;
             const projectStaffCreateBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo,
@@ -172,7 +175,7 @@ async function doStaffMapping(
                 campaignMappings: [
                     {
                         id: campaignMappingId,
-                        mappingCode: projectStaffResponse?.ProjectStaff?.id,
+                        mappingCode: projectStaffResponse?.ProjectStaff?.id || mappingCode,
                         status: mappingStatus.mapped,
                         additionalDetails: {},
                         lastModifiedBy: userUuid,
@@ -256,7 +259,7 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
 async function doResourceMapping(resourceMappingArray: any[], tenantId: string, userUuid: string) {
     await Promise.all(
         resourceMappingArray.map(async (resourceMap) => {
-            const { projectId, pvarId, campaignMappingId } = resourceMap;
+            const { projectId, pvarId, campaignMappingId, mappingCode } = resourceMap;
             const projectResourceCreateBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo,
                 ProjectResource:
@@ -302,7 +305,7 @@ async function doResourceMapping(resourceMappingArray: any[], tenantId: string, 
                 campaignMappings: [
                     {
                         id: campaignMappingId,
-                        mappingCode: projectResourceResponse?.ProjectResource?.id,
+                        mappingCode: projectResourceResponse?.ProjectResource?.id || mappingCode,
                         status: mappingStatus.mapped,
                         additionalDetails: {},
                         lastModifiedBy: userUuid,
@@ -335,7 +338,7 @@ async function doFacilityMapping(
 
     await Promise.all(
         facilitiesMappingToBeMapped.map(async (facilityMap) => {
-            const { projectId, facilityId, campaignMappingId } = facilityMap;
+            const { projectId, facilityId, campaignMappingId, mappingCode } = facilityMap;
 
             // Create project facilities
             const projectFacilityCreateUrl =
@@ -376,7 +379,7 @@ async function doFacilityMapping(
                 campaignMappings: [
                     {
                         id: campaignMappingId,
-                        mappingCode: projectFacilityResponse?.ProjectFacility?.id,
+                        mappingCode: projectFacilityResponse?.ProjectFacility?.id || mappingCode,
                         status: mappingStatus.mapped,
                         additionalDetails: {},
                         lastModifiedBy: userUuid,

@@ -442,7 +442,7 @@ export async function updateMappingsFromEmployeeList(employeeList: any[], campai
                 const jurisdictionsArray = jurisdictions?.split(",").map((jurisdiction: string) => jurisdiction.trim());
 
                 // Return an array of mapping strings for each jurisdiction
-                return jurisdictionsArray?.map((jurisdiction: string) => `${employee?.user?.mobileNumber}#${jurisdiction}`);
+                return jurisdictionsArray?.map((jurisdiction: string) => `N${employee?.user?.mobileNumber}#${jurisdiction}N`);
             })
     );
 
@@ -451,7 +451,7 @@ export async function updateMappingsFromEmployeeList(employeeList: any[], campai
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (setOfCombinationOfMobileNumberAndJurisdictionFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
+        if (setOfCombinationOfMobileNumberAndJurisdictionFromSheet.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`) && notMappedStatus.includes(mapping?.status)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeMapped,
@@ -491,7 +491,7 @@ export async function inactivateMappingsForInactiveEmployees(employeeList: any[]
                 const jurisdictionsArray = jurisdictions?.split(",").map((jurisdiction: string) => jurisdiction.trim());
 
                 // Return an array of mapping strings for each jurisdiction
-                return jurisdictionsArray?.map((jurisdiction: string) => `${employee?.user?.mobileNumber}#${jurisdiction}`);
+                return jurisdictionsArray?.map((jurisdiction: string) => `N${employee?.user?.mobileNumber}#${jurisdiction}N`);
             })
     );
 
@@ -499,7 +499,7 @@ export async function inactivateMappingsForInactiveEmployees(employeeList: any[]
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (setOfCombinationOfMobileNumberAndJurisdictionToBeMadeInactiveBecauseOfInactivityOfEmployee.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`)) {
+        if (setOfCombinationOfMobileNumberAndJurisdictionToBeMadeInactiveBecauseOfInactivityOfEmployee.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeDetached,
@@ -534,7 +534,7 @@ export async function removeMappingsForInactiveBoundariesForEmployeeList(employe
                 const jurisdictionsArray = jurisdictions?.split(",").map((jurisdiction: string) => jurisdiction.trim());
 
                 // Return an array of mapping strings for each jurisdiction
-                return jurisdictionsArray?.map((jurisdiction: string) => `${employee?.user?.mobileNumber}#${jurisdiction}`);
+                return jurisdictionsArray?.map((jurisdiction: string) => `N${employee?.user?.mobileNumber}#${jurisdiction}N`);
             })
     );
 
@@ -542,7 +542,7 @@ export async function removeMappingsForInactiveBoundariesForEmployeeList(employe
 
     // Check and prepare campaign mappings to update    
     for (const mapping of campaignMappings) {
-        if (!setOfAllActiveMobileNumbersAndJurisdictionsFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`)) {
+        if (!setOfAllActiveMobileNumbersAndJurisdictionsFromSheet.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeDetached,

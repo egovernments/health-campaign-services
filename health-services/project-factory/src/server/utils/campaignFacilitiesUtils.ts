@@ -418,7 +418,7 @@ async function updateMappingsFromFacilityList(allFacilityList: any[], campaignMa
                 const boundariesArray = boundaries?.split(",").map((boundary: string) => boundary.trim());
 
                 // Return an array of mapping strings for each boundary
-                return boundariesArray?.map((boundary: string) => `${campaignNumber}!#!${facility?.name}#${boundary}`);
+                return boundariesArray?.map((boundary: string) => `N${campaignNumber}!#!${facility?.name}#${boundary}N`);
             })
     );
 
@@ -427,7 +427,7 @@ async function updateMappingsFromFacilityList(allFacilityList: any[], campaignMa
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (setOfCombinationOfFacilityIdentifierAndBoundaryFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
+        if (setOfCombinationOfFacilityIdentifierAndBoundaryFromSheet.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`) && notMappedStatus.includes(mapping?.status)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeMapped,
@@ -467,7 +467,7 @@ async function inactivateMappingsForInactiveFacilities(allFacilityList: any[], c
                 const boundariesArray = boundaries?.split(",").map((boundary: string) => boundary.trim());
 
                 // Return an array of mapping strings for each jurisdiction
-                return boundariesArray?.map((boundary: string) => `${campaignNumber}!#!${facility?.name}#${boundary}`);
+                return boundariesArray?.map((boundary: string) => `N${campaignNumber}!#!${facility?.name}#${boundary}N`);
             })
     );
 
@@ -475,7 +475,7 @@ async function inactivateMappingsForInactiveFacilities(allFacilityList: any[], c
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (setOfCombinationOfFacilityIdentifierAndBoundaryToBeMadeInactiveBecauseOfInactivityOfFacility.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`)) {
+        if (setOfCombinationOfFacilityIdentifierAndBoundaryToBeMadeInactiveBecauseOfInactivityOfFacility.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeDetached,
@@ -510,7 +510,7 @@ export async function removeMappingsForInactiveBoundariesForFacilityList(allFaci
                 const boundariesArray = boundaries?.split(",").map((boundary: string) => boundary.trim());
 
                 // Return an array of mapping strings for each jurisdiction
-                return boundariesArray?.map((boundary: string) => `${campaignNumber}!#!${facility?.name}#${boundary}`);
+                return boundariesArray?.map((boundary: string) => `N${campaignNumber}!#!${facility?.name}#${boundary}N`);
             })
     );
 
@@ -518,7 +518,7 @@ export async function removeMappingsForInactiveBoundariesForFacilityList(allFaci
 
     // Check and prepare campaign mappings to update    
     for (const mapping of campaignMappings) {
-        if (!setOfAllActiveMobileNumbersAndJurisdictionsFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`)) {
+        if (!setOfAllActiveMobileNumbersAndJurisdictionsFromSheet.has(`N${mapping?.mappingIdentifier}#${mapping?.boundaryCode}N`)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeDetached,
