@@ -2,7 +2,7 @@ package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.springframework.jdbc.core.RowMapper;

@@ -25,10 +25,11 @@ public class Resource {
 
     @JsonProperty("resourceType")
     @NotNull
-    @Size(min = 1, max = 256)
+    @Size(min = 2, max = 256)
     private String resourceType = null;
 
     @JsonProperty("estimatedNumber")
+    @NotNull
     private BigDecimal estimatedNumber = null;
 
     @JsonProperty("activityCode")

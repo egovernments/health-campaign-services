@@ -2,7 +2,7 @@ package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.project.Address;
 import org.egov.common.models.project.AddressType;
 import org.egov.common.models.project.Project;

@@ -1,10 +1,5 @@
 All notable changes to this module will be documented in this file.
 
-## 1.1.5 - 2025-01-28
-
-- Added householdType column in household table
-- Upgraded to heath models 1.0.25
-
 ## 1.1.4 - 2024-08-29 
 
 - Added `ExistentEntityValidator` fixes

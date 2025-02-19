@@ -1,7 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.project.ProjectProductVariant;
 import org.egov.common.models.project.ProjectResource;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,7 +1,6 @@
 package org.egov.project.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
@@ -47,9 +46,9 @@ class ProjectStaffServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectStaffFound() throws Exception {
-        when(projectStaffRepository.findWithCount(any(ProjectStaffSearch.class), any(Integer.class),
+        when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
-                .thenReturn(SearchResponse.<ProjectStaff>builder().response(Collections.emptyList()).build());
+                .thenReturn(Collections.emptyList());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
                 .id(Collections.singletonList("ID101")).staffId(Collections.singletonList("some-user-id")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
@@ -76,15 +75,15 @@ class ProjectStaffServiceSearchTest {
     @Test
     @DisplayName("should return project staff if search criteria is matched")
     void shouldReturnProjectStaffIfSearchCriteriaIsMatched() throws Exception {
-        when(projectStaffRepository.findWithCount(any(ProjectStaffSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProjectStaff>builder().response(projectStaffs).build());
+        when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectStaffs);
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
 
-        List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false).getResponse();
+        List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false);
 
         assertEquals(1, projectStaffs.size());
     }
@@ -101,7 +100,7 @@ class ProjectStaffServiceSearchTest {
         when(projectStaffRepository.findById(anyList(), anyBoolean())).thenReturn(projectStaffs);
 
         List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest,
-                10, 0, null, null, true).getResponse();
+                10, 0, null, null, true);
 
         assertEquals(1, projectStaffs.size());
     }

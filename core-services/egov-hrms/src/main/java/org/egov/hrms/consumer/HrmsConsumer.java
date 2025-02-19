@@ -32,17 +32,12 @@ public class HrmsConsumer {
     @Autowired
     private PropertiesManager propertiesManager;
 
-    @KafkaListener(topics = {"${kafka.topics.hrms.updateData}", "${kafka.topics.hrms.email.notification}"})
+    @KafkaListener(topics = {"${kafka.topics.hrms.updateData}"})
     public void listenUpdateEmployeeData(final HashMap<String, Object> record,@Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             EmployeeRequest employeeRequest = mapper.convertValue(record, EmployeeRequest.class);
-
-            if(topic.equals(propertiesManager.getHrmsEmailNotifTopic())) {
-                notificationService.processEmailNotification(employeeRequest);
-            } else {
-                hrmsProducer.push(propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
-                notificationService.sendReactivationNotification(employeeRequest);
-            }
+            hrmsProducer.push(propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
+            notificationService.sendReactivationNotification(employeeRequest);
         } catch (final Exception e) {
 
             log.error("Error while listening to value: " + record + " on topic: " + topic + ": ", e);

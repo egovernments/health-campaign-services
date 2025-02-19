@@ -1,11 +1,11 @@
 package org.egov.individual.repository.rowmapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.individual.Skill;
 import org.springframework.jdbc.core.RowMapper;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class SkillRowMapper implements RowMapper<Skill> {
     @Override

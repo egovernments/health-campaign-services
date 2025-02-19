@@ -16,6 +16,5 @@ public interface PlanConfigurationRepository {
 
     public void update(PlanConfigurationRequest planConfigurationRequest);
 
-    public Integer count(PlanConfigurationSearchCriteria planConfigurationSearchCriteria);
 
 }

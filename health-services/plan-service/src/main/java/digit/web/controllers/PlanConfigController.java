@@ -3,6 +3,7 @@ package digit.web.controllers;
 
 import digit.service.PlanConfigurationService;
 import digit.util.ResponseInfoFactory;
+import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
@@ -44,7 +45,13 @@ public class PlanConfigController {
     @RequestMapping(value = "/config/_create", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
 
-        PlanConfigurationResponse response = planConfigurationService.create(body);
+        PlanConfigurationRequest planConfigurationRequest = planConfigurationService.create(body);
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
+                .planConfiguration(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
+                .responseInfo(responseInfoFactory
+                        .createResponseInfoFromRequestInfo(body.getRequestInfo(), true))
+                .build();
+
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 
     }

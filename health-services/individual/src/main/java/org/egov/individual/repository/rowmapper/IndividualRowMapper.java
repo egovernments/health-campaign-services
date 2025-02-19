@@ -6,8 +6,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
-import org.egov.common.contract.user.enums.UserType;
+import digit.models.coremodels.AuditDetails;
+import digit.models.coremodels.user.enums.UserType;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.individual.BloodGroup;
 import org.egov.common.models.individual.Gender;

@@ -15,7 +15,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 
 @Validated
 @Data
@@ -65,10 +64,12 @@ public class MetricDetail {
 
         @JsonCreator
         public static MetricComparatorEnum fromValue(String text) {
-            return Arrays.stream(MetricComparatorEnum.values())
-                    .filter(b -> String.valueOf(b.symbol).equals(text))
-                    .findFirst()
-                    .orElse(null); // Return null if no matching enum value is found
+            for (MetricComparatorEnum b : MetricComparatorEnum.values()) {
+                if (String.valueOf(b.symbol).equals(text)) {
+                    return b;
+                }
+            }
+            return null;
         }
     }
 

@@ -1,19 +1,19 @@
 package org.egov.common.models.project;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The purpose of this object to define the Project for a geography and period

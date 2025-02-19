@@ -433,12 +433,7 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  try {
-    enrichTemplateMetaData(updatedWorkbook, request);
-  } catch (error) {
-    logger.error('Failed to enrich template metadata:', error);
-    throw new Error('Error while enriching template metadata');
-  }
+  enrichTemplateMetaData(updatedWorkbook, request);
   while (retries--) {
     try {
       // Write the updated workbook to a buffer

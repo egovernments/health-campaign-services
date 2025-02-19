@@ -2,7 +2,7 @@ package org.egov.common.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.contract.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 import lombok.Builder;
 import lombok.Data;
 import org.egov.common.contract.request.RequestInfo;

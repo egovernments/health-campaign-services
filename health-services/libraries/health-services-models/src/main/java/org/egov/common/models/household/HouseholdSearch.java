@@ -37,9 +37,6 @@ public class HouseholdSearch extends EgovOfflineSearchModel {
     @DecimalMax("180")
     private Double longitude = null;
 
-    @JsonProperty("householdType")
-    private String householdType = null;
-
     /*
      * @value unit of measurement in Kilometer
      * */

@@ -222,7 +222,4 @@ public class ProjectConfiguration {
 
     @Value("${project.task.no.resource.validation.status}")
     private List<String> noResourceStatuses;
-
-    @Value("${project.attendance.feature.enabled:true}")
-    private Boolean isAttendanceFeatureEnabled;
 }

@@ -6,13 +6,12 @@ serviceMaps:
       fromTopic: save-household-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO HOUSEHOLD(id, tenantId, clientReferenceId, householdType, numberOfMembers, addressId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO HOUSEHOLD(id, tenantId, clientReferenceId, numberOfMembers, addressId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.clientReferenceId
-            - jsonPath: $.*.householdType
             - jsonPath: $.*.memberCount
             - jsonPath: $.*.address.id
             - jsonPath: $.*.additionalFields

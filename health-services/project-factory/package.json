@@ -1,6 +1,6 @@
 {
   "name": "project-factory",
-  "version": "0.3.1",
+  "version": "0.3.0",
   "main": "src/server/index.ts",
   "author": "Jagankumar <jagan.kumar@egov.org.in>",
   "description": "Backend For Frontend service",
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/egovernments/health-campaign-services.git"
+    "url": "git+https://github.com/egovernments/DIGIT-Frontend.git"
   },
   "dependencies": {
     "ajv-errors": "^3.0.0",

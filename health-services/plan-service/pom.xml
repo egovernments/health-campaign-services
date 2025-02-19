@@ -4,7 +4,7 @@
     <artifactId>plan-service</artifactId>
     <packaging>jar</packaging>
     <name>plan-service</name>
-    <version>1.0.1</version>
+    <version>1.0.0</version>
     <properties>
     <java.version>17</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -88,17 +88,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.egov.services</groupId>
-            <artifactId>services-common</artifactId>
-            <version>2.9.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-text</artifactId>
-            <version>1.10.0</version>
         </dependency>
     </dependencies>
     <repositories>

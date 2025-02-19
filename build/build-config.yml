@@ -178,10 +178,10 @@ config:
   - name: "builds/health-campaign-services/core-services/service-request"
     build:
       - work-dir: "core-services/service-request"
-        image-name: "health-service-request"
+        image-name: "service-request"
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
-        image-name: "health-service-request-db"
+        image-name: "service-request-db"
   - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
     build:
       - work-dir: "health-services/libraries/health-services-models"

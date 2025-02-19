@@ -46,11 +46,8 @@ public class ProjectAddressQueryBuilder {
             "left join project_address addr " +
             "on prj.id = addr.projectId ";;
 
-    /**
-     * Constructs project search query based on conditions
-     * @param isAncestorProjectId if set to true, project id in the projects would be considered as ancestor project id.
-     */
-    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStmtList, boolean isCountQuery) {
+    /* Constructs project search query based on conditions */
+    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStmtList, boolean isCountQuery) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
         StringBuilder queryBuilder = new StringBuilder(query);
@@ -72,16 +69,7 @@ public class ProjectAddressQueryBuilder {
                 }
             }
 
-            /*
-            * If isAncestorProjectId is set to true, Then either id equals to project id or projectHierarchy
-            *  should have id of the project
-             */
-            if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
-                addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");
-                preparedStmtList.add('%' + project.getId() + '%');
-                preparedStmtList.add(project.getId());
-            } else if (StringUtils.isNotBlank(project.getId())) {
+            if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.id =? ");
                 preparedStmtList.add(project.getId());
@@ -103,18 +91,6 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.projectType=? ");
                 preparedStmtList.add(project.getProjectType());
-            }
-
-            if (StringUtils.isNotBlank(project.getReferenceID())) {
-                addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.referenceId =? ");
-                preparedStmtList.add(project.getReferenceID());
-            }
-
-            if (StringUtils.isNotBlank(project.getParent())) {
-                addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.parent =? ");
-                preparedStmtList.add(project.getParent());
             }
 
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
@@ -391,8 +367,8 @@ public class ProjectAddressQueryBuilder {
     }
     
     /* Returns query to get total projects count based on project search params */
-    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStatement) {
-        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, true);
+    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStatement) {
+        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement, true);
         return query;
     }
 

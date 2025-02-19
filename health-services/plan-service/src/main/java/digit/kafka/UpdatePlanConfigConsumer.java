@@ -28,7 +28,6 @@ public class UpdatePlanConfigConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
-            log.info("Update plan config from resource generator.");
             planConfigurationService.update(planConfigurationRequest);
         } catch (Exception exception) {
             log.error("Error in update plan configuration consumer while processing topic {}: {}", topic, consumerRecord, exception);

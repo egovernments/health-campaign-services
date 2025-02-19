@@ -82,10 +82,6 @@ public class HouseholdRepository extends GenericRepository<Household> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
-        // To consider null values present in db as family if family parameter is passed
-        if (searchObject.getHouseholdType() != null && searchObject.getHouseholdType().equalsIgnoreCase("FAMILY")) {
-            query = query.replace("householdType=:householdType", "(householdType!='COMMUNITY' OR householdType IS NULL)");
-        }
 
         if(CollectionUtils.isEmpty(whereFields)) {
             query = query + " where h.tenantId=:tenantId ";
@@ -133,10 +129,6 @@ public class HouseholdRepository extends GenericRepository<Household> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
-        // To consider null values present in db as family if family parameter is passed
-        if (searchObject.getHouseholdType() != null && searchObject.getHouseholdType().equalsIgnoreCase("FAMILY")) {
-            query = query.replace("householdType=:householdType", "(householdType!='COMMUNITY' OR householdType IS NULL)");
-        }
 
         if(CollectionUtils.isEmpty(whereFields)) {
             query = query + " where h.tenantId=:tenantId ";

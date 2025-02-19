@@ -1,7 +1,7 @@
 package org.egov.common.service;
 
-import org.egov.common.contract.user.UserDetailResponse;
-import org.egov.common.contract.user.UserSearchRequest;
+import digit.models.coremodels.UserDetailResponse;
+import digit.models.coremodels.UserSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.http.client.ServiceRequestClient;

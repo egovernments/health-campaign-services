@@ -1,15 +1,11 @@
 package org.egov.individual.service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.jayway.jsonpath.JsonPath;
+import digit.models.coremodels.RequestInfoWrapper;
+import digit.models.coremodels.SMSRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.egov.common.contract.models.RequestInfoWrapper;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.core.SMSRequest;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.individual.Constants;
 import org.egov.individual.config.IndividualProperties;
@@ -18,6 +14,10 @@ import org.egov.individual.repository.ServiceRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.egov.individual.Constants.INDIVIDUAL_CREATE_LOCALIZATION_CODE;
 import static org.egov.individual.Constants.INDIVIDUAL_UPDATE_LOCALIZATION_CODE;

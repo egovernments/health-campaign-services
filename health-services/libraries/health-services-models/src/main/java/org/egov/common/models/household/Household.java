@@ -8,8 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.egov.common.models.core.EgovOfflineModel;
 import org.hibernate.validator.constraints.Range;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -27,15 +27,12 @@ public class Household extends EgovOfflineModel {
 
     @JsonProperty("memberCount")
     @NotNull
-//    @Range(min = 0, max = 1000)
+    @Range(min = 0, max = 1000)
     private Integer memberCount = null;
 
     @JsonProperty("address")
     @Valid
     private Address address = null;
-
-    @JsonProperty("householdType")
-    private HouseHoldType householdType = null;
 
     //TODO remove
     @JsonProperty("isDeleted")

@@ -1,8 +1,10 @@
 package digit.repository.rowmapper;
 
-import digit.util.QueryUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -17,34 +20,28 @@ import java.util.*;
 @Component
 public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
-    private QueryUtil queryUtil;
+    private ObjectMapper objectMapper;
 
-    public PlanRowMapper(QueryUtil queryUtil) {
-        this.queryUtil = queryUtil;
+    public PlanRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public List<Plan> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, Plan> planMap = new LinkedHashMap<>();
         Map<String, Activity> activityMap = new LinkedHashMap<>();
-        Set<String> conditionSet = new HashSet<>();
-        Set<String> resourceSet = new HashSet<>();
-        Set<String> targetSet = new HashSet<>();
-        Set<String> additionalFieldSet = new HashSet<>();
+        Map<String, Condition> conditionMap = new LinkedHashMap<>();
+        Map<String, Resource> resourceMap = new LinkedHashMap<>();
+        Map<String, Target> targetMap = new LinkedHashMap<>();
 
         // Traverse through result set and create plan objects
-        while (rs.next()) {
+        while(rs.next()) {
             String planId = rs.getString("plan_id");
 
             Plan planEntry = planMap.get(planId);
 
-            if (ObjectUtils.isEmpty(planEntry)) {
+            if(ObjectUtils.isEmpty(planEntry)) {
                 planEntry = new Plan();
-                activityMap.clear();
-                conditionSet.clear();
-                resourceSet.clear();
-                targetSet.clear();
-                additionalFieldSet.clear();
 
                 // Prepare audit details
                 AuditDetails auditDetails = AuditDetails.builder()
@@ -54,27 +51,20 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                         .lastModifiedTime(rs.getLong("plan_last_modified_time"))
                         .build();
 
-                String commaSeparatedAssignee = rs.getString("plan_assignee");
-                List<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? Arrays.asList(commaSeparatedAssignee.split(",")) : null;
-
                 // Prepare plan object
                 planEntry.setId(planId);
                 planEntry.setTenantId(rs.getString("plan_tenant_id"));
                 planEntry.setLocality(rs.getString("plan_locality"));
-                planEntry.setCampaignId(rs.getString("plan_campaign_id"));
-                planEntry.setStatus(rs.getString("plan_status"));
-                planEntry.setAssignee(assignee);
+                planEntry.setExecutionPlanId(rs.getString("plan_execution_plan_id"));
                 planEntry.setPlanConfigurationId(rs.getString("plan_plan_configuration_id"));
-                planEntry.setBoundaryAncestralPath(rs.getString("plan_boundary_ancestral_path"));
-                planEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
+                planEntry.setAdditionalDetails(getAdditionalDetail((PGobject) rs.getObject("plan_additional_details")));
                 planEntry.setAuditDetails(auditDetails);
 
             }
 
-            addActivities(rs, planEntry, activityMap, conditionSet);
-            addResources(rs, planEntry, resourceSet);
-            addTargets(rs, planEntry, targetSet);
-            addAdditionalField(rs, planEntry, additionalFieldSet);
+            addActivities(rs, planEntry, activityMap, conditionMap);
+            addResources(rs, planEntry, resourceMap);
+            addTargets(rs, planEntry, targetMap);
             planMap.put(planId, planEntry);
         }
 
@@ -82,14 +72,15 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     }
 
     private void addActivities(ResultSet rs, Plan plan,
-                               Map<String, Activity> activityMap, Set<String> conditionSet) throws SQLException, DataAccessException {
+                               Map<String, Activity> activityMap, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
 
         String activityId = rs.getString("plan_activity_id");
 
-        if (!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
-            addActivityConditions(rs, activityMap.get(activityId), conditionSet);
+        if(!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
+            addActivityConditions(rs, activityMap.get(activityId), conditionMap);
             return;
-        } else if (ObjectUtils.isEmpty(activityId)) {
+        }
+        else if (ObjectUtils.isEmpty(activityId)) {
             // Set activities list to empty if no activity found
             plan.setActivities(new ArrayList<>());
             return;
@@ -112,7 +103,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .dependencies(ObjectUtils.isEmpty(dependencies) ? new ArrayList<>() : Arrays.asList(rs.getString("plan_activity_dependencies").split(",")))
                 .build();
 
-        addActivityConditions(rs, activity, conditionSet);
+        addActivityConditions(rs, activity, conditionMap);
 
         if (CollectionUtils.isEmpty(plan.getActivities())) {
             List<Activity> activityList = new ArrayList<>();
@@ -126,10 +117,10 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
     }
 
-    private void addActivityConditions(ResultSet rs, Activity activity, Set<String> conditionSet) throws SQLException, DataAccessException {
+    private void addActivityConditions(ResultSet rs, Activity activity, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
         String conditionId = rs.getString("plan_activity_condition_id");
 
-        if (ObjectUtils.isEmpty(conditionId) || conditionSet.contains(conditionId)) {
+        if(ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
             List<Condition> conditionList = new ArrayList<>();
             activity.setConditions(conditionList);
             return;
@@ -149,7 +140,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .expression(rs.getString("plan_activity_condition_expression"))
                 .build();
 
-        if (CollectionUtils.isEmpty(activity.getConditions())) {
+        if(CollectionUtils.isEmpty(activity.getConditions())){
             List<Condition> conditionList = new ArrayList<>();
             conditionList.add(condition);
             activity.setConditions(conditionList);
@@ -157,15 +148,15 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             activity.getConditions().add(condition);
         }
 
-        conditionSet.add(condition.getId());
+        conditionMap.put(condition.getId(), condition);
 
     }
 
-    private void addResources(ResultSet rs, Plan planEntry, Set<String> resourceSet) throws SQLException, DataAccessException {
+    private void addResources(ResultSet rs, Plan planEntry, Map<String, Resource> resourceMap) throws SQLException, DataAccessException {
 
         String resourceId = rs.getString("plan_resource_id");
 
-        if (ObjectUtils.isEmpty(resourceId) || resourceSet.contains(resourceId)) {
+        if(ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
             List<Resource> resourceList = new ArrayList<>();
             planEntry.setResources(resourceList);
             return;
@@ -193,14 +184,14 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getResources().add(resource);
         }
 
-        resourceSet.add(resource.getId());
+        resourceMap.put(resource.getId(), resource);
 
     }
 
-    private void addTargets(ResultSet rs, Plan planEntry, Set<String> targetSet) throws SQLException, DataAccessException {
+    private void addTargets(ResultSet rs, Plan planEntry, Map<String, Target> targetMap) throws SQLException, DataAccessException {
         String targetId = rs.getString("plan_target_id");
 
-        if (ObjectUtils.isEmpty(targetId) || targetSet.contains(targetId)) {
+        if(ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
             List<Target> targetList = new ArrayList<>();
             planEntry.setTargets(targetList);
             return;
@@ -234,42 +225,23 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getTargets().add(target);
         }
 
-        targetSet.add(target.getId());
+        targetMap.put(target.getId(), target);
 
     }
 
-    /**
-     * Adds a AdditionalField object to the plan entry based on the result set.
-     *
-     * @param rs                 The ResultSet containing the data.
-     * @param additionalFieldSet A set to keep track of added AdditionalField objects.
-     * @param planEntry          The Plan entry to which the AdditionalField object will be added.
-     * @throws SQLException If an SQL error occurs.
-     */
-    private void addAdditionalField(ResultSet rs, Plan planEntry, Set<String> additionalFieldSet) throws SQLException {
-        String additionalFieldId = rs.getString("plan_additional_field_id");
+    private JsonNode getAdditionalDetail(PGobject pGobject){
+        JsonNode additionalDetail = null;
 
-        if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldSet.contains(additionalFieldId)) {
-            return;
+        try {
+            if(ObjectUtils.isEmpty(pGobject)){
+                additionalDetail = objectMapper.readTree(pGobject.getValue());
+            }
+        }
+        catch (IOException e){
+            throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
         }
 
-        AdditionalField additionalField = new AdditionalField();
-        additionalField.setId(rs.getString("plan_additional_field_id"));
-        additionalField.setKey(rs.getString("plan_additional_field_key"));
-        additionalField.setValue(rs.getBigDecimal("plan_additional_field_value"));
-        additionalField.setShowOnUi(rs.getBoolean("plan_additional_field_show_on_ui"));
-        additionalField.setEditable(rs.getBoolean("plan_additional_field_editable"));
-        additionalField.setOrder(rs.getInt("plan_additional_field_order"));
-
-        if (CollectionUtils.isEmpty(planEntry.getAdditionalFields())) {
-            List<AdditionalField> additionalFields = new ArrayList<>();
-            additionalFields.add(additionalField);
-            planEntry.setAdditionalFields(additionalFields);
-        } else {
-            planEntry.getAdditionalFields().add(additionalField);
-        }
-
-        additionalFieldSet.add(additionalFieldId);
+        return additionalDetail;
     }
 
 }

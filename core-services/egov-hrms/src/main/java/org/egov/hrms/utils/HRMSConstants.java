@@ -30,8 +30,6 @@ public class HRMSConstants {
 	public static final String HRMS_EMP_CREATE_LOCLZN_CODE = "hrms.employee.create.notification";
 	public static final String HRMS_EMP_REACTIVATE_LOCLZN_CODE = "hrms.employee.reactivation.notification";
 	public static final String HRMS_LOCALIZATION_MODULE_CODE = "egov-hrms";
-	public static final String HEALTH_HRMS_LOCALIZATION_MODULE_CODE = "rainmaker-hr";
-	public static final String HEALTH_HRMS_EMAIL_LOCALIZATION_CODE = "HEALTH_HRMS_EMAIL_CODE";
 	public static final String HRMS_LOCALIZATION_ENG_LOCALE_CODE = "en_IN";
 	public static final String HRMS_TENANTBOUNDARY_HIERARCHY_JSONPATH = "$.TenantBoundary[?(@.boundary.code ==\"%s\")].hierarchyType.code";
 	public static final String HRMS_TENANTBOUNDARY_BOUNDARY_TYPE_JSONPATH  ="$.TenantBoundary[?(@.hierarchyType.name==\"%1$s\" && @.boundary.code ==\"%2$s\")]..label";
@@ -41,7 +39,6 @@ public class HRMSConstants {
 	public static final String HRMS_MDMS_CODE_FLITER = "[?(@.active == true)].code";
 
 	public static final String HRMS_USER_SEARCH_CRITERA_UUID = "uuid";
-	public static final String HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS = "userServiceUuids";
 	public static final String HRMS_USER_SEARCH_CRITERA_ROLECODES = "roleCodes";
 	public static final String HRMS_USER_SEARCH_CRITERA_TENANTID = "tenantId";
 	public static final String HRMS_USER_SEARCH_CRITERA_MOBILENO = "mobileNumber";

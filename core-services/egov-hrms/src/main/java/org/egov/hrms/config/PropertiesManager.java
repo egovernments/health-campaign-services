@@ -82,13 +82,7 @@ public class PropertiesManager {
 	
 	@Value("${egov.idgen.path}")
 	public String idGenEndpoint;
-
-	// Email
-	@Value("${kafka.topics.notification.email}")
-	private String emailNotifTopic;
-
-	@Value("${notification.email.enabled}")
-	private Boolean isEmailNotificationEnabled;
+	
 	
 	//Kafka Topics
 	@Value("${kafka.topics.save.service}")
@@ -102,9 +96,7 @@ public class PropertiesManager {
 
 	@Value("${kafka.topics.hrms.updateData}")
 	public String updateTopic;
-
-	@Value("${kafka.topics.hrms.email.notification}")
-	public String hrmsEmailNotifTopic;
+	
 	
 	//Variables
 	@Value("${egov.idgen.ack.name}")
@@ -148,10 +140,4 @@ public class PropertiesManager {
 
 	@Value("${egov.boundary.search.url}")
 	private String boundarySearchUrl;
-
-	@Value("${hrms.email.notification.implementation.partner}")
-	public String emailNotificationImplementationPartner;
-
-	@Value("${hrms.email.notification.website.link}")
-	public String emailNotificationWebsiteLink;
 }

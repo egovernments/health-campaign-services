@@ -56,11 +56,9 @@ public class ServiceDefinitionQueryBuilder {
         }
 
         // Fetch service definitions which have NOT been soft deleted
-        if(!serviceDefinitionSearchRequest.isIncludeDeleted()){
-            addClauseIfRequired(query, preparedStmtList);
-            query.append(" sd.isActive = ? ");
-            preparedStmtList.add(Boolean.TRUE);
-        }
+        addClauseIfRequired(query, preparedStmtList);
+        query.append(" sd.isActive = ? ");
+        preparedStmtList.add(Boolean.TRUE);
 
         // order service definitions based on their createdtime in latest first manner
         query.append(ORDERBY_CREATEDTIME);
