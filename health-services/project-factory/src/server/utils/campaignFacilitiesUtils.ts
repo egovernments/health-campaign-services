@@ -106,7 +106,9 @@ export async function getFacilityListFromCampaignDetails(campaignDetails: any) {
         return acc;
     }, {});
     allFacilitiesFromDataSheet.forEach((facility: any) => {
-        facility.boundaries = facilityNameAndBoundaryCodeMapping[facility.name];
+        const boundariesString = facilityNameAndBoundaryCodeMapping[facility.name] || "";
+        // Split by commas, remove duplicates, and join back
+        facility.boundaries = Array.from(new Set(boundariesString.split(",").map((b:any) => b.trim()))).join(",");
     });
     return allFacilitiesFromDataSheet;
 }

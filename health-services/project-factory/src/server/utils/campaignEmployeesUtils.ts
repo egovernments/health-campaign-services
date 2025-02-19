@@ -102,6 +102,11 @@ export async function getEmployeeListForCampaignDetails(campaignDetails: any) {
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromEmployeeFile, tenantId);
     const dataFromSheet: any = await getDataFromSheetFromNormalCampaign(type, employeeFileId, tenantId, createAndSearch[type], createAndSearch[type]?.parseArrayConfig?.sheetName, localizationMap);
     const allEmployessFromDataSheet = await getAllFormatedDataFromDataSheet(type, dataFromSheet, localizationMap);
+    allEmployessFromDataSheet.forEach((employee: any) => {
+        employee.jurisdictions = Array.from(
+            new Set((employee?.jurisdictions || "").split(",").map((j:any) => j.trim()))
+        ).join(",");
+    })
     return allEmployessFromDataSheet;
 }
 
