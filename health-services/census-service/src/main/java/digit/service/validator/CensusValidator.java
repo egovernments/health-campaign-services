@@ -4,7 +4,7 @@ import digit.config.Configuration;
 import digit.repository.CensusRepository;
 import digit.service.enrichment.CensusEnrichment;
 import digit.util.BoundaryUtil;
-import digit.util.PlanEmployeeAssignmnetUtil;
+import digit.util.PlanEmployeeAssignmentUtil;
 import digit.web.models.*;
 import digit.web.models.boundary.BoundarySearchResponse;
 import digit.web.models.boundary.BoundaryTypeHierarchyResponse;
@@ -28,7 +28,7 @@ public class CensusValidator {
 
     private BoundaryUtil boundaryUtil;
 
-    private PlanEmployeeAssignmnetUtil employeeAssignmnetUtil;
+    private PlanEmployeeAssignmentUtil employeeAssignmentUtil;
 
     private Configuration configs;
 
@@ -36,9 +36,9 @@ public class CensusValidator {
 
     private CensusEnrichment enrichment;
 
-    public CensusValidator(BoundaryUtil boundaryUtil, PlanEmployeeAssignmnetUtil employeeAssignmnetUtil, Configuration configs, CensusRepository repository, CensusEnrichment enrichment) {
+    public CensusValidator(BoundaryUtil boundaryUtil, PlanEmployeeAssignmentUtil employeeAssignmentUtil, Configuration configs, CensusRepository repository, CensusEnrichment enrichment) {
         this.boundaryUtil = boundaryUtil;
-        this.employeeAssignmnetUtil = employeeAssignmnetUtil;
+        this.employeeAssignmentUtil = employeeAssignmentUtil;
         this.configs = configs;
         this.repository = repository;
         this.enrichment = enrichment;
@@ -66,6 +66,13 @@ public class CensusValidator {
         validateAdditionalFields(request);
     }
 
+    /**
+     * Validates if a census record with the same source and boundary code already exists.
+     * If a duplicate record is found, an exception is thrown.
+     *
+     * @param census The Census object to validate for duplicates.
+     * @throws CustomException If a duplicate census record is found.
+     */
     private void validateDuplicateRecords(Census census) {
         List<Census> censusResponseFromSearch = repository.search(CensusSearchCriteria.builder().source(census.getSource()).areaCodes(Collections.singletonList(census.getBoundaryCode())).build());
 
@@ -74,6 +81,13 @@ public class CensusValidator {
         }
     }
 
+    /**
+     * Validates additional fields in a census request to ensure no duplicate keys exist.
+     * Throws an exception if duplicate keys are found.
+     *
+     * @param request The CensusRequest containing additional fields to validate.
+     * @throws CustomException If duplicate keys are found in the additional fields.
+     */
     private void validateAdditionalFields(CensusRequest request) {
         Set<String> additionalFieldKeys = new HashSet<>();
 
@@ -109,19 +123,20 @@ public class CensusValidator {
      * @param request the census request
      */
     private void validatePartnerForCensus(CensusRequest request) {
-
         Census census = request.getCensus();
 
         // Validate the user information in the request
-        if (ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo())) {
-            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
-        }
+        validateUserInfo(request);
 
+        // Check if partner assignment validation is enabled.
         if (census.getPartnerAssignmentValidationEnabled()) {
             User userInfo = request.getRequestInfo().getUserInfo();
-            List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split(PIPE_REGEX));
 
+            // Extract the jurisdiction list from the boundaryAncestralPath.
+            List<String> jurisdiction = Arrays.asList(request.getCensus().getBoundaryAncestralPath().get(0).split(PIPE_REGEX));
             Set<String> roles = new HashSet<>(configs.getAllowedCensusRoles());
+
+            // Validate if the user has workflow access to perform census actions
             validateWorkflowAccess(userInfo, census, roles);
 
             PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
@@ -132,7 +147,7 @@ public class CensusValidator {
                     .jurisdiction(jurisdiction)
                     .build();
 
-            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
+            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
                     .requestInfo(request.getRequestInfo())
                     .planEmployeeAssignmentSearchCriteria(searchCriteria)
                     .build());
@@ -146,6 +161,26 @@ public class CensusValidator {
         }
     }
 
+    /**
+     * Validates user info from census request.
+     *
+     * @param request census request with user info.
+     */
+    private void validateUserInfo(CensusRequest request) {
+        if (ObjectUtils.isEmpty(request.getRequestInfo().getUserInfo())) {
+            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
+        }
+    }
+
+    /**
+     * Validates if a user has the required roles to access and modify workflow-related census data.
+     * If the user has restricted workflow roles but lacks census roles, access is denied.
+     *
+     * @param userInfo The user attempting to access workflow-related census data.
+     * @param census   The Census object containing workflow details.
+     * @param roles    The set of roles to which workflow restrictions may be applied.
+     * @throws CustomException If the user lacks the necessary permissions to access workflow-related census data.
+     */
     private void validateWorkflowAccess(User userInfo, Census census, Set<String> roles) {
         Boolean hasCensusRoles = userInfo.getRoles().stream()
                 .anyMatch(role -> configs.getAllowedCensusRoles().contains(role.getCode()));
@@ -248,7 +283,7 @@ public class CensusValidator {
                 .jurisdiction(jurisdiction)
                 .build();
 
-        PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
+        PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
                 .requestInfo(request.getRequestInfo())
                 .planEmployeeAssignmentSearchCriteria(searchCriteria)
                 .build());

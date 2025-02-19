@@ -6,13 +6,12 @@ import digit.service.enrichment.CensusTimeframeEnrichment;
 import digit.service.validator.CensusValidator;
 import digit.service.workflow.WorkflowService;
 import digit.util.ResponseInfoFactory;
-import digit.web.models.BulkCensusRequest;
-import digit.web.models.CensusRequest;
-import digit.web.models.CensusResponse;
-import digit.web.models.CensusSearchRequest;
+import digit.web.models.*;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class CensusService {
@@ -75,11 +74,21 @@ public class CensusService {
      */
     public CensusResponse search(CensusSearchRequest request) {
 
+        // Delegate search request to repository
+        List<Census> censusList = repository.search(request.getCensusSearchCriteria());
+
+        // Get the total count of census for given search criteria
+        Integer totalCount = repository.count(request.getCensusSearchCriteria());
+
+        // Get the status count of census for given search criteria
+        Map<String, Integer> statusCountMap = repository.statusCount(request);
+
+        // Build and return response back to controller
         return CensusResponse.builder()
                 .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
-                .census(repository.search(request.getCensusSearchCriteria()))
-                .totalCount(repository.count(request.getCensusSearchCriteria()))
-                .statusCount(repository.statusCount(request))
+                .census(censusList)
+                .totalCount(totalCount)
+                .statusCount(statusCountMap)
                 .build();
     }
 
@@ -108,6 +117,13 @@ public class CensusService {
                 .build();
     }
 
+    /**
+     * Handles bulk updates for census records.
+     * Validates the request for data integrity and triggers workflow transition for status and assignee updates
+     *
+     * @param request BulkCensusRequest with records to update.
+     * @return CensusResponse with updated records and response info.
+     */
     public CensusResponse bulkUpdate(BulkCensusRequest request) {
 
         // Validate census bulk update request

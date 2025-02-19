@@ -15,20 +15,20 @@ import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGN
 
 @Slf4j
 @Component
-public class PlanEmployeeAssignmnetUtil {
+public class PlanEmployeeAssignmentUtil {
 
     private RestTemplate restTemplate;
 
     private Configuration config;
 
-    public PlanEmployeeAssignmnetUtil(RestTemplate restTemplate, Configuration configs) {
+    public PlanEmployeeAssignmentUtil(RestTemplate restTemplate, Configuration configs) {
         this.restTemplate = restTemplate;
         this.config = configs;
     }
 
     /**
      * This method fetches plan employee assignment from plan service for provided employeeID.
-     * @param planEmployeeAssignmentSearchRequest request containint the planEmployeeAssignment search criteria
+     * @param planEmployeeAssignmentSearchRequest request containing the planEmployeeAssignment search criteria
      * @return returns planEmployeeAssignment for provided search criteria.
      */
     public PlanEmployeeAssignmentResponse fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest) {
@@ -55,5 +55,20 @@ public class PlanEmployeeAssignmnetUtil {
     private StringBuilder getPlanEmployeeAssignmentUri() {
         StringBuilder uri = new StringBuilder();
         return uri.append(config.getPlanServiceHost()).append(config.getPlanEmployeeAssignmentSearchEndpoint());
+    }
+
+    public PlanEmployeeAssignmentSearchRequest getPlanEmployeeSearchRequest(String tenantId, String planConfigId, List<String> employeeIds, List<String> jurisdiction, List<String> role, RequestInfo requestInfo) {
+
+        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
+                .tenantId(tenantId)
+                .jurisdiction(jurisdiction)
+                .planConfigurationId(planConfigId)
+                .role(role)
+                .employeeId(employeeIds)
+                .build();
+
+        return PlanEmployeeAssignmentSearchRequest.builder()
+                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                .requestInfo(requestInfo).build();
     }
 }

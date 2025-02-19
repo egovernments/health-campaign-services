@@ -3,7 +3,7 @@ package digit.service.workflow;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
-import digit.util.PlanEmployeeAssignmnetUtil;
+import digit.util.PlanEmployeeAssignmentUtil;
 import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
@@ -36,13 +36,13 @@ public class WorkflowService {
 
     private ObjectMapper mapper;
 
-    private PlanEmployeeAssignmnetUtil planEmployeeAssignmnetUtil;
+    private PlanEmployeeAssignmentUtil planEmployeeAssignmentUtil;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, PlanEmployeeAssignmnetUtil planEmployeeAssignmnetUtil) {
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, PlanEmployeeAssignmentUtil planEmployeeAssignmentUtil) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
-        this.planEmployeeAssignmnetUtil = planEmployeeAssignmnetUtil;
+        this.planEmployeeAssignmentUtil = planEmployeeAssignmentUtil;
     }
 
     /**
@@ -133,7 +133,7 @@ public class WorkflowService {
                     .build();
 
             // Enrich user list for process instance
-            enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
+            enrichAssigneesInProcessInstance(processInstance, census.getWorkflow());
 
             // Add entry for bulk transition
             processInstanceList.add(processInstance);
@@ -198,7 +198,7 @@ public class WorkflowService {
         census.setAssignee(assignee);
 
         // Enrich user for process instance
-        enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
+        enrichAssigneesInProcessInstance(processInstance, census.getWorkflow());
 
         return ProcessInstanceRequest.builder()
                 .requestInfo(censusRequest.getRequestInfo())
@@ -212,7 +212,7 @@ public class WorkflowService {
      * @param processInstance The process instance to enrich with assignees.
      * @param workflow        The workflow containing assignees to be added to the process instance.
      */
-    public void enrichAssignesInProcessInstance(ProcessInstance processInstance, Workflow workflow) {
+    public void enrichAssigneesInProcessInstance(ProcessInstance processInstance, Workflow workflow) {
         List<User> userList = CollectionUtils.isEmpty(workflow.getAssignes())
                 ? new LinkedList<>()
                 : workflow.getAssignes().stream()
@@ -255,27 +255,12 @@ public class WorkflowService {
                         .build();
 
         //search for plan-employee assignments for the ancestral hierarchy codes.
-        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
                 .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
                 .requestInfo(requestInfo).build());
 
         // Create a map of jurisdiction to list of employeeIds
-        Map<String, List<String>> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
-                .filter(assignment -> !CollectionUtils.isEmpty(assignment.getJurisdiction()))
-                .flatMap(assignment -> {
-                    String employeeId = assignment.getEmployeeId();
-                    return assignment.getJurisdiction().stream()
-                            .filter(jurisdiction -> Arrays.asList(hierarchiesBoundaryCodes).contains(jurisdiction))
-                            .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
-                })
-                .collect(Collectors.groupingBy(
-                        Map.Entry::getKey, // jurisdiction as the key
-                        LinkedHashMap::new, // Preserve insertion order
-                        Collectors.mapping(
-                                Map.Entry::getValue, // employee IDs as values
-                                Collectors.toList() // Collect employee IDs into a List
-                        )
-                ));
+        Map<String, List<String>> jurisdictionToEmployeeMap = getJurisdictionToEmployeesMap(planEmployeeAssignmentResponse, hierarchiesBoundaryCodes);
 
         List<String> assignee = null; //assignee will remain null in case terminate actions are being taken
 
@@ -293,26 +278,45 @@ public class WorkflowService {
         return assignee;
     }
 
+    private Map<String, List<String>> getJurisdictionToEmployeesMap(PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse, String[] hierarchiesBoundaryCodes) {
+
+        return planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
+                .filter(assignment -> !CollectionUtils.isEmpty(assignment.getJurisdiction()))
+                .flatMap(assignment -> {
+                    String employeeId = assignment.getEmployeeId();
+                    return assignment.getJurisdiction().stream()
+                            .filter(jurisdiction -> Arrays.asList(hierarchiesBoundaryCodes).contains(jurisdiction))
+                            .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
+                })
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey, // jurisdiction as the key
+                        LinkedHashMap::new, // Preserve insertion order
+                        Collectors.mapping(
+                                Map.Entry::getValue, // employee IDs as values
+                                Collectors.toList() // Collect employee IDs into a List
+                        )
+                ));
+    }
     /**
      * Assigns a list of employees from a higher-level jurisdiction in the hierarchy.
      * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
      * If a higher-level boundary has an assigned employee, returns that employee's ID.
      *
-     * @param heirarchysBoundaryCodes   boundary codes representing the hierarchy
+     * @param hierarchyBoundaryCodes    boundary codes representing the hierarchy
      * @param census                    the census object with jurisdiction details
      * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
      * @return the list of employee IDs from the higher boundary, or null if
      */
-    public List<String> assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Census census, Map<String, List<String>> jurisdictionToEmployeeMap) {
-        for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
-            String boundaryCode = heirarchysBoundaryCodes[i];
+    public List<String> assignToHigherBoundaryLevel(String[] hierarchyBoundaryCodes, Census census, Map<String, List<String>> jurisdictionToEmployeeMap) {
+        for (int i = hierarchyBoundaryCodes.length - 1; i >= 0; i--) {
+            String boundaryCode = hierarchyBoundaryCodes[i];
 
             // Check if this boundary code is present in assigneeJurisdiction
             if (census.getAssigneeJurisdiction().contains(boundaryCode)) {
 
                 for (int j = i - 1; j >= 0; j--) {
                     // Check the next higher level in the hierarchy (one index above the match)
-                    String higherBoundaryCode = heirarchysBoundaryCodes[j];
+                    String higherBoundaryCode = hierarchyBoundaryCodes[j];
 
                     // Fetch the employeeId from the map for the higher boundary code
                     List<String> employeeId = jurisdictionToEmployeeMap.get(higherBoundaryCode);
