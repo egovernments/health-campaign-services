@@ -25,6 +25,7 @@ import {
   createAndUploadJsonFile,
   createBoundaryRelationship,
   getSheetData,
+  searchMDMS
 } from "../api/genericApis";
 import { getFormattedStringForDebug, logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
@@ -55,6 +56,7 @@ import {
   processTrackStatuses,
   processTrackTypes,
   resourceDataStatuses,
+  usageColumnStatus,
 } from "../config/constants";
 import { getBoundaryTabName } from "./boundaryUtils";
 import {
@@ -272,7 +274,7 @@ function enrichErrors(
           const activeCell = worksheet.getCell(
             `${createAndSearchConfig.activeColumn}${rowIndex}`
           );
-          activeCell.value = "Active";
+          activeCell.value = usageColumnStatus.active;
         }
       }
     });
@@ -299,8 +301,8 @@ function enrichActiveAndUUidColumn(
       const uniqueIdentifierCell = worksheet.getCell(
         `${createAndSearchConfig?.uniqueIdentifierColumn}${rowNumber}`
       );
-      activeCell.value = "Active";
-      uniqueIdentifierCell.value = data["userServiceUuid"];
+      activeCell.value = usageColumnStatus.active;
+      uniqueIdentifierCell.value = data["userServiceUuid"] || data?.user?.["userServiceUuid"];
     }
   }
 }
@@ -1695,21 +1697,37 @@ function mapBoundariesParent(boundaryResponse: any, request: any, parent: any) {
 function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   if (!boundaryResponses || !codesTargetMapping) return;
 
-  for (const boundaryResponse of boundaryResponses) {
-    const mapBoundary = (boundary: any) => {
-      if (!boundary.children || boundary.children.length === 0) {
-        const targetValue = codesTargetMapping[boundary.code];
-        return targetValue ? targetValue : 0;
-      }
+  // Helper function to map individual boundaries
+  const mapBoundary = (boundary: any) => {
+    if (!boundary.children || boundary.children.length === 0) {
+      // If no children, simply return the target value object or default to empty object
+      const targetValue = codesTargetMapping[boundary.code];
+      return targetValue || {};
+    }
 
-      let totalTargetValue = 0;
-      for (const child of boundary.children) {
-        const childTargetValue = mapBoundary(child);
-        totalTargetValue += childTargetValue;
+    // Initialize a new object to accumulate total target values from children
+    let totalTargetValue: any = {};
+
+    // Iterate through each child and accumulate their target values
+    for (const child of boundary.children) {
+      const childTargetValue = mapBoundary(child);
+
+      // Accumulate the child target values into the total target value
+      for (const key in childTargetValue) {
+        if (childTargetValue.hasOwnProperty(key)) {
+          // Initialize key in totalTargetValue if it doesn't exist
+          totalTargetValue[key] = (totalTargetValue[key] || 0) + childTargetValue[key];
+        }
       }
-      codesTargetMapping[boundary.code] = totalTargetValue;
-      return totalTargetValue;
-    };
+    }
+
+    // Store the accumulated total target value for the current boundary
+    codesTargetMapping[boundary.code] = totalTargetValue;
+    return totalTargetValue;
+  };
+
+  // Map each boundary response
+  for (const boundaryResponse of boundaryResponses) {
     mapBoundary(boundaryResponse);
   }
 }
@@ -2169,13 +2187,14 @@ async function getCodesTarget(request: any, localizationMap?: any) {
       fileResponse?.fileStoreIds?.[0]?.url,
       true,
       true,
-      codeColumnName
+      codeColumnName,
+      localizationMap
     );
     const boundaryTargetMapping: any = {};
     // Iterate through each key in targetData
     for (const key in targetData) {
       // Iterate through each entry in the array under the current key
-      targetData[key].forEach((entry) => {
+      targetData[key].forEach((entry : any) => {
         // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
         if (
           entry[codeColumnName] !== undefined &&
@@ -2185,9 +2204,8 @@ async function getCodesTarget(request: any, localizationMap?: any) {
           boundaryTargetMapping[entry[codeColumnName]] =
             entry["Target at the Selected Boundary level"];
           if (
-            entry["Parent Target at the Selected Boundary level"] !== 0 &&
-            entry["Parent Target at the Selected Boundary level"] !==
-            entry["Target at the Selected Boundary level"]
+            Object.keys(entry["Parent Target at the Selected Boundary level"]).length > 0 &&
+            !_.isEqual(entry["Parent Target at the Selected Boundary level"],entry["Target at the Selected Boundary level"])
           ) {
             boundaryCodesWhoseTargetsHasToBeUpdated.push(entry[codeColumnName]);
           }
@@ -2236,6 +2254,7 @@ async function createProject(
         Projects,
       };
       boundaries = await reorderBoundaries(request, localizationMap);
+      const codesTargetMapping = request?.body?.CampaignDetails?.codesTargetMapping;
       let boundariesAlreadyWithProjects: any;
       if (request?.body?.parentCampaign) {
         // make search to project with parent campaign root project id
@@ -2267,38 +2286,7 @@ async function createProject(
               );
             const projectToUpdate = projectSearchResponse?.Project?.[0];
             if (projectToUpdate) {
-              const filteredTargets = projectToUpdate.targets.filter(
-                (e: any) =>
-                  e.beneficiaryType ==
-                  request?.body?.CampaignDetails?.additionalDetails
-                    ?.beneficiaryType
-              );
-              if (filteredTargets.length == 0) {
-                projectToUpdate.targets = [
-                  {
-                    beneficiaryType:
-                      request?.body?.CampaignDetails?.additionalDetails
-                        ?.beneficiaryType,
-                    totalNo:
-                      request?.body?.CampaignDetails?.codesTargetMapping[
-                      boundary
-                      ],
-                    targetNo:
-                      request?.body?.CampaignDetails?.codesTargetMapping[
-                      boundary
-                      ],
-                  },
-                ];
-              } else {
-                const targetobj = filteredTargets[0];
-                (targetobj.totalNo =
-                  request?.body?.CampaignDetails?.codesTargetMapping[boundary]),
-                  (targetobj.targetNo =
-                    request?.body?.CampaignDetails?.codesTargetMapping[
-                    boundary
-                    ]);
-                projectToUpdate.targets = [targetobj];
-              }
+              enrichTargetForProject(projectToUpdate, codesTargetMapping, boundary);
               const projectUpdateBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Projects: [projectToUpdate],
@@ -2344,21 +2332,7 @@ async function createProject(
 
           // Set the reference ID and project targets
           Projects[0].referenceID = request?.body?.CampaignDetails?.campaignNumber;
-            (Projects[0].targets = [
-              {
-                beneficiaryType:
-                  request?.body?.CampaignDetails?.additionalDetails
-                    ?.beneficiaryType,
-                totalNo:
-                  request?.body?.CampaignDetails?.codesTargetMapping[
-                  boundaryCode
-                  ],
-                targetNo:
-                  request?.body?.CampaignDetails?.codesTargetMapping[
-                  boundaryCode
-                  ],
-              },
-            ]);
+          enrichTargetForProject(Projects[0], codesTargetMapping, boundaryCode);
           await projectCreate(projectCreateBody, request);
         }
       }
@@ -2384,6 +2358,40 @@ async function createProject(
     processTrackStatuses.completed
   );
 }
+
+const enrichTargetForProject = (project: any, codesTargetMapping: any, boundaryCode: any) => {
+  if (codesTargetMapping?.[boundaryCode] && Object.keys(codesTargetMapping[boundaryCode]).length > 0) {
+    let targets: any[] = [];
+    const alreadyPresentTargets = project?.targets || [];
+
+    // Iterate through the mappings and update/create targets
+    for (const beneficiaryType in codesTargetMapping[boundaryCode]) {
+      const targetNo = parseInt(codesTargetMapping[boundaryCode][beneficiaryType], 10); // Ensure numeric conversion
+      updateOrAddTarget(alreadyPresentTargets, beneficiaryType, targetNo, targets);
+    }
+
+    // Update project targets if new/modified targets exist
+    if (targets.length > 0) {
+      project.targets = targets;
+    }
+  } else {
+    logger.info(`No targets found for boundary code ${boundaryCode}`);
+  }
+};
+
+// Helper function to update or add a target
+const updateOrAddTarget = (alreadyPresentTargets: any, beneficiaryType: string, targetNo: number, targets: any[]) => {
+  const existingTarget = alreadyPresentTargets.find((target: any) => target.beneficiaryType === beneficiaryType);
+
+  if (existingTarget) {
+    // Update existing target
+    existingTarget.targetNo = targetNo;
+    targets.push(existingTarget);
+  } else {
+    // Add new target
+    targets.push({ beneficiaryType, targetNo });
+  }
+};
 
 async function processAfterPersist(request: any, actionInUrl: any) {
   try {
@@ -3030,6 +3038,84 @@ async function updateAndPersistResourceDetails(
   );
 }
 
+export async function processDataForTargetCalculation(request: any, jsonData: any, codeColumnName: string, localizationMap?: any) {
+  // Retrieve targetConfigs from MDMS
+  const targetConfigs = await searchMDMS([request?.body?.CampaignDetails?.projectType], "HCM-ADMIN-CONSOLE.targetConfigs", request?.body?.RequestInfo);
+
+  // Process each row of the sheet data
+  const resultantData = jsonData.map((row: any) => {
+
+    // Initialize an object to hold row-specific data
+    let rowData: any = { [codeColumnName]: row[codeColumnName] };
+
+    // Add placeholder fields for Parent Target and Current Target data
+    rowData['Parent Target at the Selected Boundary level'] = {};
+    rowData['Target at the Selected Boundary level'] = {};
+    const beneficiaries = targetConfigs?.mdms?.[0]?.data?.beneficiaries;
+    // Calculate the parent target values
+    calculateTargetsAtParentLevel(request, row, rowData, beneficiaries, localizationMap);
+    // Calculate the current target values
+    calculateTargetsAtCurrentLevel(row, rowData, beneficiaries, localizationMap);
+
+    // Return the processed row data
+    return rowData;
+  }).filter(Boolean); // Remove any null entries from the map (i.e., skip the header row)
+
+  return resultantData;
+}
+
+export function calculateTargetsAtParentLevel(request: any, row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
+  // Check if a parent campaign exists in the request body
+  if (request?.body?.parentCampaign) {
+    // Loop through the beneficiaries for the specified campaign type
+    if (Array.isArray(beneficiaries) && beneficiaries?.length > 0) {
+      for (const beneficiary of beneficiaries) {
+        const beneficiaryType = beneficiary?.beneficiaryType;
+        const columns = beneficiary?.columns;
+        let totalParentValue = 0;
+
+        // Loop through each column to calculate the total parent value
+        for (const col of columns) {
+          // Get the parent value from the column and add it if it's an integer
+          const parentValue = row[`${getLocalizedName(col, localizationMap)}(OLD)`];
+          if (typeof parentValue === 'number' && Number.isInteger(parentValue)) {
+            totalParentValue += parentValue;
+          }
+        }
+        // Assign the total parent value to the corresponding beneficiary type
+        rowData['Parent Target at the Selected Boundary level'][beneficiaryType] = totalParentValue;
+      }
+    }
+    else {
+      logger.warn("No beneficiaries config found for the specified campaign type");
+    }
+  }
+}
+
+export function calculateTargetsAtCurrentLevel(row: any, rowData: any, beneficiaries: any, localizationMap?: any) {
+  // Loop through the beneficiaries again to calculate the current target values
+  if (Array.isArray(beneficiaries) && beneficiaries?.length > 0) {
+    for (const beneficiary of beneficiaries) {
+      const beneficiaryType = beneficiary?.beneficiaryType;
+      const columns = beneficiary?.columns;
+      let totalCurrentValue = 0;
+
+      // Loop through each column to calculate the total current value
+      for (const col of columns) {
+        const currentValue = row[getLocalizedName(col, localizationMap)];
+        if (typeof currentValue === 'number' && Number.isInteger(currentValue)) {
+          totalCurrentValue += currentValue;
+        }
+      }
+      // Assign the total current value to the corresponding beneficiary type
+      rowData['Target at the Selected Boundary level'][beneficiaryType] = totalCurrentValue;
+    }
+  }
+  else {
+    logger.warn("No beneficiaries config found for the specified campaign type");
+  }
+}
+
 async function getResourceDetails(request: any) {
   const { tenantId, type, hierarchyType } =
     request?.body?.ResourceDetails || request?.query;
@@ -3170,7 +3256,7 @@ const autoGenerateBoundaryCodes = async (
     latLongData = result.latLongData;
     boundaryData = result.updatedData;
   }
-  const updatedBoundaryData = updateBoundaryData(boundaryData, hierarchy);
+  const updatedBoundaryData = updateBoundaryData(boundaryData, localizedHeadersOfBoundarySheet);
   const modifiedBoundaryData = modifyBoundaryDataHeaders(
     updatedBoundaryData,
     hierarchy,
@@ -3251,6 +3337,14 @@ const autoGenerateBoundaryCodes = async (
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   const map: Map<string, string> = new Map();
   const count: Map<string, number> = new Map();
+  
+  boundaryData = boundaryData.map(row =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) =>
+        [key, typeof value === "string" ? value.trim() : value]
+      )
+    )
+  );
 
   boundaryData.forEach((row) => {
     const keys = Object.keys(row).filter((key) => hierarchy.includes(key));
@@ -3644,7 +3738,7 @@ function createIdRequests(employees: any[]): any[] {
     return Array.from({ length: employees.length }, () => ({
       tenantId: tenantId,
       idName: config?.values?.idgen?.idNameForUserNameGeneration,
-      idFormat: config?.values?.idgen?.formatForUserName,
+      format: config?.values?.idgen?.formatForUserName,
     }));
   } else {
     return [];
@@ -3756,6 +3850,16 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   } else {
     throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", "Error in campaign search");
   }
+}
+
+export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentMapping : any = {}) {
+   for(const boundary of boundaries) {
+     currentMapping[boundary.code] = boundary.boundaryType;
+     if(boundary.children?.length > 0) {
+       getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
+     }
+   }
+   return currentMapping;
 }
 
 export {
