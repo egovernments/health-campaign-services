@@ -11,6 +11,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
@@ -70,7 +71,7 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
             // Create a search object for querying existing entities
             IndividualSearch individualSearch = IndividualSearch.builder()
                     .id(idList)
-                    .clientReferenceId(clientReferenceIdList)
+                    .clientReferenceId(CollectionUtils.isEmpty(clientReferenceIdList) ? null : clientReferenceIdList)
                     .build();
 
             List<Individual> existingIndividuals;
