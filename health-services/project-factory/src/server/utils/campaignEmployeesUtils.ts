@@ -453,7 +453,7 @@ export async function updateMappingsFromEmployeeList(employeeList: any[], campai
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (!setOfCombinationOfMobileNumberAndJurisdictionFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
+        if (setOfCombinationOfMobileNumberAndJurisdictionFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeMapped,

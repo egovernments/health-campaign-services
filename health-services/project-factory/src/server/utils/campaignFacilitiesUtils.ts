@@ -431,7 +431,7 @@ async function updateMappingsFromFacilityList(allFacilityList: any[], campaignMa
 
     // Check and prepare campaign mappings to update
     for (const mapping of campaignMappings) {
-        if (!setOfCombinationOfFacilityIdentifierAndBoundaryFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
+        if (setOfCombinationOfFacilityIdentifierAndBoundaryFromSheet.has(`${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`) && notMappedStatus.includes(mapping?.status)) {
             const updatedMapping = {
                 ...mapping,
                 status: mappingStatus.toBeMapped,
