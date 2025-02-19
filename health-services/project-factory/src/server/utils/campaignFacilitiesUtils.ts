@@ -364,11 +364,7 @@ export async function persistForActiveBoundariesFromFacilityList(
 export async function persistNewMappingsFromFacilityList(allFacilityList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
     const currentTime = new Date().getTime();
     const activeFacilityList = allFacilityList.filter((facility: any) => facility?.["!isActive!"] == usageColumnStatus.active);
-    const setOfCombinationOfFacilityIdentifierAndBoundary = new Set(
-        campaignMappings
-            .filter((mapping: any) => mapping?.status === mappingStatus.mapped || mapping?.status === mappingStatus.toBeMapped)
-            .map((mapping: any) => `${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`)
-    );
+    const setOfCombinationOfFacilityIdentifierAndBoundary = new Set(campaignMappings.map((mapping: any) => `${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`));
 
     const campaignMappingsToBePersisted = activeFacilityList.flatMap((facility: any) => {
         const boundaries = facility?.boundaries;
