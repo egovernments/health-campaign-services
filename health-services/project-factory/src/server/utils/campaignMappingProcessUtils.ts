@@ -426,7 +426,7 @@ async function doFacilityDetaching(
             const projectFacilityId = projectFacilitySearchResponse?.ProjectFacilities?.[0]?.id;
 
             if (projectFacilityId) {
-                const projectFacilityDeleteUrl = `${config.host.projectHost}${config.paths.projectFacilityDelete}/${projectFacilityId}`;
+                const projectFacilityDeleteUrl = `${config.host.projectHost}${config.paths.projectFacilityDelete}`;
                 const projectFacilityDeleteBody = {
                     RequestInfo: defaultRequestInfo?.RequestInfo,
                     ProjectFacility: projectFacilitySearchResponse?.ProjectFacilities?.[0]
