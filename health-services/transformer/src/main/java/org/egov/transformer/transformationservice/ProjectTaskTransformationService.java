@@ -162,9 +162,9 @@ public class ProjectTaskTransformationService {
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
         }
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
-        if (taskResource.g != null) {
+        if (taskResource.getAdditionalFields() != null) {
             addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
-//            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
         }
         if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
