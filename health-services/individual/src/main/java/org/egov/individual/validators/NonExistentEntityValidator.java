@@ -71,7 +71,6 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
             // Create a search object for querying existing entities
             IndividualSearch individualSearch = IndividualSearch.builder()
                     .id(idList)
-                    .clientReferenceId(CollectionUtils.isEmpty(clientReferenceIdList) ? null : clientReferenceIdList)
                     .build();
 
             List<Individual> existingIndividuals;
