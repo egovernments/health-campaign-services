@@ -1579,7 +1579,7 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
         isActiveRowsZero = false;
     }
     if (isActiveRowsZero) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "At least one active row is required");
+        throwError("COMMON", 400, "VALIDATION_ERROR_ACTIVE_ROW");
     }
 }
 

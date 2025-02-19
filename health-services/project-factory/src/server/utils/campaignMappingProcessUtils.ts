@@ -205,12 +205,13 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
                     tenantId: tenantId
                 }
             };
-
+            const params = { limit: 1, offset: 0, tenantId: tenantId };
             const searchUrl = `${config.host.projectHost}${config.paths.projectStaffSearch}`;
 
             const projectStaffSearchResponse = await httpRequest(
                 searchUrl,
-                projectStaffSearchBody
+                projectStaffSearchBody,
+                params
             );
 
             const projectStaffId = projectStaffSearchResponse?.ProjectStaff?.[0]?.id;
@@ -412,12 +413,14 @@ async function doFacilityDetaching(
                     tenantId: tenantId
                 }
             };
+            const params = { limit : 1, offset : 0 , tenantId: tenantId };
 
             const searchUrl = `${config.host.projectHost}${config.paths.projectFacilitySearch}`;
 
             const projectFacilitySearchResponse = await httpRequest(
                 searchUrl,
-                projectFacilitySearchBody
+                projectFacilitySearchBody,
+                params
             );
 
             const projectFacilityId = projectFacilitySearchResponse?.ProjectFacilities?.[0]?.id;
@@ -537,17 +540,23 @@ async function checkIfEveryMappingMapped(campaignNumber: string): Promise<boolea
     const query = `
         SELECT 
             (COUNT(*) FILTER (WHERE status = $2) = 0) AS no_to_be_mapped,
-            (COUNT(*) FILTER (WHERE status = $3 AND (mappingcode IS NULL OR mappingcode = '')) = 0) AS all_mapped_have_mappingcode
+            (COUNT(*) FILTER (WHERE status = $3 AND (mappingcode IS NULL OR mappingcode = '')) = 0) AS all_mapped_have_mappingcode,
+            (COUNT(*) FILTER (WHERE status = $4) = 0) AS no_to_be_detached
         FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPINGS_TABLE_NAME}
         WHERE campaignnumber = $1;
     `;
 
     try {
-        const result = await executeQuery(query, [campaignNumber, mappingStatus.toBeMapped, mappingStatus.mapped]);
+        const result = await executeQuery(query, [
+            campaignNumber,
+            mappingStatus.toBeMapped,
+            mappingStatus.mapped,
+            mappingStatus.toBeDetached
+        ]);
 
         if (result.rows.length > 0) {
-            const { no_to_be_mapped, all_mapped_have_mappingcode } = result.rows[0];
-            return no_to_be_mapped && all_mapped_have_mappingcode;
+            const { no_to_be_mapped, all_mapped_have_mappingcode, no_to_be_detached } = result.rows[0];
+            return no_to_be_mapped && all_mapped_have_mappingcode && no_to_be_detached;
         }
 
         return false; // If no records exist for the campaign, return false
