@@ -385,7 +385,9 @@ export async function persistForActiveBoundariesFromEmployeeList(employeeList: a
 export async function persistNewMappingsFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
     const currentTime = new Date().getTime();
     const activeEmployeeList = employeeList.filter((employee: any) => employee?.["!isActive!"] == usageColumnStatus.active);
-    const setOfCombinationOfMobileNumberAndJurisdiction = new Set(campaignMappings.map((mapping: any) => `${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`));
+    const setOfCombinationOfMobileNumberAndJurisdiction = new Set(campaignMappings
+        .filter((mapping: any) => mapping?.status === mappingStatus.mapped || mapping?.status === mappingStatus.toBeMapped)
+        .map((mapping: any) => `${mapping?.mappingIdentifier}#${mapping?.boundaryCode}`));
 
     const campaignMappingsToBePersisted = activeEmployeeList.flatMap((employee: any) => {
         const jurisdictions = employee?.jurisdictions;
