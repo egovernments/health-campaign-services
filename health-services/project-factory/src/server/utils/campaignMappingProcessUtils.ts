@@ -250,6 +250,22 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
                 );
             } else {
                 logger.warn(`Project Staff not found for detaching for userServiceUuid ${userServiceUuid} and projectId ${projectId}`);
+                const produceMessage: any = {
+                    campaignMappings: [
+                        {
+                            id: campaignMappingId,
+                            mappingCode: null,
+                            status: mappingStatus.detached,
+                            additionalDetails: {},
+                            lastModifiedBy: userUuid,
+                            lastModifiedTime: Date.now()
+                        }
+                    ]
+                };
+                await produceModifiedMessages(
+                    produceMessage,
+                    config.kafka.KAFKA_UPDATE_CAMPAIGN_MAPPINGS_TOPIC
+                );
             }
         })
     );
@@ -459,6 +475,23 @@ async function doFacilityDetaching(
                 );
             } else {
                 logger.warn(`Project Facility not found for detaching for facilityId ${facilityId} and projectId ${projectId}`);
+                const produceMessage: any = {
+                    campaignMappings: [
+                        {
+                            id: campaignMappingId,
+                            mappingCode: projectFacilityId,
+                            status: mappingStatus.detached,
+                            additionalDetails: {},
+                            lastModifiedBy: userUuid,
+                            lastModifiedTime: Date.now()
+                        }
+                    ]
+                };
+
+                await produceModifiedMessages(
+                    produceMessage,
+                    config.kafka.KAFKA_UPDATE_CAMPAIGN_MAPPINGS_TOPIC
+                );
             }
         })
     );
