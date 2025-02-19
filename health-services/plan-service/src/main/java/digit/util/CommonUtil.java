@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -304,4 +305,17 @@ public class CommonUtil {
         return Arrays.asList(boundaryAncestralPath.split(PIPE_REGEX));
     }
 
+    /**
+     * Finds the unique elements in the primary list that are not present in the secondary list.
+     * This can be used to determine newly added or missing elements between two lists.
+     *
+     * @param primaryList The main list containing elements to be checked.
+     * @param secondaryList The reference list to compare against.
+     * @return A set containing elements that are in primaryList but not in secondaryList.
+     */
+    public Set<String> getUniqueElements(List<String> primaryList, List<String> secondaryList) {
+        return primaryList.stream()
+                .filter(element -> !secondaryList.contains(element))
+                .collect(Collectors.toSet());
+    }
 }

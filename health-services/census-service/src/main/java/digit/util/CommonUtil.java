@@ -17,6 +17,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -96,21 +97,18 @@ public class CommonUtil {
      * Creates the census search request for the provided details.
      * @param tenantId
      * @param planConfigId
-     * @param serviceBoundary
+     * @param boundariesToBeSearched
+     * @param requestInfo
      * @return
      */
-    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary, List<String> initiallySetServiceBoundaries, RequestInfo requestInfo) {
-        Set<String> areaCodesForSearch = new HashSet<>();
-
-        areaCodesForSearch.addAll(Arrays.asList(serviceBoundary.split(",")));
-        areaCodesForSearch.addAll(initiallySetServiceBoundaries);
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, Set<String> boundariesToBeSearched, RequestInfo requestInfo) {
 
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
-                .areaCodes(areaCodesForSearch.stream().toList())
+                .areaCodes(boundariesToBeSearched.stream().toList())
                 .offset(0)
-                .limit(areaCodesForSearch.size())
+                .limit(boundariesToBeSearched.size())
                 .build();
 
         return CensusSearchRequest.builder().requestInfo(requestInfo).censusSearchCriteria(searchCriteria).build();
@@ -147,5 +145,19 @@ public class CommonUtil {
         }
 
         return pGobject;
+    }
+
+    /**
+     * Finds the unique elements in the primary list that are not present in the secondary list.
+     * This can be used to determine newly added or missing elements between two lists.
+     *
+     * @param primaryList The main list containing elements to be checked.
+     * @param secondaryList The reference list to compare against.
+     * @return A set containing elements that are in primaryList but not in secondaryList.
+     */
+    public Set<String> getUniqueElements(List<String> primaryList, List<String> secondaryList) {
+        return primaryList.stream()
+                .filter(element -> !secondaryList.contains(element))
+                .collect(Collectors.toSet());
     }
 }
