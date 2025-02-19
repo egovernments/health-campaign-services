@@ -673,6 +673,7 @@ public class ExcelParser implements FileParser {
 						? (boolean) mapOfAttributes.get(ServiceConstants.ATTRIBUTE_IS_REQUIRED)
 						: false);
 				if (cell != null) {
+					log.debug("CELL TYPE - " + String.valueOf(cell.getCellType()));
 					switch (cell.getCellType()) {
 					case STRING:
 						String cellValue = cell.getStringCellValue();
@@ -693,6 +694,7 @@ public class ExcelParser implements FileParser {
 							throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 									ServiceConstants.INPUT_IS_NOT_VALID + row.getRowNum() + " and cell " + columnName);
 						}
+						continue;
 					case NUMERIC:
 						String numricValue = Double.toString(cell.getNumericCellValue());
 						// "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$"
