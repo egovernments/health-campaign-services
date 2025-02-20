@@ -246,18 +246,11 @@ public class WorkflowService {
         String[] allHierarchiesBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
         String[] hierarchiesBoundaryCodes = Arrays.copyOf(allHierarchiesBoundaryCodes, allHierarchiesBoundaryCodes.length - 1);
 
-        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
-                PlanEmployeeAssignmentSearchCriteria.builder()
-                        .tenantId(census.getTenantId())
-                        .jurisdiction(Arrays.stream(hierarchiesBoundaryCodes).toList())
-                        .planConfigurationId(census.getSource())
-                        .role(config.getAllowedCensusRoles())
-                        .build();
+        PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = planEmployeeAssignmentUtil.getPlanEmployeeSearchRequest(census,
+                new ArrayList<>(), Arrays.stream(hierarchiesBoundaryCodes).toList(), config.getAllowedCensusRoles(), requestInfo);
 
         //search for plan-employee assignments for the ancestral hierarchy codes.
-        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
-                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
-                .requestInfo(requestInfo).build());
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 
         // Create a map of jurisdiction to list of employeeIds
         Map<String, List<String>> jurisdictionToEmployeeMap = getJurisdictionToEmployeesMap(planEmployeeAssignmentResponse, hierarchiesBoundaryCodes);

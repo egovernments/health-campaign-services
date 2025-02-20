@@ -1,6 +1,7 @@
 package digit.util;
 
 import digit.config.Configuration;
+import digit.web.models.Census;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
@@ -57,12 +58,13 @@ public class PlanEmployeeAssignmentUtil {
         return uri.append(config.getPlanServiceHost()).append(config.getPlanEmployeeAssignmentSearchEndpoint());
     }
 
-    public PlanEmployeeAssignmentSearchRequest getPlanEmployeeSearchRequest(String tenantId, String planConfigId, List<String> employeeIds, List<String> jurisdiction, List<String> role, RequestInfo requestInfo) {
+    public PlanEmployeeAssignmentSearchRequest getPlanEmployeeSearchRequest(Census census, List<String> employeeIds,
+                                                         List<String> jurisdiction, List<String> role, RequestInfo requestInfo) {
 
         PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .tenantId(tenantId)
+                .tenantId(census.getTenantId())
                 .jurisdiction(jurisdiction)
-                .planConfigurationId(planConfigId)
+                .planConfigurationId(census.getSource())
                 .role(role)
                 .employeeId(employeeIds)
                 .build();

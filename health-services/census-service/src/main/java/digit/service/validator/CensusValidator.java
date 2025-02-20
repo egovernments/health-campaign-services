@@ -139,18 +139,10 @@ public class CensusValidator {
             // Validate if the user has workflow access to perform census actions
             validateWorkflowAccess(userInfo, census, roles);
 
-            PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                    .employeeId(Collections.singletonList(userInfo.getUuid()))
-                    .planConfigurationId(request.getCensus().getSource())
-                    .tenantId(request.getCensus().getTenantId())
-                    .role(roles.stream().toList())
-                    .jurisdiction(jurisdiction)
-                    .build();
+            PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = employeeAssignmentUtil.getPlanEmployeeSearchRequest(census,
+                    Collections.singletonList(userInfo.getUuid()), jurisdiction, roles.stream().toList(), request.getRequestInfo());
 
-            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
-                    .requestInfo(request.getRequestInfo())
-                    .planEmployeeAssignmentSearchCriteria(searchCriteria)
-                    .build());
+            PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 
             if (CollectionUtils.isEmpty(employeeAssignmentResponse.getPlanEmployeeAssignment())) {
                 throw new CustomException(INVALID_PARTNER_CODE, INVALID_PARTNER_MESSAGE);
@@ -274,19 +266,13 @@ public class CensusValidator {
         }
 
         List<String> jurisdiction = Arrays.asList(request.getCensus().get(0).getBoundaryAncestralPath().get(0).split(PIPE_REGEX));
+        List<String> employeeIds = Collections.singletonList(request.getRequestInfo().getUserInfo().getUuid());
 
-        PlanEmployeeAssignmentSearchCriteria searchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
-                .employeeId(Collections.singletonList(request.getRequestInfo().getUserInfo().getUuid()))
-                .planConfigurationId(request.getCensus().get(0).getSource())
-                .tenantId(request.getCensus().get(0).getTenantId())
-                .role(configs.getAllowedCensusRoles())
-                .jurisdiction(jurisdiction)
-                .build();
+        // Get plan employee assignment search request
+        PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = employeeAssignmentUtil.getPlanEmployeeSearchRequest(request.getCensus().get(0),
+                employeeIds, jurisdiction, configs.getAllowedCensusRoles(), request.getRequestInfo());
 
-        PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
-                .requestInfo(request.getRequestInfo())
-                .planEmployeeAssignmentSearchCriteria(searchCriteria)
-                .build());
+        PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 
         if (CollectionUtils.isEmpty(employeeAssignmentResponse.getPlanEmployeeAssignment())) {
             throw new CustomException(INVALID_PARTNER_CODE, INVALID_PARTNER_MESSAGE);
