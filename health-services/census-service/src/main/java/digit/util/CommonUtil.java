@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -93,26 +94,20 @@ public class CommonUtil {
 
     /**
      * Creates the census search request for the provided details.
-     *
-     * @param tenantId                      The tenant ID for the census search.
-     * @param planConfigId                  The plan configuration ID associated with the census search.
-     * @param serviceBoundary               The service boundary string that needs to be searched.
-     * @param initiallySetServiceBoundaries A list of initially set service boundaries for the search.
-     * @param requestInfo                   The request information that needs to be passed in the search request.
-     * @return A CensusSearchRequest object containing the search criteria.
+     * @param tenantId
+     * @param planConfigId
+     * @param boundariesToBeSearched
+     * @param requestInfo
+     * @return
      */
-    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary, List<String> initiallySetServiceBoundaries, RequestInfo requestInfo) {
-        Set<String> areaCodesForSearch = new HashSet<>();
-
-        areaCodesForSearch.addAll(Arrays.asList(serviceBoundary.split(COMMA_DELIMITER)));
-        areaCodesForSearch.addAll(initiallySetServiceBoundaries);
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, Set<String> boundariesToBeSearched, RequestInfo requestInfo) {
 
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
-                .areaCodes(areaCodesForSearch.stream().toList())
+                .areaCodes(boundariesToBeSearched.stream().toList())
                 .offset(0)
-                .limit(areaCodesForSearch.size())
+                .limit(boundariesToBeSearched.size())
                 .build();
 
         return CensusSearchRequest.builder().requestInfo(requestInfo).censusSearchCriteria(searchCriteria).build();
@@ -155,5 +150,19 @@ public class CommonUtil {
         }
 
         return pGobject;
+    }
+
+    /**
+     * Finds the unique elements in the primary list that are not present in the secondary list.
+     * This can be used to determine newly added or missing elements between two lists.
+     *
+     * @param primaryList The main list containing elements to be checked.
+     * @param secondaryList The reference list to compare against.
+     * @return A set containing elements that are in primaryList but not in secondaryList.
+     */
+    public Set<String> getUniqueElements(List<String> primaryList, List<String> secondaryList) {
+        return primaryList.stream()
+                .filter(element -> !secondaryList.contains(element))
+                .collect(Collectors.toSet());
     }
 }

@@ -77,7 +77,7 @@ public class CensusRepositoryImpl implements CensusRepository {
 
         // Return empty list back as response if no census ids are found
         if(CollectionUtils.isEmpty(censusIds)) {
-            log.debug(NO_CENSUS_IDS_FOUND);
+            log.debug(NO_CENSUS_IDS_FOUND_ERROR);
             return new ArrayList<>();
         }
 

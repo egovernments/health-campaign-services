@@ -6,6 +6,8 @@ import config from "../config";
 import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
+import { getLocaleFromRequestInfo } from "./localisationUtils";
+import { usageColumnStatus } from "../config/constants";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -59,6 +61,74 @@ const getExcelWorkbookFromFileURL = async (
   // Return the workbook
   return workbook;
 };
+
+
+export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLocale: string, expectedCampaignId: string, action: string) {
+  if (!fileUrl) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
+  }
+  else if(action === "validate"){
+    const workbook = await getExcelWorkbookFromFileURL(fileUrl);
+    if (!workbook) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no workbook was found.");
+    }
+    else {
+      validateFileMetadata(workbook, expectedLocale, expectedCampaignId);
+    }
+  }
+}
+
+export const validateFileMetadata = (workbook: any, expectedLocale: string, expectedCampaignId: string) => {
+  // Retrieve and validate keywords from the workbook's custom properties
+  const keywords = workbook?.keywords;
+  if (!keywords || !keywords.includes("#")) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  const [templateLocale, templateCampaignId] = keywords.split("#");
+
+  // Ensure there are exactly two parts in the metadata
+  if (!templateLocale || !templateCampaignId) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have valid campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  // Validate locale if provided
+  if (templateLocale !== expectedLocale) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      `The template doesn't have matching locale metadata. Please upload the generated template for the current locale.`
+    );
+  }
+
+  // Validate campaignId if provided
+  if (templateCampaignId !== expectedCampaignId && config.values.validateCampaignIdInMetadata) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      `The template doesn't have matching campaign metadata. Please upload the generated template for the current campaign only.`
+    );
+  }
+};
+
+
+export function enrichTemplateMetaData(updatedWorkbook : any, request : any ){
+  if(request?.body?.RequestInfo && request?.query?.campaignId){
+    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
+  }
+}
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
   worksheet?.eachRow({ includeEmpty: true }, (row) => {
@@ -128,7 +198,7 @@ function performUnfreezeCells(sheet: any, localizationMap?: any, fileUrl?: any) 
       }
     }
   }
-  sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
+  // sheet.protect('passwordhere', { selectLockedCells: true, selectUnlockedCells: true });
 }
 
 
@@ -304,5 +374,30 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
   });
 }
 
+export function enrichUsageColumnForFacility(worksheet: any, localizationMap: any) {
+  const configType = "facility";
+  const usageColumn = getLocalizedName(createAndSearch[configType]?.activeColumnName, localizationMap);
+  if (usageColumn) {
+    const usageColumnIndex = getColumnIndexByHeader(worksheet, usageColumn);
+    if (usageColumnIndex !== -1) {
+      worksheet?.eachRow((row: any, rowNumber: number) => {
+        if (rowNumber === 1) return; // Skip header row
+        const cell = row.getCell(usageColumnIndex);
+        // Only change the value if it is empty or null
+        if (!cell.value) {
+          cell.value = usageColumnStatus.inactive;
+        }
+      });
+    }
+  }
+}
 
-export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet };
+function protectSheet(sheet: any) {
+  sheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+  });
+}
+
+
+export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

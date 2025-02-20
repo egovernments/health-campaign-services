@@ -25,7 +25,7 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_SETTING_JSONB_OBJECT = "Error while setting JSONB object :";
 
-    public static final String NO_CENSUS_IDS_FOUND = "No census ids found for provided census search criteria.";
+    public static final String NO_CENSUS_IDS_FOUND_ERROR = "No census ids found for provided census search criteria.";
 
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
