@@ -409,37 +409,54 @@ public class IndividualService {
         individualRepository.putInCache(individuals);
         log.info("successfully put individuals in cache");
     }
-
     private void integrateWithUserService(IndividualBulkRequest request,
-                                          List<Individual> encryptedIndividualList, ApiOperation apiOperation) {
-        if (properties.isUserSyncEnabled()) {
-            if (apiOperation.equals(ApiOperation.UPDATE)) {
-                userIntegrationService.updateUser(encryptedIndividualList,
-                        request.getRequestInfo());
-                log.info("successfully updated user for {} individuals",
-                        encryptedIndividualList.size());
-            } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                List<UserRequest> userRequests = userIntegrationService.createUser(encryptedIndividualList,
-                        request.getRequestInfo());
-                for (int i = 0; i < encryptedIndividualList.size(); i++) {
-                    if (Boolean.TRUE.equals(encryptedIndividualList.get(i).getIsSystemUser())) {
-                        encryptedIndividualList.get(i)
-                                .setUserId(Long.toString(userRequests.get(i).getId()));
-                        encryptedIndividualList.get(i).setUserUuid(userRequests.get(i).getUuid());
-                    }
-                }
-                individualRepository.save(encryptedIndividualList,
-                        properties.getUpdateUserIdTopic());
-                log.info("successfully created user for {} individuals",
-                        encryptedIndividualList.size());
-            } else {
-                userIntegrationService.deleteUser(encryptedIndividualList,
-                        request.getRequestInfo());
-                log.info("successfully soft deleted user for {} individuals",
-                        encryptedIndividualList.size());
+                                          List<Individual> decryptedIndividualList,
+                                          ApiOperation apiOperation) {
+        if (!properties.isUserSyncEnabled() || decryptedIndividualList.isEmpty()) {
+            log.info("User sync is disabled or no valid individuals to process.");
+            return;
+        }
+
+        try {
+            switch (apiOperation) {
+                case UPDATE :
+                    userIntegrationService.updateUser(decryptedIndividualList, request.getRequestInfo());
+                    log.info("Successfully updated user for {} individuals", decryptedIndividualList.size());
+                    break;
+
+                case CREATE:
+                    List<UserRequest> userRequests = userIntegrationService.createUser(decryptedIndividualList, request.getRequestInfo());
+                    updateIndividualsWithUserData(decryptedIndividualList, userRequests);
+                    individualRepository.save(decryptedIndividualList, properties.getUpdateUserIdTopic());
+                    log.info("Successfully created user for {} individuals", decryptedIndividualList.size());
+                    break;
+
+                case DELETE:
+                    userIntegrationService.deleteUser(decryptedIndividualList, request.getRequestInfo());
+                    log.info("Successfully soft deleted user for {} individuals", decryptedIndividualList.size());
+                    break;
+
+                default:
+                    log.warn("Unknown API operation: {}", apiOperation);
+            }
+        } catch (Exception exception) {
+            log.error("Error occurred during user integration for operation {}: {}", apiOperation, ExceptionUtils.getStackTrace(exception));
+            throw new CustomException("USER_INTEGRATION_FAILED", ExceptionUtils.getMessage(exception));
+        }
+    }
+
+    /**
+     * Updates individuals with User ID and UUID from the user service.
+     */
+    private void updateIndividualsWithUserData(List<Individual> individuals, List<UserRequest> userRequests) {
+        for (int i = 0; i < individuals.size(); i++) {
+            if (Boolean.TRUE.equals(individuals.get(i).getIsSystemUser())) {
+                individuals.get(i).setUserId(Long.toString(userRequests.get(i).getId()));
+                individuals.get(i).setUserUuid(userRequests.get(i).getUuid());
             }
         }
     }
+
 
     Boolean isSmsEnabledForRole(IndividualRequest request) {
         if (CollectionUtils.isEmpty(properties.getSmsDisabledRoles()))
