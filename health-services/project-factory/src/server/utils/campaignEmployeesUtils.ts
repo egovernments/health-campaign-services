@@ -255,17 +255,17 @@ async function updateInactiveEmployeesToActive(
     const setOfCampaignInactiveEmployeesMobileNumbers = new Set(
         campaignEmployees
             .filter((employee: any) => employee?.isActive === false)
-            .map((employee: any) => employee?.mobileNumber)
+            .map((employee: any) => `N${employee?.mobileNumber.toString()}N`)
     );
 
     const setOfEmployeesToBeMadeActive = new Set(
         employeesFromSheet.filter((employee: any) =>
-            setOfCampaignInactiveEmployeesMobileNumbers.has(employee?.user?.mobileNumber)
-        )
+            setOfCampaignInactiveEmployeesMobileNumbers.has(`N${employee?.user?.mobileNumber.toString()}N`) && employee?.["!isActive!"] == usageColumnStatus.active
+        ).map((employee: any) => `N${employee?.user?.mobileNumber.toString()}N`)
     );
 
     const employessToBeUpdatedAsActive = campaignEmployees.filter((employee: any) =>
-        setOfEmployeesToBeMadeActive.has(employee)
+        setOfEmployeesToBeMadeActive.has(`N${employee?.mobileNumber.toString()}N`)
     );
 
     const currentTime = new Date().getTime();
