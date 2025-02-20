@@ -126,21 +126,12 @@ export async function getCampaignEmployeesCount(
     return fetchCampaignEmployeesData(campaignNumber, searchActiveOnly, mobileNumbers, true);
 }
 
-export async function getCampaignEmployeesWithTokenString(
-    campaignNumber: string,
-    searchActiveOnly: boolean,
-    mobileNumbers: string[] = []
-) {
-    return fetchCampaignEmployeesData(campaignNumber, searchActiveOnly, mobileNumbers, false, true);
-}
-
 
 export async function fetchCampaignEmployeesData(
     campaignNumber: string,
     searchActiveOnly: boolean,
     mobileNumbers: string[] = [],
-    fetchCountOnly: boolean = false,
-    getTokenString: boolean = false
+    fetchCountOnly: boolean = false
 ) {
     // Determine whether to fetch count or full data
     const selectClause = fetchCountOnly ? `SELECT COUNT(*)` : `SELECT *`;
@@ -176,6 +167,7 @@ export async function fetchCampaignEmployeesData(
                     userServiceUuid: row.userserviceuuid,
                     employeeType: row.employeetype,
                     userName: row.username,
+                    tokenString: row.tokenstring,
                     additionalDetails: row.additionaldetails,
                     isActive: row.isactive,
                     createdBy: row.createdby,
@@ -183,12 +175,6 @@ export async function fetchCampaignEmployeesData(
                     createdTime: parseInt(row.createdtime),
                     lastModifiedTime: parseInt(row.lastmodifiedtime)
                 };
-
-                // Conditionally add tokenString if getTokenString is true
-                if (getTokenString) {
-                    employee.tokenString = row.tokenstring;
-                }
-
                 return employee;
             });
         }
@@ -808,7 +794,7 @@ export async function persistCreateResourceIdForUser(CampaignDetails: any, Reque
     if (!userWorkSheet) {
         throw new Error("User sheet not found");
     }
-    const campaignEmployees = await getCampaignEmployeesWithTokenString(CampaignDetails?.campaignNumber, false);
+    const campaignEmployees = await getCampaignEmployees(CampaignDetails?.campaignNumber, false);
     const campaignMappings = await getCampaignMappings(CampaignDetails?.campaignNumber, mappingTypes.staff);
     fillDataInProcessedUserSheet(userWorkSheet, campaignEmployees, campaignMappings);
     const responseData = await createAndUploadFileWithLocaleAndCampaign(workbook, locale, CampaignDetails?.id, tenantId);
