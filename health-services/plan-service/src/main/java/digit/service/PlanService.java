@@ -1,16 +1,16 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
-import digit.web.models.Plan;
-import digit.web.models.PlanRequest;
-import digit.web.models.PlanResponse;
-import digit.web.models.PlanSearchRequest;
+import digit.service.enrichment.PlanEnricher;
+import digit.service.validator.PlanValidator;
+import digit.service.workflow.WorkflowService;
+import digit.web.models.*;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PlanService {
@@ -21,10 +21,13 @@ public class PlanService {
 
     private PlanRepository planRepository;
 
-    public PlanService(PlanValidator planValidator, PlanEnricher planEnricher, PlanRepository planRepository) {
+    private WorkflowService workflowService;
+
+    public PlanService(PlanValidator planValidator, PlanEnricher planEnricher, PlanRepository planRepository, WorkflowService workflowService) {
         this.planValidator = planValidator;
         this.planEnricher = planEnricher;
         this.planRepository = planRepository;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -38,6 +41,9 @@ public class PlanService {
 
         // Enrich plan create request
         planEnricher.enrichPlanCreate(body);
+
+        // Call workflow transition API for status update
+        workflowService.invokeWorkflowForStatusUpdate(body);
 
         // Delegate creation request to repository
         planRepository.create(body);
@@ -58,10 +64,18 @@ public class PlanService {
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 
+        // Get the total count of plans for given search criteria
+        Integer count = planRepository.count(body.getPlanSearchCriteria());
+
+        // Get the status count of plans for given search criteria
+        Map<String, Integer> statusCountMap = planRepository.statusCount(body);
+
         // Build and return response back to controller
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(planList)
+                .totalCount(count)
+                .statusCount(statusCountMap)
                 .build();
     }
 
@@ -77,6 +91,9 @@ public class PlanService {
         // Enrich plan update request
         planEnricher.enrichPlanUpdate(body);
 
+        // Call workflow transition API for status update
+        workflowService.invokeWorkflowForStatusUpdate(body);
+
         // Delegate update request to repository
         planRepository.update(body);
 
@@ -84,6 +101,27 @@ public class PlanService {
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(Collections.singletonList(body.getPlan()))
+                .build();
+    }
+
+    /**
+     * This method processes bulk update requests for plan.
+     * @param bulkPlanRequest
+     * @return
+     */
+    public PlanResponse bulkUpdate(BulkPlanRequest bulkPlanRequest) {
+        // Validate bulk plan update request
+        planValidator.validateBulkPlanUpdate(bulkPlanRequest);
+
+        // Call workflow transition for updating status and assignee
+        workflowService.invokeWorkflowForStatusUpdate(bulkPlanRequest);
+
+        // Delegate bulk update request to repository
+        planRepository.bulkUpdate(bulkPlanRequest);
+
+        // Build and return response back to controller
+        return PlanResponse.builder().responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(bulkPlanRequest.getRequestInfo(), Boolean.TRUE))
+                .plan(bulkPlanRequest.getPlans())
                 .build();
     }
 }

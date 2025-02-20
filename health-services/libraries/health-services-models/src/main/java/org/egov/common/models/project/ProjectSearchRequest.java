@@ -9,7 +9,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.core.ProjectSearchURLParams;
 import org.springframework.validation.annotation.Validated;
 
 /**
