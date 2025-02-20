@@ -226,7 +226,26 @@ async function doStaffDetaching(staffMappingArray: any[], tenantId: string, user
                     ProjectStaff: projectStaffSearchResponse?.ProjectStaff?.[0]
                 };
 
-                await httpRequest(projectStaffDeleteUrl, projectStaffDeleteBody);
+                const deleteResponse = await httpRequest(
+                    projectStaffDeleteUrl,
+                    projectStaffDeleteBody,
+                    undefined,
+                    "post",
+                    undefined,
+                    undefined,
+                    undefined,
+                    false,
+                    true
+                );
+
+                if (deleteResponse?.Errors?.[0]?.message.includes("errorCode=NON_EXISTENT_ENTITY")) {
+                    logger.info("Project Staff already deleted");
+                } else if (deleteResponse?.Errors?.length > 0) {
+                    logger.error("Project Staff deletion failed");
+                    throw new Error(deleteResponse?.Errors?.[0]?.message);
+                } else {
+                    logger.info("Project Staff deleted successfully");
+                }
 
                 logger.info(`Project Staff deleted successfully for userServiceUuid ${userServiceUuid} and projectId ${projectId}`);
 
@@ -451,7 +470,24 @@ async function doFacilityDetaching(
                     ProjectFacility: projectFacilitySearchResponse?.ProjectFacilities?.[0]
                 };
 
-                await httpRequest(projectFacilityDeleteUrl, projectFacilityDeleteBody);
+                const deleteResponse = await httpRequest(
+                        projectFacilityDeleteUrl,
+                        projectFacilityDeleteBody,
+                        undefined,
+                        "post",
+                        undefined,
+                        undefined,
+                        undefined,
+                        false,
+                        true);
+                if (deleteResponse?.Errors?.[0]?.message.includes("errorCode=NON_EXISTENT_ENTITY")) {
+                    logger.info("Project Facility already deleted");
+                } else if (deleteResponse?.Errors?.length > 0) {
+                    logger.error("Project Facility deletion failed");
+                    throw new Error(deleteResponse?.Errors?.[0]?.message);
+                } else {
+                    logger.info("Project Facility deleted successfully");
+                }
 
                 logger.info(`Project Facility deleted successfully for facilityId ${facilityId} and projectId ${projectId}`);
 
