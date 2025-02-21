@@ -243,7 +243,7 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
         if (data[phoneColumn]) {
             var phoneNumber = data[phoneColumn];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
-            if (phoneNumber.length != 10) {
+            if (phoneNumber.length != config?.user?.phoneNumberLength) {
                 digitErrorRows.push(data["!row#number!"]);
             }
         }
@@ -255,7 +255,7 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
     var errorMessage = "";
     if (digitErrorRows.length > 0) {
         isError = true;
-        errorMessage = "PhoneNumber should be of 10 digit on rows " + digitErrorRows.join(" , ");
+        errorMessage = `PhoneNumber should be of ${config?.user?.phoneNumberLength} digits on rows ${digitErrorRows.join(" , ")}`;
     }
     if (missingNumberRows.length > 0) {
         isError = true;
