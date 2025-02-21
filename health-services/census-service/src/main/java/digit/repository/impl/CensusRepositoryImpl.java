@@ -19,8 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static digit.config.ServiceConstants.CENSUS_BUSINESS_SERVICE;
-import static digit.config.ServiceConstants.COMMA_DELIMITER;
+import static digit.config.ServiceConstants.*;
 
 @Slf4j
 @Repository
@@ -78,7 +77,7 @@ public class CensusRepositoryImpl implements CensusRepository {
 
         // Return empty list back as response if no census ids are found
         if(CollectionUtils.isEmpty(censusIds)) {
-            log.debug("No census ids found for provided census search criteria.");
+            log.debug(NO_CENSUS_IDS_FOUND_ERROR);
             return new ArrayList<>();
         }
 

@@ -17,8 +17,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static digit.config.ServiceConstants.ID;
-import static digit.config.ServiceConstants.PIPE_REGEX;
+import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
@@ -84,7 +83,7 @@ public class CensusEnrichment {
         // Iterate through the child boundary until there are no more
         while (!CollectionUtils.isEmpty(boundary.getChildren())) {
             boundary = boundary.getChildren().get(0);
-            boundaryAncestralPath.append("|").append(boundary.getCode());
+            boundaryAncestralPath.append(PIPE_DELIMITER).append(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         }
 
