@@ -8,10 +8,12 @@ export const defaultRequestInfo: any = {
   RequestInfo: {
     apiId: "PROJECTFACTORY", // Identifier for the calling application,
     msgId: `${new Date().getTime()}|${config.localisation.defaultLocale}`,
-    ...(config.isProduction && config.token && { authToken :config.token}),
-     ...{ userInfo:{
-      tenantId:config?.app?.defaultTenantId
-     }},
+    ...(config.isProduction && config.token && { authToken: config.token }),
+    ...{
+      userInfo: {
+        tenantId: config?.app?.defaultTenantId
+      }
+    },
   },
 };
 
@@ -174,24 +176,32 @@ const searchBoundaryRelationshipData = async (
   hierarchyType: string,
   includeChildren: boolean = true,
   includeParents: boolean = true,
+  codes?: string
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
   // Prepare request body with default request information
   const requestBody = {
     ...defaultRequestInfo,
   };
-  const headers : any = {
-        ...defaultheader,
-        cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${""}${includeChildren || ""}`,
-      };
+  const headers: any = {
+    ...defaultheader,
+    cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${""}${includeChildren || ""}`,
+  };
 
   // Construct API URL for boundary hierarchy relationship search
   const url = config.host.boundaryHost + config.paths.boundaryRelationship;
+  const params = {
+    tenantId,
+    hierarchyType,
+    includeChildren,
+    includeParents,
+    ...(codes && { codes }) // Only add `codes` if it's provided
+  };
 
   // Execute HTTP request with tenant ID, hierarchy type, and inclusion flags in headers
   const response: BoundaryModels.BoundaryHierarchyRelationshipResponse = await httpRequest(
     url,
     requestBody,
-    { tenantId, hierarchyType, includeChildren, includeParents },
+    params,
     undefined,
     undefined,
     headers
@@ -242,14 +252,14 @@ const searchBoundaryRelationshipDefinition = async (
 
 
 
-const  fetchFileFromFilestore=async(filestoreId:string,tenantId:string)=> {
-  
+const fetchFileFromFilestore = async (filestoreId: string, tenantId: string) => {
+
   try {
     const reqParamsForFetchingFile = {
       tenantId: tenantId,
       fileStoreIds: filestoreId
     };
-    const fileResponse= await httpRequest(
+    const fileResponse = await httpRequest(
       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
       {},
       reqParamsForFetchingFile,
@@ -263,4 +273,4 @@ const  fetchFileFromFilestore=async(filestoreId:string,tenantId:string)=> {
 }
 
 // Exporting all API functions for MDMS operations
-export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api ,searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition ,fetchFileFromFilestore};
+export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore };

@@ -2,13 +2,13 @@
 import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
-import { getBoundaryRelationshipData, throwError } from "../utils/genericUtils";
+import { throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 import { persistTrack } from "../utils/processTrackUtils";
 import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../config/constants";
 import { validateMappingId } from "../utils/campaignMappingUtils";
-import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
 
 // Function to validate data against a JSON schema
@@ -237,11 +237,13 @@ export async function validateFiltersInRequestBody(request: any) {
     if (request?.body?.Filters === undefined) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
     }
-    const params = {
-        ...request?.query,
-        includeChildren: true
-    };
-    const boundaryData = await getBoundaryRelationshipData(request, params);
+    // const params = {
+    //     ...request?.query,
+    //     includeChildren: true
+    // };
+    // const boundaryData = await getBoundaryRelationshipData(request, params);
+    const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(request?.query?.tenantId, request?.query?.hierarchyType, true, true);
+    const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
     if (boundaryData && request?.body?.Filters != null) {
         await validateFilters(request, boundaryData);
     }

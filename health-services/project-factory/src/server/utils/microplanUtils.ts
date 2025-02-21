@@ -3,11 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
-import { callMdmsData, getSheetData } from "./../api/genericApis";
+import { getSheetData } from "./../api/genericApis";
 import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { searchMDMSDataViaV2Api } from "../api/coreApis";
+import { searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
@@ -433,7 +433,19 @@ export async function isMicroplanRequest(request: any): Promise<boolean> {
 }
 
 export async function getReadMeConfigForMicroplan(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const MdmsCriteria = {
+    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
+      tenantId: request?.query?.tenantId,
+      moduleDetails: [
+        {
+          moduleName: "HCM-ADMIN-CONSOLE",
+          masterDetails: [{ name: "ReadMeConfig" }],
+        },
+      ],
+    },
+  };
+  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {

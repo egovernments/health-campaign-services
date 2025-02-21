@@ -3,12 +3,13 @@ import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
-import { correctParentValues, findMapValue, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { correctParentValues, findMapValue, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { searchBoundaryRelationshipData } from "./coreApis";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -208,7 +209,7 @@ const getTargetSheetDataAfterCode = async (
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
     const sheetData = getSheetDataFromWorksheet(worksheet);
-    const jsonData = getJsonData(sheetData,true,true, sheetName);
+    const jsonData = getJsonData(sheetData, true, true, sheetName);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
@@ -733,15 +734,18 @@ async function getBoundarySheetData(
   localizationMap?: { [key: string]: string }
 ) {
   // Retrieve boundary data based on the request parameters
-  const params = {
-    ...request?.query,
-    includeChildren: true,
-  };
+  // const params = {
+  //   ...request?.query,
+  //   includeChildren: true,
+  // };
   const hierarchyType = request?.query?.hierarchyType;
+  const tenantId = request?.query?.tenantId;
   logger.info(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
-  const boundaryData = await getBoundaryRelationshipData(request, params);
+  // const boundaryData = await getBoundaryRelationshipData(request, params);
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true);
+  const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
@@ -1260,33 +1264,33 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
 
 
 
-async function callMdmsData(
-  request: any,
-  moduleName: string,
-  masterName: string,
-  tenantId: string
-) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
-    MdmsCriteria: {
-      tenantId: tenantId,
-      moduleDetails: [
-        {
-          moduleName: moduleName,
-          masterDetails: [
-            {
-              name: masterName,
-            },
-          ],
-        },
-      ],
-    },
-  };
-  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
-  const response = await httpRequest(url, requestBody, { tenantId: tenantId });
-  return response;
-}
+// async function callMdmsData(
+//   request: any,
+//   moduleName: string,
+//   masterName: string,
+//   tenantId: string
+// ) {
+//   const { RequestInfo = {} } = request?.body || {};
+//   const requestBody = {
+//     RequestInfo,
+//     MdmsCriteria: {
+//       tenantId: tenantId,
+//       moduleDetails: [
+//         {
+//           moduleName: moduleName,
+//           masterDetails: [
+//             {
+//               name: masterName,
+//             },
+//           ],
+//         },
+//       ],
+//     },
+//   };
+//   const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
+//   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
+//   return response;
+// }
 
 function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
 
@@ -1419,10 +1423,10 @@ async function callMdmsTypeSchema(
   return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
 }
 
-async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
-  const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
-  return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
-}
+// async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
+//   const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
+//   return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
+// }
 
 export {
   getAutoGeneratedBoundaryCodes,
@@ -1444,8 +1448,8 @@ export {
   getTargetWorkbook,
   getTargetSheetData,
   getTargetSheetDataAfterCode,
-  callMdmsData,
-  getMDMSV1Data,
+  // callMdmsData,
+  // getMDMSV1Data,
   callMdmsTypeSchema,
   getSheetDataFromWorksheet,
   createProjectStaffHelper,
