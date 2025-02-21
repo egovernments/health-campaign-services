@@ -225,8 +225,8 @@ export async function persistProcessStatuses(requestBody: any) {
     const { CampaignDetails, RequestInfo } = requestBody;
     const useruuid = RequestInfo?.userInfo?.uuid;
     const { campaignNumber } = CampaignDetails;
+    const processesFromDb = await getProcessesFromDb(campaignNumber);
     if (CampaignDetails?.parentId) {
-        const processesFromDb = await getProcessesFromDb(campaignNumber);
         const updateInQuedProcesses = await getUpdatedStatusProcessesFromCampaignNumberAndUseruuid(processesFromDb, useruuid, campaignProcessStatus.inqueue);
         const produceMessage : any = {
             campaignProcesses: updateInQuedProcesses
@@ -235,10 +235,40 @@ export async function persistProcessStatuses(requestBody: any) {
     }
     else {
         const processes = getNewProcessesFromCampaignNumberAndUseruuid(campaignNumber, useruuid);
-        const produceMessage : any = {
-            campaignProcesses: processes
+
+        // Separate processes into those that need updating and those that remain unchanged
+        const { updatedProcesses, newProcesses } = processes.reduce(
+            (acc: any, process: any) => {
+                const matchingProcess = processesFromDb.find(
+                    (processFromDb: any) => processFromDb.processName === process.processName && processFromDb.status === campaignProcessStatus.failed
+                );
+
+                if (matchingProcess) {
+                    acc.updatedProcesses.push({ ...process, status: campaignProcessStatus.inqueue, lastModifiedBy: useruuid, lastModifiedTime: new Date().getTime() });
+                } else {
+                    acc.newProcesses.push(process);
+                }
+
+                return acc;
+            },
+            { updatedProcesses: [], newProcesses: [] }
+        );
+
+        // Persist updated processes to the update topic
+        if (updatedProcesses.length > 0) {
+            const updateMessage: any = {
+                campaignProcesses: updatedProcesses
+            };
+            await produceModifiedMessages(updateMessage, config?.kafka?.KAFKA_UPDATE_CAMPAIGN_PROCESS_TOPIC);
         }
-        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC);
+
+        // Persist new processes to the create topic
+        if (newProcesses.length > 0) {
+            const createMessage: any = {
+                campaignProcesses: newProcesses
+            };
+            await produceModifiedMessages(createMessage, config?.kafka?.KAFKA_CREATE_CAMPAIGN_PROCESS_TOPIC);
+        }
     }
 }
 
