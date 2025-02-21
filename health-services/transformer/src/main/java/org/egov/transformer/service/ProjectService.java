@@ -371,9 +371,8 @@ public class ProjectService {
                 .build();
         try {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
-            log.info("PROJECTTYPE INFO INIT RESP, {}", response);
             projectTypes = convertToProjectTypeJsonNodeList(response);
-            log.info("PROJECTTYPE INFO AFTER RESP, {}", projectTypes);
+            log.info("PROJECTTYPE INFO AFTER RESP for projectTypedid:  {}, RESP: {}",projectTypeId, projectTypes);
             JsonNode requiredProjectType = projectTypes.stream()
                     .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
                     .findFirst()
@@ -383,7 +382,8 @@ public class ProjectService {
 //            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
 //            return requiredProjectType;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return objectMapper.createObjectNode();
+//            throw new RuntimeException(e);
         }
     }
 
