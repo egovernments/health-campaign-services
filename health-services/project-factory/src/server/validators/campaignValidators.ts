@@ -1164,9 +1164,6 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!(action == "create" || action == "draft" || action == "changeDates" || action == "retry")) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create, draft, retry or changeDates");
     }
-    if (actionInUrl == "retry") {
-        await validateForRetry(request);
-    }
     if (actionInUrl == "update") {
         await validateById(request);
         await validateIsActive(request);
@@ -1180,63 +1177,66 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "changeDates is not allowed during create");
     }
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
+    await validateForRetry(request, actionInUrl);
 }
 
-async function validateForRetry(request: any) {
-    if (!request.body || !request.body.CampaignDetails) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails are missing in the request body");
-    }
-    const { id, tenantId } = request.body.CampaignDetails;
-    if (!id) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
-    }
-    if (!tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
-    // const searchBody = {
-    //     RequestInfo: request.body.RequestInfo,
-    const CampaignDetails = {
-        tenantId: tenantId,
-        ids: [id]
-    }
-    // }
-    // const req: any = replicateRequest(request, searchBody)
-    const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
-    if (Array.isArray(searchResponse?.CampaignDetails)) {
-        if (searchResponse?.CampaignDetails?.length > 0) {
-            logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
-            request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
-            if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.failed) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be retried in failed state.`);
-            }
-            request.body.CampaignDetails.status = campaignStatuses?.drafted;
-            var updatedInnerCampaignDetails = {}
-            enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails)
-            request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
-            request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
-            const producerMessage: any = {
-                CampaignDetails: request?.body?.CampaignDetails
-            }
-            await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+async function validateForRetry(request: any, actionInUrl: string) {
+    if(actionInUrl == "retry") {
+        if (!request.body || !request.body.CampaignDetails) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails are missing in the request body");
+        }
+        const { id, tenantId } = request.body.CampaignDetails;
+        if (!id) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
+        }
+        if (!tenantId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
+        }
+        // const searchBody = {
+        //     RequestInfo: request.body.RequestInfo,
+        const CampaignDetails = {
+            tenantId: tenantId,
+            ids: [id]
+        }
+        // }
+        // const req: any = replicateRequest(request, searchBody)
+        const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
+        if (Array.isArray(searchResponse?.CampaignDetails)) {
+            if (searchResponse?.CampaignDetails?.length > 0) {
+                logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
+                request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
+                if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.failed) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be retried in failed state.`);
+                }
+                request.body.CampaignDetails.status = campaignStatuses?.drafted;
+                var updatedInnerCampaignDetails = {}
+                enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails)
+                request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
+                request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
+                const producerMessage: any = {
+                    CampaignDetails: request?.body?.CampaignDetails
+                }
+                await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
 
-            if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
-                // If not present, initialize it as an empty array
-                request.body.CampaignDetails.additionalDetails.retryCycle = [];
-            }
+                if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
+                    // If not present, initialize it as an empty array
+                    request.body.CampaignDetails.additionalDetails.retryCycle = [];
+                }
 
-            // Step 2: Push new data to the `retryCycle` array
-            request.body.CampaignDetails.additionalDetails.retryCycle.push({
-                error: request.body.CampaignDetails.additionalDetails.error,
-                retriedAt: Date.now(),
-                failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
-            });
+                // Step 2: Push new data to the `retryCycle` array
+                request.body.CampaignDetails.additionalDetails.retryCycle.push({
+                    error: request.body.CampaignDetails.additionalDetails.error,
+                    retriedAt: Date.now(),
+                    failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
+                });
+            }
+            else {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+            }
         }
         else {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
         }
-    }
-    else {
-        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
     }
 }
 
