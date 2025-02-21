@@ -225,9 +225,9 @@ export async function persistProcessStatuses(requestBody: any) {
     const { CampaignDetails, RequestInfo } = requestBody;
     const useruuid = RequestInfo?.userInfo?.uuid;
     const { campaignNumber } = CampaignDetails;
-    const processesFromDb = await getProcessesFromDb(campaignNumber);
+    const processesFromDbs = await getProcessesFromDb(campaignNumber);
     if (CampaignDetails?.parentId) {
-        const updateInQuedProcesses = await getUpdatedStatusProcessesFromCampaignNumberAndUseruuid(processesFromDb, useruuid, campaignProcessStatus.inqueue);
+        const updateInQuedProcesses = await getUpdatedStatusProcessesFromCampaignNumberAndUseruuid(processesFromDbs, useruuid, campaignProcessStatus.inqueue);
         const produceMessage : any = {
             campaignProcesses: updateInQuedProcesses
         }
@@ -239,14 +239,19 @@ export async function persistProcessStatuses(requestBody: any) {
         // Separate processes into those that need updating and those that remain unchanged
         const { updatedProcesses, newProcesses } = processes.reduce(
             (acc: any, process: any) => {
-                const matchingProcess = processesFromDb.find(
+                const matchingProcess = processesFromDbs.find(
                     (processFromDb: any) => processFromDb.processName === process.processName && processFromDb.status === campaignProcessStatus.failed
                 );
 
                 if (matchingProcess) {
-                    acc.updatedProcesses.push({ ...process, status: campaignProcessStatus.inqueue, lastModifiedBy: useruuid, lastModifiedTime: new Date().getTime() });
+                    acc.updatedProcesses.push({
+                        ...matchingProcess,
+                        status: campaignProcessStatus.inqueue,
+                        lastModifiedBy: useruuid,
+                        lastModifiedTime: new Date().getTime()
+                    });
                 } else {
-                    acc.newProcesses.push(process);
+                    acc.newProcesses.push(process); // Add the new process
                 }
 
                 return acc;
