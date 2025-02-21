@@ -372,12 +372,10 @@ public class ProjectService {
         try {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
             projectTypes = convertToProjectTypeJsonNodeList(response);
-            log.info("PROJECTTYPE INFO AFTER RESP for projectTypedid:  {}, RESP: {}",projectTypeId, projectTypes);
             JsonNode requiredProjectType = projectTypes.stream()
                     .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
                     .findFirst()
                     .orElseGet(() -> objectMapper.createObjectNode());
-            log.info("REQUIRED PROJECT TYPE, {}", requiredProjectType);
             return requiredProjectType;
 //            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
 //            return requiredProjectType;

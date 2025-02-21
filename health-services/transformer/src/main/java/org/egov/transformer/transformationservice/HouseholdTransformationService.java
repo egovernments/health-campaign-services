@@ -102,8 +102,6 @@ public class HouseholdTransformationService {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
         log.info("HOUSEHOLD ADD INFO {}, {}", additionalDetails, additionalDetails.get(PROJECT_TYPE_ID));
-        String projectTypeId1 = additionalDetails.get(PROJECT_TYPE_ID).toString();
-        String cycleIndex1 = commonUtils.fetchCycleIndexFromTime(household.getTenantId(), projectTypeId1, household.getClientAuditDetails().getCreatedTime());
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(household.getTenantId(), projectTypeId, household.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
