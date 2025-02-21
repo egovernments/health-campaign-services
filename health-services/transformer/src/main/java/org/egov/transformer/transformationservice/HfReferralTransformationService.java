@@ -69,7 +69,7 @@ public class HfReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, hfReferral.getClientAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);

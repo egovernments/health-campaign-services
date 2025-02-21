@@ -94,8 +94,9 @@ public class HouseholdTransformationService {
         if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
             commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
         }
-//        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), household.getClientAuditDetails());
-//        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        log.info("HOUSEHOLD ADD INFO {}", additionalDetails);
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(household.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), household.getClientAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         return HouseholdIndexV1.builder()
                 .household(household)

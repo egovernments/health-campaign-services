@@ -105,8 +105,9 @@ public class HouseholdMemberTransformationService {
                     householdMember.getClientAuditDetails().getLastModifiedBy() ,
                     householdMember.getTenantId());
         }
-//        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails());
-//        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        log.info("HOUSEHOLD MEMBER ADD INFO {}", additionalDetails);
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails().getCreatedTime());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
