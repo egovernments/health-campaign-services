@@ -12,11 +12,11 @@ export const generateRequestSchema = {
       "maxLength": 128,
       "minLength": 1,
       "enum": [
-        "facility",
-        "user",
         "boundary",
+        "boundaryManagement",
         "facilityWithBoundary",
-        "userWithBoundary"
+        "userWithBoundary",
+        "boundaryGeometryManagement"
       ]
     },
     "hierarchyType": {
@@ -30,6 +30,9 @@ export const generateRequestSchema = {
     },
     "campaignId": {
       "type": "string"
+    },
+    "source": {
+      "type": "string",
     }
   },
   "required": ["tenantId", "type", "hierarchyType", "campaignId"],

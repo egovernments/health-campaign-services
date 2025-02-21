@@ -250,15 +250,22 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
-  - name: "builds/health-campaign-services/health-services/resource-estimation-service"
+  - name: "builds/health-campaign-services/health-services/resource-generator"
     build:
-      - work-dir: "health-services/resource-estimation-service"
-        image-name: "resource-estimation-service"
+      - work-dir: "health-services/resource-generator"
+        image-name: "resource-generator"
         dockerfile: "build/17/maven/Dockerfile"     
   - name: "builds/health-campaign-services/analytics/auth-proxy"
     build:
       - work-dir: "analytics/auth-proxy"
         image-name: "auth-proxy"
+  - name: "builds/health-campaign-services/health-services/census-service"
+    build:
+      - work-dir: "health-services/census-service"
+        image-name: "census-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/census-service/src/main/resources/db"
+        image-name: "census-service-db"
 
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui

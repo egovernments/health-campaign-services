@@ -19,7 +19,7 @@ export const campaignDetailsDraftSchema = {
         },
         "action": {
             "type": "string",
-            "enum": ["create", "draft"],
+            "enum": ["create", "draft", "retry"],
             "maxLength": 64,
             "minLength": 1
         },
@@ -92,6 +92,9 @@ export const campaignDetailsDraftSchema = {
         },
         "additionalDetails": {
             "type": "object"
+        },
+        "isActive":{
+            "type":"boolean"
         }
     },
     "required": ["tenantId", "campaignName", "hierarchyType"]
