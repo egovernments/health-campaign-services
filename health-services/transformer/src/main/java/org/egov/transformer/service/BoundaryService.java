@@ -44,8 +44,9 @@ public class BoundaryService {
         if (localityCode == null) {
             return null;
         }
+        String hierarchyType = transformerProperties.getBoundaryHierarchyName();
         // Fetch both localized and non-localized boundary data
-        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId);
+        BoundaryHierarchyResult boundaryResult = getBoundaryCodeToNameMap(localityCode, tenantId, hierarchyType);
 
         return applyTransformerElasticIndexLabels(boundaryResult, tenantId);
     }
@@ -53,7 +54,17 @@ public class BoundaryService {
     public BoundaryHierarchyResult getBoundaryCodeToNameMapByProjectId(String projectId, String tenantId) {
         Project project = projectService.getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryCodeToNameMap(locationCode, tenantId);
+        String hierarchyType = transformerProperties.getBoundaryHierarchyName();
+        if (project.getAdditionalDetails() != null) {
+            Object additionalDetails = project.getAdditionalDetails();
+            if (additionalDetails instanceof Map) {
+                Map<String, Object> detailsMap = (Map<String, Object>) additionalDetails;
+                if (detailsMap.containsKey("hierarchyType")) {
+                    hierarchyType = detailsMap.get("hierarchyType").toString();
+                }
+            }
+        }
+        return getBoundaryCodeToNameMap(locationCode, tenantId, hierarchyType);
     }
 
     public BoundaryHierarchyResult getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
@@ -62,13 +73,13 @@ public class BoundaryService {
     }
 
 
-    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId) {
+    public BoundaryHierarchyResult getBoundaryCodeToNameMap(String locationCode, String tenantId, String hierarchyType) {
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
 
         // Fetch boundaries
-        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId);
+        List<EnrichedBoundary> boundaries = fetchBoundaryData(locationCode, tenantId,hierarchyType);
 
         // Create and return BoundaryHierarchyResult
         return createBoundaryHierarchyResult(boundaries, tenantId, requestInfo);
@@ -128,7 +139,7 @@ public class BoundaryService {
     }
 
 
-    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId) {
+    public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId, String hierarchyType) {
         List<EnrichedBoundary> finalEnrichedBoundary;
         if (cachedEnrichedBoundaries != null && !cachedEnrichedBoundaries.isEmpty()) {
             log.info("Fetching boundary info from cached boundary for code: {}", locationCode);
@@ -150,7 +161,7 @@ public class BoundaryService {
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
                 + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
-                + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
+                + "&hierarchyType=" + hierarchyType
                 + "&code=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
         try {
