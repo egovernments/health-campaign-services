@@ -59,6 +59,8 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
                             .additionalDetails(getAdditionalDetail((PGobject) rs.getObject("additionaldetails")))
                             .accountId(rs.getString("accountid"))
                             .clientId(rs.getString("clientid"))
+                            .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                                    .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                             .build();
 
                 }
@@ -82,6 +84,8 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
                 .value(getProperTypeCastedAttributeValue(genericValueObject))
                 .auditDetails(auditDetails)
                 .additionalDetails(getAdditionalDetail((PGobject) rs.getObject("attribute_value_additionaldetails")))
+                .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                        .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                 .build();
 
         if (CollectionUtils.isEmpty(service.getAttributes())) {
