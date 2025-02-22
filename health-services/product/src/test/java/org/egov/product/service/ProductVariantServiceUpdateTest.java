@@ -155,7 +155,7 @@ class ProductVariantServiceUpdateTest {
     @Test
     @DisplayName("Should throw exception for row versions mismatch")
     void shouldThrowExceptionIfRowVersionIsNotSimilar() {
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId("ID101").build();
         productVariant.setRowVersion(123);
         ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder()
                 .withOneProductVariantHavingId().build();
