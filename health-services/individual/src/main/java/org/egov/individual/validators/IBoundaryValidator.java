@@ -119,7 +119,18 @@ public class IBoundaryValidator implements Validator<IndividualBulkRequest, Indi
                 } catch (Exception e) {
                     log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
                     // Throw a custom exception if an error occurs during boundary search
-                    throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
+//                    throw new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR","Error in while fetching boundaries from Boundary Service : " + e.getMessage());
+                    entitiesWithValidBoundaries.forEach(individual -> {
+                        // Create an error object for individuals with invalid boundaries
+                        Error error = Error.builder()
+                                .errorMessage("Exception while fetching data from Boundary Service")
+                                .errorCode("BOUNDARY_SERVICE_SEARCH_ERROR")
+                                .type(Error.ErrorType.RECOVERABLE)
+                                .exception(new CustomException("BOUNDARY_SERVICE_SEARCH_ERROR", "Exception while fetching data from Boundary Service"))
+                                .build();
+                        // Populate error details for the individual
+                        populateErrorDetails(individual, error, errorDetailsMap);
+                    });
                 }
             }
         });
