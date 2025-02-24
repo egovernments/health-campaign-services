@@ -936,7 +936,7 @@ async function validateParent(request: any, actionInUrl: any) {
             }
             else {
                 if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
-                    !parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                    (!parentSearchResponse?.CampaignDetails?.[0]?.isActive || actionInUrl == "retry")) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
