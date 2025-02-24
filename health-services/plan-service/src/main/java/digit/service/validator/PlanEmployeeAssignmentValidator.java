@@ -317,8 +317,9 @@ public class PlanEmployeeAssignmentValidator {
         // Validate if Plan employee assignment exists
         validatePlanEmployeeAssignmentExistance(planEmployeeAssignment);
 
-        // Validate campaign id and employee jurisdiction
-        validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
+        // Validate campaign id and employee jurisdiction for active records
+        if(planEmployeeAssignment.getActive())
+            validateCampaignDetails(planConfigurations.get(0).getCampaignId(), rootTenantId, request);
 
     }
 

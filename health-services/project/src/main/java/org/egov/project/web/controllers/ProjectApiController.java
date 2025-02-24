@@ -486,7 +486,8 @@ public class ProjectApiController {
             @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,
             @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants,
             @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date", defaultValue = "false") @Valid @RequestParam(value = "createdFrom", required = false) Long createdFrom,
-            @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo
+            @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo,
+            @ApiParam(value = "Used in project search API to specify if response should be one which is in the preceding hierarchy of matched projects.") @Valid @RequestParam(value = "isAncestorProjectId", required = false, defaultValue = "false") boolean isAncestorProjectId
     ) {
         List<Project> projects = projectService.searchProject(
                 project,
@@ -498,10 +499,11 @@ public class ProjectApiController {
                 includeAncestors,
                 includeDescendants,
                 createdFrom,
-                createdTo
+                createdTo,
+                isAncestorProjectId
         );
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
-        Integer count = projectService.countAllProjects(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
+        Integer count = projectService.countAllProjects(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
         ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(projects).totalCount(count).build();
         return new ResponseEntity<ProjectResponse>(projectResponse, HttpStatus.OK);
     }

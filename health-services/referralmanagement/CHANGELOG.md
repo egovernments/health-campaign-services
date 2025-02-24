@@ -1,5 +1,7 @@
 # Changelog
 All notable changes to this module will be documented in this file.
+## 1.0.4 - 2025-02-11
+- In downsync, searching household members by individualClientReferenceId instead of individualId
 
 ## 1.0.3 - 2024-08-09
 - Upgraded downsync logic.

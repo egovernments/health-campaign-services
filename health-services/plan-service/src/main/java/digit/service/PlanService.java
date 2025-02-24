@@ -1,8 +1,6 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
-import digit.service.enrichment.PlanEnricher;
-import digit.service.validator.PlanValidator;
 import digit.service.workflow.WorkflowService;
 import digit.web.models.*;
 import org.egov.common.utils.ResponseInfoUtil;
@@ -61,6 +59,9 @@ public class PlanService {
      * @return
      */
     public PlanResponse searchPlan(PlanSearchRequest body) {
+        // Enrich search request
+        planEnricher.enrichSearchRequest(body);
+
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 

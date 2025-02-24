@@ -59,6 +59,10 @@ public class PlanDTO {
     @JsonProperty("jurisdictionMapping")
     private Map<String, String> jurisdictionMapping;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private List<AdditionalField> additionalFields = null;
+
     @JsonProperty("activities")
     @Valid
     private List<Activity> activities;
