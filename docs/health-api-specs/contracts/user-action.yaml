@@ -274,8 +274,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         UserActions:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/UserAction'
@@ -302,8 +300,6 @@ components:
         - tenantId
       type: object
       properties:
-        urlparams:
-          $ref: '#/components/schemas/URLParams'
         limit:
           maximum: 1000
           minimum: 0

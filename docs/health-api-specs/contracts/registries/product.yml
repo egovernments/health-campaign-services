@@ -1,6 +1,6 @@
 openapi: 3.0.1
 info:
-  title: Household Registry
+  title: Product Registry
   version: v1.6
 servers:
   - url: https://unified-dev.digit.org
@@ -334,8 +334,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         ProductVariant:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/ProductVariant'
@@ -527,8 +525,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         Product:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/Product'

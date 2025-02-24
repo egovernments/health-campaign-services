@@ -792,8 +792,6 @@ components:
         - tenantId
       type: object
       properties:
-        urlparams:
-          $ref: '#/components/schemas/URLParams'
         limit:
           maximum: 1000
           minimum: 0
@@ -1204,8 +1202,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         Projects:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/Project'
@@ -1335,8 +1331,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         Tasks:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/Task'
@@ -1524,8 +1518,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         ProjectStaff:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/ProjectStaff'
@@ -1642,8 +1634,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         ProjectFacilities:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/ProjectFacility'
@@ -1716,8 +1706,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         ProjectBeneficiaries:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/ProjectBeneficiary'

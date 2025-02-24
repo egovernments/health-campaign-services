@@ -39,7 +39,7 @@ paths:
       tags:
         - Referral
       summary: Create referral for the project beneficiary
-      description: Create referral for the project benefiaciary
+      description: Create referral for the project beneficiary
       operationId: referralV1CreatePost
       requestBody:
         content:
@@ -724,8 +724,6 @@ components:
           minLength: 2
           type: string
         reasons:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             type: string
@@ -746,8 +744,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         Referrals:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/Referral'
@@ -840,8 +836,6 @@ components:
           minLength: 2
           type: string
         symptoms:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             type: string
@@ -914,8 +908,6 @@ components:
         - tenantId
       type: object
       properties:
-        urlparams:
-          $ref: '#/components/schemas/URLParams'
         limit:
           maximum: 1000
           minimum: 0
@@ -1000,8 +992,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         SideEffects:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/SideEffect'
@@ -1140,8 +1130,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         HFReferrals:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/HFReferral'

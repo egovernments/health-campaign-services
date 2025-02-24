@@ -649,8 +649,6 @@ components:
         RequestInfo:
           $ref: '#/components/schemas/RequestInfo'
         Individuals:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             $ref: '#/components/schemas/Individual'
@@ -844,8 +842,6 @@ components:
         - tenantId
       type: object
       properties:
-        urlparams:
-          $ref: '#/components/schemas/URLParams'
         limit:
           maximum: 1000
           minimum: 0
@@ -921,8 +917,6 @@ components:
             type: integer
             format: int64
         userUuid:
-          maxItems: 2147483647
-          minItems: 1
           type: array
           items:
             type: string
