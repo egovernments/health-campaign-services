@@ -21,6 +21,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static digit.config.ErrorConstants.*;
 import static digit.config.ServiceConstants.*;
 
 @Component
@@ -605,25 +606,25 @@ public class PlanValidator {
     private void validatePlanAttributes(BulkPlanRequest bulkPlanRequest) {
         if (bulkPlanRequest.getPlans().stream().map(Plan::getId).collect(Collectors.toSet()).size()
                 != bulkPlanRequest.getPlans().size()) {
-            throw new CustomException(BULK_UPDATE_ERROR, NON_UNIQUE_PLANS_ERROR);
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, NON_UNIQUE_PLANS_MESSAGE);
         }
 
         if (!bulkPlanRequest.getPlans().stream().allMatch(plan ->
                 plan.getTenantId().equals(bulkPlanRequest.getPlans().get(0).getTenantId()) &&
                         plan.getPlanConfigurationId().equals(bulkPlanRequest.getPlans().get(0).getPlanConfigurationId()))) {
-            throw new CustomException(BULK_UPDATE_ERROR, INCONSISTENT_TENANT_OR_CONFIG_ERROR);
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, INCONSISTENT_TENANT_OR_CONFIG_MESSAGE);
         }
 
         bulkPlanRequest.getPlans().forEach(plan -> {
             if (ObjectUtils.isEmpty(plan.getWorkflow())) {
-                throw new CustomException(BULK_UPDATE_ERROR, MISSING_WORKFLOW_ERROR);
+                throw new CustomException(BULK_UPDATE_ERROR_CODE, MISSING_WORKFLOW_MESSAGE);
             }
         });
 
         if (!bulkPlanRequest.getPlans().stream().allMatch(plan ->
                 plan.getStatus().equals(bulkPlanRequest.getPlans().get(0).getStatus()) &&
                         plan.getWorkflow().getAction().equals(bulkPlanRequest.getPlans().get(0).getWorkflow().getAction()))) {
-            throw new CustomException(BULK_UPDATE_ERROR, INCONSISTENT_STATUS_OR_ACTION_ERROR);
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, INCONSISTENT_STATUS_OR_ACTION_MESSAGE);
         }
     }
 

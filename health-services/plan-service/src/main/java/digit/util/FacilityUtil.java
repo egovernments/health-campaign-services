@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static digit.config.ErrorConstants.ERROR_WHILE_FETCHING_FROM_FACILITY;
 import static digit.config.ServiceConstants.*;
 
 @Slf4j

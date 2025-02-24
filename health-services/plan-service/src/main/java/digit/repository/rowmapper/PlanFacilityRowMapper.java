@@ -15,8 +15,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-import static digit.config.ServiceConstants.PARSING_ERROR_CODE;
-import static digit.config.ServiceConstants.PARSING_ERROR_MESSAGE;
+import static digit.config.ErrorConstants.PARSING_ERROR_CODE;
+import static digit.config.ErrorConstants.PARSING_ERROR_MESSAGE;
+
 
 @Component
 public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacility>> {
