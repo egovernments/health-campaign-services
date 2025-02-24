@@ -489,41 +489,6 @@ async function validateHeadersOfTargetSheet(request: any, differentTabsBasedOnLe
 }
 
 
-function validateBooleanField(obj: any, fieldName: any, index: any) {
-    if (!obj.hasOwnProperty(fieldName)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
-    }
-
-    if (typeof obj[fieldName] !== 'boolean') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a boolean.`);
-    }
-}
-
-function validateStringField(obj: any, fieldName: any, index: any) {
-    if (!obj.hasOwnProperty(fieldName)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
-    }
-    if (typeof obj[fieldName] !== 'string') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a string.`);
-    }
-    if (obj[fieldName].length < 1) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has empty value for field "${fieldName}".`);
-    }
-    if (obj[fieldName].length > 128) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has value for field "${fieldName}" that exceeds the maximum length of 128 characters.`);
-    }
-}
-
-function validateStorageCapacity(obj: any, index: any) {
-    if (!obj.hasOwnProperty('storageCapacity')) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "storageCapacity".`);
-    }
-    if (typeof obj.storageCapacity !== 'number') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "storageCapacity". It should be a number.`);
-    }
-}
-
-
 async function validateCampaignId(request: any) {
     const { campaignId, tenantId, type, additionalDetails } = request?.body?.ResourceDetails;
     if (type == "boundary") {
@@ -651,25 +616,6 @@ async function validateFile(request: any) {
     else {
         return (fileResponse?.fileStoreIds?.[0]?.url);
     }
-}
-
-function validateFacilityCreateData(data: any) {
-    data.forEach((obj: any) => {
-        const originalIndex = obj.originalIndex;
-
-        // Validate string fields
-        const stringFields = ['tenantId', 'name', 'usage'];
-        stringFields.forEach(field => {
-            validateStringField(obj, field, originalIndex);
-        });
-
-        // Validate storageCapacity
-        validateStorageCapacity(obj, originalIndex);
-
-        // Validate isPermanent
-        validateBooleanField(obj, 'isPermanent', originalIndex);
-    });
-
 }
 
 function throwMissingCodesError(missingCodes: any, hierarchyType: any) {
@@ -1588,7 +1534,6 @@ export {
     fetchBoundariesInChunks,
     validateSheetData,
     validateCreateRequest,
-    validateFacilityCreateData,
     validateProjectCampaignRequest,
     validateSearchProjectCampaignRequest,
     validateSearchRequest,

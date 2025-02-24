@@ -135,6 +135,7 @@ export async function getTargetListForCampaign(campaignDetails: any) {
     const tenantId = campaignDetails?.tenantId;
     const targetFileId = getTargetFileIdFromCampaignDetails(campaignDetails);
     const localeFromTargetFile = await getLocaleFromCampaignFiles(targetFileId,tenantId);
+    logger.info("LOCALE FROM TARGET FILE : " + localeFromTargetFile);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromTargetFile, tenantId);
     const targetData = await getCodesTarget(campaignDetails, localizationMap);
     const boundaryTree = await getBoundaryRelationshipDataFromCampaignDetails(campaignDetails);

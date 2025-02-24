@@ -97,6 +97,7 @@ export async function getFacilityListFromCampaignDetails(campaignDetails: any) {
     const type = "facility";
     const facilityFileId = getResourceFileIdFromCampaignDetails(campaignDetails, type);
     const localeFromFacilityFile = await getLocaleFromCampaignFiles(facilityFileId, tenantId);
+    logger.info("LOCALE FROM FACILITY FILE : " + localeFromFacilityFile);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromFacilityFile, tenantId);
     const dataFromSheet: any = await getDataFromSheetFromNormalCampaign(type, facilityFileId, tenantId, createAndSearch[type], createAndSearch[type]?.parseArrayConfig?.sheetName, localizationMap);
     const allFacilitiesFromDataSheet = await getAllFormatedDataFromDataSheet(type, dataFromSheet, localizationMap);
@@ -111,6 +112,8 @@ export async function getFacilityListFromCampaignDetails(campaignDetails: any) {
         // Split by commas, remove duplicates, and join back
         facility.boundaries = Array.from(new Set(boundariesString.split(",").map((b:any) => b.trim()))).join(",");
     });
+    // print storageCapacity of all facilities
+    logger.debug(JSON.stringify("STORAGE CAPACITY OF ALL FACILITIES : " + JSON.stringify(allFacilitiesFromDataSheet.map((facility: any) => ({ name: facility.name, storageCapacity: facility.storageCapacity })), null, 2)));
     return allFacilitiesFromDataSheet;
 }
 
@@ -251,6 +254,7 @@ export async function persistNewActiveFacilitiesFromFacilityList(allFacilityList
     }))
     for(let i = 0; i < formatedActiveFacilitiesToPersist.length; i += 100) {
         const chunk = formatedActiveFacilitiesToPersist.slice(i, i + 100);
+        logger.debug("Storage capacity of facilities in current chunk : " + JSON.stringify(chunk?.map((facility: any) => facility.storageCapacity)));
         const produceMessage: any = {
             campaignFacilities: chunk,
         };
@@ -669,6 +673,7 @@ export async function persistCreateResourceIdForFacility(CampaignDetails: any, R
     const campaignNumber = CampaignDetails?.campaignNumber;
     const workbook = await getExcelWorkbookFromFileURL(fileResponse?.fileStoreIds?.[0]?.url);
     const locale = await getLocaleFromCampaignFiles(resourceFileId, tenantId);
+    logger.info("LOCALE FROM FACILITY FILE : " + locale);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
     const facilityWorkSheet = workbook.getWorksheet(getLocalizedName(config.facility.facilityTab, localizationMap));
     if (!facilityWorkSheet) {

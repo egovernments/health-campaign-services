@@ -100,6 +100,7 @@ export async function getEmployeeListForCampaignDetails(campaignDetails: any) {
     const type = "user";
     const employeeFileId = getResourceFileIdFromCampaignDetails(campaignDetails, type);
     const localeFromEmployeeFile = await getLocaleFromCampaignFiles(employeeFileId, tenantId);
+    logger.info("LOCALE FROM EMPLOYEE FILE : " + localeFromEmployeeFile);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromEmployeeFile, tenantId);
     const dataFromSheet: any = await getDataFromSheetFromNormalCampaign(type, employeeFileId, tenantId, createAndSearch[type], createAndSearch[type]?.parseArrayConfig?.sheetName, localizationMap);
     const allEmployessFromDataSheet = await getAllFormatedDataFromDataSheet(type, dataFromSheet, localizationMap);
@@ -799,6 +800,7 @@ export async function persistCreateResourceIdForUser(CampaignDetails: any, Reque
     const resourceType = "user";
     const workbook = await getExcelWorkbookFromFileURL(fileResponse?.fileStoreIds?.[0]?.url);
     const locale = await getLocaleFromCampaignFiles(resourceFileId, tenantId);
+    logger.info("LOCALE FROM EMPLOYEE FILE : " + locale);
     const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
     const userWorkSheet = workbook.getWorksheet(getLocalizedName(config.user.userTab, localizationMap));
     if (!userWorkSheet) {
