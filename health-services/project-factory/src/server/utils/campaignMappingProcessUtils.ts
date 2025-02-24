@@ -29,6 +29,7 @@ async function persistForStaffMapping(formatedCampaignMappingsForStaff: any[], c
 }
 
 export async function modifyAndPushInKafkaForStaffMapping(campaignMappingsForStaff: any[], campaignEmployees: any[], boundaryCodeAndProjectIdMapping: any, campaignNumber: string, tenantId: string, userUuid: string) {
+    logger.info("MODIFYING AND PUSHING IN KAFKA FOR STAFF MAPPING");
     const mobileNumberAndUserUuidMapping = campaignEmployees?.reduce((acc: any, curr: any) => {
         acc[curr?.mobileNumber] = curr?.userServiceUuid;
         return acc;
@@ -41,6 +42,7 @@ export async function modifyAndPushInKafkaForStaffMapping(campaignMappingsForSta
         mappingCode : mapping?.mappingCode || null
     }))
     await persistForStaffMapping(formatedCampaignMappingsForStaff, campaignNumber, tenantId, userUuid);
+    logger.info("MODIFIED AND PUSHED IN KAFKA FOR STAFF MAPPING");
 }
 
 async function persistForFacilityMapping(formatedCampaignMappingsForFacility: any[], campaignNumber: string, tenantId: string, userUuid: string) {
@@ -64,6 +66,7 @@ async function persistForFacilityMapping(formatedCampaignMappingsForFacility: an
 }
 
 export async function modifyAndPushInKafkaForFacilityMapping(campaignMappingsForFacility: any[], campaignFacilities: any[], boundaryCodeAndProjectIdMapping: any, campaignNumber: string, tenantId: string, userUuid: string) {
+    logger.info("MODIFYING AND PUSHING IN KAFKA FOR FACILITY MAPPING");
     const facilityNameAndFacilityIdMapping = campaignFacilities?.reduce((acc: any, curr: any) => {
         const key = `N${campaignNumber}!#!${curr?.name}N`;
         acc[key] = curr?.facilityId;
@@ -77,6 +80,7 @@ export async function modifyAndPushInKafkaForFacilityMapping(campaignMappingsFor
         mappingCode : mapping?.mappingCode || null
     }))
     await persistForFacilityMapping(formatedCampaignMappingsForFacility, campaignNumber, tenantId, userUuid);
+    logger.info("MODIFIED AND PUSHED IN KAFKA FOR FACILITY MAPPING");
 }
 
 async function persistForResourceMapping(formatedArrayForResourceMapping: any[], campaignNumber: string, tenantId: string, userUuid: string) {
@@ -100,6 +104,7 @@ async function persistForResourceMapping(formatedArrayForResourceMapping: any[],
 }
 
 export async function modifyAndPushInKafkaForResourceMapping(campaignMappingsForResources: any[], boundaryCodeAndProjectIdMapping: any[], campaignNumber: string, tenantId: string, userUuid: string) {
+    logger.info("MODIFYING AND PUSHING IN KAFKA FOR RESOURCE MAPPING");
     const formatedArrayForResourceMapping = [];
     for (const mapping of campaignMappingsForResources) {
         if(mapping.status == mappingStatus.toBeMapped)
@@ -111,6 +116,7 @@ export async function modifyAndPushInKafkaForResourceMapping(campaignMappingsFor
             })
     }
     await persistForResourceMapping(formatedArrayForResourceMapping, campaignNumber, tenantId, userUuid);
+    logger.info("MODIFIED AND PUSHED IN KAFKA FOR RESOURCE MAPPING");
 }
 
 export async function processSubMappingFromConsumer(data: any, campaignNumber: string) {
@@ -646,6 +652,7 @@ export async function persistNewActiveCampaignMappingForResources(
     userUuid: any,
     pvarIds: any[]
 ) {
+    logger.info("PERSISTING NEW ACTIVE CAMPAIGN MAPPINGS FOR RESOURCES");
     const setOfPvarIdsBoundaryCodesForWhichResourceMappingDataAlreadyPersisted = new Set();
     campaignMappingsForResources.forEach((campaignMapping: any) => {
         setOfPvarIdsBoundaryCodesForWhichResourceMappingDataAlreadyPersisted.add(`N${campaignMapping?.mappingIdentifier}!#!${campaignMapping?.boundaryCode}N`);
@@ -683,6 +690,7 @@ export async function persistNewActiveCampaignMappingForResources(
             config?.kafka?.KAFKA_SAVE_CAMPAIGN_MAPPINGS_TOPIC
         );
     }
+    logger.info("NEW ACTIVE CAMPAIGN MAPPINGS FOR RESOURCES PERSISTED");
 }
 
 

@@ -95,6 +95,7 @@ export async function createCampaignEmployees(campaignDetailsAndRequestInfo: any
 }
 
 export async function getEmployeeListForCampaignDetails(campaignDetails: any) {
+    logger.info("GETTING EMPLOYEE LIST FOR CAMPAIGN DETAILS");
     const tenantId = campaignDetails?.tenantId;
     const type = "user";
     const employeeFileId = getResourceFileIdFromCampaignDetails(campaignDetails, type);
@@ -107,6 +108,7 @@ export async function getEmployeeListForCampaignDetails(campaignDetails: any) {
             new Set((employee?.jurisdictions || "").split(",").map((j:any) => j.trim()))
         ).join(",");
     })
+    logger.info("EMPLOYEE LIST FOR CAMPAIGN DETAILS FETCHED");
     return allEmployessFromDataSheet;
 }
 
@@ -191,8 +193,10 @@ export async function persistForActiveEmployees(
     userUuid: string,
     mobileNumbersAndCampaignEmployeeMapping: any
 ) {
+    logger.info("PERSISTING FOR ACTIVE EMPLOYEES STARTED");
     await persistNewActiveEmployees(employeesFromSheet, campaignEmployees, campaignNumber, userUuid, mobileNumbersAndCampaignEmployeeMapping);
     await updateInactiveEmployeesToActive(employeesFromSheet, campaignEmployees, userUuid);
+    logger.info("PERSISTING FOR ACTIVE EMPLOYEES ENDED");
 }
 
 
@@ -291,8 +295,10 @@ async function updateInactiveEmployeesToActive(
 
 
 export async function persistForInactiveEmployees(employeesFromSheet: any[], campaignEmployees: any[], mobileNumbersAndCampaignEmployeeMapping: any, campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR INACTIVE EMPLOYEES STARTED");
     await updateActiveEmployeesToInactive(employeesFromSheet, campaignEmployees, userUuid);
     await persistNewInactiveEmployees(employeesFromSheet, campaignEmployees, mobileNumbersAndCampaignEmployeeMapping, campaignNumber, userUuid);
+    logger.info("PERSISTING FOR INACTIVE EMPLOYEES ENDED");
 }
 
 async function updateActiveEmployeesToInactive(employeesFromSheet: any[], campaignEmployees: any[], userUuid: string){
@@ -369,8 +375,10 @@ async function persistNewInactiveEmployees(employeesFromSheet: any[], campaignEm
 }
 
 export async function persistForActiveBoundariesFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR ACTIVE BOUNDARIES FROM EMPLOYEE LIST STARTED");
     await persistNewMappingsFromEmployeeList(employeeList, campaignMappings, campaignNumber, userUuid);
     await updateMappingsFromEmployeeList(employeeList, campaignMappings, userUuid);
+    logger.info("PERSISTING FOR ACTIVE BOUNDARIES FROM EMPLOYEE LIST ENDED");
 }
 
 export async function persistNewMappingsFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
@@ -467,8 +475,10 @@ export async function updateMappingsFromEmployeeList(employeeList: any[], campai
 }
 
 export async function persistForInActiveBoundariesFromEmployeeList(employeeList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR INACTIVE BOUNDARIES FROM EMPLOYEE LIST STARTED");
     await inactivateMappingsForInactiveEmployees(employeeList, campaignMappings, userUuid);
     await removeMappingsForInactiveBoundariesForEmployeeList(employeeList, campaignMappings, userUuid);
+    logger.info("PERSISTING FOR INACTIVE BOUNDARIES FROM EMPLOYEE LIST ENDED");
 }
 
 export async function inactivateMappingsForInactiveEmployees(employeeList: any[], campaignMappings: any[], userUuid: string) {

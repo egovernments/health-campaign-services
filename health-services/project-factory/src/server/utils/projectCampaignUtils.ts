@@ -162,6 +162,7 @@ export async function enrichRootProjectId(campaignDetails: any) {
 
 
 export async function updateTargetsInProjectCampaign(allTargetList: any, campaignProjects: any[]) {
+    logger.info("UPDATING TARGETS IN PROJECT CAMPAIGN");
     const campaignProjectsToUpdate: any[] = [];
     for (const campaignProject of campaignProjects) {
         const currentBoundary = campaignProject.boundaryCode;
@@ -184,10 +185,12 @@ export async function updateTargetsInProjectCampaign(allTargetList: any, campaig
     if (campaignProjectsToUpdate?.length > 0) {
         await updateCampaignProjects(campaignProjects);
     }
+    logger.info("TARGETS UPDATED IN PROJECT CAMPAIGN");
 }
 
 
 export async function addBoundariesInProjectCampaign(allBoundaries: any, allTargetList: any, campaignNumber: string, currentUserUuid: string, campaignProjects: any[]) {
+    logger.info("ADDING BOUNDARIES IN PROJECT CAMPAIGN");
     const campaignProjectsToAdd: any[] = [];
     const alreadyPresentBoundarySet = new Set(campaignProjects.map((project: any) => project.boundaryCode));
     for (const boundary of allBoundaries) {
@@ -215,6 +218,7 @@ export async function addBoundariesInProjectCampaign(allBoundaries: any, allTarg
     if (campaignProjectsToAdd?.length > 0) {
         await addCampaignProjects(campaignProjectsToAdd);
     }
+    logger.info("BOUNDARIES ADDED IN PROJECT CAMPAIGN");
 }
 
 export async function processSubProjectCreationFromConsumer(data: any, campaignNumber: string) {

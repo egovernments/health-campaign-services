@@ -92,6 +92,7 @@ export async function createCampaignFacilities(campaignDetailsAndRequestInfo: an
 }
 
 export async function getFacilityListFromCampaignDetails(campaignDetails: any) {
+    logger.info("GETTING FACILITIES FROM SHEET");
     const tenantId = campaignDetails?.tenantId;
     const type = "facility";
     const facilityFileId = getResourceFileIdFromCampaignDetails(campaignDetails, type);
@@ -221,8 +222,10 @@ export async function fetchCampaignFacilitiesData(
 // }
 
 export async function persistForActiveFacilities(allFacilityList: any, campaignFacilities: any, campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR ACTIVE FACILITIES");
     await persistNewActiveFacilitiesFromFacilityList(allFacilityList, campaignFacilities, campaignNumber, userUuid);
     await updateInactiveFacilitiesToActive(allFacilityList, campaignFacilities, userUuid);
+    logger.info("PERSISTING FOR ACTIVE FACILITIES COMPLETED");
 }
 
 export async function persistNewActiveFacilitiesFromFacilityList(allFacilityList: any, campaignFacilities: any, campaignNumber: string, userUuid: string) {
@@ -283,8 +286,10 @@ async function updateInactiveFacilitiesToActive(allFacilityList: any[], campaign
 }
 
 export async function persistForInactiveFacilities( allFacilityList: any[], campaignFacilities: any[], campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR INACTIVE FACILITIES");
     await updateActiveFacilitiesToInActive(allFacilityList, campaignFacilities, userUuid);
     await persistNewInactiveFacilities(allFacilityList, campaignFacilities, campaignNumber, userUuid);
+    logger.info("PERSISTING FOR INACTIVE FACILITIES COMPLETED");
 }
 
 async function updateActiveFacilitiesToInActive(allFacilityList: any[], campaignFacilities: any[], userUuid: string) {
@@ -359,8 +364,10 @@ export async function persistForActiveBoundariesFromFacilityList(
     campaignNumber: string, 
     userUuid: string
 ) {
+    logger.info("PERSISTING FOR ACTIVE BOUNDARIES FROM FACILITY LIST");
     await persistNewMappingsFromFacilityList(allFacilityList, campaignMappings, campaignNumber, userUuid);
     await updateMappingsFromFacilityList(allFacilityList, campaignMappings, campaignNumber, userUuid);
+    logger.info("PERSISTING FOR ACTIVE BOUNDARIES FROM FACILITY LIST COMPLETED");
 }
 
 export async function persistNewMappingsFromFacilityList(allFacilityList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
@@ -454,8 +461,10 @@ async function updateMappingsFromFacilityList(allFacilityList: any[], campaignMa
 }
 
 export async function persistForInActiveBoundariesFromFacilityList(allFacilityList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {
+    logger.info("PERSISTING FOR INACTIVE BOUNDARIES FROM FACILITY LIST");
     await inactivateMappingsForInactiveFacilities(allFacilityList, campaignMappings, campaignNumber, userUuid);
     await removeMappingsForInactiveBoundariesForFacilityList(allFacilityList, campaignMappings,campaignNumber, userUuid);
+    logger.info("PERSISTING FOR INACTIVE BOUNDARIES FROM FACILITY LIST ENDED");
 }
 
 async function inactivateMappingsForInactiveFacilities(allFacilityList: any[], campaignMappings: any[], campaignNumber: string, userUuid: string) {

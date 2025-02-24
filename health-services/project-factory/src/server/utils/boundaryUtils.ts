@@ -71,6 +71,7 @@ export async function getLatLongMapForBoundaryCodes(request:any, boundaryCodeLis
 
 
 export async function getAllBoundariesForCampaign(campaignDetails: any) {
+  logger.info("GETTING ALL BOUNDARIES FOR CAMPAIGN");
   const { boundaries } = campaignDetails;
   const boundaryDataFromRootOnwards = await getBoundaryRelationshipDataFromCampaignDetails(campaignDetails);
   let allBoundaries = [];
@@ -88,6 +89,7 @@ export async function getAllBoundariesForCampaign(campaignDetails: any) {
   else{
     throw(new Error("Root boundary not found"));
   }
+  logger.info("ALL BOUNDARIES FOR CAMPAIGN FETCHED");
   return allBoundaries;
 }
 

@@ -131,6 +131,7 @@ function isDynamicTargetTemplateForProjectType(projectType: string) {
 }
 
 export async function getTargetListForCampaign(campaignDetails: any) {
+    logger.info("GETTING TARGET LIST FOR CAMPAIGN");
     const tenantId = campaignDetails?.tenantId;
     const targetFileId = getTargetFileIdFromCampaignDetails(campaignDetails);
     const localeFromTargetFile = await getLocaleFromCampaignFiles(targetFileId,tenantId);
@@ -150,6 +151,7 @@ export async function getTargetListForCampaign(campaignDetails: any) {
     const filteredTargetData = Object.fromEntries(
         Object.entries(targetData).filter(([key, value]) => value && Object.keys(value).length > 0)
     );
+    logger.info("TARGET LIST FOR CAMPAIGN FETCHED");
     return filteredTargetData;
 }
 
@@ -164,6 +166,7 @@ export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
 }
 
 export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, userUuid: string, parentProjectId : string | null = null) {
+    logger.info("PERSISTING FOR PROJECT PROCESS");
     const produceMessage: any = {
         processName: processNamesConstantsInOrder.projectCreation,
         data : {
@@ -175,6 +178,7 @@ export async function persistForProjectProcess(boudaryCodes: string[], campaignN
         campaignNumber: campaignNumber
     }
     await produceModifiedMessages(produceMessage, config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC);
+    logger.info("PERSISTED FOR PROJECT PROCESS");
 }
 
 export {
