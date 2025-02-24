@@ -10,7 +10,10 @@ public class ErrorConstants {
 	
 	public static final String HRMS_USER_EXIST_USERNAME_CODE = "ERR_HRMS_USER_EXIST_USERNAME";
 	public static final String HRMS_USER_EXIST_USERNAME_MSG = "User already exists for the entered user name.";
-	
+
+	public static final String HRMS_USER_EXIST_INDIVIDUAL_NAME_CODE = "ERR_HRMS_USER_EXIST_INDIVIDUAL_USERNAME";
+	public static final String HRMS_USER_EXIST_INDIVIDUAL_NAME_MSG = "User already exists for the entered individual user name.";
+
 	public static final String HRMS_INVALID_MOB_NO_CODE = "ERR_HRMS_INVALID_MOB_NO";
 	public static final String HRMS_INVALID_MOB_NO_MSG = "Invalid mobile number entered.";
 	
