@@ -136,24 +136,26 @@ public class PlanEnricher {
      * @param tenantBoundary boundary relationship from the boundary service for the given boundary code.
      */
     public void enrichBoundaryAncestralPath(Plan plan, HierarchyRelation tenantBoundary) {
-        EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
-        Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+        if(plan.isRequestFromResourceEstimationConsumer()) {
+            EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
+            Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
 
-        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
-        jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
-
-        // Iterate through the child boundary until there are no more
-        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
-            boundary = boundary.getChildren().get(0);
-            boundaryAncestralPath.append(PIPE_SEPARATOR).append(boundary.getCode());
+            StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+
+            // Iterate through the child boundary until there are no more
+            while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+                boundary = boundary.getChildren().get(0);
+                boundaryAncestralPath.append(PIPE_SEPARATOR).append(boundary.getCode());
+                jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+            }
+
+            // Setting the boundary ancestral path for the provided boundary
+            plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
+
+            // Setting jurisdiction mapping for the provided boundary
+            plan.setJurisdictionMapping(jurisdictionMapping);
         }
-
-        // Setting the boundary ancestral path for the provided boundary
-        plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
-
-        // Setting jurisdiction mapping for the provided boundary
-        plan.setJurisdictionMapping(jurisdictionMapping);
     }
 
     /**

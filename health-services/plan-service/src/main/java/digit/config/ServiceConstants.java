@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class ServiceConstants {
 
     public static final String EXTERNAL_SERVICE_EXCEPTION = "External Service threw an Exception: ";
+
     public static final String SEARCHER_SERVICE_EXCEPTION = "Exception while fetching from searcher: ";
 
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
@@ -215,6 +216,12 @@ public class ServiceConstants {
     public static final String NO_BUSINESS_SERVICE_DATA_FOUND_CODE = "NO_BUSINESS_SERVICE_DATA_FOUND";
     public static final String NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE = "Invalid or incorrect businessService. No business service data found.";
 
+    public static final String BULK_UPDATE_ERROR = "BULK_UPDATE_ERROR";
+    public static final String NON_UNIQUE_PLANS_ERROR = "Plans provided in the bulk update request are not unique.";
+    public static final String INCONSISTENT_TENANT_OR_CONFIG_ERROR = "Tenant id and plan configuration ids should be same across all entries for bulk update.";
+    public static final String MISSING_WORKFLOW_ERROR = "Workflow information is mandatory for each entry for bulk update.";
+    public static final String INCONSISTENT_STATUS_OR_ACTION_ERROR = "All entries should be in the same state for bulk transitioning plan records.";
+
     //mdms constants
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
@@ -249,7 +256,9 @@ public class ServiceConstants {
 
     public static final String PIPE_REGEX = "\\|";
 
-    public static final String FILTER_CODE = "$.*.code";
+    public static final String FILTER_UOMCODE = ".*.uomCode";
+
+    public static final String FILTER_CODE = ".*.code";
 
     public static final String FILTER_ID = "$.*.id";
 
