@@ -1,8 +1,14 @@
 import config from '../config'
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
+import { checkIfSourceIsMicroplan, getCodesTarget, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName, mapTargets } from './campaignUtils';
 import _ from 'lodash';
-import { replicateRequest } from './genericUtils';
+import { getLocalizedMessagesHandlerViaLocale, replicateRequest } from './genericUtils';
 import { callGenerate } from './generateUtils';
+import { getBoundaryRelationshipDataFromCampaignDetails } from './boundaryUtils';
+import { getFormattedStringForDebug, logger } from './logger';
+import { getLocaleFromCampaignFiles } from './excelUtils';
+import { produceModifiedMessages } from '../kafka/Producer';
+import { processNamesConstantsInOrder } from '../config/constants';
+
 
 
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
@@ -99,7 +105,7 @@ async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any)
             const newRequestBody = {
                 RequestInfo: request?.body?.RequestInfo,
                 Filters: {
-                    boundaries: request?.body?.boundariesCombined
+                    boundaries: request?.body?.CampaignDetails?.boundaries
                 }
             };
 
@@ -124,9 +130,57 @@ function isDynamicTargetTemplateForProjectType(projectType: string) {
     return projectTypesArray.includes(projectType);
 }
 
+export async function getTargetListForCampaign(campaignDetails: any) {
+    logger.info("GETTING TARGET LIST FOR CAMPAIGN");
+    const tenantId = campaignDetails?.tenantId;
+    const targetFileId = getTargetFileIdFromCampaignDetails(campaignDetails);
+    const localeFromTargetFile = await getLocaleFromCampaignFiles(targetFileId,tenantId);
+    logger.info("LOCALE FROM TARGET FILE : " + localeFromTargetFile);
+    const localizationMap = await getLocalizedMessagesHandlerViaLocale(localeFromTargetFile, tenantId);
+    const targetData = await getCodesTarget(campaignDetails, localizationMap);
+    const boundaryTree = await getBoundaryRelationshipDataFromCampaignDetails(campaignDetails);
+    if (targetData) {
+        mapTargets(
+            boundaryTree,
+            targetData
+        );
+        logger.debug(
+            "codesTargetMapping mapping :: " +
+            getFormattedStringForDebug(targetData)
+        );
+    }
+    const filteredTargetData = Object.fromEntries(
+        Object.entries(targetData).filter(([key, value]) => value && Object.keys(value).length > 0)
+    );
+    logger.info("TARGET LIST FOR CAMPAIGN FETCHED");
+    return filteredTargetData;
+}
 
+export function getTargetFileIdFromCampaignDetails(campaignDetails: any) {
+    const fileId = campaignDetails?.resources?.find((resource: any) => resource?.type == "boundaryWithTarget")?.filestoreId;
+    if(!fileId) {
+        throw new Error("Target file not found in campaign details");
+    }
+    else{
+        return fileId;
+    }
+}
 
-
+export async function persistForProjectProcess(boudaryCodes: string[], campaignNumber: string, tenantId: string, userUuid: string, parentProjectId : string | null = null) {
+    logger.info("PERSISTING FOR PROJECT PROCESS");
+    const produceMessage: any = {
+        processName: processNamesConstantsInOrder.projectCreation,
+        data : {
+            tenantId : tenantId,
+            userUuid : userUuid,
+            parentProjectId : parentProjectId,
+            childrenBoundaryCodes : boudaryCodes
+        },
+        campaignNumber: campaignNumber
+    }
+    await produceModifiedMessages(produceMessage, config.kafka.KAFKA_SUB_PROCESS_HANDLER_TOPIC);
+    logger.info("PERSISTED FOR PROJECT PROCESS");
+}
 
 export {
     modifyDeliveryConditions,

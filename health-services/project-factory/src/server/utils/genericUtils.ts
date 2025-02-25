@@ -729,7 +729,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
-  addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  addDataToSheet(type, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   enrichUsageColumnForFacility(facilitySheet, localizationMap);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
@@ -748,7 +748,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(type, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
   const fileDetails = await createAndUploadFile(workbook, request);
@@ -849,13 +849,13 @@ async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, schema: any, localizationMap?: { [key: string]: string }, fileUrl?: any) {
   const workbook = getNewExcelWorkbook();
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
-  const type = request?.query?.type;
+  const type = request?.query?.type || request?.body?.ResourceDetails?.type;
   const headingInSheet = headingMapping?.[type]
   const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
   await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
 
   const userSheet = workbook.addWorksheet(localizedUserTab);
-  addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  addDataToSheet(type, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
   hideUniqueIdentifierColumn(userSheet, createAndSearch?.["user"]?.uniqueIdentifierColumn);
 
   let receivedDropdowns = request.body?.dropdowns;
@@ -872,7 +872,7 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
+  addDataToSheet(type, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -884,9 +884,10 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId, request.body);
-  request.body.generatedResourceCount = allFacilities?.length;
-  logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
+  const allSearchedFacilities = await getAllFacilities(tenantId, request.body);
+  const facilitiesWithUniqueNames = getAllFacilitiesUniqueOnName(allSearchedFacilities);
+  request.body.generatedResourceCount = facilitiesWithUniqueNames?.length;
+  logger.info(`Facilities generation completed and found ${facilitiesWithUniqueNames?.length} facilities`);
   let facilitySheetDataFinal: any;
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
   let schemaFinal: any;
@@ -900,7 +901,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
-    const { schema, facilitySheetData }: any = await createFacilitySheet(request, allFacilities, localizationMap);
+    const { schema, facilitySheetData }: any = await createFacilitySheet(request, facilitiesWithUniqueNames, localizationMap);
     facilitySheetDataFinal = facilitySheetData;
     schemaFinal = schema;
   }
@@ -913,6 +914,18 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
+}
+
+function getAllFacilitiesUniqueOnName(allFacilities: any[]) {
+  const setOfFacilityNames = new Set();
+  const uniqueNameFacilities: any[] = [];
+  allFacilities?.forEach((facility: any) => {
+    if(!setOfFacilityNames.has(facility?.name)) {
+      setOfFacilityNames.add(facility?.name);
+      uniqueNameFacilities.push(facility);
+    }
+  })
+  return uniqueNameFacilities;
 }
 
 async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any, fileUrl?: any) {
@@ -1002,7 +1015,7 @@ async function makeCustomSheetData(request: any, type: any, sheetName: any, work
     allRows.push(rowData);
   }
   const sheetData = getConvertedSheetData(allRows);
-  addDataToSheet(request, customSheet, sheetData, undefined, undefined);
+  addDataToSheet(type, customSheet, sheetData, undefined, undefined);
   customSheet.protect('passwordhere', {
     selectLockedCells: true,
     selectUnlockedCells: true
@@ -1039,7 +1052,7 @@ async function generateUserSheetForMicroPlan(
   for (const role of rolesForMicroplan) {
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
-    addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+    addDataToSheet(type, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
     await handledropdownthings(userSheet, schema, localizationMap);
     protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
@@ -1235,7 +1248,7 @@ function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
   return [withBoundaryCode, withoutBoundaryCode];
 }
 
-async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
+export async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
@@ -1244,16 +1257,15 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
     return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true, localizationMap);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName || optionalSheetName, true, createAndSearchConfig, localizationMap)
-
 }
 
 
-async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
-  const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
-  const type = request?.body?.ResourceDetails?.type;
+async function getDataFromSheet(requestBody: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
+  const isSourceMicroplan = requestBody?.ResourceDetails?.additionalDetails?.source == "microplan";
+  const type = requestBody?.ResourceDetails?.type;
   if (isSourceMicroplan) {
     if (type == 'user') {
-      return await getUserDataFromMicroplanSheet(request, fileStoreId, tenantId, createAndSearchConfig, localizationMap);
+      return await getUserDataFromMicroplanSheet(requestBody, fileStoreId, tenantId, createAndSearchConfig, localizationMap);
     }
     else {
       return await getDataFromSheetFromNormalCampaign(type, fileStoreId, tenantId, createAndSearchConfig, optionalSheetName, localizationMap);
@@ -1262,18 +1274,6 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   else {
     return await getDataFromSheetFromNormalCampaign(type, fileStoreId, tenantId, createAndSearchConfig, optionalSheetName, localizationMap);
   }
-}
-
-async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated");
-  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-  const header = {
-    ...defaultheader,
-    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-  }
-  const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received");
-  return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
 
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
@@ -1383,6 +1383,19 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
 async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequestInfo(RequestInfo);
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
+}
+
+/**
+ * Get localized messages using a specific locale
+ * @param locale The locale string to use for localization
+ * @param tenantId The tenant ID
+ * @param module The module name, defaults to config.localisation.localizationModule
+ * @returns Promise<Record<string, string>> A promise that resolves to localized messages
+ */
+async function getLocalizedMessagesHandlerViaLocale(locale:string, tenantId: any, module = config.localisation.localizationModule) {
+  const localisationcontroller = Localisation.getInstance();
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;
 }
@@ -1545,7 +1558,6 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  getBoundaryRelationshipData,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
@@ -1566,6 +1578,7 @@ export {
   shutdownGracefully,
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
+  getLocalizedMessagesHandlerViaLocale,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn
 };

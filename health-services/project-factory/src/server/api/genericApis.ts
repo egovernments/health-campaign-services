@@ -3,12 +3,14 @@ import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
-import { correctParentValues, findMapValue, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { correctParentValues, findMapValue,getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { getBoundaryRelationshipData } from "./boundaryApis";
+import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -189,10 +191,8 @@ const getTargetSheetData = async (
 };
 
 const getTargetSheetDataAfterCode = async (
-  request: any,
+  campaignDetails: any, 
   fileUrl: string,
-  getRow = false,
-  getSheetName = false,
   codeColumnName = "Boundary Code",
   localizationMap?: any
 ) => {
@@ -221,10 +221,10 @@ const getTargetSheetDataAfterCode = async (
     }
 
     if (boundaryCodeColumnIndex === -1) {
-      console.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
+      logger.warn(`Column "${codeColumnName}" not found in sheet "${sheetName}".`);
       continue;
     }
-    const processedData = await processDataForTargetCalculation(request, jsonData, codeColumnName, localizationMap);
+    const processedData = await processDataForTargetCalculation(campaignDetails, jsonData, codeColumnName, localizationMap);
 
     workbookData[sheetName] = processedData;
   }
@@ -314,117 +314,6 @@ const getCampaignNumber: any = async (
   throwError("COMMON", 500, "IDGEN_ERROR");
 };
 
-// Function to generate a resource number
-const getResouceNumber: any = async (
-  RequestInfo: any,
-  idFormat: String,
-  idName: string
-) => {
-  // Construct request data
-  const data = {
-    RequestInfo,
-    idRequests: [
-      {
-        idName: idName,
-        tenantId: RequestInfo?.userInfo?.tenantId,
-        format: idFormat,
-      },
-    ],
-  };
-
-  // Construct URL for ID generation service
-  const idGenUrl = config.host.idGenHost + config.paths.idGen;
-
-  try {
-    // Make HTTP request to ID generation service
-    const result = await httpRequest(
-      idGenUrl,
-      data,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Return generated resource number
-    if (result?.idResponses?.[0]?.id) {
-      return result?.idResponses?.[0]?.id;
-    }
-
-    // Return null if ID generation fails
-    return result;
-  } catch (error: any) {
-    // Log error if ID generation fails
-    logger.error("Error: " + error);
-
-    // Return error
-    return error;
-  }
-};
-
-// Function to get schema definition based on code and request info
-const getSchema: any = async (code: string, RequestInfo: any) => {
-  const data = {
-    RequestInfo,
-    SchemaDefCriteria: {
-      tenantId: RequestInfo?.userInfo?.tenantId,
-      limit: 200,
-      codes: [code],
-    },
-  };
-  const mdmsSearchUrl = config.host.mdmsV2 + config.paths.mdmsSchema;
-
-  try {
-    const result = await httpRequest(
-      mdmsSearchUrl,
-      data,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-    return result?.SchemaDefinitions?.[0]?.definition;
-  } catch (error: any) {
-    logger.error("Error: " + error);
-    return error;
-  }
-};
-
-// Function to get count from response data
-const getCount: any = async (
-  responseData: any,
-  request: any,
-  response: any
-) => {
-  try {
-    // Extract host and URL from response data
-    const host = responseData?.host;
-    const url = responseData?.searchConfig?.countUrl;
-
-    // Extract request information
-    const requestInfo = { RequestInfo: request?.body?.RequestInfo };
-
-    // Make HTTP request to get count
-    const result = await httpRequest(
-      host + url,
-      requestInfo,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Extract count from result using lodash
-    const count = _.get(result, responseData?.searchConfig?.countPath);
-
-    return count; // Return the count
-  } catch (error: any) {
-    // Log and throw error if any
-    logger.error("Error: " + error);
-    throw error;
-  }
-};
-
 // Function to create Excel sheet and upload it
 async function createAndUploadFile(
   updatedWorkbook: any,
@@ -433,7 +322,10 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  enrichTemplateMetaData(updatedWorkbook, request);
+  const RequestInfo = request?.body?.RequestInfo;
+  const locale = getLocaleFromRequestInfo(RequestInfo);
+  const campaignId = request?.query?.campaignId;
+  enrichTemplateMetaData(updatedWorkbook, locale, campaignId);
   while (retries--) {
     try {
       // Write the updated workbook to a buffer
@@ -457,7 +349,7 @@ async function createAndUploadFile(
         undefined,
         {
           "Content-Type": "multipart/form-data",
-          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          "auth-token": config.token,
         }
       );
 
@@ -476,6 +368,59 @@ async function createAndUploadFile(
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
 }
+
+export async function createAndUploadFileWithLocaleAndCampaign(
+  updatedWorkbook: any,
+  locale: string,
+  campaignId: any,
+  tenantId: any
+) {
+  let retries: any = 3;
+  // Enrich metadatas
+  enrichTemplateMetaData(updatedWorkbook, locale, campaignId);
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data",
+          "auth-token": config.token,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
 
 async function createAndUploadJsonFile(
   jsonData: any, // Expecting JSON data as an argument
@@ -538,47 +483,6 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
     }
   }
   return result; // Return the hierarchy list
-}
-
-// Function to generate hierarchy from boundaries
-function generateHierarchy(boundaries: any[]) {
-  // Create an object to store boundary types and their parents
-  const parentMap: any = {};
-
-  // Populate the object with boundary types and their parents
-  for (const boundary of boundaries) {
-    parentMap[boundary.boundaryType] = boundary.parentBoundaryType;
-  }
-
-  // Traverse the hierarchy to generate the hierarchy list
-  const hierarchyList = [];
-  for (const boundaryType in parentMap) {
-    if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
-      const parentBoundaryType = parentMap[boundaryType];
-      if (parentBoundaryType === null) {
-        // This boundary type has no parent, add it to the hierarchy list
-        hierarchyList.push(boundaryType);
-        // Traverse its children recursively
-        traverseChildren(boundaryType, parentMap, hierarchyList);
-      }
-    }
-  }
-  return hierarchyList; // Return the hierarchy list
-}
-
-// Recursive function to traverse children and generate hierarchy
-function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
-  for (const boundaryType in parentMap) {
-    if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
-      const parentBoundaryType = parentMap[boundaryType];
-      if (parentBoundaryType === parent) {
-        // This boundary type has the current parent, add it to the hierarchy list
-        hierarchyList.push(boundaryType);
-        // Traverse its children recursively
-        traverseChildren(boundaryType, parentMap, hierarchyList);
-      }
-    }
-  }
 }
 
 // Function to create an Excel sheet
@@ -741,7 +645,7 @@ async function getBoundarySheetData(
   logger.info(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
-  const boundaryData = await getBoundaryRelationshipData(request, params);
+  const boundaryData = await getBoundaryRelationshipData(params);
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
@@ -866,7 +770,7 @@ async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagem
       "FILE",
       400,
       "FETCHING_COLUMN_ERROR",
-      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema)."
     );
   }
 }
@@ -884,9 +788,20 @@ async function createStaff(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.info("Project Staff mapping created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if(staffResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Staff already exists");
+  }
+  else if(staffResponse?.Errors?.length > 0){
+    logger.error("Project Staff creation failed");
+    throw new Error(staffResponse?.Errors?.[0]?.message);
+  }
+  else{
+    logger.info("Project Staff created successfully");
+  }
   logger.debug(
     "Project Staff mapping response " +
     getFormattedStringForDebug(staffResponse)
@@ -912,9 +827,20 @@ async function createProjectResource(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.debug("Project Resource Created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if (projectResourceResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Resource already exists");
+  }
+  else if (projectResourceResponse?.Errors?.length > 0){
+    logger.error("Project Resource creation failed");
+    throw new Error(projectResourceResponse?.Errors?.[0]?.message);
+  }
+  else {
+    logger.info("Project Resource created successfully");
+  }
   logger.debug(
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
@@ -940,9 +866,20 @@ async function createProjectFacility(resouceBody: any) {
     undefined,
     undefined,
     undefined,
-    false
+    false,
+    true
   );
-  logger.info("Project Facility Created");
+  // TODO : Remove this error checking logic and also remove dontThrowError in the httpRequest
+  if (projectFacilityResponse?.Errors?.[0]?.message.includes("errorCode=DUPLICATE_ENTITY")) {
+    logger.info("Project Facility already exists");
+  }
+  else if(projectFacilityResponse?.Errors?.length > 0){
+    logger.error("Project Facility creation failed");
+    throw new Error(projectFacilityResponse?.Errors?.[0]?.message);
+  }
+  else {
+    logger.info("Project Facility created successfully");
+  }
   logger.debug(
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
@@ -1432,14 +1369,10 @@ export {
   getSheetData,
   searchMDMS,
   getCampaignNumber,
-  getSchema,
-  getResouceNumber,
-  getCount,
   getBoundarySheetData,
   createAndUploadFile,
   createRelatedResouce,
   createExcelSheet,
-  generateHierarchy,
   generateHierarchyList,
   getTargetWorkbook,
   getTargetSheetData,

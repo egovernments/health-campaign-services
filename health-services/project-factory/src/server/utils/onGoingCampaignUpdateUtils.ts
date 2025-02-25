@@ -10,6 +10,7 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { defaultRequestInfo } from "../api/coreApis";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -88,17 +89,6 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
     return localizedHeaders.map((header: any) => row[header] || '');
   });
 
-  const updatedHeaders = localizedHeaders.map((header: any) => header === getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap) ?
-    getLocalizedName(config?.boundary?.boundaryCodeOld, localizationMap) : header)
-
-  const updatedWithAdditionalHeaders = [...updatedHeaders, config?.boundary?.boundaryCodeMandatory]
-  localizedHeaders = getLocalizedHeaders(updatedWithAdditionalHeaders, localizationMap);
-
-  dataRows = dataRows.map((row: any, index: number) => {
-    const boundaryCodeValue = sheetData[index][getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap)] || '';
-    return [...row, boundaryCodeValue];
-  });
-
   // Combine headers and dataRows
   const modifiedData = [localizedHeaders, ...dataRows];
 
@@ -107,35 +97,24 @@ function modifyProcessedSheetData(type: any, sheetData: any, schema: any, locali
 
 function freezeUnfreezeColumnsForProcessedFile(sheet: any, columnsToFreeze: number[], columnsToUnfreeze: number[]) {
   // First, unfreeze specified columns
-  columnsToUnfreeze.forEach(colNumber => {
-    for (let row = 1; row <= sheet.rowCount; row++) {
-      const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: false }; // Unfreeze the cell
-    }
-  });
+  if(columnsToUnfreeze?.length > 0 ){
+    columnsToUnfreeze.forEach(colNumber => {
+      for (let row = 1; row <= sheet.rowCount; row++) {
+        const cell = sheet.getCell(row, colNumber);
+        cell.protection = { locked: false }; // Unfreeze the cell
+      }
+    });
+  } 
 
   // Then, freeze specified columns
-  columnsToFreeze.forEach(colNumber => {
-    for (let row = 1; row <= sheet.rowCount; row++) {
-      const cell = sheet.getCell(row, colNumber);
-      cell.protection = { locked: true }; // Freeze the cell
-    }
-  });
-}
-
-
-function getColumnIndexByHeader(sheet: any, headerName: string): number {
-  // Get the first row (assumed to be the header row)
-  const firstRow = sheet.getRow(1);
-
-  // Find the column index where the header matches the provided name
-  for (let col = 1; col <= firstRow.cellCount; col++) {
-    const cell = firstRow.getCell(col);
-    if (cell.value === headerName) {
-      return col; // Return the column index (1-based)
-    }
+  if(columnsToFreeze?.length > 0 ){
+    columnsToFreeze.forEach(colNumber => {
+      for (let row = 1; row <= sheet.rowCount; row++) {
+        const cell = sheet.getCell(row, colNumber);
+        cell.protection = { locked: true }; // Freeze the cell
+      }
+    });
   }
-  return 1;
 }
 
 // function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
@@ -174,6 +153,7 @@ async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObjec
 }
 
 function hideColumnsOfProcessedFile(sheet: any, columnsToHide: any[]) {
+  if(!columnsToHide || columnsToHide.length === 0) return;
   columnsToHide.forEach((column) => {
     if (column > 0) {
       sheet.getColumn(column).hidden = true;
@@ -239,7 +219,7 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   return newData;
 }
 
-function validateBoundariesIfParentPresent(request: any) {
+function validateBoundariesIfParentPresent(request: any, action : string) {
   const { parentCampaign, CampaignDetails } = request?.body || {};
 
   if (parentCampaign) {
@@ -267,20 +247,35 @@ function validateBoundariesIfParentPresent(request: any) {
     if (errors.length > 0) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
     }
-    request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
+    if(action == "create") {
+      request.body.CampaignDetails.boundaries = [...parentCampaign.boundaries, ...newBoundaries];
+    }
   }
-  else {
-    request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
+}
+
+export function getCombinedBoundaries(parentBoundaries: any[] = [], childBoundaries: any[] = []) {
+  const setOfBoundaryCodes = new Set();
+  const combinedBoundaries = [];
+  childBoundaries.forEach((boundary: any) => {
+    setOfBoundaryCodes.add(boundary.code);
+    combinedBoundaries.push(boundary);
+  });
+  for(const boundary of parentBoundaries) {
+    if(!setOfBoundaryCodes.has(boundary.code)) {
+      combinedBoundaries.push(boundary);
+    }
   }
+  return combinedBoundaries;
 }
 
 
 async function callGenerateWhenChildCampaigngetsCreated(request: any) {
+  const combinedBoundaries = getCombinedBoundaries(request?.body?.parentCampaign?.boundaries, request?.body?.CampaignDetails?.boundaries);
   try {
     const newRequestBody = {
       RequestInfo: request?.body?.RequestInfo,
       Filters: {
-        boundaries: request?.body?.boundariesCombined
+        boundaries: combinedBoundaries
       }
     };
 
@@ -356,37 +351,46 @@ async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId
 }
 
 
-async function fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode: any, tenantId: any, referenceId: any, RequestInfo?: any) {
+async function fetchProjectsWithBoundaryCodeAndReferenceId(
+  tenantId: string,
+  referenceId: string,
+  boundaryCode: string | null
+) {
   try {
-    const projectSearchBody = {
-      RequestInfo: RequestInfo,
+    const projectSearchBody: any = {
+      RequestInfo: defaultRequestInfo?.RequestInfo,
       Projects: [
         {
-          address: {
-            boundary: boundaryCode,
-          },
-          tenantId: tenantId,
-          referenceID: referenceId
+          tenantId,
+          referenceID: referenceId,
+          ...(boundaryCode ? { address: { boundary: boundaryCode } } : {})
         }
       ]
-    }
+    };
+
     const projectSearchParams = {
-      tenantId: tenantId,
+      tenantId,
       offset: 0,
       limit: 1
-    }
-    logger.info("Project search params " + JSON.stringify(projectSearchParams))
-    const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
-    if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
-      return projectSearchResponse;
-    }
-    else {
-      return null;
-    }
-  } catch (error: any) {
-    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+    };
+
+    logger.info("Project search params: " + JSON.stringify(projectSearchParams));
+
+    const projectSearchResponse = await httpRequest(
+      `${config?.host?.projectHost}${config?.paths?.projectSearch}`,
+      projectSearchBody,
+      projectSearchParams
+    );
+
+    return (projectSearchResponse?.Project?.length > 0)
+      ? projectSearchResponse
+      : null;
+
+  } catch (error) {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
   }
 }
+
 
 function getBoundaryProjectMappingFromParentCampaign(request: any, project: any) {
 
@@ -489,7 +493,7 @@ async function fetchProjectStaffWithProjectId(request: any, projectId: any, staf
 }
 
 async function delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary(resource: any, messageObject: any, boundaryCode: any, uniqueIdentifier: any, isDelink: boolean) {
-  const projectResponse = await fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode, messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignNumber, messageObject?.RequestInfo);
+  const projectResponse = await fetchProjectsWithBoundaryCodeAndReferenceId(messageObject?.parentCampaign?.tenantId, messageObject?.CampaignDetails?.campaignNumber, boundaryCode);
   let matchingProjectObject: any;
   if (projectResponse) {
     matchingProjectObject = projectResponse?.Project[0];
@@ -559,10 +563,12 @@ async function deleteProjectStaffMapping(messageObject: any, projectStaffRespons
 
 async function getParentAndCurrentFileUrl(mappingObject: any, resource: any, parentResource: any) {
   const parentCreateResourceId = parentResource?.createResourceId ? [parentResource.createResourceId] : [];
+  logger.info(`parentCreateResourceId ${JSON.stringify(parentCreateResourceId)}`)
   const parentResourceSearchResponse = await getResourceFromResourceId(mappingObject, parentCreateResourceId, parentResource);
   const parentProcessedFileStoreId = parentResourceSearchResponse?.[0]?.processedFilestoreId;
 
   const currentCreateResourceId = resource?.createResourceId ? [resource.createResourceId] : [];
+  logger.info(`currentCreateResourceId ${JSON.stringify(currentCreateResourceId)}`)
   const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, currentCreateResourceId, resource);
   const currentProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
 
@@ -679,20 +685,21 @@ function mergeParentResources(mappingObject: any, resources: any[], resourcesArr
 }
 
 async function processResources(mappingObject: any) {
+  if(mappingObject?.parentCampaign){
+    const resources = mappingObject?.CampaignDetails?.resources;
+    const resourcesArrayFromParentCampaign = mappingObject?.parentCampaign?.resources;
 
-  const resources = mappingObject?.CampaignDetails?.resources;
-  const resourcesArrayFromParentCampaign = mappingObject?.parentCampaign?.resources;
-
-  for (const resource of resources) {
-    try {
-      await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
-    } catch (error: any) {
-      throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
-        `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
+    for (const resource of resources) {
+      try {
+        await processIndividualResource(mappingObject, resource, resourcesArrayFromParentCampaign);
+      } catch (error: any) {
+        console.log(error);
+        throwError("CAMPAIGN", 500, "RESOURCES_CONSOLIDATION_ERROR",
+          `Error occurred while consolidating resource of type ${resource.type}: ${error.message}`);
+      }
     }
+    mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
   }
-
-  mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
 async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
@@ -741,9 +748,6 @@ async function getFileUrl(fileStoreId: any, tenantId: any) {
   }
 }
 
-
-
-
 export {
   getParentCampaignObject,
   getCreatedResourceIds,
@@ -751,7 +755,6 @@ export {
   fetchFileUrls,
   modifyProcessedSheetData,
   freezeUnfreezeColumnsForProcessedFile,
-  getColumnIndexByHeader,
   checkAndGiveIfParentCampaignAvailable,
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile,

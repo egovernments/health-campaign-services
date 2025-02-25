@@ -3,11 +3,12 @@ import { changeFirstRowColumnColour, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import { logger } from "./logger";
 import config from "../config";
-import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
+import { freezeUnfreezeColumnsForProcessedFile, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
-import { getLocaleFromRequestInfo } from "./localisationUtils";
+import { fetchFileFromFilestore } from "../api/coreApis";
 import { usageColumnStatus } from "../config/constants";
+import { decryptPassword } from "./encryptionUtils";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
  * @returns {ExcelJS.Workbook} - A new Excel workbook object
@@ -124,9 +125,9 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook : any, request : any ){
-  if(request?.body?.RequestInfo && request?.query?.campaignId){
-    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
+export function enrichTemplateMetaData(updatedWorkbook : any, locale: string, campaignId: string) {
+  if(locale && campaignId){
+    updatedWorkbook.keywords = `${locale}#${campaignId}`
   }
 }
 
@@ -214,7 +215,7 @@ function performFreezeWholeSheet(sheet: any) {
 
 // Function to add data to the sheet
 function addDataToSheet(
-  request: any,
+  type: string,
   sheet: any,
   sheetData: any,
   firstRowColor: string = '93C47D',
@@ -226,7 +227,6 @@ function addDataToSheet(
   schema?: any
 ) {
   sheetData?.forEach((row: any, index: number) => {
-
     const worksheetRow = sheet.addRow(row);
     if (index === 0) {
       formatFirstRow(worksheetRow, sheet, firstRowColor, columnWidth, frozeCells);
@@ -234,7 +234,7 @@ function addDataToSheet(
       formatOtherRows(worksheetRow, frozeCells);
     }
   });
-  finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
+  finalizeSheet(type, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
 }
 
 
@@ -286,8 +286,7 @@ function formatOtherRows(row: any, frozeCells: boolean) {
 }
 
 // Function to finalize the sheet settings
-function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
-  const type = (request?.query?.type || request?.body?.ResourceDetails?.type);
+function finalizeSheet(type: string, sheet: any, frozeCells: boolean, frozeWholeSheet: boolean, localizationMap?: any, fileUrl?: any, schema?: any) {
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   const createAndSearchConfig = createAndSearch[typeWithoutWith];
   const columnIndexesToBeFreezed: any = [];
@@ -305,21 +304,28 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
     columnsToHide.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-      columnIndexesToBeHidden.push(columnIndex);
+      if(columnIndex != -1) {
+        columnIndexesToBeHidden.push(columnIndex);
+      }
     });
 
     columnsToBeFreezed = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToBeFreezed]
     columnsToBeFreezed.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
-      columnIndexesToBeFreezed.push(columnIndex);
+      if(columnIndex != -1) {
+        columnIndexesToBeFreezed.push(columnIndex);
+      }
     });
     const activeColumnWhichIsNotToBeFreezed = createAndSearchConfig?.activeColumnName;
     const boundaryCodeMandatoryColumnWhichIsNotToBeFreezed = getLocalizedName(config?.boundary?.boundaryCodeMandatory, localizationMap);
     const localizedActiveColumnWhichIsNotToBeFreezed = getLocalizedName(activeColumnWhichIsNotToBeFreezed, localizationMap);
     const columnIndexOfActiveColumn = getColumnIndexByHeader(sheet, localizedActiveColumnWhichIsNotToBeFreezed);
     const columnIndexOfBoundaryCodeMandatory = getColumnIndexByHeader(sheet, boundaryCodeMandatoryColumnWhichIsNotToBeFreezed);
-    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, [columnIndexOfActiveColumn, columnIndexOfBoundaryCodeMandatory]); // Example columns to freeze and unfreeze
+    const columnsTobeUnfreezed = []
+    if(columnIndexOfActiveColumn != -1) columnsTobeUnfreezed.push(columnIndexOfActiveColumn);
+    if(columnIndexOfBoundaryCodeMandatory != -1) columnsTobeUnfreezed.push(columnIndexOfBoundaryCodeMandatory);
+    freezeUnfreezeColumnsForProcessedFile(sheet, columnIndexesToBeFreezed, columnsTobeUnfreezed); // Example columns to freeze and unfreeze
     hideColumnsOfProcessedFile(sheet, columnIndexesToBeHidden);
   }
   updateFontNameToRoboto(sheet);
@@ -327,7 +333,19 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
 }
 
 
+export function getColumnIndexByHeader(sheet: any, headerName: string): number {
+  // Get the first row (assumed to be the header row)
+  const firstRow = sheet.getRow(1);
 
+  // Find the column index where the header matches the provided name
+  for (let col = 1; col <= firstRow.cellCount; col++) {
+    const cell = firstRow.getCell(col);
+    if (cell.value === headerName) {
+      return col; // Return the column index (1-based)
+    }
+  }
+  return -1;
+}
 
 
 function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCodeColumnIndex: any) {
@@ -374,6 +392,34 @@ function lockTargetFields(newSheet: any, columnsNotToBeFreezed: any, boundaryCod
   });
 }
 
+export async function getLocaleFromCampaignFiles(fileId:string, tenantId:string) {
+  const url = await fetchFileFromFilestore(fileId, tenantId);
+  const workbook = await getExcelWorkbookFromFileURL(url);
+  const keywords = workbook?.keywords;
+  if (!keywords || !keywords.includes("#")) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  const [templateLocale, templateCampaignId] = keywords.split("#");
+
+  // Ensure there are exactly two parts in the metadata
+  if (!templateLocale || !templateCampaignId) {
+    throwError(
+      "FILE",
+      400,
+      "INVALID_TEMPLATE",
+      "The template doesn't have valid campaign metadata. Please upload the generated template only."
+    );
+  }
+
+  return templateLocale;
+}
+
 export function enrichUsageColumnForFacility(worksheet: any, localizationMap: any) {
   const configType = "facility";
   const usageColumn = getLocalizedName(createAndSearch[configType]?.activeColumnName, localizationMap);
@@ -398,6 +444,266 @@ function protectSheet(sheet: any) {
     selectUnlockedCells: true,
   });
 }
+
+export function fillDataInProcessedUserSheet(
+  userWorkSheet: any,
+  campaignEmployees: any[],
+  campaignMappings: any[]
+) {
+  logger.info(`Filling data in processed user sheet`);
+  const mobieNumberAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
+    const key = `N${mapping?.mappingIdentifier?.toString()}N`; // Ensure the key is a string
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(mapping?.boundaryCode);
+    return acc;
+  }, {});
+
+  /// Get the first row (header) values
+  const headerRow = userWorkSheet.getRow(1);
+  const headerOfSheetValues = headerRow?.values || [];
+  let emptyColumnIndex = -1;
+
+  // Find the index of "#status#" column
+  const statusColumnIndex = headerOfSheetValues.indexOf("#status#");
+
+  if (statusColumnIndex !== -1) {
+    // Remove everything after and including `#status#` column
+    emptyColumnIndex = statusColumnIndex;
+
+    // Get total columns before deletion
+    const totalColumns = headerRow.cellCount;
+
+    // Loop backward to prevent index shifting while deleting
+    for (let col = totalColumns; col >= statusColumnIndex; col--) {
+      userWorkSheet.spliceColumns(col, 1); // Remove column completely
+    }
+  }
+
+
+  // Find the first empty column in the header
+  if (emptyColumnIndex == -1) {
+    for (let i = 1; i < headerOfSheetValues.length; i++) {
+      if (!headerOfSheetValues[i]) {
+        emptyColumnIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Define new header values
+  const newHeaderValues = [
+    "#status#",
+    "#errorDetails#",
+    createAndSearch?.["user"]?.uniqueIdentifierColumnName,
+    "UserName",
+    "Password",
+  ];
+
+  // Add new headers and format columns
+  addHeadersAndFormatForCampaignEmployees(userWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+
+  // Clear existing data rows while preserving formatting
+  const rowCount = userWorkSheet.rowCount;
+  for (let rowIndex = 2; rowIndex <= rowCount; rowIndex++) {
+    const row = userWorkSheet.getRow(rowIndex);
+    row.values = []; // Clear row data while preserving formatting
+  }
+
+  // Populate new data rows
+  campaignEmployees
+    .filter((employee: any) => employee?.userServiceUuid) // Only include employees with a userServiceUuid
+    .forEach((employee: any, index: number) => {
+      const rowIndex = index + 2; // Start from the second row
+      const row = userWorkSheet.getRow(rowIndex);
+      const currentMobileNumberKey = `N${employee?.mobileNumber?.toString()}N`;
+      const currentBoundaryValues = mobieNumberAndBoundaryCodesMapping[currentMobileNumberKey]?.join(",");
+      row.values = [
+        employee?.name,
+        parseInt(employee?.mobileNumber),
+        employee?.role,
+        employee?.employeeType,
+        currentBoundaryValues,
+        employee?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
+        "CREATED",
+        "",
+        employee?.userServiceUuid,
+        employee?.userName,
+        decryptPassword(employee?.tokenString),
+      ];
+    });
+
+  logger.info("Worksheet values updated successfully for employees.");
+}
+
+function addHeadersAndFormatForCampaignEmployees(
+  userWorkSheet: any,
+  headerRow: any,
+  emptyColumnIndex: number,
+  newHeaderValues: string[]
+) {
+  if (emptyColumnIndex === -1) {
+    emptyColumnIndex = headerRow.values.length;
+  }
+
+  // Add new headers
+  for (let i = 0; i < newHeaderValues.length; i++) {
+    const headerCell = headerRow.getCell(emptyColumnIndex + i);
+    headerCell.value = newHeaderValues[i];
+  }
+
+  // Format columns
+  const columnsToFormat = [
+    { columnIndex: emptyColumnIndex, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 1, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 2, width: 40, color: "FF9248", hidden: true }, // Hide this column
+    { columnIndex: emptyColumnIndex + 3, width: 40, color: "FF9248" },
+    { columnIndex: emptyColumnIndex + 4, width: 40, color: "FF9248" },
+  ];
+
+  columnsToFormat.forEach(({ columnIndex, width, color, hidden }) => {
+    const column = userWorkSheet.getColumn(columnIndex);
+    column.width = width;
+
+    if (hidden) {
+      column.hidden = true; // Hide the 3rd column
+    }
+
+    const headerCell = headerRow.getCell(columnIndex);
+    headerCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: color },
+    };
+    headerCell.font = { bold: true };
+  });
+}
+
+export function fillDataInProcessedFacilitySheet(
+  facilityWorkSheet: any,
+  campaignFacilities: any[],
+  campaignMappings: any[],
+  camaignNumber: string
+) {
+  logger.info(`Filling data in processed facility sheet`);
+  const facilityIdentifierAndBoundaryCodesMapping = campaignMappings.reduce((acc: any, mapping: any) => {
+    const key = `N${mapping?.mappingIdentifier?.toString()}N`; // Ensure the key is a string
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(mapping?.boundaryCode);
+    return acc;
+  }, {});
+
+  /// Get the first row (header) values
+  const headerRow = facilityWorkSheet.getRow(1);
+  const headerOfSheetValues = headerRow?.values || [];
+  let emptyColumnIndex = -1;
+
+  // Find the index of "#status#" column
+  const statusColumnIndex = headerOfSheetValues.indexOf("#status#");
+
+  if (statusColumnIndex !== -1) {
+    // Remove everything after and including `#status#` column
+    emptyColumnIndex = statusColumnIndex;
+
+    // Get total columns before deletion
+    const totalColumns = headerRow.cellCount;
+
+    // Loop backward to prevent index shifting while deleting
+    for (let col = totalColumns; col >= statusColumnIndex; col--) {
+      facilityWorkSheet.spliceColumns(col, 1); // Remove column completely
+    }
+  }
+
+
+  // Find the first empty column in the header
+  if (emptyColumnIndex == -1) {
+    for (let i = 1; i < headerOfSheetValues.length; i++) {
+      if (!headerOfSheetValues[i]) {
+        emptyColumnIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Define new header values
+  const newHeaderValues = [
+    "#status#",
+    "#errorDetails#"
+  ];
+
+  // Add new headers and format columns
+  addHeadersAndFormatForCampaignFacilities(facilityWorkSheet, headerRow, emptyColumnIndex, newHeaderValues);
+
+  // Clear existing data rows while preserving formatting
+  const rowCount = facilityWorkSheet.rowCount;
+  for (let rowIndex = 2; rowIndex <= rowCount; rowIndex++) {
+    const row = facilityWorkSheet.getRow(rowIndex);
+    row.values = []; // Clear row data while preserving formatting
+  }
+
+  // Populate new data rows
+  campaignFacilities
+    .filter((facility: any) => facility?.facilityId) // Only include facilities with a facilityId
+    .forEach((facility: any, index: number) => {
+      const rowIndex = index + 2; // Start from the second row
+      const row = facilityWorkSheet.getRow(rowIndex);
+      const currentFacilityIdentifierKey = `N${camaignNumber}!#!${facility?.name}N`;
+      const currentBoundaryValues = facilityIdentifierAndBoundaryCodesMapping[currentFacilityIdentifierKey]?.join(",");
+      row.values = [
+        facility?.facilityId,
+        facility?.name,
+        facility?.facilityUsage,
+        facility?.isPermanent ? "Permanent" : "Temporary",
+        facility?.storageCapacity || 0,
+        currentBoundaryValues,
+        facility?.isActive ? usageColumnStatus.active : usageColumnStatus.inactive,
+        "CREATED",
+        ""
+      ];
+    });
+
+  logger.info("Worksheet values updated successfully. for facility");
+}
+
+function addHeadersAndFormatForCampaignFacilities(
+  facilityWorkSheet: any,
+  headerRow: any,
+  emptyColumnIndex: number,
+  newHeaderValues: string[]
+) {
+  if (emptyColumnIndex === -1) {
+    emptyColumnIndex = headerRow.values.length;
+  }
+
+  // Add new headers
+  for (let i = 0; i < newHeaderValues.length; i++) {
+    const headerCell = headerRow.getCell(emptyColumnIndex + i);
+    headerCell.value = newHeaderValues[i];
+  }
+
+  // Format columns
+  const columnsToFormat = [
+    { columnIndex: emptyColumnIndex, width: 40, color: "CCCC00" },
+    { columnIndex: emptyColumnIndex + 1, width: 40, color: "CCCC00" }
+  ];
+
+  columnsToFormat.forEach(({ columnIndex, width, color }) => {
+    const column = facilityWorkSheet.getColumn(columnIndex);
+    column.width = width;
+
+    const headerCell = headerRow.getCell(columnIndex);
+    headerCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: color },
+    };
+    headerCell.font = { bold: true };
+  });
+}
+
 
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

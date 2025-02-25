@@ -49,6 +49,7 @@ const createAndSearch: any = {
         activeColumn: "G",
         activeColumnName: "HCM_ADMIN_CONSOLE_FACILITY_USAGE",
         uniqueIdentifierColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+        uniqueNameColumnName : "HCM_ADMIN_CONSOLE_FACILITY_NAME",
         matchEachKey: true,
         parseArrayConfig: {
             sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
@@ -225,6 +226,7 @@ const createAndSearch: any = {
         uniqueIdentifierColumnName: "UserService Uuids",
         activeColumn: "F",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
+        uniquePhoneNumberColumnName: "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",

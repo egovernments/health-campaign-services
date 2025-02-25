@@ -27,10 +27,10 @@ import {
   getLocalizedName,
   reorderBoundariesOfDataAndValidate,
   checkIfSourceIsMicroplan,
-  createIdRequests,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
-  getBoundaryCodeAndBoundaryTypeMapping,
+  createIdRequestsForEmployees,
+  getBoundaryCodeAndBoundaryTypeMapping
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -51,7 +51,9 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { persistCampaignProject } from "../utils/projectCampaignUtils";
+import { getAllCampaignEmployeesWithJustMobileNumbers, getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees } from "../utils/campaignEmployeesUtils";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, defaultRequestInfo } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -325,20 +327,34 @@ async function getUuidsError(
   response: any,
   mobileNumberRowNumberMapping: any
 ) {
+  const campaignEmployessJustWithMobileNumber = await getAllCampaignEmployeesWithJustMobileNumbers(response?.Individual?.map((user: any) => user?.mobileNumber));
+  const mobileNumberAndCampaignEmployeesMapping = getMobileNumbersAndCampaignEmployeeMappingFromCampaignEmployees(campaignEmployessJustWithMobileNumber);
   var errors: any[] = [];
   var count = 0;
   request.body.mobileNumberUuidsMapping = request.body.mobileNumberUuidsMapping
     ? request.body.mobileNumberUuidsMapping
     : {};
   for (const user of response.Individual) {
-    if (!user?.userUuid) {
+    const currentCampaignEmployee = mobileNumberAndCampaignEmployeesMapping[user?.mobileNumber];
+    if(!currentCampaignEmployee){
+      logger.info(
+        `User with mobileNumber ${user?.mobileNumber} is already created and is not found in campaign employee.`
+      );
+      errors.push({
+        status: "INVALID",
+        rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
+      });
+      count++;
+    }
+    else if (!user?.userUuid) {
       logger.info(
         `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`
       );
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userUuid`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else if (!user?.userDetails?.username) {
@@ -348,7 +364,7 @@ async function getUuidsError(
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else if (!user?.userUuid) {
@@ -358,7 +374,7 @@ async function getUuidsError(
       errors.push({
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have userServiceUuid`,
+        errorDetails: `User with mobileNumber ${user?.mobileNumber} is already created and is not suitable for campaign employee.`,
       });
       count++;
     } else {
@@ -415,9 +431,7 @@ const createBatchRequest = async (
       "Error occurred during user search while validating mobile number."
     );
   }
-  if (config.values.notCreateUserIfAlreadyThere) {
-    await getUuidsError(request, response, mobileNumberRowNumberMapping);
-  }
+  await getUuidsError(request, response, mobileNumberRowNumberMapping);
 
   if (response?.Individual?.length > 0) {
     return response.Individual.map((item: any) => item?.mobileNumber);
@@ -459,8 +473,8 @@ async function getUserWithMobileNumbers(
 }
 
 async function matchUserValidation(createdData: any[], request: any) {
-  var count = 0;
-  const errors = [];
+  // var count = 0;
+  // const errors = [];
   const mobileNumbers = createdData
     .filter((item) => item?.user?.mobileNumber)
     .map((item) => item?.user?.mobileNumber);
@@ -472,42 +486,42 @@ async function matchUserValidation(createdData: any[], request: any) {
     "mobileNumberRowNumberMapping : " +
     getFormattedStringForDebug(mobileNumberRowNumberMapping)
   );
-  const mobileNumberResponse = await getUserWithMobileNumbers(
+  await getUserWithMobileNumbers(
     request,
     mobileNumbers,
     mobileNumberRowNumberMapping
   );
-  for (const key in mobileNumberRowNumberMapping) {
-    if (
-      mobileNumberResponse.has(key) &&
-      !config.values.notCreateUserIfAlreadyThere
-    ) {
-      if (Array.isArray(mobileNumberRowNumberMapping[key])) {
-        for (const row of mobileNumberRowNumberMapping[key]) {
-          errors.push({
-            status: "INVALID",
-            rowNumber: row.row,
-            sheetName: row.sheetName,
-            errorDetails: `User with contact number ${key} already exists`,
-          });
-        }
-      } else {
-        errors.push({
-          status: "INVALID",
-          rowNumber: mobileNumberRowNumberMapping[key],
-          errorDetails: `User with contact number ${key} already exists`,
-        });
-      }
-      count++;
-    }
-  }
-  if (count) {
-    request.body.ResourceDetails.status = "invalid";
-  }
-  logger.info("Invalid resources count : " + count);
-  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
-    ? [...request?.body?.sheetErrorDetails, ...errors]
-    : errors;
+  // for (const key in mobileNumberRowNumberMapping) {
+  //   if (
+  //     mobileNumberResponse.has(key) &&
+  //     !config.values.notCreateUserIfAlreadyThere
+  //   ) {
+  //     if (Array.isArray(mobileNumberRowNumberMapping[key])) {
+  //       for (const row of mobileNumberRowNumberMapping[key]) {
+  //         errors.push({
+  //           status: "INVALID",
+  //           rowNumber: row.row,
+  //           sheetName: row.sheetName,
+  //           errorDetails: `User with contact number ${key} already exists`,
+  //         });
+  //       }
+  //     } else {
+  //       errors.push({
+  //         status: "INVALID",
+  //         rowNumber: mobileNumberRowNumberMapping[key],
+  //         errorDetails: `User with contact number ${key} already exists`,
+  //       });
+  //     }
+  //     count++;
+  //   }
+  // }
+  // if (count) {
+  //   request.body.ResourceDetails.status = "invalid";
+  // }
+  // logger.info("Invalid resources count : " + count);
+  // request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
+  //   ? [...request?.body?.sheetErrorDetails, ...errors]
+  //   : errors;
 }
 function matchViaUserIdAndCreationTime(
   createdData: any[],
@@ -790,7 +804,6 @@ async function processValidateAfterSchema(
       validateMicroplanFacility(request, dataFromSheet, localizationMap);
     }
     const typeData = await convertToTypeData(
-      request,
       dataFromSheet,
       createAndSearchConfig,
       request.body,
@@ -893,7 +906,7 @@ async function processValidate(
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type];
   const dataFromSheet: any = await getDataFromSheet(
-    request,
+    request?.body,
     request?.body?.ResourceDetails?.fileStoreId,
     request?.body?.ResourceDetails?.tenantId,
     createAndSearchConfig,
@@ -994,7 +1007,7 @@ async function processValidate(
   }
 }
 
-function convertUserRoles(employees: any[], request: any) {
+function convertUserRoles(employees: any[], tenantId: any) {
   for (const employee of employees) {
     if (employee?.user?.roles) {
       var newRoles: any[] = [];
@@ -1007,7 +1020,7 @@ function convertUserRoles(employees: any[], request: any) {
           newRoles.push({
             name: role,
             code: code,
-            tenantId: request?.body?.ResourceDetails?.tenantId,
+            tenantId: tenantId,
           });
         }
         employee.user.roles = newRoles;
@@ -1016,7 +1029,7 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateUserPassword() {
+export function generateUserPassword() {
   // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -1087,9 +1100,8 @@ async function enrichEmployees(employees: any[], request: any) {
   }
   const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
   convertUserRoles(employees, request);
-  const idRequests = createIdRequests(employees);
-  request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
+  const idRequests = createIdRequestsForEmployees(employees?.length, request?.body?.ResourceDetails?.tenantId);
+  let result = await createUniqueUserNameViaIdGen(idRequests);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
@@ -1105,7 +1117,6 @@ async function enrichEmployees(employees: any[], request: any) {
       employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
       employee.user.dob = 0;
     }
-    i++;
   }
 }
 
@@ -1161,23 +1172,21 @@ async function handleUserProcess(
   dataToCreate: any[],
   newRequestBody: any
 ) {
-  if (config.values.notCreateUserIfAlreadyThere) {
-    var Employees: any[] = [];
-    if (request.body?.mobileNumberUuidsMapping) {
-      for (const employee of newRequestBody.Employees) {
-        if (
-          request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]
-        ) {
-          logger.info(
-            `User with mobile number ${employee?.user?.mobileNumber} already exist`
-          );
-        } else {
-          Employees.push(employee);
-        }
+  var Employees: any[] = [];
+  if (request.body?.mobileNumberUuidsMapping) {
+    for (const employee of newRequestBody.Employees) {
+      if (
+        request.body.mobileNumberUuidsMapping[employee?.user?.mobileNumber]
+      ) {
+        logger.info(
+          `User with mobile number ${employee?.user?.mobileNumber} already exist`
+        );
+      } else {
+        Employees.push(employee);
       }
     }
-    newRequestBody.Employees = Employees;
   }
+  newRequestBody.Employees = Employees;
   if (newRequestBody.Employees.length > 0) {
     var responsePayload = await httpRequest(
       createAndSearchConfig?.createBulkDetails?.url,
@@ -1484,7 +1493,6 @@ async function processAfterValidation(
       await processSearchAndValidation(request);
     } else {
       const typeData = await convertToTypeData(
-        request,
         dataFromSheet,
         createAndSearchConfig,
         request.body,
@@ -1500,10 +1508,10 @@ async function processAfterValidation(
       request.body.ResourceDetails.status != "invalid"
     ) {
       await performAndSaveResourceActivityByChangingBody(
-       request,
-       createAndSearchConfig,
-       localizationMap
-     )
+        request,
+        createAndSearchConfig,
+        localizationMap
+      )
     }
     else if (createAndSearchConfig?.createDetails &&
       request.body.ResourceDetails.status != "invalid") {
@@ -1528,9 +1536,9 @@ async function processAfterValidation(
 
 async function performAndSaveResourceActivityByChangingBody(
   request: any,
-  createAndSearchConfig: any, 
+  createAndSearchConfig: any,
   localizationMap?: { [key: string]: string }
-){
+) {
   _.set(
     request.body,
     createAndSearchConfig?.createBulkDetails?.createPath,
@@ -1566,7 +1574,6 @@ async function processCreate(request: any, localizationMap?: any) {
   } else if (type == "boundaryGeometryManagement") {
     await boundaryGeometryManagement(request, localizationMap);
   } else {
-    // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
@@ -1586,7 +1593,7 @@ async function processCreate(request: any, localizationMap?: any) {
     }
 
     const dataFromSheet = await getDataFromSheet(
-      request,
+      request?.body,
       request?.body?.ResourceDetails?.fileStoreId,
       request?.body?.ResourceDetails?.tenantId,
       createAndSearchConfig,
@@ -1712,30 +1719,32 @@ async function createProjectCampaignResourcData(request: any) {
       request?.body?.CampaignDetails?.resources
     ) {
       for (const resource of request?.body?.CampaignDetails?.resources) {
-        const action =
-          resource?.type === "boundaryWithTarget" ? "validate" : "create";
-        // if (resource.type != "boundaryWithTarget") {
-        const resourceDetails = {
-          type: resource.type,
-          fileStoreId: resource.filestoreId,
-          tenantId: request?.body?.CampaignDetails?.tenantId,
-          action: action,
-          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-          additionalDetails: {},
-          campaignId: request?.body?.CampaignDetails?.id,
-        };
-        logger.info(`Creating the resources for type ${resource.type}`);
-        logger.debug(
-          "resourceDetails " + getFormattedStringForDebug(resourceDetails)
-        );
-        const createRequestBody = {
-          RequestInfo: request.body.RequestInfo,
-          ResourceDetails: resourceDetails,
-        };
-        const req = replicateRequest(request, createRequestBody);
-        const res: any = await createDataService(req);
-        if (res?.id) {
-          resource.createResourceId = res?.id;
+        if (resource?.type != "user") {
+          const action =
+            resource?.type === "boundaryWithTarget" ? "validate" : "create";
+          // if (resource.type != "boundaryWithTarget") {
+          const resourceDetails = {
+            type: resource.type,
+            fileStoreId: resource.filestoreId,
+            tenantId: request?.body?.CampaignDetails?.tenantId,
+            action: action,
+            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+            additionalDetails: {},
+            campaignId: request?.body?.CampaignDetails?.id,
+          };
+          logger.info(`Creating the resources for type ${resource.type}`);
+          logger.debug(
+            "resourceDetails " + getFormattedStringForDebug(resourceDetails)
+          );
+          const createRequestBody = {
+            RequestInfo: request.body.RequestInfo,
+            ResourceDetails: resourceDetails,
+          };
+          const req = replicateRequest(request, createRequestBody);
+          const res: any = await createDataService(req);
+          if (res?.id) {
+            resource.createResourceId = res?.id;
+          }
         }
       }
     }
@@ -1761,23 +1770,26 @@ async function createProjectCampaignResourcData(request: any) {
   );
 }
 
-async function confirmProjectParentCreation(request: any, projectId: any) {
+async function confirmProjectParentCreation(projectId: any, tenantId: string) {
+  if (!projectId) {
+    return;
+  }
   const searchBody = {
-    RequestInfo: request.body.RequestInfo,
+    RequestInfo: defaultRequestInfo?.RequestInfo,
     Projects: [
       {
         id: projectId,
-        tenantId: request.body.CampaignDetails.tenantId,
+        tenantId
       },
     ],
   };
   const params = {
-    tenantId: request.body.CampaignDetails.tenantId,
+    tenantId,
     offset: 0,
-    limit: 5,
+    limit: 1,
   };
   var projectFound = false;
-  var retry = 6;
+  var retry = 20;
   while (!projectFound && retry >= 0) {
     const response = await httpRequest(
       config.host.projectHost + config.paths.projectSearch,
@@ -1836,6 +1848,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[
       projectCreateBody?.Projects?.[0]?.address?.boundary
     ].projectId = projectCreateResponse?.Project[0]?.id;
+    await persistCampaignProject(projectCreateResponse?.Project[0], request?.body?.CampaignDetails, request?.body?.RequestInfo);
   } else {
     throwError(
       "PROJECT",
@@ -1847,7 +1860,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
   }
 }
 
-async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
+async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any, campaignProjectId: string) {
   logger.info("Project Update For Targets started");
 
   logger.debug("Project update request body: " + getFormattedStringForDebug(projectUpdateBody));
@@ -1862,6 +1875,7 @@ async function projectUpdateForTargets(projectUpdateBody: any, request: any, bou
     );
     logger.debug("Project update response: " + getFormattedStringForDebug(projectUpdateResponse));
     logger.info(`Project update response for boundary code: ${boundaryCode} and project name: ${request?.body?.CampaignDetails?.campaignName}`);
+    await persistCampaignProject(projectUpdateResponse?.Project[0], request?.body?.CampaignDetails, request?.body?.RequestInfo, campaignProjectId);
   } catch (error: any) {
     logger.error("Project update failed", error);
     throwError(

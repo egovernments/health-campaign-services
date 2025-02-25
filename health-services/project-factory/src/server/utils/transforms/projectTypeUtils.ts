@@ -1,4 +1,4 @@
-import { getFormattedStringForDebug, logger } from "../logger";
+import { logger } from "../logger";
 
 const MAX_AGE = 100;
 const MAX_AGE_IN_MONTHS = MAX_AGE * 12;
@@ -93,33 +93,31 @@ export const projectTypeConversion = (
 Enrich project details from campaign details.
 */
 export const enrichProjectDetailsFromCampaignDetails = (
-  CampaignDetails: any = {},
-  projectTypeObject: any = {}
+  CampaignDetails: any = {}
 ) => {
-  var { tenantId, projectType, startDate, endDate, campaignName } =
-    CampaignDetails;
+  var { tenantId, projectType, startDate, endDate, campaignName, campaignNumber } = CampaignDetails;
   logger.info("campaign transformation for project type : " + projectType);
-  logger.debug(
-    "project type : " + getFormattedStringForDebug(projectTypeObject)
-  );
-  const defaultProject = projectTypeConversion( CampaignDetails);
-  return [
-    {
-      tenantId,
-      projectType,
-      startDate,
-      endDate,
-      projectSubType: projectType,
-      department: defaultProject?.group,
-      description:`${defaultProject?.name}, disease ${defaultProject?.group} campaign created through Admin Console with Campaign Id as ${CampaignDetails?.campaignNumber}`,
-      projectTypeId: defaultProject?.id,
-      name: campaignName,
-      additionalDetails: {
-        projectType: defaultProject,
-      },
-    },
-  ];
+
+  // Assuming projectTypeConversion is a function that returns an object
+  const defaultProject = projectTypeConversion(CampaignDetails);
+
+  return {
+    tenantId,
+    projectType,
+    startDate,
+    endDate,
+    projectSubType: projectType,
+    department: defaultProject?.group,
+    description: `${defaultProject?.name}, disease ${defaultProject?.group} campaign created through Admin Console with Campaign Id as ${CampaignDetails?.campaignNumber}`,
+    projectTypeId: defaultProject?.id,
+    name: campaignName,
+    referenceID: campaignNumber,
+    additionalDetails: {
+      projectType: defaultProject,
+    }
+  };
 };
+
 
 
 /* construct max and min age */
