@@ -3,7 +3,6 @@ package digit.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -12,7 +11,7 @@ import digit.web.models.mdmsV2.*;
 
 import java.util.*;
 
-import static digit.config.ServiceConstants.*;
+import static digit.config.ErrorConstants.*;
 
 @Slf4j
 @Component

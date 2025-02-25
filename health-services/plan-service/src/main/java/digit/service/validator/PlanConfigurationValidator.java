@@ -13,7 +13,6 @@ import digit.web.models.mdmsV2.MdmsCriteriaReqV2;
 import digit.web.models.mdmsV2.MdmsCriteriaV2;
 import digit.web.models.projectFactory.CampaignResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -24,6 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
+import static digit.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -60,7 +60,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
-        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_VEHICLE_DETAILS);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(MdmsCriteriaReqV2.builder().requestInfo(request.getRequestInfo()).mdmsCriteriaV2(mdmsCriteriaV2).build());
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
@@ -309,7 +309,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
-        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_VEHICLE_DETAILS);
+        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_VEHICLE_DETAILS);
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(MdmsCriteriaReqV2.builder().requestInfo(request.getRequestInfo()).mdmsCriteriaV2(mdmsCriteriaV2).build());
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlanConfiguration().getCampaignId(), rootTenantId);
 
@@ -463,7 +463,7 @@ public class PlanConfigurationValidator {
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(request.getPlanConfiguration().getTenantId());
         String uniqueIdentifier = BOUNDARY + DOT_SEPARATOR  + MICROPLAN_PREFIX + campaignType;
 
-        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_ADMIN_SCHEMA);
+        MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ADMIN_SCHEMA);
         mdmsCriteriaV2.setUniqueIdentifiers(Collections.singletonList(uniqueIdentifier));
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(MdmsCriteriaReqV2.builder().requestInfo(request.getRequestInfo()).mdmsCriteriaV2(mdmsCriteriaV2).build());
 

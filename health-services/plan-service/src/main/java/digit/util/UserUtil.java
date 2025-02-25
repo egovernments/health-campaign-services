@@ -11,7 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 
-import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_USER_SERVICE;
+import static digit.config.ErrorConstants.ERROR_WHILE_FETCHING_FROM_USER_SERVICE;
 
 @Slf4j
 @Component

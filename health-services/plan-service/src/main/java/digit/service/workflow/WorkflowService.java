@@ -24,7 +24,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
-import static digit.config.ServiceConstants.NO_BUSINESS_SERVICE_DATA_FOUND_MESSAGE;
+import static digit.config.ErrorConstants.*;
 
 @Service
 @Slf4j

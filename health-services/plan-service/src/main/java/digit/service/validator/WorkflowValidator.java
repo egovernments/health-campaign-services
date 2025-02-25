@@ -15,7 +15,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.Map;
 
 import static digit.config.ServiceConstants.*;
-import static digit.config.ServiceConstants.CANNOT_APPROVE_ESTIMATIONS_MESSAGE;
+import static digit.config.ErrorConstants.*;
 
 @Component
 public class WorkflowValidator {

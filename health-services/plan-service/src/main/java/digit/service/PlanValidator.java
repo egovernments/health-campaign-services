@@ -21,6 +21,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static digit.config.ErrorConstants.*;
 import static digit.config.ServiceConstants.*;
 
 @Component
@@ -67,9 +68,6 @@ public class PlanValidator {
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
         BoundarySearchResponse boundarySearchResponse = boundaryUtil.fetchBoundaryData(request.getRequestInfo(), request.getPlan().getLocality(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType(), Boolean.TRUE, Boolean.FALSE);
 
-        //TODO: remove after setting the flag in consumer
-        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
-
         // Validate locality against boundary service
         validateBoundaryCode(boundarySearchResponse, request.getPlan());
 
@@ -104,8 +102,7 @@ public class PlanValidator {
         commonUtil.validateUserInfo(request.getRequestInfo());
 
         // Validate plan-employee assignment and jurisdiction is request is from Resource Estimation Consumer
-        if(!request.getPlan().isRequestFromResourceEstimationConsumer())
-            validatePlanEmployeeAssignmentAndJurisdiction(request);
+        validatePlanEmployeeAssignmentAndJurisdiction(request);
     }
 
     /**
@@ -294,10 +291,6 @@ public class PlanValidator {
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(request.getRequestInfo(), request.getPlan().getCampaignId(), rootTenantId);
         BoundaryTypeHierarchyResponse boundaryTypeHierarchyResponse = boundaryUtil.fetchBoundaryHierarchy(request.getRequestInfo(), request.getPlan().getTenantId(), campaignResponse.getCampaignDetails().get(0).getHierarchyType());
 
-        //TODO: remove after setting the flag in consumer
-        request.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
-
-
         // Validate activities
         validateActivities(request);
 
@@ -426,7 +419,7 @@ public class PlanValidator {
      */
     public void validateTargetMetrics(PlanRequest request, Object mdmsData) {
         Plan plan = request.getPlan();
-        final String jsonPathForMetric = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_METRIC + ".*.code";
+        final String jsonPathForMetric = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_METRIC + FILTER_CODE;
 
         List<Object> metricListFromMDMS = null;
         try {
@@ -434,7 +427,7 @@ public class PlanValidator {
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        HashSet<Object> metricSetFromMDMS = new HashSet<>(metricListFromMDMS);
+        Set<Object> metricSetFromMDMS = new HashSet<>(metricListFromMDMS);
         plan.getTargets().forEach(target -> {
             if (!metricSetFromMDMS.contains(target.getMetric())) {
                 throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
@@ -462,14 +455,14 @@ public class PlanValidator {
                 .toList();
 
         List<Object> metricUnitListFromMDMS;
-        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.uomCode";
+        final String jsonPathForMetricUnit = JSON_ROOT_PATH + MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_UOM + FILTER_UOMCODE;
         try {
             metricUnitListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetricUnit);
         } catch (Exception e) {
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
 
-        HashSet<Object> metricUnitSetFromMDMS = new HashSet<>(metricUnitListFromMDMS);
+        Set<Object> metricUnitSetFromMDMS = new HashSet<>(metricUnitListFromMDMS);
         metricDetails.forEach(metricDetail -> {
             if (!metricUnitSetFromMDMS.contains(metricDetail.getMetricUnit())) {
                 throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
@@ -486,23 +479,25 @@ public class PlanValidator {
      * @throws CustomException if no employee assignment is found or jurisdiction is invalid
      */
     public void validatePlanEmployeeAssignmentAndJurisdiction(PlanRequest planRequest) {
-        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
-                .builder()
-                .tenantId(planRequest.getPlan().getTenantId())
-                .employeeId(Collections.singletonList(planRequest.getRequestInfo().getUserInfo().getUuid()))
-                .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
-                .role(config.getPlanEstimationApproverRoles())
-                .build();
+        if(!planRequest.getPlan().isRequestFromResourceEstimationConsumer()) {
+            PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria
+                    .builder()
+                    .tenantId(planRequest.getPlan().getTenantId())
+                    .employeeId(Collections.singletonList(planRequest.getRequestInfo().getUserInfo().getUuid()))
+                    .planConfigurationId(planRequest.getPlan().getPlanConfigurationId())
+                    .role(config.getPlanEstimationApproverRoles())
+                    .build();
 
-        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
-                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
-                .requestInfo(planRequest.getRequestInfo()).build());
+            PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeService.search(PlanEmployeeAssignmentSearchRequest.builder()
+                    .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                    .requestInfo(planRequest.getRequestInfo()).build());
 
-        if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
-            throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
+            if(CollectionUtils.isEmpty(planEmployeeAssignmentResponse.getPlanEmployeeAssignment()))
+                throw new CustomException(PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_CODE, PLAN_EMPLOYEE_ASSIGNMENT_NOT_FOUND_MESSAGE + planRequest.getPlan().getLocality());
 
-        validateJurisdiction(planRequest.getPlan(),
-                planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+            validateJurisdiction(planRequest.getPlan(),
+                    planEmployeeAssignmentResponse.getPlanEmployeeAssignment().get(0).getJurisdiction());
+        }
     }
 
     /**
@@ -540,12 +535,15 @@ public class PlanValidator {
         }
 
         // Enrich the boundary ancestral path and jurisdiction mapping for the provided boundary code
-        if(plan.isRequestFromResourceEstimationConsumer())
-            planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
+        planEnricher.enrichBoundaryAncestralPath(plan, tenantBoundary);
     }
 
     /**
-     * @param bulkPlanRequest
+     * Validates and enriches the bulk plan update request.
+     * Checks campaign details, boundary hierarchy, plan attributes, existence,
+     * employee assignments, and jurisdiction before enriching jurisdiction mapping.
+     *
+     * @param bulkPlanRequest The bulk plan update request.
      */
     public void validateBulkPlanUpdate(BulkPlanRequest bulkPlanRequest) {
         CampaignResponse campaignResponse = campaignUtil.fetchCampaignData(bulkPlanRequest.getRequestInfo(), bulkPlanRequest.getPlans().get(0).getCampaignId(), bulkPlanRequest.getPlans().get(0).getTenantId());
@@ -565,8 +563,10 @@ public class PlanValidator {
     }
 
     /**
+     * Validates employee assignment and jurisdiction for the bulk plan update.
+     * Ensures the requesting employee is assigned to the plan and verifies jurisdiction.
      *
-     * @param bulkPlanRequest
+     * @param bulkPlanRequest The bulk plan update request.
      */
     private void validatePlanEmployeeAssignmentAndJurisdiction(BulkPlanRequest bulkPlanRequest) {
         // Prepare plan employee assignment search criteria
@@ -597,42 +597,43 @@ public class PlanValidator {
     }
 
     /**
+     * Validates bulk plan attributes for consistency and correctness.
+     * Ensures uniqueness of plans, uniform tenant and configuration IDs,
+     * mandatory workflow details, and consistent status and workflow actions.
      *
-     * @param bulkPlanRequest
+     * @param bulkPlanRequest The bulk plan update request.
      */
     private void validatePlanAttributes(BulkPlanRequest bulkPlanRequest) {
-        if(bulkPlanRequest.getPlans().stream().map(Plan :: getId).collect(Collectors.toSet()).size()
+        if (bulkPlanRequest.getPlans().stream().map(Plan::getId).collect(Collectors.toSet()).size()
                 != bulkPlanRequest.getPlans().size()) {
-            throw new CustomException("BULK_UPDATE_ERROR",
-                    "Plans provided in the bulk update request are not unique.");
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, NON_UNIQUE_PLANS_MESSAGE);
         }
 
-        if(!bulkPlanRequest.getPlans().stream().allMatch(plan ->
+        if (!bulkPlanRequest.getPlans().stream().allMatch(plan ->
                 plan.getTenantId().equals(bulkPlanRequest.getPlans().get(0).getTenantId()) &&
                         plan.getPlanConfigurationId().equals(bulkPlanRequest.getPlans().get(0).getPlanConfigurationId()))) {
-            throw new CustomException("BULK_UPDATE_ERROR",
-                    "Tenant id and plan configuration ids should be same across all entries for bulk update.");
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, INCONSISTENT_TENANT_OR_CONFIG_MESSAGE);
         }
 
         bulkPlanRequest.getPlans().forEach(plan -> {
-            if(ObjectUtils.isEmpty(plan.getWorkflow())) {
-                throw new CustomException("BULK_UPDATE_ERROR",
-                        "Workflow information is mandatory for each entry for bulk update");
+            if (ObjectUtils.isEmpty(plan.getWorkflow())) {
+                throw new CustomException(BULK_UPDATE_ERROR_CODE, MISSING_WORKFLOW_MESSAGE);
             }
         });
 
-        if(!bulkPlanRequest.getPlans().stream().allMatch(plan ->
+        if (!bulkPlanRequest.getPlans().stream().allMatch(plan ->
                 plan.getStatus().equals(bulkPlanRequest.getPlans().get(0).getStatus()) &&
                         plan.getWorkflow().getAction().equals(bulkPlanRequest.getPlans().get(0).getWorkflow().getAction()))) {
-            throw new CustomException("BULK_UPDATE_ERROR",
-                    "All entries should be in the same state for bulk transitioning plan records.");
+            throw new CustomException(BULK_UPDATE_ERROR_CODE, INCONSISTENT_STATUS_OR_ACTION_MESSAGE);
         }
-
     }
 
     /**
+     * Validates attributes for bulk plan update requests.
+     * Ensures uniqueness, consistent tenant and configuration IDs,
+     * mandatory workflow details, and uniform status and workflow actions.
      *
-     * @param bulkPlanRequest
+     * @param bulkPlanRequest The bulk plan update request.
      */
     private void validatePlanExistence(BulkPlanRequest bulkPlanRequest) {
         // Get all plan ids to validate existence
