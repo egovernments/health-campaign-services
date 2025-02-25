@@ -663,8 +663,37 @@ export function convertToType(dataToSet: any, type: any) {
   switch (type) {
     case "string":
       return String(dataToSet);
-    case "number":
-      return Number(dataToSet);
+    case "number": {
+      if (typeof dataToSet === "number" && !isNaN(dataToSet)) {
+        return dataToSet; // Already a valid number
+      }
+
+      // Convert non-string values to JSON
+      const valueToConvert = typeof dataToSet === "string" ? dataToSet : (() => {
+        try {
+          return JSON.stringify(dataToSet);
+        } catch {
+          logger.warn(`convertToType: Unable to stringify value ${dataToSet}`);
+          return null;
+        }
+      })();
+
+      if (!valueToConvert){
+        logger.warn(`convertToType: Unable to convert "${dataToSet}" to number`);
+        return dataToSet;
+      }
+
+      // Extract and convert numeric part
+      const match = valueToConvert.match(/-?\d+(\.\d+)?/);
+      if (match) {
+        const parsedNumber = Number(match[0]);
+        logger.warn(`convertToType: Non-numeric value "${dataToSet}" converted to ${parsedNumber}`);
+        return parsedNumber;
+      }
+
+      logger.warn(`convertToType: Unable to convert "${dataToSet}" to number`);
+      return dataToSet; // Return original value if conversion fails
+    }
     case "boolean":
       // Convert to boolean assuming any truthy value should be true and falsy should be false
       return Boolean(dataToSet);
