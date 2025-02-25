@@ -154,4 +154,7 @@ public class PropertiesManager {
 
 	@Value("${hrms.email.notification.website.link}")
 	public String emailNotificationWebsiteLink;
+
+	@Value("${egov.hrms.enable.casesensitive.username.check}")
+	public boolean isCaseSensitiveUsernameCheckEnabled;
 }

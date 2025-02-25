@@ -215,7 +215,9 @@ public class EmployeeValidator {
         validateUserMobile(employees,errorMap,request.getRequestInfo());
         validateUserName(employees,errorMap,request.getRequestInfo());
 		// validation on given name
-		validateIndividualName(employees,errorMap,request.getRequestInfo());
+		if (propertiesManager.isCaseSensitiveUsernameCheckEnabled()) {
+			validateIndividualName(employees,errorMap,request.getRequestInfo());
+		}
 	}
 
 
