@@ -151,12 +151,6 @@ public class PlanQueryBuilder {
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" assignee = ? ");
-            preparedStmtList.add(planSearchCriteria.getAssignee());
-        }
-
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" ARRAY [ ").append(queryUtil.createQuery(Collections.singleton(planSearchCriteria.getAssignee()).size())).append(" ]").append("::text[] ");
             builder.append(" && string_to_array(assignee, ',') ");
             queryUtil.addToPreparedStatement(preparedStmtList, Collections.singleton(planSearchCriteria.getAssignee()));
