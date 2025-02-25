@@ -86,4 +86,7 @@ public class IndividualProperties {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${egov.individual.enable.casesensitive.username.check}")
+    private boolean isCaseSensitiveCheckEnabled;
 }
