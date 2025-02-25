@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { getFormattedStringForDebug, logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
 import { getLocalisationModuleName } from "./localisationUtils";
+import { getCombinedBoundaries } from "./onGoingCampaignUpdateUtils";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -29,9 +30,9 @@ function isCampaignTypeSame(request: any) {
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
-        const boundaries = request?.body?.CampaignDetails?.boundaries;
+        const combinedBoundaries = getCombinedBoundaries(request?.body?.parentCampaign?.boundaries, request?.body?.CampaignDetails?.boundaries);
         if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
+            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, combinedBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
                 logger.info("Boundaries or Campaign Type  differ, generating new resources");
                 // Apply 2-second timeout after the condition check
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -39,7 +40,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                 const newRequestBody = {
                     RequestInfo: request?.body?.RequestInfo,
                     Filters: {
-                        boundaries: boundaries
+                        boundaries: combinedBoundaries
                     }
                 };
 
@@ -51,7 +52,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                     campaignId: request?.body?.CampaignDetails?.id
                 };
                 logger.info(`generating new resources for the campaignId: ${request?.body?.CampaignDetails?.id}`);
-                logger.debug(`boundaries of the generate request : ${getFormattedStringForDebug(boundaries)}`)
+                logger.debug(`boundaries of the generate request : ${getFormattedStringForDebug(combinedBoundaries)}`);
                 const newParamsBoundary = { ...query, ...params, type: "boundary" };
                 const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
                 await callGenerate(newRequestBoundary, "boundary");

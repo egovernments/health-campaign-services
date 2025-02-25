@@ -253,7 +253,7 @@ function validateBoundariesIfParentPresent(request: any, action : string) {
   }
 }
 
-function getCombinedBoundaries(parentBoundaries: any[] = [], childBoundaries: any[] = []) {
+export function getCombinedBoundaries(parentBoundaries: any[] = [], childBoundaries: any[] = []) {
   const setOfBoundaryCodes = new Set();
   const combinedBoundaries = [];
   childBoundaries.forEach((boundary: any) => {
