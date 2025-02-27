@@ -56,23 +56,23 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   };
 }
 
-async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
-  try {
-    const reqParamsForFetchingFile = {
-      tenantId: request?.query?.tenantId,
-      fileStoreIds: processedFileStoreIdForUSerOrFacility
-    };
-    return await httpRequest(
-      `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
-      request?.body,
-      reqParamsForFetchingFile,
-      "get"
-    );
-  } catch (error) {
-    logger.error("Error fetching file URLs:", error);
-    throw error;
-  }
-}
+// async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
+//   try {
+//     const reqParamsForFetchingFile = {
+//       tenantId: request?.query?.tenantId,
+//       fileStoreIds: processedFileStoreIdForUSerOrFacility
+//     };
+//     return await httpRequest(
+//       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
+//       request?.body,
+//       reqParamsForFetchingFile,
+//       "get"
+//     );
+//   } catch (error) {
+//     logger.error("Error fetching file URLs:", error);
+//     throw error;
+//   }
+// }
 
 
 
@@ -748,7 +748,7 @@ export {
   getParentCampaignObject,
   getCreatedResourceIds,
   buildSearchCriteria,
-  fetchFileUrls,
+  // fetchFileUrls,
   modifyProcessedSheetData,
   freezeUnfreezeColumnsForProcessedFile,
   getColumnIndexByHeader,

@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
 import { logger } from "./logger";
 import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
@@ -17,9 +17,10 @@ import { getBoundaryDataService, searchDataService } from "../service/dataManage
 import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
-import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
 import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest } from "./microplanUtils";
 import _ from "lodash";
+import { fetchFileFromFilestore, searchMDMSDataViaV1Api } from "../api/coreApis";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -372,7 +373,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
       const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
-      fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
+      fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility,request?.query?.tenantId);
 
     }
     if (type === 'boundary') {
@@ -679,7 +680,19 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
 }
 
 async function getReadMeConfig(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const MdmsCriteria = {
+    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
+      tenantId: request?.query?.tenantId,
+      moduleDetails: [
+        {
+          moduleName: "HCM-ADMIN-CONSOLE",
+          masterDetails: [{ name: "ReadMeConfig" }],
+        },
+      ],
+    },
+  };
+  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+    const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
@@ -1264,17 +1277,17 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated");
-  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-  const header = {
-    ...defaultheader,
-    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-  }
-  const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received");
-  return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-}
+// async function getBoundaryRelationshipData(request: any, params: any) {
+//   logger.info("Boundary relationship search initiated");
+//   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
+//   const header = {
+//     ...defaultheader,
+//     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+//   }
+//   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
+//   logger.info("Boundary relationship search response received");
+//   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+// }
 
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
@@ -1545,7 +1558,7 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  getBoundaryRelationshipData,
+  // getBoundaryRelationshipData,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
