@@ -10,7 +10,7 @@ import java.util.Set;
 public class DocumentQueryBuilder {
 
     private static final String FETCH_DOCUMENT_QUERY = "select d.id as documentId, d.projectId as document_projectId, d.documentType as document_documentType, " +
-            " d.filestoreId as document_filestoreId, d.documentUid as document_documentUid, d.additionalDetails as document_additionalDetails, d.status as document_status, " +
+            " d.fileStoreId as document_fileStoreId, d.documentUid as document_documentUid, d.additionalDetails as document_additionalDetails, d.status as document_status, " +
             "d.createdBy as document_createdBy, d.createdTime as document_createdTime, d.lastModifiedBy as document_lastModifiedBy, d.lastModifiedTime as document_lastModifiedTime " +
             " from project_document d ";
 

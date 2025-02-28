@@ -49,7 +49,7 @@ public class PtRowVersionValidator implements Validator<TaskBulkRequest, Task> {
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<Task> existingEntities = projectTaskRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false);
+                    getIdFieldName(idMethod), false).getResponse();
             List<Task> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
             entitiesWithMismatchedRowVersion.forEach(individual -> {
