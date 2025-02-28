@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.21 - 2025-02-28
+- Fixed populate error details in common utils
+
 ## 1.0.18 - 2024-08-09
 - Added validateClientReferenceIdsFromDB method to GenericRepository.
 
