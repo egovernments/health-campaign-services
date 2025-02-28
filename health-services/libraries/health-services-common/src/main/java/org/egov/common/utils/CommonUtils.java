@@ -1005,8 +1005,8 @@ public class CommonUtils {
             } else {
                 errorListMap.put(payload, errorList);
             }
-            populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
         });
+        populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
     }
 
     /**
