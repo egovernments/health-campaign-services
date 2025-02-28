@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.6 - 2025-02-28
+
+- Upgraded to heath commons 1.0.21
+
 ## 1.1.5 - 2025-01-28
 
 - Added householdType column in household table
