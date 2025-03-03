@@ -10,7 +10,6 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.hrms.utils.HRMSUtils;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -22,9 +21,6 @@ import org.springframework.util.CollectionUtils;
 @Repository
 @Slf4j
 public class EmployeeRepository {
-
-	@Value("${egov.hrms.default.pagination.limit}")
-	private Integer defaultLimit;
 
 	@Autowired
 	private EmployeeQueryBuilder queryBuilder;
@@ -52,6 +48,7 @@ public class EmployeeRepository {
 		Long totalCount = 0L;
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
+		List<Object> preparedStmtListWithOutLimitAndOffset = new ArrayList<>();
 		Map<String, Object> response = new HashMap<>();
 		if(hrmsUtils.isAssignmentSearchReqd(criteria)) {
 			List<String> empUuids = fetchEmployeesforAssignment(criteria, requestInfo);
@@ -71,23 +68,8 @@ public class EmployeeRepository {
 			List<String> empUuids = fetchUnassignedEmployees(criteria, requestInfo);
 			criteria.setUuids(empUuids);
 		}
-		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
-		String replacableString = " WHERE offset_ > $offset AND offset_ <= $limit";
-		if(null != criteria.getOffset())
-			replacableString = replacableString.replace("$offset", criteria.getOffset().toString());
-		else
-			replacableString = replacableString.replace("$offset", "0");
-
-		if(null != criteria.getLimit()){
-			Integer limit = criteria.getLimit() + criteria.getOffset();
-			replacableString = replacableString.replace("$limit", limit.toString());
-		}
-		else
-			replacableString = replacableString.replace("$limit", defaultLimit.toString());
-
-
-		String queryWithOutLimitAndOffset = query.replace( replacableString , "");
-
+		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList, true);
+		String queryWithOutLimitAndOffset = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtListWithOutLimitAndOffset , false);
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
 			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();

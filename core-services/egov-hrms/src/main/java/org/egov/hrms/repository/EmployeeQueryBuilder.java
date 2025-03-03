@@ -28,10 +28,10 @@ public class EmployeeQueryBuilder {
 	 * @param criteria
 	 * @return
 	 */
-	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
+	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList, Boolean addPagination ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
 		addWhereClause(criteria, builder, preparedStmtList);
-		return paginationClause(criteria, builder);
+		return paginationClause(criteria, builder, addPagination);
 	}
 
 	public String getEmployeeCountQuery(String tenantId, List <Object> preparedStmtList ) {
@@ -93,21 +93,25 @@ public class EmployeeQueryBuilder {
 		}
 	}
 	
-	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder) {
+	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder, Boolean addPagination) {
 		String pagination = EmployeeQueries.HRMS_PAGINATION_WRAPPER;
 		pagination = pagination.replace("{}", builder.toString());
-		if(null != criteria.getOffset())
-			pagination = pagination.replace("$offset", criteria.getOffset().toString());
-		else
-			pagination = pagination.replace("$offset", "0");
-		
-		if(null != criteria.getLimit()){
-			Integer limit = criteria.getLimit() + criteria.getOffset();
-			pagination = pagination.replace("$limit", limit.toString());
+
+		if (!addPagination) {
+			pagination = pagination.replace( " WHERE offset_ > $offset AND offset_ <= $limit" , "");
+		} else  {
+			if(null != criteria.getOffset())
+				pagination = pagination.replace("$offset", criteria.getOffset().toString());
+			else
+				pagination = pagination.replace("$offset", "0");
+
+			if(null != criteria.getLimit()){
+				Integer limit = criteria.getLimit() + criteria.getOffset();
+				pagination = pagination.replace("$limit", limit.toString());
+			}
+			else
+				pagination = pagination.replace("$limit", defaultLimit.toString());
 		}
-		else
-			pagination = pagination.replace("$limit", defaultLimit.toString());
-		
 		return pagination;
 	}
 
