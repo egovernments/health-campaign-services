@@ -231,8 +231,12 @@ public class EmployeeService {
 		if(userChecked)
 			criteria.setTenantId(null);
         List <Employee> employees = new ArrayList<>();
-        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids())))
-            employees = repository.fetchEmployees(criteria, requestInfo);
+        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids()))) {
+			Map<String, Object> response = repository.fetchEmployees(criteria, requestInfo);
+			// Extract the List<Employee> and total count from the map
+			employees = (List<Employee>) response.get("employees");
+			totalCount = (Long) response.get("totalCount");
+		}
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
@@ -243,7 +247,6 @@ public class EmployeeService {
             if(mapOfUsers.isEmpty()){
 				log.info("searching in user service");
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
-			totalCount = userResponse.getTotalCount();
 			if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 				mapOfUsers = userResponse.getUser().stream()
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));
