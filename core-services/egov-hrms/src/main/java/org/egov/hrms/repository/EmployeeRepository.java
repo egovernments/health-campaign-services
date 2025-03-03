@@ -10,6 +10,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.hrms.utils.HRMSUtils;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -21,7 +22,10 @@ import org.springframework.util.CollectionUtils;
 @Repository
 @Slf4j
 public class EmployeeRepository {
-	
+
+	@Value("${egov.hrms.default.pagination.limit}")
+	private Integer defaultLimit;
+
 	@Autowired
 	private EmployeeQueryBuilder queryBuilder;
 	
@@ -68,7 +72,22 @@ public class EmployeeRepository {
 			criteria.setUuids(empUuids);
 		}
 		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
-		String queryWithOutLimitAndOffset = query.replace( " WHERE offset_ > 0 AND offset_ <= 1" , "");
+		String replacableString = " WHERE offset_ > $offset AND offset_ <= $limit";
+		if(null != criteria.getOffset())
+			replacableString = replacableString.replace("$offset", criteria.getOffset().toString());
+		else
+			replacableString = replacableString.replace("$offset", "0");
+
+		if(null != criteria.getLimit()){
+			Integer limit = criteria.getLimit() + criteria.getOffset();
+			replacableString = replacableString.replace("$limit", limit.toString());
+		}
+		else
+			replacableString = replacableString.replace("$limit", defaultLimit.toString());
+
+
+		String queryWithOutLimitAndOffset = query.replace( replacableString , "");
+
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
 			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();
