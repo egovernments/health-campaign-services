@@ -249,9 +249,17 @@ public class EmployeeService {
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));
             }
             }
-            for(Employee employee: employees){
-                employee.setUser(mapOfUsers.get(employee.getUuid()));
-            }
+			Iterator<Employee> iterator = employees.iterator();
+			while(iterator.hasNext()) {
+				Employee employee = iterator.next();
+				User tempUser = mapOfUsers.get(employee.getUuid());
+				if (!mapOfUsers.isEmpty() &&  ( tempUser== null || tempUser.getUserServiceUuid().isEmpty()) ) {
+					iterator.remove();
+					totalCount--;
+				} else {
+					employee.setUser(tempUser);
+				}
+			}
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
 				.employees(employees)
