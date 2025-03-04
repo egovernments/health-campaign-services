@@ -276,6 +276,7 @@ public class IndividualService implements UserService {
                 .isSystemUserActive(userRequest.getUser().getActive())
                 .name(Name.builder()
                         .givenName(userRequest.getUser().getName())
+                        .familyName(userRequest.getUser().getSignature())
                         .build())
                 .gender(Gender.fromValue(userRequest.getUser().getGender()))
                 .email(userRequest.getUser().getEmailId())
