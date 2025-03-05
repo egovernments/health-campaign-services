@@ -107,8 +107,8 @@ public class ServiceDefinitionRequestValidator {
             ServiceCriteria.builder().serviceDefIds(Collections.singletonList(serviceDefinition.get(0).getId())).build()
           ).build()
         );
-        //already a service exists corresponding to service definition
-        if(!CollectionUtils.isEmpty(service)){
+        // If the service mapping doesn't exist throw an error
+        if(CollectionUtils.isEmpty(service)){
             throw new CustomException(VALID_SERVICE_EXIST_ERR_CODE, VALID_SERVICE_EXIST_ERR_MSG);
         }
     }
