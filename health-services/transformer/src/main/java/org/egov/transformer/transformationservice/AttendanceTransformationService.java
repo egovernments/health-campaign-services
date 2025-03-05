@@ -117,6 +117,8 @@ public class AttendanceTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
+        String cycleIndex = commonUtils.fetchCycleIndex(attendanceLog.getTenantId(), projectTypeId, attendanceLog.getAuditDetails());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
