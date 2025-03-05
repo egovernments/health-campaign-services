@@ -274,6 +274,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + ") ";
         }
 
+        if (searchObject.getUsername() != null) {
+            query = query + "AND username in (:username) ";
+            paramsMap.put("username", searchObject.getUsername());
+        }
 
         if (searchObject.getUserId() != null) {
             query = query + "AND userId in (:userId) ";

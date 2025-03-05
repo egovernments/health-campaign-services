@@ -67,6 +67,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .isSystemUser(resultSet.getBoolean("isSystemUser"))
                     .isSystemUserActive(resultSet.getBoolean("isSystemUserActive"))
                     .userDetails(UserDetails.builder()
+                            .username(resultSet.getString("username"))
                             .userType(UserType.fromValue(resultSet.getString("type")))
                             .roles(resultSet.getString("roles") == null ? null :
                                     objectMapper.readValue(resultSet.getString("roles"),
