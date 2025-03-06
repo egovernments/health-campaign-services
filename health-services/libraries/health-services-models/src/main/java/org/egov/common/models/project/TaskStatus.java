@@ -53,7 +53,13 @@ public enum TaskStatus {
      * This status signifies that the task has not been processed or
      * handled yet.
      */
-    NOT_ADMINISTERED("NOT_ADMINISTERED");
+    NOT_ADMINISTERED("NOT_ADMINISTERED"),
+
+    /**
+     * Indicates that the beneficiary is not eligible.
+     * This status signifies that the task has not been processed
+     */
+    INELIGIBLE("INELIGIBLE");
 
     // The string value associated with the task status.
     private String value;
