@@ -23,4 +23,8 @@ public class AttendanceRegisterIndexV1 {
     private Map<String, Name> attendeesInfo;
     @JsonProperty("transformerTimeStamp")
     private String transformerTimeStamp;
+    @JsonProperty("boundaryHierarchy")
+    private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
 }

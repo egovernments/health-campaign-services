@@ -140,12 +140,25 @@ public class AttendanceTransformationService {
     }
 
     public AttendanceRegisterIndexV1 transformRegister(AttendanceRegister attendanceRegister) {
+        Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
         List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
         Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        if (StringUtils.isNotBlank(attendanceRegister.getLocalityCode())) {
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(attendanceRegister.getLocalityCode(), attendanceRegister.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+        } else if (StringUtils.isNotBlank(attendanceRegister.getReferenceId())) {
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(attendanceRegister.getReferenceId(), attendanceRegister.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+        }
         AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = AttendanceRegisterIndexV1.builder()
                 .attendanceRegister(attendanceRegister)
                 .attendeesInfo(attendeesInfo)
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
+                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .build();
         return attendanceRegisterIndexV1;
     }
