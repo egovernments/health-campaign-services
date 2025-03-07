@@ -99,6 +99,7 @@ public class ResourceEstimationService {
             });
 		    if (file.getTemplateIdentifier().equalsIgnoreCase(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)) {
 		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
+				break;
 		    }
 		}
 
