@@ -42,11 +42,12 @@ public class AttendanceTransformationService {
     private final ObjectMapper objectMapper;
 
     private final CommonUtils commonUtils;
+    private final ProjectService projectService;
 
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, ProjectService projectService1, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -54,6 +55,7 @@ public class AttendanceTransformationService {
         this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
+        this.projectService = projectService1;
         this.individualService = individualService;
     }
 
@@ -142,23 +144,32 @@ public class AttendanceTransformationService {
     public AttendanceRegisterIndexV1 transformRegister(AttendanceRegister attendanceRegister) {
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
+        String projectId = attendanceRegister.getReferenceId();
         List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
         Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
         if (StringUtils.isNotBlank(attendanceRegister.getLocalityCode())) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(attendanceRegister.getLocalityCode(), attendanceRegister.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
-        } else if (StringUtils.isNotBlank(attendanceRegister.getReferenceId())) {
+        } else if (StringUtils.isNotBlank(projectId)) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(attendanceRegister.getReferenceId(), attendanceRegister.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        if (StringUtils.isNotBlank(projectId)) {
+            String projectTypeId = projectService.getProjectTypeIdFromProjectId(projectId, attendanceRegister.getTenantId());
+            additionalDetails.put(PROJECT_ID, projectId);
+            additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        }
+
         AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = AttendanceRegisterIndexV1.builder()
                 .attendanceRegister(attendanceRegister)
                 .attendeesInfo(attendeesInfo)
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
+                .additionalDetails(additionalDetails)
                 .build();
         return attendanceRegisterIndexV1;
     }
