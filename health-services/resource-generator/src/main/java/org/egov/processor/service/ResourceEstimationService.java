@@ -3,9 +3,11 @@ package org.egov.processor.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.util.CampaignIntegrationUtil;
+import org.egov.processor.util.FilestoreUtil;
+import org.egov.processor.util.ParsingUtil;
+import org.egov.processor.util.PlanUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.egov.processor.config.ServiceConstants.FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS;
 
 @Service
 @Slf4j
@@ -26,16 +30,17 @@ public class ResourceEstimationService {
     private CampaignIntegrationUtil campaignIntegrationUtil;
 	private ServiceRequestRepository serviceRequestRepository;
 	private Configuration config;
+	private PlanUtil planUtil;
 
-	public ResourceEstimationService(FileParser excelParser, FileParser geoJsonParser, FileParser shapeFileParser,CampaignIntegrationUtil campaignIntegrationUtil
-    		,ServiceRequestRepository serviceRequestRepository,
-    		Configuration config) {
+	public ResourceEstimationService(FileParser excelParser, FileParser geoJsonParser, FileParser shapeFileParser, CampaignIntegrationUtil campaignIntegrationUtil
+    		, ServiceRequestRepository serviceRequestRepository, Configuration config, PlanUtil planUtil) {
         this.excelParser = excelParser;
         this.geoJsonParser = geoJsonParser;
         this.shapeFileParser = shapeFileParser;
         this.campaignIntegrationUtil= campaignIntegrationUtil;
     	this.serviceRequestRepository=serviceRequestRepository;
     	this.config=config;
+        this.planUtil = planUtil;
     }
 
 	/**
@@ -46,6 +51,10 @@ public class ResourceEstimationService {
     public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
+		if(planConfiguration.getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+			planUtil.addEstimationsFile(planConfigurationRequest);
+			planUtil.update(planConfigurationRequest);
+		}
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
         Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
 		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
@@ -88,8 +97,9 @@ public class ResourceEstimationService {
 		    FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                 throw new IllegalArgumentException("Unsupported file type: " + ft);
             });
-		    if (!ServiceConstants.FILE_TEMPLATE.equalsIgnoreCase(file.getTemplateIdentifier())) {
+		    if (file.getTemplateIdentifier().equalsIgnoreCase(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)) {
 		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
+				break;
 		    }
 		}
 

@@ -452,4 +452,30 @@ public class ParsingUtil {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
     }
+
+    /**
+     * Converts the provided workbook to XLS format.
+     *
+     * @param workbook The workbook to convert.
+     * @return The converted XLS file, or null if an error occurred.
+     */
+    public File convertWorkbookToXls(Workbook workbook) {
+        try {
+            // Create a temporary file for the output XLS file
+            File outputFile = File.createTempFile("output", ".xls");
+
+            // Write the XLS file
+            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                workbook.write(fos);
+                log.info("XLS file saved successfully.");
+                return outputFile;
+            } catch (IOException e) {
+                log.info("Error saving XLS file: " + e);
+                return null;
+            }
+        } catch (IOException e) {
+            log.info("Error converting workbook to XLS: " + e);
+            return null;
+        }
+    }
 }

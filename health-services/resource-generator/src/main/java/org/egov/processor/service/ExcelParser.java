@@ -165,10 +165,10 @@ public class ExcelParser implements FileParser {
 		File fileToUpload = null;
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-			fileToUpload = convertWorkbookToXls(workbook);
+			fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
 			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.setFileStoreIdForEstimationsInProgressTemplate(planConfigurationRequest, uploadedFileStoreId);
 				planUtil.update(planConfigurationRequest);
 			}
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
@@ -180,9 +180,9 @@ public class ExcelParser implements FileParser {
 				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest, filestoreId);
 
 				//upload the processed output file and update the same into plan configuration file object
-				fileToUpload = convertWorkbookToXls(workbook);
+				fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.addFileStoreIdForEstimationTemplate(planConfigurationRequest, uploadedFileStoreId, EXCEL);
+				planUtil.addFileForFinalEstimations(planConfigurationRequest, uploadedFileStoreId, EXCEL);
 				planUtil.update(planConfigurationRequest);
 			}
 		} finally {
@@ -514,32 +514,6 @@ public class ExcelParser implements FileParser {
 	 */
 	private File createTempFile(String prefix, String suffix) throws IOException {
 		return File.createTempFile(prefix, suffix);
-	}
-
-	/**
-	 * Converts the provided workbook to XLS format.
-	 *
-	 * @param workbook The workbook to convert.
-	 * @return The converted XLS file, or null if an error occurred.
-	 */
-	private File convertWorkbookToXls(Workbook workbook) {
-		try {
-			// Create a temporary file for the output XLS file
-			File outputFile = File.createTempFile("output", ".xls");
-
-			// Write the XLS file
-			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-				workbook.write(fos);
-				log.info("XLS file saved successfully.");
-				return outputFile;
-			} catch (IOException e) {
-				log.info("Error saving XLS file: " + e);
-				return null;
-			}
-		} catch (IOException e) {
-			log.info("Error converting workbook to XLS: " + e);
-			return null;
-		}
 	}
 
 	/**
