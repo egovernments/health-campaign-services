@@ -294,7 +294,7 @@ public class PlanUtil {
 		try (Workbook workbook = new XSSFWorkbook(estimationsTempFile)) {
 			java.io.File estimationsFile = parsingUtil.convertWorkbookToXls(workbook);
 
-			// Upload the new file and get the fileStore ID 7276c7d4-6060-461b-a5c6-b799bffe560d
+			// Upload the new file and get the fileStore ID
 			String estimationsFileStoreId = filestoreUtil.uploadFile(estimationsFile, planConfiguration.getTenantId());
 
 			// Create a new estimation file entry
