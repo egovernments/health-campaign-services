@@ -1051,15 +1051,21 @@ function generateUserPassword() {
 }
 
 async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
-  const jurisdictionsArray = employee?.jurisdictions
-    ?.split(",")
-    ?.map((jurisdiction : any ) => jurisdiction.trim());
+  let jurisdictionsArray = [];
+  if (typeof employee?.jurisdictions === 'string') {
+    jurisdictionsArray = employee.jurisdictions
+      .split(",")
+      .map((jurisdiction: any) => jurisdiction.trim());
+  } else if (Array.isArray(employee?.jurisdictions)) {
+    // If it's already an array, map through to extract the necessary data.
+    jurisdictionsArray = employee?.jurisdictions.map((jurisdiction: any) => jurisdiction?.boundary);
+  }
 
   if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
     const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
       return {
         tenantId: request?.body?.ResourceDetails?.tenantId,
-        boundaryType: boundaryCodeAndBoundaryTypeMapping[jurisdiction],
+        boundaryType: jurisdiction === 'mz' ? 'Country' : boundaryCodeAndBoundaryTypeMapping[jurisdiction],
         boundary: jurisdiction,
         hierarchy: request?.body?.ResourceDetails?.hierarchyType,
         roles: employee?.user?.roles,
@@ -1528,7 +1534,7 @@ async function processAfterValidation(
 
 async function performAndSaveResourceActivityByChangingBody(
   request: any,
-  createAndSearchConfig: any, 
+  createAndSearchConfig: any,
   localizationMap?: { [key: string]: string }
 ){
   _.set(
