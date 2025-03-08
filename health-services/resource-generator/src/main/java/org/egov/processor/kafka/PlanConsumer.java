@@ -43,7 +43,9 @@ public class PlanConsumer {
                 log.info("Successfully estimated resources for plan.");
             }
         } catch (Exception exception) {
+            exception.printStackTrace();
             log.error("Error processing record from topic "+topic+" with exception :"+exception);
+
             throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
 					exception.toString());
         }
