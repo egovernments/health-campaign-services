@@ -26,7 +26,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.street
             - jsonPath: $.*.address.*.locality.code
             - jsonPath: $.*.address.*.ward.code
-        - query: INSERT INTO individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, type, roles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, username, type, roles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -59,6 +59,7 @@ serviceMaps:
             - jsonPath: $.*.individualId
             - jsonPath: $.*.relationship
             - jsonPath: $.*.isSystemUser
+            - jsonPath: $.*.userDetails.username
             - jsonPath: $.*.userDetails.type
             - jsonPath: $.*.userDetails.roles
               type: JSON
@@ -107,7 +108,7 @@ serviceMaps:
       fromTopic: update-individual-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, type = ?, roles = ? WHERE id=? AND isDeleted=false;
+        - query: UPDATE individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, username = ?, type = ?, roles = ? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.userId
@@ -133,6 +134,7 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.userDetails.username
             - jsonPath: $.*.userDetails.type
             - jsonPath: $.*.userDetails.roles
               type: JSON
