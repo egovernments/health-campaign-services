@@ -1,0 +1,49 @@
+Table muster_roll {
+  id varchar(256) [not null, pk]
+  tenant_id varchar(64) [not null]
+  musterroll_number varchar(128) [not null]
+  attendance_register_id varchar(256) [not null]
+  start_date bigint [not null]
+  end_date bigint [not null]
+  musterroll_status varchar(64) [not null]
+  status varchar(64) [not null]
+  additionaldetails jsonb
+  createdby varchar(256) [not null]
+  lastmodifiedby varchar(256)
+  createdtime bigint
+  lastmodifiedtime bigint
+  reference_id varchar(256)
+  service_code varchar(64)
+}
+
+Table eg_wms_attendance_summary {
+  id varchar(256) [not null, pk]
+  individual_id varchar(256) [not null]
+  muster_roll_id varchar(256) [not null]
+  musterroll_number varchar(128) [not null]
+  actual_total_attendance numeric
+  additionaldetails jsonb
+  createdby varchar(256) [not null]
+  lastmodifiedby varchar(256)
+  createdtime bigint
+  lastmodifiedtime bigint
+  modified_total_attendance numeric
+}
+
+Table eg_wms_attendance_entries {
+  id varchar(256) [not null, pk]
+  attendance_summary_id varchar(256) [not null]
+  individual_id varchar(256) [not null]
+  musterroll_number varchar(128) [not null]
+  date_of_attendance bigint
+  attendance_value numeric
+  additionaldetails jsonb
+  createdby varchar(256) [not null]
+  lastmodifiedby varchar(256)
+  createdtime bigint
+  lastmodifiedtime bigint
+}
+
+Ref: "muster_roll"."id" < "eg_wms_attendance_summary"."muster_roll_id"
+
+Ref: "eg_wms_attendance_summary"."id" < "eg_wms_attendance_entries"."attendance_summary_id"
