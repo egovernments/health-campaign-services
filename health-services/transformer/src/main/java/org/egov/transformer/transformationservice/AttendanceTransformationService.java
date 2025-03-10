@@ -24,7 +24,6 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -93,6 +92,20 @@ public class AttendanceTransformationService {
 
         producer.push(attendanceRegisterTopic, Collections.singletonList(attendanceRegisterIndexV1));
         log.info("transformation successful for attendance register");
+    }
+
+    public void transformRegister(List<AttendanceRegister> attendanceRegisterList) {
+        log.info("transforming for attendanceRegister id's {}", attendanceRegisterList.stream()
+                .map(AttendanceRegister::getId).collect(Collectors.toList()));
+        String topic = transformerProperties.getTransformerProducerAttendanceRegisterIndexV1Topic();
+        List<AttendanceRegisterIndexV1> attendanceRegisterIndexV1List = attendanceRegisterList.stream()
+                .map(this::transformRegister)
+                .collect(Collectors.toList());
+        log.info("transformation success for attendanceRegister id's {}", attendanceRegisterIndexV1List.stream()
+                .map(AttendanceRegisterIndexV1::getAttendanceRegister)
+                .map(AttendanceRegister::getId)
+                .collect(Collectors.toList()));
+        producer.push(topic, attendanceRegisterIndexV1List);
     }
 
     public AttendanceLogIndexV1 transform(AttendanceLog attendanceLog, AttendanceRegister attendanceRegister) {
