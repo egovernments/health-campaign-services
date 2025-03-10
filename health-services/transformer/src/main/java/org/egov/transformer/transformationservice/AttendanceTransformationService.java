@@ -47,7 +47,7 @@ public class AttendanceTransformationService {
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, ProjectService projectService1, IndividualService individualService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -55,7 +55,7 @@ public class AttendanceTransformationService {
         this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
-        this.projectService = projectService1;
+        this.projectService = projectService;
         this.individualService = individualService;
     }
 
