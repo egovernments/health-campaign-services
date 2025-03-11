@@ -137,16 +137,16 @@ public class CensusQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getIds());
         }
 
-        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" tenant_id = ?");
-            preparedStmtList.add(criteria.getTenantId());
-        }
-
         if (!ObjectUtils.isEmpty(criteria.getSource())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" source = ?");
             preparedStmtList.add(criteria.getSource());
+        }
+
+        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" tenant_id = ?");
+            preparedStmtList.add(criteria.getTenantId());
         }
 
         if (!ObjectUtils.isEmpty(criteria.getStatus())) {

@@ -1,2 +1,2 @@
 CREATE INDEX census_idx
-ON census (tenant_id, source, status) INCLUDE (id);
+ON census (source, tenant_id, status) INCLUDE (id);
