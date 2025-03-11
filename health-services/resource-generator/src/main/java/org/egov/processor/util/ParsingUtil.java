@@ -470,12 +470,11 @@ public class ParsingUtil {
                 log.info("XLS file saved successfully.");
                 return outputFile;
             } catch (IOException e) {
-                log.error("Error saving XLS file: " + e);
-                return null;
+                log.error(ERROR_SAVING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
             }
         } catch (IOException e) {
-            log.info("Error converting workbook to XLS: " + e);
-            return null;
+            log.error(ERROR_CONVERTING_TO_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
         }
+        return null;
     }
 }
