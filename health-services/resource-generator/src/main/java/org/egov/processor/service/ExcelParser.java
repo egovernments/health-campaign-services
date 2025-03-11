@@ -30,7 +30,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
@@ -142,15 +141,15 @@ public class ExcelParser implements FileParser {
 					campaignBoundaryList, dataFormatter);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
 		} catch (FileNotFoundException e) {
-			log.error("File not found: {}", e.getMessage());
-			throw new CustomException("FileNotFound", "The specified file was not found.");
+			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(EXCEL_FILE_NOT_FOUND_CODE, EXCEL_FILE_NOT_FOUND_MESSAGE);
 		} catch (InvalidFormatException e) {
-			log.error("Invalid format: {}", e.getMessage());
-			throw new CustomException("InvalidFormat", "The file format is not supported.");
+			log.error(INVALID_FILE_FORMAT_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(INVALID_FILE_FORMAT_CODE, INVALID_FILE_FORMAT_MESSAGE);
 		} catch (IOException e) {
-			log.error("Error processing Excel file: {}", e);
+			log.error(ERROR_PROCESSING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					"Error processing Excel file");
+					ERROR_PROCESSING_EXCEL_FILE);
 		}
 	}
 
@@ -168,7 +167,7 @@ public class ExcelParser implements FileParser {
 			fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
 			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.setFileStoreIdForEstimationsInProgressTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.setFileStoreIdForEstimationsInProgress(planConfigurationRequest, uploadedFileStoreId);
 				planUtil.update(planConfigurationRequest);
 			}
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {

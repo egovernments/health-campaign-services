@@ -67,7 +67,7 @@ public class PlanUtil {
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
-			log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + planRequest.getPlan().getLocality(), e); 
+            log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + LOG_PLACEHOLDER, planRequest.getPlan().getLocality(), e);
 		}
 	}
 
@@ -191,7 +191,7 @@ public class PlanUtil {
 			return ((value!=null && value.length()>2)?value.substring(1, value.length()-1):value);
 		}
 		else {
-			throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
+			throw new CustomException(INPUT_NOT_FOUND_CODE, INPUT_NOT_FOUND_MESSAGE + input);
 		}
 	}
 	
@@ -232,7 +232,7 @@ public class PlanUtil {
 		return new StringBuilder().append(config.getPlanConfigHost()).append(config.getPlanSearchEndPoint());
 	}
 
-	public void setFileStoreIdForEstimationsInProgressTemplate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+	public void setFileStoreIdForEstimationsInProgress(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
 		planConfigurationRequest.getPlanConfiguration().getFiles().stream()
 				.filter(file -> FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS.equals(file.getTemplateIdentifier()))
 				.findFirst()
@@ -301,7 +301,7 @@ public class PlanUtil {
 			File estimationFile = File.builder()
 					.filestoreId(estimationsFileStoreId)
 					.inputFileType(populationFile.getInputFileType())
-					.templateIdentifier(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)
+					.templateIdentifier(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)
 					.active(true)
 					.build();
 
@@ -310,15 +310,15 @@ public class PlanUtil {
 			planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
 
 		} catch (FileNotFoundException e) {
-			log.error("File not found: {}", e.getMessage());
-			throw new CustomException("FileNotFound", "The specified file was not found.");
+			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(EXCEL_FILE_NOT_FOUND_CODE, EXCEL_FILE_NOT_FOUND_MESSAGE);
 		} catch (InvalidFormatException e) {
-			log.error("Invalid format: {}", e.getMessage());
-			throw new CustomException("InvalidFormat", "The file format is not supported.");
+			log.error(INVALID_FILE_FORMAT_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(INVALID_FILE_FORMAT_CODE, INVALID_FILE_FORMAT_MESSAGE);
 		} catch (IOException e) {
-			log.error("Error processing Excel file: {}", e);
+			log.error(ERROR_PROCESSING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					"Error processing Excel file");
+					ERROR_PROCESSING_EXCEL_FILE);
 		}
 	}
 }
