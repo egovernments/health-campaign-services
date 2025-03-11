@@ -131,16 +131,28 @@ public class PlanQueryBuilder {
     private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getIds())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" id IN ( ").append(queryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
+        }
+
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_id = ? ");
+            preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
+        }
+
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ? ");
             preparedStmtList.add(planSearchCriteria.getTenantId());
         }
 
-        if (!CollectionUtils.isEmpty(planSearchCriteria.getIds())) {
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" id IN ( ").append(queryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
+            builder.append(" status = ? ");
+            preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
@@ -153,18 +165,6 @@ public class PlanQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" campaign_id = ? ");
             preparedStmtList.add(planSearchCriteria.getCampaignId());
-        }
-
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_id = ? ");
-            preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
-        }
-
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" status = ? ");
-            preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
