@@ -316,7 +316,7 @@ public class EnrichmentUtil {
             
             for (Field field: declaredFields){
                 additionalDetailsCOlumnNames.add(field.getName());
-            }field
+            }
         }
         log.info("plan export additional details column names created");
 
