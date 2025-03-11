@@ -143,16 +143,16 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
         }
 
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" status = ? ");
-            preparedStmtList.add(planSearchCriteria.getStatus());
-        }
-
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ? ");
             preparedStmtList.add(planSearchCriteria.getTenantId());
+        }
+
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" status = ? ");
+            preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
