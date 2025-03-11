@@ -304,6 +304,29 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return query;
     }
 
+    public SearchResponse<Individual> findByHashedMobileNumber(String hashedMobile, String tenantId) {
+        // Build the SQL query – adjust the table/column names as needed.
+        String query = "SELECT * FROM individual WHERE hashedmobilenumber = :hashedMobile AND tenantId = :tenantId AND isDeleted = false";
+
+        // Create a parameter map.
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("hashedMobile", hashedMobile);
+        paramMap.put("tenantId", tenantId);
+
+        // Optionally, if you need total count using a CTE, use your helper method.
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap, this.namedParameterJdbcTemplate);
+
+        // Execute the query.
+        List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+
+        // Build and return a SearchResponse.
+        return SearchResponse.<Individual>builder()
+                .totalCount(totalCount)
+                .response(individuals)
+                .build();
+    }
+
+
     private String getIdentifierQuery(Identifier identifier, Map<String, Object> paramMap) {
         String identifierQuery = "SELECT * FROM individual_identifier";
         List<String> identifierWhereFields = GenericQueryBuilder.getFieldsWithCondition(identifier,
