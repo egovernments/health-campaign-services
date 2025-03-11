@@ -21,11 +21,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
@@ -287,6 +291,94 @@ public class EnrichmentUtil {
         }
     }
 
+    public void enrichsheetWithApprovedPlanAdditionalDetails(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
+        
+        List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
+
+        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+        //Getting plan records for the list of boundaryCodes
+        List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
+
+        // Create a map from boundaryCode to Plan for quick lookups
+        Map<String, Plan> planMap = planList.stream()
+                .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
+
+        Set<String> additionalDetailsCOlumnNames = new HashSet<>();
+                
+        for (Plan plan: planList){
+            Field[] declaredFields = plan.getAdditionalDetails().getClass().getDeclaredFields();
+            
+            for (Field field: declaredFields){
+                additionalDetailsCOlumnNames.add(field.getName());
+            }field
+        }
+        log.info("plan export additional details column names created");
+
+        for(Row row: sheet) {
+            // Skip the header row and empty rows
+            if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
+                continue;
+            }
+            // Get the boundaryCode in the current row
+            Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
+            String boundaryCode = boundaryCodeCell.getStringCellValue();
+
+            Plan planEstimate = planMap.get(boundaryCode);
+
+            if (planEstimate != null) {
+               
+                Map<String, String> additionalDetailsToEstimatedNumberMap = new HashMap<>();
+
+                log.info("plan estimate export starting setting values in additional detail column");
+                for (String  additionalDetailColumn : additionalDetailsCOlumnNames){
+                    try{
+                        Field field = planEstimate.getAdditionalDetails().getClass().getDeclaredField(additionalDetailColumn);
+                        String value = field.get(planEstimate.getAdditionalDetails()).toString();
+                        additionalDetailsToEstimatedNumberMap.put(field.getName(),value); 
+                    } catch (NoSuchFieldException e){
+                        log.error("No such field exist: ",additionalDetailColumn,e);
+                    } catch (IllegalAccessException e1){
+                        log.debug("Accessing Illegal field: ",additionalDetailColumn);
+                    }           
+                }
+                
+                log.info("plan estimate export start writing workbook");
+                // Iterate over each output column to update the row cells with resource values
+                for (String additionalDetailColumn : additionalDetailsCOlumnNames) {
+                    String estimatedValue = additionalDetailsToEstimatedNumberMap.getOrDefault(additionalDetailColumn,"");
+
+                    if (estimatedValue != null) {
+                        // Get the index of the column to update
+                        Integer columnIndex = mapOfColumnNameAndIndex.get(additionalDetailColumn);
+                        if (columnIndex != null) {
+                            // Update the cell with the resource value
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(estimatedValue);
+                        }
+                    } else {
+                        // If estimatedValue is null, set the cell to empty
+                        Integer columnIndex = mapOfColumnNameAndIndex.get(additionalDetailColumn);
+                        if (columnIndex != null) {
+                            // Ensure the cell is empty
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(NOT_APPLICABLE); // Set as not applicable
+                        }
+                    }
+                }
+            }
+
+            log.info("Successfully update file with additional details columns data.");
+        }
+    }
 
     public List<Plan> getPlanRecordsForEnrichment(PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodes) {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
