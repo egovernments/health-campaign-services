@@ -47,6 +47,15 @@ public class ServiceTaskTransformationService {
         put("SPECIAL_SPRAYING_3", "roomsSprayed");
     }};
 
+    private final Map<String, String> specialCasesStringValueKeys = new HashMap<String, String>() {{
+        put("SPLCASES1", "specialCase");
+        put("SPLCASES4", "specialCaseComment");
+    }};
+    private final Map<String, String> specialCasesNumberValueKeys = new HashMap<String, String>() {{
+        put("SPLCASES2", "bednetsDistributed");
+        put("SPLCASES3", "peopleCovered");
+    }};
+
     public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
         this.producer = producer;
         this.transformerProperties = transformerProperties;
@@ -71,6 +80,7 @@ public class ServiceTaskTransformationService {
         producer.push(topic, serviceIndexV1List);
         filterFinanceChecklists(serviceIndexV1List);
         filterSpecialSpraying(serviceIndexV1List);
+        filterSpecialCases(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -220,6 +230,56 @@ public class ServiceTaskTransformationService {
         String topic = transformerProperties.getTransformerProducerSpecialSprayingChecklistIndexV1Topic();
         if (!CollectionUtils.isEmpty(specialSprayingChecklists)) {
             producer.push(topic, specialSprayingChecklists);
+        }
+    }
+
+    public void filterSpecialCases(List<ServiceIndexV1> serviceIndexV1List) {
+        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
+            log.info("No special cases index data to process.");
+            return;
+        }
+
+        String checklistName = transformerProperties.getSpecialCasesChecklistName();
+        List<ServiceIndexV1> specialCasesChecklists = serviceIndexV1List.stream()
+                .filter(service -> checklistName.equals(service.getChecklistName()))
+                .collect(Collectors.toList());
+        specialCasesChecklists.forEach(
+                ss -> {
+                    List<AttributeValue> attributeValues = ss.getAttributes();
+                    attributeValues.forEach(
+                            att -> {
+                                String attCode = att.getAttributeCode();
+                                Map<String, Object> valueMap;
+                                Object valueObj = null;
+                                if (att.getValue() instanceof Map<?, ?>) {
+                                    valueMap = (Map<String, Object>) att.getValue();
+                                    valueObj = valueMap.getOrDefault("value", null);
+                                }
+                                if (specialCasesNumberValueKeys.containsKey(attCode)) {
+                                    double value = 0.0;
+                                    if (valueObj instanceof Number) {
+                                        value = ((Number) valueObj).doubleValue();
+                                    } else if (valueObj instanceof String) {
+                                        try {
+                                            value = Double.parseDouble((String) valueObj);
+                                        } catch (NumberFormatException e) {
+                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
+                                        }
+                                    }
+                                    ss.getAdditionalDetails().put(specialCasesNumberValueKeys.get(attCode), value);
+                                } else if (specialCasesStringValueKeys.containsKey(attCode)) {
+                                    ss.getAdditionalDetails()
+                                            .put(specialCasesStringValueKeys.get(attCode),
+                                                    valueObj != null ? valueObj.toString() : "");
+                                }
+                            }
+                    );
+                    ss.setAttributes(null);
+                }
+        );
+        String topic = transformerProperties.getTransformerProducerSpecialCasesChecklistIndexV1Topic();
+        if (!CollectionUtils.isEmpty(specialCasesChecklists)) {
+            producer.push(topic, specialCasesChecklists);
         }
     }
 }
