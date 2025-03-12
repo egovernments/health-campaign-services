@@ -119,7 +119,7 @@ public class WorkflowService {
             if (!ObjectUtils.isEmpty(assignee))
                 census.getWorkflow().setAssignes(assignee);
 
-            census.setAssignee(assignee);
+            census.setAssignee(assignee != null ? new HashSet<>(assignee) : new HashSet<>());
 
             // Create process instance object from census
             ProcessInstance processInstance = ProcessInstance.builder()
@@ -195,7 +195,7 @@ public class WorkflowService {
         if (!ObjectUtils.isEmpty(assignee))
             census.getWorkflow().setAssignes(assignee);
 
-        census.setAssignee(assignee);
+        census.setAssignee(assignee != null ? new HashSet<>(assignee) : new HashSet<>());
 
         // Enrich user for process instance
         enrichAssigneesInProcessInstance(processInstance, census.getWorkflow());
