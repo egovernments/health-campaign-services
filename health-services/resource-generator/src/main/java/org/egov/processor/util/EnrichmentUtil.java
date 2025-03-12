@@ -340,7 +340,8 @@ public class EnrichmentUtil {
                     try{
                         Field field = planEstimate.getAdditionalDetails().getClass().getDeclaredField(additionalDetailColumn);
                         String value = field.get(planEstimate.getAdditionalDetails()).toString();
-                        additionalDetailsToEstimatedNumberMap.put(field.getName(),value); 
+                        additionalDetailsToEstimatedNumberMap.put(field.getName(),value);
+                        log.info("added key: {}, value: {}",field.getName(),value);
                     } catch (NoSuchFieldException e){
                         log.error("No such field exist: ",additionalDetailColumn,e);
                     } catch (IllegalAccessException e1){
@@ -350,12 +351,14 @@ public class EnrichmentUtil {
                 
                 log.info("plan estimate export start writing workbook");
                 // Iterate over each output column to update the row cells with resource values
+                int counter = 0;
+                int columnSize = mapOfColumnNameAndIndex.size();
                 for (String additionalDetailColumn : additionalDetailsCOlumnNames) {
                     String estimatedValue = additionalDetailsToEstimatedNumberMap.getOrDefault(additionalDetailColumn,"");
 
                     if (estimatedValue != null) {
                         // Get the index of the column to update
-                        Integer columnIndex = mapOfColumnNameAndIndex.get(additionalDetailColumn);
+                        Integer columnIndex = columnSize+counter;
                         if (columnIndex != null) {
                             // Update the cell with the resource value
                             Cell cell = row.getCell(columnIndex);
@@ -366,7 +369,7 @@ public class EnrichmentUtil {
                         }
                     } else {
                         // If estimatedValue is null, set the cell to empty
-                        Integer columnIndex = mapOfColumnNameAndIndex.get(additionalDetailColumn);
+                        Integer columnIndex = columnSize+counter;
                         if (columnIndex != null) {
                             // Ensure the cell is empty
                             Cell cell = row.getCell(columnIndex);
@@ -376,6 +379,7 @@ public class EnrichmentUtil {
                             cell.setCellValue(NOT_APPLICABLE); // Set as not applicable
                         }
                     }
+                    counter++;
                 }
             }
 
