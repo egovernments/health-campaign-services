@@ -1051,9 +1051,26 @@ function generateUserPassword() {
 }
 
 async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
-  const jurisdictionsArray = employee?.jurisdictions
-    ?.split(",")
-    ?.map((jurisdiction : any ) => jurisdiction.trim());
+  let jurisdictionsArray = [];
+  if (typeof employee?.jurisdictions === 'string') {
+    jurisdictionsArray = employee.jurisdictions
+      .split(",")
+      .map((jurisdiction: any) => jurisdiction.trim())
+      .filter((jurisdiction: string) => jurisdiction.length > 0);
+  }
+  else if (Array.isArray(employee?.jurisdictions) && employee.jurisdictions.length > 0) {
+    // Check if every element has both boundary and boundaryType
+    jurisdictionsArray = employee?.jurisdictions.map((jurisdiction: any) => jurisdiction?.boundary);
+    const isValidJurisdictions = employee.jurisdictions.every(
+      (jurisdiction: any) => jurisdiction?.boundary && jurisdiction?.boundaryType
+    );
+  
+    // If all elements meet the criteria, return the full jurisdictions array
+    if (isValidJurisdictions) {
+      return employee.jurisdictions;
+    }
+  }
+  
 
   if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
     const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
