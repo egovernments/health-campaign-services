@@ -313,11 +313,17 @@ public class EnrichmentUtil {
                 
         for (Plan plan: planList){
             Field[] declaredFields = plan.getAdditionalDetails().getClass().getDeclaredFields();
-            
-            for (Field field: declaredFields){
-                additionalDetailsCOlumnNames.add(field.getName());
+            if (declaredFields.length >0){
+                
+                for (Field field: declaredFields){
+                    log.info("additional field added to set", field.getName());
+                    additionalDetailsCOlumnNames.add(field.getName());
+                }
+            } else {
+                log.info("no declared fields", plan.getId());
             }
         }
+
         log.info("plan export additional details column names created");
 
         for(Row row: sheet) {
@@ -342,13 +348,17 @@ public class EnrichmentUtil {
                         String value = field.get(planEstimate.getAdditionalDetails()).toString();
                         additionalDetailsToEstimatedNumberMap.put(field.getName(),value);
                         log.info("added key: {}, value: {}",field.getName(),value);
-                    } catch (NoSuchFieldException e){
-                        log.error("No such field exist: ",additionalDetailColumn,e);
-                    } catch (IllegalAccessException e1){
-                        log.debug("Accessing Illegal field: ",additionalDetailColumn);
-                    }           
+                    } catch (NoSuchFieldException e1){
+                        log.error("No such field exist: {}",additionalDetailColumn,e1);
+                    } catch (IllegalAccessException e2){
+                        log.error("Accessing Illegal field: {}",additionalDetailColumn,e2);
+                    } catch (Exception e) {
+                        log.error("error in accessing field: {}",additionalDetailColumn, e);
+                    }       
                 }
-                
+                if (additionalDetailsToEstimatedNumberMap.isEmpty()){
+                    log.error("No data in additional details for plan: {}",planEstimate.getId());
+                }
                 log.info("plan estimate export start writing workbook");
                 // Iterate over each output column to update the row cells with resource values
                 int counter = 0;
