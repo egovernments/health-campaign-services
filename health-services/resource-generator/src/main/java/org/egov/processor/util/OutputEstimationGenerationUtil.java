@@ -1,23 +1,20 @@
 package org.egov.processor.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.Locale;
-import org.egov.processor.web.models.LocaleResponse;
-import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.ResourceMapping;
 import org.egov.processor.web.models.census.Census;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
 import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ServiceConstants.*;
 
+@Slf4j
 @Component
 public class OutputEstimationGenerationUtil {
 
@@ -69,9 +66,118 @@ public class OutputEstimationGenerationUtil {
 
         // 3. Adding facility information for each boundary code
         for(Sheet sheet: workbook) {
+            enrichsheetWithApprovedPlanAdditionalDetails(sheet, request, filestoreId);
             addAssignedFacility(sheet, request, filestoreId);
         }
 
+    }
+
+    private Map<String, Integer> createAdditionalDetailColumns(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, List<String> additionalDetailsCOlumnNames) {
+
+        LocaleResponse localeResponse = localeUtil.searchLocale(planConfigurationRequest);
+
+        Map<String, Integer> columnIndexes = new HashMap<>();
+        for(String columnName: additionalDetailsCOlumnNames) {
+
+            // Get the localized column header name for assigned facilities.
+            String columnHeaderName = localeUtil.localeSearch(localeResponse.getMessages(), columnName);
+
+            if (columnHeaderName == null) {
+                columnHeaderName = columnName;
+            }
+
+            int indexOfColumn = (int) sheet.getRow(0).getLastCellNum();
+
+            // Create a new cell for the column header.
+            Cell columnHeader = sheet.getRow(0).createCell(indexOfColumn, CellType.STRING);
+
+            //stylize cell and set cell value as the localized value
+            excelStylingUtil.styleCell(columnHeader);
+            columnHeader.setCellValue(columnHeaderName);
+            excelStylingUtil.adjustColumnWidthForCell(columnHeader);
+            columnIndexes.put(columnName,indexOfColumn);
+        }
+        return columnIndexes;
+    }
+    private void enrichsheetWithApprovedPlanAdditionalDetails(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+
+        log.info("Started plan estimate export for additional details");
+
+        List<String> boundaryCodes = enrichmentUtil.getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
+        // Creating a map of MappedTo and MappedFrom values from resource mapping
+        Map<String, String> mappedValues = planConfigurationRequest.getPlanConfiguration().getResourceMapping().stream()
+                .filter(f -> f.getFilestoreId().equals(fileStoreId))
+                .collect(Collectors.toMap(
+                        ResourceMapping::getMappedTo,
+                        ResourceMapping::getMappedFrom,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
+
+        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+        //Getting plan records for the list of boundaryCodes
+        List<Plan> planList = enrichmentUtil.getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
+
+        // Create a map from boundaryCode to Plan for quick lookups
+        Map<String, Plan> planMap = planList.stream()
+                .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
+
+        List<String> additionalDetailsCOlumnNames = List.of("IS_COMMUNITY_DE_PRIORITIZED_FOR_ITN","NON_DE_PRIORITIZED_FOR_ITN",
+                "DISTANCE_FROM_LGA_STORE_TO_DP","IS_COMMUNITY_HARD_TO_REACH_AREA","REASONS_FOR_HARD_TO_REACH","SUGGESTED_MEANS_OF_TRANSPORT",
+                "NEED_FOR_SATELLITE_DP","COMMENTS","NAME_OF_SATELLITE_DP");
+
+        Map<String, Integer> columnIndexes = createAdditionalDetailColumns(sheet,planConfigurationRequest,additionalDetailsCOlumnNames);
+        log.info("plan export additional details columns created");
+
+        for(Row row: sheet) {
+            // Skip the header row and empty rows
+            if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
+                continue;
+            }
+            // Get the boundaryCode in the current row
+            Cell boundaryCodeCell = row.getCell(indexOfBoundaryCode);
+            String boundaryCode = boundaryCodeCell.getStringCellValue();
+
+            Plan planEstimate = planMap.get(boundaryCode);
+
+            log.info("plan estimate export starting setting values in additional detail column");
+            if (planEstimate != null) {
+
+                log.info("plan estimate export start writing workbook");
+                // Iterate over each output column to update the row cells with resource values
+
+                for (String additionalDetailColumn : additionalDetailsCOlumnNames) {
+                    Object extractedField = parsingUtil.extractFieldsFromJsonObject(planEstimate.getAdditionalDetails(), additionalDetailColumn);
+                    String estimatedValue = "";
+                    if (extractedField != null) {
+                        estimatedValue = (String) extractedField;
+
+
+                        // Get the index of the column to update
+                        Integer columnIndex = columnIndexes.get(additionalDetailColumn);
+                        if (columnIndex != null) {
+                            // Update the cell with the resource value
+                            Cell cell = row.getCell(columnIndex);
+                            if (cell == null) {
+                                cell = row.createCell(columnIndex);
+                            }
+                            cell.setCellValue(estimatedValue);
+
+                        } else {
+                            log.info("column doesn't exist for column: {}, plan : {}",additionalDetailColumn, planEstimate.getId());
+                        }
+                    } else {
+                        log.info("extracted field is null for column: {}, plan: {}",additionalDetailColumn,planEstimate.getId());
+                    }
+
+                }
+            }
+
+            log.info("Successfully update file with additional details columns data. for plan COnfiguration: {}",planConfigurationRequest.getPlanConfiguration().getId());
+        }
     }
 
     /**
