@@ -30,7 +30,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
@@ -142,15 +141,15 @@ public class ExcelParser implements FileParser {
 					campaignBoundaryList, dataFormatter);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
 		} catch (FileNotFoundException e) {
-			log.error("File not found: {}", e.getMessage());
-			throw new CustomException("FileNotFound", "The specified file was not found.");
+			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(EXCEL_FILE_NOT_FOUND_CODE, EXCEL_FILE_NOT_FOUND_MESSAGE);
 		} catch (InvalidFormatException e) {
-			log.error("Invalid format: {}", e.getMessage());
-			throw new CustomException("InvalidFormat", "The file format is not supported.");
+			log.error(INVALID_FILE_FORMAT_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(INVALID_FILE_FORMAT_CODE, INVALID_FILE_FORMAT_MESSAGE);
 		} catch (IOException e) {
-			log.error("Error processing Excel file: {}", e);
+			log.error(ERROR_PROCESSING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
 			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
-					"Error processing Excel file");
+					ERROR_PROCESSING_EXCEL_FILE);
 		}
 	}
 
@@ -165,10 +164,10 @@ public class ExcelParser implements FileParser {
 		File fileToUpload = null;
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-			fileToUpload = convertWorkbookToXls(workbook);
+			fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
 			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.setFileStoreIdForPopulationTemplate(planConfigurationRequest, uploadedFileStoreId);
+				planUtil.setFileStoreIdForEstimationsInProgress(planConfigurationRequest, uploadedFileStoreId);
 				planUtil.update(planConfigurationRequest);
 			}
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
@@ -180,9 +179,9 @@ public class ExcelParser implements FileParser {
 				outputEstimationGenerationUtil.processOutputFile(workbook, planConfigurationRequest, filestoreId);
 
 				//upload the processed output file and update the same into plan configuration file object
-				fileToUpload = convertWorkbookToXls(workbook);
+				fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
 				uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
-				planUtil.addFileStoreIdForEstimationTemplate(planConfigurationRequest, uploadedFileStoreId, EXCEL);
+				planUtil.addFileForFinalEstimations(planConfigurationRequest, uploadedFileStoreId, EXCEL);
 				planUtil.update(planConfigurationRequest);
 			}
 		} finally {
@@ -514,32 +513,6 @@ public class ExcelParser implements FileParser {
 	 */
 	private File createTempFile(String prefix, String suffix) throws IOException {
 		return File.createTempFile(prefix, suffix);
-	}
-
-	/**
-	 * Converts the provided workbook to XLS format.
-	 *
-	 * @param workbook The workbook to convert.
-	 * @return The converted XLS file, or null if an error occurred.
-	 */
-	private File convertWorkbookToXls(Workbook workbook) {
-		try {
-			// Create a temporary file for the output XLS file
-			File outputFile = File.createTempFile("output", ".xls");
-
-			// Write the XLS file
-			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-				workbook.write(fos);
-				log.info("XLS file saved successfully.");
-				return outputFile;
-			} catch (IOException e) {
-				log.info("Error saving XLS file: " + e);
-				return null;
-			}
-		} catch (IOException e) {
-			log.info("Error converting workbook to XLS: " + e);
-			return null;
-		}
 	}
 
 	/**
