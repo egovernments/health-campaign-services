@@ -137,6 +137,12 @@ public class CensusQueryBuilder {
             queryUtil.addToPreparedStatement(preparedStmtList, criteria.getIds());
         }
 
+        if (!ObjectUtils.isEmpty(criteria.getSource())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" source = ?");
+            preparedStmtList.add(criteria.getSource());
+        }
+
         if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" tenant_id = ?");
@@ -147,12 +153,6 @@ public class CensusQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" status = ?");
             preparedStmtList.add(criteria.getStatus());
-        }
-
-        if (!ObjectUtils.isEmpty(criteria.getSource())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" source = ?");
-            preparedStmtList.add(criteria.getSource());
         }
 
         if (!ObjectUtils.isEmpty(criteria.getFacilityAssigned())) {
