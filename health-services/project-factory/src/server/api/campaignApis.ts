@@ -1055,7 +1055,8 @@ async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndB
   if (typeof employee?.jurisdictions === 'string') {
     jurisdictionsArray = employee.jurisdictions
       .split(",")
-      .map((jurisdiction: any) => jurisdiction.trim());
+      .map((jurisdiction: any) => jurisdiction.trim())
+      .filter((jurisdiction: string) => jurisdiction.length > 0);
   }
   else if (Array.isArray(employee?.jurisdictions) && employee.jurisdictions.length > 0) {
     // Check if every element has both boundary and boundaryType
