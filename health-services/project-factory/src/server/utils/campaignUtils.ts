@@ -700,6 +700,9 @@ async function processData(
   localizationMap?: { [key: string]: string }
 ) {
   const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
+  const latLongColumnsList = config.values.latLongColumns
+    ? config.values.latLongColumns.split(",").map((item: any) => item.trim()).filter(Boolean)
+    : [];
   const requiresToSearchFromSheet =
     createAndSearchConfig?.requiresToSearchFromSheet;
   const isSourceMicroplan =
@@ -738,6 +741,7 @@ async function processData(
               request,
               resultantElement,
               data,
+              latLongColumnsList,
               localizationMap
             );
           }
@@ -753,6 +757,7 @@ async function processData(
           request,
           resultantElement,
           data,
+          latLongColumnsList,
           localizationMap
         );
       }
