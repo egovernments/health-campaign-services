@@ -248,7 +248,6 @@ public class ExcelParser implements FileParser {
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
-					enrichmentUtil.enrichsheetWithApprovedPlanAdditionalDetails(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
 		});
