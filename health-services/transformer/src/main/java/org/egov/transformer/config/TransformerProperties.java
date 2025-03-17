@@ -71,6 +71,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.muster.roll.index.v1.topic}")
     private String transformerProducerMusterRollIndexV1Topic;
 
+    @Value("${transformer.producer.expense.bill.index.v1.topic}")
+    private String transformerProducerExpenseBillIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
