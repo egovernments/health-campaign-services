@@ -22,6 +22,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.util.CollectionUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -157,9 +158,13 @@ public class AttendanceTransformationService {
     public AttendanceRegisterIndexV1 transformRegister(AttendanceRegister attendanceRegister) {
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
+        Map<String, Name> attendeesInfo = null;
         String projectId = attendanceRegister.getReferenceId();
-        List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
-        Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        //Updated this logic as attendee will be empty during register creation
+        if (!CollectionUtils.isEmpty(attendanceRegister.getAttendees())) {
+            List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
+            attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        }
         if (StringUtils.isNotBlank(attendanceRegister.getLocalityCode())) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(attendanceRegister.getLocalityCode(), attendanceRegister.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
