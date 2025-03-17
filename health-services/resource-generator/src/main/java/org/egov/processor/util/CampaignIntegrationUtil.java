@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
@@ -89,7 +90,7 @@ public class CampaignIntegrationUtil {
 					buildResourceDetailsObjectForFacilityCreate(planConfigurationRequest, campaignResponse));
 			log.info("Campaign Data create successful.");
 		} catch (Exception e) {
-			log.error(ServiceConstants.ERROR_WHILE_DATA_CREATE_CALL
+			log.error(ERROR_WHILE_DATA_CREATE_CALL
 					+ planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
 			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
 		}
@@ -112,7 +113,7 @@ public class CampaignIntegrationUtil {
 				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
 				.map(File::getFilestoreId)
 				.findFirst()
-				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
+				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_TEMPLATE_IDENTIFIER_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
 
 		ResourceDetails resourceDetails = ResourceDetails.builder()
 				.type(TYPE_FACILITY)
@@ -154,9 +155,7 @@ public class CampaignIntegrationUtil {
 	 * @return CampaignResponse object parsed from the campaignResponse.
 	 */
     public CampaignResponse parseCampaignResponse(Object campaignResponse) {
-		CampaignResponse campaign = null;
-		campaign = mapper.convertValue(campaignResponse, CampaignResponse.class);
-		return campaign;
+        return mapper.convertValue(campaignResponse, CampaignResponse.class);
 	}
 
 	public JsonNode createAdditionalDetailsforFacilityCreate(String source, String microplanId) {

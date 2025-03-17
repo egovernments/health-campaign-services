@@ -62,9 +62,8 @@ public class ResourceEstimationService {
      */
 	private Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
 		CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
-        Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
+        return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
 				campaignRequest);
-		return campaignSearchResponse;
 	}
 
 	/**
