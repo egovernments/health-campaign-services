@@ -1,5 +1,7 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -20,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.egov.transformer.Constants.*;
+
 @Component
 @Slf4j
 public class ExpenseBillTransformationService {
@@ -28,13 +32,15 @@ public class ExpenseBillTransformationService {
     private final TransformerProperties transformerProperties;
     private final Producer producer;
     private final CommonUtils commonUtils;
+    private final ObjectMapper objectMapper;
 
-    public ExpenseBillTransformationService(BoundaryService boundaryService, ProjectService projectService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils) {
+    public ExpenseBillTransformationService(BoundaryService boundaryService, ProjectService projectService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.boundaryService = boundaryService;
         this.projectService = projectService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(Bill bill) {
@@ -56,9 +62,12 @@ public class ExpenseBillTransformationService {
         }
         Integer uniqueUsersCount = 0;
         if (!CollectionUtils.isEmpty(bill.getBillDetails())) {
-            getUniqueUserCountInBill(bill.getBillDetails());
+            uniqueUsersCount = getUniqueUserCountInBill(bill.getBillDetails());
         }
-        //TODO: Add project id and project type id in additional details
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        if (StringUtils.isNotBlank(bill.getReferenceId())) {
+            addProjectDetailsInAdditionalDetails(bill.getReferenceId(), bill.getTenantId(), additionalDetails);
+        }
         return ExpenseBillIndexV1.builder()
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
@@ -69,7 +78,7 @@ public class ExpenseBillTransformationService {
                 .build();
     }
 
-    private int getUniqueUserCountInBill(List<BillDetail> billDetails){
+    private Integer getUniqueUserCountInBill(List<BillDetail> billDetails){
         Set<String> uniqueUsers = new HashSet<>();
         for (BillDetail billDetail : billDetails) {
             if (ObjectUtils.isNotEmpty(billDetail) && ObjectUtils.isNotEmpty(billDetail.getPayee())) {
@@ -80,6 +89,15 @@ public class ExpenseBillTransformationService {
             }
         }
         return uniqueUsers.size();
+    }
+
+    private void addProjectDetailsInAdditionalDetails(String referenceId, String tenantId, ObjectNode additionalDetails) {
+        String[] parts = referenceId.split("\\.");
+        //Extracting the last level of project from the project hierarchy
+        String projectId = parts[parts.length - 1];
+        String projectTypeId = projectService.getProjectTypeIdFromProjectId(projectId, tenantId);
+        additionalDetails.put(PROJECT_ID, projectId);
+        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
     }
 
 
