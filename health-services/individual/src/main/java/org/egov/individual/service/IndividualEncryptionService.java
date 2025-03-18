@@ -16,6 +16,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,15 +83,39 @@ public class IndividualEncryptionService {
                 .collect(Collectors.toList());
     }
 
-    private boolean isCipherText(String text) {
-        //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
-        //Encrypted data will have a prefix followed by '|' and the base64 encoded data
-        if ((StringUtils.isNotBlank(text) && text.contains("|"))) {
-            String base64Data = text.split("\\|")[1];
-            return StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="));
+//    private boolean isCipherText(String text) {
+//        //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
+//        //Encrypted data will have a prefix followed by '|' and the base64 encoded data
+//        if ((StringUtils.isNotBlank(text) && text.contains("|"))) {
+//            String base64Data = text.split("\\|")[1];
+//            return StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="));
+//        }
+//        return false;
+//    }
+private boolean isCipherText(String text) {
+    // Check if the text is not blank and starts with the Vault prefix
+    if (StringUtils.isNotBlank(text) && text.startsWith("vault:")) {
+        // Split the text by colon. Expected format: "vault:v1:<base64-data>"
+        String[] parts = text.split(":");
+        if (parts.length < 3) {
+            return false;
         }
-        return false;
+        String base64Data = parts[2];
+        // Check that the base64 data is not blank and its length is a multiple of 4 (or ends with "=")
+        if (StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="))) {
+            try {
+                // Try decoding the base64 data to confirm it's valid.
+                Base64.getDecoder().decode(base64Data);
+                return true;
+            } catch (IllegalArgumentException e) {
+                // Decoding failed
+                return false;
+            }
+        }
     }
+    return false;
+}
+
 
     private void validateAadhaarUniqueness (List<Individual> individuals, IndividualBulkRequest request, boolean isBulk) {
 

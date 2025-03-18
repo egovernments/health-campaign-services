@@ -63,8 +63,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 @Service
 @Slf4j
@@ -322,14 +320,12 @@ public class IndividualService {
             return searchResponse;
         }
         //encrypt search criteria
-        String hashedMobile;
+
         IndividualSearch encryptedIndividualSearch;
         if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
         } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-            hashedMobile = hashMobileNumber(individualSearch.getMobileNumber().get(0));
-            SearchResponse<Individual> individualSearchResponse = individualRepository.findByHashedMobileNumber(hashedMobile, tenantId);
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
         } else {
@@ -337,7 +333,6 @@ public class IndividualService {
                     .encrypt(individualSearch, "IndividualSearchEncrypt");
         }
         try {
-
             searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                     lastChangedSince, includeDeleted);
             encryptedIndividualList = searchResponse.getResponse().stream()
@@ -460,22 +455,5 @@ public class IndividualService {
                 return false;
         }
         return true;
-    }
-
-    private String hashMobileNumber(String mobileNumber) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(mobileNumber.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1)
-                    hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
     }
 }
