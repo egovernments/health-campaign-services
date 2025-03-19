@@ -69,12 +69,14 @@ public class ExpenseBillTransformationService {
             addProjectDetailsInAdditionalDetails(bill.getReferenceId(), bill.getTenantId(), additionalDetails);
         }
         return ExpenseBillIndexV1.builder()
+                .bill(bill)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .totalUsersCount(bill.getBillDetails().size())
                 .uniqueUsersCount(uniqueUsersCount)
                 .taskDates(commonUtils.getDateFromEpoch(bill.getAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(bill.getAuditDetails().getLastModifiedTime()))
+                .additionalDetails(additionalDetails)
                 .build();
     }
 
