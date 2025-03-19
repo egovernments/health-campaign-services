@@ -34,9 +34,8 @@ public class SrFacilityIdValidator implements Validator<StockReconciliationBulkR
         log.info("validating for facility id");
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
 
-        List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
-                .filter(notHavingErrors())
-                .collect(Collectors.toList());
+        List<StockReconciliation> validEntities = request.getStockReconciliation();
+
         return validateFacilityIds(request, errorDetailsMap, validEntities, GET_FACILITY_ID, facilityService);
     }
 
