@@ -89,7 +89,9 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "F",
-                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+                    resultantPath: "address.locality.code",
+                    type: "string"
                 }
             ],
             tenantId: {
