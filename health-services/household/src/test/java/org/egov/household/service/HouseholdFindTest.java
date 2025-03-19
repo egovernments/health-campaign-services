@@ -1,10 +1,13 @@
 package org.egov.household.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.ds.Tuple;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.Household;
 import org.egov.household.repository.HouseholdRepository;
-import org.egov.household.web.models.HouseholdSearch;
-import org.egov.household.web.models.HouseholdSearchRequest;
+import org.egov.common.models.household.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearchRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +43,7 @@ class HouseholdFindTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().id(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("id"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
                 null, false);
@@ -56,7 +59,7 @@ class HouseholdFindTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
                 null, false);
@@ -67,13 +70,13 @@ class HouseholdFindTest {
 
     @Test
     @DisplayName("should not call findById if more search parameters are available")
-    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldNotCallFindByIdIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
                         .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
                 "default", 0L, false);
@@ -90,7 +93,7 @@ class HouseholdFindTest {
                 .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
                         .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
                 "default", 0L, false);
