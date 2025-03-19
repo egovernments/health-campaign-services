@@ -72,9 +72,10 @@ public class MusterRollTransformationService {
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (StringUtils.isNotBlank(projectId)) {
-            String projectTypeId = projectService.getProjectTypeIdFromProjectId(projectId, musterRoll.getTenantId());
+            Map<String, String> projectInfoMap = projectService.getProjectTypeIdFromProjectId(projectId, musterRoll.getTenantId());
             additionalDetails.put(PROJECT_ID, projectId);
-            additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+            additionalDetails.put(PROJECT_TYPE_ID, projectInfoMap.get(PROJECT_TYPE_ID));
+            additionalDetails.put(PROJECT_NAME, projectInfoMap.get(PROJECT_NAME));
         }
 
         return MusterRollIndexV1.builder()

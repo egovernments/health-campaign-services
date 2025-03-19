@@ -97,9 +97,10 @@ public class ExpenseBillTransformationService {
         String[] parts = referenceId.split("\\.");
         //Extracting the last level of project from the project hierarchy
         String projectId = parts[parts.length - 1];
-        String projectTypeId = projectService.getProjectTypeIdFromProjectId(projectId, tenantId);
+        Map<String, String> projectInfoMap = projectService.getProjectTypeIdFromProjectId(projectId, tenantId);
         additionalDetails.put(PROJECT_ID, projectId);
-        additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        additionalDetails.put(PROJECT_TYPE_ID, projectInfoMap.get(PROJECT_TYPE_ID));
+        additionalDetails.put(PROJECT_NAME, projectInfoMap.get(PROJECT_NAME));
     }
 
 
