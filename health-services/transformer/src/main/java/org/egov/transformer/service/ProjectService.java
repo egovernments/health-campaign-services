@@ -47,7 +47,7 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
-    private static Map<String, String> projectIdVsProjectTypeId = new ConcurrentHashMap<>();
+    private static Map<String, Map<String, String>> projectIdVsProjectInfo = new ConcurrentHashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
@@ -510,8 +510,11 @@ public class ProjectService {
     }
 
     private void addValueToProjectIdMap(Project project){
-        if (ObjectUtils.isNotEmpty(project) && !projectIdVsProjectTypeId.containsKey(project.getId())) {
-            projectIdVsProjectTypeId.put(project.getId(), project.getProjectTypeId());
+        if (ObjectUtils.isNotEmpty(project) && !projectIdVsProjectInfo.containsKey(project.getId())) {
+            Map<String, String> map = new ConcurrentHashMap<>();
+            map.put(PROJECT_TYPE_ID, project.getProjectTypeId());
+            map.put(PROJECT_NAME, project.getName());
+            projectIdVsProjectInfo.put(project.getId(), map);
         }
     }
 
@@ -523,13 +526,16 @@ public class ProjectService {
         }
     }
 
-    public String getProjectTypeIdFromProjectId(String projectId, String tenantId){
+    public Map<String, String> getProjectTypeIdFromProjectId(String projectId, String tenantId){
         //the map gets updated inside searchProject() method which is called inside getProject()
         //so we don't need to update it here
-        if (projectIdVsProjectTypeId.containsKey(projectId)) {
-            return projectIdVsProjectTypeId.get(projectId);
+        if (projectIdVsProjectInfo.containsKey(projectId)) {
+            return projectIdVsProjectInfo.get(projectId);
         }
         Project project = getProject(projectId, tenantId);
-        return ObjectUtils.isNotEmpty(project) ? project.getProjectTypeId() : null;
+        if (ObjectUtils.isEmpty(project)) {
+            return Collections.emptyMap();
+        }
+        return projectIdVsProjectInfo.get(projectId);
     }
 }
