@@ -180,7 +180,7 @@ const config = {
       formatForUserName: "USR-[SEQ_EG_USER_NAME]"
     },
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
-    notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE || false,
+    notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE === "true",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
     skipResourceCheckValidationBeforeCreateForLocalTesting:false, // can be set to true for local development 
     autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,

@@ -2238,7 +2238,7 @@ async function createProject(
     if (boundaries && projectType && !projectId) {
       const MdmsCriteria = {
         MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
-          tenantId: request?.query?.tenantId,
+          tenantId: tenantId,
           moduleDetails: [
             {
               moduleName: "HCM-PROJECT-TYPES",
