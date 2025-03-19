@@ -1141,7 +1141,7 @@ async function handeFacilityProcess(
   params: any,
   newRequestBody: any
 ) {
-  newRequestBody.Facility.address = {};
+  modifyFacilityAddress(newRequestBody);
   const response = await httpRequest(
     createAndSearchConfig?.createDetails?.url,
     newRequestBody,
@@ -1152,6 +1152,16 @@ async function handeFacilityProcess(
     true
   );
   return response?.Facility?.id;
+}
+
+function modifyFacilityAddress(newRequestBody: any) {
+  if (newRequestBody?.Facility?.address?.locality?.code) {
+    newRequestBody.Facility.address.locality.code = newRequestBody.Facility.address.locality.code?.split(",")[0]?.trim();
+    newRequestBody.Facility.address.tenantId = newRequestBody.Facility.tenantId;
+  }
+  else{
+    newRequestBody.Facility.address = {}
+  }
 }
 
 async function handleUserProcess(
