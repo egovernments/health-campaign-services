@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE;
+import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component

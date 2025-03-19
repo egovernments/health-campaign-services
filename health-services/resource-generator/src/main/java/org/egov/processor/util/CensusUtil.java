@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -82,7 +83,7 @@ public class CensusUtil {
                         .type(Census.TypeEnum.PEOPLE)
                         .facilityAssigned(Boolean.FALSE)
                         .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
+                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
                         .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
                         .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
