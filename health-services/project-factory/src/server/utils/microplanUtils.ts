@@ -283,7 +283,7 @@ function findStatusColumn(sheet: any) {
   return statusCell;
 }
 
-export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, localizationMap?: any) {
+export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, latLongColumnsList: string[], localizationMap?: any) {
   const type = request?.body?.ResourceDetails?.type;
   const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
   if (type == 'facility') {
@@ -296,6 +296,14 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
     else if (rowData[facilityCapacityColumn] >= 0) {
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
+    const latitude = getLatitudeFromData(rowData, latLongColumnsList,localizationMap);
+    const longitude = getLongitudeFromData(rowData, latLongColumnsList, localizationMap);
+    if(latitude != null){
+      element.latitude = latitude;
+    }
+    if(longitude != null){
+      element.longitude = longitude;
+    }
     if (activeColumnName && rowData[activeColumnName] == usageColumnStatus.active) {
       if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
         request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
@@ -306,6 +314,41 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
     }
   }
 }
+
+function getLatitudeFromData(rowData: any, latLongColumnsList: string[], localizationMap?: any){
+  let unlocalisedLatitudeColumn = null;
+  for(const element of latLongColumnsList){
+    if(element.includes("LAT") && element.includes("OPT")){
+      unlocalisedLatitudeColumn = element;
+      break;
+    }
+  }
+  if(unlocalisedLatitudeColumn){
+    const latitudeColumn = getLocalizedName(unlocalisedLatitudeColumn, localizationMap);
+    if(rowData[latitudeColumn] == 0 || rowData[latitudeColumn]){
+      return rowData[latitudeColumn];
+    }
+  }
+  return null;
+}
+
+function getLongitudeFromData(rowData: any, latLongColumnsList: string[], localizationMap?: any) {
+  let unlocalizedLongitudeColumn = null;
+  for (const element of latLongColumnsList) {
+    if (element.includes("LONG") && element.includes("OPT")) {
+      unlocalizedLongitudeColumn = element;
+      break;
+    }
+  }
+  if (unlocalizedLongitudeColumn) {
+    const longitudeColumn = getLocalizedName(unlocalizedLongitudeColumn, localizationMap);
+    if (rowData[longitudeColumn] == 0 || rowData[longitudeColumn]) {
+      return rowData[longitudeColumn];
+    }
+  }
+  return null;
+}
+
 
 
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
@@ -351,6 +394,8 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
         facilityStatus: facilityStatus,
         assignedVillages: [],
         servingPopulation: 0,
+        latitude: element?.facilityDetails?.latitude ?? null,
+        longitude: element?.facilityDetails?.longitude ?? null,
         hierarchyType: hierarchyType
       },
       active: true,
