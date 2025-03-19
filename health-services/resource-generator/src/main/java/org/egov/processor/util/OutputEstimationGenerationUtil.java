@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import org.egov.tracer.model.CustomException;
 import org.springframework.util.ObjectUtils;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component

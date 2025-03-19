@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -88,6 +89,16 @@ public class EnrichmentUtil {
 
     }
 
+    /**
+     * Enriches the given Excel sheet with approved census records.
+     *
+     * @param sheet                               The Excel sheet to be enriched.
+     * @param planConfigurationRequest            The request containing plan configuration details.
+     * @param fileStoreId                         The identifier of the uploaded file.
+     * @param mappedValues                        A mapping between census fields and sheet column names.
+     * @param boundaryCodeToCensusAdditionalDetails A map to store boundary code to additional census details.
+     * @throws CustomException                    If no census records are found for the given boundary codes.
+     */
     public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
@@ -150,6 +161,14 @@ public class EnrichmentUtil {
         }
     }
 
+    /**
+     * Extracts boundary codes from the given Excel sheet based on the plan configuration request.
+     *
+     * @param sheet                    The Excel sheet to extract boundary codes from.
+     * @param planConfigurationRequest  The request containing plan configuration details.
+     * @param fileStoreId               The identifier of the uploaded file.
+     * @return                           A list of boundary codes extracted from the sheet.
+     */
     public List<String> getBoundaryCodesFromTheSheet(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
@@ -185,6 +204,14 @@ public class EnrichmentUtil {
         return boundaryCodes;
     }
 
+    /**
+     * Retrieves census records for a given list of boundary codes.
+     *
+     * @param planConfigurationRequest  The request containing plan configuration details.
+     * @param boundaryCodes             A list of boundary codes for which census records are required.
+     * @return                          A list of census records matching the given boundary codes.
+     * @throws CustomException          If no census records are found for the given boundary codes.
+     */
     public List<Census> getCensusRecordsForEnrichment(PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodes) {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
@@ -206,6 +233,13 @@ public class EnrichmentUtil {
 
     }
 
+    /**
+     * Retrieves the editable value of a given field from a census record.
+     *
+     * @param census  The census record to retrieve the value from.
+     * @param key     The key representing the field in the census record.
+     * @return BigDecimal The editable value if present, otherwise null.
+     */
     private BigDecimal getEditableValue(Census census, String key) {
         return census.getAdditionalFields().stream()
                 .filter(field -> field.getEditable() && key.equals(field.getKey()))  // Filter by editability and matching key
@@ -214,6 +248,15 @@ public class EnrichmentUtil {
                 .orElse(null);
     }
 
+    /**
+     * Enriches the given Excel sheet with approved plan estimates.
+     *
+     * @param sheet                    The Excel sheet to be enriched.
+     * @param planConfigurationRequest  The request containing plan configuration details.
+     * @param fileStoreId               The identifier of the uploaded file.
+     * @param mappedValues              A mapping between plan fields and sheet column names.
+     * @throws CustomException          If no plan records are found for the given boundary codes.
+     */
     public void enrichsheetWithApprovedPlanEstimates(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
@@ -288,6 +331,14 @@ public class EnrichmentUtil {
     }
 
 
+    /**
+     * Retrieves plan records for a given list of boundary codes.
+     *
+     * @param planConfigurationRequest  The request containing plan configuration details.
+     * @param boundaryCodes             A list of boundary codes for which plan records are required.
+     * @return List<Plan>               A list of plan records matching the given boundary codes.
+     * @throws CustomException          If no plan records are found for the given boundary codes.
+     */
     public List<Plan> getPlanRecordsForEnrichment(PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodes) {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
@@ -307,8 +358,5 @@ public class EnrichmentUtil {
 
         return planResponse.getPlan();
     }
-
-
-
 
 }

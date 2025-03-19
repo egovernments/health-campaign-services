@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -122,7 +121,7 @@ public class CampaignIntegrationUtil {
 				.fileStoreId(facilityFilestoreId)
 				.action(ACTION_CREATE)
 				.campaignId(planConfig.getCampaignId())
-				.additionalDetails(createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
+				.additionalDetails(createAdditionalDetailsForFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
 				.build();
 
 		return ResourceDetailsRequest.builder()
@@ -158,7 +157,14 @@ public class CampaignIntegrationUtil {
         return mapper.convertValue(campaignResponse, CampaignResponse.class);
 	}
 
-	public JsonNode createAdditionalDetailsforFacilityCreate(String source, String microplanId) {
+	/**
+	 * Creates a JSON node containing additional details for facility creation.
+	 *
+	 * @param source       The source from which the facility creation request originates.
+	 * @param microplanId  The microplan ID associated with the facility.
+	 * @return 		       A JSON node representing the additional details.
+	 */
+	public JsonNode createAdditionalDetailsForFacilityCreate(String source, String microplanId) {
 		try {
 			// Create a map to hold the additional details
 			Map<String, String> additionalDetailsMap = new HashMap<>();

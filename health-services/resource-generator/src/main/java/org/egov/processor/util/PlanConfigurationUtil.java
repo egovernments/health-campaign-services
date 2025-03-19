@@ -12,7 +12,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.egov.processor.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE;
+import static org.egov.processor.config.ErrorConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE;
 
 @Component
 @Slf4j
@@ -30,6 +30,13 @@ public class PlanConfigurationUtil {
         this.mapper = mapper;
     }
 
+    /**
+     * Searches for plan configurations based on the given search request.
+     *
+     * @param planConfigurationSearchRequest The request object containing search criteria.
+     * @return A list of planConfiguration objects that match the search criteria.
+     *         If no matching configurations are found or an error occurs, an empty list is returned.
+     */
     public List<PlanConfiguration> search(PlanConfigurationSearchRequest planConfigurationSearchRequest)
     {
         List<PlanConfiguration> planConfigurationList = new ArrayList<>();
