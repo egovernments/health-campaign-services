@@ -126,8 +126,8 @@ public class OutputEstimationGenerationUtil {
                 .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
 
         List<String> additionalDetailsCOlumnNames = List.of("IS_COMMUNITY_DE_PRIORITIZED_FOR_ITN","NON_DE_PRIORITIZED_FOR_ITN",
-                "DISTANCE_FROM_LGA_STORE_TO_DP","IS_COMMUNITY_HARD_TO_REACH_AREA","REASONS_FOR_HARD_TO_REACH","SUGGESTED_MEANS_OF_TRANSPORT",
-                "NEED_FOR_SATELLITE_DP","COMMENTS","NAME_OF_SATELLITE_DP");
+                "DISTANCE_FROM_LGA_STORE_TO_DP","IS_COMMUNITY_HARD_TO_REACH_AREA","NOMADIC_SETTLEMENT","RIVERRINE","HILLY_MOUNTAINOUS_SANDY_DESERT",
+                "NUMBER_OF_IDP_CAMPS","POPULATION_OF_IDP_CAMPS","SUGGESTED_MEANS_OF_TRANSPORT","NEED_FOR_SATELLITE_DP","COMMENTS","NAME_OF_SATELLITE_DP");
 
         Map<String, Integer> columnIndexes = createAdditionalDetailColumns(sheet,planConfigurationRequest,additionalDetailsCOlumnNames);
         log.info("plan export additional details columns created");
