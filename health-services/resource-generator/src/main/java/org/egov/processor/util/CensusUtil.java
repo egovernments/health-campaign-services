@@ -68,16 +68,16 @@ public class CensusUtil {
      * @param planConfigurationRequest The plan configuration request containing configuration details.
      * @param feature                  The feature JSON node containing property values.
      * @param mappedValues             The mapped values for extracting properties.
-     * @param heirarchyType            The hierarchy type of the census.
+     * @param hierarchyType            The hierarchy type of the census.
      * @return A constructed CensusRequest object with populated details.
      */
-    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
+    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String hierarchyType) {
 
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         return CensusRequest.builder()
                 .census(Census.builder()
                         .tenantId(planConfig.getTenantId())
-                        .hierarchyType(heirarchyType)
+                        .hierarchyType(hierarchyType)
                         .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
                         .type(Census.TypeEnum.PEOPLE)
                         .facilityAssigned(Boolean.FALSE)

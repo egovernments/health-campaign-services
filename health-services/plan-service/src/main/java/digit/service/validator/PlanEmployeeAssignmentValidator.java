@@ -166,7 +166,7 @@ public class PlanEmployeeAssignmentValidator {
         // Check if the role of the employee exists in the role map
         if (roleMap.containsKey(planEmployeeAssignment.getRole())) {
 
-            // Fetch existing role assignments for the employee based on their tenant, planConfig Id, and employee ID
+            // Fetch existing role assignments for the employee based on their tenant, planConfig id, and employee ID
             // The search is conducted using the conflicting role
             List<PlanEmployeeAssignment> response = repository.search(PlanEmployeeAssignmentSearchCriteria.builder()
                     .tenantId(planEmployeeAssignment.getTenantId())
