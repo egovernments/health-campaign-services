@@ -41,4 +41,17 @@ public class AttendanceConsumer {
             log.error("TRANSFORMER error in attendance consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
+
+    @KafkaListener(topics = {"${transformer.consumer.save.attendance.register.topic}",
+            "${transformer.consumer.update.attendance.register.topic}"})
+    public void consumeAttendanceRegister(ConsumerRecord<String, Object> payload,
+                                     @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            AttendanceRegisterRequest attendanceRegisterRequest = objectMapper.readValue((String) payload.value(), AttendanceRegisterRequest.class);
+            List<AttendanceRegister> payloadList = attendanceRegisterRequest.getAttendanceRegister();
+            attendanceTransformationService.transformRegister(payloadList);
+        } catch (Exception exception) {
+            log.error("TRANSFORMER error in attendance consumer {}", ExceptionUtils.getStackTrace(exception));
+        }
+    }
 }
