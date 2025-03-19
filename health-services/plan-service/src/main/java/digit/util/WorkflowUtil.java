@@ -55,7 +55,7 @@ public class WorkflowUtil {
             if(!ObjectUtils.isEmpty(assignee))
                 plan.getWorkflow().setAssignes(assignee);
 
-            plan.setAssignee(assignee);
+            plan.setAssignee(assignee != null ? new HashSet<>(assignee) : new HashSet<>());
 
             // Create process instance object from plan
             ProcessInstance processInstance = ProcessInstance.builder()
@@ -137,7 +137,7 @@ public class WorkflowUtil {
         if(!ObjectUtils.isEmpty(assignee))
             plan.getWorkflow().setAssignes(assignee);
 
-        plan.setAssignee(assignee);
+        plan.setAssignee(assignee != null ? new HashSet<>(assignee) : new HashSet<>());
 
         enrichAssignesInProcessInstance(processInstance, plan.getWorkflow());
 

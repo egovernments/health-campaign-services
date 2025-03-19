@@ -108,7 +108,7 @@ public class PlanConfigurationService {
         // Call workflow transition API for status update
         workflowService.invokeWorkflowForStatusUpdate(request);
 
-        // Delegate updation request to repository
+        // Delegate update request to repository
         repository.update(request);
 
         // Build and return response back to controller

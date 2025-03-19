@@ -3,6 +3,9 @@ package org.egov.processor.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.Workflow;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.config.ServiceConstants;
@@ -12,15 +15,19 @@ import org.egov.processor.web.PlanResponse;
 import org.egov.processor.web.PlanSearchRequest;
 import org.egov.processor.web.models.*;
 import org.egov.tracer.model.CustomException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -35,12 +42,15 @@ public class PlanUtil {
 
 	private ParsingUtil parsingUtil;
 
-	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, ParsingUtil parsingUtil) {
+	private FilestoreUtil filestoreUtil;
+
+	public PlanUtil(ServiceRequestRepository serviceRequestRepository, Configuration config, Producer producer, ObjectMapper mapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil) {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.producer = producer;
         this.mapper = mapper;
         this.parsingUtil = parsingUtil;
+        this.filestoreUtil = filestoreUtil;
     }
 
 	/**
@@ -58,7 +68,7 @@ public class PlanUtil {
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
-			log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + planRequest.getPlan().getLocality(), e); 
+            log.error(ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY + LOG_PLACEHOLDER, planRequest.getPlan().getLocality(), e);
 		}
 	}
 
@@ -182,7 +192,7 @@ public class PlanUtil {
 			return ((value!=null && value.length()>2)?value.substring(1, value.length()-1):value);
 		}
 		else {
-			throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
+			throw new CustomException(INPUT_NOT_FOUND_CODE, INPUT_NOT_FOUND_MESSAGE + input);
 		}
 	}
 	
@@ -223,17 +233,17 @@ public class PlanUtil {
 		return new StringBuilder().append(config.getPlanConfigHost()).append(config.getPlanSearchEndPoint());
 	}
 
-	public void setFileStoreIdForPopulationTemplate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+	public void setFileStoreIdForEstimationsInProgress(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
 		planConfigurationRequest.getPlanConfiguration().getFiles().stream()
-				.filter(file -> FILE_TEMPLATE_IDENTIFIER_POPULATION.equals(file.getTemplateIdentifier()))
+				.filter(file -> FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS.equals(file.getTemplateIdentifier()))
 				.findFirst()
 				.ifPresent(file -> file.setFilestoreId(fileStoreId));
 
 		planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
 	}
 
-	public void addFileStoreIdForEstimationTemplate(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-													File.InputFileTypeEnum inputFileType) {
+	public void addFileForFinalEstimations(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
+										   File.InputFileTypeEnum inputFileType) {
 		File estimationFile = File.builder()
 				.filestoreId(fileStoreId)
 				.inputFileType(inputFileType)
@@ -243,5 +253,73 @@ public class PlanUtil {
 
 		planConfigurationRequest.getPlanConfiguration().getFiles().add(estimationFile);
 		planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
+	}
+
+	/**
+	 * Duplicates the population file and add a new file for estimations in plan configuration object.
+	 *
+	 * @param planConfigurationRequest the plan configuration request to be updated with new estimations file.
+	 */
+	public void addEstimationsFile(PlanConfigurationRequest planConfigurationRequest) {
+		PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+		// Retrieves the population file from the list of files in the given plan configuration.
+		File populationFile = planConfiguration.getFiles().stream()
+				.filter(file -> file.getTemplateIdentifier().equalsIgnoreCase(ServiceConstants.FILE_TEMPLATE_IDENTIFIER_POPULATION))
+				.findFirst()
+				.orElse(null);
+
+		//If a population file exists, process it to create an estimation file.
+		if (!ObjectUtils.isEmpty(populationFile)) {
+			processAndAddEstimationFile(planConfigurationRequest, populationFile);
+		}
+	}
+
+	/**
+	 * Processes the population file by:
+	 * 1. Fetching its byte data and converting it into a new file for estimations.
+	 * 2. Uploading the estimations file to the fileStore.
+	 * 3. Creating an estimations file entry and adding it to the plan configuration object.
+	 * 4. Updating the plan configuration object.
+	 *
+	 * @param planConfigurationRequest The request containing the plan configuration to update.
+	 * @param populationFile           The population file to duplicate.
+	 */
+	private void processAndAddEstimationFile(PlanConfigurationRequest planConfigurationRequest, File populationFile) {
+		PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+		// Fetch file data from fileStore
+		byte[] byteArray = filestoreUtil.getFileByteArray(planConfiguration.getTenantId(), populationFile.getFilestoreId());
+		java.io.File estimationsTempFile = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_NAME);
+
+		try (Workbook workbook = new XSSFWorkbook(estimationsTempFile)) {
+			java.io.File estimationsFile = parsingUtil.convertWorkbookToXls(workbook);
+
+			// Upload the new file and get the fileStore ID
+			String estimationsFileStoreId = filestoreUtil.uploadFile(estimationsFile, planConfiguration.getTenantId());
+
+			// Create a new estimation file entry
+			File estimationFile = File.builder()
+					.filestoreId(estimationsFileStoreId)
+					.inputFileType(populationFile.getInputFileType())
+					.templateIdentifier(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)
+					.active(true)
+					.build();
+
+			// Add the estimation file to the plan configuration
+			planConfigurationRequest.getPlanConfiguration().getFiles().add(estimationFile);
+			planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
+
+		} catch (FileNotFoundException e) {
+			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(EXCEL_FILE_NOT_FOUND_CODE, EXCEL_FILE_NOT_FOUND_MESSAGE);
+		} catch (InvalidFormatException e) {
+			log.error(INVALID_FILE_FORMAT_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(INVALID_FILE_FORMAT_CODE, INVALID_FILE_FORMAT_MESSAGE);
+		} catch (IOException e) {
+			log.error(ERROR_PROCESSING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
+			throw new CustomException(Integer.toString(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+					ERROR_PROCESSING_EXCEL_FILE);
+		}
 	}
 }

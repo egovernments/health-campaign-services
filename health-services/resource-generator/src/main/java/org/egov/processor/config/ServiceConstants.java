@@ -36,6 +36,7 @@ public class ServiceConstants {
     //File constants
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
+    public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS = "EstimationsInprogress";
     public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS = "Estimations";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
     public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundaryWithTarget";
@@ -62,6 +63,7 @@ public class ServiceConstants {
     public static final String EMPTY_STRING = "";
     public static final String NOT_APPLICABLE = "N/A";
     public static final String FIXED_POST_YES = "yes";
+    public static final String LOG_PLACEHOLDER = "{}";
 
     //MDMS field Constants
     public static final String DATA = "data";

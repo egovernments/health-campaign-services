@@ -27,6 +27,15 @@ public class ErrorConstants {
     public static final String EMPTY_HEADER_ROW_CODE = "EMPTY_HEADER_ROW";
     public static final String EMPTY_HEADER_ROW_MESSAGE = "The header row is empty for the given sheet";
 
+    public static final String INPUT_NOT_FOUND_CODE = "INPUT_VALUE_NOT_FOUND";
+    public static final String INPUT_NOT_FOUND_MESSAGE = "Input value not found: ";
+
+    public static final String EXCEL_FILE_NOT_FOUND_CODE = "EXCEL_FILE_NOT_FOUND";
+    public static final String EXCEL_FILE_NOT_FOUND_MESSAGE = "The specified file was not found ";
+
+    public static final String INVALID_FILE_FORMAT_CODE = "INVALID_FILE_FORMAT";
+    public static final String INVALID_FILE_FORMAT_MESSAGE = "The file format is not supported ";
+
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
@@ -56,6 +65,9 @@ public class ErrorConstants {
     public static final String ERROR_WHILE_CALLING_MICROPLAN_API =
             "Unexpected error while calling fetch from Microplan API for plan config Id: ";
     public static final String INVALID_HEX = "Invalid hex color specified: ";
+    public static final String ERROR_PROCESSING_EXCEL_FILE = "Exception occurred while processing excel file ";
+    public static final String ERROR_CONVERTING_TO_EXCEL_FILE = "Exception occurred while converting workbook to XLS: ";
+    public static final String ERROR_SAVING_EXCEL_FILE = "Exception occurred while saving XLS file: ";
 
 
 }

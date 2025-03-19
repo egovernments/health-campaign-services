@@ -83,16 +83,16 @@ public class PlanEmployeeAssignmentQueryBuilder {
             preparedStmtList.add(searchCriteria.getId());
         }
 
-        if (searchCriteria.getTenantId() != null) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" pa.tenant_id = ?");
-            preparedStmtList.add(searchCriteria.getTenantId());
-        }
-
         if (searchCriteria.getPlanConfigurationId() != null) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pa.plan_configuration_id = ?");
             preparedStmtList.add(searchCriteria.getPlanConfigurationId());
+        }
+
+        if (searchCriteria.getTenantId() != null) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" pa.tenant_id = ?");
+            preparedStmtList.add(searchCriteria.getTenantId());
         }
 
         if (searchCriteria.getPlanConfigurationName() != null) {

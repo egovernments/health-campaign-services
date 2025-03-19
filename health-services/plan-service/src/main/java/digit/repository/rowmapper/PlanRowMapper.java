@@ -14,6 +14,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+import static digit.config.ServiceConstants.COMMA_DELIMITER;
+
 @Component
 public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
@@ -55,7 +57,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                         .build();
 
                 String commaSeparatedAssignee = rs.getString("plan_assignee");
-                List<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? Arrays.asList(commaSeparatedAssignee.split(",")) : null;
+                Set<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? new HashSet<>(List.of(commaSeparatedAssignee.split(COMMA_DELIMITER))) : null;
 
                 // Prepare plan object
                 planEntry.setId(planId);

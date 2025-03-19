@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -68,21 +69,21 @@ public class CensusUtil {
      * @param planConfigurationRequest The plan configuration request containing configuration details.
      * @param feature                  The feature JSON node containing property values.
      * @param mappedValues             The mapped values for extracting properties.
-     * @param heirarchyType            The hierarchy type of the census.
+     * @param hierarchyType            The hierarchy type of the census.
      * @return A constructed CensusRequest object with populated details.
      */
-    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
+    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String hierarchyType) {
 
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         return CensusRequest.builder()
                 .census(Census.builder()
                         .tenantId(planConfig.getTenantId())
-                        .hierarchyType(heirarchyType)
+                        .hierarchyType(hierarchyType)
                         .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
                         .type(Census.TypeEnum.PEOPLE)
                         .facilityAssigned(Boolean.FALSE)
                         .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
+                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
                         .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
                         .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
