@@ -252,8 +252,18 @@ public class EmployeeService {
 			Iterator<Employee> iterator = employees.iterator();
 			while(iterator.hasNext()) {
 				Employee employee = iterator.next();
+				if (employee == null) {
+					System.err.println("Error: Encountered a null Employee object.");
+					continue;
+				}
+				String employeeUuid = employee.getUuid();
+				if (employeeUuid == null) {
+					System.err.println("Error: Employee UUID is null for employee: " + employee);
+					continue;
+				}
+				
 				User tempUser = mapOfUsers.get(employee.getUuid());
-				if (!mapOfUsers.isEmpty() &&  ( tempUser== null || tempUser.getUserServiceUuid().isEmpty()) ) {
+				if (!mapOfUsers.isEmpty() &&  ( tempUser== null || tempUser.getUserServiceUuid() == null || tempUser.getUserServiceUuid().isEmpty()) ) {
 					iterator.remove();
 					totalCount--;
 				} else {
