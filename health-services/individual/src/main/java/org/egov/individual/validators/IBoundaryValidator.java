@@ -61,7 +61,7 @@ public class IBoundaryValidator implements Validator<IndividualBulkRequest, Indi
 
         // Filter individuals with non-null addresses
         List<Individual> entitiesWithValidBoundaries = request.getIndividuals().parallelStream()
-                .filter(individual -> CollectionUtils.isEmpty(individual.getAddress()))
+                .filter(individual -> !CollectionUtils.isEmpty(individual.getAddress()))
                 .collect(Collectors.toList());
 
         Map<String, List<Individual>> tenantIdIndividualMap = entitiesWithValidBoundaries.stream().collect(Collectors.groupingBy(Individual::getTenantId));
