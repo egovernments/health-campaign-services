@@ -31,7 +31,6 @@ public class ServiceConstants {
     public static final String DISTRIBUTION_PROCESS = "DistributionProcess";
 
     public static final String REGISTRATION_PROCESS = "RegistrationProcess";
-
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
 
     //File constants
