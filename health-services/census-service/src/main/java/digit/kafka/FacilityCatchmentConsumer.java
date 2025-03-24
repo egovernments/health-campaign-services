@@ -17,11 +17,9 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static digit.config.ServiceConstants.*;
 
@@ -59,7 +57,8 @@ public class FacilityCatchmentConsumer {
 
             // Extract current and initial service boundaries
             List<String> initialServiceBoundaries = planFacilityDTO.getInitiallySetServiceBoundaries();
-            List<String> currentServiceBoundaries = List.of(planFacilityDTO.getServiceBoundaries().split(COMMA_DELIMITER));
+            List<String> currentServiceBoundaries = ObjectUtils.isEmpty(planFacilityDTO.getServiceBoundaries()) ?
+                    Collections.emptyList() : List.of(planFacilityDTO.getServiceBoundaries().split(COMMA_DELIMITER));
 
             // Determine boundaries that require census record updates
             Set<String> boundariesToBeSearched = initialServiceBoundaries.size() > currentServiceBoundaries.size()
