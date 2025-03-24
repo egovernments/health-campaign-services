@@ -36,7 +36,9 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ServiceConstants.BOUNDARY_CODE;
 import static org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL;
 
 @Slf4j
@@ -110,12 +112,10 @@ public class ExcelParser implements FileParser {
 	public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
 								Object campaignResponse) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-		byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
-		File file = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_EXTENSION);
+		File file = parsingUtil.convertByteArrayToFile(filestoreUtil.getFileByteArray(planConfig.getTenantId(), fileStoreId), ServiceConstants.FILE_EXTENSION);
 		if (file == null || !file.exists()) {
-			log.error("File not found: {} in tenant: {}", fileStoreId, planConfig.getTenantId());
-			throw new CustomException("FileNotFound",
-					"The file with ID " + fileStoreId + " was not found in the tenant " + planConfig.getTenantId());
+			log.error(FILE_NOT_FOUND_LOG, fileStoreId, planConfig.getTenantId());
+			throw new CustomException(FILE_NOT_FOUND_CODE, String.format(FILE_NOT_FOUND_MESSAGE, fileStoreId, planConfig.getTenantId()));
 		}
 		processExcelFile(planConfigurationRequest, file, fileStoreId, campaignResponse);
 		return null;
@@ -576,6 +576,12 @@ public class ExcelParser implements FileParser {
 		return File.createTempFile(prefix, suffix);
 	}
 
+	/**
+	 * Creates a JSON feature node from a given {@code Census} object.
+	 *
+	 * @param census The census object containing boundary code and additional fields.
+	 * @return A jsonNode representing the feature node with relevant properties.
+	 */
 	private JsonNode createFeatureNodeFromCensus(Census census) {
 		ObjectNode featureNode = objectMapper.createObjectNode();
 		ObjectNode propertiesNode = featureNode.putObject("properties");

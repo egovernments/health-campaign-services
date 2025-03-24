@@ -11,9 +11,7 @@ import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.census.*;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -22,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -82,7 +81,7 @@ public class CensusUtil {
                         .type(Census.TypeEnum.PEOPLE)
                         .facilityAssigned(Boolean.FALSE)
                         .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
+                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
                         .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
                         .additionalFields(enrichAdditionalField(feature, mappedValues)).build())

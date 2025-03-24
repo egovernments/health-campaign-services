@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
@@ -89,7 +89,7 @@ public class CampaignIntegrationUtil {
 					buildResourceDetailsObjectForFacilityCreate(planConfigurationRequest, campaignResponse));
 			log.info("Campaign Data create successful.");
 		} catch (Exception e) {
-			log.error(ServiceConstants.ERROR_WHILE_DATA_CREATE_CALL
+			log.error(ERROR_WHILE_DATA_CREATE_CALL
 					+ planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
 			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
 		}
@@ -112,7 +112,7 @@ public class CampaignIntegrationUtil {
 				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
 				.map(File::getFilestoreId)
 				.findFirst()
-				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
+				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_TEMPLATE_IDENTIFIER_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
 
 		ResourceDetails resourceDetails = ResourceDetails.builder()
 				.type(TYPE_FACILITY)
@@ -121,7 +121,7 @@ public class CampaignIntegrationUtil {
 				.fileStoreId(facilityFilestoreId)
 				.action(ACTION_CREATE)
 				.campaignId(planConfig.getCampaignId())
-				.additionalDetails(createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
+				.additionalDetails(createAdditionalDetailsForFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
 				.build();
 
 		return ResourceDetailsRequest.builder()
@@ -154,12 +154,17 @@ public class CampaignIntegrationUtil {
 	 * @return CampaignResponse object parsed from the campaignResponse.
 	 */
     public CampaignResponse parseCampaignResponse(Object campaignResponse) {
-		CampaignResponse campaign = null;
-		campaign = mapper.convertValue(campaignResponse, CampaignResponse.class);
-		return campaign;
+        return mapper.convertValue(campaignResponse, CampaignResponse.class);
 	}
 
-	public JsonNode createAdditionalDetailsforFacilityCreate(String source, String microplanId) {
+	/**
+	 * Creates a JSON node containing additional details for facility creation.
+	 *
+	 * @param source       The source from which the facility creation request originates.
+	 * @param microplanId  The microplan ID associated with the facility.
+	 * @return 		       A JSON node representing the additional details.
+	 */
+	public JsonNode createAdditionalDetailsForFacilityCreate(String source, String microplanId) {
 		try {
 			// Create a map to hold the additional details
 			Map<String, String> additionalDetailsMap = new HashMap<>();
