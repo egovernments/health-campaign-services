@@ -171,10 +171,6 @@ public class CensusUtil {
             log.error(ERROR_WHILE_FETCHING_FROM_CENSUS, e);
         }
 
-        if (CollectionUtils.isEmpty(censusResponse.getCensus())) {
-            throw new CustomException(NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE, NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
-        }
-
         return censusResponse;
     }
 

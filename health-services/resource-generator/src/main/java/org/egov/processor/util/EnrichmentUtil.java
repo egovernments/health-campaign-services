@@ -308,7 +308,21 @@ public class EnrichmentUtil {
         return planResponse.getPlan();
     }
 
+    public List<Census> getCensusRecordsInBatches(PlanConfigurationRequest planConfigurationRequest, int batchSize, int offset) {
+        PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
+                .tenantId(planConfig.getTenantId())
+                .limit(batchSize)
+                .source(planConfig.getId())
+                .offset(offset)
+                .build();
 
+        CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
+                .censusSearchCriteria(censusSearchCriteria)
+                .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
+        CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
 
+        return censusResponse.getCensus();
+    }
 }

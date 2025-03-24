@@ -58,12 +58,11 @@ public class PlanUtil {
 	 * @param planConfigurationRequest The plan configuration request.
 	 * @param feature The feature JSON node.
 	 * @param resultMap The result map.
-	 * @param mappedValues The mapped values.
 	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 */
 	public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
-		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
+			Map<String, BigDecimal> resultMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+		PlanRequest planRequest = buildPlanRequest(planConfigurationRequest, feature, resultMap, boundaryCodeToCensusAdditionalDetails);
 		try {
 			producer.push(config.getResourceMicroplanCreateTopic(), planRequest);
 		} catch (Exception e) {
@@ -78,15 +77,14 @@ public class PlanUtil {
 	 * @param planConfigurationRequest The plan configuration request.
 	 * @param feature The feature JSON node.
 	 * @param resultMap The result map.
-	 * @param mappedValues The mapped values.
 	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 * @return The constructed PlanRequest object.
 	 */
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
-			Map<String, BigDecimal> resultMap, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+			Map<String, BigDecimal> resultMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature, mappedValues);
+		String boundaryCodeValue = getBoundaryCodeValue(ServiceConstants.BOUNDARY_CODE, feature);
 
 		return PlanRequest.builder()
 				.requestInfo(planConfigurationRequest.getRequestInfo())
@@ -101,8 +99,8 @@ public class PlanUtil {
 							res.setEstimatedNumber(result.getValue());
 							return res;
 						}).collect(Collectors.toList()))
-						.activities(new ArrayList())
-						.targets(new ArrayList())
+						.activities(new ArrayList<>())
+						.targets(new ArrayList<>())
 						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
 						.isRequestFromResourceEstimationConsumer(true)
 						.additionalDetails(enrichAdditionalDetails(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
@@ -181,13 +179,12 @@ public class PlanUtil {
 	 * 
 	 * @param input The input value.
 	 * @param feature The feature JSON node.
-	 * @param mappedValues The mapped values.
 	 * @return The boundary code value.
 	 * @throws CustomException if the input value is not found in the feature JSON node.
 	 */
-	private String getBoundaryCodeValue(String input, JsonNode feature, Map<String, String> mappedValues) {
-		if (feature.get(PROPERTIES).get(mappedValues.get(input)) != null) {
-			String value = String.valueOf(feature.get(PROPERTIES).get(mappedValues.get(input)));
+	private String getBoundaryCodeValue(String input, JsonNode feature) {
+		if (feature.get(PROPERTIES).get(input) != null) {
+			String value = String.valueOf(feature.get(PROPERTIES).get(input));
 			return ((value!=null && value.length()>2)?value.substring(1, value.length()-1):value);
 		}
 		else {

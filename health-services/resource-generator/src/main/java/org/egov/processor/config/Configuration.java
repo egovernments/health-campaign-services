@@ -118,7 +118,10 @@ public class Configuration {
 	@Value("${default.limit.for.mdms.data}")
 	private Integer defaultLimitForMdms;
 
-	//census additonal field configs
+	@Value("${batch.size}")
+	private Integer batchSize;
+
+	//census additional field configs
 	@Value("${census.additional.field.override.keys}")
 	public List<String> censusAdditionalFieldOverrideKeys;
 

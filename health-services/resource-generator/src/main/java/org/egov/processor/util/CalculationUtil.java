@@ -77,7 +77,7 @@ public class CalculationUtil {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
-            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, new HashMap<>());
+            planUtil.create(planConfigurationRequest, feature, resultMap, new HashMap<>());
             
         }
     }
@@ -119,6 +119,42 @@ public class CalculationUtil {
     }
 
     /**
+     * Retrieves the input value from the JSON node based on the input and input mapping.
+     *
+     * @param resultMap             The map containing previous results.
+     * @param feature               The JSON node feature.
+     * @param assumptionValueMap    The assumptions and their value map from plan config.
+     * @param input                 The input key.
+     * @return The input value.
+     */
+    private BigDecimal getInputValueFromFeatureOrMap(JsonNode feature, Map<String, BigDecimal> resultMap, Map<String, BigDecimal> assumptionValueMap, String input) {
+        // Try to fetch the value from resultMap, If not found in the resultMap, use the assumptionValueMap as a fallback
+        BigDecimal inputValue = resultMap.getOrDefault(input, assumptionValueMap.get(input));
+
+        // Try to fetch the value from the feature (if it exists)
+        if(ObjectUtils.isEmpty(inputValue)) {
+            if (feature.has(PROPERTIES) && feature.get(PROPERTIES).has(input)) {
+                try {
+                    String cellValue = String.valueOf(feature.get(PROPERTIES).get(input));
+                    BigDecimal value;
+                    if (cellValue.contains(ServiceConstants.SCIENTIFIC_NOTATION_INDICATOR)) {
+                        value = new BigDecimal(cellValue);
+                    } else {
+                        String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
+                        value = new BigDecimal(cleanedValue);
+                    }
+                    return value;
+                } catch (NumberFormatException | NullPointerException e) {
+                    // Handle potential parsing issues
+                    throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
+                }
+            }
+        }
+
+        return inputValue;
+    }
+
+    /**
      * Calculates a result based on the provided operation and inputs.
      *
      * @param operation The operation object containing details like input, operator, and assumption value.
@@ -138,6 +174,28 @@ public class CalculationUtil {
         String assumptionKey = operation.getAssumptionValue();
         String assumptionFromMapping = mappedValues.get(assumptionKey);
         BigDecimal assumptionValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, assumptionKey, assumptionFromMapping);
+
+        // Calculate and return the output
+        return calculateOutputValue(inputValue, operation.getOperator(), assumptionValue);
+    }
+
+    /**
+     * Calculates a result based on the provided operation and inputs.
+     *
+     * @param operation The operation object containing details like input, operator, and assumption value.
+     * @param feature   The JSON node representing additional features or parameters for calculation.
+     * @param assumptionValueMap A map containing assumption values referenced by keys.
+     * @param resultMap A map to store and update the calculated results.
+     * @return The calculated result as a BigDecimal.
+     */
+    public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap) {
+        // Fetch the input value
+        String input = operation.getInput();
+        BigDecimal inputValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, input);
+
+        // Fetch the assumption value with priority: feature -> resultMap -> assumptionValueMap
+        String assumptionKey = operation.getAssumptionValue();
+        BigDecimal assumptionValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, assumptionKey);
 
         // Calculate and return the output
         return calculateOutputValue(inputValue, operation.getOperator(), assumptionValue);
