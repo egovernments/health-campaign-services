@@ -235,8 +235,109 @@ function addDataToSheet(
     }
   });
   finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
+  manageMultiSelect(sheet, schema, localizationMap);
 }
 
+function manageMultiSelect(sheet: any, schema: any, localizationMap?: any) {
+  const headerRow = sheet.getRow(1); // Assuming first row is the header
+
+  for (const property in schema?.properties) {
+    if (schema?.properties[property]?.multiSelectDetails) {
+      const multiSelectDetails = schema?.properties[property]?.multiSelectDetails;
+      const maxSelections = multiSelectDetails?.maxSelections;
+      const currentColumnHeader = getLocalizedName(property, localizationMap);
+      const enumsList = multiSelectDetails?.enum;
+
+      // Find column index for the current column
+      let currentColumnIndex = -1;
+      headerRow.eachCell((cell: any, colNumber: any) => {
+        if (cell.value === currentColumnHeader) {
+          currentColumnIndex = colNumber;
+        }
+      });
+
+      if (currentColumnIndex === -1) {
+        console.warn(`Column with header ${currentColumnHeader} not found`);
+        continue;
+      }
+
+      // Apply dropdowns for previous columns
+      if (Array.isArray(enumsList) && enumsList.length > 0) {
+        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList);
+      }
+
+      // Apply CONCATENATE formula
+      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections);
+
+      // Hide the column if specified
+      if (schema?.properties[property]?.hideColumn) {
+        sheet.getColumn(currentColumnIndex).hidden = true;
+      }
+    }
+  }
+}
+
+// -----------------------------
+// Function to Apply Dropdowns
+// -----------------------------
+function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[]) {
+  for (let i = 1; i <= maxSelections; i++) {
+    const colIndex = currentColumnIndex - maxSelections + i - 1;
+
+    sheet.getColumn(colIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
+      if (rowNumber > 1) {
+        cell.dataValidation = {
+          type: 'list',
+          formulae: [`"${enumsList.join(',')}"`],
+          showDropDown: true,
+          error: 'Please select a value from the dropdown list.',
+          errorStyle: 'stop',
+          showErrorMessage: true,
+          errorTitle: 'Invalid Entry',
+          allowBlank: true // Allow blank entries
+        };
+      }
+    });
+  }
+}
+
+// -----------------------------
+// Function to Apply CONCATENATE Formula
+// -----------------------------
+function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSelections: number) {
+  const colLetters = [];
+  for (let i = 1; i <= maxSelections; i++) {
+    const colIndex = currentColumnIndex - maxSelections + i - 1;
+    const colLetter = getColumnLetter(colIndex);
+    colLetters.push(colLetter);
+  }
+
+  const blankCheck = colLetters.map(col => `ISBLANK(${col}2)`).join(", ");
+  const formulaParts = colLetters.map(
+    (col, i) => `IF(ISBLANK(${col}2), "", ${col}2 & IF(${i === colLetters.length - 1}, "", ","))`
+  );
+
+  const formula = `=IF(AND(${blankCheck}), "", IF(RIGHT(CONCATENATE(${formulaParts.join(",")}),1)=",", LEFT(CONCATENATE(${formulaParts.join(",")}), LEN(CONCATENATE(${formulaParts.join(",")}) )-1), CONCATENATE(${formulaParts.join(",")})))`;
+
+
+  for (let row = 2; row <= sheet.rowCount; row++) {
+    const rowFormula = formula.replace(/2/g, row.toString());
+    sheet.getCell(row, currentColumnIndex).value = {
+      formula: rowFormula
+    };
+  }
+}
+
+// Utility function to get column letter from index
+function getColumnLetter(index: number): string {
+  let letter = '';
+  while (index > 0) {
+    const remainder = (index - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    index = Math.floor((index - 1) / 26);
+  }
+  return letter;
+}
 
 // Function to format the first row
 function formatFirstRow(row: any, sheet: any, firstRowColor: string, columnWidth: number, frozeCells: boolean) {
