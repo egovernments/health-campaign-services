@@ -1,12 +1,12 @@
 package org.egov.processor.util;
 
+import static org.egov.processor.config.ErrorConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE;
+import static org.egov.processor.config.ErrorConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE;
 import static org.egov.processor.config.ServiceConstants.FILES;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID_REPLACER;
 import static org.egov.processor.config.ServiceConstants.MICROPLANNING_MODULE;
 import static org.egov.processor.config.ServiceConstants.MODULE;
-import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE;
-import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE;
 import static org.egov.processor.config.ServiceConstants.TENANTID;
 import static org.egov.processor.config.ServiceConstants.TENANTID_REPLACER;
 
@@ -56,7 +56,7 @@ public class FilestoreUtil {
      * @param fileStoreId The ID of the file in the file store.
      * @return The file content as a byte array.
      */
-    public byte[] getFile(String tenantId, String fileStoreId) {
+    public byte[] getFileByteArray(String tenantId, String fileStoreId) {
         String fileStoreServiceLink = getFileStoreServiceLink(tenantId, fileStoreId);
         byte[] responseInByteArray;
         Object response;

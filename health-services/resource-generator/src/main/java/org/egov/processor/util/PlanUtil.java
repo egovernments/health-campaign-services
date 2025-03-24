@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -288,7 +289,7 @@ public class PlanUtil {
 		PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
 		// Fetch file data from fileStore
-		byte[] byteArray = filestoreUtil.getFile(planConfiguration.getTenantId(), populationFile.getFilestoreId());
+		byte[] byteArray = filestoreUtil.getFileByteArray(planConfiguration.getTenantId(), populationFile.getFilestoreId());
 		java.io.File estimationsTempFile = parsingUtil.convertByteArrayToFile(byteArray, ServiceConstants.FILE_NAME);
 
 		try (Workbook workbook = new XSSFWorkbook(estimationsTempFile)) {

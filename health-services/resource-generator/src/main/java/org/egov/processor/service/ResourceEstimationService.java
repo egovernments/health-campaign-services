@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.util.CampaignIntegrationUtil;
-import org.egov.processor.util.FilestoreUtil;
-import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.util.PlanUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -71,9 +69,8 @@ public class ResourceEstimationService {
      */
 	private Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
 		CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
-        Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
+        return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
 				campaignRequest);
-		return campaignSearchResponse;
 	}
 
 	/**
