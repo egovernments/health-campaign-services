@@ -118,7 +118,7 @@ public class ReferralManagementConfiguration {
     @Value("${egov.service.request.host}")
     private String serviceRequestHost;
 
-    @Value("${egov.service.request.search.service.url}")
+    @Value("${egov.service.request.service.search.url}")
     private String serviceRequestServiceSearchUrl;
 
 }
