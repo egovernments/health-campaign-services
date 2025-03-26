@@ -2,18 +2,13 @@ package org.egov.hrms.service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
@@ -271,6 +266,8 @@ public class IndividualService implements UserService {
     }
 
     private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
+        if(Objects.isNull(userRequest.getUser().getIdentificationMark()))  userRequest.getUser().setIdentificationMark("");
+
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
                 .userId(userRequest.getUser().getId() != null ?
