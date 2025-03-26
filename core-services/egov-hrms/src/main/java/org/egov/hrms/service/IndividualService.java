@@ -266,7 +266,7 @@ public class IndividualService implements UserService {
     }
 
     private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
-        if(Objects.isNull(userRequest.getUser().getIdentificationMark()))  userRequest.getUser().setIdentificationMark("");
+        if(Objects.isNull(userRequest.getUser().getIdentificationMark()))  userRequest.getUser().setIdentificationMark("N/A");
 
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
