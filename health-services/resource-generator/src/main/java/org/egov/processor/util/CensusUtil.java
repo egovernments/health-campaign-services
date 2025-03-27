@@ -11,9 +11,7 @@ import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.census.*;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -170,10 +168,6 @@ public class CensusUtil {
            censusResponse = mapper.convertValue(response, CensusResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_CENSUS, e);
-        }
-
-        if (CollectionUtils.isEmpty(censusResponse.getCensus())) {
-            throw new CustomException(NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE, NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
         }
 
         return censusResponse;
