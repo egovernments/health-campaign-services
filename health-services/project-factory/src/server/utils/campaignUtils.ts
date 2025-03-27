@@ -67,6 +67,7 @@ import {
   validateBoundarySheetDataInCreateFlow,
 } from "../validators/campaignValidators";
 import {
+  findColumnByHeader,
   getExcelWorkbookFromFileURL,
   getNewExcelWorkbook,
   lockTargetFields,
@@ -336,6 +337,16 @@ function deterMineLastColumnAndEnrichUserDetails(
     passwordColumn = "G";
   }
 
+  const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
+  const foundPasswordColumn = findColumnByHeader("Password", worksheet);
+
+  if (foundUsernameColumn) {
+    usernameColumn = foundUsernameColumn;
+  }
+  if (foundPasswordColumn) {
+    passwordColumn = foundPasswordColumn;
+  }
+
   // Populate username and password columns if data is provided
   if (userNameAndPassword) {
     // Set headers with formatting
@@ -552,7 +563,7 @@ async function updateStatusFile(
   );
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
   if (request?.body?.ResourceDetails?.type == "user") {
-    const columnsToUnhide = ["L", "N", "M", "O"];
+    const columnsToUnhide = ["L", "N", "M", "O", "P"];
     unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
   }
   processErrorData(

@@ -501,4 +501,14 @@ function protectSheet(sheet: any) {
 }
 
 
+export const findColumnByHeader = (header: string, worksheet: any) => {
+  for (let col = 1; col <= worksheet.columnCount; col++) {
+    if (worksheet.getCell(1, col).value === header) {
+      return String.fromCharCode(64 + col); // Convert to Excel column letter (e.g., 1 -> A, 2 -> B)
+    }
+  }
+  return "";
+};
+
+
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };
