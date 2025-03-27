@@ -7,7 +7,8 @@ import java.util.List;
 public interface Constants {
     List<String> BALES_INTEGER_FIELDS = new ArrayList<>(Arrays.asList("balesQuantity", "looseQuantity"));
     List<String> BALES_STRING_FIELDS = new ArrayList<>(Arrays.asList("comments", "baleMismatchCommentsKey", "manualScanComments", "name",
-            "waybill_quantity", "vehicle_number", "deliveryTeam", "driver_name", "typeOfTransport"));
+            "waybill_quantity", "vehicle_number", "deliveryTeam", "driver_name", "typeOfTransport",
+            "manualScan-0"));
 
     String MANUAL_SCAN = "manual_";
     String MANUAL_SCANS_INDEX_KEY = "manualScans";
