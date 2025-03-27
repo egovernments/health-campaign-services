@@ -325,8 +325,8 @@ function deterMineLastColumnAndEnrichUserDetails(
   }
 
   // Default columns
-  let usernameColumn = "J";
-  let passwordColumn = "K";
+  let usernameColumn = "L";
+  let passwordColumn = "M";
 
   // Update columns if the request indicates a different source
   if (
@@ -552,7 +552,7 @@ async function updateStatusFile(
   );
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
   if (request?.body?.ResourceDetails?.type == "user") {
-    const columnsToUnhide = ["G", "H", "J", "K"];
+    const columnsToUnhide = ["L", "N", "M", "O"];
     unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
   }
   processErrorData(
