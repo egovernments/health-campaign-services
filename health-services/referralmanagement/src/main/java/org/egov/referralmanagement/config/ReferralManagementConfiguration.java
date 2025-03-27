@@ -115,4 +115,10 @@ public class ReferralManagementConfiguration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsSearchUrl;
 
+    @Value("${egov.service.request.host}")
+    private String serviceRequestHost;
+
+    @Value("${egov.service.request.service.search.url}")
+    private String serviceRequestServiceSearchUrl;
+
 }
