@@ -129,6 +129,7 @@ public class IndividualService implements UserService {
 
 
     private IndividualRequest mapToIndividualUpdateRequest(Individual individual, UserRequest userRequest) {
+        if(Objects.isNull(userRequest.getUser().getIdentificationMark()))  userRequest.getUser().setIdentificationMark("N/A");
         Individual updatedIndividual = Individual.builder()
                 .id(individual.getId())
                 .userId(individual.getUserId())
