@@ -67,6 +67,7 @@ import {
   validateBoundarySheetDataInCreateFlow,
 } from "../validators/campaignValidators";
 import {
+  findColumnByHeader,
   getExcelWorkbookFromFileURL,
   getNewExcelWorkbook,
   lockTargetFields,
@@ -325,8 +326,8 @@ function deterMineLastColumnAndEnrichUserDetails(
   }
 
   // Default columns
-  let usernameColumn = "J";
-  let passwordColumn = "K";
+  let usernameColumn = "L";
+  let passwordColumn = "M";
 
   // Update columns if the request indicates a different source
   if (
@@ -334,6 +335,16 @@ function deterMineLastColumnAndEnrichUserDetails(
   ) {
     usernameColumn = "F";
     passwordColumn = "G";
+  }
+
+  const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
+  const foundPasswordColumn = findColumnByHeader("Password", worksheet);
+
+  if (foundUsernameColumn) {
+    usernameColumn = foundUsernameColumn;
+  }
+  if (foundPasswordColumn) {
+    passwordColumn = foundPasswordColumn;
   }
 
   // Populate username and password columns if data is provided
@@ -552,7 +563,7 @@ async function updateStatusFile(
   );
   const worksheet: any = workbook.getWorksheet(localizedSheetName);
   if (request?.body?.ResourceDetails?.type == "user") {
-    const columnsToUnhide = ["G", "H", "J", "K"];
+    const columnsToUnhide = ["L", "N", "M", "O", "P"];
     unhideColumnsOfProcessedFile(worksheet, columnsToUnhide);
   }
   processErrorData(
@@ -562,6 +573,7 @@ async function updateStatusFile(
     localizedSheetName,
     localizationMap
   );
+  await hideMultiSelectMainColumns(worksheet, request, localizationMap);
 
   // Set column widths
   const columnWidths = Array(12).fill({ width: 30 });
@@ -581,6 +593,44 @@ async function updateStatusFile(
     throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
   }
 }
+
+async function hideMultiSelectMainColumns(
+  worksheet: any,
+  request: any,
+  localizationMap?: { [key: string]: string }) {
+  const type = request?.body?.ResourceDetails?.type;
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const isUpdate = request?.body?.parentCampaignObject ? true : false;
+  const isSourceMicroplan = checkIfSourceIsMicroplan(request?.body?.ResourceDetails);
+  const schema = await getSchema(tenantId, isUpdate, type, isSourceMicroplan);
+  const properties = schema?.properties;
+  if (Object.keys(properties).length > 0) {
+    const headerRow = worksheet.getRow(1); // Assuming header is in the first row
+
+    for (const key in properties) {
+      if (properties[key]?.multiSelectDetails) {
+        const columnName = getLocalizedName(key, localizationMap);
+
+        const columnIndex = headerRow.values.indexOf(columnName);
+        if (columnIndex > -1) {
+          worksheet.getColumn(columnIndex).hidden = true;
+        } else {
+          console.warn(`Column with header "${columnName}" not found in worksheet.`);
+        }
+      }
+    }
+  }
+}
+
+export async function getSchema(tenantId: string, isUpdate: boolean, type: string, isSourceMicroplan: boolean) {
+  if (type === "facility" || type === "user") {
+    return isSourceMicroplan
+      ? await callMdmsTypeSchema(tenantId, isUpdate, type, "microplan")
+      : await callMdmsTypeSchema(tenantId, isUpdate, type);
+  }
+  return null;
+}
+
 async function updateStatusFileForEachSheets(
   request: any,
   localizationMap?: { [key: string]: string }
@@ -3564,7 +3614,6 @@ const getConfigurableColumnHeadersBasedOnCampaignType = async (
       : campaignType;
     const isUpdate = request?.body?.parentCampaignObject ? true : false;
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
       isUpdate,
       request?.query?.type || request?.body?.ResourceDetails?.type,

@@ -13,11 +13,12 @@ import {
 import {
   immediateValidationForTargetSheet,
   validateEmptyActive,
+  validateMultiSelect,
   validateSheetData,
   validateTargetSheetData,
   validateViaSchemaSheetWise,
 } from "../validators/campaignValidators";
-import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
+import { getCampaignNumber } from "./genericApis";
 import {
   boundaryBulkUpload,
   convertToTypeData,
@@ -31,6 +32,7 @@ import {
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
   getBoundaryCodeAndBoundaryTypeMapping,
+  getSchema,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -778,10 +780,15 @@ async function processValidateAfterSchema(
   dataFromSheet: any,
   request: any,
   createAndSearchConfig: any,
+  properties: any,
   localizationMap?: { [key: string]: string }
 ) {
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
+    const errorsRelatedToMultiSelect:any = validateMultiSelect(dataFromSheet, properties, localizationMap);
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
+      ? [...request?.body?.sheetErrorDetails, ...errorsRelatedToMultiSelect]
+      : errorsRelatedToMultiSelect;
     if (
       request?.body?.ResourceDetails?.additionalDetails?.source ==
       "microplan" &&
@@ -890,7 +897,6 @@ async function processValidate(
   localizationMap?: { [key: string]: string }
 ) {
   const type: string = request.body.ResourceDetails.type;
-  const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type];
   const dataFromSheet: any = await getDataFromSheet(
     request,
@@ -936,23 +942,11 @@ async function processValidate(
       localizationMap
     );
   } else {
-    let schema: any;
-    if (type == "facility" || type == "user") {
-      const isUpdate = request?.body?.parentCampaignObject ? true : false;
-      if (
-        request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
-      ) {
-        schema = await callMdmsTypeSchema(
-          request,
-          tenantId,
-          isUpdate,
-          type,
-          "microplan"
-        );
-      } else {
-        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
-      }
-    }
+    const type = request?.body?.ResourceDetails?.type;
+    const tenantId = request?.body?.ResourceDetails?.tenantId;
+    const isUpdate = request?.body?.parentCampaignObject ? true : false;
+    const isSourceMicroplan = checkIfSourceIsMicroplan(request?.body?.ResourceDetails);
+    const schema : any = await getSchema(tenantId, isUpdate, type, isSourceMicroplan);
     const translatedSchema = await translateSchema(schema, localizationMap);
     if (Array.isArray(dataFromSheet)) {
       if (
@@ -970,6 +964,7 @@ async function processValidate(
         dataFromSheet,
         request,
         createAndSearchConfig,
+        schema?.properties,
         localizationMap
       );
     } else {
@@ -1570,7 +1565,6 @@ async function performAndSaveResourceActivityByChangingBody(
 async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
-  const tenantId = request?.body?.ResourceDetails?.tenantId;
   if (type == "boundary" || type == "boundaryManagement") {
     boundaryBulkUpload(request, localizationMap);
   } else if (type == "boundaryGeometryManagement") {
@@ -1603,7 +1597,8 @@ async function processCreate(request: any, localizationMap?: any) {
       undefined,
       localizationMap
     );
-    const schema = await getSchema(request, tenantId, type);
+    const isUpdate = request?.body?.parentCampaignObject ? true : false;
+    const schema = await getSchema(request?.body?.ResourceDetails?.tenantId, isUpdate, type, checkIfSourceIsMicroplan(request?.body?.ResourceDetails));
     await processAfterGettingSchema(
       dataFromSheet,
       schema,
@@ -1614,51 +1609,7 @@ async function processCreate(request: any, localizationMap?: any) {
   }
 }
 
-async function getSchema(
-  request: any,
-  tenantId: string,
-  type: string
-) {
-  let schema: any;
-  const isUpdate = request?.body?.parentCampaignObject ? true : false;
-  if (type == "facility") {
-    logger.info(
-      "Fetching schema to validate the created data for type: " + type
-    );
-    const mdmsResponse = await callMdmsTypeSchema(
-      request,
-      tenantId,
-      isUpdate,
-      type
-    );
-    schema = mdmsResponse;
-  } else if (type == "user") {
-    logger.info(
-      "Fetching schema to validate the created data for type: " + type
-    );
-    if (
-      request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
-    ) {
-      const mdmsResponse = await callMdmsTypeSchema(
-        request,
-        tenantId,
-        isUpdate,
-        type,
-        "microplan"
-      );
-      schema = mdmsResponse;
-    } else {
-      const mdmsResponse = await callMdmsTypeSchema(
-        request,
-        tenantId,
-        isUpdate,
-        type
-      );
-      schema = mdmsResponse;
-    }
-  }
-  return schema;
-}
+
 
 async function processAfterGettingSchema(
   dataFromSheet: any,
