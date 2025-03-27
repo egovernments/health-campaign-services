@@ -60,8 +60,7 @@ public class Service {
     @JsonProperty("clientId")
     @Size(max = 64)
     private String clientId = null;
-
-
+    
     public Service addAttributesItem(AttributeValue attributesItem) {
         this.attributes.add(attributesItem);
         return this;

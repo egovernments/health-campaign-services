@@ -36,5 +36,4 @@ public class ServiceSearchRequest {
     @Valid
     private Pagination pagination = null;
 
-
 }

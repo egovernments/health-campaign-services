@@ -40,7 +40,6 @@ public class ServiceCriteria {
     @JsonProperty("clientId")
     private String clientId = null;
 
-
     public ServiceCriteria addIdsItem(String idsItem) {
         if (this.ids == null) {
             this.ids = new ArrayList<>();

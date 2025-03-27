@@ -28,18 +28,17 @@ public class ServiceResponse {
 
     @JsonProperty("Services")
     @Valid
-    private List<Service> service = null;
+    private List<Service> services = null;
 
     @JsonProperty("Pagination")
     @Valid
     private Pagination pagination = null;
 
-
     public ServiceResponse addServiceItem(Service serviceItem) {
-        if (this.service == null) {
-            this.service = new ArrayList<>();
+        if (this.services == null) {
+            this.services = new ArrayList<>();
         }
-        this.service.add(serviceItem);
+        this.services.add(serviceItem);
         return this;
     }
 

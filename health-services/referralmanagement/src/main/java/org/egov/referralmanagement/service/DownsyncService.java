@@ -266,7 +266,7 @@ public class DownsyncService {
                 .build();
 
         List<org.egov.common.models.service.Service> services
-                = restClient.fetchResult(url, searchRequest, ServiceResponse.class).getService();
+                = restClient.fetchResult(url, searchRequest, ServiceResponse.class).getServices();
 
         downsync.setServices(services);
     }

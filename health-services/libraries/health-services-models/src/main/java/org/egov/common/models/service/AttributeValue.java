@@ -42,5 +42,4 @@ public class AttributeValue {
     @JsonProperty("additionalFields")
     private Object additionalDetails = null;
 
-
 }
