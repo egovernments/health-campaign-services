@@ -5,11 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 
 public interface Constants {
-    List<String> NON_BALES_ADDITIONAL_FIELDS_KEYS = new ArrayList<>(Arrays.asList(
-            "lat", "lng"
-    ));
     List<String> BALES_INTEGER_FIELDS = new ArrayList<>(Arrays.asList("balesQuantity", "looseQuantity"));
-    List<String> BALES_STRING_FIELDS = new ArrayList<>(Arrays.asList("comments", "baleMismatchCommentsKey", "manualScanComments", "name"));
+    List<String> BALES_STRING_FIELDS = new ArrayList<>(Arrays.asList("comments", "baleMismatchCommentsKey", "manualScanComments", "name",
+            "waybill_quantity", "vehicle_number", "deliveryTeam", "driver_name", "typeOfTransport"));
 
     String MANUAL_SCAN = "manual_";
     String MANUAL_SCANS_INDEX_KEY = "manualScans";
