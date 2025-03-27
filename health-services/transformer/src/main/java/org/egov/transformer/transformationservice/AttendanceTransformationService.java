@@ -22,9 +22,9 @@ import org.egov.transformer.utils.CommonUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.util.CollectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,6 +42,7 @@ public class AttendanceTransformationService {
     private final ObjectMapper objectMapper;
 
     private final CommonUtils commonUtils;
+    private final ProjectService projectService;
 
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
@@ -54,6 +55,7 @@ public class AttendanceTransformationService {
         this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
         this.attendanceRegisterService = attendanceRegisterService;
+        this.projectService = projectService;
         this.individualService = individualService;
     }
 
@@ -91,6 +93,20 @@ public class AttendanceTransformationService {
 
         producer.push(attendanceRegisterTopic, Collections.singletonList(attendanceRegisterIndexV1));
         log.info("transformation successful for attendance register");
+    }
+
+    public void transformRegister(List<AttendanceRegister> attendanceRegisterList) {
+        log.info("transforming for attendanceRegister id's {}", attendanceRegisterList.stream()
+                .map(AttendanceRegister::getId).collect(Collectors.toList()));
+        String topic = transformerProperties.getTransformerProducerAttendanceRegisterIndexV1Topic();
+        List<AttendanceRegisterIndexV1> attendanceRegisterIndexV1List = attendanceRegisterList.stream()
+                .map(this::transformRegister)
+                .collect(Collectors.toList());
+        log.info("transformation success for attendanceRegister id's {}", attendanceRegisterIndexV1List.stream()
+                .map(AttendanceRegisterIndexV1::getAttendanceRegister)
+                .map(AttendanceRegister::getId)
+                .collect(Collectors.toList()));
+        producer.push(topic, attendanceRegisterIndexV1List);
     }
 
     public AttendanceLogIndexV1 transform(AttendanceLog attendanceLog, AttendanceRegister attendanceRegister) {
@@ -140,12 +156,39 @@ public class AttendanceTransformationService {
     }
 
     public AttendanceRegisterIndexV1 transformRegister(AttendanceRegister attendanceRegister) {
-        List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
-        Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        Map<String, String> boundaryHierarchy = null;
+        Map<String, String> boundaryHierarchyCode = null;
+        Map<String, Name> attendeesInfo = null;
+        String projectId = attendanceRegister.getReferenceId();
+        //Updated this logic as attendee will be empty during register creation
+        if (!CollectionUtils.isEmpty(attendanceRegister.getAttendees())) {
+            List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
+            attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        }
+        if (StringUtils.isNotBlank(attendanceRegister.getLocalityCode())) {
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(attendanceRegister.getLocalityCode(), attendanceRegister.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+        } else if (StringUtils.isNotBlank(projectId)) {
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(attendanceRegister.getReferenceId(), attendanceRegister.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+        }
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        if (StringUtils.isNotBlank(projectId)) {
+            Map<String, String> projectInfoMap = projectService.getProjectTypeIdFromProjectId(projectId, attendanceRegister.getTenantId());
+            additionalDetails.put(PROJECT_ID, projectId);
+            additionalDetails.put(PROJECT_TYPE_ID, projectInfoMap.get(PROJECT_TYPE_ID));
+            additionalDetails.put(PROJECT_NAME, projectInfoMap.get(PROJECT_NAME));
+        }
+
         AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = AttendanceRegisterIndexV1.builder()
                 .attendanceRegister(attendanceRegister)
                 .attendeesInfo(attendeesInfo)
                 .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
+                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
+                .additionalDetails(additionalDetails)
                 .build();
         return attendanceRegisterIndexV1;
     }
