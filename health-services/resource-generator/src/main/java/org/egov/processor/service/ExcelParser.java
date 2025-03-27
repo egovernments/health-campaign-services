@@ -284,9 +284,6 @@ public class ExcelParser implements FileParser {
 		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStrategyUtil
 				.fetchMixedStrategyOperationLogicFromMDMS(planConfigurationRequest);
 
-		// Convert assumptions into a map for efficient retrieval.
-		Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfiguration.getAssumptions());
-
 		// Create a mapping of boundary codes to fixed post details.
 		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest);
 
@@ -298,11 +295,7 @@ public class ExcelParser implements FileParser {
 			Map<String, BigDecimal> resultMap = new HashMap<>();
 
 			// Perform calculations for each operation defined in the plan configuration.
-			for (Operation operation : planConfiguration.getOperations()) {
-				BigDecimal result = calculationUtil.calculateResult(operation, featureNode, assumptionValueMap, resultMap);
-				String output = operation.getOutput();
-				resultMap.put(output, result);
-			}
+			performCalculationsForOperations(planConfiguration, featureNode, resultMap);
 
 			// Store census additional details mapped to their respective boundary codes.
 			boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
@@ -313,6 +306,19 @@ public class ExcelParser implements FileParser {
 
 			// Trigger plan estimate create based on the estimates calculated.
 			planUtil.create(planConfigurationRequest, featureNode, resultMap, boundaryCodeToCensusAdditionalDetails);
+		}
+	}
+
+	public void performCalculationsForOperations(PlanConfiguration planConfiguration, JsonNode featureNode, Map<String, BigDecimal> resultMap) {
+
+		// Convert assumptions into a map for efficient retrieval.
+		Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfiguration.getAssumptions());
+
+		// Perform calculations for each operation defined in the plan configuration.
+		for (Operation operation : planConfiguration.getOperations()) {
+			BigDecimal result = calculationUtil.calculateResult(operation, featureNode, assumptionValueMap, resultMap);
+			String output = operation.getOutput();
+			resultMap.put(output, result);
 		}
 	}
 
