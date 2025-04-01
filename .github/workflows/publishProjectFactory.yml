@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history for accurate commit IDs
 
-      # Step 2: Set up environment variables
+      # Step 2: Set up Environment Variables
       - name: Set up Environment Variables
         id: vars
         run: |
@@ -33,25 +33,34 @@ jobs:
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_ENV
           echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
-      # Step 3: Build the service Docker image
-      - name: Build the Service Docker Image
+      # Step 3: Log in to DockerHub
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 4: Build & Push the Service Docker Image
+      - name: Build & Push the Service Docker Image
         id: docker_build
         working-directory: ./health-services/project-factory
         run: |
           IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
           docker build . --file Dockerfile --tag $IMAGE_TAG
+          docker push $IMAGE_TAG
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "Service Docker image built successfully"
+          echo "Service Docker image built and pushed successfully"
 
-      # Step 4: Build the database migration Docker image
-      - name: Build the DB Migration Docker Image
+      # Step 5: Build & Push the DB Migration Docker Image
+      - name: Build & Push the DB Migration Docker Image
         id: docker_db_build
         working-directory: ./health-services/project-factory/migration
         run: |
           IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
           docker build . --file Dockerfile --tag $IMAGE_TAG
+          docker push $IMAGE_TAG
           echo "DB_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "DB migration Docker image built successfully"
+          echo "DB migration Docker image built and pushed successfully"
 
   node_build:
     runs-on: ubuntu-latest
