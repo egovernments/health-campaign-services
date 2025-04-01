@@ -1,7 +1,7 @@
 import { ConsumerGroup, ConsumerGroupOptions, Message } from 'kafka-node';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
-import { shutdownGracefully } from '../utils/genericUtils';
+// import { shutdownGracefully } from '../utils/genericUtils';
 
 // Kafka Configuration
 const kafkaConfig: ConsumerGroupOptions = {
@@ -43,7 +43,7 @@ export function listener() {
 
     consumerGroup.on('error', (err) => {
         logger.error(`Consumer Error: ${err}`);
-        shutdownGracefully();
+        // shutdownGracefully();
     });
 
     consumerGroup.on('offsetOutOfRange', (err) => {
