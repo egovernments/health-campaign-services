@@ -308,6 +308,7 @@ public class ExcelParser implements FileParser {
 
 			// Trigger plan estimate create based on the estimates calculated.
 			planUtil.create(planConfigurationRequest, featureNode, resultMap, boundaryCodeToCensusAdditionalDetails);
+			log.info("Successfully created plan for {} boundary", boundaryCode);
 		}
 	}
 
