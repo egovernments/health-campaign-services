@@ -15,7 +15,6 @@ import org.egov.processor.util.*;
 import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
-import org.egov.processor.web.models.campaignManager.Boundary;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.egov.processor.web.models.planFacility.PlanFacility;
@@ -134,10 +133,7 @@ public class ExcelParser implements FileParser {
 	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
 			Object campaignResponse) {
 		try (Workbook workbook = new XSSFWorkbook(file)) {
-			List<Boundary> campaignBoundaryList = new ArrayList<>();
-			DataFormatter dataFormatter = new DataFormatter();
-			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
-					campaignBoundaryList, dataFormatter);
+			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
 		} catch (FileNotFoundException e) {
 			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
@@ -202,21 +198,16 @@ public class ExcelParser implements FileParser {
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaignResponse The response object containing campaign details.
 	 * @param excelWorkbook The workbook containing sheets to be processed.
-	 * @param campaignBoundaryList List of boundary objects related to the campaign.
-	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
-							   Object campaignResponse, Workbook excelWorkbook,
-							   List<Boundary> campaignBoundaryList,
-							   DataFormatter dataFormatter) {
+							   Object campaignResponse, Workbook excelWorkbook) {
 		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
 		planConfigurationUtil.orderPlanConfigurationOperations(request);
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
-		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
-				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
+		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
@@ -239,8 +230,7 @@ public class ExcelParser implements FileParser {
 					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, boundaryCodeToCensusAdditionalDetails);
-					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
-							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
+					processRows(request, excelWorkbookSheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
@@ -308,22 +298,17 @@ public class ExcelParser implements FileParser {
 	 *                                 rows.
 	 * @param sheet                    The Excel sheet containing the data to be
 	 *                                 processed.
-	 * @param dataFormatter            The data formatter for formatting cell
-	 *                                 values.
 	 * @param fileStoreId              The ID of the file in the file store.
-	 * @param campaignBoundaryList     The list of campaign boundaries to be
-	 *                                 updated.
 	 * @param attributeNameVsDataTypeMap Mapping of attribute names to their data types.
 	 * @param boundaryCodeList List of boundary codes.
-	 * @throws IOException If an I/O error occurs.
 	 */
-	private void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, DataFormatter dataFormatter,
-							 String fileStoreId, List<Boundary> campaignBoundaryList, Map<String, Object> attributeNameVsDataTypeMap,
+	protected void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
+							 String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap,
 							 List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		// Create a Map of Boundary Code to Facility's fixed post detail.
 		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
-		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails);
+		performRowLevelCalculations(planConfigurationRequest, sheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails);
 	}
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
@@ -367,8 +352,8 @@ public class ExcelParser implements FileParser {
 	 * @param campaign The campaign response object containing campaign details.
 	 * @return A list of boundary codes corresponding to the specified hierarchy type and tenant ID.
 	 */
-	private List<String> getBoundaryCodeList(PlanConfigurationRequest planConfigurationRequest,
-			CampaignResponse campaign) {
+    List<String> getBoundaryCodeList(PlanConfigurationRequest planConfigurationRequest,
+                                     CampaignResponse campaign) {
 		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfigurationRequest.getPlanConfiguration().getTenantId(),
 				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
 		List<String> boundaryList = new ArrayList<>();
@@ -380,15 +365,13 @@ public class ExcelParser implements FileParser {
 	/**
 	 * Prepares a mapping of attribute names to their corresponding indices or data types based on configuration and MDMS data.
 	 *
-	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaign The campaign response object containing campaign details.
 	 * @param planConfig The configuration details specific to the plan.
 	 * @return A map of attribute names to their corresponding indices or data types.
 	 */
 
-	private Map<String, Object> prepareAttributeVsIndexMap(PlanConfigurationRequest planConfigurationRequest,
-			String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
+	public Map<String, Object> prepareAttributeVsIndexMap(String fileStoreId, CampaignResponse campaign, PlanConfiguration planConfig, Object mdmsData) {
 		org.egov.processor.web.models.File file = planConfig.getFiles().stream()
 				.filter(f -> f.getFilestoreId().equalsIgnoreCase(fileStoreId)).findFirst().get();
         return mdmsUtil.filterMasterData(mdmsData.toString(), campaign.getCampaign().get(0).getProjectType());
@@ -402,15 +385,12 @@ public class ExcelParser implements FileParser {
 	 *
 	 * @param planConfigurationRequest The request containing configuration details including tenant ID.
 	 * @param sheet The sheet from which rows are processed.
-	 * @param dataFormatter The data formatter for formatting cell values.
 	 * @param fileStoreId The ID of the uploaded file in the file store.
-	 * @param campaignBoundaryList List of boundary objects related to the campaign.
 	 * @param attributeNameVsDataTypeMap Mapping of attribute names to their data types.
 	 * @param boundaryCodeList List of boundary codes.
 	 */
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
-			DataFormatter dataFormatter, String fileStoreId, List<Boundary> campaignBoundaryList,
-			Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
+			String fileStoreId,	Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
 											 Map<String, Boolean> boundaryCodeToFixedPostMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails)  {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
@@ -446,7 +426,8 @@ public class ExcelParser implements FileParser {
 			// Get Boundary Code for the current row.
 			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
 			mixedStrategyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
-			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
+			if(!planConfigurationRequest.getPlanConfiguration().getStatus().equalsIgnoreCase("DRAFT"))
+				planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
 		}
 	}
@@ -495,7 +476,7 @@ public class ExcelParser implements FileParser {
 	 * @param tenantId      The tenant ID for the file upload.
 	 * @return The file store  ID of the uploaded file, or null if an error occurred.
 	 */
-	private String uploadConvertedFile(File convertedFile, String tenantId) {
+    String uploadConvertedFile(File convertedFile, String tenantId) {
 		if (convertedFile != null) {
 			return filestoreUtil.uploadFile(convertedFile, tenantId);
 		}
@@ -773,5 +754,32 @@ public class ExcelParser implements FileParser {
 		return boundaryList;
 	}
 
+	/**
+	 * Retrieves a Workbook from the given filestore ID and tenant ID.
+	 *
+	 * @param filestoreId the filestore identifier
+	 * @param tenantId the tenant identifier
+	 * @return the Workbook extracted from the filestore
+	 * @throws CustomException if the file is not found or cannot be read
+	 */
+	public Workbook getWorkbookFromFilestoreId(String filestoreId, String tenantId) {
+		File file = parsingUtil.convertByteArrayToFile(
+				filestoreUtil.getFileByteArray(tenantId, filestoreId),
+				ServiceConstants.FILE_EXTENSION
+		);
+
+		if (file == null || !file.exists()) {
+			log.error(FILE_NOT_FOUND_LOG, filestoreId, tenantId);
+			throw new CustomException(FILE_NOT_FOUND_CODE,
+					String.format(FILE_NOT_FOUND_MESSAGE, filestoreId, tenantId));
+		}
+
+		try {
+			return new XSSFWorkbook(file);
+		} catch (IOException | InvalidFormatException e) {
+			log.error("Error while reading the workbook from file: {}", file.getAbsolutePath(), e);
+			throw new CustomException(WORKBOOK_READ_ERROR_CODE, WORKBOOK_READ_ERROR_MESSAGE);
+		}
+	}
 
 }

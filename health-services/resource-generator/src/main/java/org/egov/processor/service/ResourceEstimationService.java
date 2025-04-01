@@ -10,7 +10,6 @@ import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
-import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -54,24 +53,10 @@ public class ResourceEstimationService {
 			planUtil.update(planConfigurationRequest);
 		}
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
-        Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
+        Object campaignSearchResponse = campaignIntegrationUtil.performCampaignSearch(planConfigurationRequest);
 		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
 		processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
-
-    /**
-     * Performs a campaign search based on the provided plan configuration request.
-     * This method builds a campaign search request using the integration utility,
-     * fetches the search result from the service request repository, and returns it.
-     *
-     * @param planConfigurationRequest The request object containing configuration details for the campaign search.
-     * @return The response object containing the result of the campaign search.
-     */
-	private Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
-		CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
-        return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
-				campaignRequest);
-	}
 
 	/**
 	 * Processes files in the plan configuration by parsing active files and skipping inactive ones.

@@ -32,6 +32,20 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
+	 * Performs a campaign search based on the provided plan configuration request.
+	 * This method builds a campaign search request using the integration utility,
+	 * fetches the search result from the service request repository, and returns it.
+	 *
+	 * @param planConfigurationRequest The request object containing configuration details for the campaign search.
+	 * @return The response object containing the result of the campaign search.
+	 */
+    public Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
+		CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
+		return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
+				campaignRequest);
+	}
+
+	/**
 	 * Updates resources in the Project Factory by calling an external API with the given plan configuration
 	 * request and file store ID. Logs the operation status.
 	 *
