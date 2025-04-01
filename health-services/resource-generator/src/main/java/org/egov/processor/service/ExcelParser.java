@@ -264,6 +264,7 @@ public class ExcelParser implements FileParser {
 
 			// Process the retrieved batch of census records
 			processCensusRecordsForPlan(censusRecords, boundaryCodeToCensusAdditionalDetails, planConfigurationRequest);
+			log.info("Processed {} census records", censusRecords.size());
 
 			// Increment offset for next batch
 			offset += config.getBatchSize();
