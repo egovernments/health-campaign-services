@@ -6,15 +6,15 @@ import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.processor.web.models.census.Census;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.egov.tracer.model.CustomException;
-import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
@@ -71,6 +71,35 @@ public class OutputEstimationGenerationUtil {
         // 3. Adding facility information for each boundary code
         for(Sheet sheet: workbook) {
             addAssignedFacility(sheet, request, filestoreId);
+        }
+
+    }
+
+    /**
+     * Processes an output Excel workbook by removing unnecessary sheets, localizing header columns
+     * for each boundary code. The configuration for processing
+     * is based on the provided PlanConfigurationRequest.
+     *
+     * @param workbook   the Excel workbook to process
+     * @param request    the PlanConfigurationRequest containing processing configuration
+     */
+    public void processDraftOutputFile(Workbook workbook, PlanConfigurationRequest request) {
+        LocaleResponse localeResponse = localeUtil.searchLocale(request);
+        Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+                request.getRequestInfo(),
+                request.getPlanConfiguration().getTenantId());
+
+        // 1. removing readme sheet
+        for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
+            Sheet sheet = workbook.getSheetAt(i);
+            if (!isSheetAllowedToProcess(sheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
+                workbook.removeSheetAt(i);
+            }
+        }
+
+        // 2. Stylize and localize output column headers
+        for(Sheet sheet: workbook) {
+            processSheetForHeaderLocalization(sheet, localeResponse);
         }
 
     }

@@ -39,13 +39,13 @@ public class ServiceConstants {
     public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS = "EstimationsInprogress";
     public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS = "Estimations";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
+    public static final String FILE_TEMPLATE_IDENTIFIER_DRAFT_INPROGRESS = "DraftInprogress";
+    public static final String FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE = "DraftComplete";
     public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";
     public static final String INPUT_IS_NOT_VALID = "File does not contain valid input for row ";
 
     //Mdms constants and masters
-    public static final String MDMS_SCHEMA_TYPE =  "type";
-    public static final String MDMS_SCHEMA_SECTION =  "section";
     public static final String MDMS_SCHEMA_TITLE =  "title";
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
@@ -82,7 +82,6 @@ public class ServiceConstants {
     public static final String VALIDATE_NUMBER_REGX = "^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$";
     public static final String VALIDATE_BOOLEAN_REGX = "^(?i)(true|false)$";
     
-    public static final String FILE_TEMPLATE = "Facilities";
     public static final String HIERARCHYTYPE_REPLACER = "{hierarchyType}";
     public static final String FILE_EXTENSION = "excel";
     

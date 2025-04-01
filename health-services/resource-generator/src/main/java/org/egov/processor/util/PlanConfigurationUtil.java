@@ -6,6 +6,7 @@ import org.egov.processor.config.Configuration;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,6 +14,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.egov.processor.config.ErrorConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE;
+import static org.egov.processor.config.ServiceConstants.FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE;
+import static org.egov.processor.config.ServiceConstants.FILE_TEMPLATE_IDENTIFIER_DRAFT_INPROGRESS;
 
 @Component
 @Slf4j
@@ -63,4 +66,63 @@ public class PlanConfigurationUtil {
     public void orderPlanConfigurationOperations(PlanConfigurationRequest planConfigurationRequest) {
         planConfigurationRequest.getPlanConfiguration().getOperations().sort(Comparator.comparingInt(Operation::getExecutionOrder));
     }
+
+    /**
+     * Builds a PlanConfigurationSearchRequest using information from the DraftRequest,
+     * including the plan configuration ID, tenant ID, and request info.
+     *
+     * @param draftRequest the DraftRequest containing search details
+     * @return a PlanConfigurationSearchRequest with the search criteria and request info
+     */
+    public PlanConfigurationSearchRequest buildPlanConfigurationSearchRequest(DraftRequest draftRequest) {
+        PlanConfigurationSearchCriteria searchCriteria = PlanConfigurationSearchCriteria.builder()
+                .id(draftRequest.getDraftDetails().getPlanConfigurationId())
+                .tenantId(draftRequest.getDraftDetails().getTenantId())
+                .build();
+
+        return PlanConfigurationSearchRequest.builder()
+                .requestInfo(draftRequest.getRequestInfo())
+                .planConfigurationSearchCriteria(searchCriteria)
+                .build();
+    }
+
+    /**
+     * Sets the filestore ID for the file with template identifier "ESTIMATIONS_IN_PROGRESS".
+     * If the file exists, the filestore ID is updated. If the file does not exist, a new file is added
+     * with the specified filestore ID and input file type.
+     *
+     * @param planConfigurationRequest the plan configuration request containing the list of files
+     * @param fileStoreId the filestore ID to set or add
+     * @param inputFileType the input file type for the new file if added
+     */
+    public void setOrAddFileForDraft(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
+                                                     File.InputFileTypeEnum inputFileType) {
+        List<File> files = planConfigurationRequest.getPlanConfiguration().getFiles();
+
+        // Check if file with the specified templateIdentifier exists
+        File existingFile = files.stream()
+                .filter(file -> FILE_TEMPLATE_IDENTIFIER_DRAFT_INPROGRESS.equals(file.getTemplateIdentifier()))
+                .findFirst()
+                .orElse(null);
+
+        if (!ObjectUtils.isEmpty(existingFile)) {
+            // If the file exists, update the filestoreId and change template identifier to Draft Complete
+            existingFile.setFilestoreId(fileStoreId);
+            existingFile.setTemplateIdentifier(FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE);
+        } else {
+            // If the file doesn't exist, add a new file
+            File estimationFile = File.builder()
+                    .filestoreId(fileStoreId)
+                    .inputFileType(inputFileType)
+                    .templateIdentifier(FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE)
+                    .active(true)
+                    .build();
+            files.add(estimationFile);
+        }
+
+        // Set workflow to null as in the original methods
+        planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
+    }
+
+
 }

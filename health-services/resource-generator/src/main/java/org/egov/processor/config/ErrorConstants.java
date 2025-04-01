@@ -66,5 +66,6 @@ public class ErrorConstants {
     public static final String ERROR_CONVERTING_TO_EXCEL_FILE = "Exception occurred while converting workbook to XLS: ";
     public static final String ERROR_SAVING_EXCEL_FILE = "Exception occurred while saving XLS file: ";
 
-
+    public static final String WORKBOOK_READ_ERROR_CODE = "WORKBOOK_READ_ERROR";
+    public static final String WORKBOOK_READ_ERROR_MESSAGE = "Failed to read the workbook from file.";
 }
