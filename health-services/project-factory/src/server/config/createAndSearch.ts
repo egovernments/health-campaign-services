@@ -225,7 +225,7 @@ const createAndSearch: any = {
         uniqueIdentifier: "user.userServiceUuid",
         uniqueIdentifierColumn: "N",
         uniqueIdentifierColumnName: "UserService Uuids",
-        activeColumn: "K",
+        activeColumn: "J",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,
