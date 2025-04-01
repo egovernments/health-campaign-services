@@ -223,7 +223,7 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "N",
+        uniqueIdentifierColumn: "P",
         uniqueIdentifierColumnName: "UserService Uuids",
         activeColumn: "J",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",

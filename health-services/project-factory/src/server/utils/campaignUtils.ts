@@ -309,21 +309,11 @@ function enrichActiveAndUUidColumn(
 
 function deterMineLastColumnAndEnrichUserDetails(
   worksheet: any,
-  errorDetailsColumn: number,
   userNameAndPassword:
     | { rowNumber: number; userName: string; password: string }[]
     | undefined,
-  request: any,
-  createAndSearchConfig: { uniqueIdentifierColumn?: number }
+  request: any
 ): string {
-  // Determine the last column
-  let lastColumn: any = errorDetailsColumn;
-  if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
-    lastColumn =
-      createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn
-        ? createAndSearchConfig?.uniqueIdentifierColumn
-        : errorDetailsColumn;
-  }
 
   // Default columns
   let usernameColumn = "L";
@@ -372,12 +362,9 @@ function deterMineLastColumnAndEnrichUserDetails(
       worksheet.getCell(`${usernameColumn}${rowIndex}`).value = data.userName;
       worksheet.getCell(`${passwordColumn}${rowIndex}`).value = data.password;
     });
-
-    // Update lastColumn based on the password column
-    lastColumn = passwordColumn;
   }
 
-  return lastColumn;
+  return passwordColumn;
 }
 
 function adjustRef(worksheet: any, lastColumn: any) {
@@ -409,6 +396,12 @@ function processErrorData(
   const worksheet = workbook.getWorksheet(sheetName);
   var errorData = request.body.sheetErrorDetails;
   const userNameAndPassword = request.body.userNameAndPassword;
+  // Determine the last column to set the worksheet ref
+  const lastColumn = deterMineLastColumnAndEnrichUserDetails(
+    worksheet,
+    userNameAndPassword,
+    request
+  );
   const columns: any = findColumns(worksheet);
   const statusColumn = columns.statusColumn;
   const errorDetailsColumn = columns.errorDetailsColumn;
@@ -428,15 +421,6 @@ function processErrorData(
   request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors
     ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors)
     : additionalDetailsErrors;
-
-  // Determine the last column to set the worksheet ref
-  const lastColumn = deterMineLastColumnAndEnrichUserDetails(
-    worksheet,
-    errorDetailsColumn,
-    userNameAndPassword,
-    request,
-    createAndSearchConfig
-  );
 
   // Adjust the worksheet ref to include the last column
   adjustRef(worksheet, lastColumn);
@@ -520,10 +504,8 @@ function processErrorDataForEachSheets(
   }
   deterMineLastColumnAndEnrichUserDetails(
     desiredSheet,
-    errorDetailsColumn,
     newUserNameAndPassword,
-    request,
-    createAndSearchConfig
+    request
   );
   request.body.additionalDetailsErrors = request?.body?.additionalDetailsErrors
     ? request?.body?.additionalDetailsErrors.concat(additionalDetailsErrors)
