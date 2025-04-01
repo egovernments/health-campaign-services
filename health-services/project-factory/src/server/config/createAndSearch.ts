@@ -215,6 +215,12 @@ const createAndSearch: any = {
                     sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                     resultantPath: "jurisdictions",
                     type: "string"
+                },
+                {
+                    sheetColumn: "L",
+                    sheetColumnName: "UserName",
+                    resultantPath: "user.userName",
+                    type: "string"
                 }
             ],
             tenantId: {
