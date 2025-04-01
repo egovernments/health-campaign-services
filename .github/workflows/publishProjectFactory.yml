@@ -18,38 +18,39 @@ jobs:
 
     steps:
       # Step 1: Checkout the repository
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch all history for tags and branches
+          fetch-depth: 0  # Fetch all history for accurate commit IDs
 
       # Step 2: Set up environment variables
-      - name: Set up environment variables
-        id: env
+      - name: Set up Environment Variables
+        id: vars
         run: |
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-')
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_ENV
           echo "ACTION_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
       # Step 3: Build the service Docker image
-      - name: Build the service Docker image
+      - name: Build the Service Docker Image
         id: docker_build
         working-directory: ./health-services/project-factory
         run: |
-          IMAGE_TAG=egovio/project-factory:${{ env.ACTION_NUMBER }}
-          docker build . \
-            --file Dockerfile \
-            --tag $IMAGE_TAG
-          echo "::set-output name=image_name::$IMAGE_TAG"
+          IMAGE_TAG=egovio/project-factory:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
+          docker build . --file Dockerfile --tag $IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "Service Docker image built successfully"
 
       # Step 4: Build the database migration Docker image
-      - name: Build the DB migration Docker image
+      - name: Build the DB Migration Docker Image
         id: docker_db_build
         working-directory: ./health-services/project-factory/migration
         run: |
-          IMAGE_TAG=egovio/project-factory-db:${{ env.ACTION_NUMBER }}
-          docker build . \
-            --file Dockerfile \
-            --tag $IMAGE_TAG
-          echo "::set-output name=db_image_name::$IMAGE_TAG"
+          IMAGE_TAG=egovio/project-factory-db:${{ env.BRANCH_NAME }}-${{ env.COMMIT_ID }}-${{ env.ACTION_NUMBER }}
+          docker build . --file Dockerfile --tag $IMAGE_TAG
+          echo "DB_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "DB migration Docker image built successfully"
 
   node_build:
@@ -57,15 +58,17 @@ jobs:
 
     steps:
       # Step 1: Checkout the repository
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       # Step 2: Set up Node.js environment
-      - uses: actions/setup-node@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
         with:
           node-version: 20
 
       # Step 3: Install dependencies and build for production
-      - name: Install dependencies and build
+      - name: Install Dependencies and Build
         working-directory: ./health-services/project-factory
         run: |
           yarn install
