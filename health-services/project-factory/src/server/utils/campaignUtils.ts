@@ -604,7 +604,7 @@ async function hideMultiSelectMainColumns(
   const isSourceMicroplan = checkIfSourceIsMicroplan(request?.body?.ResourceDetails);
   const schema = await getSchema(tenantId, isUpdate, type, isSourceMicroplan);
   const properties = schema?.properties;
-  if (Object.keys(properties).length > 0) {
+  if (properties && Object.keys(properties)?.length > 0) {
     const headerRow = worksheet.getRow(1); // Assuming header is in the first row
 
     for (const key in properties) {
