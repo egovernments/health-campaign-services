@@ -67,7 +67,7 @@ import {
   validateBoundarySheetDataInCreateFlow,
 } from "../validators/campaignValidators";
 import {
-  findColumnByHeader,
+  // findColumnByHeader,
   getExcelWorkbookFromFileURL,
   getNewExcelWorkbook,
   lockTargetFields,
@@ -327,15 +327,15 @@ function deterMineLastColumnAndEnrichUserDetails(
     passwordColumn = "G";
   }
 
-  const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
-  const foundPasswordColumn = findColumnByHeader("Password", worksheet);
+  // const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
+  // const foundPasswordColumn = findColumnByHeader("Password", worksheet);
 
-  if (foundUsernameColumn) {
-    usernameColumn = foundUsernameColumn;
-  }
-  if (foundPasswordColumn) {
-    passwordColumn = foundPasswordColumn;
-  }
+  // if (foundUsernameColumn) {
+  //   usernameColumn = foundUsernameColumn;
+  // }
+  // if (foundPasswordColumn) {
+  //   passwordColumn = foundPasswordColumn;
+  // }
 
   // Populate username and password columns if data is provided
   if (userNameAndPassword) {
