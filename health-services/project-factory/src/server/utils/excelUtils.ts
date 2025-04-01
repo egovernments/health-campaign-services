@@ -235,11 +235,13 @@ function addDataToSheet(
     }
   });
   finalizeSheet(request, sheet, frozeCells, frozeWholeSheet, localizationMap, fileUrl, schema);
-  manageMultiSelect(sheet, schema, localizationMap);
+  manageMultiSelect(sheet, schema, localizationMap, fileUrl, sheetData);
 }
 
-function manageMultiSelect(sheet: any, schema: any, localizationMap?: any) {
+function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
   const headerRow = sheet.getRow(1); // Assuming first row is the header
+  const rowsLength = sheetData?.length || 0;
+  const isChildOfSomeCampaign = Boolean(fileUrl);
 
   for (const property in schema?.properties) {
     if (schema?.properties[property]?.multiSelectDetails) {
@@ -263,7 +265,7 @@ function manageMultiSelect(sheet: any, schema: any, localizationMap?: any) {
 
       // Apply dropdowns for previous columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
-        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList);
+        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
 
       // Apply CONCATENATE formula
@@ -280,10 +282,12 @@ function manageMultiSelect(sheet: any, schema: any, localizationMap?: any) {
 // -----------------------------
 // Function to Apply Dropdowns
 // -----------------------------
-function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[]) {
+function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[], isChildOfSomeCampaign: boolean = false, rowsLength: number = 1) {
+  // Loop through columns for multi-select
   for (let i = 1; i <= maxSelections; i++) {
     const colIndex = currentColumnIndex - maxSelections + i - 1;
 
+    // Apply dropdown validation to each cell (skipping the first row)
     sheet.getColumn(colIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
       if (rowNumber > 1) {
         cell.dataValidation = {
@@ -297,9 +301,17 @@ function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, ma
           allowBlank: true // Allow blank entries
         };
       }
+
+      // Freeze the current cell (the multi-select cell itself)
+      if (rowNumber > 1 && rowNumber <= rowsLength && isChildOfSomeCampaign) {
+        cell.protection = {
+          locked: true, // Lock the cell
+        };
+      }
     });
   }
 }
+
 
 // -----------------------------
 // Function to Apply CONCATENATE Formula
