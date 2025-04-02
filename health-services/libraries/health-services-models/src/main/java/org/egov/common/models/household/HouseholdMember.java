@@ -49,16 +49,16 @@ public class HouseholdMember extends EgovOfflineModel {
 
     @JsonProperty("relationships")
     @Valid
-    private List<HouseholdMemberRelationship> relationships;
+    private List<Relationship> relationships;
 
     //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    public HouseholdMember addHouseholdMemberRelationship(HouseholdMemberRelationship relationship) {
+    public HouseholdMember addHouseholdMemberRelationship(Relationship relationship) {
         if (this.relationships == null) this.relationships = new ArrayList<>();
-        relationship.setHouseholdMemberId(this.getId());
-        relationship.setHouseholdMemberClientReferenceId(this.getClientReferenceId());
+        relationship.setSelfId(this.getId());
+        relationship.setSelfClientReferenceId(this.getClientReferenceId());
         this.relationships.add(relationship);
         return this;
     }

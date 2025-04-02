@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
-import org.egov.common.models.household.HouseholdMemberRelationship;
+import org.egov.common.models.household.Relationship;
 import org.egov.common.service.IdGenService;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,6 @@ import java.util.Map;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForDelete;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
@@ -93,7 +92,7 @@ public class HouseholdMemberEnrichmentService {
         log.info("enriching HouseholdMember with delete information before deletion");
         if (!CollectionUtils.isEmpty(householdMembers)) {
             for (HouseholdMember householdMember: householdMembers) {
-                List<HouseholdMemberRelationship> relationships = householdMember.getRelationships();
+                List<Relationship> relationships = householdMember.getRelationships();
                 if (!CollectionUtils.isEmpty(relationships)) {
                     enrichForDelete(relationships, beneficiaryRequest.getRequestInfo(), true);
                 }
@@ -121,7 +120,7 @@ public class HouseholdMemberEnrichmentService {
                                                  List<HouseholdMember> validHouseholdMembers) {
         for (HouseholdMember householdMember : validHouseholdMembers) {
             log.info("enriching relationships");
-            List<HouseholdMemberRelationship> relationships = householdMember.getRelationships();
+            List<Relationship> relationships = householdMember.getRelationships();
             if(CollectionUtils.isEmpty(relationships))
                 continue;
             List<String> ids = uuidSupplier().apply(relationships.size());
@@ -131,13 +130,13 @@ public class HouseholdMemberEnrichmentService {
     }
 
     private static void enrichRelationshipsForCreate(HouseholdMemberBulkRequest request,
-                                                 List<HouseholdMemberRelationship> relationships, HouseholdMember householdMember) {
+                                                     List<Relationship> relationships, HouseholdMember householdMember) {
         log.info("enriching resources");
         List<String> ids = uuidSupplier().apply(relationships.size());
         enrichForCreate(relationships, ids, request.getRequestInfo(), true);
         relationships.forEach(relationship -> {
-            relationship.setHouseholdMemberId(householdMember.getId());
-            relationship.setHouseholdMemberClientReferenceId(householdMember.getClientReferenceId());
+            relationship.setSelfId(householdMember.getId());
+            relationship.setSelfClientReferenceId(householdMember.getClientReferenceId());
             relationship.setTenantId(householdMember.getTenantId());
         });
     }
@@ -145,9 +144,9 @@ public class HouseholdMemberEnrichmentService {
     private static void enrichRelationshipsForUpdate(HouseholdMemberBulkRequest request, List<HouseholdMember> householdMembers, List<HouseholdMember> existingHouseholdMembers) {
         log.info("enriching relationships for update");
         for (HouseholdMember householdMember : householdMembers) {
-            List<HouseholdMemberRelationship> resourcesToCreate = new ArrayList<>();
-            List<HouseholdMemberRelationship> resourcesToUpdate = new ArrayList<>();
-            List<HouseholdMemberRelationship> updatedResources = householdMember.getRelationships();
+            List<Relationship> resourcesToCreate = new ArrayList<>();
+            List<Relationship> resourcesToUpdate = new ArrayList<>();
+            List<Relationship> updatedResources = householdMember.getRelationships();
             if(!CollectionUtils.isEmpty(updatedResources)) {
                 resourcesToCreate = householdMember.getRelationships().stream()
                         .filter(r -> r.getId() == null).toList();
@@ -159,7 +158,7 @@ public class HouseholdMemberEnrichmentService {
                  enrichRelationshipsForCreate(request, resourcesToCreate, householdMember);
             }
             if (!CollectionUtils.isEmpty(resourcesToUpdate)) {
-                Map<String, HouseholdMemberRelationship> hmrMap = getIdToObjMap(resourcesToUpdate);
+                Map<String, Relationship> hmrMap = getIdToObjMap(resourcesToUpdate);
                 enrichForUpdate(hmrMap, resourcesToUpdate, request);
             }
         }

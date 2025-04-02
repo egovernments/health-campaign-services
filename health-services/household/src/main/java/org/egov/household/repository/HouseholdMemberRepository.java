@@ -4,14 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
-import org.egov.common.models.household.HouseholdMemberRelationship;
+import org.egov.common.models.household.Relationship;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.producer.Producer;
-import org.egov.household.repository.rowmapper.HouseholdMemberRelationshipMapper;
+import org.egov.household.repository.rowmapper.RelationshipRowMapper;
 import org.egov.household.repository.rowmapper.HouseholdMemberRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -36,7 +35,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 public class HouseholdMemberRepository extends GenericRepository<HouseholdMember> {
 
     @Autowired
-    private HouseholdMemberRelationshipMapper memberRelationshipMapper;
+    private RelationshipRowMapper relationshipRowMapper;
 
     @Autowired
     protected HouseholdMemberRepository(Producer producer,
@@ -162,16 +161,16 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
             resourceQuery.append("AND isDeleted=:isDeleted ");
             resourceParamsMap.put("isDeleted", false);
         }
-        List<HouseholdMemberRelationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
-                this.memberRelationshipMapper);
-        Map<String, List<HouseholdMemberRelationship>> idToObjMap = new HashMap<>();
+        List<Relationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
+                this.relationshipRowMapper);
+        Map<String, List<Relationship>> idToObjMap = new HashMap<>();
 
         relationships.forEach(relationship -> {
-            String memberId = relationship.getHouseholdMemberId();
+            String memberId = relationship.getSelfId();
             if (idToObjMap.containsKey(memberId)) {
                 idToObjMap.get(memberId).add(relationship);
             } else {
-                List<HouseholdMemberRelationship> memberRelationships = new ArrayList<>();
+                List<Relationship> memberRelationships = new ArrayList<>();
                 memberRelationships.add(relationship);
                 idToObjMap.put(memberId, memberRelationships);
             }

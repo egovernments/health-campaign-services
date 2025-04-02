@@ -134,14 +134,14 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
-        - query: INSERT INTO HOUSEHOLD_MEMBER_RELATIONSHIP(id, clientReferenceId, tenantId, householdMemberId, householdMemberClientReferenceId, relativeId, relativeClientReferenceId, relationshipType, createdBy, lastModifiedBy, createdTime, lastModifiedTime, clientCreatedBy, clientLastModifiedBy, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO HOUSEHOLD_MEMBER_RELATIONSHIP(id, clientReferenceId, tenantId, selfId, selfClientReferenceId, relativeId, relativeClientReferenceId, relationshipType, createdBy, lastModifiedBy, createdTime, lastModifiedTime, clientCreatedBy, clientLastModifiedBy, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.relationships.*
           jsonMaps:
             - jsonPath: $.*.relationships.*.id
             - jsonPath: $.*.relationships.*.clientReferenceId
             - jsonPath: $.*.relationships.*.tenantId
-            - jsonPath: $.*.relationships.*.householdMemberId
-            - jsonPath: $.*.relationships.*.householdMemberClientReferenceId
+            - jsonPath: $.*.relationships.*.selfId
+            - jsonPath: $.*.relationships.*.selfClientReferenceId
             - jsonPath: $.*.relationships.*.relativeId
             - jsonPath: $.*.relationships.*.relativeClientReferenceId
             - jsonPath: $.*.relationships.*.relationshipType
@@ -173,17 +173,19 @@ serviceMaps:
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.individualId
             - jsonPath: $.*.householdId
-        - query: UPDATE HOUSEHOLD_MEMBER_RELATIONSHIP SET relationshipType=?, lastModifiedBy=?, lastModifiedTime=?, clientLastModifiedBy=?, clientLastModifiedTime=?, rowVersion=?, isDeleted=? WHERE householdMemberId=? AND isDeleted=false;
+        - query: UPDATE HOUSEHOLD_MEMBER_RELATIONSHIP SET relationshipType=?, relativeId=?, relativeClientReferenceId=?, lastModifiedBy=?, lastModifiedTime=?, clientLastModifiedBy=?, clientLastModifiedTime=?, rowVersion=?, isDeleted=? WHERE selfId=? AND isDeleted=false;
           basePath: $.*.relationships.*
           jsonMaps:
             - jsonPath: $.*.relationships.*.relationshipType
+            - jsonPath: $.*.relationships.*.relativeId
+            - jsonPath: $.*.relationships.*.relativeClientReferenceId
             - jsonPath: $.*.relationships.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.relationships.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.relationships.*.clientAuditDetails.lastModifiedBy
             - jsonPath: $.*.relationships.*.clientAuditDetails.lastModifiedTime
             - jsonPath: $.*.relationships.*.rowVersion
             - jsonPath: $.*.relationships.*.isDeleted
-            - jsonPath: $.*.relationships.*.householdMemberId
+            - jsonPath: $.*.relationships.*.selfId
     - version: 1.0
       description: Deletes household Member.
       fromTopic: delete-household-member-topic
@@ -197,11 +199,11 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
-        - query: UPDATE HOUSEHOLD_MEMBER_RELATIONSHIP SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE householdMemberId = ?;
+        - query: UPDATE HOUSEHOLD_MEMBER_RELATIONSHIP SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE selfId = ?;
           basePath: $.*.relationships.*
           jsonMaps:
             - jsonPath: $.*.relationships.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.relationships.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.relationships.*.rowVersion
             - jsonPath: $.*.relationships.*.isDeleted
-            - jsonPath: $.*.relationships.*.householdMemberId
+            - jsonPath: $.*.relationships.*.selfId

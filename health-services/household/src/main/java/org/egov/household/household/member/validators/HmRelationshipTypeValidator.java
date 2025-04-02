@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
-import org.egov.common.models.household.HouseholdMemberRelationship;
+import org.egov.common.models.household.Relationship;
 import org.egov.common.validator.Validator;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsResponse;
@@ -67,7 +67,7 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
         householdMembers.stream()
                 .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
                 .forEach(householdMember -> {
-                    Set<String> relationshipTypes = householdMember.getRelationships().stream().map(HouseholdMemberRelationship::getRelationshipType)
+                    Set<String> relationshipTypes = householdMember.getRelationships().stream().map(Relationship::getRelationshipType)
                             .collect(Collectors.toSet());
                     if (!allowedRelationshipTypes.containsAll(relationshipTypes)) {
                         Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE)
