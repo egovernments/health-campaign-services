@@ -1046,9 +1046,10 @@ function generateUserPassword() {
 }
 
 async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
-  const jurisdictionsArray = employee?.jurisdictions
-    ?.split(",")
-    ?.map((jurisdiction : any ) => jurisdiction.trim());
+  const jurisdictionsArray =
+    typeof employee?.jurisdictions === "string"
+      ? employee.jurisdictions.split(",").map((jurisdiction: any) => jurisdiction.trim())
+      : undefined;
 
   if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
     const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
