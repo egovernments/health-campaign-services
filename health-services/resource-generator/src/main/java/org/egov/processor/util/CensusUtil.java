@@ -75,19 +75,27 @@ public class CensusUtil {
     private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String hierarchyType) {
 
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        Object additionalDetails = enrichAdditionalDetailsForCensus(feature, mappedValues);
+
+        Census census = Census.builder()
+                .tenantId(planConfig.getTenantId())
+                .hierarchyType(hierarchyType)
+                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
+                .type(Census.TypeEnum.PEOPLE)
+                .facilityAssigned(Boolean.FALSE)
+                .partnerAssignmentValidationEnabled(Boolean.TRUE)
+                .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
+                .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
+                .source(planConfig.getId())
+                .additionalFields(enrichAdditionalField(feature, mappedValues)).build();
+
+
+        if (!ObjectUtils.isEmpty(additionalDetails)) {
+            census.setAdditionalDetails(additionalDetails);
+        }
+
         return CensusRequest.builder()
-                .census(Census.builder()
-                        .tenantId(planConfig.getTenantId())
-                        .hierarchyType(hierarchyType)
-                        .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
-                        .type(Census.TypeEnum.PEOPLE)
-                        .facilityAssigned(Boolean.FALSE)
-                        .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
-                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
-                        .source(planConfig.getId())
-                        .additionalFields(enrichAdditionalField(feature, mappedValues))
-                        .additionalDetails(enrichAdditionalDetailsForCensus(feature, mappedValues)).build())
+                .census(census)
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
     }
@@ -121,7 +129,7 @@ public class CensusUtil {
             return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeAddedInAdditionalDetails);
         }
 
-        return null; // Return null if no additional details were added
+        return new HashMap<>(); // Return null if no additional details were added
     }
 
     /**
