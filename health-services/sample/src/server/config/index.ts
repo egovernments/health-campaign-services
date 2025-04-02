@@ -46,7 +46,7 @@ const config = {
   app: {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
-    contextPath: process.env.CONTEXT_PATH || "/sample-test",
+    contextPath: process.env.CONTEXT_PATH || "/application-service",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
     defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
