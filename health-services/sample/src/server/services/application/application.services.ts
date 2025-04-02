@@ -5,6 +5,8 @@ interface Application {
     name: string;
     status: string;
     createdAt: Date;
+    Application: any;
+    Workflow: any;
     updatedAt?: Date;
 }
 
@@ -16,11 +18,14 @@ class ApplicationService {
      * @param data The application data from the request body.
      * @returns The newly created application.
      */
-    async createApplication(data: { name: string; status: string }): Promise<Application> {
+    async createApplication(data: any): Promise<Application> {
         const newApplication: Application = {
             id: String(applicationStore.length + 1),
             name: data.name,
             status: data.status,
+            Application:{...data?.Application,    id: String(applicationStore.length + 1),
+            },
+            Workflow:data?.Workflow,
             createdAt: new Date(),
         };
 
