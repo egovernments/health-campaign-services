@@ -81,8 +81,9 @@ public class DraftService {
 
         // Process the workbook
         workbook.forEach(excelWorkbookSheet -> {
-            excelParser.processRows(request, excelWorkbookSheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, new HashMap<>());
-        });
+            if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
+                excelParser.processRows(request, excelWorkbookSheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, new HashMap<>(), Boolean.TRUE);
+            }});
 
         // Process output file - handle localisation
         outputEstimationGenerationUtil.processDraftOutputFile(workbook, request);
