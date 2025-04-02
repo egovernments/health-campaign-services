@@ -358,7 +358,7 @@ export function validateMultiSelect(
             // Collect all errors at once
             const errorDetails = [];
             if (duplicatesSet.size > 0) {
-                errorDetails.push(`Duplicate values: ${[...duplicatesSet].join(", ")}`);
+                errorDetails.push(`Duplicate roles`);
             }
             if (valuesSet.size < minSelections) {
                 errorDetails.push(`At least ${minSelections} ${getLocalizedName(property?.name, localizationMap)} should be selected.`);
