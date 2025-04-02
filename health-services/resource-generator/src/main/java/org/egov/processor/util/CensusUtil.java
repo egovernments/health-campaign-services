@@ -12,10 +12,12 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.census.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -73,20 +75,61 @@ public class CensusUtil {
     private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String hierarchyType) {
 
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        Object additionalDetails = enrichAdditionalDetailsForCensus(feature, mappedValues);
+
+        Census census = Census.builder()
+                .tenantId(planConfig.getTenantId())
+                .hierarchyType(hierarchyType)
+                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
+                .type(Census.TypeEnum.PEOPLE)
+                .facilityAssigned(Boolean.FALSE)
+                .partnerAssignmentValidationEnabled(Boolean.TRUE)
+                .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
+                .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
+                .source(planConfig.getId())
+                .additionalFields(enrichAdditionalField(feature, mappedValues)).build();
+
+
+        if (!ObjectUtils.isEmpty(additionalDetails)) {
+            census.setAdditionalDetails(additionalDetails);
+        }
+
         return CensusRequest.builder()
-                .census(Census.builder()
-                        .tenantId(planConfig.getTenantId())
-                        .hierarchyType(hierarchyType)
-                        .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
-                        .type(Census.TypeEnum.PEOPLE)
-                        .facilityAssigned(Boolean.FALSE)
-                        .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
-                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
-                        .source(planConfig.getId())
-                        .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
+                .census(census)
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
+    }
+
+    /**
+     * Enriches additional details for a census records.
+     *
+     * @param feature      The JSON node representing the census record feature.
+     * @param mappedValues A map containing pre-mapped values from the feature.
+     * @return An updated additional details object for census records.
+     */
+    private Object enrichAdditionalDetailsForCensus(JsonNode feature, Map<String, String> mappedValues) {
+        // Extract latitude and longitude values from the feature.
+        BigDecimal latitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LATITUDE, feature, mappedValues);
+        BigDecimal longitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LONGITUDE, feature, mappedValues);
+
+        // Map to store additional details to be added.
+        Map<String, Object> fieldsToBeAddedInAdditionalDetails = new HashMap<>();
+
+        // Add latitude to additional details only if it's not null.
+        if (!ObjectUtils.isEmpty(latitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LATITUDE_KEY, latitude);
+        }
+
+        // Add longitude to additional details only if it's not null.
+        if (!ObjectUtils.isEmpty(longitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LONGITUDE_KEY, longitude);
+        }
+
+        if (!CollectionUtils.isEmpty(fieldsToBeAddedInAdditionalDetails)) {
+            return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeAddedInAdditionalDetails);
+        }
+
+        return new HashMap<>(); // Return null if no additional details were added
     }
 
     /**

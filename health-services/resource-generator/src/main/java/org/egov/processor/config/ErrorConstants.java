@@ -54,8 +54,6 @@ public class ErrorConstants {
     public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE = "NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER";
     public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE = "Master data not found for Mixed Strategy master";
 
-    public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
-
     public static final String ERROR_PROCESSING_DATA_FROM_MDMS = "Exception occurred while processing data from mdms ";
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
