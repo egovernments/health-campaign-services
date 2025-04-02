@@ -281,7 +281,7 @@ config:
         image-name: microplan-ui
 
 #Utilities
-  - name: "builds/health-campaign-services/health-services/generic-service"
+  - name: "builds/health-campaign-services/health-services/project-factory"
     build:
       - work-dir: "health-services/generic-service"
         image-name: "generic-service"
