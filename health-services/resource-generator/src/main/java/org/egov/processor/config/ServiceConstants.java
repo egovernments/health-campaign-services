@@ -128,4 +128,6 @@ public class ServiceConstants {
     public static final boolean FREEZE_CELL = true; // Controls whether cells should be locked for editing
     public static final int COLUMN_WIDTH = 40; //Default column width in characters (1-255)
     public static final int COLUMN_PADDING = 512;
-}
+
+    public static final String DRAFT_STATUS = "DRAFT";
+ }

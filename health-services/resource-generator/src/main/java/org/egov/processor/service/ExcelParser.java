@@ -515,7 +515,7 @@ public class ExcelParser implements FileParser {
 								planConfig, mixedStrategyOperationLogicList));
 			}
 
-			if(!planConfigurationRequest.getPlanConfiguration().getStatus().equalsIgnoreCase("DRAFT"))
+			if(!planConfigurationRequest.getPlanConfiguration().getStatus().equalsIgnoreCase(DRAFT_STATUS))
 				planUtil.create(planConfigurationRequest, feature, resultMap, boundaryCodeToCensusAdditionalDetails);
 
 		}
