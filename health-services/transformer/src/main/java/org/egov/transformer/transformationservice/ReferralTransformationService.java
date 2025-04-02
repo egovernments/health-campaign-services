@@ -100,7 +100,7 @@ public class ReferralTransformationService {
                 .map(Facility::getName)
                 .orElse(DEFAULT_FACILITY_NAME);
 
-        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getClientAuditDetails().getCreatedBy());
 
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, referral.getClientAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
