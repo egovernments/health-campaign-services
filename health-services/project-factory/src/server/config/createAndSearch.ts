@@ -221,6 +221,12 @@ const createAndSearch: any = {
                     sheetColumnName: "UserName",
                     resultantPath: "user.userName",
                     type: "string"
+                },
+                {
+                    sheetColumn: "M",
+                    sheetColumnName: "Password",
+                    resultantPath: "user.password",
+                    type: "string"
                 }
             ],
             tenantId: {

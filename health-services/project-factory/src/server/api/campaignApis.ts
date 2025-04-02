@@ -1180,10 +1180,14 @@ async function enrichEmployees(employees: any[], request: any) {
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
-    const generatedPassword =
+    var generatedPassword = user?.password;
+    if(!user.password || user.password === "undefined" || user.password.trim() === "")
+    {
+       generatedPassword =
       config?.user?.userPasswordAutoGenerate == "true"
         ? generateUserPassword()
         : config?.user?.userDefaultPassword;
+    }
     if (!user.userName || user.userName === "undefined" || user.userName.trim() === "") {
       // Assign an ID only if the userName is missing
       user.userName = result?.idResponses?.[i]?.id;
