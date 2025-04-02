@@ -1438,7 +1438,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab
             if (!tabsOfDistrict.includes(tab)) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tab ${tab} not present in the Target Sheet Uploaded`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} ${tab} not present in selected boundaries.`);
             }
         }
         const MissingDistricts: any = [];
