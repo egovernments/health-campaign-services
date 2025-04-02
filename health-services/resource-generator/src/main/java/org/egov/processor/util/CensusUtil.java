@@ -12,10 +12,12 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.census.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -84,9 +86,30 @@ public class CensusUtil {
                         .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
                         .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
                         .source(planConfig.getId())
-                        .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
+                        .additionalFields(enrichAdditionalField(feature, mappedValues))
+                        .additionalDetails(enrichAdditionalDetailsForCensus(feature, mappedValues)).build())
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
+    }
+
+    private Object enrichAdditionalDetailsForCensus(JsonNode feature, Map<String, String> mappedValues) {
+        BigDecimal latitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LATITUDE, feature, mappedValues);
+        BigDecimal longitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LONGITUDE, feature, mappedValues);
+        Map<String, Object> fieldsToBeAddedInAdditionalDetails = new HashMap<>();
+
+        if(!ObjectUtils.isEmpty(latitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LATITUDE_KEY, latitude);
+        }
+
+        if(!ObjectUtils.isEmpty(longitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LONGITUDE_KEY, longitude);
+        }
+
+        if(!CollectionUtils.isEmpty(fieldsToBeAddedInAdditionalDetails)) {
+            return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeAddedInAdditionalDetails);
+        }
+
+        return null;
     }
 
     /**

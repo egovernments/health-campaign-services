@@ -118,6 +118,11 @@ public class ServiceConstants {
     public static final String UPLOADED_KEY = "UPLOADED_";
     public static final String CONFIRMED_KEY = "CONFIRMED_";
     public static final String CODE = "code";
+    public static final String TOTAL_POPULATION = "HCM_ADMIN_CONSOLE_TOTAL_POPULATION";
+    public static final String LATITUDE = "HCM_ADMIN_CONSOLE_TARGET_LAT_OPT";
+    public static final String LONGITUDE = "HCM_ADMIN_CONSOLE_TARGET_LONG_OPT";
+    public static final String LONGITUDE_KEY = "longitude";
+    public static final String LATITUDE_KEY = "latitude";
 
     //Excel header row styling constants
     public static final String HEX_BACKGROUND_COLOR = "93C47D"; // Background color in HEX format (RRGGBB) for Excel header rows
