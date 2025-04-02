@@ -134,7 +134,7 @@ public class HouseholdMemberEnrichmentService {
                                                  List<HouseholdMemberRelationship> relationships, HouseholdMember householdMember) {
         log.info("enriching resources");
         List<String> ids = uuidSupplier().apply(relationships.size());
-        enrichForCreate(relationships, ids, request.getRequestInfo(), false);
+        enrichForCreate(relationships, ids, request.getRequestInfo(), true);
         relationships.forEach(relationship -> {
             relationship.setHouseholdMemberId(householdMember.getId());
             relationship.setHouseholdMemberClientReferenceId(householdMember.getClientReferenceId());
