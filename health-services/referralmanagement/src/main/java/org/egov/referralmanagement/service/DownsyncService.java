@@ -150,7 +150,9 @@ public class DownsyncService {
             searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
         }
 
-        searchServices(downsyncRequest, downsync, individualClientRefIds, householdClientRefIds);
+        if (configs.getServiceRequestDownsyncEnabled()) {
+            searchServices(downsyncRequest, downsync, individualClientRefIds, householdClientRefIds);
+        }
 
         return downsync;
     }
