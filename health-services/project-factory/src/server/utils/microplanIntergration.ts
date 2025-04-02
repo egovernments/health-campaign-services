@@ -184,7 +184,6 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     `doing the facility data fetch for planConfigurationId: ${planConfigurationId} and campaignId: ${campaignId} `
   );
   const facilityAdminSchema = await callMdmsTypeSchema(
-    request,
     tenantId,
     true,
     "facility"
