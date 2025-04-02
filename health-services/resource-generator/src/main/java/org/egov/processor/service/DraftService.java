@@ -4,6 +4,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.processor.util.*;
 import org.egov.processor.web.models.*;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public class DraftService {
         this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
     }
 
+    @Async
     public void createDraftPlans(DraftRequest draftRequest) {
         // Retrieve Plan Configuration
         List<PlanConfiguration> planConfigurationList = planConfigurationUtil.search(planConfigurationUtil.buildPlanConfigurationSearchRequest(draftRequest));

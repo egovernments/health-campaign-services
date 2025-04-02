@@ -20,7 +20,6 @@ public class DraftController {
     @PostMapping("/draft")
     public ResponseEntity<String> createDraftMicroplan(@RequestBody @Valid DraftRequest draftRequest) {
         draftService.createDraftPlans(draftRequest);
-        //TODO: figure out response
-        return null;
+        return ResponseEntity.ok("Draft processing started successfully.");
     }
 }
