@@ -4,9 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.HouseholdMemberRelationship;
 import org.egov.common.service.IdGenService;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -16,6 +18,7 @@ import java.util.Map;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForDelete;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
@@ -47,6 +50,7 @@ public class HouseholdMemberEnrichmentService {
         enrichHousehold(householdMembers);
         log.info("enriching household members for create request");
         enrichForCreate(householdMembers, uuidList, request.getRequestInfo());
+        enrichRelationshipsForCreate(request, householdMembers);
         log.info("completed enriching household members for create request");
     }
 
@@ -61,6 +65,7 @@ public class HouseholdMemberEnrichmentService {
                 "id", false).getResponse();
         log.info("updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholdMembers, beneficiaryRequest);
+        enrichRelationshipsForUpdate(beneficiaryRequest, householdMembers, existingHouseholdMembers);
         log.info("household Members updated successfully.");
     }
 
@@ -82,9 +87,18 @@ public class HouseholdMemberEnrichmentService {
             enrichWithHouseholdId(householdMap, householdMember);
         }
     }
+
     public void delete(List<HouseholdMember> householdMembers,
                        HouseholdMemberBulkRequest beneficiaryRequest) {
         log.info("enriching HouseholdMember with delete information before deletion");
+        if (!CollectionUtils.isEmpty(householdMembers)) {
+            for (HouseholdMember householdMember: householdMembers) {
+                List<HouseholdMemberRelationship> relationships = householdMember.getRelationships();
+                if (!CollectionUtils.isEmpty(relationships)) {
+                    enrichForDelete(relationships, beneficiaryRequest.getRequestInfo(), true);
+                }
+            }
+        }
         enrichForDelete(householdMembers, beneficiaryRequest.getRequestInfo(), true);
     }
 
@@ -101,5 +115,53 @@ public class HouseholdMemberEnrichmentService {
                 householdMember.getHouseholdClientReferenceId();
         log.info("retrieved householdId");
         return householdId;
+    }
+
+    private static void enrichRelationshipsForCreate(HouseholdMemberBulkRequest request,
+                                                 List<HouseholdMember> validHouseholdMembers) {
+        for (HouseholdMember householdMember : validHouseholdMembers) {
+            log.info("enriching relationships");
+            List<HouseholdMemberRelationship> relationships = householdMember.getRelationships();
+            if(CollectionUtils.isEmpty(relationships))
+                continue;
+            List<String> ids = uuidSupplier().apply(relationships.size());
+            enrichForCreate(relationships, ids, request.getRequestInfo(), false);
+            enrichRelationshipsForCreate(request, relationships, householdMember);
+        }
+    }
+
+    private static void enrichRelationshipsForCreate(HouseholdMemberBulkRequest request,
+                                                 List<HouseholdMemberRelationship> relationships, HouseholdMember householdMember) {
+        log.info("enriching resources");
+        List<String> ids = uuidSupplier().apply(relationships.size());
+        enrichForCreate(relationships, ids, request.getRequestInfo(), false);
+        relationships.forEach(relationship -> {
+            relationship.setHouseholdMemberId(householdMember.getId());
+            relationship.setHouseholdMemberClientReferenceId(householdMember.getClientReferenceId());
+            relationship.setTenantId(householdMember.getTenantId());
+        });
+    }
+
+    private static void enrichRelationshipsForUpdate(HouseholdMemberBulkRequest request, List<HouseholdMember> householdMembers, List<HouseholdMember> existingHouseholdMembers) {
+        log.info("enriching relationships for update");
+        for (HouseholdMember householdMember : householdMembers) {
+            List<HouseholdMemberRelationship> resourcesToCreate = new ArrayList<>();
+            List<HouseholdMemberRelationship> resourcesToUpdate = new ArrayList<>();
+            List<HouseholdMemberRelationship> updatedResources = householdMember.getRelationships();
+            if(!CollectionUtils.isEmpty(updatedResources)) {
+                resourcesToCreate = householdMember.getRelationships().stream()
+                        .filter(r -> r.getId() == null).toList();
+                resourcesToUpdate = householdMember.getRelationships().stream()
+                        .filter(r -> r.getId() != null).toList();
+            }
+
+            if (!CollectionUtils.isEmpty(resourcesToCreate)) {
+                 enrichRelationshipsForCreate(request, resourcesToCreate, householdMember);
+            }
+            if (!CollectionUtils.isEmpty(resourcesToUpdate)) {
+                Map<String, HouseholdMemberRelationship> hmrMap = getIdToObjMap(resourcesToUpdate);
+                enrichForUpdate(hmrMap, resourcesToUpdate, request);
+            }
+        }
     }
 }

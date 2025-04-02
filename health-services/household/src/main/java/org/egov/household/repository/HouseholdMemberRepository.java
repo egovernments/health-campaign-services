@@ -8,8 +8,10 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberRelationship;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.producer.Producer;
+import org.egov.household.repository.rowmapper.HouseholdMemberRelationshipMapper;
 import org.egov.household.repository.rowmapper.HouseholdMemberRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +28,15 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
+import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
 public class HouseholdMemberRepository extends GenericRepository<HouseholdMember> {
+
+    @Autowired
+    private HouseholdMemberRelationshipMapper memberRelationshipMapper;
 
     @Autowired
     protected HouseholdMemberRepository(Producer producer,
@@ -85,6 +92,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         paramsMap.put("offset", offset);
 
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
+        fetchAndSetHouseholdMemberRelationship(householdMembers, includeDeleted);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
     }
@@ -112,6 +120,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         paramMap.put("ids", ids);
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
+        fetchAndSetHouseholdMemberRelationship(objFound, includeDeleted);
         putInCache(objFound);
         log.info("returning objects from the database");
         return SearchResponse.<HouseholdMember>builder().response(objFound).build();
@@ -123,7 +132,8 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("individualId", individualId);
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
-        return SearchResponse.<HouseholdMember>builder().totalCount(Long.valueOf(householdMembers.size())).response(householdMembers).build();
+        fetchAndSetHouseholdMemberRelationship(householdMembers, false);
+        return SearchResponse.<HouseholdMember>builder().totalCount((long) householdMembers.size()).response(householdMembers).build();
     }
 
     public SearchResponse<HouseholdMember> findIndividualByHousehold(String householdId, String columnName) {
@@ -138,5 +148,34 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
+    }
+
+    private void fetchAndSetHouseholdMemberRelationship(List<HouseholdMember> householdMembers, Boolean includeDeleted) {
+        if (householdMembers.isEmpty()) {
+            return;
+        }
+        List<String> householdMemberIds = getIdList(householdMembers);
+        Map<String, Object> resourceParamsMap = new HashMap<>();
+        StringBuilder resourceQuery = new StringBuilder("SELECT * FROM household_member_relationship hmr WHERE hmr.householdMemberId IN (:householdMemberIds)");
+        resourceParamsMap.put("householdMemberIds", householdMemberIds);
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            resourceQuery.append("AND isDeleted=:isDeleted ");
+            resourceParamsMap.put("isDeleted", false);
+        }
+        List<HouseholdMemberRelationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
+                this.memberRelationshipMapper);
+        Map<String, List<HouseholdMemberRelationship>> idToObjMap = new HashMap<>();
+
+        relationships.forEach(relationship -> {
+            String memberId = relationship.getHouseholdMemberId();
+            if (idToObjMap.containsKey(memberId)) {
+                idToObjMap.get(memberId).add(relationship);
+            } else {
+                List<HouseholdMemberRelationship> memberRelationships = new ArrayList<>();
+                memberRelationships.add(relationship);
+                idToObjMap.put(memberId, memberRelationships);
+            }
+        });
+        householdMembers.forEach(member -> member.setRelationships(idToObjMap.get(member.getId())));
     }
 }

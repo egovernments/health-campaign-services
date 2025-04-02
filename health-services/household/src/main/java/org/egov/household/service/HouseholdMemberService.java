@@ -27,6 +27,7 @@ import org.egov.household.household.member.validators.HmIndividualValidator;
 import org.egov.household.household.member.validators.HmIsDeletedValidator;
 import org.egov.household.household.member.validators.HmNonExistentEntityValidator;
 import org.egov.household.household.member.validators.HmNullIdValidator;
+import org.egov.household.household.member.validators.HmRelationshipTypeValidator;
 import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.household.member.validators.HmUniqueIndividualValidator;
@@ -72,13 +73,15 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(HmUniqueEntityValidator.class)
                     || validator.getClass().equals(HmHouseholdValidator.class)
                     || validator.getClass().equals(HmIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
                     || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->
             validator.getClass().equals(HmNullIdValidator.class)

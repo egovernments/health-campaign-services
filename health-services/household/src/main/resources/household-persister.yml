@@ -114,10 +114,11 @@ serviceMaps:
       fromTopic: save-household-member-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO HOUSEHOLD_MEMBER(id, tenantId, individualId, individualClientReferenceId, householdId, householdClientReferenceId, isHeadOfHousehold, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO HOUSEHOLD_MEMBER(id, clientReferenceId, tenantId, individualId, individualClientReferenceId, householdId, householdClientReferenceId, isHeadOfHousehold, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.individualId
             - jsonPath: $.*.individualClientReferenceId
@@ -133,6 +134,27 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
+        - query: INSERT INTO HOUSEHOLD_MEMBER_RELATIONSHIP(id, clientReferenceId, tenantId, householdMemberId, householdMemberClientReferenceId, relativeId, relativeClientReferenceId, relationshipType, createdBy, lastModifiedBy, createdTime, lastModifiedTime, clientCreatedBy, clientLastModifiedBy, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.relationships.*
+          jsonMaps:
+            - jsonPath: $.*.relationships.*.id
+            - jsonPath: $.*.relationships.*.clientReferenceId
+            - jsonPath: $.*.relationships.*.tenantId
+            - jsonPath: $.*.relationships.*.householdMemberId
+            - jsonPath: $.*.relationships.*.householdMemberClientReferenceId
+            - jsonPath: $.*.relationships.*.relativeId
+            - jsonPath: $.*.relationships.*.relativeClientReferenceId
+            - jsonPath: $.*.relationships.*.relationshipType
+            - jsonPath: $.*.relationships.*.auditDetails.createdBy
+            - jsonPath: $.*.relationships.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.relationships.*.auditDetails.createdTime
+            - jsonPath: $.*.relationships.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.relationships.*.auditDetails.clientCreatedBy
+            - jsonPath: $.*.relationships.*.auditDetails.clientLastModifiedBy
+            - jsonPath: $.*.relationships.*.auditDetails.clientCreatedTime
+            - jsonPath: $.*.relationships.*.auditDetails.clientLastModifiedTime
+            - jsonPath: $.*.relationships.*.rowVersion
+            - jsonPath: $.*.relationships.*.isDeleted
     - version: 1.0
       description: Update household member.
       fromTopic: update-household-member-topic
