@@ -96,10 +96,9 @@ public class EnrichmentUtil {
      * @param planConfigurationRequest            The request containing plan configuration details.
      * @param fileStoreId                         The identifier of the uploaded file.
      * @param mappedValues                        A mapping between census fields and sheet column names.
-     * @param boundaryCodeToCensusAdditionalDetails A map to store boundary code to additional census details.
      * @throws CustomException                    If no census records are found for the given boundary codes.
      */
-    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+    public void enrichsheetWithApprovedCensusRecords(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
         Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
@@ -153,11 +152,9 @@ public class EnrichmentUtil {
 
                     }
                 }
-
-                boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
             }
 
-            log.info("Successfully update file with approved census data.");
+            log.info("Successfully updated file with approved census data.");
         }
     }
 
@@ -260,10 +257,6 @@ public class EnrichmentUtil {
     public void enrichsheetWithApprovedPlanEstimates(Sheet sheet, PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Map<String, String> mappedValues) {
         List<String> boundaryCodes = getBoundaryCodesFromTheSheet(sheet, planConfigurationRequest, fileStoreId);
 
-        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
-        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
-                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
-
         //Getting plan records for the list of boundaryCodes
         List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
 
@@ -275,6 +268,15 @@ public class EnrichmentUtil {
                 .map(Resource::getResourceType)
                 .toList();
 
+        // Setting column headers for the calculated plan estimate resources.
+        outputColumnList.forEach(output -> {
+            Cell outputColHeader = sheet.getRow(0).createCell(sheet.getRow(0).getLastCellNum(), CellType.STRING);
+            outputColHeader.setCellValue(output);
+        });
+
+        Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+        Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
+                parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
 
         for(Row row: sheet) {
             // Skip the header row and empty rows
@@ -359,4 +361,29 @@ public class EnrichmentUtil {
         return planResponse.getPlan();
     }
 
+    /**
+     * Retrieves census records in batches based on the given plan configuration request.
+     *
+     * @param planConfigurationRequest The request containing the plan configuration and request info.
+     * @param batchSize                The number of records to fetch in a single batch.
+     * @param offset                   The starting position of records for pagination.
+     * @return A list of Census records retrieved based on the search criteria.
+     */
+    public List<Census> getCensusRecordsInBatches(PlanConfigurationRequest planConfigurationRequest, int batchSize, int offset) {
+        PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        CensusSearchCriteria censusSearchCriteria = CensusSearchCriteria.builder()
+                .tenantId(planConfig.getTenantId())
+                .limit(batchSize)
+                .source(planConfig.getId())
+                .offset(offset)
+                .build();
+
+        CensusSearchRequest censusSearchRequest = CensusSearchRequest.builder()
+                .censusSearchCriteria(censusSearchCriteria)
+                .requestInfo(planConfigurationRequest.getRequestInfo()).build();
+
+        CensusResponse censusResponse = censusUtil.fetchCensusRecords(censusSearchRequest);
+
+        return censusResponse.getCensus();
+    }
 }

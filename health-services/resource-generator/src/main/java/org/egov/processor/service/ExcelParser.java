@@ -17,6 +17,7 @@ import org.egov.processor.web.models.boundary.BoundarySearchResponse;
 import org.egov.processor.web.models.boundary.EnrichedBoundary;
 import org.egov.processor.web.models.campaignManager.Boundary;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
+import org.egov.processor.web.models.census.Census;
 import org.egov.processor.web.models.mdmsV2.MixedStrategyOperationLogic;
 import org.egov.processor.web.models.planFacility.PlanFacility;
 import org.egov.processor.web.models.planFacility.PlanFacilityResponse;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ServiceConstants.BOUNDARY_CODE;
 import static org.egov.processor.web.models.File.InputFileTypeEnum.EXCEL;
 
 @Slf4j
@@ -134,10 +136,7 @@ public class ExcelParser implements FileParser {
 	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
 			Object campaignResponse) {
 		try (Workbook workbook = new XSSFWorkbook(file)) {
-			List<Boundary> campaignBoundaryList = new ArrayList<>();
-			DataFormatter dataFormatter = new DataFormatter();
-			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook,
-					campaignBoundaryList, dataFormatter);
+			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
 		} catch (FileNotFoundException e) {
 			log.error(EXCEL_FILE_NOT_FOUND_MESSAGE + LOG_PLACEHOLDER, e.getMessage());
@@ -202,13 +201,9 @@ public class ExcelParser implements FileParser {
 	 * @param fileStoreId The ID of the uploaded file in the file store.
 	 * @param campaignResponse The response object containing campaign details.
 	 * @param excelWorkbook The workbook containing sheets to be processed.
-	 * @param campaignBoundaryList List of boundary objects related to the campaign.
-	 * @param dataFormatter The data formatter for formatting cell values.
 	 */
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
-							   Object campaignResponse, Workbook excelWorkbook,
-							   List<Boundary> campaignBoundaryList,
-							   DataFormatter dataFormatter) {
+							   Object campaignResponse, Workbook excelWorkbook) {
 		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
@@ -233,18 +228,19 @@ public class ExcelParser implements FileParser {
 				request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
 
+		// Process Census records in batches to create plan estimates on PlanConfigTriggerPlanEstimatesStatus status.
+		if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
+			Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
+			batchProcessCensusRecords(request, boundaryCodeToCensusAdditionalDetails);
+		}
+
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
-				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
-					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
-
-					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, boundaryCodeToCensusAdditionalDetails);
-					processRows(request, excelWorkbookSheet, dataFormatter, fileStoreId,
-							campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
-				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
 			}
@@ -252,14 +248,90 @@ public class ExcelParser implements FileParser {
 	}
 
 	/**
+	 * Processes census records in batches based on the given plan configuration request.
+	 * The method retrieves census records in chunks of a configured batch size and processes them iteratively.
+	 *
+	 * @param planConfigurationRequest              The request containing plan configuration details.
+	 * @param boundaryCodeToCensusAdditionalDetails A map to store additional census details indexed by boundary code.
+	 */
+	public void batchProcessCensusRecords(PlanConfigurationRequest planConfigurationRequest, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+		int offset = 0;
+		List<Census> censusRecords;
+
+		do {
+			// Fetch census records in batches
+			censusRecords = enrichmentUtil.getCensusRecordsInBatches(planConfigurationRequest, config.getBatchSize(), offset);
+
+			// Process the retrieved batch of census records
+			processCensusRecordsForPlan(censusRecords, boundaryCodeToCensusAdditionalDetails, planConfigurationRequest);
+			log.info("Processed {} census records", censusRecords.size());
+
+			// Increment offset for next batch
+			offset += config.getBatchSize();
+		} while (!CollectionUtils.isEmpty(censusRecords));
+	}
+
+	/**
+	 * Executes processing of census records by performing calculations, data enrichment, and mixed strategy evaluations.
+	 *
+	 * @param censusRecords                         The list of census records to be processed.
+	 * @param boundaryCodeToCensusAdditionalDetails A map to store census additional details, indexed by boundary code.
+	 * @param planConfigurationRequest              The request object containing the plan configuration.
+	 */
+	private void processCensusRecordsForPlan(List<Census> censusRecords, Map<String, Object> boundaryCodeToCensusAdditionalDetails, PlanConfigurationRequest planConfigurationRequest) {
+
+		PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
+
+		// Fetch mixed strategy logic from the MDMS.
+		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStrategyUtil
+				.fetchMixedStrategyOperationLogicFromMDMS(planConfigurationRequest);
+
+		// Create a mapping of boundary codes to fixed post details.
+		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest);
+
+		for (Census census : censusRecords) {
+			String boundaryCode = census.getBoundaryCode();
+
+			// Convert census data into a structured JSON feature node.
+			JsonNode featureNode = createFeatureNodeFromCensus(census);
+			Map<String, BigDecimal> resultMap = new HashMap<>();
+
+			// Perform calculations for each operation defined in the plan configuration.
+			performCalculationsForOperations(planConfiguration, featureNode, resultMap);
+
+			// Store census additional details mapped to their respective boundary codes.
+			boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
+
+			// Process result map using mixed strategy logic
+			mixedStrategyUtil.processResultMap(resultMap, planConfiguration.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(
+							boundaryCodeToFixedPostMap.get(boundaryCode), planConfiguration, mixedStrategyOperationLogicList));
+
+			// Trigger plan estimate create based on the estimates calculated.
+			planUtil.create(planConfigurationRequest, featureNode, resultMap, boundaryCodeToCensusAdditionalDetails);
+			log.info("Successfully created plan for {} boundary", boundaryCode);
+		}
+	}
+
+	public void performCalculationsForOperations(PlanConfiguration planConfiguration, JsonNode featureNode, Map<String, BigDecimal> resultMap) {
+
+		// Convert assumptions into a map for efficient retrieval.
+		Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfiguration.getAssumptions());
+
+		// Perform calculations for each operation defined in the plan configuration.
+		for (Operation operation : planConfiguration.getOperations()) {
+			BigDecimal result = calculationUtil.calculateResult(operation, featureNode, assumptionValueMap, resultMap);
+			String output = operation.getOutput();
+			resultMap.put(output, result);
+		}
+	}
+
+	/**
 	 * This method makes plan facility search call and creates a map of boundary code to it's fixed post facility details.
 	 *
 	 * @param request     the plan configuration request.
-	 * @param sheet       the Excel sheet to be processed.
-	 * @param fileStoreId the fileStore id of the file.
 	 * @return returns a map of boundary code to it's fixed post facility details.
 	 */
-	private Map<String, Boolean> fetchFixedPostDetails(PlanConfigurationRequest request, Sheet sheet, String fileStoreId) {
+	private Map<String, Boolean> fetchFixedPostDetails(PlanConfigurationRequest request) {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
 		//Create plan facility search request
@@ -322,7 +394,7 @@ public class ExcelParser implements FileParser {
 							 List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
 		// Create a Map of Boundary Code to Facility's fixed post detail.
-		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
+		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest);
 		performRowLevelCalculations(planConfigurationRequest, sheet, dataFormatter, fileStoreId, campaignBoundaryList, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails);
 	}
 
@@ -372,9 +444,8 @@ public class ExcelParser implements FileParser {
 		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfigurationRequest.getPlanConfiguration().getTenantId(),
 				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
 		List<String> boundaryList = new ArrayList<>();
-		List<String> boundaryCodeList = getAllBoundaryPresentforHierarchyType(
+		return getAllBoundaryPresentforHierarchyType(
 				boundarySearchResponse.getTenantBoundary().get(0).getBoundary(), boundaryList);
-		return boundaryCodeList;
 	}
 
 	/**
@@ -446,7 +517,7 @@ public class ExcelParser implements FileParser {
 			// Get Boundary Code for the current row.
 			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
 			mixedStrategyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
-			planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
+			planUtil.create(planConfigurationRequest, feature, resultMap, boundaryCodeToCensusAdditionalDetails);
 
 		}
 	}
@@ -513,6 +584,30 @@ public class ExcelParser implements FileParser {
 	private File createTempFile(String prefix, String suffix) throws IOException {
 		return File.createTempFile(prefix, suffix);
 	}
+
+	/**
+	 * Creates a JSON feature node from a given {@code Census} object.
+	 *
+	 * @param census The census object containing boundary code and additional fields.
+	 * @return A jsonNode representing the feature node with relevant properties.
+	 */
+	private JsonNode createFeatureNodeFromCensus(Census census) {
+		ObjectNode featureNode = objectMapper.createObjectNode();
+		ObjectNode propertiesNode = featureNode.putObject("properties");
+
+		// Set boundaryCode
+		propertiesNode.put(BOUNDARY_CODE, census.getBoundaryCode());
+
+		// Extract additionalField with "CONFIRMED_" in the key
+		census.getAdditionalFields().stream()
+				.filter(field -> field.getKey().startsWith(CONFIRMED_KEY)) // Filter relevant fields
+				.forEach(field -> propertiesNode.put(
+						field.getKey().substring(CONFIRMED_KEY.length()), // Remove prefix
+						field.getValue()));
+
+		return featureNode;
+	}
+
 
 	/**
 	 * Creates a JSON feature node from a row in the Excel sheet.
