@@ -230,7 +230,7 @@ public class ExcelParser implements FileParser {
 					Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues, boundaryCodeToCensusAdditionalDetails);
-					processRows(request, excelWorkbookSheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails);
+					processRows(request, excelWorkbookSheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToCensusAdditionalDetails, Boolean.FALSE);
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
@@ -304,11 +304,15 @@ public class ExcelParser implements FileParser {
 	 */
 	protected void processRows(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 							 String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap,
-							 List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
+							 List<String> boundaryCodeList, Map<String, Object> boundaryCodeToCensusAdditionalDetails,
+							   boolean skipFixedPost) {
 
 		// Create a Map of Boundary Code to Facility's fixed post detail.
-		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
-		performRowLevelCalculations(planConfigurationRequest, sheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails);
+		// Only fetch fixed post details if the flag is false
+		Map<String, Boolean> boundaryCodeToFixedPostMap = skipFixedPost
+				? Collections.emptyMap() // Provide an empty map if skipping
+				: fetchFixedPostDetails(planConfigurationRequest, sheet, fileStoreId);
+		performRowLevelCalculations(planConfigurationRequest, sheet, fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, boundaryCodeToFixedPostMap, boundaryCodeToCensusAdditionalDetails, skipFixedPost);
 	}
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
@@ -391,7 +395,7 @@ public class ExcelParser implements FileParser {
 	 */
 	private void performRowLevelCalculations(PlanConfigurationRequest planConfigurationRequest, Sheet sheet,
 			String fileStoreId,	Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList,
-											 Map<String, Boolean> boundaryCodeToFixedPostMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails)  {
+											 Map<String, Boolean> boundaryCodeToFixedPostMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails, boolean skipFixedPost)  {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
@@ -425,7 +429,14 @@ public class ExcelParser implements FileParser {
 
 			// Get Boundary Code for the current row.
 			String boundaryCode = row.getCell(indexOfBoundaryCode).getStringCellValue();
-			mixedStrategyUtil.processResultMap(resultMap, planConfig.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode), planConfig, mixedStrategyOperationLogicList));
+
+			// Skip processing the result map for mixed strategies if the flag is true
+			if (!skipFixedPost) {
+				mixedStrategyUtil.processResultMap(resultMap, planConfig.getOperations(),
+						mixedStrategyUtil.getCategoriesNotAllowed(boundaryCodeToFixedPostMap.get(boundaryCode),
+								planConfig, mixedStrategyOperationLogicList));
+			}
+
 			if(!planConfigurationRequest.getPlanConfiguration().getStatus().equalsIgnoreCase("DRAFT"))
 				planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, boundaryCodeToCensusAdditionalDetails);
 
