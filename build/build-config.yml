@@ -273,7 +273,14 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/census-service/src/main/resources/db"
         image-name: "census-service-db"
-
+  - name: "builds/health-campaign-services/core-services/health-idgen-17"
+    build:
+      - work-dir: "core-services/egov-idgen"
+        image-name: "health-idgen"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/egov-idgen/src/main/resources/db"
+        image-name: "health-idgen-db"
+        
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
