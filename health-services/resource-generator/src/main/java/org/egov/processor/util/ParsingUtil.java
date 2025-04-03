@@ -430,6 +430,48 @@ public class ParsingUtil {
     }
 
     /**
+     * Extracts a specific field from a given JSON object and converts it into the specified return type.
+     *
+     * @param <T>           The expected return type of the extracted field.
+     * @param additionalDetails The JSON object from which the field is to be extracted.
+     * @param fieldToExtract The key of the field to extract from the JSON object.
+     * @param returnType     The class type of the expected return value.
+     * @return The extracted value cast to the specified return type, or {@code null} if the field is missing or not compatible.
+     * @throws CustomException If the field is not found or if an error occurs during extraction.
+     */
+    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> returnType) {
+        try {
+            String jsonString = objectMapper.writeValueAsString(additionalDetails);
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+            JsonNode node = rootNode.get(fieldToExtract);
+
+            if (node != null && !node.isNull()) {
+                // Handle List<String> case separately
+                if (returnType == List.class && node.isArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonNode idNode : node) {
+                        list.add(idNode.asText());
+                    }
+                    return returnType.cast(list);
+                }
+
+                // Check for different types of JSON nodes
+                if (returnType == BigDecimal.class && (node.isDouble() || node.isFloat() || node.isLong() || node.isInt())) {
+                    return returnType.cast(BigDecimal.valueOf(node.asDouble()));
+                } else if (returnType == Boolean.class && node.isBoolean()) {
+                    return returnType.cast(node.asBoolean());
+                } else if (returnType == String.class && node.isTextual()) {
+                    return returnType.cast(node.asText());
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.error(e.getMessage() + fieldToExtract);
+            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
+        }
+    }
+
+    /**
      * Adds or updates the value of provided field in the additional details object.
      * @param additionalDetails
      * @param fieldsToBeUpdated
