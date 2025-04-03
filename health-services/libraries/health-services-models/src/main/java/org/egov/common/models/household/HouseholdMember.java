@@ -1,8 +1,11 @@
 package org.egov.common.models.household;
 
+import java.util.ArrayList;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,9 +47,20 @@ public class HouseholdMember extends EgovOfflineModel {
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = false;
 
+    @JsonProperty("relationships")
+    @Valid
+    private List<Relationship> relationships;
+
     //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
+    public HouseholdMember addHouseholdMemberRelationship(Relationship relationship) {
+        if (this.relationships == null) this.relationships = new ArrayList<>();
+        relationship.setSelfId(this.getId());
+        relationship.setSelfClientReferenceId(this.getClientReferenceId());
+        this.relationships.add(relationship);
+        return this;
+    }
 }
 

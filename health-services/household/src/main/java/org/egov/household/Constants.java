@@ -41,4 +41,8 @@ public interface Constants {
 
     String INDIVIDUAL_CANNOT_BE_NULL_MESSAGE = "individual id and individual client reference id both cannot be null";
 
+    String INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP = "INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP";
+
+    String INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE = "household member relationship type is not valid";
+
 }
