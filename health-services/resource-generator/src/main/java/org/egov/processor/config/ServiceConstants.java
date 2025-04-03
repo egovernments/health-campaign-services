@@ -130,4 +130,5 @@ public class ServiceConstants {
     public static final int COLUMN_PADDING = 512;
 
     public static final String DRAFT_STATUS = "DRAFT";
+    public static final String DRAFT_RESPONSE = "Draft processing started successfully.";
  }

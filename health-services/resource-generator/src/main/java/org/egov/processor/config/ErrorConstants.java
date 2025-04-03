@@ -57,7 +57,13 @@ public class ErrorConstants {
     public static final String ERROR_PROCESSING_DATA_FROM_MDMS = "Exception occurred while processing data from mdms ";
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
     public static final String ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";
-    public static final String ERROR_WHILE_SEARCHING_CAMPAIGN = "Exception occurred while searching/updating campaign.";
+
+    public static final String ERROR_FETCHING_CAMPAIGN_DETAILS_CODE = "ERROR_FETCHING_CAMPAIGN_DETAILS";
+    public static final String ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE = "Error while fetching campaign details: ";
+
+    public static final String NO_CAMPAIGN_FOUND_CODE = "NO_CAMPAIGN_FOUND";
+    public static final String NO_CAMPAIGN_FOUND_MESSAGE = "No campaign found for the provide campaign Id";
+
     public static final String ERROR_WHILE_DATA_CREATE_CALL = "Exception occurred while creating data for campaign - ";
     public static final String ERROR_WHILE_CALLING_MICROPLAN_API =
             "Unexpected error while calling fetch from Microplan API for plan config Id: ";

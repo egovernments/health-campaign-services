@@ -11,8 +11,12 @@ import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.campaignManager.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
@@ -40,9 +44,26 @@ public class CampaignIntegrationUtil {
 	 * @return The response object containing the result of the campaign search.
 	 */
     public Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
-		CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
-		return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
-				campaignRequest);
+		try {
+			CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
+			return serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationSearchEndPoint()),
+					campaignRequest);
+		} catch (Exception e) {
+			log.error(ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE + planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
+			throw new CustomException(ERROR_FETCHING_CAMPAIGN_DETAILS_CODE, ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE);
+		}
+	}
+
+	/**
+	 * Parses an object representing campaign response into a CampaignResponse object.
+	 *
+	 * @param campaignResponse The object representing campaign response to be parsed.
+	 * @return CampaignResponse object parsed from the campaignResponse.
+	 */
+	public CampaignResponse parseCampaignResponse(Object campaignResponse) {
+		if(ObjectUtils.isEmpty(campaignResponse))
+			throw new CustomException(NO_CAMPAIGN_FOUND_CODE, NO_CAMPAIGN_FOUND_MESSAGE);
+		return mapper.convertValue(campaignResponse, CampaignResponse.class);
 	}
 
 	/**
@@ -159,16 +180,6 @@ public class CampaignIntegrationUtil {
 		return CampaignSearchRequest.builder().requestInfo(planConfigurationRequest.getRequestInfo())
 				.campaignDetails(CampaignDetails.builder().ids(id).tenantId(planConfig.getTenantId()).build()).build();
 
-	}
-
-	/**
-	 * Parses an object representing campaign response into a CampaignResponse object.
-	 *
-	 * @param campaignResponse The object representing campaign response to be parsed.
-	 * @return CampaignResponse object parsed from the campaignResponse.
-	 */
-    public CampaignResponse parseCampaignResponse(Object campaignResponse) {
-        return mapper.convertValue(campaignResponse, CampaignResponse.class);
 	}
 
 	/**

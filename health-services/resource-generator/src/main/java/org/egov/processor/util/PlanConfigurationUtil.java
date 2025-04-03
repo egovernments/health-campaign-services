@@ -87,7 +87,7 @@ public class PlanConfigurationUtil {
     }
 
     /**
-     * Sets the filestore ID for the file with template identifier "ESTIMATIONS_IN_PROGRESS".
+     * Sets the filestore ID for the file with template identifier "FILE_TEMPLATE_IDENTIFIER_DRAFT_INPROGRESS".
      * If the file exists, the filestore ID is updated. If the file does not exist, a new file is added
      * with the specified filestore ID and input file type.
      *

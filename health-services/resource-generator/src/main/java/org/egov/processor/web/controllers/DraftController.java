@@ -8,6 +8,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import static org.egov.processor.config.ServiceConstants.DRAFT_RESPONSE;
+
 @Controller
 public class DraftController {
 
@@ -17,9 +19,9 @@ public class DraftController {
         this.draftService = draftService;
     }
 
-    @PostMapping("/draft")
+    @PostMapping("/drafts")
     public ResponseEntity<String> createDraftMicroplan(@RequestBody @Valid DraftRequest draftRequest) {
         draftService.createDraftPlans(draftRequest);
-        return ResponseEntity.accepted().body("Draft processing started successfully.");
+        return ResponseEntity.accepted().body(DRAFT_RESPONSE);
     }
 }
