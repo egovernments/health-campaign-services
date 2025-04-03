@@ -25,7 +25,7 @@ import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP
 
 @Slf4j
 @Component
-@Order(6)
+@Order(10)
 public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     private final MdmsClientService mdmsClientService;

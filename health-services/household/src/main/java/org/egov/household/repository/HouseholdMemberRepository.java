@@ -154,11 +154,16 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
             return;
         }
         List<String> householdMemberIds = getIdList(householdMembers);
+        Map<String, List<Relationship>> idToObjMap = fetchRelationships(householdMemberIds, includeDeleted);
+        householdMembers.forEach(member -> member.setRelationships(idToObjMap.get(member.getId())));
+    }
+
+    private Map<String, List<Relationship>> fetchRelationships(List<String> selfIds, Boolean includeDeleted) {
         Map<String, Object> resourceParamsMap = new HashMap<>();
-        StringBuilder resourceQuery = new StringBuilder("SELECT * FROM household_member_relationship hmr WHERE hmr.householdMemberId IN (:householdMemberIds)");
-        resourceParamsMap.put("householdMemberIds", householdMemberIds);
+        StringBuilder resourceQuery = new StringBuilder("SELECT * FROM household_member_relationship WHERE selfId IN (:selfIds) ");
+        resourceParamsMap.put("selfIds", selfIds);
         if (Boolean.FALSE.equals(includeDeleted)) {
-            resourceQuery.append("AND isDeleted=:isDeleted ");
+            resourceQuery.append("AND isDeleted=:isDeleted");
             resourceParamsMap.put("isDeleted", false);
         }
         List<Relationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
@@ -175,6 +180,6 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
                 idToObjMap.put(memberId, memberRelationships);
             }
         });
-        householdMembers.forEach(member -> member.setRelationships(idToObjMap.get(member.getId())));
+        return idToObjMap;
     }
 }
