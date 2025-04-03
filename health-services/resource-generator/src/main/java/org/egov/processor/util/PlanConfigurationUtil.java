@@ -120,7 +120,7 @@ public class PlanConfigurationUtil {
             files.add(estimationFile);
         }
 
-        // Set workflow to null as in the original methods
+        // Set workflow to null to ensure plan configuration is processed as a new entity without workflow state
         planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
     }
 

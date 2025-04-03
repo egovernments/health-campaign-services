@@ -48,6 +48,17 @@ public class DraftService {
         this.outputEstimationGenerationUtil = outputEstimationGenerationUtil;
     }
 
+    /**
+     * Creates a draft plan by retrieving and processing relevant data.
+     * - Searches for the plan configuration based on the draft request.
+     * - Retrieves and processes the population template file.
+     * - Fetches campaign, locale, and MDMS data.
+     * - Performs resource mapping enrichment and calculations.
+     * - Processes and localizes the workbook before generating the output file.
+     * - Uploads the processed file and updates the plan configuration with the new fileStoreId.
+     *
+     * @param draftRequest the request containing details for draft plan creation.
+     */
     @Async
     public void createDraftPlans(DraftRequest draftRequest) {
         // Retrieve Plan Configuration
@@ -99,6 +110,12 @@ public class DraftService {
         planUtil.update(request);
     }
 
+    /**
+     * Retrieves the filestoreId of the active population template file from the given plan configuration.
+     *
+     * @param planConfiguration the plan configuration containing file details.
+     * @return the filestoreId of the active population template, or null if not found.
+     */
     private String getFilestoreIdForPopulationTemplate(PlanConfiguration planConfiguration) {
         return planConfiguration.getFiles().stream()
                 .filter(File::getActive)

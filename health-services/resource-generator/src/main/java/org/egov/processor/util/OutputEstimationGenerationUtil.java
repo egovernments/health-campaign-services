@@ -50,25 +50,10 @@ public class OutputEstimationGenerationUtil {
      * @param filestoreId the identifier of the file store for additional processing requirements
      */
     public void processOutputFile(Workbook workbook, PlanConfigurationRequest request, String filestoreId) {
-        LocaleResponse localeResponse = localeUtil.searchLocale(request);
-        Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
-                request.getRequestInfo(),
-                request.getPlanConfiguration().getTenantId());
+        // 1. Remove readme sheets and localise column headers
+        filterAndLocalizeWorkbook(workbook, request);
 
-        // 1. removing readme sheet
-        for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
-            Sheet sheet = workbook.getSheetAt(i);
-            if (!isSheetAllowedToProcess(sheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
-                workbook.removeSheetAt(i);
-            }
-        }
-
-        // 2. Stylize and localize output column headers
-        for(Sheet sheet: workbook) {
-            processSheetForHeaderLocalization(sheet, localeResponse);
-        }
-
-        // 3. Adding facility information for each boundary code
+        // 2. Adding facility information for each boundary code
         for(Sheet sheet: workbook) {
             addAssignedFacility(sheet, request, filestoreId);
         }
@@ -84,12 +69,17 @@ public class OutputEstimationGenerationUtil {
      * @param request    the PlanConfigurationRequest containing processing configuration
      */
     public void processDraftOutputFile(Workbook workbook, PlanConfigurationRequest request) {
+        // Remove readme sheets and localise column headers
+        filterAndLocalizeWorkbook(workbook, request);
+    }
+
+    private void filterAndLocalizeWorkbook(Workbook workbook, PlanConfigurationRequest request) {
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
         Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
                 request.getRequestInfo(),
                 request.getPlanConfiguration().getTenantId());
 
-        // 1. removing readme sheet
+        // 1. Remove unwanted sheets
         for (int i = workbook.getNumberOfSheets() - 1; i >= 0; i--) {
             Sheet sheet = workbook.getSheetAt(i);
             if (!isSheetAllowedToProcess(sheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
@@ -98,10 +88,9 @@ public class OutputEstimationGenerationUtil {
         }
 
         // 2. Stylize and localize output column headers
-        for(Sheet sheet: workbook) {
+        for (Sheet sheet : workbook) {
             processSheetForHeaderLocalization(sheet, localeResponse);
         }
-
     }
 
     /**
