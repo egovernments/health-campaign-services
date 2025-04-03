@@ -1,0 +1,18 @@
+serviceMaps:
+  serviceName: IDGENERATOR
+  mappings:
+    - version: 1.0
+      name: dispatch-log
+      description: Logs dispatched ID transaction
+      fromTopic: save-dispatch-id-log
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO id_transaction_log(id_reference, user_uuid, device_uuid, device_info)
+            VALUES (?, ?, ?, ?::jsonb)
+
+          basePath: dispatchedIdLogs.*
+          jsonMaps:
+            - jsonPath: $.dispatchedIdLogs.*.id
+            - jsonPath: $.dispatchedIdLogs.*.userUuid
+            - jsonPath: $.dispatchedIdLogs.*.deviceUuid
+            - jsonPath: $.dispatchedIdLogs.*.deviceInfo

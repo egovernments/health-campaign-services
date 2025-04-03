@@ -1,0 +1,12 @@
+CREATE TABLE id_pool (
+    id VARCHAR(32) PRIMARY KEY,
+    status VARCHAR(12) NOT NULL DEFAULT 'UN_ASSIGNED' ,
+    tenantId VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE SEQUENCE SEQ_ID_POOL_NUM;
+
+CREATE INDEX idx_status ON id_pool(status);
+CREATE INDEX idx_status_tenant ON id_pool(status, tenantId);

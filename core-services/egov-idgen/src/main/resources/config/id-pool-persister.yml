@@ -1,0 +1,31 @@
+serviceMaps:
+  serviceName: IDGENERATOR
+  mappings:
+    - version: 1.0
+      name: idpool
+      description: Persists a batch of unique IDs into the id_pool table
+      fromTopic: save-in-id-pool
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO id_pool (id, status, tenantId)
+            VALUES (?, 'UN_ASSIGNED', ?)
+            ON CONFLICT (id) DO NOTHING;
+
+          basePath: idPool.*
+          jsonMaps:
+            - jsonPath: $.idPool.*.id
+            - jsonPath: $.idPool.*.tenantId
+
+    - version: 1.0
+      name: idpool-status-update
+      description: Updates status of IDs dynamically
+      fromTopic: update-id-pool-status
+      isTransaction: true
+      queryMaps:
+        - query: |
+            UPDATE id_pool SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?;
+          basePath: idPool.*
+          jsonMaps:
+            - jsonPath: $.idPool.*.status
+            - jsonPath: $.idPool.*.id
