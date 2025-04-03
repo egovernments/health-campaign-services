@@ -59,9 +59,9 @@ public class EnrichmentService {
 
         userService.callUserService(serviceRequest);
 
-        AuditDetails auditDetails = utils.getAuditDetails(requestInfo.getUserInfo().getUuid(), service,true);
+        //AuditDetails auditDetails = utils.getAuditDetails(requestInfo.getUserInfo().getUuid(), service,true);
 
-        service.setAuditDetails(auditDetails);
+        //service.setAuditDetails(auditDetails);
         service.setId(UUID.randomUUID().toString());
         service.getAddress().setId(UUID.randomUUID().toString());
         service.getAddress().setTenantId(tenantId);
