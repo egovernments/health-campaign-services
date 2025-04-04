@@ -219,7 +219,7 @@ public class OutputEstimationGenerationUtil {
         return censusList.stream()
                 .collect(Collectors.toMap(
                         Census::getBoundaryCode,
-                        census -> (String) parsingUtil.extractFieldsFromJsonObject(census.getAdditionalDetails(), FACILITY_NAME)));
+                        census -> parsingUtil.extractFieldsFromJsonObject(census.getAdditionalDetails(), FACILITY_NAME, String.class)));
     }
 
     /**

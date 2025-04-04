@@ -393,43 +393,6 @@ public class ParsingUtil {
     }
 
     /**
-     * Extracts provided field from the additional details object
-     *
-     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @param fieldToExtract    the name of the field to be extracted from the additional details
-     * @return the value of the specified field as a string
-     * @throws CustomException if the field does not exist
-     */
-    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
-        try {
-            String jsonString = objectMapper.writeValueAsString(additionalDetails);
-            JsonNode rootNode = objectMapper.readTree(jsonString);
-
-            JsonNode node = rootNode.get(fieldToExtract);
-            if (node != null && !node.isNull()) {
-
-                // Check for different types of JSON nodes
-                if (node.isDouble() || node.isFloat()) {
-                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
-                } else if (node.isLong() || node.isInt()) {
-                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
-                } else if (node.isBoolean()) {
-                    return node.asBoolean();
-                } else if (node.isTextual()) {
-                    return node.asText();
-                } else if (node.isObject()) {
-                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
-                }
-            }
-            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
-            return null;
-        } catch (Exception e) {
-            log.error(e.getMessage() + fieldToExtract);
-            throw new CustomException(PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_CODE, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT_MESSAGE + fieldToExtract);
-        }
-    }
-
-    /**
      * Extracts a specific field from a given JSON object and converts it into the specified return type.
      *
      * @param <T>           The expected return type of the extracted field.

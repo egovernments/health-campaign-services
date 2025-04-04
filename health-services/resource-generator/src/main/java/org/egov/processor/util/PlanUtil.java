@@ -127,9 +127,9 @@ public class PlanUtil {
 				return null;
 
 			// Extract required details from census additional details object.
-			String facilityId = (String) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID);
-			Object accessibilityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS);
-			Object securityDetails = (Object) parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS);
+			String facilityId = parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, FACILITY_ID, String.class);
+			Object accessibilityDetails = parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, ACCESSIBILITY_DETAILS, Object.class);
+			Object securityDetails = parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS, Object.class);
 
 			// Creating a map of fields to be added in plan additional details with their key.
 			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
