@@ -1,22 +1,20 @@
-package org.egov.servicerequest.web.models;
+package org.egov.common.models.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
-import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import org.egov.common.contract.models.AuditDetails;
 
 /**
  * Hold the attribute details as object.
  */
-@Schema(description = "Hold the attribute details as object.")
 @Validated
 @Data
 @AllArgsConstructor
@@ -27,6 +25,7 @@ public class AttributeValue {
     private String id = null;
 
     @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
     private String clientReferenceId = null;
 
     @JsonProperty("referenceId")
@@ -46,6 +45,5 @@ public class AttributeValue {
 
     @JsonProperty("additionalFields")
     private Object additionalDetails = null;
-
 
 }

@@ -76,7 +76,9 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
         AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("attribute_value_createdby"))
                 .createdTime(rs.getLong("attribute_value_createdtime")).lastModifiedBy(rs.getString("attribute_value_lastmodifiedby"))
                 .lastModifiedTime(rs.getLong("attribute_value_lastmodifiedtime")).build();
-        AttributeValue attributeValue = AttributeValue.builder().id(rs.getString("attribute_value_id"))
+        AttributeValue attributeValue = AttributeValue.builder()
+                .id(rs.getString("attribute_value_id"))
+                .clientReferenceId(rs.getString("attribute_value_clientReferenceId"))
                 .referenceId(rs.getString("attribute_value_referenceid"))
                 .attributeCode(rs.getString("attribute_value_attributecode"))
                 .value(getProperTypeCastedAttributeValue(genericValueObject))
