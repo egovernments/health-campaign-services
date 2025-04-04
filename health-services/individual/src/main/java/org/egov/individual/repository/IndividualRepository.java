@@ -76,8 +76,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
-                includeDeleted), idColumn);
+        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
