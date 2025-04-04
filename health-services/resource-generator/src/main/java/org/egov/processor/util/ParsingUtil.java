@@ -393,35 +393,40 @@ public class ParsingUtil {
     }
 
     /**
-     * Extracts provided field from the additional details object
+     * Extracts a specific field from a given JSON object and converts it into the specified return type.
      *
-     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @param fieldToExtract    the name of the field to be extracted from the additional details
-     * @return the value of the specified field as a string
-     * @throws CustomException if the field does not exist
+     * @param <T>           The expected return type of the extracted field.
+     * @param additionalDetails The JSON object from which the field is to be extracted.
+     * @param fieldToExtract The key of the field to extract from the JSON object.
+     * @param returnType     The class type of the expected return value.
+     * @return The extracted value cast to the specified return type, or {@code null} if the field is missing or not compatible.
+     * @throws CustomException If the field is not found or if an error occurs during extraction.
      */
-    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> returnType) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
-
             JsonNode node = rootNode.get(fieldToExtract);
+
             if (node != null && !node.isNull()) {
+                // Handle List<String> case separately
+                if (returnType == List.class && node.isArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonNode idNode : node) {
+                        list.add(idNode.asText());
+                    }
+                    return returnType.cast(list);
+                }
 
                 // Check for different types of JSON nodes
-                if (node.isDouble() || node.isFloat()) {
-                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
-                } else if (node.isLong() || node.isInt()) {
-                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
-                } else if (node.isBoolean()) {
-                    return node.asBoolean();
-                } else if (node.isTextual()) {
-                    return node.asText();
-                } else if (node.isObject()) {
-                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
+                if (returnType == BigDecimal.class && (node.isDouble() || node.isFloat() || node.isLong() || node.isInt())) {
+                    return returnType.cast(BigDecimal.valueOf(node.asDouble()));
+                } else if (returnType == Boolean.class && node.isBoolean()) {
+                    return returnType.cast(node.asBoolean());
+                } else if (returnType == String.class && node.isTextual()) {
+                    return returnType.cast(node.asText());
                 }
             }
-            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
