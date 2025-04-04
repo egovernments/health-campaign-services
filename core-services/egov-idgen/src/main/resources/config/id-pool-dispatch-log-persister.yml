@@ -7,12 +7,23 @@ serviceMaps:
       fromTopic: save-dispatch-id-log
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO id_transaction_log(id_reference, user_uuid, device_uuid, device_info)
-            VALUES (?, ?, ?, ?::jsonb)
+        - query: INSERT INTO id_transaction_log(id_reference, user_uuid, device_uuid, device_info, tenantId, additionalFields, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion)
+            VALUES (?, ?, ?, ? , ? , ?, ?, ?, ?, ?, ?)
 
-          basePath: dispatchedIdLogs.*
+          basePath: $.idTransactionLog.*
           jsonMaps:
-            - jsonPath: $.dispatchedIdLogs.*.id
-            - jsonPath: $.dispatchedIdLogs.*.userUuid
-            - jsonPath: $.dispatchedIdLogs.*.deviceUuid
-            - jsonPath: $.dispatchedIdLogs.*.deviceInfo
+            - jsonPath: $.idTransactionLog.*.id
+            - jsonPath: $.idTransactionLog.*.userUuid
+            - jsonPath: $.idTransactionLog.*.deviceUuid
+            - jsonPath: $.idTransactionLog.*.deviceInfo
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.idTransactionLog.*.tenantId
+            - jsonPath: $.idTransactionLog.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.idTransactionLog.*.auditDetails.createdBy
+            - jsonPath: $.idTransactionLog.*.auditDetails.lastModifiedBy
+            - jsonPath: $.idTransactionLog.*.auditDetails.createdTime
+            - jsonPath: $.idTransactionLog.*.auditDetails.lastModifiedTime
+            - jsonPath: $.idTransactionLog.*.rowVersion

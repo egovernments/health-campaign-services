@@ -68,7 +68,8 @@ public class IdGenerationService {
     @Value("${idgen.random.buffer:5}")
     public Integer defaultBufferPercentage;
 
-    private static final int MAX_BATCH_SIZE = 100000;
+    @Value("${id.pool.create.max.batch.size:1000}")
+    private Integer MAX_BATCH_SIZE;
     private static final Pattern RANDOM_PATTERN = Pattern.compile("\\[d\\{\\d+}]");
     /**
      * Description : This method to generate idGenerationResponse

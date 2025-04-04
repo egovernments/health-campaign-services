@@ -4,6 +4,7 @@ import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -18,6 +19,12 @@ public class RedissonLockManager {
 
     private final Map<List<String>, RLock> activeLocks = new HashMap<>();
 
+    @Value("${multi.lock.wait.time:5}")
+    private Integer multiLockWaitTime;
+
+    @Value("${multi.lock.lease.time:10}")
+    private Integer multiLockLeaseTime;
+
 
     public boolean lockRecords(List<String> ids) {
         List<RLock> locks = ids.stream()
@@ -27,7 +34,7 @@ public class RedissonLockManager {
         RLock multiLock = new RedissonMultiLock(locks.toArray(new RLock[0]));
 
         try {
-            boolean acquired = multiLock.tryLock(5, 10, TimeUnit.SECONDS);
+            boolean acquired = multiLock.tryLock(multiLockWaitTime, multiLockLeaseTime, TimeUnit.SECONDS);
             if (acquired) {
                 synchronized (activeLocks) {
                     activeLocks.put(new ArrayList<>(ids), multiLock);

@@ -6,18 +6,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovModel;
 
+@SuperBuilder
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-public class DispatchedId {
-
-    private String id;           // will map to id_reference
+public class IdTransactionLog extends EgovModel {
     private String userUuid;
     private String deviceUuid;
     private Object deviceInfo;
-    private String status;// can be Map<String, Object> or raw JSON
+    private String status;
 }
 

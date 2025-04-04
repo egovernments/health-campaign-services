@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS id_pool (
-    id                character varying(64),
+    id                character varying(255),
     status            character varying(255) DEFAULT 'UNASSIGNED',
     tenantId          character varying(1000),
     additionalFields  jsonb,

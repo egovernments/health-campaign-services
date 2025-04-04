@@ -81,7 +81,7 @@ public class IdDispatchService {
         }
 
         try {
-            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo());
+            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId);
             redisRepo.incrementDispatchedCount(userUuid, deviceUuid, count);
         } finally {
             lockManager.releaseLocks(lockedIds);
@@ -161,7 +161,7 @@ public class IdDispatchService {
     /**
      * Updates Redis cache, sends Kafka messages for status and logs.
      */
-    private void updateStatusesAndLogs(List<IdRecord> selected, String userUuid, String deviceUuid, Object deviceInfo) {
+    private void updateStatusesAndLogs(List<IdRecord> selected, String userUuid, String deviceUuid, Object deviceInfo, String tenantId) {
         redisRepo.updateStatusToDispatched(selected);
         redisRepo.removeFromUnassigned(selected);
 
@@ -169,7 +169,7 @@ public class IdDispatchService {
                 buildIdPoolStatusPayload(userUuid, selected));
 
         idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(),
-                buildDispatchLogPayload(selected, userUuid, deviceUuid, deviceInfo));
+                buildDispatchLogPayload(selected, userUuid, deviceUuid, deviceInfo , tenantId));
     }
 
     /**
@@ -194,18 +194,28 @@ public class IdDispatchService {
      * Builds the Kafka message payload for dispatch logs.
      */
     private Map<String, Object> buildDispatchLogPayload(List<IdRecord> selected, String userUuid,
-                                                        String deviceUuid, Object deviceInfo) {
-        List<DispatchedId> logs = selected.stream().map(record -> {
-            DispatchedId dispatched = new DispatchedId();
-            dispatched.setId(record.getId());
-            dispatched.setUserUuid(userUuid);
-            dispatched.setDeviceUuid(deviceUuid);
-            dispatched.setDeviceInfo(deviceInfo);
+                                                        String deviceUuid, Object deviceInfo, String tenantId) {
+        List<IdTransactionLog> logs = selected.stream().map(record -> {
+            IdTransactionLog dispatched = IdTransactionLog.builder()
+                    .tenantId(tenantId)
+                    .id(record.getId())
+                    .auditDetails(
+                            AuditDetails.builder()
+                                    .createdBy(userUuid)
+                                    .createdTime(System.currentTimeMillis())
+                                    .build()
+                    )
+                    .rowVersion(1)
+                    .status(IdStatus.DISPATCHED.name())
+                    .userUuid(userUuid)
+                    .deviceUuid(deviceUuid)
+                    .deviceInfo(deviceInfo)
+                    .build();
             return dispatched;
         }).collect(Collectors.toList());
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("dispatchedIdLogs", logs);
+        payload.put("idTransactionLog", logs);
         return payload;
     }
 
