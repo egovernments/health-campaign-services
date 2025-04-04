@@ -1,6 +1,6 @@
 package org.egov.id.repository;
 
-import org.egov.id.model.IdRecord;
+import org.egov.common.models.idgen.IdRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;

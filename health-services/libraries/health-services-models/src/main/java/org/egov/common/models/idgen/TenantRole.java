@@ -1,11 +1,8 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import java.util.ArrayList;
 import java.util.List;
-
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

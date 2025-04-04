@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 
-import org.egov.id.model.IdGenerationRequest;
-import org.egov.id.model.RequestInfo;
+import org.egov.common.models.idgen.*;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
 import org.junit.jupiter.api.Test;

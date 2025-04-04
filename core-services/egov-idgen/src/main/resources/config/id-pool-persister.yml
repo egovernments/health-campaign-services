@@ -7,14 +7,21 @@ serviceMaps:
       fromTopic: save-in-id-pool
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO id_pool (id, status, tenantId)
-            VALUES (?, 'UN_ASSIGNED', ?)
+        - query: INSERT INTO id_pool (id, status, tenantId, additionalFields, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion)
+            VALUES (?, 'UNASSIGNED', ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING;
-
-          basePath: idPool.*
+          basePath: $.idPool.*
           jsonMaps:
             - jsonPath: $.idPool.*.id
             - jsonPath: $.idPool.*.tenantId
+            - jsonPath: $.idPool.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.idPool.*.auditDetails.createdBy
+            - jsonPath: $.idPool.*.auditDetails.lastModifiedBy
+            - jsonPath: $.idPool.*.auditDetails.createdTime
+            - jsonPath: $.idPool.*.auditDetails.lastModifiedTime
+            - jsonPath: $.idPool.*.rowVersion
 
     - version: 1.0
       name: idpool-status-update
@@ -23,9 +30,15 @@ serviceMaps:
       isTransaction: true
       queryMaps:
         - query: |
-            UPDATE id_pool SET status = ?, updated_at = CURRENT_TIMESTAMP
+            UPDATE id_pool SET status = ?, lastModifiedBy = ?, lastModifiedTime = ?, additionalFields = ?
             WHERE id = ?;
-          basePath: idPool.*
+          basePath: $.idPool.*
           jsonMaps:
             - jsonPath: $.idPool.*.status
+            - jsonPath: $.idPool.*.auditDetails.lastModifiedBy
+            - jsonPath: $.idPool.*.auditDetails.lastModifiedTime
+            - jsonPath: $.idPool.*.additionalFields
+              type: JSON
+              dbType: JSONB
             - jsonPath: $.idPool.*.id
+

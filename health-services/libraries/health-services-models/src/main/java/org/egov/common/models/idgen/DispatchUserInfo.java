@@ -1,4 +1,4 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,6 +10,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DispatchUserInfo {
+    private String tenantId;
     private String userUuid;
     private int count;
     private String deviceUuid;

@@ -1,4 +1,4 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * <h1>InvalidIDFormatException</h1>
+ * <h1>IDSeqNotFoundException</h1>
  * 
  * @author Pavan Kumar kamma
  *
@@ -15,11 +15,12 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class InvalidIDFormatException extends RuntimeException {
+public class IDSeqNotFoundException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
 
 	private String customMsg;
 
 	private RequestInfo requestInfo;
+
 }

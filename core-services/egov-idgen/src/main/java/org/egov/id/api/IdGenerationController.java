@@ -1,11 +1,10 @@
 package org.egov.id.api;
 
 import jakarta.validation.Valid;
-import org.egov.id.model.*;
+import org.egov.common.models.idgen.*;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,7 +33,7 @@ public class IdGenerationController {
 	/**
 	 * description: generate unique ID for property
 	 * 
-	 * @param IdGenerationRequest
+	 * @param idGenerationRequest
 	 * @return IdGenerationResponse
 	 * @throws Exception
 	 */
@@ -52,7 +51,7 @@ public class IdGenerationController {
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IDPoolGenerationRequest
+	 * @param request
 	 * @return IDPoolGenerationResponse
 	 * @throws Exception
 	 */
@@ -68,7 +67,7 @@ public class IdGenerationController {
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IdDispatchRequest
+	 * @param request
 	 * @return IdDispatchResponse
 	 * @throws Exception
 	 */
@@ -77,6 +76,11 @@ public class IdGenerationController {
 	public IdDispatchResponse dispatchIds(@RequestBody IdDispatchRequest request)  throws Exception {
 			IdDispatchResponse response = idDispatchService.dispatchIds( request);
 			return response;
+	}
+
+	@RequestMapping(method = RequestMethod.POST, path = "id_pool/search")
+	public IdDispatchResponse searchGeneratedIDs(@RequestBody @Valid IdPoolSearchRequest request)  throws Exception {
+		return idDispatchService.searchIds(request.getRequestInfo(), request.getIdPoolSearch());
 	}
 
 }

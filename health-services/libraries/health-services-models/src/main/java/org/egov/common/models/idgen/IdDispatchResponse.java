@@ -1,16 +1,17 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import java.util.List;
-
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+
 /**
  * <h1>IdGenerationResponse</h1>
- * 
+ *
  * @author Narendra
  *
  */
@@ -19,10 +20,11 @@ import lombok.ToString;
 @ToString
 @AllArgsConstructor
 @NoArgsConstructor
-public class IdGenerationResponse {
+@Builder
+public class IdDispatchResponse {
 
-	private ResponseInfo responseInfo;
+    private ResponseInfo responseInfo;
 
-	private List<IdResponse> idResponses;
+    private List<IdRecord> idResponses;
 
 }

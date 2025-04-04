@@ -1,49 +1,44 @@
 package org.egov.id.repository;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.id.model.IdRecord;
-import org.egov.tracer.model.CustomException;
-import org.postgresql.util.PGobject;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.idgen.IdRecord;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 @Component
-public class IdRecordRowMapper implements ResultSetExtractor<List<IdRecord>> {
+public class IdRecordRowMapper implements RowMapper<IdRecord> {
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @Override
-    public List<IdRecord> extractData(ResultSet rs) throws SQLException, DataAccessException {
-        Map<String, IdRecord> idRecordMap = new LinkedHashMap<>();
+    public IdRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
+        AuditDetails auditDetails = AuditDetails.builder()
+                .createdBy(rs.getString("createdBy"))
+                .createdTime(rs.getLong("createdTime"))
+                .lastModifiedBy(rs.getString("lastModifiedBy"))
+                .lastModifiedTime(rs.getLong("lastModifiedTime"))
+                .build();
 
-        while (rs.next()) {
-            String id = rs.getString("id");
-            String status = rs.getString("status");
-            Timestamp createdAt = rs.getTimestamp("created_at");
-
-            IdRecord record = new IdRecord();
-            record.setId(id);
-            record.setStatus(status);
-            record.setCreatedAt(createdAt);
-
-            if (!idRecordMap.containsKey(id)) {
-                idRecordMap.put(id, record);
-            }
+        Object additionalFieldObject = rs.getObject("additionalFields");
+        AdditionalFields additionalFields = null;
+        if (additionalFieldObject != null) {
+            additionalFields = objectMapper.convertValue(additionalFieldObject, AdditionalFields.class);
         }
 
-        return new ArrayList<>(idRecordMap.values());
+        return IdRecord
+                .builder()
+                .id(rs.getString("id"))
+                .status(rs.getString("status"))
+                .tenantId(rs.getString("tenantId"))
+                .rowVersion(rs.getInt("rowVersion"))
+                .additionalFields(additionalFields)
+                .auditDetails(auditDetails)
+                .build();
     }
 }

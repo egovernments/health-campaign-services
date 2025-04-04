@@ -1,7 +1,11 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter

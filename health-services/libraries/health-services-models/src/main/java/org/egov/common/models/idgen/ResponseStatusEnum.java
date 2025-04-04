@@ -1,4 +1,4 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

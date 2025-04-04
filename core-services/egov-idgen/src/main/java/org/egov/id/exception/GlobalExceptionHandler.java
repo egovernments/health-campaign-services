@@ -6,14 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.egov.common.models.idgen.*;
+import org.egov.common.models.idgen.Error;
 import org.egov.id.config.PropertiesManager;
-import org.egov.id.model.Error;
-import org.egov.id.model.ErrorRes;
-import org.egov.id.model.IDSeqNotFoundException;
-import org.egov.id.model.IDSeqOverflowException;
-import org.egov.id.model.InvalidIDFormatException;
-import org.egov.id.model.ResponseInfo;
-import org.egov.id.model.ResponseStatusEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;

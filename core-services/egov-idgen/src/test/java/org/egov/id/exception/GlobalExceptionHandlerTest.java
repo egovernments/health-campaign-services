@@ -1,11 +1,9 @@
 package org.egov.id.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.idgen.Error;
 import org.egov.id.config.PropertiesManager;
-import org.egov.id.model.Error;
-import org.egov.id.model.ErrorRes;
-import org.egov.id.model.ResponseInfo;
-import org.egov.id.model.ResponseStatusEnum;
+import org.egov.common.models.idgen.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mock;

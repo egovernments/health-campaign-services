@@ -8,8 +8,9 @@ import java.util.regex.Pattern;
 import javax.sql.DataSource;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.idgen.*;
 import org.egov.id.config.PropertiesManager;
-import org.egov.id.model.*;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -119,7 +120,7 @@ public class IdGenerationService {
 
             IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
             List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
-            persistToKafka(generatedIds, tenantId);
+            persistToKafka(requestInfo, generatedIds, tenantId);
         }
 
         return new IDPoolGenerationResponse();
@@ -163,12 +164,23 @@ public class IdGenerationService {
         }
     }
 
-    private void persistToKafka(List<String> generatedIds, String tenantId) {
-        List<IdPoolEntry> buffer = new ArrayList<>(MAX_BATCH_SIZE);
+    private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
+        List<IdRecord> buffer = new ArrayList<>(MAX_BATCH_SIZE);
 
         System.out.println("Total IDs generated: " + generatedIds.size());
         for (int i = 0; i < generatedIds.size(); i++) {
-            buffer.add(new IdPoolEntry(generatedIds.get(i), tenantId));
+            IdRecord idRecord = IdRecord.builder()
+                    .tenantId(tenantId)
+                    .id(generatedIds.get(i))
+                    .auditDetails(
+                            AuditDetails.builder()
+                                    .createdBy(requestInfo.getUserInfo().getUuid())
+                                    .createdTime(System.currentTimeMillis())
+                                    .build()
+                    )
+                    .rowVersion(1)
+                    .build();
+            buffer.add(idRecord);
 
             if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
@@ -178,7 +190,7 @@ public class IdGenerationService {
     }
 
 
-    private void sendBatch(String topic, List<IdPoolEntry> entries) {
+    private void sendBatch(String topic, List<IdRecord> entries) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("idPool", entries);

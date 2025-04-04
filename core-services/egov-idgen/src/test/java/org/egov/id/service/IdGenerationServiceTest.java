@@ -1,9 +1,7 @@
 package org.egov.id.service;
 
-import org.egov.id.model.IdGenerationRequest;
-import org.egov.id.model.IdRequest;
-import org.egov.id.model.RequestInfo;
-import org.egov.id.model.ResponseInfoFactory;
+
+import org.egov.common.models.idgen.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

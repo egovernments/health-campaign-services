@@ -1,8 +1,9 @@
 package org.egov.id.service;
 
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.idgen.*;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.config.RedissonLockManager;
-import org.egov.id.model.*;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.id.repository.IdRepository;
 import org.egov.id.repository.RedisRepository;
@@ -54,6 +55,7 @@ public class IdDispatchService {
         int count = request.getUserInfo().getCount();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
         RequestInfo requestInfo = request.getRequestInfo();
+        String tenantId = request.getUserInfo().getTenantId();
 
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
         if (alreadyDispatched + count > configuredLimit) {
@@ -61,7 +63,7 @@ public class IdDispatchService {
                     "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
         }
 
-        List<IdRecord> selected = fetchOrRefillIds(count);
+        List<IdRecord> selected = fetchOrRefillIds(tenantId, count);
 
         if (selected == null || selected.isEmpty()) {
             throw new CustomException("NO IDS AVAILABLE", "Unable to fetch IDs from Redis or DB");
@@ -85,7 +87,20 @@ public class IdDispatchService {
             lockManager.releaseLocks(lockedIds);
         }
 
-        return buildResponse(requestInfo, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), lockedIds);
+        return IdDispatchResponse.builder()
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true))
+                .idResponses(selected)
+                .build();
+    }
+
+    public IdDispatchResponse searchIds(RequestInfo requestInfo, IdPoolSearch idPoolSearch) {
+        List<IdRecord> records = idRepo.findByIDsAndStatus(idPoolSearch.getIdList(),
+                idPoolSearch.getStatus(),
+                idPoolSearch.getTenantId());
+        return IdDispatchResponse.builder()
+                .idResponses(records)
+                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true))
+                .build();
     }
 
     private void validateDispatchRequest(IdDispatchRequest request) {
@@ -133,10 +148,10 @@ public class IdDispatchService {
     /**
      * Fetches IDs from Redis or DB if needed.
      */
-    private List<IdRecord> fetchOrRefillIds(int count) {
+    private List<IdRecord> fetchOrRefillIds(String tenantId, int count) {
         List<IdRecord> selected = redisRepo.selectUnassignedIds(count);
         if (selected.size() < count) {
-            List<IdRecord> fromDb = idRepo.fetchUnassigned(dbFetchCount);
+            List<IdRecord> fromDb = idRepo.fetchUnassigned(tenantId, dbFetchCount);
             redisRepo.addToRedisCache(fromDb);
             selected = redisRepo.selectUnassignedIds(count);
         }
@@ -151,7 +166,7 @@ public class IdDispatchService {
         redisRepo.removeFromUnassigned(selected);
 
         idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(),
-                buildIdPoolStatusPayload(selected));
+                buildIdPoolStatusPayload(userUuid, selected));
 
         idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(),
                 buildDispatchLogPayload(selected, userUuid, deviceUuid, deviceInfo));
@@ -160,16 +175,18 @@ public class IdDispatchService {
     /**
      * Builds the Kafka message payload to update status of dispatched IDs.
      */
-    private Map<String, Object> buildIdPoolStatusPayload(List<IdRecord> selected) {
-        List<DispatchedId> idsToUpdate = selected.stream().map(record -> {
-            DispatchedId dispatched = new DispatchedId();
-            dispatched.setId(record.getId());
-            dispatched.setStatus(IdStatus.DISPATCHED.name());
-            return dispatched;
-        }).collect(Collectors.toList());
+    private Map<String, Object> buildIdPoolStatusPayload(String userUuid, List<IdRecord> selected) {
+
+        List<IdRecord> updatedRecords = selected.stream().peek(d -> {
+            d.setStatus(IdStatus.DISPATCHED.name());
+            AuditDetails auditDetails = d.getAuditDetails();
+            auditDetails.setLastModifiedBy(userUuid);
+            auditDetails.setLastModifiedTime(System.currentTimeMillis());
+            d.setRowVersion(d.getRowVersion() + 1);
+        }).toList();
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("idPool", idsToUpdate);
+        payload.put("idPool", updatedRecords);
         return payload;
     }
 
@@ -192,25 +209,4 @@ public class IdDispatchService {
         return payload;
     }
 
-    /**
-     * Builds the final response object for the dispatch request.
-     */
-    private IdDispatchResponse buildResponse(RequestInfo requestInfo, String userUuid, String deviceUuid,
-                                             Object deviceInfo, List<String> lockedIds) {
-        IdDispatchResponse response = new IdDispatchResponse();
-        response.setResponseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true));
-
-        List<DispatchedId> dispatchedIds = lockedIds.stream().map(id -> {
-            DispatchedId detail = new DispatchedId();
-            detail.setId(id);
-            detail.setUserUuid(userUuid);
-            detail.setDeviceUuid(deviceUuid);
-            detail.setDeviceInfo(deviceInfo);
-            detail.setStatus(IdStatus.DISPATCHED.name());
-            return detail;
-        }).collect(Collectors.toList());
-
-        response.setIdResponses(dispatchedIds);
-        return response;
-    }
 }

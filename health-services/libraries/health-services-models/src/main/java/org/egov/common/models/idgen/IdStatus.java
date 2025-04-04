@@ -1,7 +1,7 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 public enum IdStatus {
-    UN_ASSIGNED,
+    UNASSIGNED,
     ASSIGNED,
     DISPATCHED
 }

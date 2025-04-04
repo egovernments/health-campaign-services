@@ -1,14 +1,18 @@
 package org.egov.id.repository;
 
-import org.egov.id.model.IdRecord;
-import org.egov.id.model.IdStatus;
+import org.egov.common.models.idgen.IdRecord;
+import org.egov.common.models.idgen.IdStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class IdRepository {
@@ -16,11 +20,11 @@ public class IdRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private static final String FETCH_UNASSIGNED_SQL =
-            "SELECT id, status, created_at FROM id_pool " +
-                    "WHERE status = ? " +
-                    "ORDER BY created_at ASC " +
-                    "LIMIT ?";
+    @Autowired
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Autowired
+    private IdRecordRowMapper idRecordRowMapper;
 
     private static final String BULK_UPDATE_STATUS_SQL_BASE =
             "UPDATE id_pool SET status = 'DISPATCHED' WHERE id IN (%s)";
@@ -28,12 +32,36 @@ public class IdRepository {
     /**
      * Fetches a list of unassigned ID records with a given limit.
      */
-    public List<IdRecord> fetchUnassigned(int count) {
-        List<Object> preparedStmtList = new ArrayList<>();
-        preparedStmtList.add(IdStatus.UN_ASSIGNED);
-        preparedStmtList.add(count);
+    public List<IdRecord> fetchUnassigned(String tenantId, int count) {
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
+        paramMap.put("status", IdStatus.UNASSIGNED.name());
+        paramMap.put("limit", count);
+        String query =
+                "SELECT * FROM id_pool " +
+                        "WHERE status = :status " +
+                        "AND tenantId = :tenantId " +
+                        "ORDER BY createdTime ASC " +
+                        "LIMIT :limit";
+        return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
+    }
 
-        return jdbcTemplate.query(FETCH_UNASSIGNED_SQL, preparedStmtList.toArray(), new IdRecordRowMapper());
+    /**
+     * Fetches a list of unassigned ID records with a given limit.
+     */
+    public List<IdRecord> findByIDsAndStatus(List<String> ids, IdStatus idStatus, String tenantId) {
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
+        paramMap.put("ids", ids);
+        String query = "SELECT * FROM id_pool " +
+                        "WHERE tenantId = :tenantId ";
+        if (!ObjectUtils.isEmpty(idStatus)) {
+            query += "AND status = :status ";
+            paramMap.put("status", idStatus.name());
+        }
+        query += "AND id in (:ids) " +
+                        "ORDER BY createdTime ASC";
+        return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
     }
 
     /**

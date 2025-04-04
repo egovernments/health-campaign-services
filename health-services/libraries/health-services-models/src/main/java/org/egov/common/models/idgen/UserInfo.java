@@ -1,11 +1,8 @@
-package org.egov.id.model;
+package org.egov.common.models.idgen;
 
 import java.util.ArrayList;
 import java.util.List;
-
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -32,6 +29,9 @@ public class UserInfo {
 
 	@JsonProperty("id")
 	private Integer id = null;
+
+	@JsonProperty("uuid")
+	private String uuid = null;
 
 	@JsonProperty("username")
 	@Size(max=64)

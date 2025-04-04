@@ -1,7 +1,8 @@
 package org.egov.id.service;
 
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.id.model.IdRequest;
+import org.egov.common.models.idgen.IdRequest;
+import org.egov.common.models.idgen.RequestInfo;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsResponse;
 import org.egov.mdms.service.MdmsClientService;
@@ -34,7 +35,7 @@ class MdmsServiceTest {
         MdmsResponse mdmsResponse = new MdmsResponse();
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, List<MasterDetail>>) any())).thenReturn(mdmsResponse);
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertSame(mdmsResponse, this.mdmsService.getMasterData(requestInfo, "42", new HashMap<>()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, List<MasterDetail>>) any());
@@ -54,7 +55,7 @@ class MdmsServiceTest {
     void testGetMasterData4() {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, List<MasterDetail>>) any())).thenThrow(new CustomException("Code", "An error occurred"));
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getMasterData(requestInfo, "42", new HashMap<>()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, List<MasterDetail>>) any());
@@ -65,7 +66,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenReturn(new MdmsResponse());
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getCity(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -75,7 +76,7 @@ class MdmsServiceTest {
     void testGetCity2() {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any())).thenReturn(null);
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getCity(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -87,7 +88,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenReturn(new MdmsResponse(responseInfo, new HashMap<>()));
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getCity(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -108,7 +109,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenReturn(new MdmsResponse());
-        org.egov.id.model.RequestInfo requestInfo = mock(org.egov.id.model.RequestInfo.class);
+        RequestInfo requestInfo = mock(RequestInfo.class);
         assertThrows(CustomException.class, () -> this.mdmsService.getCity(requestInfo, new IdRequest()));
     }
 
@@ -117,7 +118,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenThrow(new CustomException("tenants", "An error occurred"));
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getCity(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -128,7 +129,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenReturn(new MdmsResponse());
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertNull(this.mdmsService.getIdFormat(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -138,7 +139,7 @@ class MdmsServiceTest {
     void testGetIdFormat2() {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any())).thenReturn(null);
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getIdFormat(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -150,7 +151,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenReturn(new MdmsResponse(responseInfo, new HashMap<>()));
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertNull(this.mdmsService.getIdFormat(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
@@ -171,7 +172,7 @@ class MdmsServiceTest {
         when(this.mdmsClientService.getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any()))
                 .thenThrow(new CustomException("tenants", "An error occurred"));
-        org.egov.id.model.RequestInfo requestInfo = new org.egov.id.model.RequestInfo();
+        RequestInfo requestInfo = new RequestInfo();
         assertThrows(CustomException.class, () -> this.mdmsService.getIdFormat(requestInfo, new IdRequest()));
         verify(this.mdmsClientService).getMaster((org.egov.common.contract.request.RequestInfo) any(), (String) any(),
                 (java.util.Map<String, java.util.List<org.egov.mdms.model.MasterDetail>>) any());
