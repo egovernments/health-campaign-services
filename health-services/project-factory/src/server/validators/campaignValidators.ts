@@ -786,7 +786,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
         activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumnName, localizationMap);
     }
     datas.forEach((data: any) => {
-        const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+        const codes = String(data?.[boundaryColumn])?.split(',').map((code: string) => code.trim()) || [];
         var active = activeColumnName ? data?.[activeColumnName] : usageColumnStatus.active;
         if (active == usageColumnStatus.active) {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
