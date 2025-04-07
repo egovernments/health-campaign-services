@@ -6,15 +6,16 @@ import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.processor.web.models.census.Census;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.egov.tracer.model.CustomException;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
@@ -58,6 +59,11 @@ public class OutputEstimationGenerationUtil {
             addAssignedFacility(sheet, request, filestoreId);
         }
 
+        // 3. Add new columns to the sheet, if any.
+        for(Sheet sheet: workbook) {
+            addNewColumns(sheet, request);
+        }
+
     }
 
     /**
@@ -71,6 +77,11 @@ public class OutputEstimationGenerationUtil {
     public void processDraftOutputFile(Workbook workbook, PlanConfigurationRequest request) {
         // Remove readme sheets and localise column headers
         filterAndLocalizeWorkbook(workbook, request);
+
+        // Add new columns to the sheet, if any.
+        for(Sheet sheet: workbook) {
+            addNewColumns(sheet, request);
+        }
     }
 
     private void filterAndLocalizeWorkbook(Workbook workbook, PlanConfigurationRequest request) {
@@ -90,6 +101,48 @@ public class OutputEstimationGenerationUtil {
         // 2. Stylize and localize output column headers
         for (Sheet sheet : workbook) {
             processSheetForHeaderLocalization(sheet, localeResponse);
+        }
+
+    }
+
+    /**
+     * Adds new editable columns to the given sheet based on the additional details in the plan configuration request.
+     *
+     * @param sheet   The Excel sheet to which new columns will be added.
+     * @param request The plan configuration request containing additional details, including new column names.
+     */
+    private void addNewColumns(Sheet sheet, PlanConfigurationRequest request) {
+        List<String> newColumns = parsingUtil.extractFieldsFromJsonObject(request.getPlanConfiguration().getAdditionalDetails(), NEW_COLUMNS_KEY, List.class);
+
+        if(!CollectionUtils.isEmpty(newColumns)) {
+            for(String columnName : newColumns) {
+                int lastColumnIndex = (int) sheet.getRow(0).getLastCellNum();
+
+                // Create a new cell for the column header.
+                Cell newColumnHeader = sheet.getRow(0).createCell(lastColumnIndex, CellType.STRING);
+
+                //stylize cell and set cell value
+                excelStylingUtil.styleCell(newColumnHeader);
+                newColumnHeader.setCellValue(columnName);
+                excelStylingUtil.adjustColumnWidthForCell(newColumnHeader);
+
+                for (Row row : sheet) {
+                    if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
+                        continue;
+                    }
+
+                    Cell cell = row.getCell(lastColumnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+
+                    // Ensure the cell has a style before modifying it
+                    CellStyle cellStyle = cell.getCellStyle();
+                    if (cellStyle == null || cellStyle.getIndex() == 0) { // If no style exists, create one
+                        cellStyle = sheet.getWorkbook().createCellStyle();
+                    }
+
+                    cellStyle.setLocked(false); // Ensure the new cell is editable
+                    cell.setCellStyle(cellStyle);
+                }
+            }
         }
     }
 
@@ -192,7 +245,7 @@ public class OutputEstimationGenerationUtil {
         return censusList.stream()
                 .collect(Collectors.toMap(
                         Census::getBoundaryCode,
-                        census -> (String) parsingUtil.extractFieldsFromJsonObject(census.getAdditionalDetails(), FACILITY_NAME)));
+                        census -> parsingUtil.extractFieldsFromJsonObject(census.getAdditionalDetails(), FACILITY_NAME, String.class)));
     }
 
     /**
@@ -229,7 +282,7 @@ public class OutputEstimationGenerationUtil {
 
             // Assign the facility name based on the boundary code.
             facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, EMPTY_STRING));
-            facilityCell.getCellStyle().setLocked(false); // Ensure the new cell is editable
+            facilityCell.getCellStyle().setLocked(true); // Locking the cell
 
         }
     }

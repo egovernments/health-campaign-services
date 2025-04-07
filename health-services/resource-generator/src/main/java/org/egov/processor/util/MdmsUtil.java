@@ -162,7 +162,7 @@ public class MdmsUtil {
 					schemaProperties.forEach((propertyType, propertyList) ->
 							// For each property in the property list, extract its name and add it to the map with the property.
 							propertyList.forEach(property -> {
-								String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
+								String propertyName = parsingUtil.extractFieldsFromJsonObject(property, "name", String.class);
 								properties.put(propertyName, property);
 							})
 					);
