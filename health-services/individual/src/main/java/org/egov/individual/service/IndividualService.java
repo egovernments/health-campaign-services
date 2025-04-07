@@ -29,6 +29,8 @@ import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IBoundaryValidator;
 import org.egov.individual.validators.IExistentEntityValidator;
+import org.egov.individual.validators.IdPoolValidatorForCreate;
+import org.egov.individual.validators.IdPoolValidatorForUpdate;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
 import org.egov.individual.validators.IsDeletedValidator;
 import org.egov.individual.validators.MobileNumberValidator;
@@ -86,7 +88,9 @@ public class IndividualService {
                     || validator.getClass().equals(UniqueEntityValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidator.class);
+                    || validator.getClass().equals(AadharNumberValidator.class)
+                    || validator.getClass().equals(IdPoolValidatorForUpdate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
@@ -94,7 +98,9 @@ public class IndividualService {
                     || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidatorForCreate.class);
+                    || validator.getClass().equals(AadharNumberValidatorForCreate.class)
+                    || validator.getClass().equals(IdPoolValidatorForCreate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
             validator.getClass().equals(NullIdValidator.class)

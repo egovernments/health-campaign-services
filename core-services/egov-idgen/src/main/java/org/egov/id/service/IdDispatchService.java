@@ -1,7 +1,9 @@
 package org.egov.id.service;
 
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
+import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.config.RedissonLockManager;
 import org.egov.id.producer.IdGenProducer;
@@ -17,7 +19,6 @@ import java.util.stream.Collectors;
 @Service
 public class IdDispatchService {
 
-    private final ResponseInfoFactory responseInfoFactory;
     private final RedisRepository redisRepo;
     private final IdRepository idRepo;
     private final RedissonLockManager lockManager;
@@ -28,13 +29,11 @@ public class IdDispatchService {
     private final int dbFetchCount;
 
     @Autowired
-    public IdDispatchService(ResponseInfoFactory responseInfoFactory,
-                             RedisRepository redisRepo,
+    public IdDispatchService(RedisRepository redisRepo,
                              IdRepository idRepo,
                              RedissonLockManager lockManager,
                              IdGenProducer idGenProducer,
                              PropertiesManager propertiesManager) {
-        this.responseInfoFactory = responseInfoFactory;
         this.redisRepo = redisRepo;
         this.idRepo = idRepo;
         this.lockManager = lockManager;
@@ -88,7 +87,7 @@ public class IdDispatchService {
         }
 
         return IdDispatchResponse.builder()
-                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true))
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
                 .build();
     }
@@ -99,7 +98,7 @@ public class IdDispatchService {
                 idPoolSearch.getTenantId());
         return IdDispatchResponse.builder()
                 .idResponses(records)
-                .responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true))
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .build();
     }
 

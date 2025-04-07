@@ -1,12 +1,12 @@
 package org.egov.id.service;
 
 
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -19,10 +19,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(SpringExtension.class)
 
 class IdGenerationServiceTest {
-
-
-    @MockBean
-    ResponseInfoFactory responseInfoFactory;
 
     @Test
     void testGenerateIdResponse() throws Exception {

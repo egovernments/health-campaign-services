@@ -6,6 +6,10 @@ import org.egov.common.contract.idgen.IdRequest;
 import org.egov.common.contract.idgen.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.idgen.IdDispatchResponse;
+import org.egov.common.models.idgen.IdPoolSearch;
+import org.egov.common.models.idgen.IdPoolSearchRequest;
+import org.egov.common.models.idgen.IdStatus;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,5 +57,18 @@ public class IdGenService {
             throw new CustomException("IDGEN_ERROR", "No ids returned from idgen Service");
 
         return idResponses.stream().map(IdResponse::getId).collect(Collectors.toList());
+    }
+
+    public IdDispatchResponse searchIdRecord(List<String> ids, String status, String tenantId, RequestInfo requestInfo) {
+        IdPoolSearchRequest searchRequest = IdPoolSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .idPoolSearch(IdPoolSearch.builder()
+                        .idList(ids)
+                        .status(IdStatus.valueOf(status))
+                        .tenantId(tenantId)
+                        .build())
+                .build();
+        StringBuilder uri = new StringBuilder(idGenHost).append(idGenPath);
+        return restRepo.fetchResult(uri, searchRequest, IdDispatchResponse.class);
     }
 }

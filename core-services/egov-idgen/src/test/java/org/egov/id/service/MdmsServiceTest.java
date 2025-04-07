@@ -1,8 +1,8 @@
 package org.egov.id.service;
 
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.idgen.IdRequest;
-import org.egov.common.models.idgen.RequestInfo;
 import org.egov.mdms.model.MasterDetail;
 import org.egov.mdms.model.MdmsResponse;
 import org.egov.mdms.service.MdmsClientService;

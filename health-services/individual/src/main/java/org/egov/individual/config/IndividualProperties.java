@@ -86,4 +86,8 @@ public class IndividualProperties {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${individual.beneficiary.id.validation.enabled:false}")
+    private Boolean beneficiaryIdValidationEnabled;
+
 }

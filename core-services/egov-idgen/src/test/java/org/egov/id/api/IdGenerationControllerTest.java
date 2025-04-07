@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;

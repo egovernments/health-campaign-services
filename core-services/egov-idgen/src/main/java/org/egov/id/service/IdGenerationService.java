@@ -9,7 +9,9 @@ import javax.sql.DataSource;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
+import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.tracer.model.CustomException;
@@ -36,9 +38,6 @@ public class IdGenerationService {
 
     @Autowired
     PropertiesManager propertiesManager;
-
-    @Autowired
-    private ResponseInfoFactory responseInfoFactory;
 
     @Autowired
     private MdmsService mdmsService;
@@ -96,7 +95,7 @@ public class IdGenerationService {
             }
             idGenerationResponse.setIdResponses(idResponses);
         }
-        idGenerationResponse.setResponseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(requestInfo, true));
+        idGenerationResponse.setResponseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true));
 
         return idGenerationResponse;
 

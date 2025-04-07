@@ -1,6 +1,7 @@
 package org.egov.id.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.idgen.Error;
 import org.egov.id.config.PropertiesManager;
 import org.egov.common.models.idgen.*;

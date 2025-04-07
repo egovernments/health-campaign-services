@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.idgen.*;
 import org.egov.common.models.idgen.Error;
 import org.egov.id.config.PropertiesManager;
@@ -43,7 +44,7 @@ public class GlobalExceptionHandler {
 		List<Error> errorList = new ArrayList<Error>();
 		errorList.add(error);
 		ResponseInfo responseInfo = new ResponseInfo();
-		responseInfo.setStatus(ResponseStatusEnum.FAILED);
+		responseInfo.setStatus(ResponseStatusEnum.FAILED.name());
 		return new ErrorRes(responseInfo, errorList);
 	}
 
@@ -64,7 +65,7 @@ public class GlobalExceptionHandler {
 			responseInfo.setVer(((InvalidIDFormatException) ex).getRequestInfo().getVer());
 			responseInfo.setMsgId(((InvalidIDFormatException) ex).getRequestInfo().getMsgId());
 			responseInfo.setTs(new Date().getTime());
-			responseInfo.setStatus(ResponseStatusEnum.FAILED);
+			responseInfo.setStatus(ResponseStatusEnum.FAILED.name());
 			List<Error> errorList = new ArrayList<Error>();
 			errorList.add(error);
 			return new ErrorRes(responseInfo, errorList);
@@ -76,7 +77,7 @@ public class GlobalExceptionHandler {
 			responseInfo.setVer(((IDSeqOverflowException) ex).getRequestInfo().getVer());
 			responseInfo.setMsgId(((IDSeqOverflowException) ex).getRequestInfo().getMsgId());
 			responseInfo.setTs(new Date().getTime());
-			responseInfo.setStatus(ResponseStatusEnum.FAILED);
+			responseInfo.setStatus(ResponseStatusEnum.FAILED.name());
 			List<Error> errorList = new ArrayList<Error>();
 			errorList.add(error);
 			return new ErrorRes(responseInfo, errorList);
@@ -88,7 +89,7 @@ public class GlobalExceptionHandler {
 			responseInfo.setVer(((IDSeqNotFoundException) ex).getRequestInfo().getVer());
 			responseInfo.setMsgId(((IDSeqNotFoundException) ex).getRequestInfo().getMsgId());
 			responseInfo.setTs(new Date().getTime());
-			responseInfo.setStatus(ResponseStatusEnum.FAILED);
+			responseInfo.setStatus(ResponseStatusEnum.FAILED.name());
 			List<Error> errorList = new ArrayList<Error>();
 			errorList.add(error);
 			return new ErrorRes(responseInfo, errorList);
@@ -96,7 +97,7 @@ public class GlobalExceptionHandler {
 			Error error = new Error(HttpStatus.BAD_REQUEST.toString(), ex.getMessage(), null,
 					new HashMap<String, String>());
 			ResponseInfo responseInfo = new ResponseInfo();
-			responseInfo.setStatus(ResponseStatusEnum.FAILED);
+			responseInfo.setStatus(ResponseStatusEnum.FAILED.name());
 			List<Error> errorList = new ArrayList<Error>();
 			errorList.add(error);
 			return new ErrorRes(responseInfo, errorList);
