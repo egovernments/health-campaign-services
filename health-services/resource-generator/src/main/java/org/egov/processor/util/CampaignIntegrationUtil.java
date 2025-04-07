@@ -148,13 +148,18 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
-	 * Parses an object representing campaign response into a CampaignResponse object.
+	 * Performs a campaign search based on the provided plan configuration request.
+	 * This method builds a campaign search request using the integration utility,
+	 * fetches the search result from the service request repository, and returns it.
 	 *
-	 * @param campaignResponse The object representing campaign response to be parsed.
-	 * @return CampaignResponse object parsed from the campaignResponse.
+	 * @param planConfigurationRequest The request object containing configuration details for the campaign search.
+	 * @return The response object containing the result of the campaign search.
 	 */
-    public CampaignResponse parseCampaignResponse(Object campaignResponse) {
-        return mapper.convertValue(campaignResponse, CampaignResponse.class);
+	public CampaignResponse performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
+		CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
+		Object response = serviceRequestRepository.fetchResult(new StringBuilder(
+				config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationSearchEndPoint()), campaignRequest);
+		return mapper.convertValue(response, CampaignResponse.class);
 	}
 
 	/**
