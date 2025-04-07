@@ -56,7 +56,7 @@ class GlobalExceptionHandlerTest {
         assertNull(responseInfo.getVer());
         assertNull(responseInfo.getApiId());
         assertNull(responseInfo.getResMsgId());
-        assertEquals(ResponseStatusEnum.FAILED, responseInfo.getStatus());
+        assertEquals(ResponseStatusEnum.FAILED.toString(), responseInfo.getStatus());
         assertNull(responseInfo.getMsgId());
         assertNull(responseInfo.getTs());
         Error getResult = errors.get(0);
@@ -78,7 +78,7 @@ class GlobalExceptionHandlerTest {
         assertNull(responseInfo.getVer());
         assertNull(responseInfo.getApiId());
         assertNull(responseInfo.getResMsgId());
-        assertEquals(ResponseStatusEnum.FAILED, responseInfo.getStatus());
+        assertEquals(ResponseStatusEnum.FAILED.toString(), responseInfo.getStatus());
         assertNull(responseInfo.getMsgId());
         assertNull(responseInfo.getTs());
         Error getResult = errors.get(0);
