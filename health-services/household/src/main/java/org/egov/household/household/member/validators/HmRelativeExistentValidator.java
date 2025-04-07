@@ -37,7 +37,7 @@ import static org.egov.household.Constants.GET_ID;
 
 /**
  * Validator class for checking the non-existence of household members.
- * This validator checks if the provided household members do not already exist in the database.
+ * This validator checks if the provided household member relatives do not already exist in the database.
  * @author kanishq-egov
  */
 @Component
@@ -59,7 +59,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
 
 
     /**
-     * Validates the non-existence of household members.
+     * Validates the non-existence of household member relatives.
      *
      * @param request The bulk request containing household members.
      * @return A map containing household members and their associated error details.
