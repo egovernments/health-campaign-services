@@ -881,6 +881,9 @@ async function processValidateAfterSchema(
     request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
       ? [...request?.body?.sheetErrorDetails, ...errorsRelatedToMultiSelect]
       : errorsRelatedToMultiSelect;
+    if(request?.body?.sheetErrorDetails?.length){
+      request.body.ResourceDetails.status = resourceDataStatuses.invalid
+    }
     if (
       request?.body?.ResourceDetails?.additionalDetails?.source ==
       "microplan" &&
