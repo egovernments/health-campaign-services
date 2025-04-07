@@ -5,13 +5,10 @@ import org.egov.common.models.idgen.*;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 
 /**
@@ -57,11 +54,9 @@ public class IdGenerationController {
 	 */
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_generate")
-	public ResponseEntity<String> generateIDs(@RequestBody IDPoolGenerationRequest request) throws Exception {
-		idGenerationService.generateIDPool(request);
-		IDPoolGenerationResponse idPoolGenerationResponse = new IDPoolGenerationResponse();
-//		idPoolGenerationResponse.setResponseInfo();
-		return ResponseEntity.ok("ID Generation initiated");
+	public IDPoolGenerationResponse generateIDs(@RequestBody IDPoolGenerationRequest request) throws Exception {
+		IDPoolGenerationResponse idPoolGenerationResponse = idGenerationService.generateIDPool(request);
+		return idPoolGenerationResponse;
 	}
 
 	/**

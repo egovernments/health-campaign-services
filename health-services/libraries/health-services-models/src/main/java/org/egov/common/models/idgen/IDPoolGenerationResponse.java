@@ -1,12 +1,10 @@
 package org.egov.common.models.idgen;
 
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+
 import org.egov.common.contract.response.ResponseInfo;
+import java.util.*;
+
+import lombok.*;
 
 
 /**
@@ -22,10 +20,11 @@ import org.egov.common.contract.response.ResponseInfo;
 @ToString
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class IDPoolGenerationResponse {
 
     private ResponseInfo responseInfo;
 
-    private List<IdResponse> idResponses;
+    private List<Map<String,String>> idCreationResponse;
 
 }

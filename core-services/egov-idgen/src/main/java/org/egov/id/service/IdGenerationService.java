@@ -103,27 +103,41 @@ public class IdGenerationService {
 
 
 
-    public IDPoolGenerationResponse generateIDPool(IDPoolGenerationRequest idPoolGenerationRequest) throws Exception {
+    public IDPoolGenerationResponse generateIDPool(IDPoolGenerationRequest idPoolGenerationRequest)  {
         RequestInfo requestInfo = idPoolGenerationRequest.getRequestInfo();
         List<BatchRequest> batchRequestList = idPoolGenerationRequest.getBatchRequestList();
 
         if (batchRequestList.isEmpty()) {
             throw new CustomException("EMPTY REQUEST", "Please provide tenantId and the batch size");
         }
+        IDPoolGenerationResponse response = IDPoolGenerationResponse.builder()
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
+                .build();
 
+        List<Map<String,String>> feedback = new ArrayList<>();
+        int index = 0;
         for (BatchRequest batch : batchRequestList) {
-            String tenantId = batch.getTenantId();
-            Integer originalBatchSize = batch.getBatchSize();
+            Map<String, String> successOrErrorMessaage = new HashMap<>();
+            try{
+                String tenantId = batch.getTenantId();
+                Integer originalBatchSize = batch.getBatchSize();
 
-            String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
-            Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
+                String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
+                Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
 
-            IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
-            List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
-            persistToKafka(requestInfo, generatedIds, tenantId);
+                IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
+                List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
+                persistToKafka(requestInfo, generatedIds, tenantId);
+                successOrErrorMessaage.put(Integer.toString(index), "ID Generation has been processed");
+            } catch (Exception e) {
+                successOrErrorMessaage.put(Integer.toString(index), e.getMessage());
+            }
+            index++;
+            feedback.add(successOrErrorMessaage);
         }
+        response.setIdCreationResponse(feedback);
 
-        return new IDPoolGenerationResponse();
+        return response;
     }
 
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
