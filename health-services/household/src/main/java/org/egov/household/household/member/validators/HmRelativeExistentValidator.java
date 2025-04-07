@@ -131,7 +131,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                     boolean hasInvalidSelfOrRelatives = householdMember.getRelationships().stream().anyMatch(
                             d -> (!Objects.equals(d.getSelfClientReferenceId(), householdMember.getClientReferenceId()))
                                     || (Objects.equals(d.getRelativeClientReferenceId(), d.getSelfClientReferenceId()))
-                                    || (Objects.equals(d.getRelativeId(), d.getSelfId()))
+                                    || (!ObjectUtils.isEmpty(d.getSelfId()) && !ObjectUtils.isEmpty(d.getRelativeId()) && Objects.equals(d.getRelativeId(), d.getSelfId()))
                     );
                     if (hasInvalidSelfOrRelatives) {
                         Error error = getErrorForInvalidRelatedEntityID();
