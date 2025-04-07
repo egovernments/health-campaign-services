@@ -312,6 +312,7 @@ public class EnrichmentUtil {
                                 cell = row.createCell(columnIndex);
                             }
                             cell.setCellValue(estimatedValue.doubleValue());
+                            cell.getCellStyle().setLocked(true);
                         }
                     } else {
                         // If estimatedValue is null, set the cell to empty
@@ -323,6 +324,7 @@ public class EnrichmentUtil {
                                 cell = row.createCell(columnIndex);
                             }
                             cell.setCellValue(NOT_APPLICABLE); // Set as not applicable
+                            cell.getCellStyle().setLocked(true);
                         }
                     }
                 }

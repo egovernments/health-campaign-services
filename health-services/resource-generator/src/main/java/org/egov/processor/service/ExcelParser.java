@@ -356,7 +356,7 @@ public class ExcelParser implements FileParser {
 			if (!CollectionUtils.isEmpty(planFacility.getServiceBoundaries())) {
 
 				// Extract the 'FIXED_POST' field from additional details.
-				String fixedPostValue = (String) parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST);
+				String fixedPostValue = parsingUtil.extractFieldsFromJsonObject(planFacility.getAdditionalDetails(), FIXED_POST, String.class);
 
 				// Normalize the value and determine boolean equivalent.
 				Boolean isFixedPost = !ObjectUtils.isEmpty(fixedPostValue) && fixedPostValue.trim().equalsIgnoreCase(FIXED_POST_YES);
