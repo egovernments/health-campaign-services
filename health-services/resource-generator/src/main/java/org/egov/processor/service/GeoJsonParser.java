@@ -19,6 +19,7 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 
+import org.egov.processor.web.models.campaignManager.CampaignResponse;
 import org.springframework.stereotype.Service;
 
 
@@ -52,7 +53,7 @@ public class GeoJsonParser implements FileParser {
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
     @Override
-    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId, Object campaignResponse) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId, CampaignResponse campaignResponse) {
     	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         String geoJSON = parsingUtil.convertByteArrayToString(planConfig, fileStoreId);
 

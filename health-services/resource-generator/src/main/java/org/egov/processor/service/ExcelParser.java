@@ -110,7 +110,7 @@ public class ExcelParser implements FileParser {
 	 */
 	@Override
 	public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId,
-								Object campaignResponse) {
+								CampaignResponse campaignResponse) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		File file = parsingUtil.convertByteArrayToFile(filestoreUtil.getFileByteArray(planConfig.getTenantId(), fileStoreId), ServiceConstants.FILE_EXTENSION);
 		if (file == null || !file.exists()) {
@@ -134,7 +134,7 @@ public class ExcelParser implements FileParser {
 	 *                                 processed data.
 	 */
 	private void processExcelFile(PlanConfigurationRequest planConfigurationRequest, File file, String fileStoreId,
-			Object campaignResponse) {
+			CampaignResponse campaignResponse) {
 		try (Workbook workbook = new XSSFWorkbook(file)) {
 			processSheets(planConfigurationRequest, fileStoreId, campaignResponse, workbook);
             uploadFileAndIntegrateCampaign(planConfigurationRequest, workbook, fileStoreId);
@@ -203,17 +203,16 @@ public class ExcelParser implements FileParser {
 	 * @param excelWorkbook The workbook containing sheets to be processed.
 	 */
 	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
-							   Object campaignResponse, Workbook excelWorkbook) {
-		CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignResponse);
+							   CampaignResponse campaignResponse, Workbook excelWorkbook) {
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
 		planConfigurationUtil.orderPlanConfigurationOperations(request);
-		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaign.getCampaign().get(0).getProjectType(), fileStoreId);
+		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaignResponse.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(request,
-				fileStoreId, campaign, request.getPlanConfiguration(), mdmsData);
+				fileStoreId, campaignResponse, request.getPlanConfiguration(), mdmsData);
 
-		List<String> boundaryCodeList = getBoundaryCodeList(request, campaign);
+		List<String> boundaryCodeList = getBoundaryCodeList(request, campaignResponse);
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
 				.filter(f -> f.getFilestoreId().equals(fileStoreId))
 				.collect(Collectors.toMap(
@@ -238,7 +237,7 @@ public class ExcelParser implements FileParser {
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					processRowsForCensusRecords(request, excelWorkbookSheet,
-							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaign.getCampaign().get(0).getHierarchyType());
+							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaignResponse.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
