@@ -33,6 +33,8 @@ public class ServiceConstants {
     public static final String REGISTRATION_PROCESS = "RegistrationProcess";
     public static final String BOUNDARY_CODE = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
 
+    public static final String NEW_COLUMNS_KEY = "newColumns";
+
     //File constants
     public static final String FILE_NAME = "output.xls";
     public static final String FILE_TYPE = "boundaryWithTarget";
