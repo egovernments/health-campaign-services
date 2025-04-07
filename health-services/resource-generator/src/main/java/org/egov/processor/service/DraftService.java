@@ -73,8 +73,7 @@ public class DraftService {
 
         // Retrieve data and perform actions
         Workbook workbook = excelParser.getWorkbookFromFilestoreId(fileStoreId, request.getPlanConfiguration().getTenantId());
-        Object campaignSearchResponse = campaignIntegrationUtil.performCampaignSearch(request);
-        CampaignResponse campaign = campaignIntegrationUtil.parseCampaignResponse(campaignSearchResponse);
+        CampaignResponse campaign = campaignIntegrationUtil.performCampaignSearch(request);
         LocaleResponse localeResponse = localeUtil.searchLocale(request);
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), request.getPlanConfiguration().getTenantId());
 
