@@ -12,7 +12,11 @@ import org.egov.processor.web.models.campaignManager.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
@@ -29,6 +33,26 @@ public class CampaignIntegrationUtil {
 		this.serviceRequestRepository = serviceRequestRepository;
 		this.config = config;
 		this.mapper = mapper;
+	}
+
+	/**
+	 * Performs a campaign search based on the provided plan configuration request.
+	 * This method builds a campaign search request using the integration utility,
+	 * fetches the search result from the service request repository, and returns it.
+	 *
+	 * @param planConfigurationRequest The request object containing configuration details for the campaign search.
+	 * @return The Campaign response object containing the result of the campaign search.
+	 */
+    public CampaignResponse performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
+		try {
+			CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
+            Object response = serviceRequestRepository.fetchResult(new StringBuilder(
+                    config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationSearchEndPoint()), campaignRequest);
+            return mapper.convertValue(response, CampaignResponse.class);
+		} catch (Exception e) {
+			log.error(ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE + planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
+			throw new CustomException(ERROR_FETCHING_CAMPAIGN_DETAILS_CODE, ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE);
+		}
 	}
 
 	/**
@@ -145,21 +169,6 @@ public class CampaignIntegrationUtil {
 		return CampaignSearchRequest.builder().requestInfo(planConfigurationRequest.getRequestInfo())
 				.campaignDetails(CampaignDetails.builder().ids(id).tenantId(planConfig.getTenantId()).build()).build();
 
-	}
-
-	/**
-	 * Performs a campaign search based on the provided plan configuration request.
-	 * This method builds a campaign search request using the integration utility,
-	 * fetches the search result from the service request repository, and returns it.
-	 *
-	 * @param planConfigurationRequest The request object containing configuration details for the campaign search.
-	 * @return The response object containing the result of the campaign search.
-	 */
-	public CampaignResponse performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
-		CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
-		Object response = serviceRequestRepository.fetchResult(new StringBuilder(
-				config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationSearchEndPoint()), campaignRequest);
-		return mapper.convertValue(response, CampaignResponse.class);
 	}
 
 	/**
