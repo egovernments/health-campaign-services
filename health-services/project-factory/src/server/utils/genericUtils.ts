@@ -516,13 +516,13 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
   if (isSourceMicroplan) {
     const resourceDistributionStrategyTypes = await getResourceDistributionStrategyTypes(request);
     if (resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
-      schema = await callMdmsTypeSchema(request, tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
+      schema = await callMdmsTypeSchema(tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
     }
     else {
       throwError("CAMPAIGN", 500, "INVALID_RESOURCE_DISTRIBUTION_STRATEGY", `Invalid resource distribution strategy: ${resourceDistributionStrategy} ; Allowed resource distribution strategies: ${resourceDistributionStrategyTypes}`);
     }
   } else {
-    schema = await callMdmsTypeSchema(request, tenantId, false, "facility", "all");
+    schema = await callMdmsTypeSchema( tenantId, false, "facility", "all");
   }
   return schema;
 }
@@ -906,7 +906,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   if (fileUrl) {
     /* fetch facility from processed file 
     and generate facility sheet data */
-    schemaFinal = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
+    schemaFinal = await callMdmsTypeSchema(tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
     const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schemaFinal, localizationMap);
     facilitySheetDataFinal = modifiedProcessedFacilitySheetData;
@@ -928,15 +928,35 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   }
 }
 
+function addMultiSelectColumn(properties: any, headers: string[]) {
+  const newHeaders: string[] = [];
+  for (const header of headers) {
+    if (properties?.[header]?.multiSelectDetails) {
+      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
+      for (let i = 1; i <= maxColumns; i++) {
+        newHeaders.push(`${header}_MULTISELECT_${i}`);
+      }
+      newHeaders.push(header);
+    } else {
+      newHeaders.push(header);
+    }
+  }
+
+  // Clear and replace original array
+  headers.length = 0;
+  headers.push(...newHeaders);
+}
+
 async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any, fileUrl?: any) {
   const tenantId = request?.query?.tenantId;
   const type = request?.query?.type || request?.body?.ResourceDetails?.type;
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   let schema: any;
   const isUpdate = fileUrl ? true : false;
-  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, typeWithoutWith);
+  schema = await callMdmsTypeSchema(tenantId, isUpdate, typeWithoutWith);
   // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
+  addMultiSelectColumn(schema?.properties, headers);
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   let userSheetData: any;
@@ -1030,7 +1050,7 @@ async function generateUserSheetForMicroPlan(
   fileUrl?: any
 ) {
   const { tenantId, type } = request?.query;
-  const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
+  const schema = await callMdmsTypeSchema(tenantId, false, "user", "microplan");
   // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -1530,7 +1550,7 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
   let campaignType = campaignObject.projectType;
   const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
   campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+  const mdmsResponse = await callMdmsTypeSchema(request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
 }
 

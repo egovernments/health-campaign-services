@@ -9,7 +9,7 @@ import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
-import { searchBoundaryRelationshipData } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData } from "./coreApis";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -817,7 +817,6 @@ async function getBoundarySheetData(
 async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request: any, localizationMap?: { [key: string]: string }) {
   try {
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
       false,
       request?.query?.type || request?.body?.ResourceDetails?.type,
@@ -1394,13 +1393,12 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
 
 
 async function callMdmsTypeSchema(
-  request: any,
   tenantId: string,
   isUpdate: boolean,
   type: any,
   campaignType = "all"
 ) {
-  const { RequestInfo = {} } = request?.body || {};
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {

@@ -323,6 +323,61 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
     }
 }
 
+export function validateMultiSelect(
+    data: any[],
+    schemaProperties: Record<string, any>,
+    localizationMap: any
+) {
+    if (!data?.length || !schemaProperties || !Object.keys(schemaProperties).length) return [];
+
+    const userSheet = getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap);
+    const errors: any[] = [];
+
+    data.forEach((item) => {
+        Object.entries(schemaProperties).forEach(([propertyKey, property]) => {
+            const minSelections = property?.multiSelectDetails?.minSelections || 0;
+            const maxSelections = property?.multiSelectDetails?.maxSelections || 0;
+            if (!minSelections || !maxSelections) return;
+
+            const mainPreFix = property?.name;
+            const valuesSet = new Set();
+            const duplicatesSet : any = new Set();
+
+            for (let i = 1; i <= maxSelections; i++) {
+                const key = getLocalizedName(`${mainPreFix}_MULTISELECT_${i}`, localizationMap);
+                const value = item[key];
+                if (value) {
+                    if (!valuesSet.has(value)) {
+                        valuesSet.add(value);
+                    } else {
+                        duplicatesSet.add(value);
+                    }
+                }
+            }
+
+            // Collect all errors at once
+            const errorDetails = [];
+            if (duplicatesSet.size > 0) {
+                errorDetails.push(`Duplicate roles`);
+            }
+            if (valuesSet.size < minSelections) {
+                errorDetails.push(`At least ${minSelections} ${getLocalizedName(property?.name, localizationMap)} should be selected.`);
+            }
+
+            if (errorDetails.length > 0) {
+                errors.push({
+                    status: "INVALID",
+                    rowNumber: item?.["!row#number!"],
+                    sheetName: userSheet,
+                    errorDetails: errorDetails.join(" "),
+                });
+            }
+        });
+    });
+
+    return errors;
+}
+
 function validateDataSheetWise(data: any, validate: any, validationErrors: any[], uniqueIdentifierColumnName: any, activeColumnName: any) {
     data.forEach((item: any) => {
         const validationResult = validate(item);
@@ -731,7 +786,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
         activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumnName, localizationMap);
     }
     datas.forEach((data: any) => {
-        const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+        const codes = String(data?.[boundaryColumn])?.split(',').map((code: string) => code.trim()) || [];
         var active = activeColumnName ? data?.[activeColumnName] : usageColumnStatus.active;
         if (active == usageColumnStatus.active) {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
@@ -1383,7 +1438,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab
             if (!tabsOfDistrict.includes(tab)) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tab ${tab} not present in the Target Sheet Uploaded`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} ${tab} not present in selected boundaries.`);
             }
         }
         const MissingDistricts: any = [];
