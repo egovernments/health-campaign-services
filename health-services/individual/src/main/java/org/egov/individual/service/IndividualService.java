@@ -1,5 +1,7 @@
 package org.egov.individual.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -286,6 +288,20 @@ public class IndividualService {
                 .collect(Collectors.toList());
     }
 
+
+    public String getHashedMobile(String mobile) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(mobile.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1)
+                hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
     public SearchResponse<Individual> search(IndividualSearch individualSearch,
                                              Integer limit,
                                              Integer offset,
@@ -326,8 +342,37 @@ public class IndividualService {
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
         } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+//            encryptedIndividualSearch = individualEncryptionService
+//                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(individualSearch)),
+                    individualSearch);
+            List<String> mobileNumbers = individualSearch.getMobileNumber();
+            String firstMobileNumber = mobileNumbers.get(0);
+            String hashedNumber=null;
+            try{
+                hashedNumber= getHashedMobile(firstMobileNumber);
+            } catch (Exception e){
+                throw new CustomException("FAIELD_TO_HASH","Failed to hash the mobileNumber");
+            }
+
+
+            searchResponse = individualRepository.findByHashedMobileNumber(hashedNumber , tenantId);
+
+            encryptedIndividualList = searchResponse.getResponse().stream()
+                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
+                    .collect(Collectors.toList());
+            //decrypt
+            List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
+                    ? individualEncryptionService.decrypt(encryptedIndividualList,
+                    "IndividualDecrypt", requestInfo)
+                    : encryptedIndividualList;
+
+            searchResponse.setResponse(decryptedIndividualList);
+
+            return searchResponse;
         } else {
             encryptedIndividualSearch = individualEncryptionService
                     .encrypt(individualSearch, "IndividualSearchEncrypt");
