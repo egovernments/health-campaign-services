@@ -63,6 +63,9 @@ public class Individual extends EgovOfflineModel {
     @Size(max = 20)
     private String mobileNumber = null;
 
+    @Size(max = 20)
+    private String hashedmobilenumber = null;
+
     @JsonProperty("altContactNumber")
     @Size(max = 16)
     private String altContactNumber = null;
