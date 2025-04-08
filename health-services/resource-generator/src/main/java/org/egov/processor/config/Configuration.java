@@ -138,7 +138,7 @@ public class Configuration {
 	@Value("${egov.census.search.endpoint}")
 	private String censusSearchEndPoint;
 
-	@Value("${edits.allowed.on.plan.estimation.sheet}")
-	private boolean editsAllowedOnPlanEstimationSheet;
+	@Value("${enable.lock.on.plan.estimation.sheet}")
+	private boolean enableLockOnPlanEstimationSheet;
 
 }

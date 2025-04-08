@@ -312,7 +312,7 @@ public class EnrichmentUtil {
                                 cell = row.createCell(columnIndex);
                             }
                             cell.setCellValue(estimatedValue.doubleValue());
-                            cell.getCellStyle().setLocked(config.isEditsAllowedOnPlanEstimationSheet());
+                            cell.getCellStyle().setLocked(config.isEnableLockOnPlanEstimationSheet());
                         }
                     } else {
                         // If estimatedValue is null, set the cell to empty
@@ -324,7 +324,7 @@ public class EnrichmentUtil {
                                 cell = row.createCell(columnIndex);
                             }
                             cell.setCellValue(NOT_APPLICABLE); // Set as not applicable
-                            cell.getCellStyle().setLocked(config.isEditsAllowedOnPlanEstimationSheet());
+                            cell.getCellStyle().setLocked(config.isEnableLockOnPlanEstimationSheet());
                         }
                     }
                 }

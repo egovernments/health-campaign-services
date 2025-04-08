@@ -286,7 +286,7 @@ public class OutputEstimationGenerationUtil {
 
             // Assign the facility name based on the boundary code.
             facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, EMPTY_STRING));
-            facilityCell.getCellStyle().setLocked(config.isEditsAllowedOnPlanEstimationSheet()); // Locking the cell
+            facilityCell.getCellStyle().setLocked(config.isEnableLockOnPlanEstimationSheet()); // Locking the cell
 
         }
     }
