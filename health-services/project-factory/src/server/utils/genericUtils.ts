@@ -1473,24 +1473,25 @@ function findMapValue(map: Map<any, any>, key: any): any | null {
 function extractFrenchOrPortugeseLocalizationMap(
   boundaryData: any[][],
   isFrench: boolean,
-  isPortugese: boolean
+  isPortugese: boolean,
+  localizationMap:any
 ): Map<{ key: string; value: string },string> {
   const resultMap = new Map<{ key: string; value: string },string>();
 
   boundaryData.forEach(row => {
-    const boundaryCodeObj = row.find(obj => obj.key === "Service Boundary Code");
+    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode,localizationMap));
     const boundaryCode = boundaryCodeObj?.value;
 
     if (!boundaryCode) return;
 
     if (isFrench) {
-      const frenchMessageObj = row.find(obj => obj.key === "HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE");
+      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap));
       resultMap.set({
         key: "french",
         value: frenchMessageObj?.value || ""
       },boundaryCode);
     } else if (isPortugese) {
-      const portugeseMessageObj = row.find(obj => obj.key === "HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE");
+      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE",localizationMap));
       resultMap.set({
         key: "portugese",
         value: portugeseMessageObj?.value || ""

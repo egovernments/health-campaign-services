@@ -3393,8 +3393,8 @@ const autoGenerateBoundaryCodes = async (
   logger.info(
     "Initiated the localisation message creation for the uploaded boundary"
   );
-  const frenchLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, true, false);
-  const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true);
+  const frenchLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, true, false,localizationMap);
+  const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true,localizationMap);
   await transformAndCreateLocalisation(frenchLocalizationMap, request, true, false);
   await transformAndCreateLocalisation(portugeseLocalizationMap, request, false, true);
   await transformAndCreateLocalisation(boundaryMap, request, false, false);
