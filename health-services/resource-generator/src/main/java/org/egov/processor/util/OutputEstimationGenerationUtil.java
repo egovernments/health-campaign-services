@@ -1,6 +1,7 @@
 package org.egov.processor.util;
 
 import org.apache.poi.ss.usermodel.*;
+import org.egov.processor.config.Configuration;
 import org.egov.processor.web.models.Locale;
 import org.egov.processor.web.models.LocaleResponse;
 import org.egov.processor.web.models.PlanConfigurationRequest;
@@ -33,12 +34,15 @@ public class OutputEstimationGenerationUtil {
 
     private MdmsUtil mdmsUtil;
 
-    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil, ExcelStylingUtil excelStylingUtil, MdmsUtil mdmsUtil) {
+    private Configuration config;
+
+    public OutputEstimationGenerationUtil(LocaleUtil localeUtil, ParsingUtil parsingUtil, EnrichmentUtil enrichmentUtil, ExcelStylingUtil excelStylingUtil, MdmsUtil mdmsUtil, Configuration config) {
         this.localeUtil = localeUtil;
         this.parsingUtil = parsingUtil;
         this.excelStylingUtil = excelStylingUtil;
         this.enrichmentUtil = enrichmentUtil;
         this.mdmsUtil = mdmsUtil;
+        this.config = config;
     }
 
     /**
@@ -256,7 +260,7 @@ public class OutputEstimationGenerationUtil {
 
             // Assign the facility name based on the boundary code.
             facilityCell.setCellValue(boundaryCodeToFacility.getOrDefault(boundaryCode, EMPTY_STRING));
-            facilityCell.getCellStyle().setLocked(true); // Locking the cell
+            facilityCell.getCellStyle().setLocked(config.isEditsAllowedOnPlanEstimationSheet()); // Locking the cell
 
         }
     }
