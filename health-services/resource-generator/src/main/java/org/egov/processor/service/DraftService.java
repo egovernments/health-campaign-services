@@ -105,7 +105,7 @@ public class DraftService {
         String uploadedFileStoreId = excelParser.uploadConvertedFile(fileToUpload, request.getPlanConfiguration().getTenantId());
 
         // Update Plan Configuration request with the uploaded fileStoreId
-        planConfigurationUtil.setOrAddFileForDraft(request, uploadedFileStoreId, EXCEL);
+        planConfigurationUtil.addNewFileForDraft(request, uploadedFileStoreId, EXCEL);
         planUtil.update(request);
     }
 
