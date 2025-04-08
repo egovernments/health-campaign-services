@@ -1260,6 +1260,22 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 }
 
+function createHeaderToHierarchyMap(
+  sheetHeaders: string[],
+  hierarchy: string[]
+): { [key: string]: string } {
+  const map: { [key: string]: string } = {};
+  let hierarchyIndex = 0;
+
+  for (const header of sheetHeaders) {
+    if (hierarchyIndex < hierarchy.length) {
+      map[header] = hierarchy[hierarchyIndex++];
+    }
+  }
+
+  return map;
+}
+
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
@@ -1434,6 +1450,38 @@ function findMapValue(map: Map<any, any>, key: any): any | null {
   return foundValue;
 }
 
+function extractFrenchOrPortugeseLocalizationMap(
+  boundaryData: any[][],
+  isFrench: boolean,
+  isPortugese: boolean
+): Map<{ key: string; value: string },string> {
+  const resultMap = new Map<{ key: string; value: string },string>();
+
+  boundaryData.forEach(row => {
+    const boundaryCodeObj = row.find(obj => obj.key === "Service Boundary Code");
+    const boundaryCode = boundaryCodeObj?.value;
+
+    if (!boundaryCode) return;
+
+    if (isFrench) {
+      const frenchMessageObj = row.find(obj => obj.key === "HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE");
+      resultMap.set({
+        key: "french",
+        value: frenchMessageObj?.value || ""
+      },boundaryCode);
+    } else if (isPortugese) {
+      const portugeseMessageObj = row.find(obj => obj.key === "HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE");
+      resultMap.set({
+        key: "portugese",
+        value: portugeseMessageObj?.value || ""
+      },boundaryCode);
+    }
+  });
+
+  return resultMap;
+}
+
+
 function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
   const uniqueDistrictsForMainSheet: string[] = [];
   const differentDistrictTabs: any[] = [];
@@ -1531,6 +1579,24 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
   return updatedSchema;
 }
 
+function modifyBoundaryDataHeadersWithMap(
+  boundaryData: any[],
+  headerToHierarchyMap: { [originalHeader: string]: string }
+) {
+  return boundaryData.map((row) => {
+    const updatedRow: { [key: string]: any } = {};
+
+    for (const key in row) {
+      if (Object.prototype.hasOwnProperty.call(row, key)) {
+        const newKey = headerToHierarchyMap[key];
+        updatedRow[newKey || key] = row[key];
+      }
+    }
+
+    return updatedRow;
+  });
+}
+
 
 export {
   errorResponder,
@@ -1580,5 +1646,8 @@ export {
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
-  hideUniqueIdentifierColumn
+  hideUniqueIdentifierColumn,
+  createHeaderToHierarchyMap,
+  modifyBoundaryDataHeadersWithMap,
+  extractFrenchOrPortugeseLocalizationMap
 };

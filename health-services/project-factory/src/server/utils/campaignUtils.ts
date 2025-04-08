@@ -32,13 +32,17 @@ import createAndSearch from "../config/createAndSearch";
 import {
   addDataToSheet,
   createBoundaryDataMainSheet,
+  createHeaderToHierarchyMap,
   createReadMeSheet,
+  extractFrenchOrPortugeseLocalizationMap,
+  // extractFrenchOrPortugeseLocalizationMap,
   findMapValue,
   getConfigurableColumnHeadersFromSchemaForTargetSheet,
   getLocalizedHeaders,
   getLocalizedMessagesHandler,
   getMdmsDataBasedOnCampaignType,
   modifyBoundaryData,
+  modifyBoundaryDataHeadersWithMap,
   replicateRequest,
   throwError,
 } from "./genericUtils";
@@ -1344,15 +1348,25 @@ function getChildParentMap(modifiedBoundaryData: any) {
   return childParentMap;
 }
 
-function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[]) {
+function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {
   const countMap = new Map<{ key: string; value: string }, number>();
   const mappingMap = new Map<{ key: string; value: string }, string>();
 
+
   withBoundaryCode.forEach((row: any[]) => {
-    const len = row.length;
+    const effectiveRow = [];
+    for (const item of row) {
+      if (item.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap)) {
+        effectiveRow.push(item);
+        break;
+
+      }
+      effectiveRow.push(item);
+    }
+    const len = effectiveRow.length;
     if (len >= 3) {
       let grandParentFound = false;
-      const grandParent = row[len - 3];
+      const grandParent = effectiveRow[len - 3];
       if (findMapValue(mappingMap, grandParent)) {
         const countMapArray = Array.from(countMap.entries());
         for (const [key, value] of countMapArray) {
@@ -1367,7 +1381,7 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[]) {
         }
       }
     }
-    mappingMap.set(row[len - 2], row[len - 1].value);
+    mappingMap.set(effectiveRow[len - 2], effectiveRow[len - 1].value);
   });
   return { mappingMap, countMap };
 }
@@ -1375,50 +1389,76 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[]) {
 function addBoundaryCodeToData(
   withBoundaryCode: any[],
   withoutBoundaryCode: any[],
-  boundaryMap: Map<any, any>
+  boundaryMap: Map<any, any>,
+  hierarchy: any,
+  localizationMap: any
 ) {
-  const boundaryDataWithBoundaryCode = withBoundaryCode;
-  const modifiedBoundaryDataWithBoundaryCode = boundaryDataWithBoundaryCode.map(
-    (array) => {
-      return array.map((obj: any) => {
-        if (obj.key === "Boundary Code") {
-          return obj.value;
-        } else {
-          return obj;
-        }
-      });
-    }
-  );
+  const boundaryKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
 
-  const boundaryDataForWithoutBoundaryCode = withoutBoundaryCode.map(
-    (row: any[]) => {
-      const boundaryName = row[row.length - 1]; // Get the last element of the row
-      const boundaryCode = findMapValue(boundaryMap, boundaryName); // Fetch corresponding boundary code from map
-      return [...row, boundaryCode]; // Append boundary code to the row and return updated row
+  // Part 1: extract boundary codes directly
+  // const modifiedBoundaryDataWithBoundaryCode = withBoundaryCode.map((array) => {
+  //   return array.map((obj: any) => {
+  //     if (obj.key === boundaryKey) {
+  //       return obj.value; // replace with value (just the boundary code)
+  //     } else {
+  //       return obj;
+  //     }
+  //   });
+  // });
+
+  // Part 2: for rows without boundary code
+  const boundaryDataForWithoutBoundaryCode = withoutBoundaryCode.map((row: any[]) => {
+    let boundaryName: string | undefined;
+
+    for (let level of hierarchy) {
+      const match = row.find(obj => obj.key === level && obj.value);
+      if (match) {
+        boundaryName = match; // keep updating as we go down hierarchy
+      }
     }
-  );
+
+    const boundaryCode = findMapValue(boundaryMap, boundaryName);
+    const boundaryCodeObj = { key: boundaryKey, value: boundaryCode };
+    return [...row, boundaryCodeObj]; // just append the boundary code at the end
+  });
+
+
   const boundaryDataForSheet = [
-    ...modifiedBoundaryDataWithBoundaryCode,
+    ...withBoundaryCode,
     ...boundaryDataForWithoutBoundaryCode,
   ];
+
   return boundaryDataForSheet;
 }
 
 function prepareDataForExcel(
-  boundaryDataForSheet: any,
+  boundaryDataForSheet: any[],
   hierarchy: any[],
-  boundaryMap: any
+  boundaryMap: any,
+  localizationMap: any
 ) {
-  const data = boundaryDataForSheet.map((boundary: any[]) => {
-    const boundaryCode = boundary.pop();
-    const boundaryValues = boundary.map((obj) => obj.value);
-    const rowData = boundaryValues.concat(
-      Array(Math.max(0, hierarchy.length - boundary.length)).fill("")
-    );
-    const boundaryCodeIndex = hierarchy.length;
-    rowData[boundaryCodeIndex] = boundaryCode;
-    return rowData;
+  const boundaryKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+
+  const data = boundaryDataForSheet.map((row: any[]) => {
+    const rowMap = new Map<string, any>();
+    row.forEach(obj => rowMap.set(obj.key, obj.value));
+
+    // 1. Pick hierarchy values in order
+    const hierarchyValues = hierarchy.map(level => rowMap.get(level) || "");
+
+    // 2. Get boundary code value
+    const boundaryCode = rowMap.get(boundaryKey) || "";
+
+    // 3. Get remaining key-value pairs (excluding hierarchy + boundaryKey)
+    const excludedKeys = new Set([...hierarchy, boundaryKey]);
+    const remainingValues = row
+    .filter(obj => !excludedKeys.has(obj.key))
+    .map(obj => obj.value || "");
+
+    // 4. Final row structure: hierarchy values + boundary code + remaining key-value pairs
+    return [...hierarchyValues, boundaryCode, ...remainingValues];
   });
+
   return data;
 }
 function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
@@ -2969,7 +3009,7 @@ async function autoGenerateBoundaryCodesForGeoJson(
   logger.info(
     "Initiated the localisation message creation for the uploaded boundary"
   );
-  transformAndCreateLocalisation(boundaryMap, request);
+  transformAndCreateLocalisation(boundaryMap, request,false,false);
   const boundaryFileDetails: any = await createAndUploadJsonFile(
     boundaryGeoJsonAfterProcessing,
     request
@@ -3276,17 +3316,14 @@ const autoGenerateBoundaryCodes = async (
     boundaryData = result.updatedData;
   }
   const updatedBoundaryData = updateBoundaryData(boundaryData, localizedHeadersOfBoundarySheet);
-  const modifiedBoundaryData = modifyBoundaryDataHeaders(
-    updatedBoundaryData,
-    hierarchy,
-    localizationMap
-  );
+  const headerToHierarchyMap = createHeaderToHierarchyMap(localizedHeadersOfBoundarySheet, hierarchy);
+  const modifiedBoundaryData = modifyBoundaryDataHeadersWithMap(updatedBoundaryData, headerToHierarchyMap);
   const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(
     modifiedBoundaryData,
     localizationMap
   );
   const { mappingMap, countMap } =
-    getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
+    getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode, localizationMap);
   const childParentMap = getChildParentMap([
     ...withBoundaryCode,
     ...withoutBoundaryCode,
@@ -3296,7 +3333,8 @@ const autoGenerateBoundaryCodes = async (
     childParentMap,
     mappingMap,
     countMap,
-    request
+    request,
+    hierarchy
   );
   logger.info("Boundary Code Auto Generation Completed");
   await createBoundaryEntities(request, boundaryMap);
@@ -3316,12 +3354,18 @@ const autoGenerateBoundaryCodes = async (
   const boundaryDataForSheet = addBoundaryCodeToData(
     withBoundaryCode,
     withoutBoundaryCode,
-    boundaryMap
+    boundaryMap,
+    hierarchy,
+    localizationMap
   );
   logger.info(
     "Initiated the localisation message creation for the uploaded boundary"
   );
-  await transformAndCreateLocalisation(boundaryMap, request);
+  const frenchLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, true, false);
+  const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true);
+  await transformAndCreateLocalisation(frenchLocalizationMap, request, true, false);
+  await transformAndCreateLocalisation(portugeseLocalizationMap, request, false, true);
+  await transformAndCreateLocalisation(boundaryMap, request, false, false);
   const modifiedHierarchy = hierarchy.map((ele) =>
     `${hierarchyType}_${ele}`.toUpperCase()
   );
@@ -3329,13 +3373,16 @@ const autoGenerateBoundaryCodes = async (
   const data = prepareDataForExcel(
     boundaryDataForSheet,
     hierarchy,
-    boundaryMap
+    boundaryMap,
+    localizationMap
   );
   if (type === "boundaryManagement") {
     headers = [
       ...headers,
+      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap),
-      getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)
     ];
     data.forEach((row: any[], index: string | number) => {
       if (latLongData.length > index) {
@@ -3356,7 +3403,6 @@ const autoGenerateBoundaryCodes = async (
 function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   const map: Map<string, string> = new Map();
   const count: Map<string, number> = new Map();
-  
   boundaryData = boundaryData.map(row =>
     Object.fromEntries(
       Object.entries(row).map(([key, value]) =>
@@ -3397,34 +3443,34 @@ function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   return boundaryData;
 }
 
-function modifyBoundaryDataHeaders(
-  boundaryData: any[],
-  hierarchy: any[],
-  localizationMap?: any
-) {
-  const updatedData = boundaryData.map((obj: any) => {
-    const updatedObj: { [key: string]: string | undefined } = {}; // Updated object with modified keys
+// function modifyBoundaryDataHeaders(
+//   boundaryData: any[],
+//   hierarchy: any[],
+//   localizationMap?: any
+// ) {
+//   const updatedData = boundaryData.map((obj: any) => {
+//     const updatedObj: { [key: string]: string | undefined } = {}; // Updated object with modified keys
 
-    let hierarchyIndex = 0; // Track the index of the hierarchy array
+//     let hierarchyIndex = 0; // Track the index of the hierarchy array
 
-    for (const key in obj) {
-      if (
-        key != getLocalizedName(config?.boundary?.boundaryCode, localizationMap)
-      ) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
-          updatedObj[hierarchyKey] = obj[key]; // Map the key to the updated object
-          hierarchyIndex++; // Move to the next key in the hierarchy array
-        }
-      } else {
-        updatedObj[key] = obj[key];
-      }
-    }
+//     for (const key in obj) {
+//       if (
+//         key != getLocalizedName(config?.boundary?.boundaryCode, localizationMap)
+//       ) {
+//         if (Object.prototype.hasOwnProperty.call(obj, key)) {
+//           const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
+//           updatedObj[hierarchyKey] = obj[key]; // Map the key to the updated object
+//           hierarchyIndex++; // Move to the next key in the hierarchy array
+//         }
+//       } else {
+//         updatedObj[key] = obj[key];
+//       }
+//     }
 
-    return updatedObj;
-  });
-  return updatedData;
-}
+//     return updatedObj;
+//   });
+//   return updatedData;
+// }
 
 function modifyChildParentMap(
   childParentMap: Map<any, any>,
