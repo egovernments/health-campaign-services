@@ -45,4 +45,6 @@ public interface Constants {
 
     String INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE = "household member relationship type is not valid";
 
+    String HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE = "household member relationship is not allowed";
+
 }

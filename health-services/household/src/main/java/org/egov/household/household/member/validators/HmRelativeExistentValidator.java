@@ -38,9 +38,9 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelated
 import static org.egov.household.Constants.GET_ID;
 
 /**
- * Validator class for checking the non-existence of household members.
+ * Validator class for checking the non-existence of household member relatives.
  * This validator checks if the provided household member relatives do not already exist in the database.
- * @author kanishq-egov
+ * @author holashchand
  */
 @Component
 @Order(value = 11)
@@ -73,7 +73,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
         // Get the list of household members from the request
         List<HouseholdMember> householdMembers = request.getHouseholdMembers();
         // Log message for validation process
-        log.info("Validating non-existent household member relatives");
+        log.debug("Validating non-existent household member relatives");
         // Get class and method information for ID retrieval
         Class<?> objClass = getObjClass(householdMembers);
         Method idMethod = getMethod(GET_ID, objClass);
@@ -151,7 +151,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
             });
         }
         // Log message for validation completion
-        log.info("Household member relatives non-existent validation completed successfully, total errors: {}", errorDetailsMap.size());
+        log.debug("Household member relatives non-existent validation completed successfully, total errors: {}", errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

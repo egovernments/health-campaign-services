@@ -2,6 +2,7 @@ package org.egov.household.household.member.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
@@ -11,6 +12,7 @@ import org.egov.household.service.HouseholdService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -18,12 +20,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.household.Constants.HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD;
+import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MESSAGE;
 
 @Slf4j
@@ -33,10 +38,22 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
 
     private final HouseholdService householdService;
 
+    /**
+     * Constructor to initialize the HouseholdService dependency.
+     *
+     * @param householdService The service for households
+     */
     public HmHouseholdValidator(HouseholdService householdService) {
         this.householdService = householdService;
     }
 
+    /**
+     * Validates the non-existence of household member households,
+     * Also validates the relationships exists only for household type FAMILY
+     *
+     * @param householdMemberBulkRequest The bulk request containing household members.
+     * @return A map containing household members and their associated error details.
+     */
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
@@ -54,6 +71,8 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
 
         log.info("finding valid household ids from household service");
         List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getResponse();
+
+        Map<String, Household> householdMap = validHouseHoldIds.stream().collect(Collectors.toMap(Household::getClientReferenceId, d -> d));
 
         log.info("getting unique household ids from valid household ids");
         Set<String> uniqueHoldIds = getSet(validHouseHoldIds, columnName == "id" ? "getId": "getClientReferenceId");
@@ -76,7 +95,24 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
                     populateErrorDetails(householdMember, error, errorDetailsMap);
                 });
 
-        log.info("Household member validation completed successfully, total errors: " + errorDetailsMap.size());
+        // Validates if household type is not FAMILY and still adding relationships for household member
+        householdMembers.stream()
+                .filter(householdMember -> !invalidHouseholds.contains(householdMember.getHouseholdId()))
+                .filter(d -> !CollectionUtils.isEmpty(d.getRelationships()))
+                .forEach(householdMember -> {
+                    HouseHoldType householdType = householdMap.get(householdMember.getHouseholdClientReferenceId()).getHouseholdType();
+                    if (!HouseHoldType.FAMILY.equals(householdType)) {
+                        Error error = Error.builder().errorMessage(HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE)
+                                .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
+                                .type(Error.ErrorType.NON_RECOVERABLE)
+                                .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_MESSAGE))
+                                .build();
+                        log.info("validation failed for household member: {} with error: {}", householdMember, error);
+                        populateErrorDetails(householdMember, error, errorDetailsMap);
+                    }
+                });
+
+        log.info("Household member household validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 

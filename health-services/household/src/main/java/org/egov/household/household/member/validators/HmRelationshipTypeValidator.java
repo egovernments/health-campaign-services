@@ -23,6 +23,12 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE;
 
+/**
+ * Validator class for checking valid household member's relationship type,
+ * if relationships are there.
+ * checks for allowed relationship types from MDMS configs and compares with relationships
+ * @author holashchand
+ */
 @Slf4j
 @Component
 @Order(10)
@@ -34,12 +40,21 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
     private static final String MASTER_NAME = "HOUSEHOLD_MEMBER_RELATIONSHIP_TYPES";
     private static final String RELATIONSHIP_TYPE_KEYNAME = "code";
 
-
-
+    /**
+     * Constructor to initialize the MdmsClientService dependency.
+     *
+     * @param mdmsClientService The client for fetching mdms data.
+     */
     public HmRelationshipTypeValidator(MdmsClientService mdmsClientService) {
         this.mdmsClientService = mdmsClientService;
     }
 
+    /**
+     * Validates allowed relationship types for household members
+     *
+     * @param householdMemberBulkRequest The bulk request containing household members.
+     * @return A map containing household members and their associated error details.
+     */
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
@@ -53,7 +68,7 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
                         .filter("[?(@.active==true)]")
                         .build()));
 
-        log.info("Getting mdms config for Household member relationship types");
+        log.debug("Getting mdms config for Household member relationship types");
         MdmsResponse mdmsResponse = mdmsClientService.getMaster(householdMemberBulkRequest.getRequestInfo()
         , tenantId, masterDetailsMap);
 
@@ -62,7 +77,7 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
                 .map(d -> (String) ((Map<String, Object>) d).get(RELATIONSHIP_TYPE_KEYNAME))
                 .collect(Collectors.toSet());
 
-        log.info("Allowed relationship types: {}", allowedRelationshipTypes);
+        log.debug("Allowed relationship types: {}", allowedRelationshipTypes);
 
         householdMembers.stream()
                 .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
@@ -75,13 +90,13 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP, INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE))
                                 .build();
-                        log.info("validation failed for household member: {} with error: {}", householdMember, error);
+                        log.debug("validation failed for household member: {} with error: {}", householdMember, error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                     }
 
                 });
 
-        log.info("Household member relationship validation completed successfully, total errors: {}", errorDetailsMap.size());
+        log.debug("Household member relationship validation completed successfully, total errors: {}", errorDetailsMap.size());
         return errorDetailsMap;
     }
 
