@@ -1,7 +1,5 @@
 package digit.service.enrichment;
 
-import digit.util.CommonUtil;
-import digit.web.models.AdditionalField;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
@@ -15,7 +13,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
@@ -23,11 +20,7 @@ import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetai
 @Component
 public class CensusEnrichment {
 
-    private CommonUtil commonUtil;
-
-    public CensusEnrichment(CommonUtil commonUtil) {
-        this.commonUtil = commonUtil;
-    }
+    public CensusEnrichment() {}
 
     /**
      * Enriches the CensusRequest for creating a new census record.
@@ -56,15 +49,6 @@ public class CensusEnrichment {
 
         // Enrich effectiveFrom for the census record
         census.setEffectiveFrom(census.getAuditDetails().getCreatedTime());
-
-        denormalizeAdditionalFields(request.getCensus());
-    }
-
-    private void denormalizeAdditionalFields(Census census) {
-        Map<String, Object> fieldsToAdd = census.getAdditionalFields().stream()
-                .collect(Collectors.toMap(AdditionalField::getKey, AdditionalField::getValue));
-
-        census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), fieldsToAdd));
     }
 
     /**
@@ -122,8 +106,6 @@ public class CensusEnrichment {
 
         // Set last modified time on update call
         census.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
-
-        denormalizeAdditionalFields(request.getCensus());
     }
 
     /**
