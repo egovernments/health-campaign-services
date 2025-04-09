@@ -2,6 +2,7 @@ package org.egov.common.models.idgen;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import jdk.jfr.BooleanFlag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,4 +33,8 @@ public class DispatchUserInfo {
     @JsonProperty("deviceInfo")
     @NotNull
     private String deviceInfo;
+
+    @JsonProperty("fetchAllDispatched")
+    @BooleanFlag
+    private Boolean fetchAllDispatched;
 }

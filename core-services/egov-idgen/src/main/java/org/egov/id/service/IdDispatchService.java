@@ -20,6 +20,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.egov.common.validator.Validator;
+import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -76,16 +77,28 @@ public class IdDispatchService {
      * Dispatches a given count of IDs to the user after checking limits and locking.
      */
     public IdDispatchResponse dispatchIds(IdDispatchRequest request) throws Exception {
-
-        validateDispatchRequest(request);
-
         String userUuid = request.getUserInfo().getUserUuid();
         int count = request.getUserInfo().getCount();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
         RequestInfo requestInfo = request.getRequestInfo();
         String tenantId = request.getUserInfo().getTenantId();
 
+
+        Long fetchLimit;
+
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
+        fetchLimit = Long.valueOf(Math.max( 0 , configuredLimit - (alreadyDispatched + count)));
+
+        validateDispatchRequest(request);
+
+        // return dispatched Ids if fetAllDispatched flag is true
+        if(!ObjectUtils.isEmpty(request.getUserInfo().getFetchAllDispatched())
+                && request.getUserInfo().getFetchAllDispatched()) {
+            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request);
+            idDispatchResponse.setFetchLimit(fetchLimit);
+             return idDispatchResponse;
+        }
+
         if (alreadyDispatched + count > configuredLimit) {
             throw new CustomException("ID LIMIT EXCEPTION",
                     "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
@@ -114,15 +127,46 @@ public class IdDispatchService {
         } finally {
             lockManager.releaseLocks(lockedIds);
         }
-
-        selected.stream().forEach(idRecord -> {
-            idRecord.setAdditionalFields(null);
-        });
         return IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
+                .fetchLimit(fetchLimit)
                 .build();
     }
+
+    private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request) {
+
+        List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
+                request.getUserInfo().getTenantId(),
+                request.getUserInfo().getDeviceUuid(),
+                request.getUserInfo().getUserUuid(),
+                null
+        );
+
+        List<IdRecord> records = convertToIdRecords(idTransactionLogs);
+
+        return IdDispatchResponse.builder()
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .idResponses(records)
+                .build();
+    }
+
+    private List<IdRecord> convertToIdRecords(List<IdTransactionLog> idTransactionLogs) {
+        return idTransactionLogs.stream()
+                .map(log -> IdRecord.builder()
+                        .id(log.getId())
+                        .tenantId(log.getTenantId())
+                        .source(log.getSource())
+                        .rowVersion(log.getRowVersion())
+                        .applicationId(log.getApplicationId())
+                        .hasErrors(log.getHasErrors())
+                        .additionalFields(null)
+                        .auditDetails(log.getAuditDetails())
+                        .status(log.getStatus()) // specific to IdRecord
+                        .build())
+                .collect(Collectors.toList());
+    }
+
 
     public IdDispatchResponse searchIds(RequestInfo requestInfo, IdPoolSearch idPoolSearch) {
         List<IdRecord> records = idRepo.findByIDsAndStatus(idPoolSearch.getIdList(),
@@ -135,32 +179,13 @@ public class IdDispatchService {
     }
 
     private void validateDispatchRequest(IdDispatchRequest request) {
-        if (request == null) {
-            throw new CustomException("INVALID REQUEST", "Request cannot be null");
-        }
 
         DispatchUserInfo userInfo = request.getUserInfo();
         RequestInfo requestInfo = request.getRequestInfo();
 
-        if (userInfo == null) {
-            throw new CustomException("INVALID USER", "UserInfo is missing in the request");
-        }
-
-        if (requestInfo == null) {
-            throw new CustomException("INVALID REQUEST INFO", "RequestInfo is missing");
-        }
-
         String userUuid = userInfo.getUserUuid();
         String deviceUuid = userInfo.getDeviceUuid();
         Integer count = userInfo.getCount();
-
-        if (userUuid == null || userUuid.trim().isEmpty()) {
-            throw new CustomException("INVALID USER UUID", "User UUID must not be null or empty");
-        }
-
-        if (deviceUuid == null || deviceUuid.trim().isEmpty()) {
-            throw new CustomException("INVALID DEVICE UUID", "Device UUID must not be null or empty");
-        }
 
 
         if (count > configuredLimit) {

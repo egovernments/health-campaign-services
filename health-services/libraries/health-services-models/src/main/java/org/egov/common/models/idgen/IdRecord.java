@@ -2,11 +2,7 @@ package org.egov.common.models.idgen;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovModel;
 
@@ -16,9 +12,18 @@ import org.egov.common.models.core.EgovModel;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 public class IdRecord extends EgovModel {
 
     @Size(max = 200)
     @JsonProperty("status")
     private String status;
+
+
+    @Override
+    @EqualsAndHashCode.Include
+    public String getId() {
+        return super.getId();
+    }
+
 }

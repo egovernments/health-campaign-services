@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 public class RedisRepository {
@@ -22,8 +21,20 @@ public class RedisRepository {
     }
 
     public List<IdRecord> selectUnassignedIds(int count) {
-        Set<Object> ids = redisTemplate.opsForZSet().range("unassigned_ids", 0, count - 1);
-        return ids.stream().map(obj -> (IdRecord) obj).collect(Collectors.toList());
+        Set<Object> ids = redisTemplate.opsForZSet().range("unassigned_ids", 0, -1);
+        List<IdRecord> unassigned = new ArrayList<>();
+
+        for (Object obj : ids) {
+            if (unassigned.size() >= count) break;
+            IdRecord record = (IdRecord) obj;
+
+            Object status = redisTemplate.opsForHash().get("id_status", record.getId());
+            if (status == null || !"dispatched".equalsIgnoreCase(status.toString())) {
+                unassigned.add(record);
+            }
+        }
+
+        return unassigned;
     }
 
     public void addToRedisCache(List<IdRecord> records) {
