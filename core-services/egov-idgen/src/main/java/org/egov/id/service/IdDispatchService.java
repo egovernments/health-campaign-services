@@ -115,6 +115,9 @@ public class IdDispatchService {
             lockManager.releaseLocks(lockedIds);
         }
 
+        selected.stream().forEach(idRecord -> {
+            idRecord.setAdditionalFields(null);
+        });
         return IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
