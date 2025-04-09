@@ -1,5 +1,7 @@
 package org.egov.common.models.idgen;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,5 +18,7 @@ import org.egov.common.models.core.EgovModel;
 @ToString
 public class IdRecord extends EgovModel {
 
+    @Size(max = 200)
+    @JsonProperty("status")
     private String status;
 }

@@ -35,7 +35,7 @@ class IdGenerationControllerTest {
     private IdGenerationService idGenerationService;
 
     @MockBean
-    private IdDispatchService idDispatchService;  // ✅ This is missing
+    private IdDispatchService idDispatchService;  
 
     @MockBean
     private HttpServletRequest servletRequest;
@@ -45,7 +45,7 @@ class IdGenerationControllerTest {
 
     @MockBean
     IdGenProducer producer;
-    
+
     @Test
     void testGenerateIdResponse() throws Exception {
         IdGenerationRequest idGenerationRequest = new IdGenerationRequest();

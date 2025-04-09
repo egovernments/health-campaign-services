@@ -1,6 +1,9 @@
 package org.egov.common.models.idgen;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.egov.common.contract.response.ResponseInfo;
 import java.util.*;
 
@@ -23,8 +26,14 @@ import lombok.*;
 @Builder
 public class IDPoolGenerationResponse {
 
+    @JsonProperty("RequestInfo")
+    @NotNull
     private ResponseInfo responseInfo;
 
+
+    @JsonProperty("IdCreationResponse")
+    @NotNull
+    @Valid
     private List<Map<String,String>> idCreationResponse;
 
 }
