@@ -1,7 +1,9 @@
 package org.egov.individual.service;
 
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -137,6 +139,21 @@ public class IndividualService {
         return individuals;
     }
 
+    public List<Individual> mapIndividualToUser(String tenantId, String Id, String userId, RequestInfo requestInfo ){
+        SearchResponse<Individual> searchResponse =  individualRepository.findById(Collections.singletonList(Id), "id", false);
+        List<Individual> encryptedIndividualList = searchResponse.getResponse().stream()
+                .filter(havingTenantId(tenantId))
+                .collect(Collectors.toList());
+        //decrypt
+        List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
+                ? individualEncryptionService.decrypt(encryptedIndividualList,
+                "IndividualDecrypt", requestInfo)
+                : encryptedIndividualList;
+
+        searchResponse.setResponse(decryptedIndividualList);
+
+        return searchResponse.getResponse();
+    }
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
 
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,

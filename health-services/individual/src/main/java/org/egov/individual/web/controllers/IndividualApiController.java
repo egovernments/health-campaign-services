@@ -1,36 +1,35 @@
 package org.egov.individual.web.controllers;
 
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.individual.*;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-
 
 
 @Controller
@@ -73,6 +72,20 @@ public class IndividualApiController {
 
     }
 
+    @RequestMapping(value = "/v1/_mapIndividualToUser", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> mapIndividualToUser(@RequestBody IndividualRequest individualRequest) {
+
+        List<Individual> individuals = individualService.mapIndividualToUser(individualRequest.getIndividual().getTenantId(),individualRequest.getIndividual().getId(), individualRequest.getIndividual().getUserId(), individualRequest.getRequestInfo());
+        if(CollectionUtils.isEmpty(individuals)){
+            throw new CustomException("ID_NOT_FOUND","Individual Cannot be found with this id");
+        }
+        individuals.get(0).setUserUuid(individualRequest.getIndividual().getUserUuid()); // check which one to update
+        individuals.get(0).setUserId(individualRequest.getIndividual().getUserId()); // check which one to update
+//        individuals.get(0).setClientReferenceId(individuals.get(0).getIdentifiers().get(0).getClientReferenceId());
+        individualRequest.setIndividual(individuals.get(0));
+        return individualV1UpdatePost(individualRequest, Boolean.TRUE);
+    }
+
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
@@ -88,7 +101,7 @@ public class IndividualApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request
     ) {
-        SearchResponse<Individual> searchResponse  = individualService.search(
+        SearchResponse<Individual> searchResponse = individualService.search(
                 request.getIndividual(),
                 urlParams.getLimit(),
                 urlParams.getOffset(),
