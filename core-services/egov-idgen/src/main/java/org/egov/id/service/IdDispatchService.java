@@ -1,22 +1,36 @@
 package org.egov.id.service;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
+import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.idgen.*;
+import org.egov.common.models.Error;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.config.RedissonLockManager;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.id.repository.IdRepository;
 import org.egov.id.repository.RedisRepository;
+import org.egov.id.validators.IdPoolValidatorForUpdate;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.egov.common.validator.Validator;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.id.utils.Constants.SET_ID_RECORDS;
+import static org.egov.id.utils.Constants.VALIDATION_ERROR;
+
 @Service
+@Slf4j
 public class IdDispatchService {
 
     private final RedisRepository redisRepo;
@@ -28,12 +42,20 @@ public class IdDispatchService {
     private final int configuredLimit;
     private final int dbFetchCount;
 
+
+    private final List<Validator<IdRecordBulkRequest, IdRecord>> validators;
+
+    private EnrichmentService enrichmentService;
+
+
     @Autowired
     public IdDispatchService(RedisRepository redisRepo,
                              IdRepository idRepo,
                              RedissonLockManager lockManager,
                              IdGenProducer idGenProducer,
-                             PropertiesManager propertiesManager) {
+                             PropertiesManager propertiesManager,
+                             List<Validator<IdRecordBulkRequest, IdRecord>> validators,
+                             EnrichmentService enrichmentservice) {
         this.redisRepo = redisRepo;
         this.idRepo = idRepo;
         this.lockManager = lockManager;
@@ -41,7 +63,14 @@ public class IdDispatchService {
         this.propertiesManager = propertiesManager;
         this.configuredLimit = propertiesManager.getDispatchLimitPerUser();
         this.dbFetchCount = propertiesManager.getDbFetchLimit();
+        this.validators = validators;
+        this.enrichmentService  = enrichmentservice;
     }
+
+
+    private final Predicate<Validator<IdRecordBulkRequest, IdRecord>> isApplicableForUpdate = validator ->
+            validator.getClass().equals(IdPoolValidatorForUpdate.class);
+
 
     /**
      * Dispatches a given count of IDs to the user after checking limits and locking.
@@ -80,7 +109,7 @@ public class IdDispatchService {
         }
 
         try {
-            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId);
+            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId , requestInfo);
             redisRepo.incrementDispatchedCount(userUuid, deviceUuid, count);
         } finally {
             lockManager.releaseLocks(lockedIds);
@@ -160,12 +189,19 @@ public class IdDispatchService {
     /**
      * Updates Redis cache, sends Kafka messages for status and logs.
      */
-    private void updateStatusesAndLogs(List<IdRecord> selected, String userUuid, String deviceUuid, Object deviceInfo, String tenantId) {
+    private void updateStatusesAndLogs(List<IdRecord> selected, String userUuid, String deviceUuid, Object deviceInfo, String tenantId, RequestInfo requestInfo) {
         redisRepo.updateStatusToDispatched(selected);
         redisRepo.removeFromUnassigned(selected);
 
+        enrichmentService.enrichStatusForUpdate(selected,
+                IdRecordBulkRequest.builder()
+                        .idRecords(selected)
+                        .requestInfo(requestInfo)
+                        .build() , IdStatus.DISPATCHED.name());
+        Map<String, Object> payloadToUpdate = new HashMap<>();
+        payloadToUpdate.put("idPool", selected);
         idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(),
-                buildIdPoolStatusPayload(userUuid, selected));
+                payloadToUpdate);
 
         idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(),
                 buildDispatchLogPayload(selected, userUuid, deviceUuid, deviceInfo , tenantId));
@@ -216,6 +252,57 @@ public class IdDispatchService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("idTransactionLog", logs);
         return payload;
+    }
+
+
+    private Tuple<List<IdRecord>, Map<IdRecord, ErrorDetails>> validate(List<Validator<IdRecordBulkRequest, IdRecord>> validators,
+                                                                            Predicate<Validator<IdRecordBulkRequest, IdRecord>> isApplicableForCreate,
+                                                                            IdRecordBulkRequest request, boolean isBulk) {
+        log.info("validating request");
+        Map<IdRecord, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
+                isApplicableForCreate, request,
+                SET_ID_RECORDS);
+        if (!errorDetailsMap.isEmpty() && !isBulk) {
+            Set<String> hashset = new HashSet<>();
+            for (Map.Entry<IdRecord, ErrorDetails> entry : errorDetailsMap.entrySet()) {
+                List<Error> errors = entry.getValue().getErrors();
+                hashset.addAll(errors.stream().map(error -> error.getErrorCode()).collect(Collectors.toSet()));
+            }
+            throw new CustomException(String.join(":",  hashset), errorDetailsMap.values().toString());
+        }
+        List<IdRecord> validIdRecords = request.getIdRecords().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+        return new Tuple<>(validIdRecords, errorDetailsMap);
+    }
+
+
+
+    public List<IdRecord> update(IdRecordBulkRequest request, boolean isBulk) {
+        Tuple<List<IdRecord>, Map<IdRecord, ErrorDetails>> tuple =  validate(validators,
+                isApplicableForUpdate, request,
+                isBulk);
+        Map<IdRecord, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<IdRecord> validIdRecords = tuple.getX();
+
+        try {
+            if (!validIdRecords.isEmpty()) {
+                log.info("processing {} valid entities", validIdRecords.size());
+                enrichmentService.update(validIdRecords, request);
+                // save
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("idPool", validIdRecords);
+                idGenProducer.push(
+                        propertiesManager.getUpdateIdPoolStatusTopic(),
+                        payload
+                        );
+
+            }
+        } catch (Exception exception) {
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            populateErrorDetails(request, errorDetailsMap, validIdRecords, exception, SET_ID_RECORDS);
+        }
+        handleErrors(errorDetailsMap, isBulk,VALIDATION_ERROR );
+        return validIdRecords;
     }
 
 }

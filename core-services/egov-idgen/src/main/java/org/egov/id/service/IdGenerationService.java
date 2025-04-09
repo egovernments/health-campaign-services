@@ -108,6 +108,7 @@ public class IdGenerationService {
         List<BatchRequest> batchRequestList = idPoolGenerationRequest.getBatchRequestList();
 
         if (batchRequestList.isEmpty()) {
+            log.error("EMPTY REQUEST", "Please provide tenantId and the batch size");
             throw new CustomException("EMPTY REQUEST", "Please provide tenantId and the batch size");
         }
         IDPoolGenerationResponse response = IDPoolGenerationResponse.builder()
@@ -142,6 +143,7 @@ public class IdGenerationService {
 
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
         if (StringUtils.isEmpty(idPoolName)) {
+            log.error("Configuration Error - Please configure the 'id.pool.seq.code' on the service level.");
             throw new CustomException("Configuration Error:", "Please configure the 'id.pool.seq.code' on the service level.");
         }
 
@@ -150,10 +152,14 @@ public class IdGenerationService {
         try {
             idFormat = getIdFormatFinal(tempRequest, requestInfo);
         } catch (Exception e) {
+
+            log.error("Error fetching idFormat:", e);
             throw new RuntimeException(e);
+
         }
 
         if (StringUtils.isEmpty(idFormat)) {
+            log.error("ID format cannot be null or empty");
             throw new IllegalArgumentException("ID format cannot be null or empty");
         }
 
@@ -174,6 +180,7 @@ public class IdGenerationService {
         try {
             return generateIdFromIdRequest(idRequest, requestInfo);
         } catch (Exception e) {
+            log.error("Error generating IDs: ", e);
             throw new RuntimeException("Error generating IDs", e);
         }
     }
@@ -211,7 +218,7 @@ public class IdGenerationService {
             idGenProducer.push(topic, payload);
 
         } catch (Exception e) {
-            System.err.println("Kafka publish failed: " + e.getMessage());
+            log.error("Kafka publish failed", e);
             // Optional: Add retry logic or DLQ fallback here
         }
     }

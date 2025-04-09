@@ -52,6 +52,10 @@ public class PropertiesManager {
 
 	private String saveIdDispatchLogTopic;
 
+	private String bulkIdUpdateTopic;
+
+	private Boolean idValidationEnabled;
+
 	public String getInvalidInput() {
 		return environment.getProperty("invalid.input");
 	}
@@ -118,4 +122,7 @@ public class PropertiesManager {
 		return Integer.parseInt(environment.getProperty("idpool.fetch.limit.from.db", "100"));
 	}
 
+	public String getBulkIdUpdateTopic () {return  environment.getProperty("kafka.topics.consumer.bulk.update.topic");}
+
+	public Boolean getIdValidationEnabled() {return environment.getProperty("id.validation.enabled").equals("true") ; }
 }
