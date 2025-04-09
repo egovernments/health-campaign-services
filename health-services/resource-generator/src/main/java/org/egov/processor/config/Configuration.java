@@ -138,4 +138,7 @@ public class Configuration {
 	@Value("${egov.census.search.endpoint}")
 	private String censusSearchEndPoint;
 
+	@Value("${enable.lock.on.plan.estimation.sheet}")
+	private boolean enableLockOnPlanEstimationSheet;
+
 }
