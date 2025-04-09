@@ -3579,6 +3579,17 @@ function getLocalizedName(
   return localizedName;
 }
 
+function getLocalizedNameOnlyIfMessagePresent(
+  expectedName: string,
+  localizationMap?: { [key: string]: string }
+) {
+  if (!localizationMap || !(expectedName in localizationMap)) {
+    return '';
+  }
+  const localizedName = localizationMap[expectedName];
+  return localizedName;
+}
+
 async function getTargetBoundariesRelatedToCampaignId(
   request: any,
   localizationMap?: any
@@ -3997,4 +4008,5 @@ export {
   processFetchMicroPlan,
   updateCampaignAfterSearch,
   processBoundary,
+  getLocalizedNameOnlyIfMessagePresent
 };

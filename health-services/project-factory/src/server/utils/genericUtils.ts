@@ -6,7 +6,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
 import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
 import { logger } from "./logger";
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName, getLocalizedNameOnlyIfMessagePresent } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
@@ -373,7 +373,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
       const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
-      fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility,request?.query?.tenantId);
+      fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
 
     }
     if (type === 'boundary') {
@@ -522,7 +522,7 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
       throwError("CAMPAIGN", 500, "INVALID_RESOURCE_DISTRIBUTION_STRATEGY", `Invalid resource distribution strategy: ${resourceDistributionStrategy} ; Allowed resource distribution strategies: ${resourceDistributionStrategyTypes}`);
     }
   } else {
-    schema = await callMdmsTypeSchema( tenantId, false, "facility", "all");
+    schema = await callMdmsTypeSchema(tenantId, false, "facility", "all");
   }
   return schema;
 }
@@ -692,7 +692,7 @@ async function getReadMeConfig(request: any) {
     },
   };
   // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
-    const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
+  const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
@@ -1329,6 +1329,10 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
+  const locale = getLocaleFromRequest(request);
+  const region = locale.split('_')[1];
+  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
+  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
@@ -1367,6 +1371,12 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
+    const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
+    const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
+
+    // ✅ Append to row
+    mappedRowData.push(frenchTranslation);
+    mappedRowData.push(portugeseTranslation);
     return mappedRowData;
   });
   if (type == "boundaryManagement") {
@@ -1422,9 +1432,11 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false, locale?: string) {
   const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequest(request);
+  if (!locale) {
+    locale = getLocaleFromRequest(request);
+  }
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
   return localizationResponse;
 }
@@ -1474,28 +1486,28 @@ function extractFrenchOrPortugeseLocalizationMap(
   boundaryData: any[][],
   isFrench: boolean,
   isPortugese: boolean,
-  localizationMap:any
-): Map<{ key: string; value: string },string> {
-  const resultMap = new Map<{ key: string; value: string },string>();
+  localizationMap: any
+): Map<{ key: string; value: string }, string> {
+  const resultMap = new Map<{ key: string; value: string }, string>();
 
   boundaryData.forEach(row => {
-    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode,localizationMap));
+    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
     const boundaryCode = boundaryCodeObj?.value;
 
     if (!boundaryCode) return;
 
     if (isFrench) {
-      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap));
+      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
       resultMap.set({
         key: "french",
         value: frenchMessageObj?.value || ""
-      },boundaryCode);
+      }, boundaryCode);
     } else if (isPortugese) {
-      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE",localizationMap));
+      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
       resultMap.set({
         key: "portugese",
         value: portugeseMessageObj?.value || ""
-      },boundaryCode);
+      }, boundaryCode);
     }
   });
 
