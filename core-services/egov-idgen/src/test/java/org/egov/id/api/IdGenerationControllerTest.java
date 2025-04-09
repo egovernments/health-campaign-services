@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.*;
+import org.egov.id.config.PropertiesManager;
+import org.egov.id.producer.IdGenProducer;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,15 @@ class IdGenerationControllerTest {
     @MockBean
     private IdDispatchService idDispatchService;  // ✅ This is missing
 
+    @MockBean
+    private HttpServletRequest servletRequest;
+
+    @MockBean
+    PropertiesManager propertiesManager;
+
+    @MockBean
+    IdGenProducer producer;
+    
     @Test
     void testGenerateIdResponse() throws Exception {
         IdGenerationRequest idGenerationRequest = new IdGenerationRequest();
