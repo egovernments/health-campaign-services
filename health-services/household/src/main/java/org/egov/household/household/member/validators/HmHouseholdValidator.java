@@ -13,12 +13,15 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -72,7 +75,9 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         log.info("finding valid household ids from household service");
         List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getResponse();
 
-        Map<String, Household> householdMap = validHouseHoldIds.stream().collect(Collectors.toMap(Household::getClientReferenceId, d -> d));
+        Map<String, Household> householdMap = validHouseHoldIds.stream().collect(Collectors.toMap(
+                Objects.equals(columnName, "id") ? Household::getId : Household::getClientReferenceId,
+                d -> d));
 
         log.info("getting unique household ids from valid household ids");
         Set<String> uniqueHoldIds = getSet(validHouseHoldIds, columnName == "id" ? "getId": "getClientReferenceId");
@@ -84,7 +89,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         );
 
         householdMembers.stream()
-                .filter(householdMember -> invalidHouseholds.contains(householdMember.getHouseholdId()))
+                .filter(householdMember -> invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
                 .forEach(householdMember -> {
                     Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MESSAGE)
                             .errorCode(INVALID_HOUSEHOLD)
@@ -97,11 +102,15 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
 
         // Validates if household type is not FAMILY and still adding relationships for household member
         householdMembers.stream()
-                .filter(householdMember -> !invalidHouseholds.contains(householdMember.getHouseholdId()))
+                .filter(householdMember -> !invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
                 .filter(d -> !CollectionUtils.isEmpty(d.getRelationships()))
                 .forEach(householdMember -> {
-                    HouseHoldType householdType = householdMap.get(householdMember.getHouseholdClientReferenceId()).getHouseholdType();
-                    if (!HouseHoldType.FAMILY.equals(householdType)) {
+                    HouseHoldType householdType = null;
+                    String householdId = getHouseholdId(householdMember, idMethod);
+                    if (!ObjectUtils.isEmpty(householdId) && householdMap.containsKey(householdId)) {
+                        householdType = householdMap.get(householdId).getHouseholdType();
+                    }
+                    if (!ObjectUtils.isEmpty(householdType) && !HouseHoldType.FAMILY.equals(householdType)) {
                         Error error = Error.builder().errorMessage(HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE)
                                 .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
                                 .type(Error.ErrorType.NON_RECOVERABLE)
@@ -122,5 +131,9 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
             columnName = "clientReferenceId";
         }
         return columnName;
+    }
+
+    private String getHouseholdId(HouseholdMember householdMember, Method idMethod) {
+        return (String) ReflectionUtils.invokeMethod(idMethod, householdMember);
     }
 }
