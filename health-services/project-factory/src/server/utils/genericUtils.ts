@@ -1371,12 +1371,12 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
-    const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
-    const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
-
-    // ✅ Append to row
-    mappedRowData.push(frenchTranslation);
-    mappedRowData.push(portugeseTranslation);
+    if (type === "boundaryManagement") {
+      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
+      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
+      mappedRowData.push(frenchTranslation);
+      mappedRowData.push(portugeseTranslation);
+    }
     return mappedRowData;
   });
   if (type == "boundaryManagement") {
