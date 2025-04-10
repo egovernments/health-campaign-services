@@ -39,7 +39,8 @@ export const CONSTANTS: any = {
             PARENT_CAMPAIGN_ERROR: "Parent Camapign error ",
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
             RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow ",
-            VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required"
+            VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
+            VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

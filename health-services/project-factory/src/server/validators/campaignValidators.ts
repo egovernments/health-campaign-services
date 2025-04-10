@@ -1552,9 +1552,15 @@ function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localized
 
 export function validateEmptyActive(data: any, type: string, localizationMap?: { [key: string]: string }) {
     let isActiveRowsZero = true;
+    const invalidUsernameRows: number[] = [];
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
+    const userNameColumn = "UserName";
     if(Array.isArray(data)){
-        data.forEach((item: any) => {
+        data.forEach((item: any,index:number) => {
+            const username = item[getLocalizedName(userNameColumn,localizationMap)];
+            if (username && !/^[A-Za-z][A-Za-z0-9-]*$/.test(username)) {
+                invalidUsernameRows.push(index + 1); // +1 for human-readable row numbers
+            }
             const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
             if (active == usageColumnStatus.active) {
                 isActiveRowsZero = false;
@@ -1565,6 +1571,9 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
     else{
         // Data is not coming from a single sheet so no require for this active check
         isActiveRowsZero = false;
+    }
+    if (invalidUsernameRows.length > 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR_USERNAME_FORMAT");
     }
     if(isActiveRowsZero){
         throwError("COMMON", 400, "VALIDATION_ERROR_ACTIVE_ROW");

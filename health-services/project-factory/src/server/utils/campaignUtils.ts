@@ -2823,7 +2823,7 @@ async function generateFilteredBoundaryData(
   //   request,
   //   params
   // );
-  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.query?.tenantId,request?.query?.hierarchyType,true,true,rootBoundary?.[0]?.code);
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.query?.tenantId,request?.query?.hierarchyType,true,true,true,rootBoundary?.[0]?.code);
   const boundaryDataFromRootOnwards = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   logger.info(`filtering the boundaries`);
   const filteredBoundaryList = filterBoundaries(

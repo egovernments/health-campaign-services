@@ -176,8 +176,8 @@ const searchBoundaryRelationshipData = async (
   hierarchyType: string,
   includeChildren: boolean = true,
   includeParents: boolean = true,
-  codes?: string,
-  isCache?:boolean
+  isCache?:boolean,
+  codes?: string
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
   // Prepare request body with default request information
   const requestBody = {

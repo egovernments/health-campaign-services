@@ -759,7 +759,7 @@ async function getBoundarySheetData(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
   // const boundaryData = await getBoundaryRelationshipData(request, params);
-  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,"",useCache === true);
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,useCache);
   const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
