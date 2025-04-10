@@ -9,10 +9,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Repository
 public class IdRepository {
@@ -54,26 +51,47 @@ public class IdRepository {
      * Fetches a list of dispatched ID records with a given limit.
      */
     public List<IdTransactionLog> selectClientDispatchedIds (String tenantId, String deviceUuid , String userUuid , IdStatus idStatus) {
+        StringBuilder queryBuilder = new StringBuilder("SELECT * FROM id_transaction_log");
         Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("tenantId", tenantId);
-        paramMap.put("userUuid", userUuid);
-        paramMap.put("deviceUuid", deviceUuid);
+        List<String> conditions = new ArrayList<>();
 
-        String query = "Select * From id_transaction_log " +
-                "WHERE device_uuid = :deviceUuid " +
-                "AND user_uuid = :userUuid " +
-                "AND tenantId = :tenantId ";
+        if (!ObjectUtils.isEmpty(deviceUuid)) {
+            conditions.add("device_uuid = :deviceUuid");
+            paramMap.put("deviceUuid", deviceUuid);
+        }
+
+        if (!ObjectUtils.isEmpty(userUuid)) {
+            conditions.add("user_uuid = :userUuid");
+            paramMap.put("userUuid", userUuid);
+        }
+
+        if (!ObjectUtils.isEmpty(tenantId)) {
+            conditions.add("tenantId = :tenantId");
+            paramMap.put("tenantId", tenantId);
+        }
 
         if (!ObjectUtils.isEmpty(idStatus)) {
-            query+=" AND status = :status ";
+            conditions.add("status = :status");
             paramMap.put("status", idStatus.name());
         }
 
 //        else {
-//            query+=" AND status IS NOT NULL ";
+//           queryBuilder.append(" AND status IS NOT NULL ");
 //        }
-        query += "AND to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD') ORDER BY createdTime DESC";
-        return namedParameterJdbcTemplate.query(query, paramMap, this.idTransactionLogRowMapper);
+
+        // Filter for today’s date
+        conditions.add(" to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD')");
+
+        // Append WHERE clause only if we have any condition
+        if (!conditions.isEmpty()) {
+            queryBuilder.append(" WHERE ");
+            queryBuilder.append(String.join(" AND ", conditions));
+        }
+
+
+        // Order
+        queryBuilder.append(" ORDER BY createdTime DESC");
+        return namedParameterJdbcTemplate.query(queryBuilder.toString(), paramMap, this.idTransactionLogRowMapper);
     }
 
     /**

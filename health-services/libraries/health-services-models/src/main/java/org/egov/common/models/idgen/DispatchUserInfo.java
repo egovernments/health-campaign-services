@@ -34,7 +34,7 @@ public class DispatchUserInfo {
     @NotNull
     private String deviceInfo;
 
-    @JsonProperty("fetchAllDispatched")
+    @JsonProperty("fetchAllocatedIds")
     @BooleanFlag
-    private Boolean fetchAllDispatched;
+    private Boolean fetchAllocatedIds;
 }
