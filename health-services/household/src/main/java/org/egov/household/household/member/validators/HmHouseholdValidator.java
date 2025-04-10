@@ -19,6 +19,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -71,6 +72,8 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
 
         log.info("getting household ids from household members");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
+
+        houseHoldIds = new HashSet<>(houseHoldIds).stream().toList();
 
         log.info("finding valid household ids from household service");
         List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getResponse();
