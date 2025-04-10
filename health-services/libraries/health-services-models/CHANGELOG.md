@@ -1,5 +1,10 @@
 All notable changes to this module will be documented in this file.
 
+ 
+## 1.0.26 - 2025-03-04
+ 
+- Added INELIGIBLE in TaskStatus Enum for project tasks
+ 
 ## 1.0.25 - 2025-01-03
 - Added BeneficiaryType Enum and update in ProjectType, Target models
 - Added HouseHoldType Enum and added in Household, HouseholdSearch models
