@@ -31,18 +31,7 @@
              this.idDispatchService =  idDispatchService;
              this.objectMapper = objectMapper;
          }
-
-//         @KafkaListener(topics = "${individual.consumer.bulk.create.topic}")
-//         public List<Individual> bulkCreate(Map<String, Object> consumerRecord,
-//                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-//             try {
-//                 IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
-//                 return individualService.create(request, true);
-//             } catch (Exception exception) {
-//                 log.error("error in individual consumer bulk create", exception);
-//                 return Collections.emptyList();
-//             }
-//         }
+         
 
          @KafkaListener(topics = "${kafka.topics.consumer.bulk.update.topic}")
          public List<IdRecord> bulkUpdate(Map<String, Object> consumerRecord,
