@@ -923,7 +923,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, filteredBoundary, request, localizationMap, fileUrl, schemaFinal);
   }
   else {
-    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap,true);
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
 }
@@ -977,7 +977,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
     await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, schema, localizationMap, fileUrl);
   }
   else {
-    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap,true);
     await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, schema, localizationMap, fileUrl);
   }
 }
