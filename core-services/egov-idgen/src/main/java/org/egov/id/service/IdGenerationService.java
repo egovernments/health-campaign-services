@@ -107,7 +107,7 @@ public class IdGenerationService {
         RequestInfo requestInfo = idPoolGenerationRequest.getRequestInfo();
         List<BatchRequest> batchRequestList = idPoolGenerationRequest.getBatchRequestList();
 
-        log.debug("Received ID pool generation request. Total batch requests: {}", batchRequestList.size());
+        log.info("Received ID pool generation request. Total batch requests: {}", batchRequestList.size());
 
         if (batchRequestList.isEmpty()) {
             log.error("EMPTY REQUEST: Please provide tenantId and the batch size");
@@ -123,23 +123,23 @@ public class IdGenerationService {
 
         for (BatchRequest batch : batchRequestList) {
             Map<String, String> successOrErrorMessage = new HashMap<>();
-            log.debug("Processing batch index {}: tenantId={}, batchSize={}", index, batch.getTenantId(), batch.getBatchSize());
+            log.info("Processing batch index {}: tenantId={}, batchSize={}", index, batch.getTenantId(), batch.getBatchSize());
 
             try {
                 String tenantId = batch.getTenantId();
                 Integer originalBatchSize = batch.getBatchSize();
 
-                log.debug("Fetching ID format for tenant: {}", tenantId);
+                log.info("Fetching ID format for tenant: {}", tenantId);
                 String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
                 Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
-                log.debug("Adjusted batch size: {} (original: {})", adjustedBatchSize, originalBatchSize);
+                log.info("Adjusted batch size: {} (original: {})", adjustedBatchSize, originalBatchSize);
 
                 IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
                 List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
 
-                log.debug("Successfully generated {} IDs for tenant {}", generatedIds.size(), tenantId);
+                log.info("Successfully generated {} IDs for tenant {}", generatedIds.size(), tenantId);
                 persistToKafka(requestInfo, generatedIds, tenantId);
-                log.debug("Successfully pushed IDs to Kafka for tenant {}", tenantId);
+                log.info("Successfully pushed IDs to Kafka for tenant {}", tenantId);
 
                 successOrErrorMessage.put(Integer.toString(index), "ID Generation has been processed");
             } catch (Exception e) {
@@ -152,13 +152,13 @@ public class IdGenerationService {
         }
 
         response.setIdCreationResponse(feedback);
-        log.debug("ID pool generation completed for all batches.");
+        log.info("ID pool generation completed for all batches.");
         return response;
     }
 
 
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
-        log.debug("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
+        log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
         if (StringUtils.isEmpty(idPoolName)) {
             log.error("Configuration Error - 'id.pool.seq.code' is not set.");
@@ -170,7 +170,7 @@ public class IdGenerationService {
 
         try {
             idFormat = getIdFormatFinal(tempRequest, requestInfo);
-            log.debug("Received ID format: {}", idFormat);
+            log.info("Received ID format: {}", idFormat);
         } catch (Exception e) {
             log.error("Exception while fetching ID format from ID generation service for tenant {}: {}", tenantId, e.getMessage(), e);
             throw new RuntimeException(e);
@@ -185,16 +185,16 @@ public class IdGenerationService {
     }
 
     private Integer adjustBatchSizeIfRandom(Integer batchSize, String idFormat) {
-        log.debug("Adjusting batch size if ID format is random. Batch size: {}, ID format: {}", batchSize, idFormat);
+        log.info("Adjusting batch size if ID format is random. Batch size: {}, ID format: {}", batchSize, idFormat);
 
         Matcher randomMatcher = RANDOM_PATTERN.matcher(idFormat);
         if (randomMatcher.find()) {
             int adjusted = (int) Math.ceil(batchSize * (1 + defaultBufferPercentage / 100.0));
-            log.debug("Detected random pattern in ID format. Adjusted batch size: {} (Buffer: {}%)", adjusted, defaultBufferPercentage);
+            log.info("Detected random pattern in ID format. Adjusted batch size: {} (Buffer: {}%)", adjusted, defaultBufferPercentage);
             return adjusted;
         }
 
-        log.debug("No random pattern detected. Returning original batch size: {}", batchSize);
+        log.info("No random pattern detected. Returning original batch size: {}", batchSize);
         return batchSize;
     }
 
@@ -208,7 +208,7 @@ public class IdGenerationService {
     }
 
     private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
-        log.debug("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
+        log.info("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
 
         List<IdRecord> buffer = new ArrayList<>(MAX_BATCH_SIZE);
 
@@ -226,16 +226,16 @@ public class IdGenerationService {
                     .rowVersion(1)
                     .build();
             buffer.add(idRecord);
-            log.debug("Buffered ID [{}] for Kafka persistence.", generatedId);
+            log.info("Buffered ID [{}] for Kafka persistence.", generatedId);
 
             if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
-                log.debug("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
+                log.info("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
                 buffer.clear();
             }
         }
 
-        log.debug("Completed Kafka persistence for {} generated IDs.", generatedIds.size());
+        log.info("Completed Kafka persistence for {} generated IDs.", generatedIds.size());
     }
 
 

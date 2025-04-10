@@ -1,6 +1,7 @@
 package org.egov.id.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
@@ -83,30 +84,30 @@ public class IdDispatchService {
         RequestInfo requestInfo = request.getRequestInfo();
         String tenantId = request.getUserInfo().getTenantId();
 
-        log.debug("Dispatch request received: userUuid={}, deviceUuid={}, tenantId={}, count={}", userUuid, deviceUuid, tenantId, count);
+        log.info("Dispatch request received: userUuid={}, deviceUuid={}, tenantId={}, count={}", userUuid, deviceUuid, tenantId, count);
 
         Long fetchLimit;
 
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
-        log.debug("Already dispatched count from Redis for user={} and device={} is {}", userUuid, deviceUuid, alreadyDispatched);
+        log.info("Already dispatched count from Redis for user={} and device={} is {}", userUuid, deviceUuid, alreadyDispatched);
 
         validateDispatchRequest(request);
-        log.debug("Dispatch request validation passed.");
+        log.info("Dispatch request validation passed.");
 
         // Handle fetch of already allocated IDs
         if (!ObjectUtils.isEmpty(request.getUserInfo().getFetchAllocatedIds())
                 && request.getUserInfo().getFetchAllocatedIds()) {
-            log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
+            log.info("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
             IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request);
             alreadyDispatched = (int) Math.max(alreadyDispatched, idDispatchResponse.getTotalCount());
             fetchLimit = Math.max(0L, configuredLimit - alreadyDispatched);
-            log.debug("Total previously allocated: {}, updated fetchLimit: {}", alreadyDispatched, fetchLimit);
+            log.info("Total previously allocated: {}, updated fetchLimit: {}", alreadyDispatched, fetchLimit);
             idDispatchResponse.setFetchLimit(fetchLimit);
             return idDispatchResponse;
         }
 
         fetchLimit = Math.max(0L, configuredLimit - (alreadyDispatched + count));
-        log.debug("Calculated fetch limit for new IDs: {}", fetchLimit);
+        log.info("Calculated fetch limit for new IDs: {}", fetchLimit);
 
         if (alreadyDispatched + count > configuredLimit) {
             log.warn("User {} with device {} exceeded dispatch limit. Allowed={}, Requested={}, Already={}",
@@ -116,7 +117,7 @@ public class IdDispatchService {
         }
 
         List<IdRecord> selected = fetchOrRefillIds(tenantId, count);
-        log.debug("Fetched {} IDs for dispatch.", selected.size());
+        log.info("Fetched {} IDs for dispatch.", selected.size());
 
         if (selected == null || selected.isEmpty()) {
             log.error("No IDs available from Redis or DB for tenantId: {}", tenantId);
@@ -130,7 +131,7 @@ public class IdDispatchService {
             throw new CustomException("INVALID ID LIST", "Selected ID list is empty or invalid");
         }
 
-        log.debug("Attempting to lock {} IDs: {}", lockedIds.size(), lockedIds);
+        log.info("Attempting to lock {} IDs: {}", lockedIds.size(), lockedIds);
 
         if (!lockManager.lockRecords(lockedIds)) {
             log.error("Failed to acquire lock for IDs: {}", lockedIds);
@@ -138,16 +139,16 @@ public class IdDispatchService {
         }
 
         try {
-            log.debug("Successfully locked IDs. Proceeding with update and logging.");
+            log.info("Successfully locked IDs. Proceeding with update and logging.");
             updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId, requestInfo);
             redisRepo.incrementDispatchedCount(userUuid, deviceUuid, count);
-            log.debug("Dispatch count updated in Redis for user: {} and device: {}", userUuid, deviceUuid);
+            log.info("Dispatch count updated in Redis for user: {} and device: {}", userUuid, deviceUuid);
         } finally {
             lockManager.releaseLocks(lockedIds);
-            log.debug("Released locks for IDs: {}", lockedIds);
+            log.info("Released locks for IDs: {}", lockedIds);
         }
         selected.stream().forEach(idRecord -> {normalizeAdditionalFields(idRecord);});
-        log.debug("Returning dispatch response with {} IDs", selected.size());
+        log.info("Returning dispatch response with {} IDs", selected.size());
         return IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
@@ -159,20 +160,20 @@ public class IdDispatchService {
         String userUuid = request.getUserInfo().getUserUuid();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
         String tenantId = request.getUserInfo().getTenantId();
-        log.debug("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
+        log.info("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
         List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
                 tenantId,
                 deviceUuid,
                 userUuid,
                 null
         );
-        log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.size(), userUuid, deviceUuid);
+        log.info("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.size(), userUuid, deviceUuid);
         List<String> ids = idTransactionLogs.stream()
                 .map(IdTransactionLog::getId)
                 .collect(Collectors.toList());
-        log.debug("Extracted {} unique ID(s) from transaction logs: {}", ids.size(), ids);
+        log.info("Extracted {} unique ID(s) from transaction logs: {}", ids.size(), ids);
         List<IdRecord> records = idRepo.findByIDsAndStatus(ids, null, tenantId);
-        log.debug("Mapped {} ID(s) to IdRecord(s) from DB", records.size());
+        log.info("Mapped {} ID(s) to IdRecord(s) from DB", records.size());
 
         records.stream().forEach(idRecord -> {normalizeAdditionalFields(idRecord);});
 
@@ -203,7 +204,7 @@ public class IdDispatchService {
 
 
     public IdDispatchResponse searchIds(RequestInfo requestInfo, IdPoolSearch idPoolSearch) {
-        log.debug("Searching ID records with params - tenantId: {}, status: {}, idList size: {}",
+        log.info("Searching ID records with params - tenantId: {}, status: {}, idList size: {}",
                 idPoolSearch.getTenantId(),
                 idPoolSearch.getStatus(),
                 idPoolSearch.getIdList() != null ? idPoolSearch.getIdList().size() : 0);
@@ -213,7 +214,7 @@ public class IdDispatchService {
                 idPoolSearch.getStatus(),
                 idPoolSearch.getTenantId()
         );
-        log.debug("Found {} ID records matching the criteria.", records.size());
+        log.info("Found {} ID records matching the criteria.", records.size());
 
         return IdDispatchResponse.builder()
                 .idResponses(records)
@@ -236,22 +237,22 @@ public class IdDispatchService {
         String userUuid = userInfo.getUserUuid();
         String deviceUuid = userInfo.getDeviceUuid();
         Integer count = userInfo.getCount();
-        log.debug("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);
-        log.debug("Configured dispatch limit per user: {}", configuredLimit);
+        log.info("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);
+        log.info("Configured dispatch limit per user: {}", configuredLimit);
         if (count > configuredLimit) {
             log.warn("Dispatch request count {} exceeds configured limit {}", count, configuredLimit);
             throw new CustomException("COUNT EXCEEDS LIMIT",
                     "Requested count exceeds maximum allowed limit per user: " + configuredLimit);
         }
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
-        log.debug("Already dispatched count for userUuid: {}, deviceUuid: {} is {}", userUuid, deviceUuid, alreadyDispatched);
+        log.info("Already dispatched count for userUuid: {}, deviceUuid: {} is {}", userUuid, deviceUuid, alreadyDispatched);
 
         if (alreadyDispatched + count > configuredLimit) {
             log.warn("Total dispatched + requested count ({}) exceeds configured limit for userUuid: {}, deviceUuid: {}", alreadyDispatched + count, userUuid, deviceUuid);
             throw new CustomException("ID LIMIT EXCEPTION",
                     "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
         }
-        log.debug("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
+        log.info("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
     }
 
 
@@ -260,21 +261,21 @@ public class IdDispatchService {
      * Fetches IDs from Redis or DB if needed.
      */
     private List<IdRecord> fetchOrRefillIds(String tenantId, int count) {
-        log.debug("Attempting to fetch {} unassigned IDs for tenant: {}", count, tenantId);
+        log.info("Attempting to fetch {} unassigned IDs for tenant: {}", count, tenantId);
 
         List<IdRecord> selected = redisRepo.selectUnassignedIds(count);
-        log.debug("Fetched {} unassigned IDs from Redis cache", selected.size());
+        log.info("Fetched {} unassigned IDs from Redis cache", selected.size());
         if (selected.size() < count) {
             int remaining = count - selected.size();
-            log.debug("Redis cache insufficient by {} IDs. Fetching {} IDs from DB for tenant: {}", remaining, dbFetchCount, tenantId);
+            log.info("Redis cache insufficient by {} IDs. Fetching {} IDs from DB for tenant: {}", remaining, dbFetchCount, tenantId);
             List<IdRecord> fromDb = idRepo.fetchUnassigned(tenantId, dbFetchCount);
-            log.debug("Fetched {} unassigned IDs from DB for tenant: {}", fromDb.size(), tenantId);
+            log.info("Fetched {} unassigned IDs from DB for tenant: {}", fromDb.size(), tenantId);
             redisRepo.addToRedisCache(fromDb);
-            log.debug("Added {} IDs from DB to Redis cache", fromDb.size());
+            log.info("Added {} IDs from DB to Redis cache", fromDb.size());
             selected = redisRepo.selectUnassignedIds(count);
-            log.debug("Re-fetched {} unassigned IDs from Redis cache after refill", selected.size());
+            log.info("Re-fetched {} unassigned IDs from Redis cache after refill", selected.size());
         } else {
-            log.debug("Sufficient unassigned IDs fetched from Redis, DB refill not needed");
+            log.info("Sufficient unassigned IDs fetched from Redis, DB refill not needed");
         }
 
         return selected;
@@ -285,13 +286,13 @@ public class IdDispatchService {
      * Updates Redis cache, sends Kafka messages for status and logs.
      */
     private void updateStatusesAndLogs(List<IdRecord> selected, String userUuid, String deviceUuid, Object deviceInfo, String tenantId, RequestInfo requestInfo) {
-        log.debug("Updating status to DISPATCHED for {} IDs in Redis", selected.size());
+        log.info("Updating status to DISPATCHED for {} IDs in Redis", selected.size());
         redisRepo.updateStatusToDispatched(selected);
 
-        log.debug("Removing {} IDs from Redis unassigned cache", selected.size());
+        log.info("Removing {} IDs from Redis unassigned cache", selected.size());
         redisRepo.removeFromUnassigned(selected);
 
-        log.debug("Enriching status for update before sending Kafka update");
+        log.info("Enriching status for update before sending Kafka update");
         enrichmentService.enrichStatusForUpdate(
                 selected,
                 IdRecordBulkRequest.builder()
@@ -303,11 +304,11 @@ public class IdDispatchService {
 
         Map<String, Object> payloadToUpdate = new HashMap<>();
         payloadToUpdate.put("idPool", selected);
-        log.debug("Pushing {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getUpdateIdPoolStatusTopic());
+        log.info("Pushing {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getUpdateIdPoolStatusTopic());
         idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payloadToUpdate);
 
-        Map<String, Object> payloadToUpdateTransactionLog = buildDispatchLogPayload(selected, userUuid, deviceUuid, deviceInfo, tenantId);
-        log.debug("Pushing dispatch logs for {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getSaveIdDispatchLogTopic());
+        Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(selected, userUuid, deviceUuid, deviceInfo, tenantId, IdStatus.DISPATCHED.name());
+        log.info("Pushing dispatch logs for {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getSaveIdDispatchLogTopic());
         idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
     }
 
@@ -333,9 +334,16 @@ public class IdDispatchService {
     /**
      * Builds the Kafka message payload for dispatch logs.
      */
-    private Map<String, Object> buildDispatchLogPayload(List<IdRecord> selected, String userUuid,
-                                                        String deviceUuid, Object deviceInfo, String tenantId) {
+    private Map<String, Object> buildTransactionLogPayload(List<IdRecord> selected, String userUuid,
+                                                        String deviceUuid, Object deviceInfo, String tenantId, String status) {
         List<IdTransactionLog> logs = selected.stream().map(record -> {
+            String updateStatus = "";
+            if (StringUtils.isNotBlank(status)) updateStatus = status;
+            else {
+                if(StringUtils.isNotBlank(record.getStatus())) {
+                    updateStatus = record.getStatus();
+                }
+            }
             IdTransactionLog dispatched = IdTransactionLog.builder()
                     .tenantId(tenantId)
                     .id(record.getId())
@@ -346,7 +354,7 @@ public class IdDispatchService {
                                     .build()
                     )
                     .rowVersion(1)
-                    .status(IdStatus.DISPATCHED.name())
+                    .status(updateStatus)
                     .userUuid(userUuid)
                     .deviceUuid(deviceUuid)
                     .deviceInfo(deviceInfo)
@@ -383,25 +391,25 @@ public class IdDispatchService {
 
 
     public List<IdRecord> update(IdRecordBulkRequest request, boolean isBulk) {
-        log.debug("Starting update process for IdRecordBulkRequest. Bulk mode: {}", isBulk);
+        log.info("Starting update process for IdRecordBulkRequest. Bulk mode: {}", isBulk);
         Tuple<List<IdRecord>, Map<IdRecord, ErrorDetails>> tuple = validate(
                 validators, isApplicableForUpdate, request, isBulk
         );
         Map<IdRecord, ErrorDetails> errorDetailsMap = tuple.getY();
         List<IdRecord> validIdRecords = tuple.getX();
-        log.debug("Validation complete. Valid records count: {}, Errors found: {}",
+        log.info("Validation complete. Valid records count: {}, Errors found: {}",
                 validIdRecords.size(), errorDetailsMap.size());
 
         try {
             if (!validIdRecords.isEmpty()) {
                 log.info("Processing {} valid ID records for update.", validIdRecords.size());
 
-                log.debug("Calling enrichment service for valid ID records.");
+                log.info("Calling enrichment service for valid ID records.");
                 enrichmentService.update(validIdRecords, request);
 
                 Map<String, Object> payload = new HashMap<>();
                 payload.put("idPool", validIdRecords);
-                log.debug("Pushing enriched records to Kafka topic: {}", propertiesManager.getUpdateIdPoolStatusTopic());
+                log.info("Pushing enriched records to Kafka topic: {}", propertiesManager.getUpdateIdPoolStatusTopic());
                 idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payload);
 
                 String userUuid;
@@ -412,10 +420,11 @@ public class IdDispatchService {
                     userUuid = request.getRequestInfo().getUserInfo().toString();
                 }
 
-                Map<String, Object> payloadToUpdateTransactionLog = buildDispatchLogPayload(
-                        validIdRecords, userUuid, SYSTEM_UPDATED, "", validIdRecords.get(0).getTenantId()
+                Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(
+                        validIdRecords, userUuid, SYSTEM_UPDATED, "", validIdRecords.get(0).getTenantId(),
+                        null
                 );
-                log.debug("Pushing transaction logs to Kafka topic: {}", propertiesManager.getSaveIdDispatchLogTopic());
+                log.info("Pushing transaction logs to Kafka topic: {}", propertiesManager.getSaveIdDispatchLogTopic());
                 idGenProducer.push(propertiesManager.getSaveIdDispatchLogTopic(), payloadToUpdateTransactionLog);
             }
         } catch (Exception exception) {
@@ -424,7 +433,7 @@ public class IdDispatchService {
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-        log.debug("Update process completed. Returning {} records.", validIdRecords.size());
+        log.info("Update process completed. Returning {} records.", validIdRecords.size());
         return validIdRecords;
     }
 

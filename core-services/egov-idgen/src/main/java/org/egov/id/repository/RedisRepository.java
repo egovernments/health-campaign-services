@@ -19,14 +19,14 @@ public class RedisRepository {
     public int getDispatchedCount(String userId, String deviceId) {
         String key = "user:" + userId + "device:" + deviceId +":count";
         Object value = redisTemplate.opsForValue().get(key);
-        log.debug("Fetched dispatched count from Redis for key {}: {}", key, value);
+        log.info("Fetched dispatched count from Redis for key {}: {}", key, value);
         return value != null ? (Integer) value : 0;
     }
 
     public List<IdRecord> selectUnassignedIds(int count) {
         Set<Object> ids = redisTemplate.opsForZSet().range("unassigned_ids", 0, -1);
         List<IdRecord> unassigned = new ArrayList<>();
-        log.debug("Scanning Redis sorted set 'unassigned_ids' for up to {} unassigned IDs", count);
+        log.info("Scanning Redis sorted set 'unassigned_ids' for up to {} unassigned IDs", count);
 
         for (Object obj : ids) {
             if (unassigned.size() >= count) break;
@@ -36,17 +36,17 @@ public class RedisRepository {
             if (status == null || !"dispatched".equalsIgnoreCase(status.toString())) {
                 unassigned.add(record);
             } else {
-                log.debug("Skipping ID {} as it is already marked dispatched", record.getId());
+                log.info("Skipping ID {} as it is already marked dispatched", record.getId());
             }
         }
-        log.debug("Selected {} unassigned IDs from Redis", unassigned.size());
+        log.info("Selected {} unassigned IDs from Redis", unassigned.size());
         return unassigned;
     }
 
     public void addToRedisCache(List<IdRecord> records) {
         records.forEach(record ->{
                 redisTemplate.opsForZSet().add("unassigned_ids", record, System.currentTimeMillis());
-                log.debug("Updated status of ID {} to 'dispatched' in Redis", record.getId());
+                log.info("Updated status of ID {} to 'dispatched' in Redis", record.getId());
             }
 
         );
@@ -55,20 +55,20 @@ public class RedisRepository {
     public void updateStatusToDispatched(List<IdRecord> records) {
         records.forEach(record -> {
                     redisTemplate.opsForHash().put("id_status", record.getId(), "dispatched");
-                    log.debug("Updated status of ID {} to 'dispatched' in Redis", record.getId());
+                    log.info("Updated status of ID {} to 'dispatched' in Redis", record.getId());
             }
         );
 
         for (IdRecord record : records) {
             redisTemplate.opsForHash().put("id_status", record.getId(), "dispatched");
-            log.debug("Updated status of ID {} to 'dispatched' in Redis", record.getId());
+            log.info("Updated status of ID {} to 'dispatched' in Redis", record.getId());
         }
     }
 
     public void removeFromUnassigned(List<IdRecord> records) {
         records.forEach(record -> {
             redisTemplate.opsForZSet().remove("unassigned_ids", record);
-            log.debug("Removed ID {} from Redis unassigned_ids cache", record.getId());
+            log.info("Removed ID {} from Redis unassigned_ids cache", record.getId());
             }
         );
 
@@ -78,7 +78,7 @@ public class RedisRepository {
         String key = "user:" + userId + "device:" + deviceId +":count";
         redisTemplate.opsForValue().increment(key, count);
         redisTemplate.expire(key, Duration.ofDays(1));
-        log.debug("Incremented dispatch count in Redis for key {} by {}. TTL set to 1 day.", key, count);
+        log.info("Incremented dispatch count in Redis for key {} by {}. TTL set to 1 day.", key, count);
     }
 }
 
