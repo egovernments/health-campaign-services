@@ -103,7 +103,7 @@ const getBoundaryDataService = async (
         const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         // Retrieve boundary sheet data
-        const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+        const boundarySheetData: any = await getBoundarySheetData(request, localizationMap,enableCaching === true);
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
         const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
         addDataToSheet(request, boundarySheet, boundarySheetData, '93C47D', 40, true);

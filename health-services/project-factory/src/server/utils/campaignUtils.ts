@@ -912,12 +912,12 @@ async function generateProcessedFileAndPersist(
     );
     setTimeout(async () => {
       // Code to be executed after 10 seconds
-      logger.info("Timeout of 10 sec after boundary data creation");
+      logger.info("Timeout of 30 sec after boundary data creation");
       await callGenerate(
         newRequestBoundary,
         request?.body?.ResourceDetails?.type
       );
-    }, 10000);
+    }, 30000);
   }
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   if (request?.body?.ResourceDetails?.action == "create") {
@@ -3339,7 +3339,7 @@ const autoGenerateBoundaryCodes = async (
       boundaryData,
       localizedHeadersOfBoundarySheet
     );
-    const result = await updateBoundaryDataForBoundaryManagement(
+    const result =  updateBoundaryDataForBoundaryManagement(
       request,
       boundaryData,
       localizationMap

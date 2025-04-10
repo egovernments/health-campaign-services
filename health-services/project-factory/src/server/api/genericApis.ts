@@ -745,7 +745,8 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
  */
 async function getBoundarySheetData(
   request: any,
-  localizationMap?: { [key: string]: string }
+  localizationMap?: { [key: string]: string },
+  useCache?:boolean
 ) {
   // Retrieve boundary data based on the request parameters
   // const params = {
@@ -758,7 +759,7 @@ async function getBoundarySheetData(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
   // const boundaryData = await getBoundaryRelationshipData(request, params);
-  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true);
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,"",useCache === true);
   const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
