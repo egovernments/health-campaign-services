@@ -73,14 +73,16 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         log.info("getting household ids from household members");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
 
-        houseHoldIds = new HashSet<>(houseHoldIds).stream().toList();
-
         log.info("finding valid household ids from household service");
         List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getResponse();
 
-        Map<String, Household> householdMap = validHouseHoldIds.stream().collect(Collectors.toMap(
-                Objects.equals(columnName, "id") ? Household::getId : Household::getClientReferenceId,
-                d -> d));
+        Map<String, Household> householdMap = validHouseHoldIds.stream()
+                .collect(Collectors.toMap(
+                        d -> Objects.equals(columnName, "id") ? d.getId() : d.getClientReferenceId(),
+                        d -> d,
+                        (existing, replacement) -> existing
+                ));
+
 
         log.info("getting unique household ids from valid household ids");
         Set<String> uniqueHoldIds = getSet(validHouseHoldIds, columnName == "id" ? "getId": "getClientReferenceId");
