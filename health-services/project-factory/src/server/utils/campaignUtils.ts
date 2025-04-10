@@ -3969,6 +3969,57 @@ export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentM
    return currentMapping;
 }
 
+export function validateUsernamesFormat(data: any[], localizationMap: any) {
+  if (!data?.length) return [];
+
+  const userSheet = getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap);
+  const errors: any[] = [];
+  const userNameColumn = getLocalizedName("UserName", localizationMap);
+
+  const usernameMap = new Map<string, number[]>(); // username -> rowNumbers[]
+
+  data.forEach((item: any) => {
+    const rowNumber = item?.["!row#number!"];
+    const username = item[userNameColumn];
+
+    // Check format validity
+    const isValid = /^[A-Za-z][A-Za-z0-9-]*$/.test(username);
+    if (username && !isValid) {
+      errors.push({
+        status: "INVALID",
+        rowNumber,
+        sheetName: userSheet,
+        errorDetails: "Invalid username format User name can only be alphanumeric",
+      });
+    }
+
+    // Collect row numbers for duplicates
+    if (username) {
+      if (!usernameMap.has(username)) {
+        usernameMap.set(username, []);
+      }
+      usernameMap.get(username)!.push(rowNumber);
+    }
+  });
+
+  // Now identify duplicates and push those to errors
+  usernameMap.forEach((rows, username) => {
+    if (rows.length > 1) {
+      rows.forEach((rowNumber) => {
+        errors.push({
+          status: "INVALID",
+          rowNumber,
+          sheetName: userSheet,
+          errorDetails: `Duplicate username '${username}'`,
+        });
+      });
+    }
+  });
+
+  return errors;
+}
+
+
 export {
   generateProcessedFileAndPersist,
   convertToTypeData,
