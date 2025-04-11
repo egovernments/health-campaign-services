@@ -9,6 +9,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
+import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
 import static org.egov.household.utils.CommonUtils.getColumnName;
 
 @Slf4j
@@ -70,8 +73,7 @@ public class HouseholdMemberEnrichmentService {
 
     public void enrichHousehold(List<HouseholdMember> householdMembers) {
         log.info("getting method for householdId and householdClientReferenceId");
-        Method idMethod = getIdMethod(householdMembers, "householdId",
-                "householdClientReferenceId");
+        Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
         String columnName = getColumnName(idMethod);
         log.info("getting houseHoldIds for householdMembers");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
@@ -149,9 +151,9 @@ public class HouseholdMemberEnrichmentService {
             List<Relationship> updatedResources = householdMember.getRelationships();
             if(!CollectionUtils.isEmpty(updatedResources)) {
                 resourcesToCreate = householdMember.getRelationships().stream()
-                        .filter(r -> r.getId() == null).toList();
+                        .filter(ObjectUtils::isEmpty).toList();
                 resourcesToUpdate = householdMember.getRelationships().stream()
-                        .filter(r -> r.getId() != null).toList();
+                        .filter(relationship -> !ObjectUtils.isEmpty(relationship.getId())).toList();
             }
 
             if (!CollectionUtils.isEmpty(resourcesToCreate)) {

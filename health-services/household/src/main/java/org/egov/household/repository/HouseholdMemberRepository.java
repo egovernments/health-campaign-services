@@ -34,16 +34,18 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 @Slf4j
 public class HouseholdMemberRepository extends GenericRepository<HouseholdMember> {
 
-    @Autowired
-    private RelationshipRowMapper relationshipRowMapper;
+    private final RelationshipRowMapper relationshipRowMapper;
 
     @Autowired
     protected HouseholdMemberRepository(Producer producer,
                                         NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                         RedisTemplate<String, Object> redisTemplate,
                                         SelectQueryBuilder selectQueryBuilder,
-                                        HouseholdMemberRowMapper householdMemberRowMapper) {
+                                        HouseholdMemberRowMapper householdMemberRowMapper,
+                                        RelationshipRowMapper relationshipRowMapper
+    ) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdMemberRowMapper, Optional.of("household_member"));
+        this.relationshipRowMapper = relationshipRowMapper;
     }
 
 

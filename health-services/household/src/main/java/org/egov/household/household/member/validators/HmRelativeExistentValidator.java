@@ -5,9 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
@@ -25,20 +23,15 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
 
-import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidRelatedEntityID;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.household.Constants.GET_ID;
+import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
+import static org.egov.household.Constants.ID_FIELD;
 
 /**
  * Validator class for checking the non-existence of household member relatives.
@@ -81,8 +74,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
         String tenantId = householdMembers.get(0).getTenantId();
         // Get class and method information for ID retrieval
         log.info("getting id method for household members");
-        Method idMethodHouseholdMember = getIdMethod(householdMembers, "getId",
-                "clientReferenceId");
+        Method idMethodHouseholdMember = getIdMethod(householdMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
         // Create a map of household members with their IDs as keys
         Map<String, HouseholdMember> iMap = getIdToObjMap(householdMembers
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethodHouseholdMember);
@@ -123,7 +115,6 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                         HouseholdMemberSearch.builder().clientReferenceId(clientReferenceIdList).build(), householdMembers.size(), 0,
                         tenantId, null, false).getResponse();
             } catch (Exception e) {
-                // Handle query builder exception
                 log.error("Search failed for HouseholdMember with error: {}", e.getMessage(), e);
                 throw new CustomException("HOUSEHOLD_MEMBER_SEARCH_FAILED", "Search Failed for HouseholdMember, " + e.getMessage()); 
             }
@@ -131,12 +122,12 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
             Map<String, HouseholdMember> existingRelativesIds = existingHouseholdMembersByIds.stream()
                     .collect(Collectors.toMap(
                             EgovModel::getId,
-                            d -> d)
+                            householdMember -> householdMember)
                     );
             Map<String, HouseholdMember> existingRelativesCRIds = existingHouseholdMembersByCRIds.stream()
                     .collect(Collectors.toMap(
                             EgovOfflineModel::getClientReferenceId,
-                            d -> d)
+                            householdMember -> householdMember)
                     );
 
             householdMembers.forEach(householdMember -> {
@@ -146,31 +137,16 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                             d.setRelativeId(existingRelativesCRIds.get(d.getRelativeClientReferenceId()).getId());
                         }
                     });
-                    boolean hasInvalidSelfOrRelatives = householdMember.getRelationships().stream().anyMatch(
-                            d ->
-                                    (ObjectUtils.isEmpty(d.getRelativeClientReferenceId()) && ObjectUtils.isEmpty(d.getRelativeId()))
-                                    || (!ObjectUtils.isEmpty(d.getSelfId()) && !ObjectUtils.isEmpty(d.getRelativeId())
-                                            && (Objects.equals(d.getRelativeId(), d.getSelfId())))
-                                    || (!ObjectUtils.isEmpty(householdMember.getId()) && !ObjectUtils.isEmpty(d.getRelativeId())
-                                            && Objects.equals(d.getRelativeId(), householdMember.getId()))
-                                    || (!ObjectUtils.isEmpty(householdMember.getClientReferenceId()) && !ObjectUtils.isEmpty(d.getRelativeClientReferenceId())
-                                            && Objects.equals(d.getRelativeClientReferenceId(), householdMember.getClientReferenceId()))
-                                    || (!ObjectUtils.isEmpty(householdMember.getId()) && !ObjectUtils.isEmpty(d.getSelfId())
-                                            && !Objects.equals(d.getSelfId(), householdMember.getId()))
-                                    || (!ObjectUtils.isEmpty(householdMember.getClientReferenceId()) && !ObjectUtils.isEmpty(d.getSelfClientReferenceId())
-                                            && !Objects.equals(d.getSelfClientReferenceId(), householdMember.getClientReferenceId()))
-                                    || (!ObjectUtils.isEmpty(d.getSelfClientReferenceId()) && !ObjectUtils.isEmpty(d.getRelativeClientReferenceId())
-                                            && Objects.equals(d.getRelativeClientReferenceId(), d.getSelfClientReferenceId()))
-                    );
+                    boolean hasInvalidSelfOrRelatives = householdMember.getRelationships().stream()
+                            .anyMatch(relationship -> isValidRelativeAndSelf(householdMember, relationship));
                     if (hasInvalidSelfOrRelatives) {
                         Error error = getErrorForInvalidRelatedEntityID();
                         populateErrorDetails(householdMember, error, errorDetailsMap);
-                        log.info("Invalid self or relatives {}", householdMember);
+                        log.error("Invalid self or relatives {}", householdMember);
                     } else {
                         List<String> nonExistingRelatives = householdMember.getRelationships().stream()
                                 .filter(d -> !(
-                                        (!ObjectUtils.isEmpty(d.getRelativeId())
-                                                && existingRelativesIds.containsKey(d.getRelativeId()))
+                                        (!ObjectUtils.isEmpty(d.getRelativeId()) && existingRelativesIds.containsKey(d.getRelativeId()))
                                         || (!ObjectUtils.isEmpty(d.getRelativeClientReferenceId())
                                                 && (existingRelativesCRIds.containsKey(d.getRelativeClientReferenceId())
                                                         || hmClientReferenceIdList.contains(d.getRelativeClientReferenceId())))
@@ -181,7 +157,7 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                         if (!CollectionUtils.isEmpty(nonExistingRelatives)) {
                             Error error = getErrorForNonExistentRelatedEntity(nonExistingRelatives);
                             populateErrorDetails(householdMember, error, errorDetailsMap);
-                            log.info("Household member relative not existing {}", householdMember);
+                            log.error("Household member relative not existing {}", householdMember);
                         }
                     }
 
@@ -189,7 +165,23 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
             });
         }
         // Log message for validation completion
-        log.info("Household member relatives non-existent validation completed successfully, total errors: {}", errorDetailsMap.size());
+        log.debug("Household member relatives non-existent validation completed successfully, total errors: {}", errorDetailsMap.size());
         return errorDetailsMap;
+    }
+
+    private boolean isValidRelativeAndSelf(HouseholdMember householdMember, Relationship relationship) {
+        return isRelativeIdMissing(relationship)
+                || EqualsOrNotExists(householdMember.getId(), relationship.getRelativeId())
+                || EqualsOrNotExists(householdMember.getClientReferenceId(), relationship.getRelativeClientReferenceId())
+                || !EqualsOrNotExists(householdMember.getId(), relationship.getSelfId())
+                || !EqualsOrNotExists(householdMember.getClientReferenceId(), relationship.getSelfClientReferenceId());
+    }
+
+    private boolean isRelativeIdMissing(Relationship relationship) {
+        return ObjectUtils.isEmpty(relationship.getRelativeClientReferenceId()) && ObjectUtils.isEmpty(relationship.getRelativeId());
+    }
+
+    private static boolean EqualsOrNotExists(String value1, String value2) {
+        return ObjectUtils.isEmpty(value1) || ObjectUtils.isEmpty(value2) || value1.equals(value2);
     }
 }

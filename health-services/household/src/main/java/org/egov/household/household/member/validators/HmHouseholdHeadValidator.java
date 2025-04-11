@@ -24,6 +24,8 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
+import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
+import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
 import static org.egov.household.utils.CommonUtils.getHouseholdColumnName;
 
 @Component
@@ -48,18 +50,17 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
-        log.info("validating head of household member");
+        log.debug("validating head of household member");
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if(!householdMembers.isEmpty()){
-            Method idMethod = getIdMethod(householdMembers, "householdId",
-                    "householdClientReferenceId");
+            Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
             String columnName = getHouseholdColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
                 validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
             });
         }
-        log.info("household member Head validation completed successfully, total errors: " + errorDetailsMap.size());
+        log.debug("household member Head validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 

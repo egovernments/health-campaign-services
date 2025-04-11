@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.household.Constants.HOUSEHOLD_MEMBER_RELATIONSHIP_CONFIG_NOT_FOUND_MESSAGE;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE;
 
@@ -59,6 +61,7 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers();
+        if (CollectionUtils.isEmpty(householdMembers)) return errorDetailsMap;
 
         String tenantId = householdMembers.stream().findAny().get().getTenantId();
         Map<String, List<MasterDetail>> masterDetailsMap = new HashMap<>();
@@ -72,29 +75,38 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
         MdmsResponse mdmsResponse = mdmsClientService.getMaster(householdMemberBulkRequest.getRequestInfo()
         , tenantId, masterDetailsMap);
 
-        Set<String> allowedRelationshipTypes = mdmsResponse.getMdmsRes()
-                        .get(MODULE_NAME).get(MASTER_NAME).stream()
-                .map(d -> (String) ((Map<String, Object>) d).get(RELATIONSHIP_TYPE_KEYNAME))
-                .collect(Collectors.toSet());
+        Set<String> allowedRelationshipTypes = null;
+        try {
+            allowedRelationshipTypes = mdmsResponse.getMdmsRes()
+                    .get(MODULE_NAME).get(MASTER_NAME).stream()
+                    .map(relationshipConfig -> (String) ((Map<String, Object>) relationshipConfig).get(RELATIONSHIP_TYPE_KEYNAME))
+                    .collect(Collectors.toSet());
+        } catch (Exception e) {
+            throw new CustomException(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP, HOUSEHOLD_MEMBER_RELATIONSHIP_CONFIG_NOT_FOUND_MESSAGE);
+        }
 
         log.debug("Allowed relationship types: {}", allowedRelationshipTypes);
 
-        householdMembers.stream()
-                .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
-                .forEach(householdMember -> {
-                    Set<String> relationshipTypes = householdMember.getRelationships().stream().map(Relationship::getRelationshipType)
-                            .collect(Collectors.toSet());
-                    if (!allowedRelationshipTypes.containsAll(relationshipTypes)) {
-                        Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE)
-                                .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
-                                .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP, INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE))
-                                .build();
-                        log.debug("validation failed for household member: {} with error: {}", householdMember, error);
-                        populateErrorDetails(householdMember, error, errorDetailsMap);
-                    }
+        if (!CollectionUtils.isEmpty(allowedRelationshipTypes)) {
+            Set<String> finalAllowedRelationshipTypes = allowedRelationshipTypes;
+            householdMembers.stream()
+                    .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
+                    .forEach(householdMember -> {
+                        Set<String> relationshipTypes = householdMember.getRelationships().stream().map(Relationship::getRelationshipType)
+                                .collect(Collectors.toSet());
+                        if (!finalAllowedRelationshipTypes.containsAll(relationshipTypes)) {
+                            Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE)
+                                    .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP, INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE))
+                                    .build();
+                            log.error("validation failed for household member: {} with error: {}", householdMember, error);
+                            populateErrorDetails(householdMember, error, errorDetailsMap);
+                        }
 
-                });
+                    });
+        }
+
 
         log.debug("Household member relationship validation completed successfully, total errors: {}", errorDetailsMap.size());
         return errorDetailsMap;
