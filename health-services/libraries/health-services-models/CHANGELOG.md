@@ -1,8 +1,11 @@
 All notable changes to this module will be documented in this file.
 
-## 1.0.26 - 2025-04-08
+## 1.0.27 - 2025-04-08
 - Added Service request models
 - Added Relationship model and added for HouseholdMember
+
+## 1.0.26 - 2025-03-04
+- Added INELIGIBLE in TaskStatus Enum for project tasks
 
 ## 1.0.25 - 2025-01-03
 - Added BeneficiaryType Enum and update in ProjectType, Target models
