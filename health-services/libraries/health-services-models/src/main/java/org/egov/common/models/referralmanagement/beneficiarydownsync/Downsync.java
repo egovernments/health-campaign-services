@@ -43,7 +43,7 @@ public class Downsync {
 	private List<SideEffect> SideEffects;
 	
     @JsonProperty("Referrals")
-	private List<Referral> Referrals;
+    private List<Referral> Referrals;
 
     @JsonProperty("Services")
     private List<Service> services;
