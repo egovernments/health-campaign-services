@@ -118,6 +118,9 @@ public class ReferralManagementConfiguration {
     @Value("${egov.service.request.downsync.enabled:false}")
     private Boolean serviceRequestDownsyncEnabled;
 
+    @Value("${egov.service.request.search.batch.size:100}")
+    private Integer serviceRequestSearchBatchSize;
+
     @Value("${egov.service.request.host}")
     private String serviceRequestHost;
 

@@ -51,6 +51,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.referralmanagement.Constants.HOUSEHOLD;
+
 @Service
 @Slf4j
 public class DownsyncService {
@@ -128,7 +130,7 @@ public class DownsyncService {
 
         beneficiaryClientRefIds = individualClientRefIds;
 
-        if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
+        if(HOUSEHOLD.equalsIgnoreCase(beneficiaryType))
             beneficiaryClientRefIds = householdClientRefIds;
 
         //fetch beneficiary in the db
@@ -251,26 +253,38 @@ public class DownsyncService {
         if (!CollectionUtils.isEmpty(householdIds)) referenceIds.addAll(householdIds);
         if (!CollectionUtils.isEmpty(individualIds)) referenceIds.addAll(individualIds);
 
-        ServiceCriteria serviceCriteria = ServiceCriteria.builder()
-                .tenantId(criteria.getTenantId())
-                .referenceIds(referenceIds)
-                .build();
+        List<org.egov.common.models.service.Service> allServices = new ArrayList<>();
 
-        Pagination pagination = Pagination.builder()
-                .offset(0)
-                .limit(referenceIds.size())
-                .build();
+        int batchSize = configs.getServiceRequestSearchBatchSize();
 
-        ServiceSearchRequest searchRequest = ServiceSearchRequest.builder()
-                .serviceCriteria(serviceCriteria)
-                .pagination(pagination)
-                .requestInfo(requestInfo)
-                .build();
+        for (int i = 0; i < referenceIds.size(); i += batchSize) {
+            List<String> batch = referenceIds.subList(i, Math.min(i + batchSize, referenceIds.size()));
 
-        List<org.egov.common.models.service.Service> services
-                = restClient.fetchResult(url, searchRequest, ServiceResponse.class).getServices();
+            ServiceCriteria serviceCriteria = ServiceCriteria.builder()
+                    .tenantId(criteria.getTenantId())
+                    .referenceIds(batch)
+                    .build();
 
-        downsync.setServices(services);
+            Pagination pagination = Pagination.builder()
+                    .offset(0)
+                    .limit(batch.size())
+                    .build();
+
+            ServiceSearchRequest searchRequest = ServiceSearchRequest.builder()
+                    .serviceCriteria(serviceCriteria)
+                    .pagination(pagination)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<org.egov.common.models.service.Service> services =
+                    restClient.fetchResult(url, searchRequest, ServiceResponse.class).getServices();
+
+            if (services != null) {
+                allServices.addAll(services);
+            }
+        }
+
+        downsync.setServices(allServices);
     }
 
     /**
