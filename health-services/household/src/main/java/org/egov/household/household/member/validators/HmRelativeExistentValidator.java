@@ -138,18 +138,18 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                         }
                     });
                     boolean hasInvalidSelfOrRelatives = householdMember.getMemberRelationships().stream()
-                            .anyMatch(relationship -> isValidRelativeAndSelf(householdMember, relationship));
+                            .anyMatch(relationship -> isInvalidRelativeAndSelf(householdMember, relationship));
                     if (hasInvalidSelfOrRelatives) {
                         Error error = getErrorForInvalidRelatedEntityID();
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                         log.error("Invalid self or relatives {}", householdMember);
                     } else {
                         List<String> nonExistingRelatives = householdMember.getMemberRelationships().stream()
-                                .filter(d -> !(
-                                        (!ObjectUtils.isEmpty(d.getRelativeId()) && existingRelativesIds.containsKey(d.getRelativeId()))
-                                        || (!ObjectUtils.isEmpty(d.getRelativeClientReferenceId())
-                                                && (existingRelativesCRIds.containsKey(d.getRelativeClientReferenceId())
-                                                        || hmClientReferenceIdList.contains(d.getRelativeClientReferenceId())))
+                                .filter(relationship -> !(
+                                        (!ObjectUtils.isEmpty(relationship.getRelativeId()) && existingRelativesIds.containsKey(relationship.getRelativeId()))
+                                        || (!ObjectUtils.isEmpty(relationship.getRelativeClientReferenceId())
+                                                && (existingRelativesCRIds.containsKey(relationship.getRelativeClientReferenceId())
+                                                        || hmClientReferenceIdList.contains(relationship.getRelativeClientReferenceId())))
                                         )
                                 ).map(d -> Optional.ofNullable(d.getRelativeId())
                                         .orElse(d.getRelativeClientReferenceId())
@@ -169,19 +169,23 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
         return errorDetailsMap;
     }
 
-    private boolean isValidRelativeAndSelf(HouseholdMember householdMember, Relationship relationship) {
+    public boolean isInvalidRelativeAndSelf(HouseholdMember householdMember, Relationship relationship) {
         return isRelativeIdMissing(relationship)
-                || EqualsOrNotExists(householdMember.getId(), relationship.getRelativeId())
-                || EqualsOrNotExists(householdMember.getClientReferenceId(), relationship.getRelativeClientReferenceId())
-                || !EqualsOrNotExists(householdMember.getId(), relationship.getSelfId())
-                || !EqualsOrNotExists(householdMember.getClientReferenceId(), relationship.getSelfClientReferenceId());
+                || existsAndEquals(householdMember.getId(), relationship.getRelativeId())
+                || existsAndEquals(householdMember.getClientReferenceId(), relationship.getRelativeClientReferenceId())
+                || existsAndNotEquals(householdMember.getId(), relationship.getSelfId())
+                || existsAndNotEquals(householdMember.getClientReferenceId(), relationship.getSelfClientReferenceId());
     }
 
-    private boolean isRelativeIdMissing(Relationship relationship) {
+    public boolean isRelativeIdMissing(Relationship relationship) {
         return ObjectUtils.isEmpty(relationship.getRelativeClientReferenceId()) && ObjectUtils.isEmpty(relationship.getRelativeId());
     }
 
-    private static boolean EqualsOrNotExists(String value1, String value2) {
-        return ObjectUtils.isEmpty(value1) || ObjectUtils.isEmpty(value2) || value1.equals(value2);
+    public static boolean existsAndEquals(String value1, String value2) {
+        return !ObjectUtils.isEmpty(value1) && value1.equals(value2);
+    }
+
+    public static boolean existsAndNotEquals(String value1, String value2) {
+        return !ObjectUtils.isEmpty(value1) && !ObjectUtils.isEmpty(value2) && !value1.equals(value2);
     }
 }
