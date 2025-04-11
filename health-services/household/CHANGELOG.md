@@ -2,7 +2,7 @@ All notable changes to this module will be documented in this file.
 
 ## 1.1.7 - 2025-04-11
 
-- Upgraded to health services models to 1.0.26
+- Upgraded to health services models to 1.0.27
 - Added relationship type support for household members
 
 ## 1.1.6 - 2025-02-28
