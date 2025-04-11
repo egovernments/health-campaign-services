@@ -100,5 +100,22 @@ async function callGenerate(request: any, type: any, enableCaching = false) {
 }
 
 
+const buildGenerateRequest = (request: any) => {
+    const newRequestBody = {
+        RequestInfo: request?.body?.RequestInfo
+    };
 
-export { callGenerateIfBoundariesOrCampaignTypeDiffer, callGenerate, areBoundariesSame }
+    const params = {
+        type: request?.query?.type,
+        tenantId: request?.query?.tenantId,
+        forceUpdate: 'true',
+        hierarchyType: request?.query?.hierarchyType,
+        campaignId: request?.query?.campaignId
+    };
+
+    return replicateRequest(request, newRequestBody, params);
+};
+
+
+
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, callGenerate, areBoundariesSame, buildGenerateRequest }
