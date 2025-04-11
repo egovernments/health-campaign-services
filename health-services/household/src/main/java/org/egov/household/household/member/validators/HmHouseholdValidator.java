@@ -115,7 +115,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         // Validates if household type is not FAMILY and still adding relationships for household member
         householdMembers.stream()
                 .filter(householdMember -> !invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
-                .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
+                .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getMemberRelationships()))
                 .forEach(householdMember -> {
                     HouseHoldType householdType = null;
                     String householdId = getHouseholdId(householdMember, idMethod);

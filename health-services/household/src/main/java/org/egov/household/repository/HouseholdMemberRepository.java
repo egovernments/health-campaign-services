@@ -157,7 +157,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         }
         List<String> householdMemberIds = getIdList(householdMembers);
         Map<String, List<Relationship>> idToObjMap = fetchRelationships(householdMemberIds, includeDeleted);
-        householdMembers.forEach(member -> member.setRelationships(idToObjMap.get(member.getId())));
+        householdMembers.forEach(member -> member.setMemberRelationships(idToObjMap.get(member.getId())));
     }
 
     private Map<String, List<Relationship>> fetchRelationships(List<String> selfIds, Boolean includeDeleted) {

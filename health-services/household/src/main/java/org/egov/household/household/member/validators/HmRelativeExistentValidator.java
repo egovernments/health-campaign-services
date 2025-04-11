@@ -85,11 +85,11 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
         List<String> hmClientReferenceIdList = new ArrayList<>();
         // Extract IDs and client reference IDs from household entities
         householdMembers.forEach(householdMember -> {
-            if (!CollectionUtils.isEmpty(householdMember.getRelationships())) {
-                idList.addAll(householdMember.getRelationships().stream()
+            if (!CollectionUtils.isEmpty(householdMember.getMemberRelationships())) {
+                idList.addAll(householdMember.getMemberRelationships().stream()
                         .map(Relationship::getRelativeId)
                         .filter(id -> !ObjectUtils.isEmpty(id)).toList());
-                clientReferenceIdList.addAll(householdMember.getRelationships().stream()
+                clientReferenceIdList.addAll(householdMember.getMemberRelationships().stream()
                         .map(Relationship::getRelativeClientReferenceId)
                         .filter(id -> !ObjectUtils.isEmpty(id)).toList());
             }
@@ -131,20 +131,20 @@ public class HmRelativeExistentValidator implements Validator<HouseholdMemberBul
                     );
 
             householdMembers.forEach(householdMember -> {
-                if (!CollectionUtils.isEmpty(householdMember.getRelationships())) {
-                    householdMember.getRelationships().forEach(d -> {
+                if (!CollectionUtils.isEmpty(householdMember.getMemberRelationships())) {
+                    householdMember.getMemberRelationships().forEach(d -> {
                         if (!ObjectUtils.isEmpty(d.getRelativeClientReferenceId()) && existingRelativesCRIds.containsKey(d.getRelativeClientReferenceId())) {
                             d.setRelativeId(existingRelativesCRIds.get(d.getRelativeClientReferenceId()).getId());
                         }
                     });
-                    boolean hasInvalidSelfOrRelatives = householdMember.getRelationships().stream()
+                    boolean hasInvalidSelfOrRelatives = householdMember.getMemberRelationships().stream()
                             .anyMatch(relationship -> isValidRelativeAndSelf(householdMember, relationship));
                     if (hasInvalidSelfOrRelatives) {
                         Error error = getErrorForInvalidRelatedEntityID();
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                         log.error("Invalid self or relatives {}", householdMember);
                     } else {
-                        List<String> nonExistingRelatives = householdMember.getRelationships().stream()
+                        List<String> nonExistingRelatives = householdMember.getMemberRelationships().stream()
                                 .filter(d -> !(
                                         (!ObjectUtils.isEmpty(d.getRelativeId()) && existingRelativesIds.containsKey(d.getRelativeId()))
                                         || (!ObjectUtils.isEmpty(d.getRelativeClientReferenceId())

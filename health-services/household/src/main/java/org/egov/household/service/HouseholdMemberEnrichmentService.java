@@ -94,7 +94,7 @@ public class HouseholdMemberEnrichmentService {
         log.info("enriching HouseholdMember with delete information before deletion");
         if (!CollectionUtils.isEmpty(householdMembers)) {
             for (HouseholdMember householdMember: householdMembers) {
-                List<Relationship> relationships = householdMember.getRelationships();
+                List<Relationship> relationships = householdMember.getMemberRelationships();
                 if (!CollectionUtils.isEmpty(relationships)) {
                     enrichForDelete(relationships, beneficiaryRequest.getRequestInfo(), true);
                 }
@@ -122,7 +122,7 @@ public class HouseholdMemberEnrichmentService {
                                                  List<HouseholdMember> validHouseholdMembers) {
         for (HouseholdMember householdMember : validHouseholdMembers) {
             log.info("enriching relationships");
-            List<Relationship> relationships = householdMember.getRelationships();
+            List<Relationship> relationships = householdMember.getMemberRelationships();
             if(CollectionUtils.isEmpty(relationships))
                 continue;
             List<String> ids = uuidSupplier().apply(relationships.size());
@@ -148,11 +148,11 @@ public class HouseholdMemberEnrichmentService {
         for (HouseholdMember householdMember : householdMembers) {
             List<Relationship> resourcesToCreate = new ArrayList<>();
             List<Relationship> resourcesToUpdate = new ArrayList<>();
-            List<Relationship> updatedResources = householdMember.getRelationships();
+            List<Relationship> updatedResources = householdMember.getMemberRelationships();
             if(!CollectionUtils.isEmpty(updatedResources)) {
-                resourcesToCreate = householdMember.getRelationships().stream()
+                resourcesToCreate = householdMember.getMemberRelationships().stream()
                         .filter(ObjectUtils::isEmpty).toList();
-                resourcesToUpdate = householdMember.getRelationships().stream()
+                resourcesToUpdate = householdMember.getMemberRelationships().stream()
                         .filter(relationship -> !ObjectUtils.isEmpty(relationship.getId())).toList();
             }
 

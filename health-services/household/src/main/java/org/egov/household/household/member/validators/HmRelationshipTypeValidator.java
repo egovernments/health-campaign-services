@@ -90,9 +90,9 @@ public class HmRelationshipTypeValidator implements Validator<HouseholdMemberBul
         if (!CollectionUtils.isEmpty(allowedRelationshipTypes)) {
             Set<String> finalAllowedRelationshipTypes = allowedRelationshipTypes;
             householdMembers.stream()
-                    .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getRelationships()))
+                    .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getMemberRelationships()))
                     .forEach(householdMember -> {
-                        Set<String> relationshipTypes = householdMember.getRelationships().stream().map(Relationship::getRelationshipType)
+                        Set<String> relationshipTypes = householdMember.getMemberRelationships().stream().map(Relationship::getRelationshipType)
                                 .collect(Collectors.toSet());
                         if (!finalAllowedRelationshipTypes.containsAll(relationshipTypes)) {
                             Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP_MESSAGE)
