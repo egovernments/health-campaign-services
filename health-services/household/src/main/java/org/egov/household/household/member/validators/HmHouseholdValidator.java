@@ -41,6 +41,7 @@ import static org.egov.household.Constants.ID_FIELD;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP;
 import static org.egov.household.Constants.INVALID_HOUSEHOLD_MESSAGE;
+import static org.egov.household.Constants.INVALID_HOUSEHOLD_TYPE_MESSAGE;
 
 @Slf4j
 @Component
@@ -126,7 +127,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
                         Error error = Error.builder().errorMessage(HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE)
                                 .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
                                 .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_MESSAGE))
+                                .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_TYPE_MESSAGE))
                                 .build();
                         log.error("validation failed for household member household: {} with error: {}", householdMember, error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);

@@ -29,6 +29,8 @@ public interface Constants {
 
     String INVALID_HOUSEHOLD_MESSAGE = "invalid household id";
 
+    String INVALID_HOUSEHOLD_TYPE_MESSAGE = "invalid household type";
+
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
 
     String INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD = "INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD";
