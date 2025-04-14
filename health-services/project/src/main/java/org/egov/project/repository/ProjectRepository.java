@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.models.core.ProjectSearchURLParams;
+import org.egov.common.models.project.BeneficiaryType;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
@@ -20,6 +21,7 @@ import org.egov.project.repository.rowmapper.DocumentRowMapper;
 import org.egov.project.repository.rowmapper.ProjectAddressRowMapper;
 import org.egov.project.repository.rowmapper.ProjectRowMapper;
 import org.egov.project.repository.rowmapper.TargetRowMapper;
+import org.egov.project.web.models.ProjectHierarchyInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,7 +30,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,13 +57,13 @@ public class ProjectRepository extends GenericRepository<Project> {
 
     @Autowired
     public ProjectRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
-                             RedisTemplate<String, Object> redisTemplate,
-                             SelectQueryBuilder selectQueryBuilder, ProjectRowMapper projectRowMapper,
-                             ProjectAddressQueryBuilder queryBuilder,
-                             TargetQueryBuilder targetQueryBuilder,
-                             DocumentQueryBuilder documentQueryBuilder,
-                             ProjectAddressRowMapper addressRowMapper, TargetRowMapper targetRowMapper,
-                             DocumentRowMapper documentRowMapper, JdbcTemplate jdbcTemplate) {
+            RedisTemplate<String, Object> redisTemplate,
+            SelectQueryBuilder selectQueryBuilder, ProjectRowMapper projectRowMapper,
+            ProjectAddressQueryBuilder queryBuilder,
+            TargetQueryBuilder targetQueryBuilder,
+            DocumentQueryBuilder documentQueryBuilder,
+            ProjectAddressRowMapper addressRowMapper, TargetRowMapper targetRowMapper,
+            DocumentRowMapper documentRowMapper, JdbcTemplate jdbcTemplate) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 projectRowMapper, Optional.of("project"));
         this.queryBuilder = queryBuilder;
@@ -68,91 +75,100 @@ public class ProjectRepository extends GenericRepository<Project> {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-
     /**
-    * @param isAncestorProjectId When true, treats the project IDs in the ProjectRequest as ancestor project IDs
-    */
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+     * @param isAncestorProjectId When true, treats the project IDs in the
+     *                            ProjectRequest as ancestor project IDs
+     */
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId,
+            Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants,
+            Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
 
-        //Fetch Projects based on search criteria
-        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
+        // Fetch Projects based on search criteria
+        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId,
+                lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
 
-        Set<String> projectIds = projects.stream().map(Project :: getId).collect(Collectors.toSet());
+        Set<String> projectIds = projects.stream().map(Project::getId).collect(Collectors.toSet());
 
         List<Project> ancestors = null;
         List<Project> descendants = null;
         List<Target> targets = new ArrayList<>();
         List<Document> documents = new ArrayList<>();
-        if(!projectIds.isEmpty()) {
-            //Get Project ancestors if includeAncestors flag is true
+        if (!projectIds.isEmpty()) {
+            // Get Project ancestors if includeAncestors flag is true
             if (includeAncestors) {
                 ancestors = getProjectAncestors(projects);
                 if (ancestors != null && !ancestors.isEmpty()) {
-                    List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
+                    List<String> ancestorProjectIds = ancestors.stream().map(Project::getId)
+                            .collect(Collectors.toList());
                     projectIds.addAll(ancestorProjectIds);
                 }
             }
-            //Get Project descendants if includeDescendants flag is true
+            // Get Project descendants if includeDescendants flag is true
             if (includeDescendants) {
                 descendants = getProjectDescendants(projects);
                 if (descendants != null && !descendants.isEmpty()) {
-                    List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
+                    List<String> descendantsProjectIds = descendants.stream().map(Project::getId)
+                            .collect(Collectors.toList());
                     projectIds.addAll(descendantsProjectIds);
                 }
             }
 
-            //Fetch targets based on Project Ids
-            targets = getTargetsBasedOnProjectIds(projectIds);
+            // Fetch targets based on Project Ids
+            targets = getAggregatedTargetsForProjects(projectIds);
 
-            //Fetch documents based on Project Ids
+            // Fetch documents based on Project Ids
             documents = getDocumentsBasedOnProjectIds(projectIds);
         }
 
-        //Construct Project Objects with fetched projects, targets and documents using Project id
+        // Construct Project Objects with fetched projects, targets and documents using
+        // Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
-    public List<Project> getProjects(@NotNull @Valid ProjectSearch projectSearch, @Valid ProjectSearchURLParams urlParams) {
+    public List<Project> getProjects(@NotNull @Valid ProjectSearch projectSearch,
+            @Valid ProjectSearchURLParams urlParams) {
 
-        //Fetch Projects based on search criteria
+        // Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnV2SearchCriteria(projectSearch, urlParams);
 
-        Set<String> projectIds = projects.stream().map(Project :: getId).collect(Collectors.toSet());
+        Set<String> projectIds = projects.stream().map(Project::getId).collect(Collectors.toSet());
 
         List<Project> ancestors = null;
         List<Project> descendants = null;
         List<Target> targets = new ArrayList<>();
         List<Document> documents = new ArrayList<>();
-        if(!projectIds.isEmpty()) {
-            //Get Project ancestors if includeAncestors flag is true
+        if (!projectIds.isEmpty()) {
+            // Get Project ancestors if includeAncestors flag is true
             if (urlParams.getIncludeAncestors()) {
                 ancestors = getProjectAncestors(projects);
                 if (ancestors != null && !ancestors.isEmpty()) {
-                    List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).toList();
+                    List<String> ancestorProjectIds = ancestors.stream().map(Project::getId).toList();
                     projectIds.addAll(ancestorProjectIds);
                 }
             }
-            //Get Project descendants if includeDescendants flag is true
+            // Get Project descendants if includeDescendants flag is true
             if (urlParams.getIncludeDescendants()) {
                 descendants = getProjectDescendants(projects);
                 if (descendants != null && !descendants.isEmpty()) {
-                    List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).toList();
+                    List<String> descendantsProjectIds = descendants.stream().map(Project::getId).toList();
                     projectIds.addAll(descendantsProjectIds);
                 }
             }
 
-            //Fetch targets based on Project Ids
+            // Fetch targets based on Project Ids
             targets = getTargetsBasedOnProjectIds(projectIds);
 
-            //Fetch documents based on Project Ids
+            // Fetch documents based on Project Ids
             documents = getDocumentsBasedOnProjectIds(projectIds);
         }
 
-        //Construct Project Objects with fetched projects, targets and documents using Project id
+        // Construct Project Objects with fetched projects, targets and documents using
+        // Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
-    private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
+    private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch,
+            ProjectSearchURLParams urlParams) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectSearch, urlParams, preparedStmtList, Boolean.FALSE);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
@@ -162,9 +178,12 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on search criteria */
-    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset,
+            String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo,
+            boolean isAncestorProjectId) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince,
+                includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
         log.info("Fetched project list based on given search criteria");
@@ -172,7 +191,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on Project ids */
-    public List<Project> getProjectsBasedOnProjectIds(List<String> projectIds,  List<Object> preparedStmtList) {
+    public List<Project> getProjectsBasedOnProjectIds(List<String> projectIds, List<Object> preparedStmtList) {
         String query = queryBuilder.getProjectSearchQueryBasedOnIds(projectIds, preparedStmtList);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
@@ -180,7 +199,8 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Project descendants based on Project ids */
-    private List<Project> getProjectsDescendantsBasedOnProjectIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+    private List<Project> getProjectsDescendantsBasedOnProjectIds(List<String> projectIds,
+            List<Object> preparedStmtListDescendants) {
         String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
         log.info("Fetched project descendants list based on given Project Ids");
@@ -196,28 +216,176 @@ public class ProjectRepository extends GenericRepository<Project> {
         return targets;
     }
 
+    public List<Target> getAggregatedTargetsForProjects(Set<String> projectIds) {
+        // Step 1: Get child project mapping
+        Map<String, List<String>> parentToChildrenMap = getChildrenMap(projectIds);
+
+        // Step 2: Flatten all project IDs (for fetching all targets at once)
+        Set<String> allProjects = new HashSet<>(projectIds);
+        parentToChildrenMap.values().forEach(allProjects::addAll);
+
+        // Step 3: Fetch all target records
+        List<Object> stmtList = new ArrayList<>();
+        String query = targetQueryBuilder.getTargetAggregationQuery(allProjects, stmtList);
+        List<Target> allTargets = jdbcTemplate.query(query, targetRowMapper, stmtList.toArray());
+
+        // Step 4: Group by projectId -> beneficiaryType
+        Map<String, Map<BeneficiaryType, List<Target>>> groupedTargets = new HashMap<>();
+        for (Target t : allTargets) {
+            groupedTargets
+                    .computeIfAbsent(t.getProjectid(), k -> new HashMap<>())
+                    .computeIfAbsent(t.getBeneficiaryType(), k -> new ArrayList<>())
+                    .add(t);
+        }
+
+        // Step 5: Parent Target Map (used for ID and audit details)
+        Map<String, Target> parentTargetMap = new HashMap<>();
+        for (Target t : allTargets) {
+            if (projectIds.contains(t.getProjectid())) {
+                String key = t.getProjectid() + "::" + t.getBeneficiaryType();
+                parentTargetMap.put(key, t);
+            }
+        }
+
+        // Step 6: Memoized result: projectId -> BeneficiaryType -> (targetNo, totalNo)
+        Map<String, Map<BeneficiaryType, int[]>> aggregatedValues = new HashMap<>();
+
+        // Step 7: DFS for aggregation
+        Set<String> visited = new HashSet<>();
+        for (String projectId : projectIds) {
+            dfsAggregate(projectId, parentToChildrenMap, groupedTargets, aggregatedValues, visited);
+        }
+
+        // Step 8: Build Target objects
+        List<Target> finalAggregatedTargets = new ArrayList<>();
+        for (String projectId : projectIds) {
+            Map<BeneficiaryType, int[]> beneMap = aggregatedValues.getOrDefault(projectId, Map.of());
+            for (Map.Entry<BeneficiaryType, int[]> entry : beneMap.entrySet()) {
+                BeneficiaryType type = entry.getKey();
+                int[] values = entry.getValue();
+
+                String key = projectId + "::" + type;
+                Target parentTarget = parentTargetMap.get(key);
+
+                Target aggregated = Target.builder()
+                        .id(parentTarget != null ? parentTarget.getId() : null)
+                        .projectid(projectId)
+                        .beneficiaryType(type)
+                        .targetNo(values[0])
+                        .totalNo(values[1])
+                        .isDeleted(parentTarget != null ? parentTarget.getIsDeleted() : false)
+                        .auditDetails(parentTarget != null ? parentTarget.getAuditDetails() : null)
+                        .build();
+
+                finalAggregatedTargets.add(aggregated);
+            }
+        }
+
+        return finalAggregatedTargets;
+    }
+
+    // DFS Aggregation Helper
+    private void dfsAggregate(String projectId,
+            Map<String, List<String>> childrenMap,
+            Map<String, Map<BeneficiaryType, List<Target>>> groupedTargets,
+            Map<String, Map<BeneficiaryType, int[]>> memo,
+            Set<String> visited) {
+
+        if (visited.contains(projectId))
+            return;
+        visited.add(projectId);
+
+        Map<BeneficiaryType, int[]> current = new HashMap<>();
+
+        List<String> children = childrenMap.getOrDefault(projectId, List.of());
+        boolean dontHaveChildren = true;
+
+        for (String childId : children) {
+            dontHaveChildren = false;
+            dfsAggregate(childId, childrenMap, groupedTargets, memo, visited);
+            Map<BeneficiaryType, int[]> childAgg = memo.getOrDefault(childId, Map.of());
+
+            for (Map.Entry<BeneficiaryType, int[]> entry : childAgg.entrySet()) {
+                int[] childValues = entry.getValue();
+
+                current.computeIfAbsent(entry.getKey(), k -> new int[2]);
+                current.get(entry.getKey())[0] += childValues[0]; // targetNo
+                current.get(entry.getKey())[1] += childValues[1]; // totalNo
+            }
+        }
+
+        // If all children are zero, fallback to own targets
+        if (dontHaveChildren) {
+            Map<BeneficiaryType, List<Target>> ownTargets = groupedTargets.getOrDefault(projectId, Map.of());
+            for (Map.Entry<BeneficiaryType, List<Target>> entry : ownTargets.entrySet()) {
+                Target target = entry.getValue().get(0);
+                int sumTarget = target.getTargetNo();
+                int sumTotal = target.getTotalNo();
+
+                current.computeIfAbsent(entry.getKey(), k -> new int[2]);
+                current.get(entry.getKey())[0] = sumTarget;
+                current.get(entry.getKey())[1] = sumTotal;
+            }
+        }
+
+        memo.put(projectId, current);
+    }
+
+    private Map<String, List<String>> getChildrenMap(Set<String> parentIds) {
+        if (parentIds == null || parentIds.isEmpty())
+            return Map.of();
+
+        String inSql = parentIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(", "));
+
+        String query = "SELECT id, parent FROM project WHERE parent IN (" + inSql + ")";
+
+        List<String> paramList = new ArrayList<>(parentIds);
+
+        List<ProjectHierarchyInfo> result = jdbcTemplate.query(query, paramList.toArray(), (rs, rowNum) -> {
+            String id = rs.getString("id");
+            String parent = rs.getString("parent");
+            return new ProjectHierarchyInfo(id, parent);
+        });
+
+        Map<String, List<String>> parentToChildren = new HashMap<>();
+
+        for (ProjectHierarchyInfo info : result) {
+            parentToChildren
+                    .computeIfAbsent(info.getHierarchy(), k -> new ArrayList<>())
+                    .add(info.getId());
+        }
+
+        return parentToChildren;
+    }
+
     /* Fetch documents based on Project Ids */
     private List<Document> getDocumentsBasedOnProjectIds(Set<String> projectIds) {
         List<Object> preparedStmtListDocument = new ArrayList<>();
         String queryDocument = documentQueryBuilder.getDocumentSearchQuery(projectIds, preparedStmtListDocument);
-        List<Document> documents = jdbcTemplate.query(queryDocument, documentRowMapper, preparedStmtListDocument.toArray());
+        List<Document> documents = jdbcTemplate.query(queryDocument, documentRowMapper,
+                preparedStmtListDocument.toArray());
         log.info("Fetched documents based on project Ids");
         return documents;
     }
 
-    /* Separates preceding project ids from project hierarchy, adds them in list and fetches data using those project ids */
+    /*
+     * Separates preceding project ids from project hierarchy, adds them in list and
+     * fetches data using those project ids
+     */
     private List<Project> getProjectAncestors(List<Project> projects) {
         List<String> ancestorIds = new ArrayList<>();
         List<Project> ancestors = null;
 
         // Get project Id of ancestor projects from project Hierarchy
-        for (Project project: projects) {
+        for (Project project : projects) {
             if (StringUtils.isNotBlank(project.getProjectHierarchy())) {
                 List<String> projectHierarchyIds = Arrays.asList(project.getProjectHierarchy().split("\\."));
                 ancestorIds.addAll(projectHierarchyIds);
             }
         }
-        //Fetch projects based on ancestor project Ids
+        // Fetch projects based on ancestor project Ids
         if (ancestorIds.size() > 0) {
             List<Object> preparedStmtListAncestors = new ArrayList<>();
             ancestors = getProjectsBasedOnProjectIds(ancestorIds, preparedStmtListAncestors);
@@ -227,9 +395,13 @@ public class ProjectRepository extends GenericRepository<Project> {
         return ancestors;
     }
 
-    /* Fetch projects where project hierarchy for projects in db contains project ID of requested project. The descendant project's projectHierarchy will contain parent project id */
+    /*
+     * Fetch projects where project hierarchy for projects in db contains project ID
+     * of requested project. The descendant project's projectHierarchy will contain
+     * parent project id
+     */
     private List<Project> getProjectDescendants(List<Project> projects) {
-        List<String> projectIds = projects.stream().map(Project:: getId).collect(Collectors.toList());
+        List<String> projectIds = projects.stream().map(Project::getId).collect(Collectors.toList());
 
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
@@ -237,9 +409,13 @@ public class ProjectRepository extends GenericRepository<Project> {
         return getProjectsDescendantsBasedOnProjectIds(projectIds, preparedStmtListDescendants);
     }
 
-    /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
-    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets, List<Document> documents, List<Project> ancestors, List<Project> descendants) {
-        for (Project project: projects) {
+    /*
+     * Constructs Project Objects with fetched projects, targets and documents using
+     * Project id and return list of Projects
+     */
+    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets,
+            List<Document> documents, List<Project> ancestors, List<Project> descendants) {
+        for (Project project : projects) {
             log.info("Constructing project object for project " + project.getId());
             if (targets != null && targets.size() > 0) {
                 log.info("Adding Targets to project " + project.getId());
@@ -265,8 +441,9 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Add Targets to projects based on projectId and targets list passed */
     private void addTargetToProject(Project project, List<Target> targets) {
         project.setTargets(new ArrayList<>());
-        for (Target target: targets) {
-            if (target.getProjectid().equals(project.getId()) && !target.getIsDeleted() && project.getTargets().stream().noneMatch(t -> t.getId().equals(target.getId()))) {
+        for (Target target : targets) {
+            if (target.getProjectid().equals(project.getId()) && !target.getIsDeleted()
+                    && project.getTargets().stream().noneMatch(t -> t.getId().equals(target.getId()))) {
                 project.getTargets().add(target);
             }
         }
@@ -275,22 +452,25 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Add Documents to projects based on projectId and documents list passed */
     private void addDocumentToProject(Project project, List<Document> documents) {
         project.setDocuments(new ArrayList<>());
-        for (Document document: documents) {
+        for (Document document : documents) {
             if (document.getProjectid().equals(project.getId())
-                    && (document.getStatus() == null || document.getStatus() != null && !document.getStatus().equals("INACTIVE"))
+                    && (document.getStatus() == null
+                            || document.getStatus() != null && !document.getStatus().equals("INACTIVE"))
                     && project.getDocuments().stream().noneMatch(t -> t.getId().equals(document.getId()))) {
                 project.getDocuments().add(document);
             }
         }
     }
 
-
-    /* Adds ancestors to Project based on project and ancestors list  */
-    private void addAncestorsToProjectSearchResult(Project project, List<Project> ancestors, List<Target> targets, List<Document> documents) {
-        List<Project> currentProjectAncestors = ancestors.stream().filter(a -> (project.getProjectHierarchy().contains(a.getId())
-                && !project.getId().equals(a.getId()))).collect(Collectors.toList());
-        //Add target and document to ancestor projects using targets and documents list
-        for (Project ancestor: currentProjectAncestors) {
+    /* Adds ancestors to Project based on project and ancestors list */
+    private void addAncestorsToProjectSearchResult(Project project, List<Project> ancestors, List<Target> targets,
+            List<Document> documents) {
+        List<Project> currentProjectAncestors = ancestors.stream()
+                .filter(a -> (project.getProjectHierarchy().contains(a.getId())
+                        && !project.getId().equals(a.getId())))
+                .collect(Collectors.toList());
+        // Add target and document to ancestor projects using targets and documents list
+        for (Project ancestor : currentProjectAncestors) {
             addTargetToProject(ancestor, targets);
             addDocumentToProject(ancestor, documents);
             log.info("Targets and Documents mapped to ancestor projects");
@@ -298,26 +478,33 @@ public class ProjectRepository extends GenericRepository<Project> {
         project.setAncestors(currentProjectAncestors);
         log.info("Ancestors set for project " + project.getId());
 
-        /* The below code returns Project ancestors with tree structure. If project hierarchy A.B.C, "ancestor" field of project C will contain project B
-         * "ancestor" field of project B will contain project A and so on. For this to work, change type of "ancestor" to Project instead of List<Project>.
-         *  This code snippet has been tested and working as expected. */
+        /*
+         * The below code returns Project ancestors with tree structure. If project
+         * hierarchy A.B.C, "ancestor" field of project C will contain project B
+         * "ancestor" field of project B will contain project A and so on. For this to
+         * work, change type of "ancestor" to Project instead of List<Project>.
+         * This code snippet has been tested and working as expected.
+         */
 
-//        Project currentProject = project;
-//        while (StringUtils.isNotBlank(currentProject.getParent())) {
-//            String parentProjectId = currentProject.getParent();
-//            Project parentProject = ancestors.stream().filter(prj -> prj.getId().equals(parentProjectId)).findFirst().orElse(null);
-//            currentProject.setAncestors(parentProject);
-//            currentProject = currentProject.getAncestors();
-//        }
+        // Project currentProject = project;
+        // while (StringUtils.isNotBlank(currentProject.getParent())) {
+        // String parentProjectId = currentProject.getParent();
+        // Project parentProject = ancestors.stream().filter(prj ->
+        // prj.getId().equals(parentProjectId)).findFirst().orElse(null);
+        // currentProject.setAncestors(parentProject);
+        // currentProject = currentProject.getAncestors();
+        // }
     }
 
-    /* Adds ancestors to Project based on project and descendants list  */
-    private void addDescendantsToProjectSearchResult(Project project, List<Project> descendants, List<Target> targets, List<Document> documents) {
+    /* Adds ancestors to Project based on project and descendants list */
+    private void addDescendantsToProjectSearchResult(Project project, List<Project> descendants, List<Target> targets,
+            List<Document> documents) {
         List<Project> subProjects = descendants.stream().filter(d -> StringUtils.isNotBlank(d.getParent())
                 && d.getProjectHierarchy().contains(project.getId())
                 && !d.getId().equals(project.getId())).collect(Collectors.toList());
-        //Add target and document to descendants projects using targets and documents list
-        for (Project ancestor: subProjects) {
+        // Add target and document to descendants projects using targets and documents
+        // list
+        for (Project ancestor : subProjects) {
             addTargetToProject(ancestor, targets);
             addDocumentToProject(ancestor, documents);
             log.info("Targets and Documents mapped to descendant projects");
@@ -327,32 +514,42 @@ public class ProjectRepository extends GenericRepository<Project> {
             log.info("Descendants set for project " + project.getId());
         }
 
-        /* The below code returns Project descendants with tree structure. If project hierarchy A.B.C and A.D, "descendants" field of project A will contain project B and project D
-         * "descendants" field of project B will contain project C, "descendants" field of project C and D will contain null  and so on.
-         *  This code snippet is incomplete and not working for multiple projects, multiple subprojects */
-//        for (Project descendant : descendants) {
-//            addDescendants(project, descendant);
-//        }
-//        // Recursive method to add Descendants. This method can be taken out while implementing tree hierarchy
-//        public static void addDescendants(Project parent, Project child) {
-//            if (parent.getId().equals(child.getParent())) {
-//                parent.addDescendant(child);
-//            } else {
-//                for (Project project : parent.getDescendants()) {
-//                    addDescendants(project, child);
-//                }
-//            }
-//        }
+        /*
+         * The below code returns Project descendants with tree structure. If project
+         * hierarchy A.B.C and A.D, "descendants" field of project A will contain
+         * project B and project D
+         * "descendants" field of project B will contain project C, "descendants" field
+         * of project C and D will contain null and so on.
+         * This code snippet is incomplete and not working for multiple projects,
+         * multiple subprojects
+         */
+        // for (Project descendant : descendants) {
+        // addDescendants(project, descendant);
+        // }
+        // // Recursive method to add Descendants. This method can be taken out while
+        // implementing tree hierarchy
+        // public static void addDescendants(Project parent, Project child) {
+        // if (parent.getId().equals(child.getParent())) {
+        // parent.addDescendant(child);
+        // } else {
+        // for (Project project : parent.getDescendants()) {
+        // addDescendants(project, child);
+        // }
+        // }
+        // }
     }
 
     /**
      * Get the count of projects based on the given search criteria (using dynamic
      * query build at the run time)
+     * 
      * @return
      */
-    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince,
+            Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince,
+                includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
 
         if (query == null)
             return 0;
@@ -365,6 +562,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /**
      * Get the count of projects based on the given search criteria (using dynamic
      * query build at the run time)
+     * 
      * @return
      */
     public Integer getProjectCount(ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
