@@ -18,6 +18,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.UserDetails;
 import org.egov.common.models.project.ApiOperation;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.utils.CommonUtils;
@@ -37,6 +38,8 @@ import org.egov.individual.validators.NullIdValidator;
 import org.egov.individual.validators.RowVersionValidator;
 import org.egov.individual.validators.UniqueEntityValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.web.models.IndividualMapped;
+import org.egov.individual.web.models.IndividualMappedSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -75,6 +78,8 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
+    private final IndividualMapper individualMapper;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
@@ -107,7 +112,8 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             IndividualMapper individualMapper) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -115,6 +121,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.individualMapper = individualMapper;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -345,6 +352,66 @@ public class IndividualService {
         searchResponse.setResponse(decryptedIndividualList);
 
         return searchResponse;
+    }
+
+    public Map<String, IndividualMapped> mappedSearch(
+            IndividualMappedSearch individualMappedSearch,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            RequestInfo requestInfo) {
+
+        // Encrypt mobile numbers if present
+        individualMappedSearch = individualEncryptionService
+                .encrypt(individualMappedSearch, "IndividualSearchMobileNumberEncrypt");
+
+        // Fetch search results from the repository
+        Map<String, IndividualMapped> searchResults = individualRepository.find(
+                individualMappedSearch, limit, offset, tenantId);
+
+        // Check if mobile number or username is in the response fields and handle
+        // encryption/decryption
+        boolean isKeyMobileNumber = individualMappedSearch.getMobileNumber() != null
+                && !individualMappedSearch.getMobileNumber().isEmpty();
+        boolean haveMobileNumber = individualMappedSearch.getResponseFields().contains("mobilenumber");
+
+        // If searching by mobile number or username, process the search results
+        if (haveMobileNumber) {
+            // Build the encrypted individual list
+            List<Individual> encryptedIndividualList = searchResults.values().stream()
+                    .map(individualMapped -> {
+                        Object key = isKeyMobileNumber ? individualMapped.get("mobilenumber")
+                                : individualMapped.get("username");
+                        if (key != null) {
+                            new Individual();
+                            new UserDetails();
+                            return Individual.builder()
+                                    .mobileNumber((String) individualMapped.get("mobilenumber"))
+                                    .userDetails(UserDetails.builder()
+                                            .username((String) individualMapped.get("username")).build())
+                                    .userUuid((String) individualMapped.get("useruuid"))
+                                    .build();
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            // Decrypt the individual list and re-key based on the appropriate field (mobile
+            // or username)
+            Map<String, IndividualMapped> newSearchResults = individualEncryptionService
+                    .decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo).stream()
+                    .collect(Collectors.toMap(
+                            encryptedIndividual -> isKeyMobileNumber ? encryptedIndividual.getMobileNumber()
+                                    : encryptedIndividual.getUserDetails().getUsername(),
+                            encryptedIndividual -> {
+                                return individualMapper.getIndividualMapped(encryptedIndividual);
+                            }));
+
+            searchResults = newSearchResults;
+        }
+
+        return searchResults;
     }
 
     private Predicate<Individual> havingBoundaryCode(String boundaryCode, String wardCode) {

@@ -12,6 +12,7 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.EncryptionDecryptionUtil;
+import org.egov.individual.web.models.IndividualMappedSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -52,6 +53,12 @@ public class IndividualEncryptionService {
     public IndividualSearch encrypt(IndividualSearch individualSearch, String key) {
         IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptionDecryptionUtil
                 .encryptObject(individualSearch, key, IndividualSearch.class);
+        return encryptedIndividualSearch;
+    }
+
+    public IndividualMappedSearch encrypt(IndividualMappedSearch individualMappedSearch, String key) {
+        IndividualMappedSearch encryptedIndividualSearch = (IndividualMappedSearch) encryptionDecryptionUtil
+                .encryptObject(individualMappedSearch, key, IndividualMappedSearch.class);
         return encryptedIndividualSearch;
     }
 
