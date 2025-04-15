@@ -33,6 +33,7 @@ import {
   boundaryGeometryManagement,
   getBoundaryCodeAndBoundaryTypeMapping,
   getSchema,
+  validateUsernamesFormat,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -877,10 +878,12 @@ async function processValidateAfterSchema(
 ) {
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
+    const errorsRelatedToUserName :any = validateUsernamesFormat(dataFromSheet,localizationMap)
     const errorsRelatedToMultiSelect:any = validateMultiSelect(dataFromSheet, properties, localizationMap);
+    const allErrors = [...errorsRelatedToUserName, ...errorsRelatedToMultiSelect];
     request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
-      ? [...request?.body?.sheetErrorDetails, ...errorsRelatedToMultiSelect]
-      : errorsRelatedToMultiSelect;
+      ? [...request?.body?.sheetErrorDetails, ...allErrors]
+      : allErrors;
     if(request?.body?.sheetErrorDetails?.length){
       request.body.ResourceDetails.status = resourceDataStatuses.invalid
     }

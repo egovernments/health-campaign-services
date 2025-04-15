@@ -176,6 +176,7 @@ const searchBoundaryRelationshipData = async (
   hierarchyType: string,
   includeChildren: boolean = true,
   includeParents: boolean = true,
+  isCache?:boolean,
   codes?: string
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
   // Prepare request body with default request information
@@ -184,7 +185,9 @@ const searchBoundaryRelationshipData = async (
   };
   const headers: any = {
     ...defaultheader,
-    cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${codes || ""}${includeChildren || ""}`,
+    ...(isCache && {
+      cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${codes || ""}${includeChildren || ""}`,
+    }),
   };
 
   // Construct API URL for boundary hierarchy relationship search
