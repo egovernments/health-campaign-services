@@ -91,8 +91,6 @@ public class IdDispatchService {
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
         log.info("Already dispatched count from Redis for user={} and device={} is {}", userUuid, deviceUuid, alreadyDispatched);
 
-        validateDispatchRequest(request);
-        log.info("Dispatch request validation passed.");
 
         // Handle fetch of already allocated IDs
         if (!ObjectUtils.isEmpty(request.getUserInfo().getFetchAllocatedIds())
@@ -105,6 +103,9 @@ public class IdDispatchService {
             idDispatchResponse.setFetchLimit(fetchLimit);
             return idDispatchResponse;
         }
+
+        validateDispatchRequest(request);
+        log.info("Dispatch request validation passed.");
 
         fetchLimit = Math.max(0L, configuredLimit - (alreadyDispatched + count));
         log.info("Calculated fetch limit for new IDs: {}", fetchLimit);
