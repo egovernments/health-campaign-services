@@ -23,8 +23,10 @@ import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
+import static org.egov.household.Constants.ID_FIELD;
 import static org.egov.household.utils.CommonUtils.getColumnName;
 
 @Slf4j
@@ -120,31 +122,38 @@ public class HouseholdMemberEnrichmentService {
 
     private static void enrichRelationshipsForCreate(HouseholdMemberBulkRequest request,
                                                  List<HouseholdMember> validHouseholdMembers) {
+        Method idMethod = getIdMethod(validHouseholdMembers,  CLIENT_REFERENCE_ID_FIELD, ID_FIELD);
+        Map<String, HouseholdMember> householdMemberMap = getIdToObjMap(validHouseholdMembers,idMethod);
         for (HouseholdMember householdMember : validHouseholdMembers) {
-            log.info("enriching relationships");
             List<Relationship> relationships = householdMember.getMemberRelationships();
             if(CollectionUtils.isEmpty(relationships))
                 continue;
             List<String> ids = uuidSupplier().apply(relationships.size());
-            enrichForCreate(relationships, ids, request.getRequestInfo(), false);
-            enrichRelationshipsForCreate(request, relationships, householdMember);
+            enrichForCreate(relationships, ids, request.getRequestInfo(), true);
+            enrichRelationshipsForCreate(request, relationships, householdMember, householdMemberMap);
         }
     }
 
     private static void enrichRelationshipsForCreate(HouseholdMemberBulkRequest request,
-                                                     List<Relationship> relationships, HouseholdMember householdMember) {
-        log.info("enriching resources");
+                                                     List<Relationship> relationships, HouseholdMember householdMember, Map<String, HouseholdMember> householdMemberMap) {
+        log.info("enriching relationship for household member: {}", householdMember.getId());
         List<String> ids = uuidSupplier().apply(relationships.size());
         enrichForCreate(relationships, ids, request.getRequestInfo(), true);
         relationships.forEach(relationship -> {
             relationship.setSelfId(householdMember.getId());
             relationship.setSelfClientReferenceId(householdMember.getClientReferenceId());
             relationship.setTenantId(householdMember.getTenantId());
+            if (householdMemberMap.containsKey(relationship.getRelativeClientReferenceId())) {
+                HouseholdMember relative = householdMemberMap.get(relationship.getRelativeClientReferenceId());
+                relationship.setRelativeId(relative.getId());
+            }
         });
     }
 
     private static void enrichRelationshipsForUpdate(HouseholdMemberBulkRequest request, List<HouseholdMember> householdMembers, List<HouseholdMember> existingHouseholdMembers) {
         log.info("enriching relationships for update");
+        Method idMethod = getIdMethod(householdMembers,  CLIENT_REFERENCE_ID_FIELD, ID_FIELD);
+        Map<String, HouseholdMember> householdMemberMap = getIdToObjMap(householdMembers, idMethod);
         for (HouseholdMember householdMember : householdMembers) {
             List<Relationship> resourcesToCreate = new ArrayList<>();
             List<Relationship> resourcesToUpdate = new ArrayList<>();
@@ -157,7 +166,7 @@ public class HouseholdMemberEnrichmentService {
             }
 
             if (!CollectionUtils.isEmpty(resourcesToCreate)) {
-                 enrichRelationshipsForCreate(request, resourcesToCreate, householdMember);
+                 enrichRelationshipsForCreate(request, resourcesToCreate, householdMember, householdMemberMap);
             }
             if (!CollectionUtils.isEmpty(resourcesToUpdate)) {
                 Map<String, Relationship> hmrMap = getIdToObjMap(resourcesToUpdate);

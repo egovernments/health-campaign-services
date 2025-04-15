@@ -1,6 +1,7 @@
 package org.egov.household.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
@@ -99,18 +100,26 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
     }
 
     public SearchResponse<HouseholdMember> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<HouseholdMember> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
-        if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound, columnName);
-            ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .collect(Collectors.toList()));
-            if (ids.isEmpty()) {
-                log.info("all objects were found in the cache, returning objects");
-                return SearchResponse.<HouseholdMember>builder().response(objFound).build();
+        List<HouseholdMember> objFound = new ArrayList<>();;
+        try {
+            objFound = findInCache(ids);
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> !entity.getIsDeleted())
+                        .collect(Collectors.toList());
             }
+            if (!objFound.isEmpty()) {
+                Method idMethod = getIdMethod(objFound, columnName);
+                ids.removeAll(objFound.stream()
+                        .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                        .toList());
+                if (ids.isEmpty()) {
+                    log.info("all objects were found in the cache, returning objects");
+                    return SearchResponse.<HouseholdMember>builder().response(objFound).build();
+                }
+            }
+        } catch (Exception e) {
+            log.info("Error occurred while reading from cache {}", ExceptionUtils.getStackTrace(e));
         }
 
         String query = String.format("SELECT * FROM household_member where %s IN (:ids) AND isDeleted = false", columnName);
