@@ -41,7 +41,7 @@ public class TargetRowMapper  implements ResultSetExtractor<List<Target>> {
             Target target = Target.builder()
                     .id(target_id)
                     .projectid(target_projectId)
-                    .beneficiaryType(BeneficiaryType.fromValue(target_beneficiaryType))
+                    .beneficiaryType(target_beneficiaryType)
                     .totalNo(target_totalNo)
                     .targetNo(target_targetNo)
                     .isDeleted(target_isDeleted)
