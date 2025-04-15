@@ -74,7 +74,7 @@ public class EnrichmentUtil {
         List<ResourceMapping> resourceMappingList = !CollectionUtils.isEmpty(request.getPlanConfiguration().getResourceMapping()) ?
                 request.getPlanConfiguration().getResourceMapping() : new ArrayList<>();
 
-        resourceMappingList.forEach(resourceMapping -> resourceMapping.setActive(false));
+        resourceMappingList.forEach(resourceMapping -> resourceMapping.setActive(Boolean.FALSE));
 
         for(String columnName : columnNameList) {
             ResourceMapping resourceMapping = ResourceMapping
