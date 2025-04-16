@@ -4,12 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.web.models.IndividualMappedSearch;
@@ -17,6 +19,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +39,18 @@ public class IndividualEncryptionService {
 
     private final IndividualRepository individualRepository;
 
+    private final ServiceRequestClient serviceRequestClient;
+
+    private final IndividualProperties individualProperties;
+
     public IndividualEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil,
-                                       IndividualRepository individualRepository) {
+                                       IndividualRepository individualRepository,
+                                       ServiceRequestClient serviceRequestClient,
+                                       IndividualProperties individualProperties) {
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
         this.individualRepository = individualRepository;
+        this.serviceRequestClient = serviceRequestClient;
+        this.individualProperties = individualProperties;
     }
 
 
@@ -79,6 +90,32 @@ public class IndividualEncryptionService {
         }
         return decryptedIndividuals;
     }
+
+    public List<String> decryptStringArray(List<String> encryptedValues) throws Exception {
+    // Check if input is null or empty
+    if (encryptedValues == null || encryptedValues.isEmpty()) {
+        return Collections.emptyList();
+    }
+
+    // Create the URI for the decryption API
+    StringBuilder uri = new StringBuilder(individualProperties.getEncServiceHost())
+            .append(individualProperties.getEncDecryptEndpoint());
+
+    // Prepare the request body (wrap in a list)
+    List<List<String>> requestBody = Collections.singletonList(encryptedValues);
+
+    // Fetch the decrypted data using the service request client
+    List<List<String>> decryptedValues = serviceRequestClient.fetchResult(
+            uri, // URI for the decryption API
+            requestBody, // Encrypted values to be decrypted
+            List.class // Expected response type
+    );
+
+    // Assuming the decryption API returns a list of decrypted values, return the first list
+    return decryptedValues != null && !decryptedValues.isEmpty() ? decryptedValues.get(0) : Collections.emptyList();
+}
+
+
 
     private List<Individual> filterEncryptedIndividuals(List<Individual> individuals) {
         return individuals.stream()

@@ -42,8 +42,6 @@ public class IndividualApiController {
 
     private final IndividualService individualService;
 
-    private final ObjectMapper objectMapper;
-
     private final HttpServletRequest servletRequest;
 
     private final Producer producer;
@@ -56,7 +54,6 @@ public class IndividualApiController {
                                    HttpServletRequest servletRequest, Producer producer,
                                    IndividualProperties individualProperties) {
         this.individualService = individualService;
-        this.objectMapper = objectMapper;
         this.servletRequest = servletRequest;
         this.producer = producer;
         this.individualProperties = individualProperties;
@@ -111,7 +108,7 @@ public class IndividualApiController {
     @RequestMapping(value = "/v1/_mappedsearch", method = RequestMethod.POST)
     public ResponseEntity<Map<String, IndividualMapped>> individualV1MappedSearchPost(
                     @Valid @ModelAttribute URLParams urlParams,
-                    @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualMappedSearchRequest request) {
+                    @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualMappedSearchRequest request) throws Exception {
 
             // Call the mappedSearch method from the service layer to get the search
             // response

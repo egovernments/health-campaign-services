@@ -149,14 +149,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 IndividualMapped individualMapped = new IndividualMapped();
 
                 // Dynamically set fields based on searchObject parameters
-                if (searchObject.getResponseFields().contains("mobilenumber") && row.containsKey("mobilenumber")) {
-                    individualMapped.setField("mobilenumber", row.get("mobilenumber"));
-                }
-                if (searchObject.getResponseFields().contains("username") && row.containsKey("username")) {
-                    individualMapped.setField("username", row.get("username"));
-                }
-                if(searchObject.getResponseFields().contains("useruuid") && row.containsKey("useruuid")) {
-                    individualMapped.setField("useruuid", row.get("useruuid"));
+                for (String field : searchObject.getResponseFields()) {
+                    if (row.containsKey(field)) {
+                        individualMapped.setField(field, row.get(field));
+                    }
                 }
 
                 // Set the key dynamically based on the provided search fields.

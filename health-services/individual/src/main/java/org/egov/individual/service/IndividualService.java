@@ -359,7 +359,7 @@ public class IndividualService {
             Integer limit,
             Integer offset,
             String tenantId,
-            RequestInfo requestInfo) {
+            RequestInfo requestInfo) throws Exception {
 
         // Encrypt mobile numbers if present
         individualMappedSearch = individualEncryptionService
@@ -369,50 +369,44 @@ public class IndividualService {
         Map<String, IndividualMapped> searchResults = individualRepository.find(
                 individualMappedSearch, limit, offset, tenantId);
 
-        // Check if mobile number or username is in the response fields and handle
-        // encryption/decryption
+        // Check if mobile number is in the response fields
         boolean isKeyMobileNumber = individualMappedSearch.getMobileNumber() != null
                 && !individualMappedSearch.getMobileNumber().isEmpty();
         boolean haveMobileNumber = individualMappedSearch.getResponseFields().contains("mobilenumber");
 
-        // If searching by mobile number or username, process the search results
         if (haveMobileNumber) {
-            // Build the encrypted individual list
-            List<Individual> encryptedIndividualList = searchResults.values().stream()
-                    .map(individualMapped -> {
-                        Object key = isKeyMobileNumber ? individualMapped.get("mobilenumber")
-                                : individualMapped.get("username");
-                        if (key != null) {
-                            new Individual();
-                            new UserDetails();
-                            return Individual.builder()
-                                    .mobileNumber((String) individualMapped.get("mobilenumber"))
-                                    .userDetails(UserDetails.builder()
-                                            .username((String) individualMapped.get("username")).build())
-                                    .userUuid((String) individualMapped.get("useruuid"))
-                                    .build();
-                        }
-                        return null;
-                    })
+            // Extract encrypted mobile numbers from the search results
+            List<String> encryptedMobileNumbers = searchResults.values().stream()
+                    .map(individualMapped -> (String) individualMapped.get("mobilenumber"))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
-            // Decrypt the individual list and re-key based on the appropriate field (mobile
-            // or username)
-            Map<String, IndividualMapped> newSearchResults = individualEncryptionService
-                    .decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo).stream()
-                    .collect(Collectors.toMap(
-                            encryptedIndividual -> isKeyMobileNumber ? encryptedIndividual.getMobileNumber()
-                                    : encryptedIndividual.getUserDetails().getUsername(),
-                            encryptedIndividual -> {
-                                return individualMapper.getIndividualMapped(encryptedIndividual);
-                            }));
+            // Decrypt mobile numbers using the generic decrypt method
+            List<String> decryptedMobileNumbers = individualEncryptionService
+                    .decryptStringArray(encryptedMobileNumbers);
 
-            searchResults = newSearchResults;
+            // Inject decrypted mobile numbers back into the mapped results
+            Iterator<String> decryptedIterator = decryptedMobileNumbers.iterator();
+            for (IndividualMapped individualMapped : searchResults.values()) {
+                if (individualMapped.get("mobilenumber") != null && decryptedIterator.hasNext()) {
+                    individualMapped.setField("mobilenumber", decryptedIterator.next());
+                }
+            }
+
+            // Update keys if required (based on mobile number presence)
+            Map<String, IndividualMapped> finalSearchResults = new HashMap<>();
+            int index = 0;
+            for (Map.Entry<String, IndividualMapped> entry : searchResults.entrySet()) {
+                String updatedKey = isKeyMobileNumber ? decryptedMobileNumbers.get(index++) : entry.getKey();
+                finalSearchResults.put(updatedKey, entry.getValue());
+            }
+
+            return finalSearchResults;
         }
 
         return searchResults;
     }
+
 
     private Predicate<Individual> havingBoundaryCode(String boundaryCode, String wardCode) {
         if (boundaryCode == null && wardCode == null) {
