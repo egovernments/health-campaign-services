@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -68,6 +71,12 @@ public class IndividualProperties {
     @Value("${notification.sms.disabled.roles}")
     private List<String> smsDisabledRoles;
 
+    @Value("${egov.enc.host}")
+    private String encServiceHost;
+
+    @Value("${egov.enc.decrypt.endpoint}")
+    private String encDecryptEndpoint;
+
     //Localization
     @Value("${egov.localization.host}")
     private String localizationHost;
@@ -86,4 +95,23 @@ public class IndividualProperties {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${individual.allowed-response-fields}")
+    private List<String> allowedResponseFields;
+
+    @PostConstruct
+    private void ensureDefaultFieldsPresent() {
+        if (allowedResponseFields == null) {
+            allowedResponseFields = new ArrayList<>();
+        }
+
+        if (!allowedResponseFields.contains("username")) {
+            allowedResponseFields.add("username");
+        }
+
+        if (!allowedResponseFields.contains("mobilenumber")) {
+            allowedResponseFields.add("mobilenumber");
+        }
+    }
+
 }

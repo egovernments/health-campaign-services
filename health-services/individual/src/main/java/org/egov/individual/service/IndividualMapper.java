@@ -1,5 +1,6 @@
 package org.egov.individual.service;
 
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -8,12 +9,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.UserDetails;
 import org.egov.common.models.user.RoleRequest;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.models.user.UserType;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.web.models.IndividualMapped;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 public class IndividualMapper {
 
     private static final Random RANDOM = new Random();
@@ -66,5 +71,22 @@ public class IndividualMapper {
         } else {
             return mobileNumber;
         }
+    }
+
+    public IndividualMapped getIndividualMapped(Individual individual) {
+        IndividualMapped individualMapped = new IndividualMapped();
+
+        // Set fields only if they are not null
+        Optional.ofNullable(individual.getMobileNumber())
+                .ifPresent(mobileNumber -> individualMapped.setField("mobilenumber", mobileNumber));
+
+        Optional.ofNullable(individual.getUserDetails())
+                .map(UserDetails::getUsername)
+                .ifPresent(username -> individualMapped.setField("username", username));
+
+        Optional.ofNullable(individual.getUserUuid())
+                .ifPresent(userUuid -> individualMapped.setField("useruuid", userUuid));
+
+        return individualMapped;
     }
 }
