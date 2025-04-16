@@ -106,7 +106,10 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
-                householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
+                if (householdConfiguration.getIsEnvironmentCentralInstance()) {
+                    householdRepository.save(request.getRequestInfo().getUserInfo().getTenantId(),validEntities, householdConfiguration.getCreateTopic());
+                } else householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
+
                 log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
