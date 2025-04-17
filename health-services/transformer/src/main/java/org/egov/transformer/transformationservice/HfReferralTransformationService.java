@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
+import static org.egov.transformer.Constants.HF_REF_GENDER_STRING;
 
 @Slf4j
 @Component
@@ -94,6 +95,9 @@ public class HfReferralTransformationService {
                         if (HF_REF_AGE_STRING.equalsIgnoreCase(field.getKey())) {
                             Integer age = commonUtils.getAgeFromStringDateOfBirth(field.getValue());
                             additionalDetails.put(field.getKey(), age);
+                        }
+                        else if (HF_REF_GENDER_STRING.equalsIgnoreCase(field.getKey())) {
+                            additionalDetails.put(field.getKey(), field.getValue());
                         }
                     }
             );

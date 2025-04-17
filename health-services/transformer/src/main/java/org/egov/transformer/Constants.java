@@ -106,5 +106,5 @@ public interface Constants {
     String WEIGHT = "weight";
     String DISABILITY_TYPE = "disabilityType";
     String HF_REF_AGE_STRING = "age";
-
+    String HF_REF_GENDER_STRING = "gender";
 }
