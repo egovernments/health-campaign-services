@@ -5,21 +5,28 @@ import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
 import org.egov.servicerequest.web.models.AttributeDefinition;
+import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
+import org.egov.servicerequest.web.models.ServiceCriteria;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
 import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
 import org.egov.servicerequest.web.models.ServiceRequest;
+import org.egov.servicerequest.web.models.ServiceSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.egov.servicerequest.error.ErrorCode.*;
 
@@ -38,7 +45,7 @@ public class ServiceRequestValidator {
 
     public void validateServiceRequest(ServiceRequest serviceRequest){
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
-        validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService());
+        validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService().getAttributes());
         validateAccountId(serviceRequest.getService());
     }
 
@@ -47,7 +54,7 @@ public class ServiceRequestValidator {
     }
 
 
-    private void validateAttributeValuesAgainstServiceDefinition(ServiceDefinition serviceDefinition, Service service) {
+    private void validateAttributeValuesAgainstServiceDefinition(ServiceDefinition serviceDefinition, List<AttributeValue> attributeValues) {
 
         // Prepare map of attribute code vs attribute type and
         // validate uniqueness of attribute value codes being passed against service definition
@@ -67,7 +74,7 @@ public class ServiceRequestValidator {
 
         // Check if service has all the attribute values required as part of service definition
         Set<String> setOfAttributeValues = new HashSet<>();
-        service.getAttributes().forEach(attributeValue -> {
+        attributeValues.forEach(attributeValue -> {
             if(!attributeCodeVsDataType.keySet().contains(attributeValue.getAttributeCode())){
                 throw new CustomException(SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_CODE, SERVICE_REQUEST_UNRECOGNIZED_ATTRIBUTE_MSG);
             }
@@ -85,7 +92,7 @@ public class ServiceRequestValidator {
         });
 
         // Validate if value being passed is consistent in terms of data type provided as part of service definition
-        service.getAttributes().forEach(attributeValue -> {
+        attributeValues.forEach(attributeValue -> {
             if (attributeValue.getValue() == null && !setOfRequiredAttributes.contains(attributeValue.getAttributeCode())) {
                 return;
             }
@@ -123,7 +130,7 @@ public class ServiceRequestValidator {
         });
 
         // Validate if value provided against attribute definition of single value list and multi value list is the same as the list of values provided during creation
-        service.getAttributes().forEach(attributeValue -> {
+        attributeValues.forEach(attributeValue -> {
             if (attributeValue.getValue() == null && !setOfRequiredAttributes.contains(attributeValue.getAttributeCode())) {
                 return;
             }
@@ -162,9 +169,60 @@ public class ServiceRequestValidator {
         return serviceDefinitions;
     }
 
-    public void validateUpdateRequest(ServiceRequest serviceRequest) {
+    private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) {
+        Service service = serviceRequest.getService();
+        List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
+                        .serviceCriteria(ServiceCriteria.builder()
+                                .ids(Collections.singletonList(service.getId()))
+                                .tenantId(service.getTenantId())
+                                .build())
+                .build());
+        if (CollectionUtils.isEmpty(services)) {
+            throw new CustomException(SERVICE_DOES_NOT_EXIST_ERR_CODE, SERVICE_DOES_NOT_EXIST_ERR_MSG);
+        }
+        return services;
     }
 
-    public void validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+    private List<AttributeValue> validateIdForAttributeValues(Service service, Service existingFromDB) {
+        try {
+            Map<String, AttributeValue> existingAttributeValueMap = existingFromDB.getAttributes().stream()
+                    .collect(Collectors.toMap(
+                            AttributeValue::getId,
+                            attributeValue -> attributeValue
+                    ));
+            Map<String, AttributeValue> attributeValueMap = service.getAttributes().stream()
+                    .collect(Collectors.toMap(
+                            AttributeValue::getId,
+                            attributeValue -> attributeValue
+                    ));
+
+            service.getAttributes().forEach(attributeValue -> {
+                if(!ObjectUtils.isEmpty(attributeValue.getId()) && !existingAttributeValueMap.containsKey(attributeValue.getId())) {
+                    throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG);
+                }
+            });
+            List<AttributeValue> attributeValues = existingFromDB.getAttributes().stream().map(attributeValue -> {
+                if(attributeValueMap.containsKey(attributeValue.getId())) {
+                    return attributeValueMap.get(attributeValue.getId());
+                }
+                return attributeValue;
+            }).collect(Collectors.toList());
+            service.getAttributes().stream().filter(attributeValue -> ObjectUtils.isEmpty(attributeValue.getId()))
+                    .forEach(attributeValues::add);
+            return attributeValues;
+        } catch (Exception ex) {
+            throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_DUPLICATE_ERR_MSG);
+        }
+
+    }
+
+    public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+        List<Service> existingService = validateExistingServiceRequest(serviceRequest);
+        List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
+        List<AttributeValue> attributeValues = validateIdForAttributeValues(serviceRequest.getService(), existingService.get(0));
+        validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), attributeValues);
+        serviceRequest.getService().setAttributes(attributeValues);
+        validateAccountId(serviceRequest.getService());
+        return existingService.get(0);
     }
 }
