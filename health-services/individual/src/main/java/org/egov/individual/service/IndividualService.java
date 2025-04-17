@@ -24,6 +24,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.IdGenUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -77,6 +78,8 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
+    private final IdGenUtil idGenUtil;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
@@ -113,7 +116,8 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             IdGenUtil idGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -121,6 +125,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.idGenUtil = idGenUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -149,11 +154,19 @@ public class IndividualService {
                 // integrate with user service create call
                 validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
                 //encrypt PII data
+
+                // BenificiaryIds to Update
+                List<String> beneficiaryIds = validIndividuals.stream().map(d ->
+                                d.getIdentifiers().stream().filter(identifier -> identifier.
+                                        getIdentifierType().equals("UNIQUE_BENEFICIARY_ID")).findFirst())
+                        .filter(Optional::isPresent)
+                        .map(d -> String.valueOf(d.get().getIdentifierId())).toList();
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
+                    idGenUtil.udpateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {

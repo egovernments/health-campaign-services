@@ -24,7 +24,7 @@ public class IdDispatchResponse {
     @JsonProperty("ResponseInfo")
     private ResponseInfo responseInfo;
 
-    @JsonProperty("idResponses")
+    @JsonProperty("UniqueBeneficiaryIds")
     private List<IdRecord> idResponses;
 
     @JsonProperty("TotalCount")

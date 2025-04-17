@@ -109,7 +109,8 @@ public class IdRepository {
         }
         query += "AND id in (:ids) " +
                         "ORDER BY createdTime ASC";
-        return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
+        List<IdRecord> response = namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
+        return response;
     }
 
     /**

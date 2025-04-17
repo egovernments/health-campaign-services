@@ -86,7 +86,10 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                         d.getIdentifiers().stream().filter(identifier -> identifier.
                                 getIdentifierType().equals("UNIQUE_BENEFICIARY_ID")).findFirst())
                 .filter(Optional::isPresent)
-                .map(d -> String.valueOf(d.get())).toList();
+                .map(d -> String.valueOf(d.get().getIdentifierId())).toList();
+
+        Map<String, IdRecord> getIds = new HashMap<>();
+        if (ObjectUtils.isEmpty(beneficiaryIds)) return getIds;
         String tenantId = individuals.get(0).getTenantId();
         IdDispatchResponse idDispatchResponse = idGenService.searchIdRecord(
                 beneficiaryIds,

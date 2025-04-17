@@ -17,7 +17,7 @@ public class IdDispatchRequest {
     @NotNull
     private RequestInfo requestInfo;
 
-    @JsonProperty("UserInfo")
+    @JsonProperty("IdDispatchRequest")
     @NotNull
     @Valid
     private DispatchUserInfo userInfo;
