@@ -15,6 +15,7 @@ public interface Constants {
     String GET_ID = "getId";
     String STAFF = "STAFF";
     String FACILITY = "FACILITY";
+    String HOUSEHOLD = "HOUSEHOLD";
 
     public static final String HCM_MASTER_PROJECTTYPE = "projectTypes";
     public static final String HCM_MDMS_PROJECT_MODULE_NAME = "HCM-PROJECT-TYPES";
