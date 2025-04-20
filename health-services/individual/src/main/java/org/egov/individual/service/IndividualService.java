@@ -156,11 +156,15 @@ public class IndividualService {
                 //encrypt PII data
 
                 // BenificiaryIds to Update
-                List<String> beneficiaryIds = validIndividuals.stream().map(d ->
-                                d.getIdentifiers().stream().filter(identifier -> identifier.
-                                        getIdentifierType().equals("UNIQUE_BENEFICIARY_ID")).findFirst())
-                        .filter(Optional::isPresent)
-                        .map(d -> String.valueOf(d.get().getIdentifierId())).toList();
+                List<String> beneficiaryIds = validIndividuals.stream()
+                        .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
+                                .orElse(Collections.emptyList())
+                                .stream()
+                                .filter(identifier -> "UNIQUE_BENEFICIARY_ID".equals(identifier.getIdentifierType()))
+                                .findFirst()
+                                .stream())
+                        .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                        .toList();
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);

@@ -13,6 +13,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.IdGenUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
@@ -70,6 +72,9 @@ class IndividualServiceTest {
     private IndividualEncryptionService encryptionService;
 
     @Mock
+    private IdGenUtil idGenUtil;
+
+    @Mock
     private NotificationService notificationService;
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -101,6 +106,7 @@ class IndividualServiceTest {
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
                 .withTenantId()
+                .withIdentifiers()
                 .withName()
                 .build()));
         lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));

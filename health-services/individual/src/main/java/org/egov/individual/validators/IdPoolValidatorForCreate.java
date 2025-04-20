@@ -1,9 +1,6 @@
 package org.egov.individual.validators;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -82,11 +79,15 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
     }
 
     public static Map<String, IdRecord> getIdRecords(IdGenService idGenService, List<Individual> individuals, String status, RequestInfo requestInfo) {
-        List<String> beneficiaryIds = individuals.stream().map(d ->
-                        d.getIdentifiers().stream().filter(identifier -> identifier.
-                                getIdentifierType().equals("UNIQUE_BENEFICIARY_ID")).findFirst())
-                .filter(Optional::isPresent)
-                .map(d -> String.valueOf(d.get().getIdentifierId())).toList();
+        List<String> beneficiaryIds = individuals.stream()
+                .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
+                        .orElse(Collections.emptyList())
+                        .stream()
+                        .filter(identifier -> "UNIQUE_BENEFICIARY_ID".equals(identifier.getIdentifierType()))
+                        .findFirst()
+                        .stream())
+                .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                .toList();
 
         Map<String, IdRecord> getIds = new HashMap<>();
         if (ObjectUtils.isEmpty(beneficiaryIds)) return getIds;
