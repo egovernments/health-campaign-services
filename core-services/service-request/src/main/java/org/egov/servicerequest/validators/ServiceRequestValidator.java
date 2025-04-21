@@ -184,36 +184,44 @@ public class ServiceRequestValidator {
     }
 
     private List<AttributeValue> validateIdForAttributeValues(Service service, Service existingFromDB) {
-        try {
-            Map<String, AttributeValue> existingAttributeValueMap = existingFromDB.getAttributes().stream()
-                    .collect(Collectors.toMap(
-                            AttributeValue::getId,
-                            attributeValue -> attributeValue
-                    ));
-            Map<String, AttributeValue> attributeValueMap = service.getAttributes().stream()
-                    .collect(Collectors.toMap(
-                            AttributeValue::getId,
-                            attributeValue -> attributeValue
-                    ));
+        Map<String, AttributeValue> existingAttributeValueMap;
+        Map<String, AttributeValue> attributeValueMap;
 
-            service.getAttributes().forEach(attributeValue -> {
-                if(!ObjectUtils.isEmpty(attributeValue.getId()) && !existingAttributeValueMap.containsKey(attributeValue.getId())) {
-                    throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG);
-                }
-            });
-            List<AttributeValue> attributeValues = existingFromDB.getAttributes().stream().map(attributeValue -> {
-                if(attributeValueMap.containsKey(attributeValue.getId())) {
-                    return attributeValueMap.get(attributeValue.getId());
-                }
-                return attributeValue;
-            }).collect(Collectors.toList());
-            service.getAttributes().stream().filter(attributeValue -> ObjectUtils.isEmpty(attributeValue.getId()))
-                    .forEach(attributeValues::add);
-            return attributeValues;
+        try {
+            existingAttributeValueMap = existingFromDB.getAttributes().stream()
+                    .collect(Collectors.toMap(
+                            AttributeValue::getId,
+                            attributeValue -> attributeValue
+                    ));
+            attributeValueMap = service.getAttributes().stream()
+                    .collect(Collectors.toMap(
+                            AttributeValue::getId,
+                            attributeValue -> attributeValue
+                    ));
         } catch (Exception ex) {
             throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_DUPLICATE_ERR_MSG);
         }
-
+        service.getAttributes().forEach(attributeValue -> {
+            if(!ObjectUtils.isEmpty(attributeValue.getId()) && !existingAttributeValueMap.containsKey(attributeValue.getId())) {
+                throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG);
+            }
+        });
+        List<AttributeValue> attributeValuesToUpdate = existingFromDB.getAttributes().stream().map(attributeValue -> {
+            if(attributeValueMap.containsKey(attributeValue.getId())) {
+                return attributeValueMap.get(attributeValue.getId());
+            }
+            return attributeValue;
+        }).collect(Collectors.toList());
+        service.getAttributes().stream().filter(attributeValue -> ObjectUtils.isEmpty(attributeValue.getId()))
+                .forEach(attributeValue -> {
+                    if (existingAttributeValueMap.values().stream()
+                            .anyMatch(existingAttributeValue -> existingAttributeValue
+                                    .getAttributeCode().equals(attributeValue.getAttributeCode()))) {
+                        throw new CustomException(SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE, SERVICE_ATTRIBUTE_VALUE_ALREADY_EXISTS_ERR_MSG);
+                    }
+                    attributeValuesToUpdate.add(attributeValue);
+                });
+        return attributeValuesToUpdate;
     }
 
     public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) {

@@ -78,6 +78,8 @@ public class ErrorCode {
 
     public static final String SERVICE_ATTRIBUTE_VALUE_DUPLICATE_ERR_MSG = "Service attribute value id is duplicated";
 
+    public static final String SERVICE_ATTRIBUTE_VALUE_ALREADY_EXISTS_ERR_MSG = "Service attribute value code is already existing but no id is passed";
+
     public static final String VALID_SERVICE_EXIST_ERR_CODE = "VALID_SERVICE_EXIST_ERR_CODE";
 
     public static final String VALID_SERVICE_EXIST_ERR_MSG = "Valid Service exists corresponding to Service Definition";
