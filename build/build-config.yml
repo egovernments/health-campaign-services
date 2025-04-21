@@ -266,6 +266,13 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/census-service/src/main/resources/db"
         image-name: "census-service-db"
+  - name: "builds/health-campaign-services/health-services/muster-roll"
+    build:
+      - work-dir: "health-services/muster-roll"
+        image-name: "muster-roll"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/muster-roll/src/main/resources/db"
+        image-name: "muster-roll-db"
 
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
