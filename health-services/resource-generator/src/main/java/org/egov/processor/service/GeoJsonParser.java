@@ -64,7 +64,8 @@ public class GeoJsonParser implements FileParser {
 
         Map<String, BigDecimal> resultMap = new HashMap<>();
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-        		.filter(f-> f.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getActive().equals(Boolean.TRUE))
                 .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
         Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 

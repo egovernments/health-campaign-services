@@ -214,7 +214,8 @@ public class OutputEstimationGenerationUtil {
 
         // Creating a map of MappedTo and MappedFrom values from resource mapping
         Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
-                .filter(f -> f.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getActive().equals(Boolean.TRUE))
                 .collect(Collectors.toMap(
                         ResourceMapping::getMappedTo,
                         ResourceMapping::getMappedFrom,

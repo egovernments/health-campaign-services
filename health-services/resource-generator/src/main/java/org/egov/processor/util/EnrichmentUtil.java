@@ -174,7 +174,8 @@ public class EnrichmentUtil {
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-                .filter(f -> f.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+                .filter(pc -> pc.getActive().equals(Boolean.TRUE))
                 .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
 
         Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);

@@ -211,7 +211,8 @@ public class ExcelParser implements FileParser {
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaignResponse);
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
-				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(
 						ResourceMapping::getMappedTo,
 						ResourceMapping::getMappedFrom,
@@ -397,7 +398,8 @@ public class ExcelParser implements FileParser {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(
 						ResourceMapping::getMappedTo,
 						ResourceMapping::getMappedFrom,
@@ -476,7 +478,8 @@ public class ExcelParser implements FileParser {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-				.filter(f -> f.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
+				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
 		Map<String, BigDecimal> assumptionValueMap = calculationUtil
 				.convertAssumptionsToMap(planConfig.getAssumptions());
