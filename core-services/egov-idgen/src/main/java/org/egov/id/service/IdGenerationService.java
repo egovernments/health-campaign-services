@@ -129,6 +129,11 @@ public class IdGenerationService {
                 String tenantId = batch.getTenantId();
                 Integer originalBatchSize = batch.getBatchSize();
 
+                if (originalBatchSize <= 0) {
+                    log.error("Validation Error - Please make sure the batch size is greater than 0");
+                    throw new CustomException("Validation Error:", "Please make sure the batch size is greater than 0");
+                }
+
                 log.info("Fetching ID format for tenant: {}", tenantId);
                 String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
                 Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
