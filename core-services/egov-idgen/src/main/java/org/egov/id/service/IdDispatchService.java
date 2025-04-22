@@ -101,6 +101,7 @@ public class IdDispatchService {
             fetchLimit = Math.max(0L, configuredLimit - alreadyDispatched);
             log.info("Total previously allocated: {}, updated fetchLimit: {}", alreadyDispatched, fetchLimit);
             idDispatchResponse.setFetchLimit(fetchLimit);
+            idDispatchResponse.setTotalLimit((long) configuredLimit);
             return idDispatchResponse;
         }
 
@@ -154,6 +155,7 @@ public class IdDispatchService {
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
                 .fetchLimit(fetchLimit)
+                .totalLimit((long) configuredLimit)
                 .build();
     }
 

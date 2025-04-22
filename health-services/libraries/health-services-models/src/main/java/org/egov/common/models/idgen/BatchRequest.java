@@ -2,6 +2,7 @@ package org.egov.common.models.idgen;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,7 @@ public class BatchRequest {
 
     @JsonProperty("batchSize")
     @NotNull
+    @Positive
     private Integer BatchSize;
 
     @JsonProperty("tenantId")

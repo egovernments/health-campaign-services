@@ -34,6 +34,9 @@ public class IdDispatchResponse {
     @JsonProperty("FetchLimit")
     private Long fetchLimit;
 
+    @JsonProperty("TotalLimit")
+    private Long totalLimit;
+
     public Long getTotalCount() {
         if(totalCount == null)
             totalCount = (long) idResponses.size();
