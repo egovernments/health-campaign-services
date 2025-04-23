@@ -68,10 +68,13 @@ public class HouseholdTransformationService {
         Map<String, String> boundaryHierarchyCode = null;
 
         String localityCode;
+        String dpName = null;
         if (household.getAddress() != null
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
+            String dpCode = localityCode+"_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, household.getTenantId() );
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
@@ -110,7 +113,7 @@ public class HouseholdTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
                 .nameOfUser(userInfoMap.get(NAME))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)

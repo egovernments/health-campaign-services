@@ -78,7 +78,7 @@ public class StockTransformationService {
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-
+        String dpName = null;
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
@@ -86,6 +86,8 @@ public class StockTransformationService {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+                dpName = boundaryService.getLocalizedBoundaryName((facility.getAddress().getLocality().getCode() + "_DP"),
+                        null, tenantId);
             } else if (stock.getReferenceIdType().equals(PROJECT)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -151,7 +153,7 @@ public class StockTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .physicalCount(stock.getQuantity())
                 .eventType(stock.getTransactionType())
                 .reason(stock.getTransactionReason())

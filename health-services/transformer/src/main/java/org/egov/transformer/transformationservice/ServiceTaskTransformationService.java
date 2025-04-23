@@ -91,12 +91,15 @@ public class ServiceTaskTransformationService {
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
         JsonNode serviceAdditionalFields = service.getAdditionalFields();
+        String dpName = null;
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalFields(serviceAdditionalFields, serviceAdditionalDetails);
         if (localityCode != null) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            String dpCode = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId);
         } else {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -119,7 +122,7 @@ public class ServiceTaskTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .createdTime(service.getAuditDetails().getCreatedTime())
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .createdBy(service.getAuditDetails().getCreatedBy())
