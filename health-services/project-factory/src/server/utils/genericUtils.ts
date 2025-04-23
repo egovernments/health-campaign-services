@@ -956,6 +956,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   schema = await callMdmsTypeSchema(tenantId, isUpdate, typeWithoutWith);
   // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
+  setHiddenColumns(request, schema, localizationMap);
   addMultiSelectColumn(schema?.properties, headers);
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
