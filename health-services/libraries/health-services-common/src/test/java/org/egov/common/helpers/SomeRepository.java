@@ -3,6 +3,7 @@ package org.egov.common.helpers;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.producer.Producer;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -17,8 +18,9 @@ public class SomeRepository extends GenericRepository<SomeObject> {
                              RedisTemplate<String, Object> redisTemplate,
                              SelectQueryBuilder selectQueryBuilder,
                              RowMapper<SomeObject> rowMapper,
-                             Optional<String> tableName) {
+                             Optional<String> tableName,
+                             MultiStateInstanceUtil multiStateInstanceUtil) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper,
-                Optional.of("some-table"));
+                Optional.of("some-table"), multiStateInstanceUtil);
     }
 }
