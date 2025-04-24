@@ -90,12 +90,8 @@ public class ServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
-        log.info("SERVICE: {}", service);
-        log.info("serviceAdditionalDetails: {}", serviceAdditionalDetails);
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(serviceAdditionalDetails);
-        log.info("localityCode: {}", localityCode);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(serviceAdditionalDetails);
-        log.info("geoPoint: {}", geoPoint);
         if (localityCode != null) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();

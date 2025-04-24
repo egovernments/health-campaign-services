@@ -108,22 +108,45 @@ public class CommonUtils {
     }
 
     public List<Double> getGeoPointFromAdditionalDetails(JsonNode additionalDetails) {
-        List<Double> geoPoint = null;
-        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
-                && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
-            geoPoint = Arrays.asList(
-                    additionalDetails.get(LNG).asDouble(),
-                    additionalDetails.get(LAT).asDouble()
-            );
+        Double lat = null;
+        Double lng = null;
+
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull("fields")) {
+            JsonNode fields = additionalDetails.get("fields");
+            if (fields.isArray()) {
+                for (JsonNode field : fields) {
+                    if (field.has("key") && field.has("value")) {
+                        String key = field.get("key").asText();
+                        if (LAT.equals(key)) {
+                            lat = field.get("value").asDouble();
+                        } else if (LNG.equals(key)) {
+                            lng = field.get("value").asDouble();
+                        }
+                    }
+                }
+            }
         }
-        return geoPoint;
+
+        if (lat != null && lng != null) {
+            return Arrays.asList(lng, lat);
+        }
+
+        return null;
     }
 
     public String getLocalityCodeFromAdditionalDetails(JsonNode additionalDetails) {
         String localityCode = null;
-        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull(BOUNDARY_CODE_KEY)) {
-            localityCode = additionalDetails.get(BOUNDARY_CODE_KEY).asText();
-        } else if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull("fields")) {
+            JsonNode fields = additionalDetails.get("fields");
+            if (fields.isArray()) {
+                for (JsonNode field : fields) {
+                    if (field.has("key") && BOUNDARY_CODE_KEY.equals(field.get("key").asText()) && field.has("value")) {
+                        localityCode = field.get("value").asText();
+                        break;
+                    }
+                }
+            }
+        } else if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())) {
             localityCode = additionalDetails.asText();
         }
         return localityCode;
@@ -248,7 +271,7 @@ public class CommonUtils {
         return false;
     }
 
-    public String projectDetailsFromUserId(String userId, String tenantId){
+    public String projectDetailsFromUserId(String userId, String tenantId) {
         if (userIdVsProjectIdAndProjectTypeIdCache.containsKey(userId)) {
             return userIdVsProjectIdAndProjectTypeIdCache.get(userId);
         }
