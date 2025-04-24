@@ -111,6 +111,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
         addActivityConditions(rs, activity, conditionSet);
 
+        // Creates a new Activity list if it is not already initialized in Plan object and adds the Activity object.
         if (CollectionUtils.isEmpty(plan.getActivities())) {
             List<Activity> activityList = new ArrayList<>();
             activityList.add(activity);
@@ -119,6 +120,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             plan.getActivities().add(activity);
         }
 
+        // Mark this activityId as processed
         activityMap.put(activity.getId(), activity);
 
     }
@@ -146,6 +148,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .expression(rs.getString("plan_activity_condition_expression"))
                 .build();
 
+        // Creates a new Condition list if it is not already initialized in activity object and adds the Condition object.
         if (CollectionUtils.isEmpty(activity.getConditions())) {
             List<Condition> conditionList = new ArrayList<>();
             conditionList.add(condition);
@@ -154,6 +157,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             activity.getConditions().add(condition);
         }
 
+        // Mark this conditionId as processed
         conditionSet.add(condition.getId());
 
     }
@@ -182,6 +186,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .activityCode(rs.getString("plan_resource_activity_code"))
                 .build();
 
+        // Creates a new Resource list if it is not already initialized in planEntry and adds the Resource object.
         if (CollectionUtils.isEmpty(planEntry.getResources())) {
             List<Resource> resourceList = new ArrayList<>();
             resourceList.add(resource);
@@ -190,6 +195,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getResources().add(resource);
         }
 
+        // Mark this resourceId as processed
         resourceSet.add(resource.getId());
 
     }
@@ -223,6 +229,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .activityCode(rs.getString("plan_target_activity_code"))
                 .build();
 
+        // Creates a new Target list if it is not already initialized in planEntry and adds the Target object.
         if (CollectionUtils.isEmpty(planEntry.getTargets())) {
             List<Target> targetList = new ArrayList<>();
             targetList.add(target);
@@ -231,6 +238,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getTargets().add(target);
         }
 
+        // Mark this targetId as processed
         targetSet.add(target.getId());
 
     }
