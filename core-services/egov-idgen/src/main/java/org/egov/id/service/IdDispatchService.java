@@ -78,7 +78,7 @@ public class IdDispatchService {
      * Dispatches a given count of IDs to the user after checking limits and locking.
      */
     public IdDispatchResponse dispatchIds(IdDispatchRequest request) throws Exception {
-        String userUuid = request.getUserInfo().getUserUuid();
+        String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         int count = request.getUserInfo().getCount();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
         RequestInfo requestInfo = request.getRequestInfo();
@@ -160,7 +160,7 @@ public class IdDispatchService {
     }
 
     private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request) {
-        String userUuid = request.getUserInfo().getUserUuid();
+        String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
         String tenantId = request.getUserInfo().getTenantId();
         log.info("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
@@ -237,7 +237,7 @@ public class IdDispatchService {
     private void validateDispatchRequest(IdDispatchRequest request) {
         DispatchUserInfo userInfo = request.getUserInfo();
         RequestInfo requestInfo = request.getRequestInfo();
-        String userUuid = userInfo.getUserUuid();
+        String userUuid = requestInfo.getUserInfo().getUuid();
         String deviceUuid = userInfo.getDeviceUuid();
         Integer count = userInfo.getCount();
         log.info("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);

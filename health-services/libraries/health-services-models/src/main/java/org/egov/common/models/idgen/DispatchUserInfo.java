@@ -18,10 +18,6 @@ public class DispatchUserInfo {
     @NotNull
     private String tenantId;
 
-    @JsonProperty("userUuid")
-    @NotNull
-    private String userUuid;
-
     @JsonProperty("count")
     @NotNull
     private int count;
