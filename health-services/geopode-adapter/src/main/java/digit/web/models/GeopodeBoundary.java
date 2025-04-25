@@ -13,7 +13,6 @@ import lombok.Builder;
  * GeopodeBoundary
  */
 @Validated
-@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2025-04-24T14:43:05.749340509+05:30[Asia/Kolkata]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
