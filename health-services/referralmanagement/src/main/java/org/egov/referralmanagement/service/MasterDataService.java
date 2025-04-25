@@ -1,19 +1,6 @@
 package org.egov.referralmanagement.service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import com.jayway.jsonpath.JsonPath;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -22,15 +9,18 @@ import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncCriteria;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
+import org.egov.mdms.model.MasterDetail;
+import org.egov.mdms.model.MdmsCriteria;
+import org.egov.mdms.model.MdmsCriteriaReq;
+import org.egov.mdms.model.ModuleDetail;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import static org.egov.referralmanagement.Constants.HCM_MASTER_PROJECTTYPE;
-import static org.egov.referralmanagement.Constants.HCM_MDMS_PROJECTTYPE_RES_PATH;
-import static org.egov.referralmanagement.Constants.HCM_MDMS_PROJECT_MODULE_NAME;
-import static org.egov.referralmanagement.Constants.HCM_PROJECT_TYPE_FILTER_CODE;
+import java.util.*;
+
+import static org.egov.referralmanagement.Constants.*;
 
 @Slf4j
 @Service
