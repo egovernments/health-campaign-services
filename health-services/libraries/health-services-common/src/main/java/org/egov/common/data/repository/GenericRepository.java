@@ -9,6 +9,7 @@ import org.egov.common.models.core.SearchResponse;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -53,7 +54,8 @@ public abstract class GenericRepository<T> {
 
     protected final RowMapper<T> rowMapper;
 
-    protected final MultiStateInstanceUtil multiStateInstanceUtil;
+    @Autowired
+    protected MultiStateInstanceUtil multiStateInstanceUtil;
 
     protected String tableName;
 
@@ -63,13 +65,12 @@ public abstract class GenericRepository<T> {
     protected GenericRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                 RedisTemplate<String, Object> redisTemplate,
                                 SelectQueryBuilder selectQueryBuilder, RowMapper<T> rowMapper,
-                                Optional<String> tableName, MultiStateInstanceUtil multiStateInstanceUtil) {
+                                Optional<String> tableName) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
         this.selectQueryBuilder = selectQueryBuilder;
         this.rowMapper = rowMapper;
-        this.multiStateInstanceUtil = multiStateInstanceUtil;
         tableName.ifPresent(tb -> this.tableName = tb);
     }
 
