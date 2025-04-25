@@ -76,6 +76,7 @@ public class ServiceRequestEnrichmentService {
             attributeValue.setId(UUID.randomUUID().toString());
             attributeValue.setAuditDetails(auditDetails);
             attributeValue.setReferenceId(service.getId());
+            attributeValue.setServiceClientReferenceId(service.getClientId());
         });
 
         // Enrich audit details for service
@@ -110,6 +111,9 @@ public class ServiceRequestEnrichmentService {
             AttributeValue existingAttributeValue = existingAttributeValues.get(attributeValue.getId());
             if (ObjectUtils.isEmpty(attributeValue.getAdditionalDetails()) && !ObjectUtils.isEmpty(existingAttributeValue)) {
                 attributeValue.setAdditionalDetails(existingAttributeValue.getAdditionalDetails());
+            }
+            if(!ObjectUtils.isEmpty(service.getClientId())) {
+                attributeValue.setServiceClientReferenceId(service.getClientId());
             }
             attributeValue.setReferenceId(service.getId());
             attributeValue.setAuditDetails(auditDetails);

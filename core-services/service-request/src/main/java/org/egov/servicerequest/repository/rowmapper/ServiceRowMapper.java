@@ -80,6 +80,7 @@ public class ServiceRowMapper implements ResultSetExtractor<List<Service>> {
                 .id(rs.getString("attribute_value_id"))
                 .clientReferenceId(rs.getString("attribute_value_clientReferenceId"))
                 .referenceId(rs.getString("attribute_value_referenceid"))
+                .serviceClientReferenceId(rs.getString("attribute_value_serviceClientReferenceId"))
                 .attributeCode(rs.getString("attribute_value_attributecode"))
                 .value(getProperTypeCastedAttributeValue(genericValueObject))
                 .auditDetails(auditDetails)
