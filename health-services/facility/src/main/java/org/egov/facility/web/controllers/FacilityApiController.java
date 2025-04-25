@@ -17,6 +17,7 @@ import org.egov.common.models.facility.FacilityRequest;
 import org.egov.common.models.facility.FacilityResponse;
 import org.egov.common.models.facility.FacilitySearchRequest;
 import org.egov.common.producer.Producer;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.service.FacilityService;
@@ -59,7 +60,8 @@ public class FacilityApiController {
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkCreatePost(@ApiParam(value = "Capture details of Facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(facilityConfiguration.getBulkCreateFacilityTopic(), request);
+        String tenantId = CommonUtils.getTenantId(request.getFacilities());
+        producer.push(tenantId, facilityConfiguration.getBulkCreateFacilityTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -68,7 +70,8 @@ public class FacilityApiController {
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkDeletePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(facilityConfiguration.getBulkDeleteFacilityTopic(), request);
+        String tenantId = CommonUtils.getTenantId(request.getFacilities());
+        producer.push(tenantId, facilityConfiguration.getBulkDeleteFacilityTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -77,7 +80,8 @@ public class FacilityApiController {
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkUpdatePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(facilityConfiguration.getBulkUpdateFacilityTopic(), request);
+        String tenantId = CommonUtils.getTenantId(request.getFacilities());
+        producer.push(tenantId, facilityConfiguration.getBulkUpdateFacilityTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

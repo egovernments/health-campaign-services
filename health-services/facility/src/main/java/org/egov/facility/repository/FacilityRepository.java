@@ -5,6 +5,7 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilitySearch;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 public class FacilityRepository extends GenericRepository<Facility> {
@@ -37,8 +39,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
                 facilityRowMapper, Optional.of("facility"));
     }
 
-    public SearchResponse<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Facility> objFound = findInCache(ids);
+    public SearchResponse<Facility> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
+        List<Facility> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
                     .filter(entity -> entity.getIsDeleted().equals(false))
@@ -48,19 +50,20 @@ public class FacilityRepository extends GenericRepository<Facility> {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .collect(Collectors.toList()));
+                    .toList());
             if (ids.isEmpty()) {
                 return SearchResponse.<Facility>builder().response(objFound).build();
             }
         }
 
-        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id WHERE f.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id WHERE f.%s IN (:ids) AND isDeleted = false", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id  WHERE f.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id  WHERE f.%s IN (:ids)", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
 
@@ -68,8 +71,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
         return SearchResponse.<Facility>builder().response(objFound).build();
     }
 
-    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM facility f LEFT JOIN address a ON f.addressid = a.id";
+    public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
@@ -90,6 +93,8 @@ public class FacilityRepository extends GenericRepository<Facility> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
