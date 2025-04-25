@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -195,8 +196,11 @@ public class ProjectTaskTransformationService {
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
         long manualCodeScans = 0;
         long actualCodeScans = 0;
-        List<String> manualCodesScanned = new ArrayList<>();
-        List<String> actualCodesScanned = new ArrayList<>();
+//        List<String> manualCodesScanned = new ArrayList<>();
+//        List<String> actualCodesScanned = new ArrayList<>();
+
+        ArrayNode manualCodesScanned = objectMapper.createArrayNode();
+        ArrayNode actualCodesScanned = objectMapper.createArrayNode();
 
         String scanKey = transformerProperties.getTaskBednetScanningKey();
         String manualScanKey = MANUAL_SCAN + scanKey;
@@ -232,8 +236,8 @@ public class ProjectTaskTransformationService {
 
         additionalDetails.put("manualCodeScans", manualCodeScans);
         additionalDetails.put("actualCodeScans", actualCodeScans);
-        additionalDetails.put("manualCodesScanned", manualCodesScanned.toString());
-        additionalDetails.put("actualCodesScanned", actualCodesScanned.toString());
+        additionalDetails.set("manualCodesScanned", manualCodesScanned);
+        additionalDetails.set("actualCodesScanned", actualCodesScanned);
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
