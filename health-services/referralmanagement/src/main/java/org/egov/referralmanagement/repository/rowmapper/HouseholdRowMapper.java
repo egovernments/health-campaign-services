@@ -2,11 +2,12 @@ package org.egov.referralmanagement.repository.rowmapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.core.Boundary;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.AddressType;
-import org.egov.common.models.core.Boundary;
+import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -42,6 +43,7 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .auditDetails(auditDetails)
                     .clientAuditDetails(clientAuditDetails)
+                    .householdType(HouseHoldType.fromValue(resultSet.getString("householdType")))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
                             .getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
