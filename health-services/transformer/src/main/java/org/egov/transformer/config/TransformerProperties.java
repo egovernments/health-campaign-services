@@ -230,4 +230,7 @@ public class TransformerProperties {
 
     @Value("${special.spraying.checklist.name}")
     private String specialSprayingChecklistName;
+
+    @Value("${task.bednet.scanning.key}")
+    private String taskBednetScanningKey;
 }
