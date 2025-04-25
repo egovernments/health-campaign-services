@@ -77,6 +77,7 @@ class GenericRepositoryFindTest {
                 .collect(Collectors.toList());
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         ReflectionTestUtils.setField(someRepository, "timeToLive", "60");
+        ReflectionTestUtils.setField(someRepository, "multiStateInstanceUtil", multiStateInstanceUtil);
     }
 
     @Test
