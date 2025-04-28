@@ -169,8 +169,6 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 .response(individuals)
                 .build();
     }
-
-
     /**
      * @param query
      * @param searchObject
