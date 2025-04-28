@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -172,14 +173,14 @@ public class ProjectTaskTransformationService {
         }
         if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
+            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
                 householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
             } catch (IllegalArgumentException e) {
-                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}" , e.getMessage());
+                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}", e.getMessage());
             }
         }
 
@@ -197,28 +198,50 @@ public class ProjectTaskTransformationService {
     }
 
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
-        additionalFields.getFields().forEach(field -> {
+        long manualCodeScans = 0;
+        long actualCodeScans = 0;
+//        List<String> manualCodesScanned = new ArrayList<>();
+//        List<String> actualCodesScanned = new ArrayList<>();
+
+        ArrayNode manualCodesScanned = objectMapper.createArrayNode();
+        ArrayNode actualCodesScanned = objectMapper.createArrayNode();
+
+        String scanKey = transformerProperties.getTaskBednetScanningKey();
+        String manualScanKey = MANUAL_SCAN + scanKey;
+
+        for (Field field : additionalFields.getFields()) {
             String key = field.getKey();
             String value = field.getValue();
+
             if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
                 try {
-                    additionalDetails.put(key, Double.valueOf(value));
+                    additionalDetails.put(key, Double.parseDouble(value));
                 } catch (NumberFormatException e) {
                     log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    additionalDetails.putNull(key);
                 }
-
             } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
                 try {
-                    additionalDetails.put(key, Integer.valueOf(value));
+                    additionalDetails.put(key, Integer.parseInt(value));
                 } catch (NumberFormatException e) {
                     log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    additionalDetails.putNull(key);
                 }
+            } else if (scanKey.equalsIgnoreCase(key)) {
+                actualCodeScans++;
+                actualCodesScanned.add(value);
+            } else if (manualScanKey.equalsIgnoreCase(key)) {
+                manualCodeScans++;
+                manualCodesScanned.add(value);
             } else {
                 additionalDetails.put(key, value);
             }
-        });
+        }
+
+        additionalDetails.put("manualCodeScans", manualCodeScans);
+        additionalDetails.put("actualCodeScans", actualCodeScans);
+        additionalDetails.set("manualCodesScanned", manualCodesScanned);
+        additionalDetails.set("actualCodesScanned", actualCodesScanned);
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
