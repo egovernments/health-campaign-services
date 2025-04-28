@@ -39,8 +39,8 @@ public class ProjectTaskTransformationService {
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
     private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
     static {
-        campaignSpecificFieldsTypeMap.put("AGE", Integer.class);
-        campaignSpecificFieldsTypeMap.put("GENDER", String.class);
+        campaignSpecificFieldsTypeMap.put(AGE, Integer.class);
+        campaignSpecificFieldsTypeMap.put(GENDER, String.class);
     }
 
 
