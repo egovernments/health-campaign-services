@@ -37,6 +37,11 @@ public class ProjectTaskTransformationService {
     private final BoundaryService boundaryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
+    private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
+    static {
+        campaignSpecificFieldsTypeMap.put(AGE, Integer.class);
+        campaignSpecificFieldsTypeMap.put(GENDER, String.class);
+    }
 
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
@@ -144,8 +149,6 @@ public class ProjectTaskTransformationService {
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
-                .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
-                .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
                 .build();
         projectTaskIndexV1.setProjectInfo(task.getId(), projectType, projectTypeId, projectName);
@@ -156,6 +159,7 @@ public class ProjectTaskTransformationService {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
         }
+        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
 //        if (taskResource.getAdditionalFields() != null) {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
@@ -292,5 +296,36 @@ public class ProjectTaskTransformationService {
             projectBenfInfoMap = individualService.getIndividualInfo(beneficiaryClientRefId, tenantId);
         }
         return projectBenfInfoMap;
+    }
+
+    private void enrichWithCampaignSpecificFields(ObjectNode additionalDetails, Map<String, Object> beneficiaryInfo){
+        for (Map.Entry<String, Object> entry : beneficiaryInfo.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            if (campaignSpecificFieldsTypeMap.containsKey(key)) {
+                putValueBasedOnType(additionalDetails, key, value, campaignSpecificFieldsTypeMap.get(key));
+            }
+        }
+    }
+
+    private void putValueBasedOnType(ObjectNode additionalDetails, String key, Object value, Class<?> type) {
+        if (value == null) {
+            additionalDetails.putNull(key);
+            return;
+        }
+        if (type == Integer.class) {
+            additionalDetails.put(key, Integer.parseInt(value.toString()));
+        } else if (type == Long.class) {
+            additionalDetails.put(key, Long.parseLong(value.toString()));
+        } else if (type == Double.class) {
+            additionalDetails.put(key, Double.parseDouble(value.toString()));
+        } else if (type == Boolean.class) {
+            additionalDetails.put(key, Boolean.parseBoolean(value.toString()));
+        } else if (type == String.class) {
+            additionalDetails.put(key, value.toString());
+        } else {
+            additionalDetails.putPOJO(key, value);
+        }
     }
 }
