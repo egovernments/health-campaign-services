@@ -78,6 +78,11 @@ public class IdDispatchService {
      * Dispatches a given count of IDs to the user after checking limits and locking.
      */
     public IdDispatchResponse dispatchIds(IdDispatchRequest request) throws Exception {
+
+        if (StringUtils.isEmpty(request.getRequestInfo().getUserInfo().getUuid())) {
+            throw new CustomException("VALIDATION EXCEPTION",
+                    "Missing User Uuid");
+        }
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         int count = request.getUserInfo().getCount();
         String deviceUuid = request.getUserInfo().getDeviceUuid();
@@ -95,19 +100,19 @@ public class IdDispatchService {
         // Handle fetch of already allocated IDs
         if (!ObjectUtils.isEmpty(request.getUserInfo().getFetchAllocatedIds())
                 && request.getUserInfo().getFetchAllocatedIds()) {
-            log.info("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
+            log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
             IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request);
             alreadyDispatched = (int) Math.max(alreadyDispatched, idDispatchResponse.getTotalCount());
             fetchLimit = Math.max(0L, configuredLimit - alreadyDispatched);
-            log.info("Total previously allocated: {}, updated fetchLimit: {}", alreadyDispatched, fetchLimit);
+            log.debug("Total previously allocated: {}, updated fetchLimit: {}", alreadyDispatched, fetchLimit);
             idDispatchResponse.setFetchLimit(fetchLimit);
             idDispatchResponse.setTotalLimit((long) configuredLimit);
             return idDispatchResponse;
         }
 
         validateDispatchRequest(request);
-        log.info("Dispatch request validation passed.");
-
+        log.debug("Dispatch request validation passed.");
+        count = request.getUserInfo().getCount();
         fetchLimit = Math.max(0L, configuredLimit - (alreadyDispatched + count));
         log.info("Calculated fetch limit for new IDs: {}", fetchLimit);
 
@@ -119,7 +124,7 @@ public class IdDispatchService {
         }
 
         List<IdRecord> selected = fetchOrRefillIds(tenantId, count);
-        log.info("Fetched {} IDs for dispatch.", selected.size());
+        log.debug("Fetched {} IDs for dispatch.", selected.size());
 
         if (selected == null || selected.isEmpty()) {
             log.error("No IDs available from Redis or DB for tenantId: {}", tenantId);
@@ -141,16 +146,16 @@ public class IdDispatchService {
         }
 
         try {
-            log.info("Successfully locked IDs. Proceeding with update and logging.");
+            log.debug("Successfully locked IDs. Proceeding with update and logging.");
             updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId, requestInfo);
             redisRepo.incrementDispatchedCount(userUuid, deviceUuid, count);
-            log.info("Dispatch count updated in Redis for user: {} and device: {}", userUuid, deviceUuid);
+            log.debug("Dispatch count updated in Redis for user: {} and device: {}", userUuid, deviceUuid);
         } finally {
             lockManager.releaseLocks(lockedIds);
-            log.info("Released locks for IDs: {}", lockedIds);
+            log.debug("Released locks for IDs: {}", lockedIds);
         }
         selected.stream().forEach(idRecord -> {normalizeAdditionalFields(idRecord);});
-        log.info("Returning dispatch response with {} IDs", selected.size());
+        log.debug("Returning dispatch response with {} IDs", selected.size());
         return IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(selected)
@@ -207,7 +212,7 @@ public class IdDispatchService {
 
 
     public IdDispatchResponse searchIds(RequestInfo requestInfo, IdPoolSearch idPoolSearch) {
-        log.info("Searching ID records with params - tenantId: {}, status: {}, idList size: {}",
+        log.debug("Searching ID records with params - tenantId: {}, status: {}, idList size: {}",
                 idPoolSearch.getTenantId(),
                 idPoolSearch.getStatus(),
                 idPoolSearch.getIdList() != null ? idPoolSearch.getIdList().size() : 0);
@@ -217,7 +222,7 @@ public class IdDispatchService {
                 idPoolSearch.getStatus(),
                 idPoolSearch.getTenantId()
         );
-        log.info("Found {} ID records matching the criteria.", records.size());
+        log.debug("Found {} ID records matching the criteria.", records.size());
 
         return IdDispatchResponse.builder()
                 .idResponses(records)
@@ -240,22 +245,29 @@ public class IdDispatchService {
         String userUuid = requestInfo.getUserInfo().getUuid();
         String deviceUuid = userInfo.getDeviceUuid();
         Integer count = userInfo.getCount();
-        log.info("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);
-        log.info("Configured dispatch limit per user: {}", configuredLimit);
+        log.debug("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);
+        log.debug("Configured dispatch limit per user: {}", configuredLimit);
         if (count > configuredLimit) {
             log.warn("Dispatch request count {} exceeds configured limit {}", count, configuredLimit);
             throw new CustomException("COUNT EXCEEDS LIMIT",
                     "Requested count exceeds maximum allowed limit per user: " + configuredLimit);
         }
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
-        log.info("Already dispatched count for userUuid: {}, deviceUuid: {} is {}", userUuid, deviceUuid, alreadyDispatched);
+        log.debug("Already dispatched count for userUuid: {}, deviceUuid: {} is {}", userUuid, deviceUuid, alreadyDispatched);
+
 
         if (alreadyDispatched + count > configuredLimit) {
             log.warn("Total dispatched + requested count ({}) exceeds configured limit for userUuid: {}, deviceUuid: {}", alreadyDispatched + count, userUuid, deviceUuid);
             throw new CustomException("ID LIMIT EXCEPTION",
                     "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
         }
-        log.info("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
+
+
+        if (count <= 0 ) {
+            userInfo.setCount(Math.max(count , configuredLimit));
+        }
+
+        log.debug("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
     }
 
 
@@ -264,21 +276,20 @@ public class IdDispatchService {
      * Fetches IDs from Redis or DB if needed.
      */
     private List<IdRecord> fetchOrRefillIds(String tenantId, int count) {
-        log.info("Attempting to fetch {} unassigned IDs for tenant: {}", count, tenantId);
+        log.debug("Attempting to fetch {} unassigned IDs for tenant: {}", count, tenantId);
+
 
         List<IdRecord> selected = redisRepo.selectUnassignedIds(count);
-        log.info("Fetched {} unassigned IDs from Redis cache", selected.size());
+        log.debug("Fetched {} unassigned IDs from Redis cache", selected.size());
         if (selected.size() < count) {
             int remaining = count - selected.size();
-            log.info("Redis cache insufficient by {} IDs. Fetching {} IDs from DB for tenant: {}", remaining, dbFetchCount, tenantId);
+            log.debug("Redis cache insufficient by {} IDs. Fetching {} IDs from DB for tenant: {}", remaining, dbFetchCount, tenantId);
             List<IdRecord> fromDb = idRepo.fetchUnassigned(tenantId, dbFetchCount);
-            log.info("Fetched {} unassigned IDs from DB for tenant: {}", fromDb.size(), tenantId);
+            log.debug("Fetched {} unassigned IDs from DB for tenant: {}", fromDb.size(), tenantId);
             redisRepo.addToRedisCache(fromDb);
-            log.info("Added {} IDs from DB to Redis cache", fromDb.size());
+            log.debug("Added {} IDs from DB to Redis cache", fromDb.size());
             selected = redisRepo.selectUnassignedIds(count);
-            log.info("Re-fetched {} unassigned IDs from Redis cache after refill", selected.size());
-        } else {
-            log.info("Sufficient unassigned IDs fetched from Redis, DB refill not needed");
+            log.debug("Re-fetched {} unassigned IDs from Redis cache after refill", selected.size());
         }
 
         return selected;

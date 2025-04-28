@@ -66,7 +66,7 @@ public class IdGenerationController {
 	 */
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_generate")
-	public IDPoolGenerationResponse generateIDs(@RequestBody IDPoolGenerationRequest request) throws Exception {
+	public IDPoolGenerationResponse generateIDs(@RequestBody @Valid IDPoolGenerationRequest request) throws Exception {
 		IDPoolGenerationResponse idPoolGenerationResponse = idGenerationService.generateIDPool(request);
 		return idPoolGenerationResponse;
 	}
@@ -80,7 +80,7 @@ public class IdGenerationController {
 	 */
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_dispatch")
-	public IdDispatchResponse dispatchIds(@RequestBody IdDispatchRequest request)  throws Exception {
+	public IdDispatchResponse dispatchIds(@RequestBody @Valid IdDispatchRequest request)  throws Exception {
 			IdDispatchResponse response = idDispatchService.dispatchIds( request);
 			return response;
 	}
