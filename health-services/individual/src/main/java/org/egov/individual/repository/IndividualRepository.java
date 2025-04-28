@@ -54,6 +54,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         super(producer, namedParameterJdbcTemplate, redisTemplate,
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
+
     public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound = new ArrayList<>();
         try {
@@ -76,7 +77,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN )",
+        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
@@ -88,7 +89,6 @@ public class IndividualRepository extends GenericRepository<Individual> {
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
     }
-
 
     public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
                                            String tenantId, Long lastChangedSince, Boolean includeDeleted) {
@@ -169,9 +169,6 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 .response(individuals)
                 .build();
     }
-
-
-
 
 
     /**
@@ -267,7 +264,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
         if (searchObject.getIndividualName() != null) {
-            query =  query + "AND CONCAT_WS(' ', givenname, familyname, othername) ILIKE :individualName ";
+            query = query + "AND givenname ILIKE :individualName ";
             paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
         }
         if (searchObject.getGender() != null) {
@@ -326,14 +323,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     .map(Object::toString)
                     .collect(Collectors.toList()));
         }
-
+      
         if (searchObject.getUserUuid() != null) {
             query = query + "AND userUuid in (:userUuid) ";
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
-
+      
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

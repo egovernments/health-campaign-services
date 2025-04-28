@@ -280,93 +280,93 @@ public class IndividualService {
                 .collect(Collectors.toList());
     }
 
-    public SearchResponse<Individual> search(IndividualSearch individualSearch,
-    Integer limit,
-    Integer offset,
-    String tenantId,
-    Long lastChangedSince,
-    Boolean includeDeleted,
-    RequestInfo requestInfo) {
-SearchResponse<Individual> searchResponse;
-List<Individual> encryptedIndividualList;
+   public SearchResponse<Individual> search(IndividualSearch individualSearch,
+                                             Integer limit,
+                                             Integer offset,
+                                             String tenantId,
+                                             Long lastChangedSince,
+                                             Boolean includeDeleted,
+                                             RequestInfo requestInfo) {
+        SearchResponse<Individual> searchResponse;
+        List<Individual> encryptedIndividualList;
 
-String idFieldName = getIdFieldName(individualSearch);
+        String idFieldName = getIdFieldName(individualSearch);
 
-// 🔥 First: If ID is provided, search by ID
-if (isSearchByIdOnly(individualSearch, idFieldName)) {
-try {
-searchResponse = individualRepository.findById(individualSearch.getId(), idFieldName, includeDeleted);
-encryptedIndividualList = searchResponse.getResponse();
-} catch (Exception e) {
-log.error("Error during ID-based search: {}", ExceptionUtils.getStackTrace(e));
-throw new CustomException("ID_SEARCH_FAILED", e.getMessage());
-}
-}
-// 🔥 Second: If Name is provided (givenName, familyName, or otherNames)
-else if (individualSearch.getName() != null) {
-try {
-String givenName = individualSearch.getName().getGivenName();
-String familyName = individualSearch.getName().getFamilyName();
-String otherNames = individualSearch.getName().getOtherNames();
+        // First: If ID is provided, search by ID
+        if (isSearchByIdOnly(individualSearch, idFieldName)) {
+            try {
+                searchResponse = individualRepository.findById(individualSearch.getId(), idFieldName, includeDeleted);
+                encryptedIndividualList = searchResponse.getResponse();
+            } catch (Exception e) {
+                log.error("Error during ID-based search: {}", ExceptionUtils.getStackTrace(e));
+                throw new CustomException("ID_SEARCH_FAILED", e.getMessage());
+            }
+        }
+        // Second: If Name is provided (givenName, familyName, or otherNames)
+        else if (individualSearch.getName() != null) {
+            try {
+                String givenName = individualSearch.getName().getGivenName();
+                String familyName = individualSearch.getName().getFamilyName();
+                String otherNames = individualSearch.getName().getOtherNames();
 
-SearchResponse<Individual> response = individualRepository.findByName(
-givenName,
-familyName,
-otherNames,
-tenantId,
-limit,
-offset,
-includeDeleted
-);
+                SearchResponse<Individual> response = individualRepository.findByName(
+                        givenName,
+                        familyName,
+                        otherNames,
+                        tenantId,
+                        limit,
+                        offset,
+                        includeDeleted
+                );
 
-List<Individual> decryptedIndividuals = response.getResponse().isEmpty()
-? Collections.emptyList()
-: individualEncryptionService.decrypt(response.getResponse(), "IndividualDecrypt", requestInfo);
+                List<Individual> decryptedIndividuals = response.getResponse().isEmpty()
+                        ? Collections.emptyList()
+                        : individualEncryptionService.decrypt(response.getResponse(), "IndividualDecrypt", requestInfo);
 
-response.setResponse(decryptedIndividuals);
-return response;
+                response.setResponse(decryptedIndividuals);
+                return response;
 
-} catch (Exception ex) {
-log.error("Error during name-based search: {}", ExceptionUtils.getStackTrace(ex));
-throw new CustomException("NAME_SEARCH_FAILED", ex.getMessage());
-}
-}
+            } catch (Exception ex) {
+                log.error("Error during name-based search: {}", ExceptionUtils.getStackTrace(ex));
+                throw new CustomException("NAME_SEARCH_FAILED", ex.getMessage());
+            }
+        }
 
-// 🔥 Else: Normal encrypted search
-else {
-IndividualSearch encryptedIndividualSearch;
+        //  Else: Normal encrypted search
+        else {
+            IndividualSearch encryptedIndividualSearch;
 
-if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
-encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
-} else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
-} else {
-encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchEncrypt");
-}
+            if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+            } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+            } else {
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchEncrypt");
+            }
 
-try {
-searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
-lastChangedSince, includeDeleted);
-encryptedIndividualList = searchResponse.getResponse();
-} catch (Exception exception) {
-log.error("Database error occurred during default search", ExceptionUtils.getStackTrace(exception));
-throw new CustomException("DATABASE_ERROR", exception.getMessage());
-}
-}
+            try {
+                searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
+                        lastChangedSince, includeDeleted);
+                encryptedIndividualList = searchResponse.getResponse();
+            } catch (Exception exception) {
+                log.error("Database error occurred during default search", ExceptionUtils.getStackTrace(exception));
+                throw new CustomException("DATABASE_ERROR", exception.getMessage());
+            }
+        }
 
-// 🔥 Filter by boundary code if needed
-encryptedIndividualList = encryptedIndividualList.stream()
-.filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
-.collect(Collectors.toList());
+        //  Filter by boundary code if needed
+        encryptedIndividualList = encryptedIndividualList.stream()
+                .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
+                .collect(Collectors.toList());
 
-// 🔥 Decrypt before returning
-List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
-? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
-: encryptedIndividualList;
+        //  Decrypt before returning
+        List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
+                ? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
+                : encryptedIndividualList;
 
-searchResponse.setResponse(decryptedIndividualList);
-return searchResponse;
-}
+        searchResponse.setResponse(decryptedIndividualList);
+        return searchResponse;
+    }
 
 
     private Predicate<Individual> havingBoundaryCode(String boundaryCode, String wardCode) {
