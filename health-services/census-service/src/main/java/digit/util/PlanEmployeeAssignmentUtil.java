@@ -1,6 +1,7 @@
 package digit.util;
 
 import digit.config.Configuration;
+import digit.web.models.Census;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
@@ -15,20 +16,20 @@ import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_EMPLOYEE_ASSIGN
 
 @Slf4j
 @Component
-public class PlanEmployeeAssignmnetUtil {
+public class PlanEmployeeAssignmentUtil {
 
     private RestTemplate restTemplate;
 
     private Configuration config;
 
-    public PlanEmployeeAssignmnetUtil(RestTemplate restTemplate, Configuration configs) {
+    public PlanEmployeeAssignmentUtil(RestTemplate restTemplate, Configuration configs) {
         this.restTemplate = restTemplate;
         this.config = configs;
     }
 
     /**
      * This method fetches plan employee assignment from plan service for provided employeeID.
-     * @param planEmployeeAssignmentSearchRequest request containint the planEmployeeAssignment search criteria
+     * @param planEmployeeAssignmentSearchRequest request containing the planEmployeeAssignment search criteria
      * @return returns planEmployeeAssignment for provided search criteria.
      */
     public PlanEmployeeAssignmentResponse fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest) {
@@ -55,5 +56,21 @@ public class PlanEmployeeAssignmnetUtil {
     private StringBuilder getPlanEmployeeAssignmentUri() {
         StringBuilder uri = new StringBuilder();
         return uri.append(config.getPlanServiceHost()).append(config.getPlanEmployeeAssignmentSearchEndpoint());
+    }
+
+    public PlanEmployeeAssignmentSearchRequest getPlanEmployeeSearchRequest(Census census, List<String> employeeIds,
+                                                         List<String> jurisdiction, List<String> role, RequestInfo requestInfo) {
+
+        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria = PlanEmployeeAssignmentSearchCriteria.builder()
+                .tenantId(census.getTenantId())
+                .jurisdiction(jurisdiction)
+                .planConfigurationId(census.getSource())
+                .role(role)
+                .employeeId(employeeIds)
+                .build();
+
+        return PlanEmployeeAssignmentSearchRequest.builder()
+                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
+                .requestInfo(requestInfo).build();
     }
 }

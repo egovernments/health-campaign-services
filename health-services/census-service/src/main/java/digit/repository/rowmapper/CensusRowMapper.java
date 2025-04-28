@@ -52,7 +52,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
 
                 String commaSeparatedAssignee = rs.getString("census_assignee");
-                List<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? Arrays.asList(commaSeparatedAssignee.split(",")) : null;
+                Set<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? new HashSet<>(List.of(commaSeparatedAssignee.split(","))) : null;
 
                 // Prepare census entry
                 censusEntry.setId(rs.getString("census_id"));

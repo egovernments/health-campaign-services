@@ -24,8 +24,6 @@ import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 public class CalculationUtil {
 	
 	private PlanUtil planUtil;
-	
-	
 
     public CalculationUtil(PlanUtil planUtil) {
 		this.planUtil = planUtil;
@@ -79,7 +77,7 @@ public class CalculationUtil {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
-            planUtil.create(planConfigurationRequest, feature, resultMap, mappedValues, new HashMap<>());
+            planUtil.create(planConfigurationRequest, feature, resultMap, new HashMap<>());
             
         }
     }
@@ -140,6 +138,28 @@ public class CalculationUtil {
         String assumptionKey = operation.getAssumptionValue();
         String assumptionFromMapping = mappedValues.get(assumptionKey);
         BigDecimal assumptionValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, assumptionKey, assumptionFromMapping);
+
+        // Calculate and return the output
+        return calculateOutputValue(inputValue, operation.getOperator(), assumptionValue);
+    }
+
+    /**
+     * Calculates a result based on the provided operation and inputs.
+     *
+     * @param operation The operation object containing details like input, operator, and assumption value.
+     * @param feature   The JSON node representing additional features or parameters for calculation.
+     * @param assumptionValueMap A map containing assumption values referenced by keys.
+     * @param resultMap A map to store and update the calculated results.
+     * @return The calculated result as a BigDecimal.
+     */
+    public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap) {
+        // Fetch the input value
+        String input = operation.getInput();
+        BigDecimal inputValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, input, input);
+
+        // Fetch the assumption value with priority: feature -> resultMap -> assumptionValueMap
+        String assumptionKey = operation.getAssumptionValue();
+        BigDecimal assumptionValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, assumptionKey, assumptionKey);
 
         // Calculate and return the output
         return calculateOutputValue(inputValue, operation.getOperator(), assumptionValue);

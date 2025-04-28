@@ -1,6 +1,5 @@
 package digit.util;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -15,8 +14,8 @@ import org.postgresql.util.PGobject;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.*;
 
@@ -35,10 +34,11 @@ public class CommonUtil {
 
     /**
      * Adds or updates the value of provided field in the additional details object.
-     * @param additionalDetails
-     * @param fieldToUpdate
-     * @param updatedValue
-     * @return
+     *
+     * @param additionalDetails The current additional details object.
+     * @param fieldToUpdate     The field that needs to be updated or added.
+     * @param updatedValue      The new value to assign to the field.
+     * @return A Map representing the updated additional details.
      */
     public Map<String, Object> updateFieldInAdditionalDetails(Object additionalDetails, String fieldToUpdate, String updatedValue) {
         try {
@@ -52,8 +52,7 @@ public class CommonUtil {
             objectNode.put(fieldToUpdate, updatedValue);
 
             // Convert updated ObjectNode back to a Map and set it in 'additionalDetails'
-            Map<String, Object> updatedDetails = objectMapper.convertValue(objectNode, Map.class);
-            return updatedDetails;
+            return objectMapper.convertValue(objectNode, Map.class);
 
         } catch (Exception e) {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE);
@@ -81,9 +80,10 @@ public class CommonUtil {
 
     /**
      * Removes the field to be removed from the additional details object.
-     * @param additionalDetails
-     * @param fieldToBeRemoved
-     * @return
+     *
+     * @param additionalDetails The current additional details object.
+     * @param fieldToBeRemoved  The field that needs to be removed from the additional details.
+     * @return A Map representing the updated additional details after removal of the field.
      */
     public Map<String, Object> removeFieldFromAdditionalDetails(Object additionalDetails, String fieldToBeRemoved) {
         Map<String, Object> additionalDetailsMap = objectMapper.convertValue(additionalDetails, Map.class);
@@ -96,21 +96,18 @@ public class CommonUtil {
      * Creates the census search request for the provided details.
      * @param tenantId
      * @param planConfigId
-     * @param serviceBoundary
+     * @param boundariesToBeSearched
+     * @param requestInfo
      * @return
      */
-    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, String serviceBoundary, List<String> initiallySetServiceBoundaries, RequestInfo requestInfo) {
-        Set<String> areaCodesForSearch = new HashSet<>();
-
-        areaCodesForSearch.addAll(Arrays.asList(serviceBoundary.split(",")));
-        areaCodesForSearch.addAll(initiallySetServiceBoundaries);
+    public CensusSearchRequest getCensusSearchRequest(String tenantId, String planConfigId, Set<String> boundariesToBeSearched, RequestInfo requestInfo) {
 
         CensusSearchCriteria searchCriteria = CensusSearchCriteria.builder()
                 .tenantId(tenantId)
                 .source(planConfigId)
-                .areaCodes(areaCodesForSearch.stream().toList())
+                .areaCodes(boundariesToBeSearched.stream().toList())
                 .offset(0)
-                .limit(areaCodesForSearch.size())
+                .limit(boundariesToBeSearched.size())
                 .build();
 
         return CensusSearchRequest.builder().requestInfo(requestInfo).censusSearchCriteria(searchCriteria).build();
@@ -118,10 +115,11 @@ public class CommonUtil {
 
     /**
      * Creates a list of all the workflow states for the provided business service.
-     * @param requestInfo
-     * @param businessService
-     * @param tenantId
-     * @return
+     *
+     * @param requestInfo     The request information that is passed to fetch the business service.
+     * @param businessService The business service identifier.
+     * @param tenantId        The tenant ID for the business service.
+     * @return A List of valid workflow states associated with the business service.
      */
     public List<String> getStatusFromBusinessService(RequestInfo requestInfo, String businessService, String tenantId) {
         BusinessService businessServices = businessServiceUtil.fetchBusinessService(requestInfo, businessService, tenantId);
@@ -132,20 +130,39 @@ public class CommonUtil {
                 .toList();
     }
 
+    /**
+     * Converts the provided additional details object to a PostgreSQL JSONB object.
+     * Serializes the additional details into a JSON string and sets it as a PGobject of type "jsonb".
+     *
+     * @param additionalDetails The object containing additional details to be converted.
+     * @return A PGobject containing the serialized JSON data for the additional details.
+     */
     public PGobject convertToPgObject(Object additionalDetails) {
         PGobject pGobject = new PGobject();
 
         try {
             String json = objectMapper.writeValueAsString(additionalDetails);
 
-            pGobject.setType("jsonb");
+            pGobject.setType(JSONB);
             pGobject.setValue(json);
-        } catch (JsonProcessingException e) {
-            log.error("Error while processing JSON object to string", e);
-        } catch (SQLException e) {
-            log.error("Error while setting JSONB object", e);
+        } catch (Exception e) {
+            log.error(ERROR_WHILE_SETTING_JSONB_OBJECT, e);
         }
 
         return pGobject;
+    }
+
+    /**
+     * Finds the unique elements in the primary list that are not present in the secondary list.
+     * This can be used to determine newly added or missing elements between two lists.
+     *
+     * @param primaryList The main list containing elements to be checked.
+     * @param secondaryList The reference list to compare against.
+     * @return A set containing elements that are in primaryList but not in secondaryList.
+     */
+    public Set<String> getUniqueElements(List<String> primaryList, List<String> secondaryList) {
+        return primaryList.stream()
+                .filter(element -> !secondaryList.contains(element))
+                .collect(Collectors.toSet());
     }
 }

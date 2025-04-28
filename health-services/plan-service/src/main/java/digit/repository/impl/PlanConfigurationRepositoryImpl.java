@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.querybuilder.PlanConfigQueryBuilder;
 import digit.repository.rowmapper.PlanConfigRowMapper;
+import digit.util.CommonUtil;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
@@ -61,12 +62,11 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
 
         // Return empty list back as response if no plan ids are found
         if(CollectionUtils.isEmpty(planConfigIds)) {
-        	log.info("No plan config ids found for provided plan configuration search criteria.");
+        	log.debug("No plan config ids found for provided plan configuration search criteria.");
             return new ArrayList<>();
         }
 
-        List<PlanConfiguration> planConfigurations = searchPlanConfigsByIds(planConfigIds);
-        return planConfigurations;
+        return searchPlanConfigsByIds(planConfigIds);
     }
 
     /**
@@ -78,14 +78,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     public Integer count(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planConfigQueryBuilder.getPlanConfigCountQuery(planConfigurationSearchCriteria, preparedStmtList);
-
-        log.info("Plan Config count query: " + query);
-        log.info("preparedStmtList: " + preparedStmtList);
-
-        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
-        log.info("Total plan config count is : " + count);
-
-        return count;
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
     }
 
     /**
@@ -105,7 +98,6 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     private List<String> queryDatabaseForPlanConfigIds(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planConfigQueryBuilder.getPlanConfigSearchQuery(planConfigurationSearchCriteria, preparedStmtList);
-        log.info("Plan Config search query: " + query);
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
@@ -117,7 +109,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     private List<PlanConfiguration> searchPlanConfigsByIds(List<String> planConfigIds) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planConfigQueryBuilder.getPlanConfigQuery(planConfigIds, preparedStmtList);
-        log.info("Plan Config query: " + query);
+
         return jdbcTemplate.query(query, planConfigRowMapper, preparedStmtList.toArray());
     }
 

@@ -11,17 +11,18 @@ import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.census.*;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.*;
+import static org.egov.processor.config.ErrorConstants.*;
 
 @Component
 @Slf4j
@@ -56,7 +57,6 @@ public class CensusUtil {
     public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
         CensusRequest censusRequest = buildCensusRequest(planConfigurationRequest, feature, mappedValues, heirarchyType);
         try {
-            log.info("Census request - " + censusRequest.getCensus());
             producer.push(config.getResourceCensusCreateTopic(), censusRequest);
         } catch (Exception e) {
             log.error(ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY + censusRequest.getCensus().getBoundaryCode(), e);
@@ -69,26 +69,67 @@ public class CensusUtil {
      * @param planConfigurationRequest The plan configuration request containing configuration details.
      * @param feature                  The feature JSON node containing property values.
      * @param mappedValues             The mapped values for extracting properties.
-     * @param heirarchyType            The hierarchy type of the census.
+     * @param hierarchyType            The hierarchy type of the census.
      * @return A constructed CensusRequest object with populated details.
      */
-    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
+    private CensusRequest buildCensusRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String hierarchyType) {
 
         PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
+        Object additionalDetails = enrichAdditionalDetailsForCensus(feature, mappedValues);
+
+        Census census = Census.builder()
+                .tenantId(planConfig.getTenantId())
+                .hierarchyType(hierarchyType)
+                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
+                .type(Census.TypeEnum.PEOPLE)
+                .facilityAssigned(Boolean.FALSE)
+                .partnerAssignmentValidationEnabled(Boolean.TRUE)
+                .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
+                .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
+                .source(planConfig.getId())
+                .additionalFields(enrichAdditionalField(feature, mappedValues)).build();
+
+
+        if (!ObjectUtils.isEmpty(additionalDetails)) {
+            census.setAdditionalDetails(additionalDetails);
+        }
+
         return CensusRequest.builder()
-                .census(Census.builder()
-                        .tenantId(planConfig.getTenantId())
-                        .hierarchyType(heirarchyType)
-                        .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
-                        .type(Census.TypeEnum.PEOPLE)
-                        .facilityAssigned(Boolean.FALSE)
-                        .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                        .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.TOTAL_POPULATION, feature, mappedValues))
-                        .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
-                        .source(planConfig.getId())
-                        .additionalFields(enrichAdditionalField(feature, mappedValues)).build())
+                .census(census)
                 .requestInfo(planConfigurationRequest.getRequestInfo()).build();
 
+    }
+
+    /**
+     * Enriches additional details for a census records.
+     *
+     * @param feature      The JSON node representing the census record feature.
+     * @param mappedValues A map containing pre-mapped values from the feature.
+     * @return An updated additional details object for census records.
+     */
+    private Object enrichAdditionalDetailsForCensus(JsonNode feature, Map<String, String> mappedValues) {
+        // Extract latitude and longitude values from the feature.
+        BigDecimal latitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LATITUDE, feature, mappedValues);
+        BigDecimal longitude = (BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(LONGITUDE, feature, mappedValues);
+
+        // Map to store additional details to be added.
+        Map<String, Object> fieldsToBeAddedInAdditionalDetails = new HashMap<>();
+
+        // Add latitude to additional details only if it's not null.
+        if (!ObjectUtils.isEmpty(latitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LATITUDE_KEY, latitude);
+        }
+
+        // Add longitude to additional details only if it's not null.
+        if (!ObjectUtils.isEmpty(longitude)) {
+            fieldsToBeAddedInAdditionalDetails.put(LONGITUDE_KEY, longitude);
+        }
+
+        if (!CollectionUtils.isEmpty(fieldsToBeAddedInAdditionalDetails)) {
+            return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeAddedInAdditionalDetails);
+        }
+
+        return new HashMap<>(); // Return null if no additional details were added
     }
 
     /**
@@ -170,10 +211,6 @@ public class CensusUtil {
            censusResponse = mapper.convertValue(response, CensusResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_CENSUS, e);
-        }
-
-        if (CollectionUtils.isEmpty(censusResponse.getCensus())) {
-            throw new CustomException(NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE, NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE);
         }
 
         return censusResponse;
