@@ -75,39 +75,39 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
-    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(IBoundaryValidator.class)
-                    || validator.getClass().equals(IsDeletedValidator.class)
-                    || validator.getClass().equals(IsDeletedSubEntityValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class)
-                    || validator.getClass().equals(AddressTypeValidator.class)
-                    || validator.getClass().equals(RowVersionValidator.class)
-                    || validator.getClass().equals(UniqueEntityValidator.class)
-                    || validator.getClass().equals(UniqueSubEntityValidator.class)
-                    || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidator.class);
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator -> validator
+            .getClass().equals(NullIdValidator.class)
+            || validator.getClass().equals(IBoundaryValidator.class)
+            || validator.getClass().equals(IsDeletedValidator.class)
+            || validator.getClass().equals(IsDeletedSubEntityValidator.class)
+            || validator.getClass().equals(NonExistentEntityValidator.class)
+            || validator.getClass().equals(AddressTypeValidator.class)
+            || validator.getClass().equals(RowVersionValidator.class)
+            || validator.getClass().equals(UniqueEntityValidator.class)
+            || validator.getClass().equals(UniqueSubEntityValidator.class)
+            || validator.getClass().equals(MobileNumberValidator.class)
+            || validator.getClass().equals(AadharNumberValidator.class);
 
-    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
-            validator.getClass().equals(AddressTypeValidator.class)
-                    || validator.getClass().equals(IExistentEntityValidator.class)
-                    || validator.getClass().equals(IBoundaryValidator.class)
-                    || validator.getClass().equals(UniqueSubEntityValidator.class)
-                    || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidatorForCreate.class);
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator -> validator
+            .getClass().equals(AddressTypeValidator.class)
+            || validator.getClass().equals(IExistentEntityValidator.class)
+            || validator.getClass().equals(IBoundaryValidator.class)
+            || validator.getClass().equals(UniqueSubEntityValidator.class)
+            || validator.getClass().equals(MobileNumberValidator.class)
+            || validator.getClass().equals(AadharNumberValidatorForCreate.class);
 
-    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class);
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator -> validator
+            .getClass().equals(NullIdValidator.class)
+            || validator.getClass().equals(NonExistentEntityValidator.class);
 
     @Autowired
     public IndividualService(IndividualRepository individualRepository,
-                             List<Validator<IndividualBulkRequest, Individual>> validators,
-                             IndividualProperties properties,
-                             EnrichmentService enrichmentService,
-                             IndividualEncryptionService individualEncryptionService,
-                             UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+            List<Validator<IndividualBulkRequest, Individual>> validators,
+            IndividualProperties properties,
+            EnrichmentService enrichmentService,
+            IndividualEncryptionService individualEncryptionService,
+            UserIntegrationService userIntegrationService,
+            NotificationService notificationService) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -123,7 +123,7 @@ public class IndividualService {
         List<Individual> individuals = create(bulkRequest, false);
 
         // check if sms feature is enable for the environment role
-        if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
+        if (properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
             notificationService.sendNotification(request, true);
         return individuals;
     }
@@ -141,8 +141,9 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 // integrate with user service create call
-                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
-                //encrypt PII data
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE,
+                        errorDetailsMap);
+                // encrypt PII data
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
@@ -156,15 +157,16 @@ public class IndividualService {
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-        //decrypt
+        // decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         return decryptedIndividualList;
     }
 
-    private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
-                                                                            Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate,
-                                                                            IndividualBulkRequest request, boolean isBulk) {
+    private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(
+            List<Validator<IndividualBulkRequest, Individual>> validators,
+            Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate,
+            IndividualBulkRequest request, boolean isBulk) {
         log.info("validating request");
         Map<Individual, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicableForCreate, request,
@@ -175,7 +177,7 @@ public class IndividualService {
                 List<Error> errors = entry.getValue().getErrors();
                 hashset.addAll(errors.stream().map(error -> error.getErrorCode()).collect(Collectors.toSet()));
             }
-            throw new CustomException(String.join(":",  hashset), errorDetailsMap.values().toString());
+            throw new CustomException(String.join(":", hashset), errorDetailsMap.values().toString());
         }
         List<Individual> validIndividuals = request.getIndividuals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
@@ -188,7 +190,7 @@ public class IndividualService {
         List<Individual> individuals = update(bulkRequest, false);
 
         // check if sms feature is enable for the environment role
-        if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
+        if (properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
             notificationService.sendNotification(request, false);
         return individuals;
     }
@@ -217,8 +219,8 @@ public class IndividualService {
                     individualsToEncrypt = validIndividuals.stream().map(individual -> {
                         if (!maskedIdentifiers.isEmpty()) {
                             individual.getIdentifiers().removeAll(maskedIdentifiers
-                                    .stream().filter(identifier ->
-                                            identifier.getIndividualId().equals(individual.getId()))
+                                    .stream()
+                                    .filter(identifier -> identifier.getIndividualId().equals(individual.getId()))
                                     .collect(Collectors.toList()));
                         }
                         return individual;
@@ -226,17 +228,19 @@ public class IndividualService {
                 }
 
                 // integrate with user service update call
-                individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE, errorDetailsMap);
+                individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE,
+                        errorDetailsMap);
 
                 // encrypt new data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, individualsToEncrypt, "IndividualEncrypt", isBulk);
 
-
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
-                List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
-                        "id", false).getResponse();
+                List<Individual> existingIndividuals = individualRepository
+                        .findById(new ArrayList<>(idToObjMap.keySet()),
+                                "id", false)
+                        .getResponse();
 
                 if (identifiersPresent) {
                     // extract existing identifiers (encrypted) from existing individuals
@@ -244,8 +248,10 @@ public class IndividualService {
                             .map(Individual::getIdentifiers)
                             .filter(Objects::nonNull)
                             .flatMap(Collection::stream).collect(Collectors.groupingBy(Identifier::getIndividualId));
-                    // merge existing identifiers with new identifiers such that they all are encrypted alike
-                    // this is because we cannot merge masked identifiers with new identifiers which are now encrypted
+                    // merge existing identifiers with new identifiers such that they all are
+                    // encrypted alike
+                    // this is because we cannot merge masked identifiers with new identifiers which
+                    // are now encrypted
                     encryptedIndividualList.forEach(encryptedIndividual -> {
                         List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
                         List<String> newIdentifiersIds = getIdList(newIdentifiers);
@@ -268,25 +274,26 @@ public class IndividualService {
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
-        //decrypt
+        // decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         return decryptedIndividualList;
     }
 
     private List<Identifier> filterMaskedIdentifiers(List<Individual> validIndividuals) {
-        return validIndividuals.stream().map(Individual::getIdentifiers).filter(Objects::nonNull).flatMap(Collection::stream)
+        return validIndividuals.stream().map(Individual::getIdentifiers).filter(Objects::nonNull)
+                .flatMap(Collection::stream)
                 .filter(identifier -> identifier.getIdentifierId().contains("*"))
                 .collect(Collectors.toList());
     }
 
-   public SearchResponse<Individual> search(IndividualSearch individualSearch,
-                                             Integer limit,
-                                             Integer offset,
-                                             String tenantId,
-                                             Long lastChangedSince,
-                                             Boolean includeDeleted,
-                                             RequestInfo requestInfo) {
+    public SearchResponse<Individual> search(IndividualSearch individualSearch,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Long lastChangedSince,
+            Boolean includeDeleted,
+            RequestInfo requestInfo) {
         SearchResponse<Individual> searchResponse;
         List<Individual> encryptedIndividualList;
 
@@ -316,8 +323,7 @@ public class IndividualService {
                         tenantId,
                         limit,
                         offset,
-                        includeDeleted
-                );
+                        includeDeleted);
 
                 List<Individual> decryptedIndividuals = response.getResponse().isEmpty()
                         ? Collections.emptyList()
@@ -332,16 +338,19 @@ public class IndividualService {
             }
         }
 
-        //  Else: Normal encrypted search
+        // Else: Normal encrypted search
         else {
             IndividualSearch encryptedIndividualSearch;
 
             if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch,
+                        "IndividualSearchIdentifierEncrypt");
             } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch,
+                        "IndividualSearchMobileNumberEncrypt");
             } else {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchEncrypt");
+                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch,
+                        "IndividualSearchEncrypt");
             }
 
             try {
@@ -354,12 +363,12 @@ public class IndividualService {
             }
         }
 
-        //  Filter by boundary code if needed
+        // Filter by boundary code if needed
         encryptedIndividualList = encryptedIndividualList.stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                 .collect(Collectors.toList());
 
-        //  Decrypt before returning
+        // Decrypt before returning
         List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
                 ? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
                 : encryptedIndividualList;
@@ -367,7 +376,6 @@ public class IndividualService {
         searchResponse.setResponse(decryptedIndividualList);
         return searchResponse;
     }
-
 
     private Predicate<Individual> havingBoundaryCode(String boundaryCode, String wardCode) {
         if (boundaryCode == null && wardCode == null) {
@@ -402,7 +410,8 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
                 // integrate with user service delete call
-                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.DELETE, errorDetailsMap);
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.DELETE,
+                        errorDetailsMap);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
             }
@@ -423,8 +432,8 @@ public class IndividualService {
     }
 
     private List<Individual> integrateWithUserService(IndividualBulkRequest request,
-                                          List<Individual> individualList, ApiOperation apiOperation,
-                                          Map<Individual, ErrorDetails> errorDetails) {
+            List<Individual> individualList, ApiOperation apiOperation,
+            Map<Individual, ErrorDetails> errorDetails) {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
@@ -435,8 +444,8 @@ public class IndividualService {
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
                         if (Boolean.TRUE.equals(individual.getIsSystemUser())) {
-                        List<UserRequest> userRequests = userIntegrationService.createUser(individual,
-                                request.getRequestInfo());
+                            List<UserRequest> userRequests = userIntegrationService.createUser(individual,
+                                    request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
                         }
@@ -463,15 +472,17 @@ public class IndividualService {
         }
         return validIndividuals;
     }
+
     Boolean isSmsEnabledForRole(IndividualRequest request) {
         if (CollectionUtils.isEmpty(properties.getSmsDisabledRoles()))
             return true;
         List<String> smsDisabledRoles = properties.getSmsDisabledRoles();
         List<String> roleCodes = new ArrayList<>();
-        if(request != null && request.getIndividual() != null && request.getIndividual().getUserDetails() != null
+        if (request != null && request.getIndividual() != null && request.getIndividual().getUserDetails() != null
                 && request.getIndividual().getUserDetails().getRoles() != null) {
             // get the role codes from the list of roles
-            roleCodes = request.getIndividual().getUserDetails().getRoles().stream().map(Role::getCode).collect(Collectors.toList());
+            roleCodes = request.getIndividual().getUserDetails().getRoles().stream().map(Role::getCode)
+                    .collect(Collectors.toList());
         }
         for (String smsDisabledRole : smsDisabledRoles) {
             if (roleCodes.contains(smsDisabledRole))
