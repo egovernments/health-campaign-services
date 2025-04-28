@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.core.Pagination;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdMember;
@@ -41,11 +42,17 @@ import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncReq
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
+import org.egov.common.models.service.ServiceCriteria;
+import org.egov.common.models.service.ServiceResponse;
+import org.egov.common.models.service.ServiceSearchRequest;
+import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+
+import static org.egov.referralmanagement.Constants.HOUSEHOLD;
 
 @Service
 @Slf4j
@@ -90,11 +97,10 @@ public class DownsyncService {
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
-        List<String> householdIds = null;
-        Set<String> individualIds = null;
         List<String> individualClientRefIds = null;
         List<String> beneficiaryClientRefIds = null;
         List<String> taskClientRefIds = null;
+        List<String> householdClientRefIds = null;
 
 
         downsync.setDownsyncCriteria(downsyncCriteria);
@@ -104,16 +110,16 @@ public class DownsyncService {
         LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 
         /* search household */
-        householdIds = searchHouseholds(downsyncRequest, downsync);
+        householdClientRefIds = searchHouseholds(downsyncRequest, downsync);
 
         /* search household member using household ids */
-        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(householdIds)) {
-            individualIds = searchMembers(downsyncRequest, downsync, householdIds);
+        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(householdClientRefIds)) {
+            individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
         }
 
         /* search individuals using individual ids */
-        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(individualIds) ) {
-            individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualIds);
+        if (isSyncTimeAvailable || !CollectionUtils.isEmpty(individualClientRefIds) ) {
+            searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
         }
 
         /* search beneficiary using individual ids OR household ids */
@@ -122,8 +128,8 @@ public class DownsyncService {
 
         beneficiaryClientRefIds = individualClientRefIds;
 
-        if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
-            beneficiaryClientRefIds = downsync.getHouseholds().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+        if(HOUSEHOLD.equalsIgnoreCase(beneficiaryType))
+            beneficiaryClientRefIds = householdClientRefIds;
 
         //fetch beneficiary in the db
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
@@ -142,6 +148,10 @@ public class DownsyncService {
 
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(taskClientRefIds)) {
             searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
+        }
+
+        if (configs.getServiceRequestDownsyncEnabled()) {
+            searchServices(downsyncRequest, downsync, individualClientRefIds, householdClientRefIds);
         }
 
         return downsync;
@@ -180,32 +190,34 @@ public class DownsyncService {
         if(CollectionUtils.isEmpty(households))
             return Collections.emptyList();
 
-        return households.stream().map(Household::getId).collect(Collectors.toList());
+        return households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
     }
 
     /**
      *
      * @param downsyncRequest
      * @param downsync
-     * @param individualIds
+     * @param individualClientRefIds individual client reference ids
      * @return individual ClientReferenceIds
      */
     private List<String> searchIndividuals(DownsyncRequest downsyncRequest, Downsync downsync,
-                                           Set<String> individualIds) {
+                                           List<String> individualClientRefIds) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
+        List<String> individualIds = getPrimaryIds(individualClientRefIds, "clientReferenceId", "INDIVIDUAL", criteria.getLastSyncedTime());
+
+        if (CollectionUtils.isEmpty(individualClientRefIds))
+            return Collections.emptyList();
+
         StringBuilder url = new StringBuilder(configs.getIndividualHost())
                 .append(configs.getIndividualSearchUrl());
-
         url = appendUrlParams(url, criteria, 0, individualIds.size(),true);
 
         IndividualSearch individualSearch = IndividualSearch.builder()
+                .id(individualIds)
                 .build();
-
-        if(!CollectionUtils.isEmpty(individualIds))
-            individualSearch.setId(new ArrayList<>(individualIds));
 
         IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
                 .individual(individualSearch)
@@ -221,26 +233,83 @@ public class DownsyncService {
     /**
      *
      * @param downsyncRequest
-     * @param householdIds
+     * @param downsync
+     * @param individualIds individual client reference ids
+     * @param householdIds household client reference ids
+     */
+    private void searchServices(DownsyncRequest downsyncRequest, Downsync downsync,
+                                           List<String> individualIds, List<String> householdIds) {
+        if (CollectionUtils.isEmpty(householdIds) && CollectionUtils.isEmpty(individualIds)) {
+            return;
+        }
+
+        DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+
+        StringBuilder url = new StringBuilder(configs.getServiceRequestHost())
+                .append(configs.getServiceRequestServiceSearchUrl());
+
+        List<String> referenceIds = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(householdIds)) referenceIds.addAll(householdIds);
+        if (!CollectionUtils.isEmpty(individualIds)) referenceIds.addAll(individualIds);
+
+        List<org.egov.common.models.service.Service> allServices = new ArrayList<>();
+
+        int batchSize = configs.getServiceRequestSearchBatchSize();
+
+        for (int i = 0; i < referenceIds.size(); i += batchSize) {
+            List<String> batch = referenceIds.subList(i, Math.min(i + batchSize, referenceIds.size()));
+
+            ServiceCriteria serviceCriteria = ServiceCriteria.builder()
+                    .tenantId(criteria.getTenantId())
+                    .referenceIds(batch)
+                    .build();
+
+            Pagination pagination = Pagination.builder()
+                    .offset(0)
+                    .limit(batch.size())
+                    .build();
+
+            ServiceSearchRequest searchRequest = ServiceSearchRequest.builder()
+                    .serviceCriteria(serviceCriteria)
+                    .pagination(pagination)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<org.egov.common.models.service.Service> services =
+                    restClient.fetchResult(url, searchRequest, ServiceResponse.class).getServices();
+
+            if (services != null) {
+                allServices.addAll(services);
+            }
+        }
+
+        downsync.setServices(allServices);
+    }
+
+    /**
+     *
+     * @param downsyncRequest
+     * @param householdClientReferenceIds
      * @return
      */
-    private Set<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
-                                      List<String> householdIds) {
+    private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
+                                                      List<String> householdClientReferenceIds) {
 
         Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
 
-        List<String> memberids = getPrimaryIds(householdIds, "householdId","HOUSEHOLD_MEMBER",lastChangedSince);
+        List<String> memberIds = getPrimaryIds(householdClientReferenceIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
 
-        if (CollectionUtils.isEmpty(memberids))
-            return Collections.emptySet();
+        if (CollectionUtils.isEmpty(householdClientReferenceIds))
+            return Collections.emptyList();
 
         StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
                 .append(configs.getHouseholdMemberSearchUrl());
 
-        appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, householdIds.size(), false);
+        appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, memberIds.size(), false);
 
         HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
-                .id(memberids)
+                .id(memberIds)
                 .build();
 
         HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
@@ -251,7 +320,7 @@ public class DownsyncService {
         List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
         downsync.setHouseholdMembers(members);
 
-        return members.stream().map(HouseholdMember::getIndividualId).collect(Collectors.toSet());
+        return members.stream().map(HouseholdMember::getIndividualClientReferenceId).collect(Collectors.toList());
     }
 
     /**

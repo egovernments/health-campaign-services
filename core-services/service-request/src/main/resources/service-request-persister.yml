@@ -119,10 +119,12 @@ serviceMaps:
             - jsonPath: $.Service.clientId
 
 
-        - query: INSERT INTO eg_service_attribute_value(id, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO eg_service_attribute_value(id, clientReferenceId, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.Service.attributes.*
           jsonMaps:
             - jsonPath: $.Service.attributes.*.id
+
+            - jsonPath: $.Service.attributes.*.clientReferenceId
 
             - jsonPath: $.Service.attributes.*.referenceId
 
