@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
@@ -53,7 +54,6 @@ public class IndividualRepository extends GenericRepository<Individual> {
         super(producer, namedParameterJdbcTemplate, redisTemplate,
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
-
     public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound = new ArrayList<>();
         try {
@@ -76,7 +76,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
+        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN )",
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
@@ -88,6 +88,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
     }
+
 
     public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
                                            String tenantId, Long lastChangedSince, Boolean includeDeleted) {
@@ -132,6 +133,46 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return SearchResponse.<Individual>builder().build();
         }
     }
+    public SearchResponse<Individual> findByName(String givenName, String familyName, String otherNames, String tenantId, Integer limit, Integer offset, Boolean includeDeleted) {
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = "SELECT * FROM individual WHERE tenantId = :tenantId";
+
+        if (StringUtils.isNotBlank(givenName)) {
+            query += " AND givenName ILIKE :givenName";
+            paramsMap.put("givenName", "%" + givenName + "%");
+        }
+
+        if (StringUtils.isNotBlank(familyName)) {
+            query += " AND familyName ILIKE :familyName";
+            paramsMap.put("familyName", "%" + familyName + "%");
+        }
+
+        if (StringUtils.isNotBlank(otherNames)) {
+            query += " AND otherNames ILIKE :otherNames";
+            paramsMap.put("otherNames", "%" + otherNames + "%");
+        }
+
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += " AND isDeleted = false";
+        }
+
+        query += " ORDER BY createdTime DESC LIMIT :limit OFFSET :offset";
+
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+
+        return SearchResponse.<Individual>builder()
+                .totalCount((long) individuals.size())
+                .response(individuals)
+                .build();
+    }
+
+
+
+
 
     /**
      * @param query
@@ -226,7 +267,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
         if (searchObject.getIndividualName() != null) {
-            query = query + "AND givenname ILIKE :individualName ";
+            query =  query + "AND CONCAT_WS(' ', givenname, familyname, othername) ILIKE :individualName ";
             paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
         }
         if (searchObject.getGender() != null) {
@@ -285,14 +326,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     .map(Object::toString)
                     .collect(Collectors.toList()));
         }
-      
+
         if (searchObject.getUserUuid() != null) {
             query = query + "AND userUuid in (:userUuid) ";
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
-      
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
