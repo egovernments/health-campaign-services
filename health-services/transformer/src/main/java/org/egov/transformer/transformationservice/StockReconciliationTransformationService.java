@@ -107,13 +107,16 @@ public class StockReconciliationTransformationService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         String productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(stockReconciliation.getProductVariantId()), tenantId));
 
+        String dpName = localityCode != null ? boundaryService.getLocalizedBoundaryName((localityCode + "_DP"),
+                null, tenantId) : null;
+
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
                 .facilityName(facility != null ? facility.getName() : stockReconciliation.getFacilityId())
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .facilityType(facilityType)
                 .facilityTarget(facilityTarget)
                 .facilityLevel(facilityLevel)

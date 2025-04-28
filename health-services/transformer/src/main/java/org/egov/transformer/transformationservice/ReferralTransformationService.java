@@ -76,7 +76,7 @@ public class ReferralTransformationService {
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
-
+        String dpName = null;
         String projectTypeId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
@@ -88,6 +88,8 @@ public class ReferralTransformationService {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+                String dpCode = individualDetails.get(ADDRESS_CODE) + "_DP";
+                dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId );
             } else {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -116,7 +118,7 @@ public class ReferralTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)

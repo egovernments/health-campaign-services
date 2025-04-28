@@ -123,6 +123,11 @@ public class AttendanceTransformationService {
         Individual individual = individualService.getIndividualById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
         String individualUsername;
         String projectTypeId = null;
+        String dpName = null;
+        if (StringUtils.isNotBlank(attendanceRegister.getLocalityCode())) {
+            dpName = boundaryService.getLocalizedBoundaryName(attendanceRegister.getLocalityCode() + "_DP",
+                    null, attendanceRegister.getTenantId());
+        }
         if(individual.getUserDetails() != null) {
             individualUsername = individual.getUserDetails().getUsername();
             attendanceLog.setUserName(individualUsername);
@@ -143,7 +148,7 @@ public class AttendanceTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime().longValue()))
                 .registerName(attendanceRegister != null ? attendanceRegister.getName() : null)
                 .registerServiceCode(attendanceRegister != null ? attendanceRegister.getServiceCode() : null)

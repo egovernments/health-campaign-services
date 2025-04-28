@@ -72,13 +72,17 @@ public class ProjectTaskTransformationService {
         Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
+        String dpName;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
+            String dp_Code = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dp_Code, null, tenantId);
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
             localityCode = null;
+            dpName = null;
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
@@ -94,13 +98,13 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode,dpName)
         ).collect(Collectors.toList());
     }
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
-                                                               Map<String, String> userInfoMap, String localityCode) {
+                                                               Map<String, String> userInfoMap, String localityCode, String dpName) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = Optional.ofNullable(taskResource.getProductVariantId())
                 .map(Collections::singletonList)
@@ -122,7 +126,7 @@ public class ProjectTaskTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .productVariant(taskResource.getProductVariantId())
                 .productName(productName)
                 .isDelivered(taskResource.getIsDelivered())

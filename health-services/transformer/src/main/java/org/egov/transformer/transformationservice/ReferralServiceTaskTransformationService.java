@@ -71,10 +71,14 @@ public class ReferralServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         BoundaryHierarchyResult boundaryHierarchyResult;
+        String dpName;
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(service.getAdditionalFields(), service.getAdditionalDetails());
         if (localityCode != null) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
+            String dpCode = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId );
         } else {
+            dpName = null;
             boundaryHierarchyResult = boundaryService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
         }
 //        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
@@ -105,7 +109,7 @@ public class ReferralServiceTaskTransformationService {
                         .projectId(finalProjectId)
                         .userName(userInfoMap.get(USERNAME))
                         .role(userInfoMap.get(ROLE))
-                        .userAddress(userInfoMap.get(CITY))
+                        .userAddress(dpName)
                         .createdTime(service.getAuditDetails().getCreatedTime())
                         .syncedTime(service.getAuditDetails().getCreatedTime())
                         .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
