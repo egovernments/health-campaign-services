@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
@@ -17,8 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -76,16 +79,24 @@ public class SeExistentEntityValidator implements Validator<SideEffectBulkReques
 
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
+            String tenantId = getTenantId(entities);
             // Query the repository to find existing SideEffect entities with the given client reference IDs
-            List<String> existingClientReferenceIds = sideEffectRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
-
-            // For each existing client reference ID, add an error to the map for the corresponding SideEffect entity
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual SideEffect entity associated with the client reference ID
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+            List<String> existingClientReferenceIds = null;
+            try {
+                existingClientReferenceIds = sideEffectRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
+                // For each existing client reference ID, add an error to the map for the corresponding SideEffect entity
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual SideEffect entity associated with the client reference ID
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                map.values().forEach(sideEffect -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(sideEffect, error, errorDetailsMap);
+                });
+            }
         }
 
         // Return the map containing SideEffect entities and their associated error details

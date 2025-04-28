@@ -12,6 +12,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralSearch;
@@ -26,6 +27,7 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
@@ -41,9 +43,10 @@ public class ReferralRepository extends GenericRepository<Referral> {
     }
 
     public SearchResponse<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
-                               Long lastChangedSince, Boolean includeDeleted) {
+                               Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
       
-        String query = "SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.referralCode, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
+        String query = String.format("SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.referralCode, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM %s.referral r left join %s.side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid",
+                SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -69,6 +72,8 @@ public class ReferralRepository extends GenericRepository<Referral> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
         query = query + "ORDER BY r.createdtime ASC LIMIT :limit OFFSET :offset";
@@ -78,8 +83,8 @@ public class ReferralRepository extends GenericRepository<Referral> {
         return SearchResponse.<Referral>builder().response(referralList).totalCount(totalCount).build();
     }
 
-    public SearchResponse<Referral> findById(List<String> ids, String columnName,  Boolean includeDeleted) {
-        List<Referral> objFound = findInCache(ids);
+    public SearchResponse<Referral> findById(String tenantId, List<String> ids, String columnName,  Boolean includeDeleted) throws InvalidTenantIdException {
+        List<Referral> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
                     .filter(entity -> entity.getIsDeleted().equals(false))
@@ -95,12 +100,14 @@ public class ReferralRepository extends GenericRepository<Referral> {
             }
         }
 
-        String query = String.format("SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.referralCode, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.referralCode, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM %s.referral r left join %s.side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ",
+                SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, columnName);
         if (includeDeleted == null || !includeDeleted) {
             query += " AND r.isDeleted = false ";
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Referral> referralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
         objFound.addAll(referralList);

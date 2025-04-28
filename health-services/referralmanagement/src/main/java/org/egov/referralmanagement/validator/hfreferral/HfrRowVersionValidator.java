@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
@@ -21,8 +22,10 @@ import static org.egov.common.utils.CommonUtils.getEntitiesWithMismatchedRowVers
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 /**
@@ -59,15 +62,24 @@ public class HfrRowVersionValidator implements Validator<HFReferralBulkRequest, 
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
+            String tenantId = getTenantId(request.getHfReferrals());
             List<String> hfReferralIds = new ArrayList<>(iMap.keySet());
-            List<HFReferral> existingHfReferrals = hfReferralRepository.findById(hfReferralIds,
-                    getIdFieldName(idMethod), false).getResponse();
-            List<HFReferral> entitiesWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(iMap, existingHfReferrals, idMethod);
-            entitiesWithMismatchedRowVersion.forEach(hfReferral -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(hfReferral, error, errorDetailsMap);
-            });
+            List<HFReferral> existingHfReferrals = null;
+            try {
+                existingHfReferrals = hfReferralRepository.findById(tenantId, hfReferralIds,
+                        getIdFieldName(idMethod), false).getResponse();
+                List<HFReferral> entitiesWithMismatchedRowVersion =
+                        getEntitiesWithMismatchedRowVersion(iMap, existingHfReferrals, idMethod);
+                entitiesWithMismatchedRowVersion.forEach(hfReferral -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(hfReferral, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                iMap.values().forEach(hfReferral -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(hfReferral, error, errorDetailsMap);
+                });
+            }
         }
         return errorDetailsMap;
     }

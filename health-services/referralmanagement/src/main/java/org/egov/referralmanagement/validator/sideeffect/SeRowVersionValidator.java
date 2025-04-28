@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
@@ -21,8 +22,10 @@ import static org.egov.common.utils.CommonUtils.getEntitiesWithMismatchedRowVers
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 /*
@@ -69,17 +72,26 @@ public class SeRowVersionValidator implements Validator<SideEffectBulkRequest, S
                 .collect(Collectors.toList()),idMethod);
         // Check if the map of IDs to SideEffect entities is not empty
         if(!iMap.isEmpty()){
+            String tenantId = getTenantId(sideEffectBulkRequest.getSideEffects());
             List<String> sideEffectIds = new ArrayList<>(iMap.keySet());
             // Retrieve existing SideEffect entities from the repository
-            List<SideEffect> existingSideEffects = sideEffectRepository
-                    .findById(sideEffectIds,false,getIdFieldName(idMethod));
-            // Identify entities with mismatched row versions
-            List<SideEffect> entitiesWithMismatchedRowVersion = getEntitiesWithMismatchedRowVersion(iMap, existingSideEffects, idMethod);
-            // Populate error details for entities with mismatched row versions
-            entitiesWithMismatchedRowVersion.forEach(sideEffect -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(sideEffect, error, errorDetailsMap);
-            });
+            List<SideEffect> existingSideEffects = null;
+            try {
+                existingSideEffects = sideEffectRepository
+                        .findById(tenantId, sideEffectIds,false,getIdFieldName(idMethod));
+                // Identify entities with mismatched row versions
+                List<SideEffect> entitiesWithMismatchedRowVersion = getEntitiesWithMismatchedRowVersion(iMap, existingSideEffects, idMethod);
+                // Populate error details for entities with mismatched row versions
+                entitiesWithMismatchedRowVersion.forEach(sideEffect -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(sideEffect, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                iMap.values().forEach(sideEffect -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(sideEffect, error, errorDetailsMap);
+                });
+            }
          }
         return errorDetailsMap;
     }

@@ -12,6 +12,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
@@ -26,6 +27,7 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 /**
  * Repository class for managing the persistence and retrieval of HFReferral entities.
@@ -69,9 +71,10 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
      * @return                  A list of HFReferral entities matching the search criteria.
      */
     public SearchResponse<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
-                                 Long lastChangedSince, Boolean includeDeleted) {
+                                 Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
         // Initial query to select HFReferral fields from the table.
-        String query = "SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf";
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf",
+                SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
 
         // Generate WHERE conditions based on non-null fields in the search object.
@@ -103,6 +106,8 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
         query += " LIMIT :limit OFFSET :offset";
@@ -118,14 +123,15 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
     /**
      * Retrieves a list of HFReferrals based on a list of IDs.
      *
+     * @param tenantId          Tenant id to search for.
      * @param ids               The list of IDs to search for.
      * @param includeDeleted    Flag indicating whether to include deleted records.
      * @param columnName        The column name to search for IDs.
      * @return                  A list of HFReferral entities matching the provided IDs.
      */
-    public SearchResponse<HFReferral> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+    public SearchResponse<HFReferral> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
         // Find objects in the cache based on the provided IDs.
-        List<HFReferral> objFound = findInCache(ids);
+        List<HFReferral> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
                     .filter(entity -> entity.getIsDeleted().equals(false))
@@ -146,7 +152,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         }
 
         // Generate a SELECT query based on the provided IDs and column name.
-        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf WHERE hf.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf WHERE hf.%s IN (:ids) ", SCHEMA_REPLACE_STRING, columnName);
 
         // Add conditions to exclude deleted records if includeDeleted is false.
         if (includeDeleted == null || !includeDeleted) {
@@ -156,6 +162,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         // Create parameter map for the query and execute it to retrieve HFReferral entities.
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<HFReferral> hfReferralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
         // Add the retrieved entities to the cache.
