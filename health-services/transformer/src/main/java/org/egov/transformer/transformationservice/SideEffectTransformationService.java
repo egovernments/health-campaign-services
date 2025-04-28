@@ -96,6 +96,8 @@ public class SideEffectTransformationService {
             addSpecificAdditionalFields(task, additionalDetails);
         }
 
+        String dpName = localityCode != null ? boundaryService.getLocalizedBoundaryName(localityCode + "_DP",
+                null, tenantId) : null;
         Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
@@ -114,7 +116,7 @@ public class SideEffectTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .taskDates(commonUtils.getDateFromEpoch(sideEffect.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)

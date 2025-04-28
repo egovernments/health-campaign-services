@@ -196,14 +196,18 @@ public class BoundaryService {
         return boundaryMap;
     }
 
-    private String getLocalizedBoundaryName(String boundaryCode, RequestInfo requestInfo, String tenantId) {
+    public String getLocalizedBoundaryName(String boundaryCode, RequestInfo requestInfo, String tenantId) {
         String cachedName = boundaryCodeVsLocalizedName.get(boundaryCode);
 
         if (cachedName != null) {
             log.info("Fetched localization for code: {} from cache", boundaryCode);
             return cachedName;
         }
-
+        if (requestInfo == null){
+            requestInfo = RequestInfo.builder()
+                    .authToken(transformerProperties.getBoundaryV2AuthToken())
+                    .build();
+        }
         String fetchedName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId);
         if (fetchedName == null) {
             fetchedName = boundaryCode.substring(boundaryCode.lastIndexOf('_') + 1);

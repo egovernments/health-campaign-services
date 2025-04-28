@@ -75,9 +75,12 @@ public class HfServiceTransformationService {
         }
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        String dpName = null;
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(service.getAdditionalFields(),service.getAdditionalDetails());
         if (localityCode != null) {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
+            String dpCode = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId );
         } else {
             boundaryHierarchyResult = boundaryService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
         }
@@ -107,7 +110,7 @@ public class HfServiceTransformationService {
                     .projectId(projectId)
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
-                    .userAddress(userInfoMap.get(CITY))
+                    .userAddress(dpName)
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .syncedTime(service.getAuditDetails().getCreatedTime())
                     .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))

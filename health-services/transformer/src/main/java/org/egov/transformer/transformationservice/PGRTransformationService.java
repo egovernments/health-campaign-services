@@ -64,6 +64,7 @@ public class PGRTransformationService {
         Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
         String localityCode = null;
+        String dpName = null;
         String projectTypeId = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
                 .map(Service::getAddress)
@@ -74,6 +75,8 @@ public class PGRTransformationService {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            String dpCode = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId);
         }
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
@@ -98,7 +101,7 @@ public class PGRTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
