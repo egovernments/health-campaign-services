@@ -125,8 +125,8 @@ public class IdGenerationService {
             Map<String, String> successOrErrorMessage = new HashMap<>();
             log.info("Processing batch index {}: tenantId={}, batchSize={}", index, batch.getTenantId(), batch.getBatchSize());
 
+            String tenantId = batch.getTenantId();
             try {
-                String tenantId = batch.getTenantId();
                 Integer originalBatchSize = batch.getBatchSize();
 
                 if (originalBatchSize <= 0) {
@@ -146,10 +146,10 @@ public class IdGenerationService {
                 persistToKafka(requestInfo, generatedIds, tenantId);
                 log.info("Successfully pushed IDs to Kafka for tenant {}", tenantId);
 
-                successOrErrorMessage.put(Integer.toString(index), "ID Generation has been processed");
+                successOrErrorMessage.put(tenantId, "ID Generation has been processed");
             } catch (Exception e) {
                 log.error("Error processing batch index {}: {}", index, e.getMessage(), e);
-                successOrErrorMessage.put(Integer.toString(index), e.getMessage());
+                successOrErrorMessage.put(tenantId, e.getMessage());
             }
 
             feedback.add(successOrErrorMessage);
