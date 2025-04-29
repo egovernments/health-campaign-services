@@ -33,5 +33,5 @@ public class Error {
 	private String description = null;
 
 	@JsonProperty("params")
-	private Map<String, String> fields = new HashMap<String, String>();
+	private Map<String, String> fileds = new HashMap<String, String>();
 }
