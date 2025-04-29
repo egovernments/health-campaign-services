@@ -287,22 +287,32 @@ public class IndividualService {
                                              Long lastChangedSince,
                                              Boolean includeDeleted,
                                              RequestInfo requestInfo) {
-        SearchResponse<Individual> searchResponse;
-        List<Individual> encryptedIndividualList;
+        SearchResponse<Individual> searchResponse = null;
 
         String idFieldName = getIdFieldName(individualSearch);
-
-        //  First: If ID is provided, search by ID
+        List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
-            try {
-                searchResponse = individualRepository.findById(individualSearch.getId(), idFieldName, includeDeleted);
-                encryptedIndividualList = searchResponse.getResponse();
-            } catch (Exception e) {
-                log.error("Error during ID-based search: {}", ExceptionUtils.getStackTrace(e));
-                throw new CustomException("ID_SEARCH_FAILED", e.getMessage());
-            }
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(individualSearch)),
+                    individualSearch);
+
+            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+
+            encryptedIndividualList = searchResponse.getResponse().stream()
+                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
+                    .collect(Collectors.toList());
+            //decrypt
+            List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
+                    ? individualEncryptionService.decrypt(encryptedIndividualList,
+                    "IndividualDecrypt", requestInfo)
+                    : encryptedIndividualList;
+
+            searchResponse.setResponse(decryptedIndividualList);
+
+            return searchResponse;
         }
-        //  Second: If Name is provided (givenName, familyName, or otherNames)
         else if (individualSearch.getName() != null) {
             try {
                 String givenName = individualSearch.getName().getGivenName();
@@ -331,38 +341,37 @@ public class IndividualService {
                 throw new CustomException("NAME_SEARCH_FAILED", ex.getMessage());
             }
         }
-        //  Else: Normal encrypted search
-        else {
-            IndividualSearch encryptedIndividualSearch;
-            if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
-            } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
-            } else {
-                encryptedIndividualSearch = individualEncryptionService.encrypt(individualSearch, "IndividualSearchEncrypt");
-            }
-            
-            try {
-                searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
-                        lastChangedSince, includeDeleted);
-                encryptedIndividualList = searchResponse.getResponse();
-            } catch (Exception exception) {
-                log.error("Database error occurred during default search", ExceptionUtils.getStackTrace(exception));
-                throw new CustomException("DATABASE_ERROR", exception.getMessage());
-            }
+
+        //encrypt search criteria
+        IndividualSearch encryptedIndividualSearch;
+        if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+        } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+        } else {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchEncrypt");
         }
-
-        //  Filter by boundary code if needed
-        encryptedIndividualList = encryptedIndividualList.stream()
-                .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
-                .collect(Collectors.toList());
-
-        //  Decrypt before returning
-        List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
-                ? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
+        try {
+            searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
+                    lastChangedSince, includeDeleted);
+            encryptedIndividualList = searchResponse.getResponse().stream()
+                    .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
+                    .collect(Collectors.toList());
+        } catch (Exception exception) {
+            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
+            throw new CustomException("DATABASE_ERROR", exception.getMessage());
+        }
+        //decrypt
+        List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
+                ? individualEncryptionService.decrypt(encryptedIndividualList,
+                "IndividualDecrypt", requestInfo)
                 : encryptedIndividualList;
 
         searchResponse.setResponse(decryptedIndividualList);
+
         return searchResponse;
     }
 
