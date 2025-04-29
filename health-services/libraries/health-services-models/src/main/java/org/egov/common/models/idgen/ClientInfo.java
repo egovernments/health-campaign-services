@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class DispatchUserInfo {
+public class ClientInfo {
 
     @JsonProperty("tenantId")
     @NotNull

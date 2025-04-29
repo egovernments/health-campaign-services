@@ -38,7 +38,7 @@ public class IdRecordBulkRequest {
     @Size(min = 1)
     private List<IdRecord> idRecords = new ArrayList<>();
 
-    public org.egov.common.models.idgen.IdRecordBulkRequest addIdRecordItem(IdRecord idRecord) {
+    public IdRecordBulkRequest addIdRecordItem(IdRecord idRecord) {
         this.idRecords.add(idRecord);
         return this;
     }

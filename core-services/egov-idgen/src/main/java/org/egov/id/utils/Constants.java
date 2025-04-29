@@ -6,4 +6,5 @@ public interface Constants {
     String VALIDATION_ERROR = "VALIDATION_ERROR";
     String SYSTEM_GENERATED = "SYSTEM_GENERATED";
     String SYSTEM_UPDATED = "SYSTEM_UPDATED";
+    String ID_STATUS = "ID_STATUS";
 }

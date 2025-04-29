@@ -69,13 +69,13 @@ public class IdGenService {
 
     public IdDispatchResponse searchIdRecord(List<String> ids, String status, String tenantId, RequestInfo requestInfo) {
 
-        IdStatus statusForReq = null;
-        if (!StringUtils.isEmpty(status)) statusForReq = IdStatus.valueOf(status);
+        IdStatus idStatus = null;
+        if (!StringUtils.isEmpty(status)) idStatus = IdStatus.valueOf(status);
         IdPoolSearchRequest searchRequest = IdPoolSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .idPoolSearch(IdPoolSearch.builder()
                         .idList(ids)
-                        .status(statusForReq)
+                        .status(idStatus)
                         .tenantId(tenantId)
                         .build())
                 .build();

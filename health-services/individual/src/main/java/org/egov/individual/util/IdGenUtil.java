@@ -10,7 +10,6 @@ import org.egov.common.service.IdGenService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,7 +51,7 @@ public class IdGenUtil {
         ).collect(Collectors.toList());
     }
 
-    public void udpateBeneficiaryIds(List<String> beneficiaryIds , String tenantId, RequestInfo requestInfo) {
+    public void updateBeneficiaryIds(List<String> beneficiaryIds , String tenantId, RequestInfo requestInfo) {
         if (!ObjectUtils.isEmpty(beneficiaryIds)) {
 
             List<IdRecord> idRecordsToUpdate = convertIdsToIdRecords(beneficiaryIds, tenantId, requestInfo, IdStatus.ASSIGNED.name());

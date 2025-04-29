@@ -83,11 +83,15 @@ public class IdDispatchService {
             throw new CustomException("VALIDATION EXCEPTION",
                     "Missing User Uuid");
         }
+
+
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
-        int count = request.getUserInfo().getCount();
-        String deviceUuid = request.getUserInfo().getDeviceUuid();
+        int count = request.getClientInfo().getCount();
+        String deviceUuid = request.getClientInfo().getDeviceUuid();
         RequestInfo requestInfo = request.getRequestInfo();
-        String tenantId = request.getUserInfo().getTenantId();
+        String tenantId = request.getClientInfo().getTenantId();
+
+
 
         log.info("Dispatch request received: userUuid={}, deviceUuid={}, tenantId={}, count={}", userUuid, deviceUuid, tenantId, count);
 
@@ -95,11 +99,13 @@ public class IdDispatchService {
 
         int alreadyDispatched = redisRepo.getDispatchedCount(userUuid, deviceUuid);
         log.info("Already dispatched count from Redis for user={} and device={} is {}", userUuid, deviceUuid, alreadyDispatched);
-
+        if (count <= 0 ) {
+            count = Math.min(configuredLimit-alreadyDispatched , configuredLimit);
+        }
 
         // Handle fetch of already allocated IDs
-        if (!ObjectUtils.isEmpty(request.getUserInfo().getFetchAllocatedIds())
-                && request.getUserInfo().getFetchAllocatedIds()) {
+        if (!ObjectUtils.isEmpty(request.getClientInfo().getFetchAllocatedIds())
+                && request.getClientInfo().getFetchAllocatedIds()) {
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
             IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request);
             alreadyDispatched = (int) Math.max(alreadyDispatched, idDispatchResponse.getTotalCount());
@@ -112,11 +118,11 @@ public class IdDispatchService {
 
         validateDispatchRequest(request);
         log.debug("Dispatch request validation passed.");
-        count = request.getUserInfo().getCount();
         fetchLimit = Math.max(0L, configuredLimit - (alreadyDispatched + count));
         log.info("Calculated fetch limit for new IDs: {}", fetchLimit);
 
-        if (alreadyDispatched + count > configuredLimit) {
+
+        if (alreadyDispatched + count >= configuredLimit) {
             log.warn("User {} with device {} exceeded dispatch limit. Allowed={}, Requested={}, Already={}",
                     userUuid, deviceUuid, configuredLimit, count, alreadyDispatched);
             throw new CustomException("ID LIMIT EXCEPTION",
@@ -147,7 +153,7 @@ public class IdDispatchService {
 
         try {
             log.debug("Successfully locked IDs. Proceeding with update and logging.");
-            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getUserInfo().getDeviceInfo(), tenantId, requestInfo);
+            updateStatusesAndLogs(selected, userUuid, deviceUuid, request.getClientInfo().getDeviceInfo(), tenantId, requestInfo);
             redisRepo.incrementDispatchedCount(userUuid, deviceUuid, count);
             log.debug("Dispatch count updated in Redis for user: {} and device: {}", userUuid, deviceUuid);
         } finally {
@@ -166,8 +172,8 @@ public class IdDispatchService {
 
     private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request) {
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
-        String deviceUuid = request.getUserInfo().getDeviceUuid();
-        String tenantId = request.getUserInfo().getTenantId();
+        String deviceUuid = request.getClientInfo().getDeviceUuid();
+        String tenantId = request.getClientInfo().getTenantId();
         log.info("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
         List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
                 tenantId,
@@ -180,6 +186,9 @@ public class IdDispatchService {
                 .map(IdTransactionLog::getId)
                 .collect(Collectors.toList());
         log.info("Extracted {} unique ID(s) from transaction logs: {}", ids.size(), ids);
+        if (ids.isEmpty()) {
+            throw new CustomException("NO IDS Dispatched", "NO IDS Dispatched: No IDs found for the given user and device.");
+        }
         List<IdRecord> records = idRepo.findByIDsAndStatus(ids, null, tenantId);
         log.info("Mapped {} ID(s) to IdRecord(s) from DB", records.size());
 
@@ -240,7 +249,7 @@ public class IdDispatchService {
     }
 
     private void validateDispatchRequest(IdDispatchRequest request) {
-        DispatchUserInfo userInfo = request.getUserInfo();
+        ClientInfo userInfo = request.getClientInfo();
         RequestInfo requestInfo = request.getRequestInfo();
         String userUuid = requestInfo.getUserInfo().getUuid();
         String deviceUuid = userInfo.getDeviceUuid();
@@ -263,9 +272,6 @@ public class IdDispatchService {
         }
 
 
-        if (count <= 0 ) {
-            userInfo.setCount(Math.max(count , configuredLimit));
-        }
 
         log.debug("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
     }

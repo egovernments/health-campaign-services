@@ -18,4 +18,5 @@ public interface Constants {
     String INDIVIDUAL_LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
     String INDIVIDUAL_LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
     String ORG_ADMIN_ROLE_CODE = "ORG_ADMIN";
+    String UNIQUE_BENEFICIARY_ID = "UNIQUE_BENEFICIARY_ID";
 }

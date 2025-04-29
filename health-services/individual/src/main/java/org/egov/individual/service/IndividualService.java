@@ -57,8 +57,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.SET_INDIVIDUALS;
-import static org.egov.individual.Constants.VALIDATION_ERROR;
+import static org.egov.individual.Constants.*;
 
 @Service
 @Slf4j
@@ -160,7 +159,7 @@ public class IndividualService {
                         .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
                                 .orElse(Collections.emptyList())
                                 .stream()
-                                .filter(identifier -> "UNIQUE_BENEFICIARY_ID".equals(identifier.getIdentifierType()))
+                                .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
                                 .findFirst()
                                 .stream())
                         .map(identifier -> String.valueOf(identifier.getIdentifierId()))
@@ -170,7 +169,7 @@ public class IndividualService {
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
-                    idGenUtil.udpateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {

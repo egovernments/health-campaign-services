@@ -20,7 +20,7 @@ public class IdDispatchRequest {
     @JsonProperty("IdDispatchRequest")
     @NotNull
     @Valid
-    private DispatchUserInfo userInfo;
+    private ClientInfo clientInfo;
 
 
 }
