@@ -193,7 +193,7 @@ public class LocationCaptureService {
             log.info("Fetching location capture tasks with ids: {}", ids);
 
             // Perform search by IDs and filter results based on last changed date and tenant ID.
-            SearchResponse<UserAction> searchResponse = locationCaptureRepository.findById(ids, idFieldName);
+            SearchResponse<UserAction> searchResponse = locationCaptureRepository.findById(urlParams.getTenantId(), ids, idFieldName);
             return SearchResponse.<UserAction>builder()
                     .response(searchResponse.getResponse().stream()
                             .filter(lastChangedSince(urlParams.getLastChangedSince()))

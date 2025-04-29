@@ -14,6 +14,7 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskResource;
@@ -31,6 +32,7 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
@@ -47,8 +49,8 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
     }
 
     public SearchResponse<Task> find(TaskSearch searchObject, Integer limit, Integer offset, String tenantId,
-                           Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt  LEFT JOIN address a ON pt.addressid = a.id";
+                           Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.project_task pt  LEFT JOIN %s.address a ON pt.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -71,7 +73,7 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
-
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
         query = query + "ORDER BY pt.id ASC LIMIT :limit OFFSET :offset";
@@ -79,19 +81,20 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         paramsMap.put("offset", offset);
 
         List<Task> taskList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        fetchAndSetTaskResource(taskList);
+        fetchAndSetTaskResource(tenantId, taskList);
 
         return SearchResponse.<Task>builder().response(taskList).totalCount(totalCount).build();
     }
 
-    private void fetchAndSetTaskResource(List<Task> taskList) {
+    private void fetchAndSetTaskResource(String tenantId, List<Task> taskList) throws InvalidTenantIdException {
         if (taskList.isEmpty()) {
             return;
         }
         List<String> taskIds = getIdList(taskList);
         Map<String, Object> resourceParamsMap = new HashMap<>();
-        String resourceQuery = "SELECT * FROM task_resource tr where tr.taskid IN (:taskIds)";
+        String resourceQuery = String.format("SELECT * FROM %s.task_resource tr where tr.taskid IN (:taskIds)", SCHEMA_REPLACE_STRING);
         resourceParamsMap.put("taskIds", taskIds);
+        resourceQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(resourceQuery, tenantId);
         List<TaskResource> taskResourceList = this.namedParameterJdbcTemplate.query(resourceQuery, resourceParamsMap,
                 this.taskResourceRowMapper);
         Map<String, List<TaskResource>> idToObjMap = new HashMap<>();
@@ -109,8 +112,8 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         taskList.forEach(task -> task.setResources(idToObjMap.get(task.getId())));
     }
 
-    public SearchResponse<Task> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Task> objFound = findInCache(ids);
+    public SearchResponse<Task> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
+        List<Task> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
                     .filter(entity -> entity.getIsDeleted().equals(false))
@@ -126,15 +129,16 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
             }
         }
 
-        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id WHERE pt.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.project_task pt LEFT JOIN %s.address a ON pt.addressid = a.id WHERE pt.%s IN (:ids) AND isDeleted = false", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id  WHERE pt.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.project_task pt LEFT JOIN %s.address a ON pt.addressid = a.id  WHERE pt.%s IN (:ids)", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, columnName);
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Task> taskList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
-        fetchAndSetTaskResource(taskList);
+        fetchAndSetTaskResource(tenantId, taskList);
         objFound.addAll(taskList);
         putInCache(objFound);
         return SearchResponse.<Task>builder().response(objFound).build();

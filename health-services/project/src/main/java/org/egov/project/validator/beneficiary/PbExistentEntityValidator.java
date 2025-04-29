@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -17,8 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -83,17 +86,23 @@ public class PbExistentEntityValidator implements Validator<BeneficiaryBulkReque
 
         // Check if the client reference ID list is not empty before querying the database.
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
+            String tenantId = getTenantId(entities);
             // Query the repository to find existing entities with the given client reference IDs.
-            List<String> existingClientReferenceIds =
-                    projectBeneficiaryRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
-
-            // For each existing client reference ID, populate error details for the corresponding ProjectBeneficiary entity.
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation.
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual entity associated with the client reference ID.
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+            try {
+                List<String> existingClientReferenceIds = projectBeneficiaryRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
+                // For each existing client reference ID, populate error details for the corresponding ProjectBeneficiary entity.
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation.
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual entity associated with the client reference ID.
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach(projectBeneficiary -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
+                });
+            }
         }
 
         // Return the map containing ProjectBeneficiary entities and their associated error details.

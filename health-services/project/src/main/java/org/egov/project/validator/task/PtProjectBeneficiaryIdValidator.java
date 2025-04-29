@@ -1,6 +1,7 @@
 package org.egov.project.validator.task;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
@@ -20,9 +21,11 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidRelatedEntityID;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 
 @Component
@@ -62,17 +65,25 @@ public class PtProjectBeneficiaryIdValidator implements Validator<TaskBulkReques
                 columnName = "clientReferenceId";
             }
             entities = entities.stream().filter(notHavingErrors()).collect(Collectors.toList());
-            List<String> existingProjectBeneficiaryIds = projectBeneficiaryRepository
-                    .validateIds(getIdList(entities, idMethod),
-                    columnName);
-            List<Task> invalidEntities = eMap.values().stream().filter(entity ->
-                    !existingProjectBeneficiaryIds
-                            .contains(ReflectionUtils.invokeMethod(idMethod, entity)))
-                            .collect(Collectors.toList());
-            invalidEntities.forEach(task -> {
-                Error error = getErrorForNonExistentRelatedEntity((String) ReflectionUtils.invokeMethod(idMethod, task));
-                populateErrorDetails(task, error, errorDetailsMap);
-            });
+            String tenantId = getTenantId(entities);
+            try {
+                List<String> existingProjectBeneficiaryIds = projectBeneficiaryRepository
+                        .validateIds(tenantId, getIdList(entities, idMethod),
+                        columnName);
+                List<Task> invalidEntities = eMap.values().stream().filter(entity ->
+                                !existingProjectBeneficiaryIds
+                                        .contains(ReflectionUtils.invokeMethod(idMethod, entity)))
+                        .collect(Collectors.toList());
+                invalidEntities.forEach(task -> {
+                    Error error = getErrorForNonExistentRelatedEntity((String) ReflectionUtils.invokeMethod(idMethod, task));
+                    populateErrorDetails(task, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach(task -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(task, error, errorDetailsMap);
+                });
+            }
         }
 
         return errorDetailsMap;

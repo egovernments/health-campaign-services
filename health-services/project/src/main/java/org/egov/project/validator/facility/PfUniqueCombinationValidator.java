@@ -1,6 +1,7 @@
 package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -14,9 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForDuplicateMapping;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.project.Constants.PIPE;
 import static org.egov.project.Constants.PROJECT_ID;
 
@@ -58,20 +61,27 @@ public class PfUniqueCombinationValidator implements Validator<ProjectFacilityBu
         log.info("validating {} valid entities", validEntities.size());
         List<String> projectIds = validEntities.stream().map(ProjectFacility::getProjectId)
                 .collect(Collectors.toList());
+        String tenantId = getTenantId(validEntities);
 
-        List<ProjectFacility> existingProjectFacilities = projectFacilityRepository.findById(projectIds,
-                false, PROJECT_ID);
-
-        Map<String, ProjectFacility> existingIdMap = getMap(existingProjectFacilities);
-        validEntities.stream().filter(entity -> {
-            String combinationId = entity.getFacilityId() + PIPE + entity.getProjectId();
-            return existingIdMap.containsKey(combinationId)
-                    && (entity.getId() == null || !entity.getId().equals(existingIdMap.get(combinationId).getId()));
-        }).forEach(entity -> {
-            Error error = getErrorForDuplicateMapping(entity.getProjectId(),
-                    entity.getFacilityId());
-            populateErrorDetails(entity, error, errorDetailsMap);
-        });
+        try {
+            List<ProjectFacility> existingProjectFacilities = projectFacilityRepository.findById(tenantId, projectIds,
+                    false, PROJECT_ID);
+            Map<String, ProjectFacility> existingIdMap = getMap(existingProjectFacilities);
+            validEntities.stream().filter(entity -> {
+                String combinationId = entity.getFacilityId() + PIPE + entity.getProjectId();
+                return existingIdMap.containsKey(combinationId)
+                        && (entity.getId() == null || !entity.getId().equals(existingIdMap.get(combinationId).getId()));
+            }).forEach(entity -> {
+                Error error = getErrorForDuplicateMapping(entity.getProjectId(),
+                        entity.getFacilityId());
+                populateErrorDetails(entity, error, errorDetailsMap);
+            });
+        } catch (InvalidTenantIdException exception) {
+            validEntities.forEach(projectFacility -> {
+                Error error = getErrorForInvalidTenantId(tenantId, exception);
+                populateErrorDetails(projectFacility, error, errorDetailsMap);
+            });
+        }
 
     }
 
