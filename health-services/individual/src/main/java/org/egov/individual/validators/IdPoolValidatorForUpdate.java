@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.individual.Constants.*;
 
 @Component
 @Slf4j
@@ -34,6 +35,7 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        String userId = request.getRequestInfo().getUserInfo().getUuid();
         if (!individualProperties.getBeneficiaryIdValidationEnabled()) return errorDetailsMap;
 
         log.info("validating beneficiary id for update");
@@ -46,11 +48,13 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
             for (Individual individual : individuals) {
                if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
                    Identifier identifier = individual.getIdentifiers().stream()
-                           .filter(id -> id.getIdentifierType().contains("UNIQUE_BENEFICIARY_ID"))
+                           .filter(id -> id.getIdentifierType().contains(UNIQUE_BENEFICIARY_ID))
                            .findFirst().orElse(null);
                    if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                        if (!idRecordMap.containsKey(identifier.getIdentifierId())) {
-                           updateError(errorDetailsMap, individual);
+                           updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID , "Invalid beneficiary id");
+                       } else if (!userId.equals(idRecordMap.get(identifier.getIdentifierId()).getLastModifiedBy())) {
+                           updateError(errorDetailsMap, individual,  INVALID_USER_ID, "This beneficiary id is dispatched to another user");
                        }
                    }
                }
@@ -59,9 +63,13 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
         return errorDetailsMap;
     }
 
-    private static void updateError(Map<Individual, List<Error>> errorDetailsMap, Individual individual) {
-        String errorCode = "INVALID_BENEFICIARY_ID";
-        String errorMessage = "Invalid beneficiary id";
+    private static void updateError(Map<Individual, List<Error>> errorDetailsMap, Individual individual ,  String errorCode , String errorMessage) {
+
+
+        if (StringUtils.isEmpty(errorCode) || StringUtils.isEmpty(errorMessage)) {
+            errorCode = INVALID_BENEFICIARY_ID;
+            errorMessage = "Invalid beneficiary id";
+        }
         Error error = Error.builder().errorMessage(errorMessage).errorCode(errorCode)
                 .type(Error.ErrorType.NON_RECOVERABLE)
                 .exception(new CustomException(errorCode, errorMessage)).build();

@@ -24,6 +24,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.individual.Constants.*;
 
 @Component
 @Slf4j
@@ -38,6 +39,7 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        String userId = request.getRequestInfo().getUserInfo().getUuid();
         if (!individualProperties.getBeneficiaryIdValidationEnabled()) return errorDetailsMap;
 
         log.info("validating beneficiary id for create");
@@ -53,9 +55,11 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                            .findFirst().orElse(null);
                    if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                        if (!idRecordMap.containsKey(identifier.getIdentifierId())) {
-                           createError(errorDetailsMap, individual, null);
+                           createError(errorDetailsMap, individual, null, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
                        } else if (!IdStatus.DISPATCHED.name().equals(idRecordMap.get(identifier.getIdentifierId()).getStatus())) {
-                           createError(errorDetailsMap, individual, idRecordMap.get(identifier.getIdentifierId()).getStatus());
+                           createError(errorDetailsMap, individual, idRecordMap.get(identifier.getIdentifierId()).getStatus(), INVALID_BENEFICIARY_ID ,"Id Status is not in DISPATCHED state" );
+                       } else if (!userId.equals(idRecordMap.get(identifier.getIdentifierId()).getLastModifiedBy())) {
+                           createError(errorDetailsMap, individual, idRecordMap.get(identifier.getIdentifierId()).getStatus(),  INVALID_USER_ID,"This beneficiary id is dispatched to another user");
                        }
 
                    }
@@ -65,12 +69,10 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
         return errorDetailsMap;
     }
 
-    private static void createError(Map<Individual, List<Error>> errorDetailsMap, Individual individual, String status) {
-        String errorCode = "INVALID_BENEFICIARY_ID";
-        String errorMessage = "Invalid beneficiary id";
-        if (!ObjectUtils.isEmpty(status)) {
-            errorCode = "BENEFICIARY_ID_ALREADY_ASSIGNED";
-            errorMessage = "Beneficiary id is already assigned";
+    private static void createError(Map<Individual, List<Error>> errorDetailsMap, Individual individual, String status, String errorCode , String errorMessage) {
+        if (StringUtils.isEmpty(errorCode) || StringUtils.isEmpty(errorMessage)) {
+            errorCode = INVALID_BENEFICIARY_ID;
+            errorMessage = "Invalid beneficiary id";
         }
         Error error = Error.builder().errorMessage(errorMessage).errorCode(errorCode)
                   .type(Error.ErrorType.NON_RECOVERABLE)
@@ -83,7 +85,7 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                 .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
                         .orElse(Collections.emptyList())
                         .stream()
-                        .filter(identifier -> "UNIQUE_BENEFICIARY_ID".equals(identifier.getIdentifierType()))
+                        .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
                         .findFirst()
                         .stream())
                 .map(identifier -> String.valueOf(identifier.getIdentifierId()))
@@ -98,8 +100,8 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                 tenantId,
                 requestInfo
         );
-
-        return idDispatchResponse.getIdResponses().stream()
+        Map<String, IdRecord> map = idDispatchResponse.getIdResponses().stream()
                 .collect(Collectors.toMap(EgovModel::getId, d -> d));
+        return map;
     }
 }

@@ -122,7 +122,7 @@ public class IdDispatchService {
         log.info("Calculated fetch limit for new IDs: {}", fetchLimit);
 
 
-        if (alreadyDispatched + count >= configuredLimit) {
+        if (alreadyDispatched + count > configuredLimit ) {
             log.warn("User {} with device {} exceeded dispatch limit. Allowed={}, Requested={}, Already={}",
                     userUuid, deviceUuid, configuredLimit, count, alreadyDispatched);
             throw new CustomException("ID LIMIT EXCEPTION",

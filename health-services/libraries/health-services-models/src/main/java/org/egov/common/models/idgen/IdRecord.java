@@ -26,4 +26,7 @@ public class IdRecord extends EgovModel {
         return super.getId();
     }
 
+    public String getLastModifiedBy() {
+        return super.auditDetails.getLastModifiedBy();
+    }
 }
