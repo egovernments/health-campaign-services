@@ -102,8 +102,7 @@ public class FacilityCatchmentConsumer {
         censusList.forEach(census -> {
 
             // Unassigning facilities to the boundaries which were initially assigned that facility
-            census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD));
-            census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_NAME_FIELD));
+            census.setAdditionalDetails(commonUtil.removeFieldFromAdditionalDetails(census.getAdditionalDetails(), FACILITY_ID_FIELD, FACILITY_NAME_FIELD));
             census.setFacilityAssigned(Boolean.FALSE);
             census.setPartnerAssignmentValidationEnabled(Boolean.FALSE);
         });
