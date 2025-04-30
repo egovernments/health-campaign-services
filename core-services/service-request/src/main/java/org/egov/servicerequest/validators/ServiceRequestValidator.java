@@ -1,6 +1,7 @@
 package org.egov.servicerequest.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
@@ -36,7 +37,7 @@ public class ServiceRequestValidator {
     @Autowired
     private Configuration config;
 
-    public void validateServiceRequest(ServiceRequest serviceRequest){
+    public void validateServiceRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
         validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService());
         validateAccountId(serviceRequest.getService());
@@ -153,7 +154,7 @@ public class ServiceRequestValidator {
         }
     }
 
-    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId) {
+    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId) throws InvalidTenantIdException {
         List<ServiceDefinition> serviceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(tenantId).ids(Arrays.asList(serviceDefId)).build()).build());
 
         if(serviceDefinitions.isEmpty())
