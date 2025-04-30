@@ -140,7 +140,7 @@ public class CensusValidator {
             validateWorkflowAccess(userInfo, census, roles);
 
             PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = employeeAssignmentUtil.getPlanEmployeeSearchRequest(census,
-                    Collections.singletonList(userInfo.getUuid()), jurisdiction, roles.stream().toList(), request.getRequestInfo());
+                    Collections.singletonList(userInfo.getUuid()), jurisdiction, new ArrayList<>(roles), request.getRequestInfo());
 
             PlanEmployeeAssignmentResponse employeeAssignmentResponse = employeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 

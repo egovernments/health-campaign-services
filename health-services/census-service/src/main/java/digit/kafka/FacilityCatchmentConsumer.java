@@ -56,7 +56,9 @@ public class FacilityCatchmentConsumer {
             PlanFacilityDTO planFacilityDTO = planFacilityRequestDTO.getPlanFacilityDTO();
 
             // Extract current and initial service boundaries
-            List<String> initialServiceBoundaries = planFacilityDTO.getInitiallySetServiceBoundaries();
+            List<String> initialServiceBoundaries = ObjectUtils.isEmpty(planFacilityDTO.getInitiallySetServiceBoundaries()) ?
+                    Collections.emptyList() : planFacilityDTO.getInitiallySetServiceBoundaries();
+            
             List<String> currentServiceBoundaries = ObjectUtils.isEmpty(planFacilityDTO.getServiceBoundaries()) ?
                     Collections.emptyList() : List.of(planFacilityDTO.getServiceBoundaries().split(COMMA_DELIMITER));
 

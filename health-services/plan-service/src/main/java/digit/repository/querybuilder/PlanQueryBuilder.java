@@ -192,7 +192,7 @@ public class PlanQueryBuilder {
                 builder.append("additional_details->'")
                         .append(entry.getKey()).append("' ??| ARRAY [")
                         .append(queryUtil.createQuery(entry.getValue().size()))
-                        .append("]");
+                        .append("]::text[] ");
                 preparedStmtList.addAll(entry.getValue());
             }
         }

@@ -211,8 +211,8 @@ public class ExcelParser implements FileParser {
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaignResponse);
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
-				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
-				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
+				.filter(rm -> rm.getFilestoreId().equals(fileStoreId))
+				.filter(rm -> rm.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(
 						ResourceMapping::getMappedTo,
 						ResourceMapping::getMappedFrom,
@@ -258,6 +258,11 @@ public class ExcelParser implements FileParser {
 		do {
 			// Fetch census records in batches
 			censusRecords = enrichmentUtil.getCensusRecordsInBatches(planConfigurationRequest, config.getBatchSize(), offset);
+
+			// Break the loop if no census records found
+			if(CollectionUtils.isEmpty(censusRecords)) {
+				break;
+			}
 
 			// Process the retrieved batch of census records
 			processCensusRecordsForPlan(censusRecords, boundaryCodeToCensusAdditionalDetails, planConfigurationRequest);
@@ -398,8 +403,8 @@ public class ExcelParser implements FileParser {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
-				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
+				.filter(rm -> rm.getFilestoreId().equals(fileStoreId))
+				.filter(rm -> rm.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(
 						ResourceMapping::getMappedTo,
 						ResourceMapping::getMappedFrom,
@@ -441,6 +446,11 @@ public class ExcelParser implements FileParser {
 		BoundarySearchResponse boundarySearchResponse = boundaryUtil.search(planConfigurationRequest.getPlanConfiguration().getTenantId(),
 				campaign.getCampaign().get(0).getHierarchyType(), planConfigurationRequest);
 		List<String> boundaryList = new ArrayList<>();
+
+		if (ObjectUtils.isEmpty(boundarySearchResponse.getTenantBoundary())) {
+			throw new CustomException(BOUNDARY_CODE_NOT_FOUND_CODE, BOUNDARY_CODE_NOT_FOUND_MESSAGE);
+		}
+
 		return getAllBoundaryPresentforHierarchyType(
 				boundarySearchResponse.getTenantBoundary().get(0).getBoundary(), boundaryList);
 	}
@@ -478,8 +488,8 @@ public class ExcelParser implements FileParser {
 		Row firstRow = null;
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
-				.filter(pc -> pc.getFilestoreId().equals(fileStoreId))
-				.filter(pc -> pc.getActive().equals(Boolean.TRUE))
+				.filter(rm -> rm.getFilestoreId().equals(fileStoreId))
+				.filter(rm -> rm.getActive().equals(Boolean.TRUE))
 				.collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
 		Map<String, BigDecimal> assumptionValueMap = calculationUtil
 				.convertAssumptionsToMap(planConfig.getAssumptions());

@@ -80,7 +80,7 @@ public class CensusUtil {
         Census census = Census.builder()
                 .tenantId(planConfig.getTenantId())
                 .hierarchyType(hierarchyType)
-                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(ServiceConstants.BOUNDARY_CODE, feature, mappedValues))
+                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(BOUNDARY_CODE, feature, mappedValues))
                 .type(Census.TypeEnum.PEOPLE)
                 .facilityAssigned(Boolean.FALSE)
                 .partnerAssignmentValidationEnabled(Boolean.TRUE)
@@ -129,7 +129,7 @@ public class CensusUtil {
             return parsingUtil.updateFieldInAdditionalDetails(new Object(), fieldsToBeAddedInAdditionalDetails);
         }
 
-        return new HashMap<>(); // Return null if no additional details were added
+        return new HashMap<>(); // Return empty map if no additional details were added
     }
 
     /**
