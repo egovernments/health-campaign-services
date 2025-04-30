@@ -74,4 +74,7 @@ public class ErrorConstants {
 
     public static final String WORKBOOK_READ_ERROR_CODE = "WORKBOOK_READ_ERROR";
     public static final String WORKBOOK_READ_ERROR_MESSAGE = "Failed to read the workbook from file.";
+
+    public static final String BOUNDARY_CODE_NOT_FOUND_CODE = "BOUNDARY_CODE_NOT_FOUND";
+    public static final String BOUNDARY_CODE_NOT_FOUND_MESSAGE = "Boundary code not found for the given hierarchy type";
 }

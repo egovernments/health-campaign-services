@@ -5,8 +5,6 @@ import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.querybuilder.PlanConfigQueryBuilder;
 import digit.repository.rowmapper.PlanConfigRowMapper;
-import digit.util.CommonUtil;
-import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationSearchCriteria;
