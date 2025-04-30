@@ -43,6 +43,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import javax.validation.constraints.NotNull;
 
 import static org.egov.hrms.utils.ErrorConstants.CITIZEN_TYPE_CODE;
 
@@ -213,7 +214,36 @@ public class EmployeeValidator {
 		validateDataUniqueness(employees,errorMap);
         validateUserMobile(employees,errorMap,request.getRequestInfo());
         validateUserName(employees,errorMap,request.getRequestInfo());
+		// validation on given name
+		if (propertiesManager.isCaseSensitiveUsernameCheckEnabled()) {
+			validateIndividualName(employees,errorMap,request.getRequestInfo());
+		}
 	}
+
+
+    /**
+     * Checks if the givenname / Individual name (name) is duplicate
+     * 
+     * @param employees
+     * @param errorMap
+     * @param requestInfo
+     */
+	private void validateIndividualName(List<Employee> employees, Map<String, String> errorMap, @NotNull RequestInfo requestInfo) {
+		employees.forEach(employee -> {
+			if(!StringUtils.isEmpty(employee.getUser().getName())){
+				Map<String, Object> userSearchCriteria = new HashMap<>();
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,employee.getTenantId());
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME,employee.getUser().getName());
+				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+				if(!CollectionUtils.isEmpty(userResponse.getUser())){
+					errorMap.put(ErrorConstants.HRMS_USER_EXIST_INDIVIDUAL_NAME_CODE ,
+							ErrorConstants.HRMS_USER_EXIST_INDIVIDUAL_NAME_MSG);
+				}
+			}
+		});
+	}
+
 
 	/**
 	 * Checks duplicate occurance of mobileNumber and code for bulk request

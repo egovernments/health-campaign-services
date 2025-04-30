@@ -23,11 +23,13 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.Skill;
 import org.egov.common.producer.Producer;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.individual.repository.rowmapper.SkillRowMapper;
 import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -41,6 +43,9 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 @Repository
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
+
+    @Autowired
+    private IndividualProperties individualProperties;
 
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
@@ -275,8 +280,13 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         if (searchObject.getUsername() != null) {
-            query = query + "AND username in (:username) ";
-            paramsMap.put("username", searchObject.getUsername());
+            if (individualProperties.isCaseSensitiveCheckEnabled()) {
+                query = query + "AND LOWER(username) in (LOWER(:username)) ";
+                paramsMap.put("username", searchObject.getUsername());
+            } else {
+                query = query + "AND username in (:username) ";
+                paramsMap.put("username", searchObject.getUsername());
+            }
         }
 
         if (searchObject.getUserId() != null) {
