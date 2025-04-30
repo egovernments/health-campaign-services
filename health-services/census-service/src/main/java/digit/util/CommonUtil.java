@@ -82,12 +82,13 @@ public class CommonUtil {
      * Removes the field to be removed from the additional details object.
      *
      * @param additionalDetails The current additional details object.
-     * @param fieldToBeRemoved  The field that needs to be removed from the additional details.
+     * @param fieldsToBeRemoved The list of field to be removed from additional details map
      * @return A Map representing the updated additional details after removal of the field.
      */
-    public Map<String, Object> removeFieldFromAdditionalDetails(Object additionalDetails, String fieldToBeRemoved) {
+    public Map<String, Object> removeFieldFromAdditionalDetails(Object additionalDetails, String... fieldsToBeRemoved) {
         Map<String, Object> additionalDetailsMap = objectMapper.convertValue(additionalDetails, Map.class);
-        additionalDetailsMap.remove(fieldToBeRemoved);
+        for (String fieldToBeRemoved : fieldsToBeRemoved)
+            additionalDetailsMap.remove(fieldToBeRemoved);
 
         return additionalDetailsMap;
     }

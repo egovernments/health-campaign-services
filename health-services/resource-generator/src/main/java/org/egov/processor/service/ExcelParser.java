@@ -220,16 +220,16 @@ public class ExcelParser implements FileParser {
 						LinkedHashMap::new
 				));
 
-		// Fetch mdms data for common constants
-		Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
-				request.getRequestInfo(),
-				request.getPlanConfiguration().getTenantId());
-
 		// Process Census records in batches to create plan estimates on PlanConfigTriggerPlanEstimatesStatus status.
 		if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 			Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 			batchProcessCensusRecords(request, boundaryCodeToCensusAdditionalDetails);
 		}
+
+		// Fetch mdms data for common constants
+		Map<String, Object> mdmsDataForCommonConstants = mdmsUtil.fetchMdmsDataForCommonConstants(
+				request.getRequestInfo(),
+				request.getPlanConfiguration().getTenantId());
 
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
