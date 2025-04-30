@@ -329,11 +329,12 @@ public class IndividualService {
                         includeDeleted
                 );
 
-                List<Individual> decryptedIndividuals = response.getResponse().isEmpty()
-                        ? Collections.emptyList()
-                        : individualEncryptionService.decrypt(response.getResponse(), "IndividualDecrypt", requestInfo);
+                encryptedIndividualList = response.getResponse();
+                List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
+                        ? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
+                        :encryptedIndividualList;
 
-                response.setResponse(decryptedIndividuals);
+                response.setResponse(decryptedIndividualList);
                 return response;
 
             } catch (Exception ex) {
