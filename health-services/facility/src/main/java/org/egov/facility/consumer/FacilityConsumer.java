@@ -27,7 +27,7 @@ public class FacilityConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "#{'${facility.consumer.bulk.create.topics}'.split(',')}")
+    @KafkaListener(topics = "${facility.consumer.bulk.create.topic}")
     public List<Facility> bulkCreate(Map<String, Object> consumerRecord,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -39,7 +39,7 @@ public class FacilityConsumer {
         }
     }
 
-    @KafkaListener(topics = "#{'${facility.consumer.bulk.update.topics}'.split(',')}")
+    @KafkaListener(topics = "${facility.consumer.bulk.update.topic}")
     public List<Facility> bulkUpdate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -51,7 +51,7 @@ public class FacilityConsumer {
         }
     }
 
-    @KafkaListener(topics = "#{'${facility.consumer.bulk.delete.topics}'.split(',')}")
+    @KafkaListener(topics = "${facility.consumer.bulk.delete.topic}")
     public List<Facility> bulkDelete(Map<String, Object> consumerRecord,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
