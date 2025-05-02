@@ -238,7 +238,8 @@ function addDataToSheet(
   manageMultiSelect(sheet, schema, localizationMap, fileUrl, sheetData);
 }
 
-function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
+
+export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
   const headerRow = sheet.getRow(1); // Assuming first row is the header
   const rowsLength = sheetData?.length || 0;
   const isChildOfSomeCampaign = Boolean(fileUrl);
@@ -383,7 +384,7 @@ function adjustColumnWidth(sheet: any, colNumber: number, columnWidth: number) {
 }
 
 // Function to adjust row height based on content
-function adjustRowHeight(row: any, cell: any, columnWidth: number) {
+export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   const text = cell.value ? cell.value.toString() : '';
   const lines = Math.ceil(text.length / (columnWidth - 2)); // Approximate number of lines
   row.height = Math.max(row.height ?? 0, lines * 15);
@@ -521,6 +522,141 @@ export const findColumnByHeader = (header: string, worksheet: any) => {
   }
   return "";
 };
+
+export function addHeadersFromSchema(
+  worksheet: ExcelJS.Worksheet,
+  schema: any,
+  localizationMap?: Record<string, string>
+) {
+  const properties = schema?.properties || {};
+
+  // Step 1: Sort properties based on orderNumber
+  const sortedProps : any[] = Object.entries(properties)
+    .sort(([_, a]: any, [__, b]: any) => (a.orderNumber || 0) - (b.orderNumber || 0));
+
+  const expandedProps: {
+    key: string;
+    header: string;
+    width: number;
+    color?: string;
+    hidden?: boolean;
+  }[] = [];
+
+  // Step 2: Expand multi-select fields
+  for (const [key, prop] of sortedProps) {
+    const baseHeader = getLocalizedName(key, localizationMap);
+    const width = prop.width || 40;
+
+    if (prop.multiSelectDetails?.maxSelections) {
+      const max = prop.multiSelectDetails.maxSelections;
+
+      for (let i = 1; i <= max; i++) {
+        expandedProps.push({
+          key: `${key}_MULTISELECT_${i}`,
+          header: `${baseHeader} ${i}`,
+          width,
+          color: prop.color,
+          hidden: false,
+        });
+      }
+    }
+
+    expandedProps.push({
+      key,
+      header: baseHeader,
+      width,
+      color: prop.color,
+      hidden: prop.hideColumn,
+    });
+  }
+
+  // Step 3: Set worksheet columns
+  worksheet.columns = expandedProps.map(({ key, header, width, hidden }) => ({
+    header,
+    key,
+    width,
+    hidden: hidden || false,
+  }));
+
+  // Step 4: Apply styles to header row
+  const headerRow = worksheet.getRow(1);
+  expandedProps.forEach(({ color, width }, index) => {
+    const cell = headerRow.getCell(index + 1);
+
+    if (color) {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: color.replace('#', '') },
+      };
+    }
+
+    cell.font = { bold: true, size: 12 };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.protection = { locked: true };
+
+    adjustRowHeight(headerRow, cell, Number(width));
+  });
+}
+
+
+export function freezeUnfreezeColumns(
+  worksheet: ExcelJS.Worksheet,
+  columnsToFreeze: string[],
+  localizationMap?: Record<string, string>
+) {
+  const headerRow = worksheet.getRow(1);
+  const headerMap: Record<string, number> = {};
+
+  // Step 1: Map localized headers to column indices
+  headerRow.eachCell((cell: any, col) => {
+    const header = getLocalizedName(cell?.value?.toString(), localizationMap);
+    if (header) headerMap[header] = col;
+  });
+
+  const freezeIndexes = columnsToFreeze
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
+  const rowCount = worksheet.rowCount;
+  const maxCol = worksheet.columnCount;
+  const unfrozeTillRow = Number(config.values.unfrozeTillRow);
+  const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
+
+  // Step 2: Unlock default editable area, skipping frozen columns
+  for (let r = 2; r <= unfrozeTillRow; r++) {
+    for (let c = 1; c <= unfrozeTillColumn; c++) {
+      if (!freezeIndexes.includes(c)) {
+        worksheet.getCell(r, c).protection = { locked: false };
+      }
+    }
+  }
+
+  // Step 3: Lock the first row (header) always
+  for (let c = 1; c <= maxCol; c++) {
+    worksheet.getCell(1, c).protection = { locked: true };
+  }
+
+  // Step 4: Lock only the specified frozen columns (excluding first row)
+  for (let r = 2; r <= rowCount; r++) {
+    for (const col of freezeIndexes) {
+      worksheet.getCell(r, col).protection = { locked: true };
+    }
+  }
+
+  // Step 5: Apply or remove protection
+  if (freezeIndexes.length > 0) {
+    worksheet.protect('passwordhere', {
+      selectLockedCells: true,
+      selectUnlockedCells: true
+    });
+  } else {
+    worksheet.unprotect();
+  }
+}
+
+
+
 
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

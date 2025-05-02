@@ -590,7 +590,7 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
     readMeConfig = await getReadMeConfigForMicroplan(request);
   }
   else {
-    readMeConfig = await getReadMeConfig(request);
+    readMeConfig = await getReadMeConfig(request?.query?.tenantId, request?.query?.type);
   }
   const headerSet = new Set();
   const datas = readMeConfig.texts
@@ -679,10 +679,10 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
   return updatedRequest;
 }
 
-async function getReadMeConfig(request: any) {
+export async function getReadMeConfig(tenantId: string , type : string) {
   const MdmsCriteria = {
     MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
-      tenantId: request?.query?.tenantId,
+      tenantId,
       moduleDetails: [
         {
           moduleName: "HCM-ADMIN-CONSOLE",
@@ -696,11 +696,11 @@ async function getReadMeConfig(request: any) {
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
-      if (readMeConfig?.type == request?.query?.type) {
+      if (readMeConfig?.type == type) {
         return readMeConfig
       }
     }
-    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${type} not found.`);
     return {}
   }
   else {
@@ -768,7 +768,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
   const dropdowns = Object.entries(schema.properties)
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
@@ -1448,6 +1448,12 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
   return localizationResponse;
 }
 
+async function getLocalizedMessagesHandlerViaLocale(locale: string, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+  const localisationcontroller = Localisation.getInstance();
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
+  return localizationResponse;
+}
+
 
 
 async function translateSchema(
@@ -1682,5 +1688,6 @@ export {
   hideUniqueIdentifierColumn,
   createHeaderToHierarchyMap,
   modifyBoundaryDataHeadersWithMap,
-  extractFrenchOrPortugeseLocalizationMap
+  extractFrenchOrPortugeseLocalizationMap,
+  getLocalizedMessagesHandlerViaLocale
 };

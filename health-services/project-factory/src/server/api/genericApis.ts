@@ -478,6 +478,53 @@ async function createAndUploadFile(
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
 }
 
+export async function createAndUploadFileWithOutRequest(
+  updatedWorkbook: any,
+  tenantId: any
+) {
+  let retries: any = 3;
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data"
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
 async function createAndUploadJsonFile(
   jsonData: any, // Expecting JSON data as an argument
   request: any,
@@ -1405,6 +1452,62 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
   return data;
 }
 
+function convertIntoNewSchema(data: any) {
+  const properties: any = {};
+  const errorMessage: any = {};
+  const required: any[] = [];
+  let columns: any[] = [];
+  const unique: any[] = [];
+  const columnsNotToBeFreezed: any[] = [];
+  const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+        if (property?.errorMessage)
+          errorMessage[property?.name] = property?.errorMessage;
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push({ name: property?.name, orderNumber: property?.orderNumber });
+        }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
+        if (!property?.freezeColumn || property?.freezeColumn == false) {
+          columnsNotToBeFreezed.push(property?.name);
+        }
+        if (property?.freezeColumn) {
+          columnsToBeFreezed.push(property?.name);
+        }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
+      }
+    }
+  }
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+
+
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
+  return data;
+}
+
 
 
 async function callMdmsTypeSchema(
@@ -1434,6 +1537,33 @@ async function callMdmsTypeSchema(
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
   return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
+}
+
+export async function callMdmsSchema(
+  tenantId: string,
+  type: any
+) {
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  const requestBody = {
+    RequestInfo,
+    MdmsCriteria: {
+      tenantId: tenantId,
+      uniqueIdentifiers: [
+        type
+      ],
+      schemaCode: "HCM-ADMIN-CONSOLE.schemas"
+    }
+  };
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const header = {
+    ...defaultheader,
+    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${type}${requestBody?.MdmsCriteria?.schemaCode}`
+  }
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
+  }
+  return convertIntoNewSchema(response?.mdms?.[0]?.data);
 }
 
 // async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
