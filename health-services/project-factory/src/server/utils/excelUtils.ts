@@ -602,15 +602,14 @@ export function addHeadersFromSchema(
 
 export function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
-  columnsToFreeze: string[],
-  localizationMap?: Record<string, string>
+  columnsToFreeze: string[]
 ) {
   const headerRow = worksheet.getRow(1);
   const headerMap: Record<string, number> = {};
 
-  // Step 1: Map localized headers to column indices
+  // Step 1: Map headers to column indices
   headerRow.eachCell((cell: any, col) => {
-    const header = getLocalizedName(cell?.value?.toString(), localizationMap);
+    const header = cell.value;
     if (header) headerMap[header] = col;
   });
 
@@ -623,10 +622,11 @@ export function freezeUnfreezeColumns(
   const unfrozeTillRow = Number(config.values.unfrozeTillRow);
   const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
 
-  // Step 2: Unlock default editable area, skipping frozen columns
+  // Step 2: Unlock default editable area, skipping frozen columns and empty headers
   for (let r = 2; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
-      if (!freezeIndexes.includes(c)) {
+      const headerValue = worksheet.getCell(1, c).value;
+      if (!freezeIndexes.includes(c) && headerValue) {
         worksheet.getCell(r, c).protection = { locked: false };
       }
     }
@@ -654,6 +654,7 @@ export function freezeUnfreezeColumns(
     worksheet.unprotect();
   }
 }
+
 
 
 

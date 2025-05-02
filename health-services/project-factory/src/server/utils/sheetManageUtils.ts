@@ -95,81 +95,57 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
 }
 
 
-function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any) {
+function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any) : any {
     if (!dynamicColumns) dynamicColumns = {};
 
-    // To keep track of the maximum orderNumber used
     let maxOrderNumber = Number.MAX_SAFE_INTEGER;
+
+    const assignProps = (target: any, source: any, isMulti = false, index = 0, parentOrder = 0) => {
+        target.width ??= source.width ?? 40;
+        target.color ??= source.color;
+        target.adjustHeight ??= source.adjustHeight;
+        target.freezeColumnIfFilled ??= source.freezeColumnIfFilled;
+        target.showInProcessed ??= source.showInProcessed;
+
+        if (!isMulti) {
+            target.freezeColumn ??= source.freezeColumn;
+            target.hideColumn ??= source.hideColumn;
+            target.orderNumber ??= source.orderNumber ?? maxOrderNumber;
+        } else {
+            const order = parentOrder - 1 + (0.01 * index);
+            target.orderNumber ??= order;
+        }
+
+        maxOrderNumber = Math.min(maxOrderNumber, target.orderNumber);
+    };
 
     for (const propertyKey in schema?.properties) {
         const property = schema.properties[propertyKey];
         const localizedKey = getLocalizedName(propertyKey, localizationMap);
 
-        // Handle multiSelectDetails
+        // Process multiSelectDetails if any
         if (property?.multiSelectDetails?.maxSelections) {
             const max = property.multiSelectDetails.maxSelections;
-
-            // Determine the parent column's orderNumber based on dynamicColumns, property, or maxOrderNumber
-            const parentOrderNumber = dynamicColumns[localizedKey]?.orderNumber ?? property.orderNumber ?? maxOrderNumber;
+            const parentOrder = dynamicColumns[localizedKey]?.orderNumber ?? property.orderNumber ?? maxOrderNumber;
 
             for (let i = 1; i <= max; i++) {
-                const multiselectKey = `${propertyKey}_MULTISELECT_${i}`;
-                const localizedMultiselectKey = getLocalizedName(multiselectKey, localizationMap);
-
-                // Initialize the multi-select column if not already present
-                if (!dynamicColumns[localizedMultiselectKey]) {
-                    dynamicColumns[localizedMultiselectKey] = {};
-                }
-
-                // Assign properties with undefined checks
-                dynamicColumns[localizedMultiselectKey].width = dynamicColumns[localizedMultiselectKey].width ?? property.width ?? 40;
-                dynamicColumns[localizedMultiselectKey].color = dynamicColumns[localizedMultiselectKey].color ?? property.color;
-                dynamicColumns[localizedMultiselectKey].adjustHeight = dynamicColumns[localizedMultiselectKey].adjustHeight ?? property.adjustHeight;
-                dynamicColumns[localizedMultiselectKey].freezeColumnIfFilled = dynamicColumns[localizedMultiselectKey].freezeColumnIfFilled ?? property.freezeColumnIfFilled;
-                dynamicColumns[localizedMultiselectKey].showInProcessed = dynamicColumns[localizedMultiselectKey].showInProcessed ?? property.showInProcessed;
-
-                // Assign orderNumber: set as a decimal value based on parent (e.g., 5.01, 5.02, 5.03)
-                const childOrderNumber = parentOrderNumber - (0.01 * i);
-                dynamicColumns[localizedMultiselectKey].orderNumber = dynamicColumns[localizedMultiselectKey].orderNumber ?? childOrderNumber;
-
-                // Track the highest orderNumber encountered
-                maxOrderNumber = Math.min(maxOrderNumber, dynamicColumns[localizedMultiselectKey].orderNumber);
+                const multiKey = `${propertyKey}_MULTISELECT_${i}`;
+                const localizedMultiKey = getLocalizedName(multiKey, localizationMap);
+                dynamicColumns[localizedMultiKey] ??= {};
+                assignProps(dynamicColumns[localizedMultiKey], property, true, i, parentOrder);
             }
         }
 
-        // Apply to base localized key
-        if (!dynamicColumns[localizedKey]) {
-            dynamicColumns[localizedKey] = {};
-        }
-
-        // Assign properties with undefined checks
-        dynamicColumns[localizedKey].width = dynamicColumns[localizedKey].width ?? property.width ?? 40;
-        dynamicColumns[localizedKey].color = dynamicColumns[localizedKey].color ?? property.color;
-        dynamicColumns[localizedKey].freezeColumn = dynamicColumns[localizedKey].freezeColumn ?? property.freezeColumn;
-        dynamicColumns[localizedKey].hideColumn = dynamicColumns[localizedKey].hideColumn ?? property.hideColumn;
-        dynamicColumns[localizedKey].adjustHeight = dynamicColumns[localizedKey].adjustHeight ?? property.adjustHeight;
-        dynamicColumns[localizedKey].freezeColumnIfFilled = dynamicColumns[localizedKey].freezeColumnIfFilled ?? property.freezeColumnIfFilled;
-        dynamicColumns[localizedKey].showInProcessed = dynamicColumns[localizedKey].showInProcessed ?? property.showInProcessed;
-
-        // Determine the orderNumber based on dynamicColumns, property, or maxOrderNumber
-        dynamicColumns[localizedKey].orderNumber = dynamicColumns[localizedKey].orderNumber ?? property.orderNumber ?? maxOrderNumber;
-
-        // Track the highest orderNumber encountered
-        maxOrderNumber = Math.min(maxOrderNumber, dynamicColumns[localizedKey].orderNumber);
+        // Process base column
+        dynamicColumns[localizedKey] ??= {};
+        assignProps(dynamicColumns[localizedKey], property);
     }
 
-    // Sort dynamicColumns based on orderNumber
-    const sortedDynamicColumns: Record<string, any> = {};
-    Object.keys(dynamicColumns)
-        .sort((a, b) => dynamicColumns[a].orderNumber - dynamicColumns[b].orderNumber)
-        .forEach((key) => {
-            sortedDynamicColumns[key] = dynamicColumns[key];
-        });
-
-    return sortedDynamicColumns;
+    // Return sorted by orderNumber
+    return Object.fromEntries(
+        Object.entries(dynamicColumns).sort(([, a]:any, [, b]:any) => a.orderNumber - b.orderNumber)
+    );
 }
-
-
 
 
 
