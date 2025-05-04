@@ -67,7 +67,14 @@ public enum TaskStatus {
      * This status means that the individual or entity for whom the task
      * was intended was referred to some institution
      */
-    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED");
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
+     * Indicates that the redose is administered.
+     * This status means that the individual or entity for whom the task
+     * was intended was given a re dose
+     */
+    VISITED("VISITED");
 
     // The string value associated with the task status.
     private String value;
