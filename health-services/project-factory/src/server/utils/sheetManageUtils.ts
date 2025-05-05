@@ -46,12 +46,24 @@ async function generateResource(responseToSend: any, templateConfig: any) {
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
         responseToSend.status = generatedResourceStatuses.completed;
-        produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+        await produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
         console.log(error)
-        responseToSend.status = generatedResourceStatuses.failed;
-        produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+        await handleErrorDuringGenerate(responseToSend, error);
     }
+}
+
+async function handleErrorDuringGenerate(responseToSend:any, error: any) {
+    responseToSend.status = generatedResourceStatuses.failed, responseToSend.additionalDetails = {
+        ...responseToSend.additionalDetails,
+        error: {
+            status: error.status,
+            code: error.code,
+            description: error.description,
+            message: error.message
+        }
+    }
+    await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
 }
 
 async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: any, localizationMap: any) {
@@ -83,7 +95,9 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
                 await handledropdownthings(worksheet, schema, localizationMap);
             }
         } catch (error) {
-            console.error(`Error importing or calling generate function from ${classFilePath}:`, error);
+            logger.error(`Error importing or calling generate function from ${classFilePath}`);
+            console.error(error);
+            throw error;
         }
     }
     return newWorkbook;
