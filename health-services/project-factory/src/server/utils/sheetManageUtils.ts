@@ -6,7 +6,7 @@ import { callMdmsSchema, createAndUploadFileWithOutRequest } from "../api/generi
 import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import {  adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect } from "./excelUtils";
+import {  adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
@@ -99,6 +99,7 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
                 freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap));
                 manageMultiSelect(worksheet, schema, localizationMap);
                 await handledropdownthings(worksheet, schema, localizationMap);
+                updateFontNameToRoboto(worksheet);
             }
         } catch (error) {
             logger.error(`Error importing or calling generate function from ${classFilePath}`);
