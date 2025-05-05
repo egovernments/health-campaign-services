@@ -162,8 +162,9 @@ public class CommonUtil {
      * @return A set containing elements that are in primaryList but not in secondaryList.
      */
     public Set<String> getUniqueElements(List<String> primaryList, List<String> secondaryList) {
+        Set<String> secondarySet = new HashSet<>(secondaryList);
         return primaryList.stream()
-                .filter(element -> !secondaryList.contains(element))
+                .filter(element -> !secondarySet.contains(element))
                 .collect(Collectors.toSet());
     }
 }
