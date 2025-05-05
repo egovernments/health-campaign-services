@@ -41,7 +41,6 @@ public class ServiceConstants {
     public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS = "EstimationsInprogress";
     public static final String FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS = "Estimations";
     public static final String FILE_TEMPLATE_IDENTIFIER_POPULATION = "Population";
-    public static final String FILE_TEMPLATE_IDENTIFIER_DRAFT_INPROGRESS = "DraftInprogress";
     public static final String FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE = "DraftComplete";
     public static final String FILE_TEMPLATE_IDENTIFIER_BOUNDARY = "boundaryWithTarget";
     public static final String FILE_TEMPLATE_IDENTIFIER_FACILITY = "Facilities";

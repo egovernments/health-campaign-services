@@ -100,7 +100,7 @@ public class PlanConfigurationUtil {
 
         // Check if file with the specified templateIdentifier exists
         File existingFile = files.stream()
-                .filter(file -> FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE.equals(file.getTemplateIdentifier()))
+                .filter(file -> FILE_TEMPLATE_IDENTIFIER_DRAFT_COMPLETE.equalsIgnoreCase(file.getTemplateIdentifier()))
                 .findFirst()
                 .orElse(null);
 

@@ -49,7 +49,7 @@ public class ErrorConstants {
     public static final String NO_PLAN_FACILITY_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Plan facilities do not exists for the given details. ";
 
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_CODE = "README_SHEET_NAME_LOCALISATION_NOT_FOUND";
-    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "Constant defined for error message when the README sheet name localization is not found or plan facilities do not exist for the provided details.";
+    public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "README sheet name localization not found or plan facilities do not exist for the provided details.";
 
     public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE = "NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER";
     public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE = "Master data not found for Mixed Strategy master";
@@ -65,8 +65,7 @@ public class ErrorConstants {
     public static final String NO_CAMPAIGN_FOUND_MESSAGE = "No campaign found for the provide campaign Id";
 
     public static final String ERROR_WHILE_DATA_CREATE_CALL = "Exception occurred while creating data for campaign - ";
-    public static final String ERROR_WHILE_CALLING_MICROPLAN_API =
-            "Unexpected error while calling fetch from Microplan API for plan config Id: ";
+    public static final String ERROR_WHILE_CALLING_MICROPLAN_API = "Unexpected error while calling fetch from Microplan API for plan config Id: ";
     public static final String INVALID_HEX = "Invalid hex color specified: ";
     public static final String ERROR_PROCESSING_EXCEL_FILE = "Exception occurred while processing excel file ";
     public static final String ERROR_CONVERTING_TO_EXCEL_FILE = "Exception occurred while converting workbook to XLS: ";

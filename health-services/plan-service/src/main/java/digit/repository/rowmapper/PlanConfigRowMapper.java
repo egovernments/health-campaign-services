@@ -1,6 +1,5 @@
 package digit.repository.rowmapper;
 
-import digit.util.CommonUtil;
 import digit.util.QueryUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
