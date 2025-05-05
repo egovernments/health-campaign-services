@@ -1808,6 +1808,72 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   }
 }
 
+export async function populateBoundariesRecursively(
+  boundaryResponse: any,
+  boundaries: any,
+  includeAllChildren: any,
+  boundaryCodes: any,
+  boundaryChildren: any,
+  parent: any = null
+) {
+  if (!boundaryResponse) return;
+
+  if (!boundaryCodes.has(boundaryResponse.code)) {
+    boundaries.push({
+      code: boundaryResponse?.code,
+      type: boundaryResponse?.boundaryType,
+      insertedAfter: true,
+      parent: parent
+    });
+    boundaryCodes.add(boundaryResponse?.code);
+  }
+
+  if (
+    includeAllChildren &&
+    boundaryResponse?.children &&
+    Array.isArray(boundaryResponse?.children) &&
+    boundaryResponse?.children?.length > 0
+  ) {
+    for (const child of boundaryResponse.children) {
+      await populateBoundariesRecursively(
+        child,
+        boundaries,
+        true,
+        boundaryCodes,
+        boundaryChildren,
+        boundaryResponse.code
+      );
+    }
+  } else if (
+    boundaryResponse?.children &&
+    Array.isArray(boundaryResponse?.children) &&
+    boundaryResponse?.children?.length > 0
+  ) {
+    for (const child of boundaryResponse.children) {
+      if (boundaryCodes.has(child.code) && boundaryChildren[child.code]) {
+        await populateBoundariesRecursively(
+          child,
+          boundaries,
+          true,
+          boundaryCodes,
+          boundaryChildren,
+          boundaryResponse.code
+        );
+      } else if (boundaryCodes.has(child.code)) {
+        await populateBoundariesRecursively(
+          child,
+          boundaries,
+          false,
+          boundaryCodes,
+          boundaryChildren,
+          boundaryResponse.code
+        );
+      }
+    }
+  }
+}
+
+
 async function processBoundary(
   boundaryResponse: any,
   boundaries: any,
@@ -1820,7 +1886,7 @@ async function processBoundary(
     boundaries.push({
       code: boundaryResponse?.code,
       type: boundaryResponse?.boundaryType,
-      insertedAfter: true,
+      insertedAfter: true
     });
     boundaryCodes.add(boundaryResponse?.code);
   }

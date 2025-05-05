@@ -8,6 +8,10 @@ export const templateConfigs : any = {
             {
                 sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
                 schemaName: "user"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                schemaName: "boundary-data"
             }
         ],
         processing: true,

@@ -9,6 +9,7 @@ import { getLocalizedName } from "./campaignUtils";
 import {  adjustRowHeight, freezeUnfreezeColumns, manageMultiSelect } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
+import { logger } from "./logger";
 
 export async function initializeGenerateAndGetResponse( tenantId: string, type: string, hierarchyType: string,campaignId: string, templateConfig: any, locale: string = config.localisation.defaultLocale) {
     const responseToSend = {
@@ -78,8 +79,6 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
 }
 
 function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localizationMap: any) {
-    // todo : need to work on this
-    console.log(sheetMap, templateConfig, " sheetMap and templateConfig");
     for(const sheet of templateConfig?.sheets) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         if (sheetMap?.[sheetName]) {
@@ -153,7 +152,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any) {
     const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData);
     addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap);
-    console.log("Excel file filled successfully!");
+    logger.info(`Added data to sheet ${worksheet.name}`);
 }
 
 // Helper functions
