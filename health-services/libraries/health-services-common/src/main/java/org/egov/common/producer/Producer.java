@@ -32,11 +32,7 @@ public class Producer {
      * @param value    Object which needs to be pushed.
      */
     public void push(String tenantId, String topic, Object value) {
-        String updatedTopic = topic;
-        String schemaName = CommonUtils.getSchemaName(tenantId, multiStateInstanceUtil);
-        if (!ObjectUtils.isEmpty(schemaName)) {
-            updatedTopic = schemaName.concat("-").concat(topic);
-        }
+        String updatedTopic = multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
         log.info("The Kafka topic for the tenantId : {} is : {}", tenantId, updatedTopic);
         kafkaTemplate.send(updatedTopic, value);
     }

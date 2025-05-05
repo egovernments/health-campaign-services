@@ -1162,8 +1162,11 @@ public class CommonUtils {
         String schemaName = "";
         if (!ObjectUtils.isEmpty(multiStateInstanceUtil) && multiStateInstanceUtil.getIsEnvironmentCentralInstance()) {
             String[] tenants = tenantId.split("\\.");
-            if (tenants.length > multiStateInstanceUtil.getStateSchemaIndexPositionInTenantId())
+            if (tenants.length > multiStateInstanceUtil.getStateSchemaIndexPositionInTenantId()) {
                 schemaName = tenants[multiStateInstanceUtil.getStateSchemaIndexPositionInTenantId()];
+            } else {
+                schemaName = tenantId;
+            }
         }
         return schemaName;
     }
