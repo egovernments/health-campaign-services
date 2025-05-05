@@ -41,7 +41,7 @@ public interface Constants {
 
     String INDIVIDUAL_CANNOT_BE_NULL_MESSAGE = "individual id and individual client reference id both cannot be null";
 
-    /* * add this variable to your constant class */
-     String SCHEMA_REPLACE_STRING = "{schema}"; /** * Method to fetch the state name from the tenantId * * @param query * @param tenantId * @return */
+    String TENANT_ID_EXCEPTION = "TENANT_ID_EXCEPTION";
 
+    String TENANT_ID_EXCEPTION_MESSAGE = "tenant id cannot be null or empty";
 }
