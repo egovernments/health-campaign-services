@@ -10,6 +10,7 @@ const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
 import { defaultRequestInfo, searchBoundaryRelationshipData } from "./coreApis";
+import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -434,7 +435,9 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  enrichTemplateMetaData(updatedWorkbook, request);
+  if (request?.body?.RequestInfo && request?.query?.campaignId) {
+    enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
+  }
   while (retries--) {
     try {
       // Write the updated workbook to a buffer

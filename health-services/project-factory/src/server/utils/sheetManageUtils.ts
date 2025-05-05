@@ -6,24 +6,31 @@ import { callMdmsSchema, createAndUploadFileWithOutRequest } from "../api/generi
 import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import {  adjustRowHeight, freezeUnfreezeColumns, manageMultiSelect } from "./excelUtils";
+import {  adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
+import { generatedResourceStatuses } from "../config/constants";
 
-export async function initializeGenerateAndGetResponse( tenantId: string, type: string, hierarchyType: string,campaignId: string, templateConfig: any, locale: string = config.localisation.defaultLocale) {
+export async function initializeGenerateAndGetResponse( tenantId: string, type: string, hierarchyType: string,campaignId: string, userUuid : string, templateConfig: any, locale: string = config.localisation.defaultLocale) {
+    const currentTime = Date.now();
     const responseToSend = {
         id: uuidV4(),
         tenantId: tenantId,
         type: type,
         hierarchyType: hierarchyType,
         campaignId: campaignId,
-        locale: locale
+        locale: locale,
+        status: generatedResourceStatuses.inprogress,
+        additionalDetails: {},
+        auditDetails : {
+            lastModifiedTime: currentTime,
+            createdTime: currentTime,
+            createdBy: userUuid,
+            lastModifiedBy: userUuid
+        }
     };
-    const produceMessage : any = {
-        generateData: responseToSend
-    }
-    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     generateResource(responseToSend, templateConfig);
     return responseToSend;
 }
@@ -34,9 +41,16 @@ async function generateResource(responseToSend: any, templateConfig: any) {
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         const workBook = await createBasicTemplateViaConfig(responseToSend, templateConfig, localizationMap);
-        await createAndUploadFileWithOutRequest(workBook, responseToSend?.tenantId);
+        enrichTemplateMetaData(workBook, responseToSend?.locale, responseToSend?.campaignId);
+        const fileResponse = await createAndUploadFileWithOutRequest(workBook, responseToSend?.tenantId);
+        responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
+        if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
+        responseToSend.status = generatedResourceStatuses.completed;
+        produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
         console.log(error)
+        responseToSend.status = generatedResourceStatuses.failed;
+        produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     }
 }
 
@@ -51,11 +65,8 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
     if (templateConfig?.generation) {
         const className = `${responseToSend?.type}-templateClass`;
         const classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.ts`); 
-
-        // Dynamically import the template class and call the generate function
         try {
             const { TemplateClass } = await import(classFilePath);
-            // Now call the generate function from the class
             const sheetMap : SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
             mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
             for(const sheet of templateConfig?.sheets) {

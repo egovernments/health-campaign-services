@@ -6,7 +6,6 @@ import config from "../config";
 import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
-import { getLocaleFromRequestInfo } from "./localisationUtils";
 import { usageColumnStatus } from "../config/constants";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
@@ -124,10 +123,8 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook : any, request : any ){
-  if(request?.body?.RequestInfo && request?.query?.campaignId){
-    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
-  }
+export function enrichTemplateMetaData(updatedWorkbook : any, locale: string, campaignId: string) {
+  updatedWorkbook.keywords = `${locale}#${campaignId}`
 }
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
