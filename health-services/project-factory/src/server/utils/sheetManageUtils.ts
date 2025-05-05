@@ -11,6 +11,8 @@ import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
 import { generatedResourceStatuses } from "../config/constants";
+import fs from 'fs';
+
 
 export async function initializeGenerateAndGetResponse( tenantId: string, type: string, hierarchyType: string,campaignId: string, userUuid : string, templateConfig: any, locale: string = config.localisation.defaultLocale) {
     const currentTime = Date.now();
@@ -76,7 +78,11 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
     }
     if (templateConfig?.generation) {
         const className = `${responseToSend?.type}-templateClass`;
-        const classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.ts`); 
+        let classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.js`);
+        if (!fs.existsSync(classFilePath)) {
+            // fallback for local dev with ts-node
+            classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.ts`);
+        }
         try {
             const { TemplateClass } = await import(classFilePath);
             const sheetMap : SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
@@ -99,6 +105,9 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
             console.error(error);
             throw error;
         }
+    }
+    else{
+        logger.info(`Template generation skipped for ${responseToSend?.type} according to the config.`);
     }
     return newWorkbook;
 }
