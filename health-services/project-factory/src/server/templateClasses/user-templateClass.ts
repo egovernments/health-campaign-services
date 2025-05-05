@@ -33,7 +33,7 @@ export class TemplateClass {
                 dynamicColumns: boundaryDynamicColumns
             }
         }; // Initialize the SheetMap object
-
+        logger.info(`SheetMap generated for template of type ${responseToSend.type}.`);
         return sheetMap;
     }
 
@@ -131,9 +131,6 @@ export class TemplateClass {
 
         return result;
     }
-
-
-
 
     static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any, localizationMap: any) {
         const response = await searchBoundaryRelationshipDefinition({
