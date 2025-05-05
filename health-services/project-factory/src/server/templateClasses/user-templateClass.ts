@@ -84,34 +84,54 @@ export class TemplateClass {
     }
 
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
-        const result = [];
+        const result :any = [];
 
-        // Map code to boundary object
+        // Step 1: Index boundaries by code
         const codeToBoundary: Record<string, any> = {};
         for (const boundary of boundaries) {
-            codeToBoundary[boundary.code] = boundary;
+            codeToBoundary[boundary.code] = { ...boundary, children: [] };
         }
 
+        // Step 2: Build tree
+        const roots: any[] = [];
         for (const boundary of boundaries) {
+            if (boundary.parent) {
+                codeToBoundary[boundary.parent].children.push(codeToBoundary[boundary.code]);
+            } else {
+                roots.push(codeToBoundary[boundary.code]);
+            }
+        }
+
+        // Step 3: DFS traversal
+        function traverse(node: any, path: any[] = []) {
             const entry: Record<string, string> = {};
 
-            // Add the main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = boundary.code;
+            // Add main boundary code
+            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
 
-            // Traverse from current boundary up to root
-            let current: any = boundary;
-            while (current) {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${current.type}`.toUpperCase(), localizationMap);
-                const localizedValue = getLocalizedName(current.code, localizationMap);
+            // Traverse current path
+            const fullPath = [...path, node];
+            for (const b of fullPath) {
+                const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
+                const localizedValue = getLocalizedName(b.code, localizationMap);
                 entry[localizedKey] = localizedValue;
-                current = current.parent ? codeToBoundary[current.parent] : null;
             }
 
             result.push(entry);
+
+            for (const child of node.children) {
+                traverse(child, fullPath);
+            }
+        }
+
+        // Step 4: Start traversal from roots
+        for (const root of roots) {
+            traverse(root);
         }
 
         return result;
     }
+
 
 
 
