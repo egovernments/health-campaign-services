@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static digit.config.ErrorConstants.*;
 import static digit.config.ServiceConstants.*;
 
 @Slf4j
@@ -99,7 +100,6 @@ public class MdmsUtil {
         MasterDetail assumptionMasterDetail = MasterDetail.builder().name(MDMS_MASTER_ASSUMPTION).build();
         MasterDetail uploadConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_UPLOAD_CONFIGURATION).build();
         MasterDetail ruleConfigureInputsMasterDetail = MasterDetail.builder().name(MDMS_MASTER_RULE_CONFIGURE_INPUTS).filter(FILTER_DATA).build();
-        MasterDetail schemaDetails = MasterDetail.builder().name(MDMS_MASTER_SCHEMAS).build();
         MasterDetail metricDetails = MasterDetail.builder().name(MDMS_MASTER_METRIC).build();
         MasterDetail unitDetails = MasterDetail.builder().name(MDMS_MASTER_UOM).build();
         MasterDetail namingRegexDetails = MasterDetail.builder().name(MDMS_MASTER_NAME_VALIDATION).build();
@@ -107,7 +107,6 @@ public class MdmsUtil {
         assumptionMasterDetails.add(assumptionMasterDetail);
         assumptionMasterDetails.add(uploadConfigMasterDetail);
         assumptionMasterDetails.add(ruleConfigureInputsMasterDetail);
-        assumptionMasterDetails.add(schemaDetails);
         assumptionMasterDetails.add(metricDetails);
         assumptionMasterDetails.add(unitDetails);
         assumptionMasterDetails.add(namingRegexDetails);

@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE;
+import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
@@ -66,8 +68,8 @@ public class MixedStrategyUtil {
     public List<String> getCategoriesNotAllowed(boolean isFixedPost, PlanConfiguration planConfiguration, List<MixedStrategyOperationLogic> logicList) {
 
         //Extract fields from additional details
-        String registrationProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS);
-        String distributionProcess = (String) parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS);
+        String registrationProcess = parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), REGISTRATION_PROCESS, String.class);
+        String distributionProcess = parsingUtil.extractFieldsFromJsonObject(planConfiguration.getAdditionalDetails(), DISTRIBUTION_PROCESS, String.class);
 
         // If any of the process detail value is null, return an empty list
         if (ObjectUtils.isEmpty(registrationProcess) || ObjectUtils.isEmpty(distributionProcess)) {

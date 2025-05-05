@@ -71,10 +71,10 @@ public class BusinessServiceUtil {
     private String getBusinessServiceUri(String businessService, String tenantId, Map<String, String> uriParameters) {
 
         StringBuilder uri = new StringBuilder();
-        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append("?tenantId={tenantId}&businessServices={businessService}");
+        uri.append(config.getWfHost()).append(config.getBusinessServiceSearchEndpoint()).append(BUSINESS_SERVICE_QUERY_TEMPLATE);
 
-        uriParameters.put("tenantId", tenantId);
-        uriParameters.put("businessService", businessService);
+        uriParameters.put(TENANT_ID, tenantId);
+        uriParameters.put(BUSINESS_SERVICE, businessService);
 
         return uri.toString();
     }

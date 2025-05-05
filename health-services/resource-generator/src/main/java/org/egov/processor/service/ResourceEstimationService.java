@@ -3,18 +3,18 @@ package org.egov.processor.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
-import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.util.CampaignIntegrationUtil;
+import org.egov.processor.util.PlanUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.campaignManager.CampaignResponse;
-import org.egov.processor.web.models.campaignManager.CampaignSearchRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.egov.processor.config.ServiceConstants.FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS;
 
 @Service
 @Slf4j
@@ -24,18 +24,17 @@ public class ResourceEstimationService {
     private final FileParser geoJsonParser;
     private final FileParser shapeFileParser;
     private CampaignIntegrationUtil campaignIntegrationUtil;
-	private ServiceRequestRepository serviceRequestRepository;
 	private Configuration config;
+	private PlanUtil planUtil;
 
-	public ResourceEstimationService(FileParser excelParser, FileParser geoJsonParser, FileParser shapeFileParser,CampaignIntegrationUtil campaignIntegrationUtil
-    		,ServiceRequestRepository serviceRequestRepository,
-    		Configuration config) {
+	public ResourceEstimationService(FileParser excelParser, FileParser geoJsonParser, FileParser shapeFileParser, CampaignIntegrationUtil campaignIntegrationUtil
+    		, Configuration config, PlanUtil planUtil) {
         this.excelParser = excelParser;
         this.geoJsonParser = geoJsonParser;
         this.shapeFileParser = shapeFileParser;
         this.campaignIntegrationUtil= campaignIntegrationUtil;
-    	this.serviceRequestRepository=serviceRequestRepository;
     	this.config=config;
+        this.planUtil = planUtil;
     }
 
 	/**
@@ -46,26 +45,15 @@ public class ResourceEstimationService {
     public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
+		if(planConfiguration.getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+			planUtil.addEstimationsFile(planConfigurationRequest);
+			planUtil.update(planConfigurationRequest);
+		}
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
-        Object campaignSearchResponse = performCampaignSearch(planConfigurationRequest);
+        CampaignResponse campaignSearchResponse = campaignIntegrationUtil.performCampaignSearch(planConfigurationRequest);
 		processFacilityFile(planConfigurationRequest, campaignSearchResponse);
 		processFiles(planConfigurationRequest, planConfiguration, parserMap, campaignSearchResponse);
     }
-
-    /**
-     * Performs a campaign search based on the provided plan configuration request.
-     * This method builds a campaign search request using the integration utility,
-     * fetches the search result from the service request repository, and returns it.
-     *
-     * @param planConfigurationRequest The request object containing configuration details for the campaign search.
-     * @return The response object containing the result of the campaign search.
-     */
-	private Object performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
-		CampaignSearchRequest campaignRequest = campaignIntegrationUtil.buildCampaignRequestForSearch(planConfigurationRequest);
-        Object campaignSearchResponse = serviceRequestRepository.fetchResult(new StringBuilder(config.getProjectFactoryHostEndPoint()+config.getCampaignIntegrationSearchEndPoint()),
-				campaignRequest);
-		return campaignSearchResponse;
-	}
 
 	/**
 	 * Processes files in the plan configuration by parsing active files and skipping inactive ones.
@@ -79,7 +67,7 @@ public class ResourceEstimationService {
 	 * @param campaignSearchResponse The response object from a campaign search operation.
 	 */
 	private void processFiles(PlanConfigurationRequest planConfigurationRequest, PlanConfiguration planConfiguration,
-			Map<File.InputFileTypeEnum, FileParser> parserMap, Object campaignSearchResponse) {
+			Map<File.InputFileTypeEnum, FileParser> parserMap, CampaignResponse campaignSearchResponse) {
 		for (File file : planConfiguration.getFiles()) {
 		    if (!file.getActive()) {
 		        continue; 
@@ -88,8 +76,9 @@ public class ResourceEstimationService {
 		    FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                 throw new IllegalArgumentException("Unsupported file type: " + ft);
             });
-		    if (!ServiceConstants.FILE_TEMPLATE.equalsIgnoreCase(file.getTemplateIdentifier())) {
+		    if (file.getTemplateIdentifier().equalsIgnoreCase(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)) {
 		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
+				break;
 		    }
 		}
 
@@ -115,11 +104,10 @@ public class ResourceEstimationService {
 	 * a data creation call to the Project Factory service.
 	 *
 	 * @param planConfigurationRequest the request containing plan configuration details
-	 * @param campaignResponseObject the campaign response object to be parsed
+	 * @param campaignResponse the campaign response
 	 */
-	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, Object campaignResponseObject) {
+	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, CampaignResponse campaignResponse) {
 		if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
-			CampaignResponse campaignResponse = campaignIntegrationUtil.parseCampaignResponse(campaignResponseObject);
 			campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
 			log.info("Facility Data creation successful.");
 		}

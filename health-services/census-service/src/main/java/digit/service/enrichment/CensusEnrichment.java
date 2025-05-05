@@ -1,7 +1,5 @@
 package digit.service.enrichment;
 
-import digit.util.CommonUtil;
-import digit.web.models.AdditionalField;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
@@ -15,18 +13,14 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
+import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
 
 @Component
 public class CensusEnrichment {
 
-    private CommonUtil commonUtil;
-
-    public CensusEnrichment(CommonUtil commonUtil) {
-        this.commonUtil = commonUtil;
-    }
+    public CensusEnrichment() {}
 
     /**
      * Enriches the CensusRequest for creating a new census record.
@@ -40,30 +34,21 @@ public class CensusEnrichment {
         Census census = request.getCensus();
 
         // Generate id for census record
-        UUIDEnrichmentUtil.enrichRandomUuid(census, "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(census, ID);
 
         // Generate id for PopulationByDemographics
         if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
-            census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id"));
+            census.getPopulationByDemographics().forEach(populationByDemographics -> UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, ID));
         }
 
         // Generate id for additionalFields
-        census.getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+        census.getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID));
 
         // Set audit details for census record
         census.setAuditDetails(prepareAuditDetails(census.getAuditDetails(), request.getRequestInfo(), Boolean.TRUE));
 
         // Enrich effectiveFrom for the census record
         census.setEffectiveFrom(census.getAuditDetails().getCreatedTime());
-
-        denormalizeAdditionalFields(request.getCensus());
-    }
-
-    private void denormalizeAdditionalFields(Census census) {
-        Map<String, Object> fieldsToAdd = census.getAdditionalFields().stream()
-                .collect(Collectors.toMap(AdditionalField::getKey, AdditionalField::getValue));
-
-        census.setAdditionalDetails(commonUtil.updateFieldInAdditionalDetails(census.getAdditionalDetails(), fieldsToAdd));
     }
 
     /**
@@ -82,7 +67,7 @@ public class CensusEnrichment {
         // Iterate through the child boundary until there are no more
         while (!CollectionUtils.isEmpty(boundary.getChildren())) {
             boundary = boundary.getChildren().get(0);
-            boundaryAncestralPath.append("|").append(boundary.getCode());
+            boundaryAncestralPath.append(PIPE_DELIMITER).append(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
         }
 
@@ -107,7 +92,7 @@ public class CensusEnrichment {
         if (!CollectionUtils.isEmpty(census.getPopulationByDemographics())) {
             census.getPopulationByDemographics().forEach(populationByDemographics -> {
                 if (ObjectUtils.isEmpty(populationByDemographics.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(populationByDemographics, ID);
                 }
             });
         }
@@ -115,14 +100,12 @@ public class CensusEnrichment {
         //Generate id for additionalFields
         census.getAdditionalFields().forEach(additionalField -> {
             if (ObjectUtils.isEmpty(additionalField.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID);
             }
         });
 
         // Set last modified time on update call
         census.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
-
-        denormalizeAdditionalFields(request.getCensus());
     }
 
     /**
@@ -213,6 +196,6 @@ public class CensusEnrichment {
         if (CollectionUtils.isEmpty(boundaryAncestralPath)) {
             return Collections.emptyList();
         }
-        return Arrays.asList(boundaryAncestralPath.get(0).split("\\|"));
+        return Arrays.asList(boundaryAncestralPath.get(0).split(PIPE_REGEX));
     }
 }
