@@ -601,6 +601,7 @@ export function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
   columnsToFreeze: string[]
 ) {
+  logger.info(`Freezing columns: ${columnsToFreeze}`);
   const headerRow = worksheet.getRow(1);
   const headerMap: Record<string, number> = {};
 

@@ -89,6 +89,7 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
             mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
             for(const sheet of templateConfig?.sheets) {
                 const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+                logger.info(`Generating sheet ${sheetName}`);
                 const sheetData : any = sheetMap?.[sheetName];
                 const worksheet = getOrCreateWorksheet(newWorkbook, sheetName);
                 await fillSheetMapInWorkbook(worksheet, sheetData);
@@ -100,6 +101,7 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
                 manageMultiSelect(worksheet, schema, localizationMap);
                 await handledropdownthings(worksheet, schema, localizationMap);
                 updateFontNameToRoboto(worksheet);
+                logger.info(`Sheet ${sheetName} generated successfully`);
             }
         } catch (error) {
             logger.error(`Error importing or calling generate function from ${classFilePath}`);

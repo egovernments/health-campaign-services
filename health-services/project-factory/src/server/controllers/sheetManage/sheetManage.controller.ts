@@ -3,51 +3,40 @@ import { generateDataService } from "../../service/sheetManageService";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
 import { validateGenerateRequest } from "../../validators/genericValidator";
+import { getLocaleFromRequest } from "../../utils/localisationUtils";
+import GenerateTemplateQuery from "../../models/GenerateTemplateQuery";
 
-
-
-
-
-
-
-// Define the MeasurementController class
-class sheetManageController {
-    // Define class properties
+class SheetManageController {
     public path = "/v1/sheet";
     public router = express.Router();
-    public dayInMilliSecond = 86400000;
 
-    // Constructor to initialize routes
     constructor() {
-        this.intializeRoutes();
-    }
-
-    // Initialize routes for MeasurementController
-    public intializeRoutes() {
         this.router.post(`${this.path}/_generate`, this.generateData);
     }
-    /**
-* Generates data based on the request and sends the response.
-* @param request The Express request object.
-* @param response The Express response object.
-*/
-    generateData = async (request: express.Request, response: express.Response) => {
+
+    generateData = async (req: express.Request, res: express.Response) => {
         try {
-            logger.info(`RECEIVED A DATA GENERATE REQUEST FOR TYPE :: ${request?.query?.type}`);
-            await validateGenerateRequest(request);
-            const GeneratedResource = await generateDataService(request);
-            return sendResponse(response, { GeneratedResource }, request);
+            const { type, tenantId, hierarchyType, campaignId } = req.query as Record<string, string>;
+            logger.info(`DATA GENERATE REQUEST RECEIVED :: TYPE = ${type}`);
+            await validateGenerateRequest(req);
+
+            const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
+            const locale = getLocaleFromRequest(req);
+
+            const data : GenerateTemplateQuery = { type, tenantId, hierarchyType, campaignId };
+            const GeneratedResource = await generateDataService(data, userUuid, locale);
+
+            return sendResponse(res, { GeneratedResource }, req);
         } catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+            logger.error(String(e));
+            return errorResponder(
+                { message: String(e), code: e?.code, description: e?.description },
+                req,
+                res,
+                e?.status || 500
+            );
         }
     };
+}
 
-
-};
-export default sheetManageController;
-
-
-
+export default SheetManageController;
