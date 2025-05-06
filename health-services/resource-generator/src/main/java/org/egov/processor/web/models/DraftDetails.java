@@ -10,6 +10,7 @@ import lombok.Data;
 public class DraftDetails {
     @JsonProperty("planConfigurationId")
     @Valid
+    @NotNull
     @Size(min = 2, max = 64)
     private String planConfigurationId = null;
 

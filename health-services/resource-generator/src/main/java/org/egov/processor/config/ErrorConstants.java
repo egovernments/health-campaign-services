@@ -39,7 +39,7 @@ public class ErrorConstants {
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_CODE = "UNABLE_TO_CREATE_ADDITIONAL_DETAILS";
     public static final String UNABLE_TO_CREATE_ADDITIONAL_DETAILS_MESSAGE = "Unable to create additional details for facility creation.";
 
-    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FOUND_FOR_GIVEN_DETAILS";
+    public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_CENSUS_FOUND_FOR_GIVEN_DETAILS";
     public static final String NO_CENSUS_FOUND_FOR_GIVEN_DETAILS_MESSAGE = "Census records do not exists for the given details: ";
 
     public static final String NO_PLAN_FOUND_FOR_GIVEN_DETAILS_CODE = "NO_PLAN_FOUND_FOR_GIVEN_DETAILS";
@@ -52,7 +52,7 @@ public class ErrorConstants {
     public static final String README_SHEET_NAME_LOCALISATION_NOT_FOUND_MESSAGE = "README sheet name localization not found or plan facilities do not exist for the provided details.";
 
     public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE = "NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER";
-    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE = "Master data not found for Mixed Strategy master";
+    public static final String NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_MESSAGE = "Master data not found for Mixed Strategy master";
 
     public static final String ERROR_PROCESSING_DATA_FROM_MDMS = "Exception occurred while processing data from mdms ";
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE_FOR_LOCALITY = "Exception occurred while fetching plan configuration from plan service for Locality ";

@@ -150,7 +150,7 @@ public class PlanFacilityValidator {
     private Set<String> fetchBoundaryCodes(CampaignDetail campaignDetail, String hierarchyType) {
         return campaignDetail.getBoundaries().stream()
                 // Filter boundaries by hierarchyType if hierarchyType is provided, otherwise include all
-                .filter(boundary -> hierarchyType == null || hierarchyType.equals(boundary.getType().toLowerCase()))
+                .filter(boundary -> hierarchyType == null || hierarchyType.equalsIgnoreCase(boundary.getType()))
                 .map(Boundary::getCode)
                 .collect(Collectors.toSet());
     }
@@ -270,11 +270,12 @@ public class PlanFacilityValidator {
         String facilityName = facility.getName();
         planFacilityRequest.getPlanFacility().setFacilityName(facilityName);
         BigDecimal initialServingPop = BigDecimal.ZERO;
+        String status = !ObjectUtils.isEmpty(facility.getAddress()) ? facility.getAddress().getType() : null;
 
         Map<String, Object> fieldsToBeAdded = new HashMap<>();
         fieldsToBeAdded.put(FACILITY_USAGE_KEY, facility.getUsage());
         fieldsToBeAdded.put(CAPACITY_KEY, facility.getStorageCapacity());
-        fieldsToBeAdded.put(FACILITY_STATUS_KEY, facility.getAddress().getType());
+        fieldsToBeAdded.put(FACILITY_STATUS_KEY, status);
         fieldsToBeAdded.put(FACILITY_TYPE_KEY, facility.getUsage());
         fieldsToBeAdded.put(IS_PERMANENT_KEY, facility.isPermanent());
         fieldsToBeAdded.put(SERVING_POPULATION_KEY, initialServingPop);

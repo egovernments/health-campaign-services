@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE;
-import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE;
+import static org.egov.processor.config.ErrorConstants.NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_MESSAGE;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
@@ -47,7 +47,7 @@ public class MixedStrategyUtil {
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_MIXED_STRATEGY, null);
 
         if (CollectionUtils.isEmpty(mdmsV2Data)) {
-            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE, NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE_MESSAGE);
+            throw new CustomException(NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_CODE, NO_MDMS_DATA_FOUND_FOR_MIXED_STRATEGY_MASTER_MESSAGE);
         }
 
         return mdmsV2Data.stream()

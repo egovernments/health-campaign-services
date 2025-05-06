@@ -173,7 +173,7 @@ public class ErrorConstants {
     public static final String ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE = "Exception occurred while updating additional details  : ";
 
     public static final String WORKFLOW_INTEGRATION_ERROR_CODE = "WORKFLOW_INTEGRATION_ERROR";
-    public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occured while integrating with workflow : ";
+    public static final String WORKFLOW_INTEGRATION_ERROR_MESSAGE = "Exception occurred while integrating with workflow : ";
 
     public static final String FILES_NOT_FOUND_CODE = "FILES_NOT_FOUND";
     public static final String FILES_NOT_FOUND_MESSAGE = "Files are not present in Plan Configuration.";

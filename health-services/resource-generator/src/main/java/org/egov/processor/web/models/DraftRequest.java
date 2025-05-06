@@ -2,9 +2,10 @@ package org.egov.processor.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import org.egov.common.contract.request.RequestInfo;
-import javax.validation.constraints.NotNull;
+
 
 @Data
 public class DraftRequest {

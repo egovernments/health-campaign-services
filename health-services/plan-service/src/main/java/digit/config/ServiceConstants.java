@@ -40,9 +40,9 @@ public class ServiceConstants {
     public static final String MICROPLAN_PREFIX = "MP-";
     public static final String JSON_ROOT_PATH = "$.";
     public static final String DOT_SEPARATOR = ".";
-    public static final String PIPE_SEPARATOR = "|";
+    public static final String PIPE_SEPARATOR = "|"; // literal
     public static final String DOT_REGEX = "\\.";
-    public static final String PIPE_REGEX = "\\|";
+    public static final String PIPE_REGEX = "\\|"; // regex-safe
 
     public static final String FILTER_UOMCODE = ".*.uomCode";
     public static final String FILTER_CODE = ".*.code";
