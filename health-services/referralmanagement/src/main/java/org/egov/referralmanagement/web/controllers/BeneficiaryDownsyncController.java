@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
-import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncResponse;
+import org.egov.common.models.referralmanagement.beneficiarydownsync.*;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.referralmanagement.service.DownsyncService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +40,7 @@ public class BeneficiaryDownsyncController {
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
-    	Downsync downsync = downsyncService.prepareDownsyncData(request);
+    	Downsync downsync = downsyncService.prepareDownsyncData(request, false);
         DownsyncResponse response = DownsyncResponse.builder()
                 .downsync(downsync)
                 .responseInfo(ResponseInfoFactory
@@ -51,4 +49,29 @@ public class BeneficiaryDownsyncController {
         
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
+
+	@PostMapping(value = "/v1/_get/CLF/household")
+	public ResponseEntity<DownsyncCLFHouseholdResponse> getBeneficaryDataCFLHousehold (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+		// API response only contains household data and number of members present in that household
+		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
+		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
+		DownsyncCLFHousehold downsyncCLFHousehold = downsyncService.prepareDownsyncCLFDataHousehold(request);
+		DownsyncCLFHouseholdResponse response = DownsyncCLFHouseholdResponse.builder()
+				.Households(downsyncCLFHousehold).responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true)).build();
+		return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+	}
+
+	@PostMapping(value = "/v1/_get/CLF/memberData")
+	public ResponseEntity<DownsyncResponse> getBeneficaryDataCFLMember (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
+		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
+		Downsync downsyncCLFMember = downsyncService.prepareDownsyncData(request, true);
+		DownsyncResponse response = DownsyncResponse.builder()
+				.downsync(downsyncCLFMember).responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true)).build();
+		return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+	}
+
+
 }
+
+
