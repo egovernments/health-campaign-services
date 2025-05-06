@@ -24,6 +24,14 @@ public class ValidatorUtils {
                 .exception(new CustomException("NULL_ID", "Id cannot be null")).build();
     }
 
+    public static Error getErrorForNullTenantId() {
+        return Error.builder().errorMessage("TenantId cannot be null").errorCode("NULL_TENANT_ID")
+                .type(Error.ErrorType.RECOVERABLE)
+                .exception(new CustomException("NULL_TENANT_ID", "TenantId cannot be null")).build();
+    }
+
+
+
     public static Error getErrorForAddressType() {
         return Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
                 .type(Error.ErrorType.RECOVERABLE)

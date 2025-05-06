@@ -190,13 +190,6 @@ public abstract class GenericRepository<T> {
     }
 
 
-    public List<T> save( String tenantId, List<T> objects, String topic) {
-        producer.push(topic, objects, tenantId);
-        log.info("Pushed to kafka");
-        putInCache(objects);
-        log.info("Saved to cache");
-        return objects;
-    }
 
     /**
      * Saves entities to Kafka, caches them with specified cache key.
