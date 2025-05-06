@@ -30,7 +30,7 @@ public class NotificationConsumer {
      * @param topic
      */
 
-    @KafkaListener(topics = { "${pgr.kafka.create.topic}" ,"${pgr.kafka.update.topic}"})
+    @KafkaListener(topicPattern = ".*(${pgr.kafka.create.topic}|${pgr.kafka.update.topic})")
     public void listen(final HashMap<String, Object> record, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ServiceRequest request = mapper.convertValue(record, ServiceRequest.class);

@@ -1,6 +1,8 @@
 package org.egov.pgr.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.pgr.repository.rowmapper.PGRQueryBuilder;
 import org.egov.pgr.repository.rowmapper.PGRRowMapper;
 import org.egov.pgr.util.PGRConstants;
@@ -23,17 +25,20 @@ import java.util.stream.Collectors;
 public class PGRRepository {
 
 
-    private PGRQueryBuilder queryBuilder;
+    private final PGRQueryBuilder queryBuilder;
 
-    private PGRRowMapper rowMapper;
+    private final PGRRowMapper rowMapper;
 
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
+
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
 
     @Autowired
-    public PGRRepository(PGRQueryBuilder queryBuilder, PGRRowMapper rowMapper, JdbcTemplate jdbcTemplate) {
+    public PGRRepository(PGRQueryBuilder queryBuilder, PGRRowMapper rowMapper, JdbcTemplate jdbcTemplate, MultiStateInstanceUtil multiStateInstanceUtil) {
         this.queryBuilder = queryBuilder;
         this.rowMapper = rowMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
     }
 
 
@@ -42,7 +47,7 @@ public class PGRRepository {
      * @param criteria
      * @return
      */
-    public List<ServiceWrapper> getServiceWrappers(RequestSearchCriteria criteria){
+    public List<ServiceWrapper> getServiceWrappers(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Service> services = getServices(criteria);
         List<String> serviceRequestids = services.stream().map(Service::getServiceRequestId).collect(Collectors.toList());
         Map<String, Workflow> idToWorkflowMap = new HashMap<>();
@@ -60,9 +65,10 @@ public class PGRRepository {
      * @param criteria
      * @return
      */
-    public List<Service> getServices(RequestSearchCriteria criteria) {
+    public List<Service> getServices(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getPGRSearchQuery(criteria, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, criteria.getTenantId());
         List<Service> services =  jdbcTemplate.query(query, preparedStmtList.toArray(), rowMapper);
         return services;
     }
@@ -72,23 +78,25 @@ public class PGRRepository {
      * @param criteria
      * @return
      */
-    public Integer getCount(RequestSearchCriteria criteria) {
+    public Integer getCount(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCountQuery(criteria, preparedStmtList);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, criteria.getTenantId());
         Integer count =  jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
         return count;
     }
 
 
-	public Map<String, Integer> fetchDynamicData(String tenantId) {
+	public Map<String, Integer> fetchDynamicData(String tenantId) throws InvalidTenantIdException {
 		List<Object> preparedStmtListCompalintsResolved = new ArrayList<>();
 		String query = queryBuilder.getResolvedComplaints(tenantId,preparedStmtListCompalintsResolved );
-
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 		int complaintsResolved = jdbcTemplate.queryForObject(query,preparedStmtListCompalintsResolved.toArray(),Integer.class);
 
 		List<Object> preparedStmtListAverageResolutionTime = new ArrayList<>();
 		query = queryBuilder.getAverageResolutionTime(tenantId, preparedStmtListAverageResolutionTime);
 
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 		int averageResolutionTime = jdbcTemplate.queryForObject(query, preparedStmtListAverageResolutionTime.toArray(),Integer.class);
 
 		Map<String, Integer> dynamicData = new HashMap<String,Integer>();
