@@ -52,7 +52,6 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_SCHEMAS = "Schemas";
     public static final String MDMS_MASTER_ADMIN_SCHEMA = "adminSchema";
     public static final String MDMS_CAMPAIGN_TYPE = "campaignType";
-    public static final String MDMS_SCHEMA_ADMIN_SCHEMA = "adminSchema";
     public static final String MDMS_MASTER_MIXED_STRATEGY = "MixedStrategyOperationLogic";
     public static final String MDMS_ADMIN_CONSOLE_MODULE_NAME = "HCM-ADMIN-CONSOLE";
     public static final String BOUNDARY = "boundary";

@@ -68,7 +68,7 @@ public class EnrichmentUtil {
     {
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         String uniqueIndentifier = BOUNDARY + DOT_SEPARATOR  + MICROPLAN_PREFIX + campaignType;
-        List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_SCHEMA_ADMIN_SCHEMA, uniqueIndentifier);
+        List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ADMIN_SCHEMA, uniqueIndentifier);
         List<String> columnNameList = parsingUtil.extractPropertyNamesFromAdminSchema(mdmsV2Data.get(0).getData());
 
         List<ResourceMapping> resourceMappingList = !CollectionUtils.isEmpty(request.getPlanConfiguration().getResourceMapping()) ?
