@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -45,8 +45,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.household.Constants.SET_HOUSEHOLD_MEMBERS;
-import static org.egov.household.Constants.VALIDATION_ERROR;
+import static org.egov.household.Constants.*;
 
 @Service
 @Slf4j
@@ -146,8 +145,13 @@ public class HouseholdMemberService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
                     householdMemberSearch);
-            SearchResponse<HouseholdMember> searchResponse = householdMemberRepository.findById(ids,
-                    idFieldName, includeDeleted);
+            SearchResponse<HouseholdMember> searchResponse = null;
+            try {
+                searchResponse = householdMemberRepository.findById(tenantId, ids,
+                        idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+            }
             List<HouseholdMember> householdMembers = searchResponse.getResponse().stream()
                                 .filter(lastChangedSince(lastChangedSince))
                                 .filter(havingTenantId(tenantId))

@@ -1,9 +1,8 @@
 package org.egov.product.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.product.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.product.Product;
-
 
 public class ProductTestBuilder {
     private Product.ProductBuilder builder;
@@ -32,7 +31,6 @@ public class ProductTestBuilder {
         this.builder.name("Product-1")
                 .manufacturer("MANU")
                 .tenantId("default")
-                .type("DRUG")
                 .additionalFields(AdditionalFields.builder().build())
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;

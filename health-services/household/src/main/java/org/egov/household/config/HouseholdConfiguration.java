@@ -48,4 +48,8 @@ public class HouseholdConfiguration {
 
     @Value("${household.type.community.creator.role}")
     private String communityHouseholdCreatorRoleCode;
+
+    @Value("${is.environment.central.instance}")
+    private Boolean isEnvironmentCentralInstance;
+
 }

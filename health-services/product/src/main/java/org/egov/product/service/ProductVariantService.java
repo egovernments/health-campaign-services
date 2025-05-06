@@ -1,18 +1,21 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariantSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
@@ -28,10 +31,13 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 import static org.egov.common.utils.CommonUtils.validateIds;
+import static org.egov.product.Constants.INVALID_TENANT_ID;
+import static org.egov.product.Constants.INVALID_TENANT_ID_MESSAGE;
 
 @Service
 @Slf4j
 public class ProductVariantService {
+
 
     private final IdGenService idGenService;
 
@@ -53,8 +59,19 @@ public class ProductVariantService {
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
         log.info("validating product ids");
-        validateIds(getSet(request.getProductVariant(), "getProductId"),
-                productService::validateProductId);
+        String tenantId = getTenantId(request.getProductVariant());
+        Set<Object> rawIds =  getSet(request.getProductVariant(), "getProductId");
+        Set<String> productIds = rawIds.stream()
+                .map(Object::toString)
+                .collect(Collectors.toSet());
+        validateIds(productIds,
+                 ids -> {
+                     try {
+                         return productService.validateProductId(tenantId, ids);
+                     } catch (InvalidTenantIdException e) {
+                         throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MESSAGE);
+                     }
+                 });
         log.info("generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(request.getProductVariant()),
@@ -71,15 +88,32 @@ public class ProductVariantService {
     public List<ProductVariant> update(ProductVariantRequest request) {
         identifyNullIds(request.getProductVariant());
 
+        String tenantId = getTenantId(request.getProductVariant());
+
         log.info("validating product ids");
-        validateIds(getSet(request.getProductVariant(), "getProductId"),
-                productService::validateProductId);
+        Set<Object> rawIds = getSet(request.getProductVariant(), "getProductId");
+        Set<String> productIds = rawIds.stream()
+                .map(Object::toString)
+                .collect(Collectors.toSet());
+        validateIds(productIds,
+                ids -> {
+                    try {
+                        return productService.validateProductId(tenantId, ids);
+                    } catch (InvalidTenantIdException e) {
+                        throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MESSAGE);
+                    }
+                });
         Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
 
         log.info("checking if already exists");
         List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
-        List<ProductVariant> existingProductVariants = productVariantRepository
-                .findById(productVariantIds);
+        List<ProductVariant> existingProductVariants = null;
+        try {
+            existingProductVariants = productVariantRepository
+                    .findById(tenantId, productVariantIds);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MESSAGE);
+        }
 
         log.info("checking validate entities for product variants");
         validateEntities(pvMap, existingProductVariants);
@@ -107,7 +141,7 @@ public class ProductVariantService {
             log.info("searching product variants by id");
             List<String> ids = productVariantSearchRequest.getProductVariant().getId();
             log.info("fetching product variants with ids: {}", ids);
-            return productVariantRepository.findById(ids, includeDeleted).stream()
+            return productVariantRepository.findById(tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

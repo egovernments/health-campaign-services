@@ -6,10 +6,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockSearch;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.stock.repository.StockRepository;
 import org.springframework.core.annotation.Order;
@@ -19,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -53,7 +56,7 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         // Map to hold Stock entities and their error details
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-
+        String tenantId = CommonUtils.getTenantId(request.getStock()); // Extract tenant ID from the request
         // Get the list of Stock entities from the request
         List<Stock> entities = request.getStock();
 
@@ -76,15 +79,22 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
         // Check if the list of client reference IDs is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing Stock entities with the given client reference IDs
-            List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
 
-            // For each existing client reference ID, add an error to the map for the corresponding Stock entity
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual Stock entity associated with the client reference ID
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+            try {
+                List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
+                // For each existing client reference ID, add an error to the map for the corresponding Stock entity
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual Stock entity associated with the client reference ID
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach(stock -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(stock, error, errorDetailsMap);
+                });
+            }
         }
 
         // Return the map containing Stock entities and their associated error details
