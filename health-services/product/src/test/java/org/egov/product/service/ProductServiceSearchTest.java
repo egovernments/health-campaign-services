@@ -1,10 +1,12 @@
 package org.egov.product.service;
 
-import org.egov.common.data.query.exception.QueryBuilderException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.product.Product;
 import org.egov.product.helper.ProductTestBuilder;
-import org.egov.product.repository.ProductRepository;
+import org.egov.product.web.models.Mdms;
 import org.egov.product.web.models.ProductSearch;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,11 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,16 +33,15 @@ class ProductServiceSearchTest {
     private ProductService productService;
 
     @Mock
-    private ProductRepository productRepository;
+    private MdmsV2Service mdmsV2Service;
 
-    private ArrayList<Product> products;
+    private List<Product> products;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
-    void setUp() throws QueryBuilderException {
+    void setUp() {
         products = new ArrayList<>();
-        lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class),
-               any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
-               .thenReturn(products);
+        objectMapper = new ObjectMapper();
     }
 
     @Test
@@ -52,8 +49,13 @@ class ProductServiceSearchTest {
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
         ProductSearch productSearch = ProductSearch.builder()
                 .id(Collections.singletonList("ID101")).name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+
+        // Mocking mdmsV2Service to return an empty list
+        when(mdmsV2Service.fetchMdmsData(any(), anyString(), anyBoolean(), anyList(), anyInt(), anyInt()))
+                .thenReturn(new ArrayList<>());
 
         assertDoesNotThrow(() -> productService.search(productSearchRequest, 10, 0, "default", null, false));
     }
@@ -61,30 +63,37 @@ class ProductServiceSearchTest {
     @Test
     @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
-        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        // Step 1: Create a Product object
+        Product product = ProductTestBuilder.builder().goodProduct().withId("ID101").build();
+        JsonNode jsonNode = objectMapper.valueToTree(product); // Convert Product to JsonNode
+
+        // Step 2: Create an Mdms object with the JsonNode
+        Mdms mdms = Mdms.builder()
+                .id("ID101")
+                .tenantId("tenantId")
+                .schemaCode("productSchema")
+                .data(jsonNode)  // Set the JsonNode into the Mdms object
+                .isActive(true)
+                .auditDetails(new AuditDetails())
+                .build();
+
+        // Step 3: Mock the mdmsV2Service to return list with the Mdms object
+        when(mdmsV2Service.fetchMdmsData(any(), anyString(), anyBoolean(), anyList(), anyInt(), anyInt()))
+                .thenReturn(Collections.singletonList(mdms));
+
+        // Step 4: Define search criteria and the request
         ProductSearch productSearch = ProductSearch.builder()
                 .id(Collections.singletonList("ID101")).name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
+        // Step 5: Call the search method
         List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
 
-        assertEquals(1, products.size());
+        // Step 6: Validate the result
+        assertEquals(1, products.size());  // Ensure that 1 product is returned
+        assertEquals("ID101", products.get(0).getId());  // Ensure that the ID matches
     }
 
-    @Test
-    @DisplayName("should return product from cache if search criteria has id only")
-    void shouldReturnProductFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
-        Product product = ProductTestBuilder.builder().goodProduct().withId("ID101").build();
-        product.setIsDeleted(false);
-        products.add(product);
-        ProductSearch productSearch = ProductSearch.builder().id(Collections.singletonList("ID101")).build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
-                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(productRepository.findById(anyList(), anyBoolean())).thenReturn(products);
-
-        List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
-
-        assertEquals(1, products.size());
-    }
 }

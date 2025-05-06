@@ -1,10 +1,12 @@
 package org.egov.product.service;
 
-import org.egov.common.data.query.exception.QueryBuilderException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.product.helper.ProductVariantTestBuilder;
-import org.egov.product.repository.ProductVariantRepository;
+import org.egov.product.web.models.Mdms;
 import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,10 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,63 +33,77 @@ class ProductVariantServiceSearchTest {
     private ProductVariantService productVariantService;
 
     @Mock
-    private ProductVariantRepository productVariantRepository;
+    private MdmsV2Service mdmsV2Service; // Mock the MDMS service
 
     private ArrayList<ProductVariant> productVariants;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
-    void setUp() throws QueryBuilderException {
+    void setUp() {
         productVariants = new ArrayList<>();
+        objectMapper = new ObjectMapper();
     }
 
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
-        when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
-                .id(Collections.singletonList("ID101")).variation("some-variation").build();
-        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
-                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
-                        .withCompleteRequestInfo().build()).build();
+        // Arrange
+        when(mdmsV2Service.fetchMdmsData(any(), anyString(), anyBoolean(), anyList(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
 
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(Collections.singletonList("ID101"))
+                .variation("some-variation")
+                .build();
+
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch)
+                .requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo()
+                        .build())
+                .build();
+
+        // Act & Assert
         assertDoesNotThrow(() -> productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false));
     }
 
     @Test
     @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
-        when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(productVariants);
-        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build());
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id(Collections.singletonList("ID101"))
-                .variation("some-variation").build();
-        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
-                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
-                        .withCompleteRequestInfo().build()).build();
+        // Step 1: Create a Product object
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withIdNull().withId("ID101").build();
+        JsonNode jsonNode = objectMapper.valueToTree(productVariant); // Convert ProductVarient to JsonNode
 
+        // Step 2: Create an Mdms object with the JsonNode
+        Mdms mdms = Mdms.builder()
+                .id("ID101")
+                .tenantId("some-tenant-id")
+                .schemaCode("productSchema")
+                .data(jsonNode)  // Set the JsonNode into the Mdms object
+                .isActive(true)
+                .auditDetails(new AuditDetails())
+                .build();
+
+
+        when(mdmsV2Service.fetchMdmsData(any(), anyString(), anyBoolean(), anyList(), anyInt(), anyInt()))
+                .thenReturn(Collections.singletonList(mdms));
+
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(Collections.singletonList("ID101"))
+                .build();
+
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch)
+                .requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo()
+                        .build())
+                .build();
+
+        // Act
         List<ProductVariant> products = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
 
+        // Assert
         assertEquals(1, products.size());
-    }
-
-    @Test
-    @DisplayName("should return from cache if search criteria has id only")
-    void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId()
-                .withAuditDetails().build();
-        productVariant.setIsDeleted(false);
-        productVariants.add(productVariant);
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
-                .id(Collections.singletonList("ID101")).build();
-        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
-                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
-                        .withCompleteRequestInfo().build()).build();
-        when(productVariantRepository.findById(anyList(), anyBoolean())).thenReturn(productVariants);
-
-        List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest,
-                10, 0, null, null, true);
-
-        assertEquals(1, productVariants.size());
+        assertEquals("ID101", products.get(0).getId());
     }
 }
