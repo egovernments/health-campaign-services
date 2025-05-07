@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
@@ -196,7 +197,7 @@ public class SideEffectService {
                                              Integer offset,
                                              String tenantId,
                                              Long lastChangedSince,
-                                             Boolean includeDeleted) {
+                                             Boolean includeDeleted) throws InvalidTenantIdException {
         log.info("received request to search side effects");
         String idFieldName = getIdFieldName(sideEffectSearchRequest.getSideEffect());
         if (isSearchByIdOnly(sideEffectSearchRequest.getSideEffect(), idFieldName)) {
@@ -205,7 +206,7 @@ public class SideEffectService {
                             .singletonList(sideEffectSearchRequest.getSideEffect())),
                     sideEffectSearchRequest.getSideEffect());
             log.info("fetching side effects with ids: {}", ids);
-            List<SideEffect> sideEffectList = sideEffectRepository.findById(ids, includeDeleted, idFieldName);
+            List<SideEffect> sideEffectList = sideEffectRepository.findById(tenantId, ids, includeDeleted, idFieldName);
             return SearchResponse.<SideEffect>builder().response(sideEffectList.stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -246,9 +247,10 @@ public class SideEffectService {
         try {
             if (!validSideEffects.isEmpty()) {
                 log.info("processing {} valid entities", validSideEffects.size());
+                String tenantId = CommonUtils.getTenantId(validSideEffects);
                 List<String> sideEffectIds = validSideEffects.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
                 List<SideEffect> existingSideEffects = sideEffectRepository
-                        .findById(sideEffectIds, false);
+                        .findById(tenantId, sideEffectIds, false);
                 sideEffectEnrichmentService.delete(existingSideEffects, sideEffectRequest);
                 sideEffectRepository.save(existingSideEffects,
                         referralManagementConfiguration.getDeleteSideEffectTopic());

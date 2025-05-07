@@ -1,5 +1,6 @@
 package org.egov.project.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -64,8 +65,9 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
         lenient().when(projectConfiguration.getUpdateProjectBeneficiaryTopic()).thenReturn("update-topic");
     }
 
-    private void mockFindById() {
+    private void mockFindById() throws InvalidTenantIdException {
         lenient().when(projectBeneficiaryRepository.findById(
+                anyString(),
                 eq(projectBeneficiaryIds),
                 anyString(),
                 eq(false))
@@ -99,7 +101,7 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
     void shouldFetchExistingRecordsUsingId() throws Exception {
         mockFindById();
         projectBeneficiaryEnrichmentService.update(request.getProjectBeneficiaries(), request);
-        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), anyString(), eq(false));
+        verify(projectBeneficiaryRepository, times(1)).findById(anyString(), anyList(), anyString(), eq(false));
     }
 
     @Test

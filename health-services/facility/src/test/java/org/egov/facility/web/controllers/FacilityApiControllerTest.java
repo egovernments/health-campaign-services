@@ -84,7 +84,7 @@ public class FacilityApiControllerTest {
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
-        verify(producer, times(1)).push(eq("facility-bulk-create-topic"), any(FacilityBulkRequest.class));
+        verify(producer, times(1)).push(eq("default"), eq("facility-bulk-create-topic"), any(FacilityBulkRequest.class));
         verify(configuration, times(1)).getBulkCreateFacilityTopic();
     }
 
@@ -112,7 +112,7 @@ public class FacilityApiControllerTest {
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
-        verify(producer, times(1)).push(eq("facility-bulk-update-topic"), any(FacilityBulkRequest.class));
+        verify(producer, times(1)).push(eq("default"), eq("facility-bulk-update-topic"), any(FacilityBulkRequest.class));
         verify(configuration, times(1)).getBulkUpdateFacilityTopic();
     }
 
@@ -140,7 +140,7 @@ public class FacilityApiControllerTest {
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
-        verify(producer, times(1)).push(eq("facility-bulk-delete-topic"), any(FacilityBulkRequest.class));
+        verify(producer, times(1)).push(eq("default"), eq("facility-bulk-delete-topic"), any(FacilityBulkRequest.class));
         verify(configuration, times(1)).getBulkDeleteFacilityTopic();
     }
 
