@@ -1,6 +1,7 @@
 package org.egov.common.utils;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
@@ -109,6 +110,22 @@ public class ValidatorUtils {
                 .errorCode("IS_DELETED_TRUE_SUB_ENTITY")
                 .type(Error.ErrorType.RECOVERABLE)
                 .exception(new CustomException("IS_DELETED_TRUE_SUB_ENTITY", "isDeleted cannot be true for sub entity"))
+                .build();
+    }
+
+    /**
+     * Builds the Error object for tenant and given exception
+     *
+     * @param tenantId              The id of the tenant
+     * @param exception             The invalid tenant id exception object
+     * @return the error object for the tenant id with invalid tenant id exception
+     */
+    public static Error getErrorForInvalidTenantId(String tenantId, InvalidTenantIdException exception) {
+        return Error.builder()
+                .errorMessage(String.format("tenantId : %s is not valid", tenantId))
+                .errorCode("TENANT_ID_INVALID")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(exception)
                 .build();
     }
 
