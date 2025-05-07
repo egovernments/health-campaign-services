@@ -81,4 +81,6 @@ public class ErrorCode {
 
     public static final String INACTIVE_SERVICE_DEFINITION_ERR_MSG = "Inactive Service Definition cannot be updated";
 
+    public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
+
 }

@@ -1,5 +1,6 @@
 package org.egov.servicerequest.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
@@ -32,7 +33,7 @@ public class ServiceDefinitionRequestService {
     @Autowired
     private Configuration config;
 
-    public ServiceDefinition createServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) {
+    public ServiceDefinition createServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) throws InvalidTenantIdException {
 
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
 
@@ -43,7 +44,7 @@ public class ServiceDefinitionRequestService {
         enrichmentService.enrichServiceDefinitionRequest(serviceDefinitionRequest);
 
         // Producer statement to emit service definition to kafka for persisting
-        producer.push(config.getServiceDefinitionCreateTopic(), serviceDefinitionRequest);
+        producer.push(serviceDefinition.getTenantId(), config.getServiceDefinitionCreateTopic(), serviceDefinitionRequest);
 
         // Restore attribute values to the type in which it was sent in service definition request
         enrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinition);
@@ -51,7 +52,7 @@ public class ServiceDefinitionRequestService {
         return serviceDefinition;
     }
 
-    public List<ServiceDefinition> searchServiceDefinition(ServiceDefinitionSearchRequest serviceDefinitionSearchRequest){
+    public List<ServiceDefinition> searchServiceDefinition(ServiceDefinitionSearchRequest serviceDefinitionSearchRequest) throws InvalidTenantIdException {
 
         List<ServiceDefinition> listOfServiceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(serviceDefinitionSearchRequest);
 
@@ -66,7 +67,7 @@ public class ServiceDefinitionRequestService {
         return listOfServiceDefinitions;
     }
 
-    public ServiceDefinition updateServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) {
+    public ServiceDefinition updateServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) throws InvalidTenantIdException {
 
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
 
@@ -77,7 +78,7 @@ public class ServiceDefinitionRequestService {
         enrichmentService.enrichServiceDefinitionUpdateRequest(serviceDefinitionRequest, definitionFromDb);
 
         // Producer statement to emit service definition to kafka for persisting
-        producer.push(config.getServiceDefinitionUpdateTopic(), serviceDefinitionRequest);
+        producer.push(definitionFromDb.getTenantId(), config.getServiceDefinitionUpdateTopic(), serviceDefinitionRequest);
 
         // Restore attribute values to the type in which it was sent in service definition request
         enrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinition);
