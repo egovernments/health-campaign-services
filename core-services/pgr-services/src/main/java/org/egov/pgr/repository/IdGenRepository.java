@@ -52,7 +52,7 @@ public class IdGenRepository {
         IdGenerationRequest req = IdGenerationRequest.builder().idRequests(reqList).requestInfo(requestInfo).build();
         IdGenerationResponse response = null;
         try {
-            response = restTemplate.postForObject( config.getIdGenHost()+ config.getIdGenPath(), req, IdGenerationResponse.class);
+            response = restTemplate.postForObject( config.getIdGenHost() + config.getIdGenPath(), req, IdGenerationResponse.class);
         } catch (HttpClientErrorException e) {
             throw new ServiceCallException(e.getResponseBodyAsString());
         } catch (Exception e) {
