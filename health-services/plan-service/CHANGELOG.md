@@ -2,7 +2,7 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.2 - 2025-05-07
-1. Added indexes to the Plan, Plan Configuration, and Plan Employee Assignment tables to improve lookup performance on large datasets.
+1. Added indexes to the Plan, Plan Facility, and Plan Employee Assignment tables to improve lookup performance on large datasets.
 2. Addressed technical debt to improve code maintainability, structure, and performance.
 
 ## 1.0.1 - 2025-01-30
