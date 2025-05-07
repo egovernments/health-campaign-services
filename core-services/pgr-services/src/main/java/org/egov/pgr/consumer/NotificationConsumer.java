@@ -23,13 +23,13 @@ public class NotificationConsumer {
     private ObjectMapper mapper;
 
 
-/**
-     * Consumes the water connection record and send notification
+    /**
+     * Listens to Kafka messages from the specified topic patterns, processes the incoming message,
+     * and triggers notification handling based on the message content.
      *
-     * @param record
-     * @param topic
+     * @param record The Kafka record received, represented as a HashMap containing message data.
+     * @param topic  The topic from which the record is received, extracted from Kafka headers.
      */
-
     @KafkaListener(topicPattern = ".*(${pgr.kafka.create.topic}|${pgr.kafka.update.topic})")
     public void listen(final HashMap<String, Object> record, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

@@ -90,12 +90,13 @@ public class PGRRepository {
 	public Map<String, Integer> fetchDynamicData(String tenantId) throws InvalidTenantIdException {
 		List<Object> preparedStmtListCompalintsResolved = new ArrayList<>();
 		String query = queryBuilder.getResolvedComplaints(tenantId,preparedStmtListCompalintsResolved );
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 		int complaintsResolved = jdbcTemplate.queryForObject(query,preparedStmtListCompalintsResolved.toArray(),Integer.class);
 
 		List<Object> preparedStmtListAverageResolutionTime = new ArrayList<>();
 		query = queryBuilder.getAverageResolutionTime(tenantId, preparedStmtListAverageResolutionTime);
-
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 		int averageResolutionTime = jdbcTemplate.queryForObject(query, preparedStmtListAverageResolutionTime.toArray(),Integer.class);
 
