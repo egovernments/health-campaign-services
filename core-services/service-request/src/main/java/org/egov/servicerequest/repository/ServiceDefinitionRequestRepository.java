@@ -50,6 +50,7 @@ public class ServiceDefinitionRequestRepository {
         if(CollectionUtils.isEmpty(criteria.getIds())){
             // Fetch ids according to given criteria
             String idQuery = serviceDefinitionQueryBuilder.getServiceDefinitionsIdsQuery(serviceDefinitionSearchRequest, preparedStmtList);
+            // Replacing schema placeholder with the schema name for the tenant id
             idQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(idQuery, criteria.getTenantId());
             log.info("Service definition ids query: {}", idQuery);
             log.info("Parameters: {}", preparedStmtList);
@@ -67,6 +68,7 @@ public class ServiceDefinitionRequestRepository {
 
 
         String query = serviceDefinitionQueryBuilder.getServiceDefinitionSearchQuery(criteria, preparedStmtList);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, criteria.getTenantId());
         log.info("query for search: {} params: {}", query, preparedStmtList);
         return jdbcTemplate.query(query, preparedStmtList.toArray(), serviceDefinitionRowMapper);

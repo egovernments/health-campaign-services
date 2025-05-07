@@ -45,6 +45,7 @@ public class ServiceController {
         try {
             service = serviceRequestService.createService(serviceRequest);
         } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
             throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
         }
         ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(serviceRequest.getRequestInfo(), true);
@@ -58,6 +59,7 @@ public class ServiceController {
         try {
             serviceList = serviceRequestService.searchService(serviceSearchRequest);
         } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
             throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
         }
         ServiceResponse response  = ServiceResponse.builder().service(serviceList).build();

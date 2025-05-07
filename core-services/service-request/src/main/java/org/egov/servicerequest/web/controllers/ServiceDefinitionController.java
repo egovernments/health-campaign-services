@@ -46,6 +46,7 @@ public class ServiceDefinitionController {
         try {
             serviceDefinition = serviceDefinitionRequestService.createServiceDefinition(serviceDefinitionRequest);
         } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
             throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
         }
         ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(serviceDefinitionRequest.getRequestInfo(), true);
@@ -59,6 +60,7 @@ public class ServiceDefinitionController {
         try {
             serviceDefinitionList = serviceDefinitionRequestService.searchServiceDefinition(serviceDefinitionSearchRequest);
         } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
             throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
         }
         ServiceDefinitionResponse response  = ServiceDefinitionResponse.builder().serviceDefinition(serviceDefinitionList).build();
@@ -71,6 +73,7 @@ public class ServiceDefinitionController {
         try {
             serviceDefinition = serviceDefinitionRequestService.updateServiceDefinition(serviceDefinitionRequest);
         } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
             throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
         }
         ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(serviceDefinitionRequest.getRequestInfo(), true);
