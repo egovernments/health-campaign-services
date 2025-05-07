@@ -7,7 +7,8 @@ All notable changes to this module will be documented in this file.
 2. Addressed technical debt to improve code maintainability, structure, and performance.
 
 ## 1.0.0 - 2024-11-28
-#### Census Service
+
+### Census Service
 
 The Census Service introduces core functionalities for managing census data:
 
