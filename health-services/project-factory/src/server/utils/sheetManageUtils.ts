@@ -73,15 +73,15 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
     const tenantId = responseToSend?.tenantId;
     for(const sheet of templateConfig?.sheets) {
         const schemaName = sheet?.schemaName;
-        const schema = await callMdmsSchema(tenantId, getLocalizedName(schemaName, localizationMap));
+        const schema = await callMdmsSchema(tenantId, schemaName);
         sheet.schema = schema;
     }
     if (templateConfig?.generation) {
-        const className = `${responseToSend?.type}-templateClass`;
-        let classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.js`);
+        const className = `${responseToSend?.type}-generateClass`;
+        let classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.js`);
         if (!fs.existsSync(classFilePath)) {
             // fallback for local dev with ts-node
-            classFilePath = path.join(__dirname, '..', 'templateClasses', `${className}.ts`);
+            classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.ts`);
         }
         try {
             const { TemplateClass } = await import(classFilePath);
@@ -116,19 +116,58 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
 }
 
 function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localizationMap: any) {
-    for(const sheet of templateConfig?.sheets) {
-        const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
-        if (sheetMap?.[sheetName]) {
-            sheetMap[sheetName].dynamicColumns = mergeAndGetDynamicColumns(sheetMap?.[sheetName].dynamicColumns, sheet?.schema, localizationMap);
+    const reverseLocalizationMap = new Map<string, string>();
+    const localizationCache = new Map<string, string>();
+
+    for (const [key, value] of Object.entries(localizationMap)) {
+        reverseLocalizationMap.set(String(value), key);
+    }
+
+    const sheetsProcessed = new Set<string>();
+
+    // Preprocess sheets in templateConfig
+    for (const sheet of templateConfig?.sheets || []) {
+        const rawSheetName = sheet?.sheetName;
+        const localizedSheetName = localizationCache.get(rawSheetName)
+            || getLocalizedName(rawSheetName, localizationMap);
+        localizationCache.set(rawSheetName, localizedSheetName);
+
+        const dynamicCols = mergeAndGetDynamicColumns(
+            sheetMap?.[localizedSheetName]?.dynamicColumns ?? null,
+            sheet?.schema,
+            localizationMap
+        );
+
+        sheetMap[localizedSheetName] = sheetMap[localizedSheetName] || { data: [] };
+        sheetMap[localizedSheetName].dynamicColumns = dynamicCols;
+
+        sheetsProcessed.add(localizedSheetName);
+    }
+
+    // Post-process unmatched sheetMap entries
+    for (const [sheetName, sheetData] of Object.entries(sheetMap)) {
+        if (sheetsProcessed.has(sheetName)) continue;
+
+        const dynamicCols = mergeAndGetDynamicColumns(sheetData?.dynamicColumns, {}, localizationMap);
+        sheetMap[sheetName].dynamicColumns = dynamicCols;
+
+        const currentSchema: any = { properties: {} };
+        for (const column of Object.keys(dynamicCols)) {
+            const originalKey = reverseLocalizationMap.get(column) || column;
+            currentSchema.properties[originalKey] = dynamicCols[column];
         }
-        else{
-            sheetMap[sheetName] = {
-                dynamicColumns: mergeAndGetDynamicColumns(null, sheet?.schema, localizationMap),
-                data: []
-            }
-        }
+
+        const rawSheetName = reverseLocalizationMap.get(sheetName) || sheetName;
+
+        templateConfig.sheets.push({
+            sheetName: rawSheetName,
+            schema: currentSchema
+        });
+
+        sheetsProcessed.add(sheetName);
     }
 }
+
 
 
 function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any) : any {

@@ -368,7 +368,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         }
         const campaignSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
         const boundaries = campaignSearchResponse?.CampaignDetails?.[0]?.boundaries;
-        const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
+        const hierarchy = await getHierarchy(messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
         const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
         for (const boundary of boundariesWhichAreRootInThisFlow) {
             const boundaryCodesFetchedFromGivenRoot = await consolidateBoundaries(

@@ -383,7 +383,7 @@ function adjustColumnWidth(sheet: any, colNumber: number, columnWidth: number) {
 // Function to adjust row height based on content
 export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   const text = cell.value ? cell.value.toString() : '';
-  const lines = Math.ceil(text.length / (columnWidth - 2)); // Approximate number of lines
+  const lines = Math.ceil(text.length / (columnWidth - 10)); // Approximate number of lines
   row.height = Math.max(row.height ?? 0, lines * 15);
 }
 

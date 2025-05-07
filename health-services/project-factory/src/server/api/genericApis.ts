@@ -814,7 +814,6 @@ async function getBoundarySheetData(
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
-      request,
       request?.query?.tenantId,
       hierarchyType
     );

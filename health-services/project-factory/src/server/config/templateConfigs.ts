@@ -16,5 +16,11 @@ export const templateConfigs : any = {
         ],
         processing: true,
         generation: true
+    },
+    boundary:{
+        sheets: [
+        ],
+        processing: true,
+        generation: true
     }
 }

@@ -1017,7 +1017,7 @@ async function processValidate(
       ...localizationMap,
       ...localizationMapForHierarchy,
     };
-    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.body?.ResourceDetails?.tenantId);
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.tenantId);
     differentTabsBasedOnLevel = getLocalizedName(
       `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(),
       localizationMap
@@ -1961,7 +1961,6 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
 }
 
 const getHierarchy = async (
-  request: any,
   tenantId: string,
   hierarchyType: string
 ) => {

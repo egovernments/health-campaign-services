@@ -1338,7 +1338,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
 
-  const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+  const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);

@@ -2602,7 +2602,6 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
   var hierarchy = await getHierarchy(
-    request,
     request?.query?.tenantId,
     request?.query?.hierarchyType
   );
@@ -3072,7 +3071,7 @@ async function autoGenerateBoundaryCodesForGeoJson(
     fileResponse?.fileStoreIds?.[0]?.url
   );
   const hierarchy =
-    (await getHierarchy(request, tenantId, hierarchyType)) || [];
+    (await getHierarchy(tenantId, hierarchyType)) || [];
   const dataFromGeoJson = getGeoJsonData(boundaryData, hierarchy);
   const childParentMap = getChildParentMap(dataFromGeoJson);
   const countMap = new Map<{ key: string; value: string }, number>();
@@ -3373,7 +3372,7 @@ const autoGenerateBoundaryCodes = async (
 ) => {
   const { hierarchyType, tenantId } = request?.body?.ResourceDetails || {};
   const hierarchy =
-    (await getHierarchy(request, tenantId, hierarchyType)) || [];
+    (await getHierarchy(tenantId, hierarchyType)) || [];
   const headersOfBoundarySheet = hierarchy.map(
     (e) => `${hierarchyType.toUpperCase()}_${e.toUpperCase()}`
   );
@@ -3884,18 +3883,19 @@ async function getDifferentTabGeneratedBasedOnConfig(
   return boundaryDataGeneratedAfterDifferentTabSeparation;
 }
 
-async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+async function getBoundaryOnWhichWeSplit(campaignId: string, tenantId: string) {
+  const campaignDetailsResponse: any = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+  const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
   const MdmsCriteria: any = {
     tenantId: tenantId,
     schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`,
     filters: {
-      hierarchy: responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType,
+      hierarchy: campaignDetails?.hierarchyType,
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
   if (!Array.isArray(mdmsResponse?.mdms) || mdmsResponse.mdms.length === 0) {
-    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType} hierarchy not configured in mdms data 
+    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${campaignDetails?.hierarchyType} hierarchy not configured in mdms data 
                 ${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`)
   }
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
