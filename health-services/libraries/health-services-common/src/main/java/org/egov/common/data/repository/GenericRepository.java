@@ -206,7 +206,14 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
-    // Cache objects by key
+    /**
+     * Caches the given objects for the given field name,
+     * table name for the class of objects and schema name for the
+     * tenant id is used for the redis table name
+     *
+     * @param fieldName           The name of the property to use as a key for caching
+     * @param objects             List of objects to be cached
+     */
     protected void cacheByKey(List<T> objects, String fieldName) {
         try{
             Method getIdMethod = getIdMethod(objects, fieldName);
@@ -368,6 +375,13 @@ public abstract class GenericRepository<T> {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Validates exising client reference ids from DB search
+     *
+     * @param tenantId                       The id of the tenant
+     * @param clientReferenceIds             List of client reference ids
+     * @return the existing client reference ids
+     */
     public List<String> validateClientReferenceIdsFromDB(String tenantId, List<String> clientReferenceIds, Boolean isDeletedKeyPresent) throws InvalidTenantIdException {
         List<String> objFound = new ArrayList<>();
 

@@ -113,6 +113,13 @@ public class ValidatorUtils {
                 .build();
     }
 
+    /**
+     * Builds the Error object for tenant and given exception
+     *
+     * @param tenantId              The id of the tenant
+     * @param exception             The invalid tenant id exception object
+     * @return the error object for the tenant id with invalid tenant id exception
+     */
     public static Error getErrorForInvalidTenantId(String tenantId, InvalidTenantIdException exception) {
         return Error.builder()
                 .errorMessage(String.format("tenantId : %s is not valid", tenantId))

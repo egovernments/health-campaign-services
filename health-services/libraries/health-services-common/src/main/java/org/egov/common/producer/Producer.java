@@ -38,8 +38,7 @@ public class Producer {
     }
 
     /**
-     * push objects to kafka with modified topic for a specified tenant based on
-     * central instance environment configuration
+     * push objects to specified kafka topic
      *
      * @param topic    topic name to push changes for.
      * @param value    Object which needs to be pushed.

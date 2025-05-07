@@ -1158,6 +1158,13 @@ public class CommonUtils {
         });
     }
 
+    /**
+     * Finds the database schema name for the given tenant based on configuration
+     *
+     * @param tenantId                       The id of the tenant
+     * @param multiStateInstanceUtil         multi state instance utils with configurations
+     * @return the name of the database schema
+     */
     public static String getSchemaName(String tenantId, MultiStateInstanceUtil multiStateInstanceUtil) {
         String schemaName = "";
         if (!ObjectUtils.isEmpty(multiStateInstanceUtil) && multiStateInstanceUtil.getIsEnvironmentCentralInstance()) {
