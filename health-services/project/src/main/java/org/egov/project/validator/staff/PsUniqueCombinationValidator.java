@@ -85,6 +85,7 @@ public class PsUniqueCombinationValidator implements Validator<ProjectStaffBulkR
                 populateErrorDetails(entity, error, errorDetailsMap);
             });
         } catch (InvalidTenantIdException exception) {
+            // Populating InvalidTenantIdException for all entities
             validEntities.forEach(projectResource -> {
                 Error error = getErrorForInvalidTenantId(tenantId, exception);
                 populateErrorDetails(projectResource, error, errorDetailsMap);

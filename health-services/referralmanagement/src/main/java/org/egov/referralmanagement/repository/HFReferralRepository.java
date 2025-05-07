@@ -105,7 +105,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
-
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
@@ -162,6 +162,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         // Create parameter map for the query and execute it to retrieve HFReferral entities.
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<HFReferral> hfReferralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 

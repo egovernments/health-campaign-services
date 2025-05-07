@@ -48,6 +48,14 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("side_effect"));
     }
 
+    /**
+     * Fetches and maps side effects to their corresponding task IDs based on the provided list of tasks.
+     *
+     * @param taskList a list of Task objects for which the side effects need to be fetched; must not be null or empty
+     * @return a map where the keys are task IDs and the values are lists of SideEffect objects associated with each task;
+     *         returns an empty map if the input list is empty
+     * @throws InvalidTenantIdException if an issue occurs while deriving the tenant ID from the provided tasks
+     */
     public Map<String, List<SideEffect>> fetchSideEffects(List<Task> taskList) throws InvalidTenantIdException {
         if (taskList.isEmpty()) {
             return Collections.emptyMap();
@@ -57,6 +65,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         Map<String, Object> resourceParamsMap = new HashMap<>();
         String resourceQuery = String.format("SELECT * FROM %s.side_effect ae where ae.taskId IN (:taskIds)", SCHEMA_REPLACE_STRING);
         resourceParamsMap.put("taskIds", taskIds);
+        // Replacing schema placeholder with the schema name for the tenant id
         resourceQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(resourceQuery, tenantId);
         List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(resourceQuery, resourceParamsMap,
                 this.rowMapper);
@@ -75,6 +84,21 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         return idToObjMap;
     }
 
+    /**
+     * Retrieves a list of {@code SideEffect} entities based on the provided search criteria, along with
+     * additional metadata such as total count. This method constructs and executes a dynamic query
+     * that includes filtering, pagination, and tenant-specific conditions.
+     *
+     * @param searchObject      the {@code SideEffectSearch} object containing filtering criteria for the query
+     * @param limit             the maximum number of results to retrieve; must not be null
+     * @param offset            the starting position of the result set for pagination; must not be null
+     * @param tenantId          the tenant identifier used for data isolation; must not be null or empty
+     * @param lastChangedSince  a timestamp for filtering entities modified after this point; can be null for no filtering
+     * @param includeDeleted    a flag indicating whether to include deleted entities in the result; {@code true} to include, {@code false} otherwise
+     * @return a {@code SearchResponse} object containing a list of {@code SideEffect} entities that match the search criteria
+     *         and the total count of matching entities
+     * @throws InvalidTenantIdException if the specified {@code tenantId} is invalid or an error occurs while processing the tenant ID
+     */
     public SearchResponse<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
     	
@@ -101,7 +125,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
-
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
@@ -114,6 +138,17 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         return SearchResponse.<SideEffect>builder().response(sideEffectList).totalCount(totalCount).build();
     }
 
+    /**
+     * Retrieves a list of {@code SideEffect} entities based on their IDs, column filter, and includeDeleted flag.
+     * This method first attempts to find the entities in cache and, if necessary, queries the database.
+     *
+     * @param tenantId         the tenant identifier used for data isolation; must not be null or empty
+     * @param ids              a list of IDs to fetch the corresponding {@code SideEffect} entities; must not be null or empty
+     * @param columnName       the name of the column used for filtering entities; must not be null or empty
+     * @param includeDeleted   a flag indicating whether to include deleted entities in the result; {@code true} to include, {@code false} otherwise
+     * @return a list of {@code SideEffect} entities matching the specified criteria; may be empty if no matching entities are found
+     * @throws InvalidTenantIdException if the provided {@code tenantId} is invalid or there is an issue with tenant-specific data
+     */
     public List<SideEffect> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
         List<SideEffect> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
@@ -137,6 +172,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 

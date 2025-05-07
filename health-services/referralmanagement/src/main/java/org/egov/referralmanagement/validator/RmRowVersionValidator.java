@@ -84,6 +84,7 @@ public class RmRowVersionValidator implements Validator<ReferralBulkRequest, Ref
                     populateErrorDetails(referral, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 iMap.values().forEach(referral -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(referral, error, errorDetailsMap);

@@ -78,6 +78,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
 
         try {
             log.debug("Executing query to fetch total count");
+            // Replacing schema placeholder with the schema name for the tenant id
             query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
@@ -100,6 +101,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
      * Finds user actions by their IDs, first checking the cache before querying the database.
      *
      * @param ids         The list of IDs to search for.
+     * @param tenantId    The identifier for the tenant
      * @param columnName  The name of the column to search by.
      * @return A SearchResponse containing the list of user actions found.
      */
@@ -126,6 +128,7 @@ public class UserActionRepository extends GenericRepository<UserAction> {
 
         try {
             log.debug("Executing query to fetch user actions by ID: {}", query);
+            // Replacing schema placeholder with the schema name for the tenant id
             query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             List<UserAction> userActionList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 

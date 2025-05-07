@@ -98,6 +98,7 @@ public class PbExistentEntityValidator implements Validator<BeneficiaryBulkReque
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 entities.forEach(projectBeneficiary -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(projectBeneficiary, error, errorDetailsMap);

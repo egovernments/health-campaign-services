@@ -87,6 +87,7 @@ public class SeRowVersionValidator implements Validator<SideEffectBulkRequest, S
                     populateErrorDetails(sideEffect, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 iMap.values().forEach(sideEffect -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(sideEffect, error, errorDetailsMap);

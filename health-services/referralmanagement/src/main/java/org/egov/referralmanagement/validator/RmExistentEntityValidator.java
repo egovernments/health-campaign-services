@@ -92,7 +92,7 @@ public class RmExistentEntityValidator implements Validator<ReferralBulkRequest,
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
-                // For each existing client reference ID, add an error to the map for the corresponding Referral entity
+                // Populating InvalidTenantIdException for all entities
                 map.values().forEach(referral -> {
                     // Get a predefined error object for unique entity validation
                     Error error = getErrorForInvalidTenantId(tenantId, exception);

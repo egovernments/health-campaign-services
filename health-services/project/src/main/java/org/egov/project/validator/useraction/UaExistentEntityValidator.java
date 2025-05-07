@@ -96,6 +96,7 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 entities.forEach(userAction -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(userAction, error, errorDetailsMap);

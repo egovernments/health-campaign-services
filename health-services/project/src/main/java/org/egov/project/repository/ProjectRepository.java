@@ -157,6 +157,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectSearch, urlParams, preparedStmtList, Boolean.FALSE);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
@@ -168,6 +169,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
@@ -178,6 +180,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Fetch Projects based on Project ids */
     public List<Project> getProjectsBasedOnProjectIds(String tenantId, List<String> projectIds,  List<Object> preparedStmtList) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectSearchQueryBasedOnIds(projectIds, preparedStmtList);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
@@ -187,6 +190,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Fetch Project descendants based on Project ids */
     private List<Project> getProjectsDescendantsBasedOnProjectIds(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
         log.info("Fetched project descendants list based on given Project Ids");
@@ -197,6 +201,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private List<Target> getTargetsBasedOnProjectIds(String tenantId, Set<String> projectIds) throws InvalidTenantIdException {
         List<Object> preparedStmtListTarget = new ArrayList<>();
         String queryTarget = targetQueryBuilder.getTargetSearchQuery(projectIds, preparedStmtListTarget);
+        // Replacing schema placeholder with the schema name for the tenant id
         queryTarget = multiStateInstanceUtil.replaceSchemaPlaceholder(queryTarget, tenantId);
         List<Target> targets = jdbcTemplate.query(queryTarget, targetRowMapper, preparedStmtListTarget.toArray());
         log.info("Fetched targets based on project Ids");
@@ -207,6 +212,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private List<Document> getDocumentsBasedOnProjectIds(String tenantId, Set<String> projectIds) throws InvalidTenantIdException {
         List<Object> preparedStmtListDocument = new ArrayList<>();
         String queryDocument = documentQueryBuilder.getDocumentSearchQuery(projectIds, preparedStmtListDocument);
+        // Replacing schema placeholder with the schema name for the tenant id
         queryDocument = multiStateInstanceUtil.replaceSchemaPlaceholder(queryDocument, tenantId);
         List<Document> documents = jdbcTemplate.query(queryDocument, documentRowMapper, preparedStmtListDocument.toArray());
         log.info("Fetched documents based on project Ids");
@@ -364,6 +370,7 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         if (query == null)
             return 0;
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Integer count = jdbcTemplate.queryForObject(query, preparedStatement.toArray(), Integer.class);
         log.info("Total project count is : " + count);
@@ -382,6 +389,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         if (query == null)
             return 0;
 
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
         Integer count = jdbcTemplate.queryForObject(query, preparedStatement.toArray(), Integer.class);
         log.info("Total project count is : " + count);

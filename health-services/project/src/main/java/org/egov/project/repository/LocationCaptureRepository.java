@@ -74,6 +74,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
         try {
+            // Replacing schema placeholder with the schema name for the tenant id
             query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
             log.debug("Executing query to fetch total count");
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
@@ -96,6 +97,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
     /**
      * Finds user locations by their IDs, first checking the cache before querying the database.
      *
+     * @param tenantId    The tenant identifier for multitenancy
      * @param ids         The list of IDs to search for.
      * @param columnName  The name of the column to search by.
      * @return A SearchResponse containing the list of user locations found.
@@ -122,6 +124,7 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramMap.put("ids", ids);
 
         try {
+            // Replacing schema placeholder with the schema name for the tenant id
             query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             log.debug("Executing query to fetch user locations by ID: {}", query);
             List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);

@@ -63,6 +63,7 @@ public class FRowVersionValidator implements Validator<FacilityBulkRequest, Faci
                         populateErrorDetails(facility, error, errorDetailsMap);
                     });
                 } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
                     validEntities.forEach(facility -> {
                         Error error = getErrorForInvalidTenantId(tenantId, exception);
                         log.error("validation failed for facility tenantId: {} with error :{}", facility.getTenantId(), error);

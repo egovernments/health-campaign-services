@@ -92,6 +92,7 @@ public class SeExistentEntityValidator implements Validator<SideEffectBulkReques
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 map.values().forEach(sideEffect -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(sideEffect, error, errorDetailsMap);

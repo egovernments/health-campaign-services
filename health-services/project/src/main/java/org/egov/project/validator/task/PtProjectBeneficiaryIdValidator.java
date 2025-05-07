@@ -79,6 +79,7 @@ public class PtProjectBeneficiaryIdValidator implements Validator<TaskBulkReques
                     populateErrorDetails(task, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 entities.forEach(task -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(task, error, errorDetailsMap);

@@ -98,6 +98,7 @@ public class PtExistentEntityValidator implements Validator<TaskBulkRequest, Tas
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 entities.forEach(task -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(task, error, errorDetailsMap);

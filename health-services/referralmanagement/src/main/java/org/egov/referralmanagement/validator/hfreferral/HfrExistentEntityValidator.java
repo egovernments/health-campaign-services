@@ -92,6 +92,7 @@ public class HfrExistentEntityValidator implements Validator<HFReferralBulkReque
                     populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 map.values().forEach(hfReferral -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(hfReferral, error, errorDetailsMap);

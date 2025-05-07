@@ -92,6 +92,7 @@ public class UaProjectIdValidator implements Validator<UserActionBulkRequest, Us
                     log.debug("Populated error details for UserAction with invalid Project ID: {}", userAction.getProjectId());
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 entities.forEach(userAction -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(userAction, error, errorDetailsMap);

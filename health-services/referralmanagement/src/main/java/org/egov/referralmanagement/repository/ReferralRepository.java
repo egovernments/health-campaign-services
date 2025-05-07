@@ -42,6 +42,16 @@ public class ReferralRepository extends GenericRepository<Referral> {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("referral"));
     }
 
+    /**
+     * Searches for referral records based on the provided search criteria.
+     *
+     * @param searchObject the search criteria object containing the filtering conditions
+     * @param limit the maximum number of results to return
+     * @param offset the starting position of the result set
+     * @param tenantId the tenant identifier for multitenancy
+     * @param lastChangedSince the timestamp to filter records modified on or after this time
+     * @param includeDeleted a flag to include or exclude deleted records in the search results
+     * @*/
     public SearchResponse<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
       
@@ -71,7 +81,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
-
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
@@ -83,6 +93,16 @@ public class ReferralRepository extends GenericRepository<Referral> {
         return SearchResponse.<Referral>builder().response(referralList).totalCount(totalCount).build();
     }
 
+    /**
+     * Finds referral records by their IDs, column name, and tenant ID with an option to include or exclude deleted records.
+     *
+     * @param tenantId the tenant identifier used for multitenancy
+     * @param ids the list of IDs to search for referrals
+     * @param columnName the column name used for filtering the referrals
+     * @param includeDeleted a flag indicating whether to include deleted referrals in the search results
+     * @return a SearchResponse object containing the list of found referrals
+     * @throws InvalidTenantIdException if the provided tenant ID is invalid
+     */
     public SearchResponse<Referral> findById(String tenantId, List<String> ids, String columnName,  Boolean includeDeleted) throws InvalidTenantIdException {
         List<Referral> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
@@ -107,6 +127,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Referral> referralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 

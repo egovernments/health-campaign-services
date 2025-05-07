@@ -62,6 +62,7 @@ public class PbRowVersionValidator implements Validator<BeneficiaryBulkRequest, 
                     populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 request.getProjectBeneficiaries().forEach(projectBeneficiary -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(projectBeneficiary, error, errorDetailsMap);

@@ -40,6 +40,14 @@ public class FNonExistentValidator implements Validator<FacilityBulkRequest, Fac
         this.facilityRepository = facilityRepository;
     }
 
+    /**
+     * Validates the given FacilityBulkRequest and checks for non-existent facilities and invalid tenant IDs.
+     * Populates a map of facilities to their respective errors if validation issues are found.
+     *
+     * @param request the FacilityBulkRequest containing the list of facilities to validate
+     * @return a map where each key is a Facility object and the associated value is a list of
+     *         Error objects describing the validation errors for that facility
+     */
     @Override
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
         Map<Facility, List<Error>> errorDetailsMap = new HashMap<>();
@@ -64,6 +72,7 @@ public class FNonExistentValidator implements Validator<FacilityBulkRequest, Fac
                         populateErrorDetails(facility, error, errorDetailsMap);
                     });
                 } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
                     validEntities.forEach(facility -> {
                         Error error = getErrorForInvalidTenantId(tenantId, exception);
                         log.error("validation failed for facility tenantId: {} with error :{}", facility.getTenantId(), error);

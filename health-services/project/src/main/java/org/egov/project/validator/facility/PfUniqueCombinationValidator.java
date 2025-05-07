@@ -77,6 +77,7 @@ public class PfUniqueCombinationValidator implements Validator<ProjectFacilityBu
                 populateErrorDetails(entity, error, errorDetailsMap);
             });
         } catch (InvalidTenantIdException exception) {
+            // Populating InvalidTenantIdException for all entities
             validEntities.forEach(projectFacility -> {
                 Error error = getErrorForInvalidTenantId(tenantId, exception);
                 populateErrorDetails(projectFacility, error, errorDetailsMap);

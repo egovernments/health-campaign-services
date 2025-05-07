@@ -62,6 +62,7 @@ public class PsRowVersionValidator implements Validator<ProjectStaffBulkRequest,
                     populateErrorDetails(individual, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 request.getProjectStaff().forEach(projectResource -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(projectResource, error, errorDetailsMap);

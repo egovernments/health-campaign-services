@@ -39,6 +39,16 @@ public class FacilityRepository extends GenericRepository<Facility> {
                 facilityRowMapper, Optional.of("facility"));
     }
 
+    /**
+     * Finds and retrieves a list of Facility objects based on the provided identifiers and criteria.
+     *
+     * @param tenantId        the tenant identifier to scope the query
+     * @param ids             the list of unique identifiers for fetching the Facility objects
+     * @param columnName      the column name that specifies the identifier's attribute
+     * @param includeDeleted  if true, includes deleted Facility objects in the response; otherwise, filters them out
+     * @return a SearchResponse object containing the list of matched Facility objects
+     * @throws InvalidTenantIdException if the provided tenantId is invalid
+     */
     public SearchResponse<Facility> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
         List<Facility> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
@@ -63,6 +73,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
@@ -71,6 +82,19 @@ public class FacilityRepository extends GenericRepository<Facility> {
         return SearchResponse.<Facility>builder().response(objFound).build();
     }
 
+    /**
+     * Finds and retrieves a list of Facility objects based on the given search criteria and pagination details.
+     *
+     * @param searchObject    the search object containing query criteria for filtering Facility records
+     * @param limit           the maximum number of records to return
+     * @param offset          the starting offset for paginated results
+     * @param tenantId        the tenant identifier to scope the query
+     * @param lastChangedSince timestamp to filter records modified since the given time; can be null
+     * @param includeDeleted  if true, includes deleted Facility objects in the response; otherwise, filters them out
+     * @return a SearchResponse object containing the list of matched Facility objects and the total count of matched records
+     * @throws QueryBuilderException      if query construction fails for any reason
+     * @throws InvalidTenantIdException   if the provided tenantId is invalid
+     */
     public SearchResponse<Facility> find(FacilitySearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.facility f LEFT JOIN %s.address a ON f.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
@@ -94,6 +118,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
+        // Replacing schema placeholder with the schema name for the tenant id
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);

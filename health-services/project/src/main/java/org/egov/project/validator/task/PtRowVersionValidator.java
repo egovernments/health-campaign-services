@@ -62,6 +62,7 @@ public class PtRowVersionValidator implements Validator<TaskBulkRequest, Task> {
                     populateErrorDetails(individual, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 request.getTasks().forEach(task -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(task, error, errorDetailsMap);

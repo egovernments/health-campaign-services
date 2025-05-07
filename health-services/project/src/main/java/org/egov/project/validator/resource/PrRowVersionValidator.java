@@ -60,6 +60,7 @@ public class PrRowVersionValidator implements Validator<ProjectResourceBulkReque
                     populateErrorDetails(individual, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 request.getProjectResource().forEach(projectResource -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(projectResource, error, errorDetailsMap);

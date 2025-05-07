@@ -75,6 +75,7 @@ public class HfrRowVersionValidator implements Validator<HFReferralBulkRequest, 
                     populateErrorDetails(hfReferral, error, errorDetailsMap);
                 });
             } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
                 iMap.values().forEach(hfReferral -> {
                     Error error = getErrorForInvalidTenantId(tenantId, exception);
                     populateErrorDetails(hfReferral, error, errorDetailsMap);
