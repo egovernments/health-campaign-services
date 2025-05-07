@@ -80,6 +80,7 @@ public abstract class GenericRepository<T> {
      * @param tenantId tenant id to find for.
      * @param ids The list of IDs to search for.
      * @return A list of entities found by the given IDs.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<T> findById(String tenantId, List<String> ids) throws InvalidTenantIdException {
         return findById(tenantId, ids, false);
@@ -126,6 +127,7 @@ public abstract class GenericRepository<T> {
      * @param ids            The list of IDs to search for.
      * @param includeDeleted Flag to include deleted entities in the search result.
      * @return A list of entities found by the given IDs.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<T> findById(String tenantId, List<String> ids, Boolean includeDeleted) throws InvalidTenantIdException {
         // Delegates to the main findById method with the default column name "id"
@@ -140,6 +142,7 @@ public abstract class GenericRepository<T> {
      * @param includeDeleted Flag to include deleted entities in the search result.
      * @param columnName     The name of the column to search IDs in.
      * @return A list of entities found by the given IDs.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<T> findById(String tenantId, List<String> ids, Boolean includeDeleted, String columnName) throws InvalidTenantIdException {
         List<T> objFound = findInCache(tenantId, ids);
@@ -282,6 +285,7 @@ public abstract class GenericRepository<T> {
      * @param includeDeleted   Flag to include deleted entities in the search result.
      * @return A list of entities found based on the search criteria with total count.
      * @throws QueryBuilderException If an error occurs while building the query.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public SearchResponse<T> findWithCount(Object searchObject,
                                            Integer limit,
@@ -328,6 +332,7 @@ public abstract class GenericRepository<T> {
      * @param includeDeleted   Flag to include deleted entities in the search result.
      * @return A list of entities found based on the search criteria.
      * @throws QueryBuilderException If an error occurs while building the query.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<T> find(Object searchObject,
                         Integer limit,
@@ -364,6 +369,7 @@ public abstract class GenericRepository<T> {
      * @param idsToValidate The list of IDs to validate.
      * @param columnName    The name of the column containing IDs.
      * @return A list of valid IDs.
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<String> validateIds(String tenantId, List<String> idsToValidate, String columnName) throws InvalidTenantIdException {
         List<T> validIds = findById(tenantId, idsToValidate, false, columnName);
@@ -381,6 +387,7 @@ public abstract class GenericRepository<T> {
      * @param tenantId                       The id of the tenant
      * @param clientReferenceIds             List of client reference ids
      * @return the existing client reference ids
+     * @throws InvalidTenantIdException If an error occurs while replacing database schema name
      */
     public List<String> validateClientReferenceIdsFromDB(String tenantId, List<String> clientReferenceIds, Boolean isDeletedKeyPresent) throws InvalidTenantIdException {
         List<String> objFound = new ArrayList<>();
