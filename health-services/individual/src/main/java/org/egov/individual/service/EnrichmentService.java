@@ -202,6 +202,7 @@ public class EnrichmentService {
         List<Identifier> identifiers = individual.getIdentifiers();
         if (identifiers != null) {
             identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+            identifiers.forEach(identifier -> identifier.setIndividualClientReferenceId(individual.getClientReferenceId()));
             individual.setIdentifiers(identifiers);
         }
         return individual;
