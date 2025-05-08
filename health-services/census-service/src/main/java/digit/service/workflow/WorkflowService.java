@@ -8,7 +8,6 @@ import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
-import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
@@ -243,42 +242,42 @@ public class WorkflowService {
      * @param requestInfo the requestInfo
      */
     private List<String> getAssigneeForAutoAssignment(Census census, RequestInfo requestInfo) {
-        String[] allHierarchiesBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
-        String[] hierarchiesBoundaryCodes = Arrays.copyOf(allHierarchiesBoundaryCodes, allHierarchiesBoundaryCodes.length - 1);
+        String[] allHierarchyBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
+        String[] hierarchyBoundaryCodes = Arrays.copyOf(allHierarchyBoundaryCodes, allHierarchyBoundaryCodes.length - 1);
 
         PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = planEmployeeAssignmentUtil.getPlanEmployeeSearchRequest(census,
-                new ArrayList<>(), Arrays.stream(hierarchiesBoundaryCodes).toList(), config.getAllowedCensusRoles(), requestInfo);
+                new ArrayList<>(), Arrays.stream(hierarchyBoundaryCodes).toList(), config.getAllowedCensusRoles(), requestInfo);
 
         //search for plan-employee assignments for the ancestral hierarchy codes.
         PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 
         // Create a map of jurisdiction to list of employeeIds
-        Map<String, List<String>> jurisdictionToEmployeeMap = getJurisdictionToEmployeesMap(planEmployeeAssignmentResponse, hierarchiesBoundaryCodes);
+        Map<String, List<String>> jurisdictionToEmployeeMap = getJurisdictionToEmployeesMap(planEmployeeAssignmentResponse, hierarchyBoundaryCodes);
 
         List<String> assignee = null; //assignee will remain null in case terminate actions are being taken
 
         String action = census.getWorkflow().getAction();
         if (config.getWfInitiateActions().contains(action)) {
-            for (int i = hierarchiesBoundaryCodes.length - 1; i >= 0; i--) {
-                assignee = jurisdictionToEmployeeMap.get(hierarchiesBoundaryCodes[i]);
+            for (int i = hierarchyBoundaryCodes.length - 1; i >= 0; i--) {
+                assignee = jurisdictionToEmployeeMap.get(hierarchyBoundaryCodes[i]);
                 if (assignee != null)
                     break; // Stop iterating once an assignee is found
             }
         } else if (config.getWfIntermediateActions().contains(action)) {
-            assignee = assignToHigherBoundaryLevel(hierarchiesBoundaryCodes, census, jurisdictionToEmployeeMap);
+            assignee = assignToHigherBoundaryLevel(hierarchyBoundaryCodes, census, jurisdictionToEmployeeMap);
         }
 
         return assignee;
     }
 
-    private Map<String, List<String>> getJurisdictionToEmployeesMap(PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse, String[] hierarchiesBoundaryCodes) {
+    private Map<String, List<String>> getJurisdictionToEmployeesMap(PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse, String[] hierarchyBoundaryCodes) {
 
         return planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
                 .filter(assignment -> !CollectionUtils.isEmpty(assignment.getJurisdiction()))
                 .flatMap(assignment -> {
                     String employeeId = assignment.getEmployeeId();
                     return assignment.getJurisdiction().stream()
-                            .filter(jurisdiction -> Arrays.asList(hierarchiesBoundaryCodes).contains(jurisdiction))
+                            .filter(jurisdiction -> Arrays.asList(hierarchyBoundaryCodes).contains(jurisdiction))
                             .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
                 })
                 .collect(Collectors.groupingBy(

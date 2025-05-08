@@ -130,6 +130,9 @@ public class OutputEstimationGenerationUtil {
                 newColumnHeader.setCellValue(columnName);
                 excelStylingUtil.adjustColumnWidthForCell(newColumnHeader);
 
+                CellStyle editableStyle = sheet.getWorkbook().createCellStyle();
+                editableStyle.setLocked(false);
+
                 for (Row row : sheet) {
                     if (row.getRowNum() == 0 || parsingUtil.isRowEmpty(row)) {
                         continue;
@@ -137,14 +140,8 @@ public class OutputEstimationGenerationUtil {
 
                     Cell cell = row.getCell(lastColumnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
 
-                    // Ensure the cell has a style before modifying it
-                    CellStyle cellStyle = cell.getCellStyle();
-                    if (cellStyle == null || cellStyle.getIndex() == 0) { // If no style exists, create one
-                        cellStyle = sheet.getWorkbook().createCellStyle();
-                    }
-
-                    cellStyle.setLocked(false); // Ensure the new cell is editable
-                    cell.setCellStyle(cellStyle);
+                    // Ensure the new cell is editable
+                    cell.setCellStyle(editableStyle);
                 }
             }
         }
