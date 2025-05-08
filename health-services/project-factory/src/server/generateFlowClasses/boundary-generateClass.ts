@@ -73,6 +73,7 @@ export class TemplateClass {
     static getReadMeData(readMeConfig: any, readMeColumnHeader: any, localizationMap: any) {
         const dataArray = [];
         for (const text of readMeConfig?.texts) {
+            if(!text?.inSheet) continue;
             dataArray.push({ [readMeColumnHeader]: "" });
             dataArray.push({ [readMeColumnHeader]: "" });
             let header = getLocalizedName(text.header, localizationMap);
