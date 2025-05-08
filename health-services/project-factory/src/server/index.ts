@@ -1,4 +1,4 @@
-import { checkGenerateFlowClasses } from '../server/generateFlowClasses/generateFlowClassChecker';
+import { checkGenerateFlowClasses } from './generateFlowClasses/generateFlowClassChecker';
 checkGenerateFlowClasses();
 
 import App from './app';
