@@ -330,7 +330,7 @@ function applyCellFormatting(worksheet: ExcelJS.Worksheet, rowCount: number, col
 function applyBaseCellFormatting(cell: ExcelJS.Cell) {
     cell.alignment = {
         ...cell.alignment,
-        wrapText: true,
+        wrapText: cell.value ? true : false,
         vertical: 'middle'
     };
 }
