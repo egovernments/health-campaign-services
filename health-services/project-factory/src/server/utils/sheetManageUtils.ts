@@ -282,8 +282,6 @@ function applyColumnProperties(row : ExcelJS.Row, cell: ExcelJS.Cell, columnProp
             fgColor: { argb: columnProps.color.replace('#', '') },
         };
     }
-
-    cell.alignment = { horizontal: 'center' };
 }
 
 
@@ -319,20 +317,15 @@ function applyCellFormatting(worksheet: ExcelJS.Worksheet, rowCount: number, col
     for (let i = startRow; i <= rowCount+1; i++) {
         const row = worksheet.getRow(i);
         row.eachCell((cell, colNumber) => {
-            applyBaseCellFormatting(cell);
+            cell.alignment = {
+                ...cell.alignment,
+                wrapText: cell.value ? true : false
+            };
             processBoldFormatting(cell);
             adjustRowHeightIfNeeded(row, cell, colNumber, columnNameToIndexMap, sheetData);
         });
         row.commit();
     }
-}
-
-function applyBaseCellFormatting(cell: ExcelJS.Cell) {
-    cell.alignment = {
-        ...cell.alignment,
-        wrapText: cell.value ? true : false,
-        vertical: 'middle'
-    };
 }
 
 function processBoldFormatting(cell: ExcelJS.Cell) {
