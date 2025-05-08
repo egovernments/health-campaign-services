@@ -6,10 +6,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @Import({ TracerConfiguration.class })
 @SpringBootApplication
 @ComponentScan(basePackages = { "org.egov.processor", "org.egov.processor.web.controllers" , "org.egov.processor.config"})
+@EnableAsync
 public class Main {
 
 

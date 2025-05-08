@@ -1,6 +1,7 @@
 package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotNull;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ public class PlanConfigurationSearchRequest {
 
     @JsonProperty("PlanConfigurationSearchCriteria")
     @Valid
+    @NotNull(message = "Plan configuration search criteria cannot be null")
     private PlanConfigurationSearchCriteria planConfigurationSearchCriteria = null;
 
 

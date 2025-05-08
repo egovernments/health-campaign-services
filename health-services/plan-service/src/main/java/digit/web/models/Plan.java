@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -51,7 +52,7 @@ public class Plan {
     private String status = null;
 
     @JsonProperty("assignee")
-    private List<String> assignee = null;
+    private Set<String> assignee = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
