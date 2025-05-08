@@ -282,6 +282,8 @@ function applyColumnProperties(row : ExcelJS.Row, cell: ExcelJS.Cell, columnProp
             fgColor: { argb: columnProps.color.replace('#', '') },
         };
     }
+
+    cell.alignment = { horizontal: 'center' };
 }
 
 
