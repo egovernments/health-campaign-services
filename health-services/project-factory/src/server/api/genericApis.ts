@@ -489,6 +489,7 @@ export async function createAndUploadFileWithOutRequest(
   while (retries--) {
     try {
       // Write the updated workbook to a buffer
+      logger.info("Creating form data for file upload...");
       const buffer = await updatedWorkbook.xlsx.writeBuffer();
 
       // Create form data for file upload
@@ -499,6 +500,7 @@ export async function createAndUploadFileWithOutRequest(
         tenantId
       );
       formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+      logger.info("Form data created.");
 
       // Make HTTP request to upload file
       var fileCreationResult = await httpRequest(
@@ -1563,7 +1565,7 @@ export async function callMdmsSchema(
   }
   const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
   if (!response?.mdms?.[0]?.data) {
-    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search for " + type);
   }
   return convertIntoNewSchema(response?.mdms?.[0]?.data);
 }

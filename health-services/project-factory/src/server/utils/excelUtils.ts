@@ -124,10 +124,13 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 
 
 export function enrichTemplateMetaData(updatedWorkbook : any, locale: string, campaignId: string) {
+  logger.info("Enriching template metadata...");
   updatedWorkbook.keywords = `${locale}#${campaignId}`
+  logger.info("Enriched template metadata");
 }
 
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
+  logger.info("Updating font name to Roboto...");
   worksheet?.eachRow({ includeEmpty: true }, (row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
       // Preserve existing font properties
@@ -140,6 +143,7 @@ function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
       };
     });
   });
+  logger.info("Font name updated to Roboto.");
 }
 
 function formatWorksheet(worksheet: any, datas: any, headerSet: any) {

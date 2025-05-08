@@ -10,7 +10,7 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     type = String(type);
     hierarchyType = String(hierarchyType);
     campaignId = String(campaignId);
-    const templateConfig = templateConfigs?.[String(type)];
+    const templateConfig = JSON.parse(JSON.stringify(templateConfigs?.[String(type)]));
     const responseToSend = initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, templateConfig, locale);
     return responseToSend;
 }

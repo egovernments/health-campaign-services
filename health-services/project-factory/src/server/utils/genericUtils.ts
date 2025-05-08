@@ -747,13 +747,6 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  // let receivedDropdowns = request.body?.dropdowns;
-
-  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-  //   logger.info("No dropdowns found");
-  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  // }
   await handledropdownthings(facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
@@ -778,8 +771,8 @@ export async function handledropdownthings(sheet: any, schema: any, localization
       result[newKey] = value.enum;
       return result;
     }, {});
-  if (dropdowns) {
-    logger.info("Dropdowns provided:", dropdowns);
+  if (dropdowns && Object.keys(dropdowns)?.length > 0) {
+    logger.info(`Managing dropdowns: ${JSON.stringify(dropdowns)}`);
     for (const key of Object.keys(dropdowns)) {
       let dropdownColumnIndex = -1;
       if (dropdowns[key]) {

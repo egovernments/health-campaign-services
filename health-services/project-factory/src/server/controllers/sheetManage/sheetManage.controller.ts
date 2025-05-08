@@ -7,7 +7,7 @@ import { getLocaleFromRequest } from "../../utils/localisationUtils";
 import GenerateTemplateQuery from "../../models/GenerateTemplateQuery";
 
 class SheetManageController {
-    public path = "/v1/sheet";
+    public path = "/v2/data";
     public router = express.Router();
 
     constructor() {

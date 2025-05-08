@@ -5,17 +5,30 @@ import { callMdmsSchema } from "../api/genericApis";
 import { getBoundaryOnWhichWeSplit, getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getHierarchy } from "../api/campaignApis";
+import { getReadMeConfig } from "../utils/genericUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
     // Static generate function
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
-        logger.info(`Response to send ${JSON.stringify(responseToSend)}`);
+        logger.info(`Response to send: ${JSON.stringify(responseToSend)}`);
 
-        const { tenantId, campaignId } = responseToSend;
-        const campaignDetails = await this.getCampaignDetails(tenantId, campaignId);
-        const schema = await this.getSchema(tenantId, campaignDetails.projectType);
+        const { tenantId, campaignId, type } = responseToSend;
+
+        // Run async operations in parallel
+        const [readMeConfig, campaignDetails] = await Promise.all([
+            getReadMeConfig(tenantId, type),
+            this.getCampaignDetails(tenantId, campaignId),
+        ]);
+
+        const schemaPromise = this.getSchema(tenantId, campaignDetails.projectType);
+
+        const sheetsConfig = templateConfig?.sheets?.[0];
+        const readMeColumnHeader = getLocalizedName(Object.keys(sheetsConfig?.schema?.properties || {})[0], localizationMap);
+        const readMeSheetName = getLocalizedName(sheetsConfig?.sheetName, localizationMap);
+
+        const readMeData = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
 
         const {
             boundaries,
@@ -25,24 +38,64 @@ export class TemplateClass {
             localisedHierarchyAfterSplit,
         } = await this.prepareBoundaryData(campaignDetails, tenantId, campaignId, localizationMap);
 
-        const filteredBoundaries = this.getFilteredBoundaries(
-            structuredBoundaries,
-            splitOn,
-            boundaries,
+        const [filteredBoundaries, schema] = await Promise.all([
+            Promise.resolve(this.getFilteredBoundaries(
+                structuredBoundaries,
+                splitOn,
+                boundaries,
+                localisedSolitOn,
+                localisedHierarchyAfterSplit,
+                localizationMap
+            )),
+            schemaPromise
+        ]);
+
+        const groupedBySheetName = this.groupBoundariesBySheetName(
+            filteredBoundaries,
             localisedSolitOn,
-            localisedHierarchyAfterSplit,
-            localizationMap
+            localisedHierarchyAfterSplit
         );
 
-        const groupedBySheetName = this.groupBoundariesBySheetName(filteredBoundaries, localisedSolitOn, localisedHierarchyAfterSplit);
         const dynamicColumns = this.getLocalizedDynamicColumns(schema, localizationMap);
 
-        return this.buildSheetMap(groupedBySheetName, dynamicColumns, localisedHierarchyAfterSplit);
+        return this.buildSheetMap(
+            groupedBySheetName,
+            dynamicColumns,
+            localisedHierarchyAfterSplit,
+            readMeData,
+            readMeColumnHeader,
+            readMeSheetName,
+            localizationMap
+        );
+    }
+
+
+    static getReadMeData(readMeConfig: any, readMeColumnHeader: any, localizationMap: any) {
+        const dataArray = [];
+        for (const text of readMeConfig?.texts) {
+            dataArray.push({ [readMeColumnHeader]: "" });
+            dataArray.push({ [readMeColumnHeader]: "" });
+            let header = getLocalizedName(text.header, localizationMap);
+            if (text.isHeaderBold) {
+                header = `**${header}**`;
+            }
+            dataArray.push({
+                [readMeColumnHeader]: header
+            })
+            for (const description of text.descriptions) {
+                dataArray.push({
+                    [readMeColumnHeader]: getLocalizedName(description.text, localizationMap)
+                })
+            }
+        }
+        logger.info(`Readme data prepared.`);
+        return dataArray;
     }
 
     private static async getCampaignDetails(tenantId: string, campaignId: string) {
         const result = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
-        return result?.CampaignDetails?.[0] || {};
+        if(!result?.CampaignDetails?.[0]) throw new Error("Campaign not found");
+        return result?.CampaignDetails?.[0];
     }
 
     private static async getSchema(tenantId: string, projectType: string) {
@@ -100,7 +153,7 @@ export class TemplateClass {
         const sheetNames = boundaries
             .filter((b: any) => b.type === splitOn)
             .map((b: any) => getLocalizedName(b.code, localizationMap));
-
+        const boundaryCodeKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
         return structuredBoundaries
             .filter((b: any) => sheetNames.includes(b[localisedSolitOn]))
             .map((b: any) => {
@@ -108,6 +161,7 @@ export class TemplateClass {
                 for (const key of localisedHierarchyAfterSplit) {
                     if (key in b) filtered[key] = b[key];
                 }
+                filtered[boundaryCodeKey] = b[boundaryCodeKey];
                 return filtered;
             });
     }
@@ -137,25 +191,59 @@ export class TemplateClass {
     private static buildSheetMap(
         groupedBySheetName: Record<string, any[]>,
         baseDynamicColumns: Record<string, any>,
-        localisedHierarchyAfterSplit: string[]
+        localisedHierarchyAfterSplit: string[],
+        readMeData: any[],
+        readMeColumnHeader: string,
+        readMeSheetName: string,
+        localizationMap: any
     ): SheetMap {
         const sheetMap: SheetMap = {};
-        for (const [sheetName, data] of Object.entries(groupedBySheetName)) {
-            const dynamicColumns = { ...baseDynamicColumns };
+        const hierarchyDynamicColumns = buildHierarchyColumns(localisedHierarchyAfterSplit);
+        const boundaryCodeColumn = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
 
-            for (const key of localisedHierarchyAfterSplit) {
-                dynamicColumns[key] = {
+        const commonDynamicColumns = {
+            ...baseDynamicColumns,
+            ...hierarchyDynamicColumns,
+            [boundaryCodeColumn]: {
+                color: "#f3842d",
+                hideColumn: true,
+                orderNumber: -1,
+                freezeColumn: true
+            }
+        };
+
+        for (const [sheetName, data] of Object.entries(groupedBySheetName)) {
+            sheetMap[sheetName] = {
+                dynamicColumns: { ...commonDynamicColumns },
+                data
+            };
+        }
+
+        sheetMap[readMeSheetName] = {
+            data: readMeData,
+            dynamicColumns: {
+                [readMeColumnHeader]: {
+                    adjustHeight: true,
+                    width: 120
+                }
+            }
+        };
+
+        return sheetMap;
+
+        function buildHierarchyColumns(keys: string[]): Record<string, any> {
+            return keys.reduce((acc, key, idx) => {
+                acc[key] = {
                     freezeColumn: true,
                     width: 60,
-                    color: "#93c47d",
-                    orderNumber: -1 * (localisedHierarchyAfterSplit.length - localisedHierarchyAfterSplit.indexOf(key))
+                    color: "#f3842d",
+                    orderNumber: -1 * (keys.length - idx + 1)
                 };
-            }
-
-            sheetMap[sheetName] = { dynamicColumns, data };
+                return acc;
+            }, {} as Record<string, any>);
         }
-        return sheetMap;
     }
+
 
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
         const result: any = [];

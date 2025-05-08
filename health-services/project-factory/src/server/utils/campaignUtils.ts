@@ -3847,7 +3847,7 @@ async function getDifferentTabGeneratedBasedOnConfig(
     localizationMap
   );
   let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(
-    request,
+    request?.query?.campaignId,
     request?.query?.tenantId
   );
   differentTabsBasedOnLevel = getLocalizedName(

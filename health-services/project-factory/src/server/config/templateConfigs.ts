@@ -19,6 +19,10 @@ export const templateConfigs : any = {
     },
     boundary:{
         sheets: [
+            {
+                sheetName: "HCM_README_SHEETNAME",
+                schemaName: "target-readme"
+            }
         ],
         processing: true,
         generation: true

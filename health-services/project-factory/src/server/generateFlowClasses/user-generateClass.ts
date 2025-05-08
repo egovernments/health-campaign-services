@@ -12,6 +12,7 @@ export class TemplateClass {
         logger.info("Generating template...");
         logger.info(`Response to send ${JSON.stringify(responseToSend)}`);
         const campaignDetailsResponse: any = await searchProjectTypeCampaignService({ tenantId: responseToSend.tenantId, ids: [responseToSend?.campaignId] });
+        if(!campaignDetailsResponse?.CampaignDetails?.[0]) throw new Error("Campaign not found");
         const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
         const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
         const readMeColumnHeader = getLocalizedName(Object.keys(templateConfig?.sheets?.[0]?.schema?.properties)?.[0], localizationMap);
