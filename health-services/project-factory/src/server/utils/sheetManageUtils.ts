@@ -76,6 +76,7 @@ const markAsExpired = (resources: any[], currentTime : number , userUuid : strin
         return {
             ...resource,
             status: generatedResourceStatuses.expired,
+            count: null,
             auditDetails: {
                 createdTime: parseInt(audit.createdTime ?? `${currentTime}`),
                 lastModifiedTime: currentTime,
