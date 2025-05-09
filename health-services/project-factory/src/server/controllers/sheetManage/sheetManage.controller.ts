@@ -16,14 +16,14 @@ class SheetManageController {
 
     generateData = async (req: express.Request, res: express.Response) => {
         try {
-            const { type, tenantId, hierarchyType, campaignId, additionalDetails } = req.query as Record<string, string>;
+            const { type, tenantId, hierarchyType, campaignId } = req.query as Record<string, string>;
             logger.info(`DATA GENERATE REQUEST RECEIVED :: TYPE = ${type}`);
             await validateGenerateRequest(req);
 
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
 
-            const data: GenerateTemplateQuery = { type, tenantId, hierarchyType, campaignId, additionalDetails };
+            const data: GenerateTemplateQuery = { type, tenantId, hierarchyType, campaignId };
             const GeneratedResource = await generateDataService(data, userUuid, locale);
 
             return sendResponse(res, { GeneratedResource }, req);
