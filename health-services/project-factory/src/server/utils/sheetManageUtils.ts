@@ -21,8 +21,7 @@ export async function initializeGenerateAndGetResponse(
     campaignId: string,
     userUuid: string,
     templateConfig: any,
-    locale: string = config.localisation.defaultLocale,
-    additionalDetails: any = {}
+    locale: string = config.localisation.defaultLocale
 ) {
     const currentTime = Date.now();
 
@@ -51,7 +50,7 @@ export async function initializeGenerateAndGetResponse(
         campaignId,
         locale,
         status: generatedResourceStatuses.inprogress,
-        additionalDetails,
+        additionalDetails : {},
         auditDetails: {
             createdTime: currentTime,
             lastModifiedTime: currentTime,
