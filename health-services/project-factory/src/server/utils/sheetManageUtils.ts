@@ -3,7 +3,7 @@ import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import * as ExcelJS from "exceljs";
 import { callMdmsSchema, createAndUploadFileWithOutRequest } from "../api/genericApis";
-import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings } from "./genericUtils";
+import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings, searchAllGeneratedResources } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
 import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
@@ -14,28 +14,78 @@ import { generatedResourceStatuses } from "../config/constants";
 import fs from 'fs';
 
 
-export async function initializeGenerateAndGetResponse(tenantId: string, type: string, hierarchyType: string, campaignId: string, userUuid: string, templateConfig: any, locale: string = config.localisation.defaultLocale, additionalDetails: any = {}) {
+export async function initializeGenerateAndGetResponse(
+    tenantId: string,
+    type: string,
+    hierarchyType: string,
+    campaignId: string,
+    userUuid: string,
+    templateConfig: any,
+    locale: string = config.localisation.defaultLocale,
+    additionalDetails: any = {}
+) {
     const currentTime = Date.now();
-    const responseToSend = {
+
+    const getResourcesByStatus = (status: string) =>
+        searchAllGeneratedResources({ tenantId, type, hierarchyType, status, campaignId }, locale);
+
+    const [completed, inProgress] : any = await Promise.all([
+        getResourcesByStatus(generatedResourceStatuses.completed),
+        getResourcesByStatus(generatedResourceStatuses.inprogress),
+    ]);
+
+    const expiredResources = [...markAsExpired(completed, currentTime, userUuid), ...markAsExpired(inProgress, currentTime, userUuid)];
+
+    if (expiredResources.length > 0) {
+        await produceModifiedMessages(
+            { generatedResource: expiredResources },
+            config.kafka.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC
+        );
+    }
+
+    const newResource = {
         id: uuidV4(),
-        tenantId: tenantId,
-        type: type,
-        hierarchyType: hierarchyType,
-        campaignId: campaignId,
-        locale: locale,
+        tenantId,
+        type,
+        hierarchyType,
+        campaignId,
+        locale,
         status: generatedResourceStatuses.inprogress,
         additionalDetails,
         auditDetails: {
-            lastModifiedTime: currentTime,
             createdTime: currentTime,
+            lastModifiedTime: currentTime,
             createdBy: userUuid,
-            lastModifiedBy: userUuid
-        }
+            lastModifiedBy: userUuid,
+        },
     };
-    await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC);
-    generateResource(responseToSend, templateConfig);
-    return responseToSend;
+
+    await produceModifiedMessages(
+        { generatedResource: [newResource] },
+        config.kafka.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC
+    );
+
+    generateResource(newResource, templateConfig);
+
+    return newResource;
 }
+
+const markAsExpired = (resources: any[], currentTime : number , userUuid : string) =>
+    resources.map((resource) => {
+        const audit = resource.auditDetails || {};
+        return {
+            ...resource,
+            status: generatedResourceStatuses.expired,
+            auditDetails: {
+                createdTime: parseInt(audit.createdTime ?? `${currentTime}`),
+                lastModifiedTime: currentTime,
+                createdBy: audit.createdBy ?? userUuid,
+                lastModifiedBy: userUuid,
+            },
+        };
+    });
+
+
 
 async function generateResource(responseToSend: any, templateConfig: any) {
     try {

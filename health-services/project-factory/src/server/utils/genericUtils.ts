@@ -225,11 +225,9 @@ const trimError = (e: any) => {
 }
 
 /* Fetches data from the database */
-async function searchGeneratedResources(request: any) {
+async function searchGeneratedResources(searchQuery : any, locale : any) {
   try {
-    const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
-    const msgIdRaw = request.body.RequestInfo?.msgId;
-    const locale = msgIdRaw?.split('|')[1] || null;
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
     let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
@@ -269,6 +267,55 @@ async function searchGeneratedResources(request: any) {
 
     // Add sorting and limiting
     queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error)
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+async function searchAllGeneratedResources(searchQuery: any, locale: any) {
+  try {
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
+    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+    if (type) {
+      queryConditions.push(`type = $${queryValues.length + 1}`);
+      queryValues.push(type);
+    }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+    if (campaignId) {
+      queryConditions.push(`campaignId = $${queryValues.length + 1}`);
+      queryValues.push(campaignId);
+    }
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+    queryString += queryConditions.join(" AND ");
 
     const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
@@ -1149,7 +1196,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 */
 async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
   // fetch the data from db  to check any request already exists
-  const responseData = await searchGeneratedResources(request);
+  const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
   // modify response from db 
   const modifiedResponse = await enrichAuditDetails(responseData);
   // generate new random id and make filestore id null
@@ -1657,7 +1704,7 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  // getBoundaryRelationshipData,
+  searchAllGeneratedResources,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,

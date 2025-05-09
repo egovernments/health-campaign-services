@@ -6,7 +6,7 @@ import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, sea
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
-import { getLocalisationModuleName } from "../utils/localisationUtils";
+import { getLocaleFromRequestInfo, getLocalisationModuleName } from "../utils/localisationUtils";
 import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
@@ -32,7 +32,7 @@ const downloadDataService = async (request: express.Request) => {
 
     const type = request.query.type;
     // Get response data from the database
-    const responseData = await searchGeneratedResources(request);
+    const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
     const resourceDetails = await getResourceDetails(request);
 
     // Check if response data is available
