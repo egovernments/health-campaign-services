@@ -66,7 +66,7 @@ export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLo
   if (!fileUrl) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
   }
-  else if(action === "validate"){
+  else if (action === "validate") {
     const workbook = await getExcelWorkbookFromFileURL(fileUrl);
     if (!workbook) {
       throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no workbook was found.");
@@ -123,7 +123,7 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook : any, locale: string, campaignId: string) {
+export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, campaignId: string) {
   logger.info("Enriching template metadata...");
   updatedWorkbook.keywords = `${locale}#${campaignId}`
   logger.info("Enriched template metadata");
@@ -417,7 +417,7 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
   let columnsToBeFreezed: any[] = [];
   let columnsToHide: any[] = [];
   if (fileUrl) {
-    columnsToHide = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",...schema?.columnsToHide];
+    columnsToHide = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToHide];
     columnsToHide.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
@@ -533,7 +533,7 @@ export function addHeadersFromSchema(
   const properties = schema?.properties || {};
 
   // Step 1: Sort properties based on orderNumber
-  const sortedProps : any[] = Object.entries(properties)
+  const sortedProps: any[] = Object.entries(properties)
     .sort(([_, a]: any, [__, b]: any) => (a.orderNumber || 0) - (b.orderNumber || 0));
 
   const expandedProps: {
@@ -604,7 +604,8 @@ export function addHeadersFromSchema(
 
 export function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
-  columnsToFreeze: string[]
+  columnsToFreeze: string[],
+  columnsToUnFreezeTillData: string[],
 ) {
   logger.info(`Freezing columns: ${columnsToFreeze}`);
   const headerRow = worksheet.getRow(1);
@@ -620,6 +621,10 @@ export function freezeUnfreezeColumns(
     .map(header => headerMap[header])
     .filter((col): col is number => !!col);
 
+  const tillDataIndexes = columnsToUnFreezeTillData
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
   const rowCount = worksheet.rowCount;
   const maxCol = worksheet.columnCount;
   const unfrozeTillRow = Number(config.values.unfrozeTillRow);
@@ -629,9 +634,17 @@ export function freezeUnfreezeColumns(
   for (let r = 2; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
       const headerValue = worksheet.getCell(1, c).value;
-      if (!freezeIndexes.includes(c) && headerValue) {
+      if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
         worksheet.getCell(r, c).protection = { locked: false };
       }
+    }
+  }
+
+  // 🔹 Step 2.1: Unlock columns in columnsToFreezeTillData only till last data row
+  let lastDataRow = worksheet.lastRow?.number ?? 1;
+  for (let r = 2; r <= lastDataRow; r++) {
+    for (const col of tillDataIndexes) {
+      worksheet.getCell(r, col).protection = { locked: false };
     }
   }
 
@@ -648,7 +661,7 @@ export function freezeUnfreezeColumns(
   }
 
   // Step 5: Apply or remove protection
-  if (freezeIndexes.length > 0) {
+  if (freezeIndexes.length > 0 || tillDataIndexes.length > 0) {
     worksheet.protect('passwordhere', {
       selectLockedCells: true,
       selectUnlockedCells: true
@@ -657,9 +670,6 @@ export function freezeUnfreezeColumns(
     worksheet.unprotect();
   }
 }
-
-
-
 
 
 

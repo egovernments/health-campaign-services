@@ -28,7 +28,7 @@ export async function initializeGenerateAndGetResponse(
     const getResourcesByStatus = (status: string) =>
         searchAllGeneratedResources({ tenantId, type, hierarchyType, status, campaignId }, locale);
 
-    const [completed, inProgress] : any = await Promise.all([
+    const [completed, inProgress]: any = await Promise.all([
         getResourcesByStatus(generatedResourceStatuses.completed),
         getResourcesByStatus(generatedResourceStatuses.inprogress),
     ]);
@@ -50,7 +50,7 @@ export async function initializeGenerateAndGetResponse(
         campaignId,
         locale,
         status: generatedResourceStatuses.inprogress,
-        additionalDetails : {},
+        additionalDetails: {},
         auditDetails: {
             createdTime: currentTime,
             lastModifiedTime: currentTime,
@@ -69,7 +69,7 @@ export async function initializeGenerateAndGetResponse(
     return newResource;
 }
 
-const markAsExpired = (resources: any[], currentTime : number , userUuid : string) =>
+const markAsExpired = (resources: any[], currentTime: number, userUuid: string) =>
     resources.map((resource) => {
         const audit = resource.auditDetails || {};
         return {
@@ -147,7 +147,10 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
                     (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
                 );
-                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap));
+                const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                    (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
+                )
+                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap));
                 manageMultiSelect(worksheet, schema, localizationMap);
                 await handledropdownthings(worksheet, schema, localizationMap);
                 updateFontNameToRoboto(worksheet);
@@ -231,6 +234,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
         target.adjustHeight ??= source.adjustHeight;
         target.freezeColumnIfFilled ??= source.freezeColumnIfFilled;
         target.showInProcessed ??= source.showInProcessed;
+        target.unFreezeColumnTillData ??= source.unFreezeColumnTillData;
 
         if (!isMulti) {
             target.freezeColumn ??= source.freezeColumn;

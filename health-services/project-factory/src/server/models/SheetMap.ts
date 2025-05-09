@@ -3,9 +3,10 @@ interface ColumnProperties {
     color?: string;
     orderNumber?: number;
     freezeColumn?: boolean;
+    unfreezeTillData?: boolean;
     hideColumn?: boolean;
     adjustHeight?: boolean;
-    freezeColumnIfFilled?: boolean;
+    unFreezeColumnTillData?: boolean;
     showInProcessed?: boolean;
 }
 
