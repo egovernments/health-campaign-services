@@ -10,15 +10,21 @@ public class ServiceConstants {
     public static final String EXTERNAL_SERVICE_EXCEPTION = "External Service threw an Exception: ";
     public static final String SEARCHER_SERVICE_EXCEPTION = "Exception while fetching from searcher: ";
 
+
     // Error Constants
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
     public static final String ERROR_CREATING_BOUNDARY_HIERARCHY_WITH_GIVEN_HIERARCHY = "Error encountered while creating boundary hierarchy with given hierarchy ";
+    public static final String ERROR_CREATING_BOUNDARY_ENTITY_WITH_GIVEN_BOUNDARY_CODES = "Error encountered while creating boundary entity for the given boundary codes";
+    public static final String ERROR_CREATING_BOUNDARY_RELATIONSHIP = "Error encountered while creating boundary relationship for the given boundary ";
+
 
     // Common constants
     public static final String BOUNDARY_CREATION_RESPONSE = "GeoPoDe Boundary Creation started successfully!";
     public static final String LOG_PLACEHOLDER = "{}";
 
+
+    // Sample Data
     public static final String HIERARCHY_TYPE = "admin1";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
